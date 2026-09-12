@@ -118,7 +118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>76.0%</strong><b>73 of 96 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.3%</strong><b>8 of 96 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 96 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 159 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 160 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -220,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>159</td>
+<td>160</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>159</td>
+<td>160</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5880.md</code></td>
@@ -843,8 +843,9 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>6.8.6 - Reception of BFD Control Packets</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5880-6.8.6-18">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L105" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L356" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestFirstPacketMatchesWhatTheTransportSurfaces</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L151" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5880-6.8.7-1">RFC5880-6.8.7-1</code></td><td colspan="3"><span class="rfc-subject">Transmission: must not transmit at interval less than max(bfd.DesiredMinTxInterval, bfd.RemoteMinRxInterval) less jitter (§6.8.7)</span></td></tr>
@@ -2528,12 +2529,17 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L151" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketWrongSourceDropped</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L105" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L356" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestFirstPacketMatchesWhatTheTransportSurfaces</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128" title="internal/component/bfd/engine/rfc5881_test.go" target="_blank" rel="noopener"><code>TestRFC5881FirstPacketMatchesByTuple</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -3663,7 +3669,7 @@ Fourteen MUST gaps, gated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

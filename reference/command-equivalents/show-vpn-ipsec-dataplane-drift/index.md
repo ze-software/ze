@@ -20,7 +20,7 @@ Compare what the IKE engine believes against what the kernel holds.
 - Command pipes: none
 - Pipe aliases: none
 
-Reports each Child SA the engine counts as installed whose SPI the kernel SAD does not hold. The command exits non-zero when it finds drift, so a script CAN test it. A rekey window holds two SPIs and is not drift.
+Reports each Child SA the engine counts as installed whose expected identity the kernel SAD does not hold. The command exits non-zero when it finds drift, so a script CAN test it. A rekey window holds two SPIs and is not drift.
 
 ## Arguments
 

@@ -2447,7 +2447,7 @@ help page prints its summary alone. An empty <code>Description</code> is a defec
 <code>validateNode</code> names each one by path.</p>
 <p>An RPC carries the same two texts, in the same two YANG statements.
 <code>ExtractRPCs</code> (<code>internal/component/config/yang/rpc.go</code>) writes them to
-<code>RPCMeta.Description</code> and <code>RPCMeta.Help</code>. <code>getHelpExtension</code> is the ONE reader
+<code>RPCMeta.Description</code> and <code>RPCMeta.Help</code>. <code>GetHelpExtension</code> is the ONE reader
 of the extension for both carriers. A command container reaches it through
 <code>Entry.Exts</code>, and an rpc through <code>gyang.RPC.Exts()</code>.
 <code>./le docvalid help-shape</code> holds the two corpora to one shape.</p>
@@ -2632,7 +2632,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
 <!-- source: internal/component/api/schema.go -- OpenAPISchema -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMeta, buildCommandMeta -->
-<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, getHelpExtension, PathToHelp -->
+<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, GetHelpExtension, PathToHelp -->
 <!-- source: internal/component/command/node.go -- Node, CommandEntry -->
 <!-- source: internal/component/plugin/server/command_registry.go -- RegisteredCommand, VisibleCommandEntries -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, commandHelpText -->
@@ -3695,7 +3695,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

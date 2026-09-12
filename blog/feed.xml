@@ -12,7 +12,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/reference-from-the-system/</guid>
             <pubDate>Sat, 22 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>How Ze builds its command reference from the binary, and why generated pages still need human judgement.</description>
+            <description>Ze's command and configuration declarations also feed its reference pages. That leaves the writing for the reasons behind the design, with a route back to the code when either needs to change.</description>
         </item>
         <item>
             <title>AI coding has not had its Rails moment</title>
@@ -20,7 +20,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/ai-coding-has-not-had-its-rails-moment/</guid>
             <pubDate>Mon, 10 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Rails gave developers and tools a shared project layout. AI coding needs a comparable convention for finding the decisions and evidence that each project must supply for itself.</description>
+            <description>Teaching Claude where to keep designs and how to find them changed the code it produced. Ze's repository became a meta-system for programming according to the project's own decisions.</description>
         </item>
         <item>
             <title>The repository is half the AI harness</title>
@@ -28,7 +28,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/the-repository-is-the-ai-harness/</guid>
             <pubDate>Sun, 09 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>A plugin change shows how Ze routes an AI agent from a task index to a rule, an implementation and a rejecting check, and what happens when those checks are wrong.</description>
+            <description>Ze's repository teaches an arriving agent how to use earlier project decisions. Its guidance and checks help with the next change, provided somebody also looks after the rules.</description>
         </item>
         <item>
             <title>The proof is the expensive part</title>
@@ -36,7 +36,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/the-proof-is-the-expensive-part/</guid>
             <pubDate>Thu, 06 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Following one malformed BGP attribute from the RFC through Ze's tests to its public evidence shows where the proof stops and what still needs human judgement.</description>
+            <description>Claude can produce a routing feature quickly. My network change-control instincts make me spend much longer establishing what it must do, and whether anything has demonstrated that it does it.</description>
         </item>
         <item>
             <title>How Ze reuses memory for BGP UPDATEs</title>
@@ -44,7 +44,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/how-ze-manages-memory/</guid>
             <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Following one BGP UPDATE through receive-buffer reuse, borrowed views, long-lived attributes and independently owned peer output.</description>
+            <description>Moving ExaBGP's ideas to Go would still leave plenty of unnecessary copying. How I chose the representations and lifetimes for BGP data in Ze.</description>
         </item>
         <item>
             <title>One BGP UPDATE, many peers</title>
@@ -52,7 +52,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/one-bgp-update-many-peers/</guid>
             <pubDate>Tue, 04 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>How Ze finishes each peer's policy decision before reusing a matching UPDATE-body rebuild, with separate ownership for each rebuilt send.</description>
+            <description>Ze's new forwarding path could rebuild the same UPDATE a hundred times. Why I chose to compare completed peer decisions, reuse the rebuild and keep the final copy.</description>
         </item>
         <item>
             <title>AI slop is the wrong test</title>
@@ -60,7 +60,7 @@
             <guid isPermaLink="true">https://ze-software.net/blog/ai-slop-is-the-wrong-test/</guid>
             <pubDate>Mon, 03 Aug 2026 00:00:00 +0000</pubDate>
             <dc:creator>Thomas Mangin</dc:creator>
-            <description>Ze is an AI-written network operating system. I remain responsible for what it ships, including the mistakes a model makes and the limits of the tests meant to catch them.</description>
+            <description>AI often writes better code than I would, and considerably more tests per feature. I have little patience for calling it all slop when human-written software has given us so much to complain about.</description>
         </item>
     </channel>
 </rss>

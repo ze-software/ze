@@ -11,10 +11,9 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **35 / 181** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **134 / 29425 (floor 132)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
-| Logged known-failing tests | Q3 | **2** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
+| Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-6 further metric(s) are within threshold and are listed in full below.
+7 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -22,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**134 / 29425 (floor 132)** (attention)
+**132 / 29796 (floor 132)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -65,7 +64,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 **1834 / 3047** (ok)
 
-60.2% of the 3047 gated MUSTs the 146 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3309 gated MUSTs across 181 enrolled RFCs -- and of the 1796 of those not proven in both polarities: 827 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 498 known gap (unimplemented, genuinely untested), 374 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 26 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 2 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 62 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.
+60.2% of the 3047 gated MUSTs the 146 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3309 gated MUSTs across 181 enrolled RFCs -- and of the 1795 of those not proven in both polarities: 827 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 498 known gap (unimplemented, genuinely untested), 373 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 26 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 2 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 62 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
 
@@ -78,21 +77,21 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 | rfc3032 | 17 |
 | rfc7166 | 17 |
 | rfc4862 | 16 |
+| draft-ietf-idr-linklocal-capability | 13 |
 | rfc2003 | 13 |
 | rfc9514 | 13 |
-| draft-ietf-idr-linklocal-capability | 13 |
 
 ### In-repo test inventory
 
-**29459 test functions** (ok)
+**29830 test functions** (ok)
 
-3987 Go test files, 83 fuzz targets, 133 benchmarks, 2012 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+4065 Go test files, 83 fuzz targets, 133 benchmarks, 2029 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**1434 / 3987** (ok)
+**1467 / 4065** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -104,12 +103,12 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/chaos/web | 0 | 10 | 0.0 |
 | internal/core/rib | 0 | 13 | 0.0 |
 | internal/core/stats | 0 | 5 | 0.0 |
-| internal/le/hookruntime | 0 | 5 | 0.0 |
-| internal/plugins/completion | 0 | 5 | 0.0 |
+| internal/le/hookruntime | 0 | 6 | 0.0 |
+| internal/le/leroot | 0 | 5 | 0.0 |
+| internal/plugins/completion | 0 | 6 | 0.0 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
-| internal/plugins/ddos | 3 | 31 | 9.7 |
+| internal/component/lg | 2 | 21 | 9.5 |
 | internal/component/doctor | 2 | 20 | 10.0 |
-| internal/component/sysrib | 2 | 20 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -122,7 +121,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 624 | 32 | 102 | 35 |
+| 2026 | 629 | 32 | 103 | 35 |
 
 ## Integrity
 
@@ -130,7 +129,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 
 ### Logged known-failing tests
 
-**2** (attention)
+**3** (attention)
 
 Reds logged rather than fixed, one shard file per live failure (42 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
 

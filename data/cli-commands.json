@@ -18978,7 +18978,7 @@
   {
     "path": "show bgp peer capabilities",
     "description": "Show what capabilities were negotiated with a peer.",
-    "long-help": "The row carries the peer address and the FSM state. Once the OPEN exchange\ncompleted, a negotiated map follows with the address families, the extended\nmessage capability, enhanced route refresh, and 4-byte ASN support. A selector\nthat matches no peer is refused with 'no matching peers'.",
+    "long-help": "The row carries the peer address and the FSM state. Once the OPEN exchange\ncompleted, a negotiated map follows with the address families, the extended\nmessage capability, enhanced route refresh, and 4-byte ASN support.\nnegotiated.paths-limit carries nonzero limits keyed by family: send is the\npeer's maximum paths per prefix enforced on our outbound updates; receive is\nour advertised receive request, not a locally enforced inbound limit. Zero or\nabsent limits are omitted. A selector that matches no peer is refused with\n'no matching peers'.",
     "mode": "read-only",
     "wire-method": "ze-bgp:peer-capabilities",
     "args": [
@@ -19132,7 +19132,7 @@
   {
     "path": "show bgp peer detail",
     "description": "Show full detail for one or more peers.",
-    "long-help": "Each peer row carries the remote and local ASN, the router ID, the peer type,\nand four timers: receive hold time, send hold time, keepalive, and connect\nretry. The 'connect' and 'accept' flags say which directions this session opens.\nA 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and\nEnd-of-RIB in each direction.",
+    "long-help": "Each peer row carries the remote and local ASN, the router ID, the peer type,\nand four timers: receive hold time, send hold time, keepalive, and connect\nretry. The 'connect' and 'accept' flags say which directions this session opens.\nA 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and\nEnd-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear\nunder capabilities.paths-limit, keyed by family: send is the peer's maximum\npaths per prefix enforced on our outbound updates; receive is our advertised\nreceive request, not a locally enforced inbound limit. Zero or absent limits\nare omitted.",
     "mode": "read-only",
     "wire-method": "ze-bgp:peer-detail",
     "args": [
@@ -49590,7 +49590,7 @@
   {
     "path": "show vpn ipsec dataplane drift",
     "description": "Compare what the IKE engine believes against what the kernel holds.",
-    "long-help": "Reports each Child SA the engine counts as\ninstalled whose SPI the kernel SAD does not hold. The command exits non-zero\nwhen it finds drift, so a script CAN test it. A rekey window holds two SPIs and\nis not drift.",
+    "long-help": "Reports each Child SA the engine counts as\ninstalled whose expected identity the kernel SAD does not hold. The command exits non-zero\nwhen it finds drift, so a script CAN test it. A rekey window holds two SPIs and\nis not drift.",
     "mode": "read-only",
     "wire-method": "ze-show:vpn-ipsec-dataplane-drift",
     "usage": "show vpn ipsec dataplane drift",
@@ -49836,7 +49836,7 @@
   {
     "path": "show vpn ipsec dataplane sa",
     "description": "Show the Security Association Database the kernel holds.",
-    "long-help": "Lists each installed ESP SA with its SPI,\naddresses, mode, algorithms, replay window, byte and packet counters, and\ntimestamps. Give 'spi <spi>' to show one SA. Without a selector the command\ndumps every SA, which on a device with many tunnels is one row per SA.",
+    "long-help": "Lists each installed ESP SA with its SPI,\naddresses, mode, algorithms, replay window, byte and packet counters, and\ntimestamps. Give 'spi <spi>' to show all matching SAs. Without a selector the command\ndumps every SA, which on a device with many tunnels is one row per SA.",
     "mode": "read-only",
     "wire-method": "ze-show:vpn-ipsec-dataplane-sa",
     "args": [

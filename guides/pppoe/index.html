@@ -285,10 +285,26 @@ way to see that refusal without a packet capture.</li>
 </tbody>
 </table>
 <ul>
-<li><code>ze_ppp_ipv6cp_identifier_refusals_total</code> -- IPv6CP negotiations refused for
+<li>
+<p><code>ze_ppp_ipv6cp_identifier_refusals_total</code> -- IPv6CP negotiations refused for
 want of a usable interface identifier, labelled by <code>reason</code>. Emitted by the
 shared PPP driver, so it counts L2TP and PPPoE subscribers alike; the three
-reasons are listed under "PPP negotiation counters" in <code>l2tp.md</code>.</li>
+reasons are listed under "PPP negotiation counters" in <code>l2tp.md</code>.</p>
+</li>
+<li>
+<p><code>ze_pppoe_discovery_read_errors_total</code> -- discovery socket read errors the
+discovery reader swallowed and retried, after ruling out the socket being
+closed. A separate counter from the refusal series above: a refusal is a
+decision about a well-formed read, this one is the socket itself failing
+to read at all. One AF_PACKET socket serves every configured access
+interface, so this counter is not split by interface.</p>
+</li>
+<li>
+<p><code>ze_ppp_reader_errors_total</code> -- socket read errors a PPP reader goroutine
+swallowed and retried, labelled <code>loop</code> (<code>ra</code>, <code>dhcpv6</code>). Emitted by the
+shared PPP driver, so it counts L2TP and PPPoE subscribers alike; listed
+under "Reader-loop error counters" in <code>l2tp.md</code>.</p>
+</li>
 </ul>
 <h2 id="concurrent-operation">Concurrent Operation</h2>
 <p>PPPoE and L2TP run concurrently on the same daemon. Both share the same
@@ -342,7 +358,7 @@ ID for L2TP) and SessionID.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

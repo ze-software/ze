@@ -115,11 +115,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 7 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>47.8%</strong><b>11 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -129,6 +129,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>7</strong><b>of 4 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -178,7 +183,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -216,16 +221,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>7</td>
+<td>23</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>7</td>
+<td>23</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-abraitis-idr-addpath-paths-limit.md</code></td>
@@ -241,12 +246,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements, all met and test-bound. 3-2 (limit ignored when ADD-PATH capability absent), 3-3 (per-family limit ignored when the AFI/SAFI was not in ADD-PATH), 3-4 (duplicate tuple: first considered, others ignored) each carry positive+negative tags on internal/core/bgp/capability negotiation/parse tests; 3-1 (a single PATHS-LIMIT capability instance carries all families) is {single-polarity: positive} bound to a new reactor emit test, since the encoder appends exactly one capability.PathsLimit by construction (internal/component/bgp/reactor/config_capabilities.go:388-391).</p>
+<p>Enrolled: BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements with positive and negative test carriers. For 3-1, coalescePathsLimit in internal/component/bgp/reactor/session_negotiate.go merges configuration and plugin declarations; TestBuildOpenCoalescesPathsLimit checks multiple families in one emitted instance and prevents repeated input instances from leaking into OPEN. For 3-2 and 3-3, core capability negotiation tests cover ADD-PATH present/absent and matching/unmatched families; for 3-4, TestParsePathsLimitDuplicateFirstWins covers retaining the first tuple and ignoring later duplicates. SHOULD-level zero handling (3-5) and session-wide sender enforcement (3-6) have separate parser, negotiation, and sender regression carriers.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
-<p><strong>What the ledger says is covered:</strong></p>
-Per-family path-count limit capability for ADD-PATH.
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path. The configuration knob states a request to the peer and does not bound what Ze accepts: a peer that ignores it is not policed.
+</details>
 <p><strong>What the ledger says remains:</strong></p>
 -
 </section>
@@ -256,11 +262,11 @@ Per-family path-count limit capability for ADD-PATH.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -279,8 +285,7 @@ Per-family path-count limit capability for ADD-PATH.
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#draft-abraitis-idr-addpath-paths-limit-3-2"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2</code></a>, <a href="#draft-abraitis-idr-addpath-paths-limit-3-3"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3</code></a>, <a href="#draft-abraitis-idr-addpath-paths-limit-3-4"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#draft-abraitis-idr-addpath-paths-limit-3-1"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#draft-abraitis-idr-addpath-paths-limit-3-1"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1</code></a>, <a href="#draft-abraitis-idr-addpath-paths-limit-3-2"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2</code></a>, <a href="#draft-abraitis-idr-addpath-paths-limit-3-3"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3</code></a>, <a href="#draft-abraitis-idr-addpath-paths-limit-3-4"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -292,9 +297,10 @@ Per-family path-count limit capability for ADD-PATH.
 <td>MUST</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L603" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimitSingleInstance</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder appends exactly one capability.PathsLimit holding all families at internal/component/bgp/reactor/config_capabilities.go:388-391, so no code path can emit a second instance and a two-instance negative case cannot be constructed</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L383" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L604" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimitSingleInstance</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L384" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-2">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present&#34; (§3)</span></td></tr>
 <tr><td></td>
@@ -319,8 +325,8 @@ Per-family path-count limit capability for ADD-PATH.
 <td>MUST</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L875" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L876" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L878" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L879" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-5">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If the received Paths Limit is zero (0), the tuple SHOULD be ignored&#34; (§3)</span></td></tr>
@@ -328,8 +334,11 @@ Per-family path-count limit capability for ADD-PATH.
 <td>SHOULD</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L745" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L846" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L746" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L847" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L906" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitZeroFirst</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-6">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6</code></td><td colspan="3"><span class="rfc-subject">&#34;A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability&#34; (§3)</span></td></tr>
@@ -337,8 +346,12 @@ Per-family path-count limit capability for ADD-PATH.
 <td>SHOULD</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L181" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L138" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L182" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L139" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-idr-addpath-paths-limit-3-7">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender&#34; (§3)</span></td></tr>
@@ -346,8 +359,9 @@ Per-family path-count limit capability for ADD-PATH.
 <td>SHOULD</td>
 <td>3 - PATHS-LIMIT Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L13" title="internal/component/bgp/reactor/config_paths_limit_test.go" target="_blank" rel="noopener"><code>TestConfiguredPathsLimitOpen</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L14" title="internal/component/bgp/reactor/config_paths_limit_test.go" target="_blank" rel="noopener"><code>TestConfiguredPathsLimitOpen</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -361,22 +375,32 @@ Per-family path-count limit capability for ADD-PATH.
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-1"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1</code></a></h3>
 <p>A BGP speaker wishing to indicate support for multiple AFI/SAFIs &#34;MUST do so by including the information in a single instance of the PATHS-LIMIT capability&#34; (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged on 2026-09-11 against the draft text and both carriers, after the config-parser carrier&#39;s claim was reworded. Section 3: &#34;A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the PATHS-LIMIT capability.&#34; TestBuildOpenCoalescesPathsLimit is what proves it. It drives buildOpen, the one producer of ze&#39;s OPEN, with four PATHS-LIMIT inputs: an empty configured instance, a configured ipv4/unicast tuple, and two raw code-76 plugin payloads carrying a duplicate and a zero tuple. It re-parses the encoded OPEN and makes two distinct assertions, not one wearing two hats. The negative is the draft&#39;s own violation shape offered as input, several instances in and require.Len(limits, 1) out. The positive is that the information for both families travels inside that one instance, pinned as exactly [ipv4/unicast 4, ipv4/multicast 3]. buildOpen runs twice in the loop, so a second OPEN over the same caller-owned capabilities cannot leak a second instance either. The read-back drops the plugin&#39;s ipv6/unicast limit-0 tuple under 3-5, which is why the expectation names two families and not three; the instance-count assertion is untouched by that skip, so no neighbouring rule decides this one. coalescePathsLimit (internal/component/bgp/reactor/session_negotiate.go) is the enforcing function and buildOpen calls it on every OPEN. Both polarities carry a discrimination record over it: &#34;merged == nil&#34; -&gt; true emits four instances and reds the negative, &#34;seen[f]&#34; -&gt; true empties the merged instance and reds the positive. TestParsePeerCapabilityPathsLimitSingleInstance is a subordinate positive one hop short of the wire, and its reworded claim now matches its body: it reads the capability list parsePeerFromTree BUILDS, asserts one *capability.PathsLimit holding both configured families, and never encodes or parses an OPEN. It adds no proof of this requirement, because the regression it prevents cannot reach a peer: a parser emitting one instance per family is merged back into one by coalescePathsLimit before any OPEN is encoded, and the other readers of ps.Capabilities (configuredCapabilities, read in reactor.go and reactor_api.go) take Multiprotocol families and ConfigProvider values rather than PATHS-LIMIT framing. It stays tagged as a true config-path regression guard whose claim no longer over-states it. Whether a redundant carrier is worth keeping is an owner decision, not an audit finding.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L384" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L603" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimitSingleInstance</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L604" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimitSingleInstance</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L383" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestBuildOpenCoalescesPathsLimit</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-2"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2</code></a></h3>
 <p>&#34;The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present&#34; (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestNegotiatePathsLimit pins both stored directions on exact values, the remote&#39;s 10 constraining our send and the local&#39;s 5 constraining the peer&#39;s send, so a direction swap fails it. TestNegotiatePathsLimitNoAddPath offers the same two PATHS-LIMIT capabilities with no ADD-PATH on either side and requires both maps to stay at zero. The producing branch is &#34;n.addPath[f]&amp;direction == 0&#34; in negotiatePathsLimitDirection (internal/core/bgp/capability/negotiated.go). The negative buffer holds Multiprotocol and PathsLimit only, so no neighbouring rule can trip first. No discrimination record: both tags predate HEAD and the gate grandfathers them.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -396,7 +420,7 @@ Per-family path-count limit capability for ADD-PATH.
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-3"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3</code></a></h3>
 <p>&#34;An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability&#34; (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. One test carries both polarities on two distinct assertions rather than one assertion wearing two hats: ipv4/unicast is present in ADD-PATH so its tuple applies in both directions (10 and 5), and ipv6/unicast is absent from ADD-PATH so both directions stay zero while its PATHS-LIMIT tuple is present in the same capability. Same producing branch as 3-2, evaluated per family. No discrimination record: the tags predate HEAD.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -416,18 +440,118 @@ Per-family path-count limit capability for ADD-PATH.
 </div>
 <h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-4"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4</code></a></h3>
 <p>When more than one tuple is received for the same AFI/SAFI pair, only the first tuple is considered and &#34;All others MUST be ignored&#34; (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestParsePathsLimitDuplicateFirstWins parses two ipv4/unicast tuples, limit 10 then limit 20, and requires one entry whose limit is 10. The positive is the kept value and the negative is the count, which are separate assertions over the same buffer. Removing the &#34;seen[f]&#34; guard in parsePathsLimit (internal/core/bgp/capability/capability.go) yields two entries, so the count assertion discriminates. No discrimination record: the tags predate HEAD.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L876" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L879" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L875" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L878" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitDuplicateFirstWins</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-5"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5</code></a></h3>
+<p>&#34;If the received Paths Limit is zero (0), the tuple SHOULD be ignored&#34; (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. parsePathsLimit marks a family seen BEFORE it skips a zero limit, so a first zero tuple also suppresses a later duplicate for that family. TestParsePathsLimitSkipZero covers the plain skip and TestParsePathsLimitZeroFirst covers that interplay with 3-4, requiring ipv4/unicast to stay absent even though a later duplicate advertises 10. TestNegotiatePathsLimitDuplicateEntries runs one set of tuples through the direct API and through the wire parser and requires the negotiated maps to hold ipv6 alone in both directions. All three units carry a discrimination record over &#34;limit == 0&#34; -&gt; false in parsePathsLimit, under which each goes red.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L847" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L906" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitZeroFirst</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L746" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L846" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParsePathsLimitSkipZero</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L745" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiatePathsLimitDuplicateEntries</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-6"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6</code></a></h3>
+<p>&#34;A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability&#34; (§3)</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L182" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L139" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L10" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L181" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitForwardWritersShareState</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_paths_limit_test.go#L138" title="internal/component/bgp/reactor/session_paths_limit_test.go" target="_blank" rel="noopener"><code>TestPathsLimitSessionAcrossUpdates</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/paths-limit-live.ci#L9" title="test/plugin/paths-limit-live.ci" target="_blank" rel="noopener"><code>paths-limit-live.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#draft-abraitis-idr-addpath-paths-limit-3-7"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7</code></a></h3>
+<p>&#34;An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender&#34; (§3)</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. The pair over TestConfiguredPathsLimitOpen is a strong test of half the sentence and nothing tests the other half. What it checks: the container knob `session &gt; capability &gt; add-path &gt; limit`, the per-family override, and the interaction with disabled, refused and required families decide the tuples encoded in the OPEN, with an omitted limit advertising none and a disabled or refused family unable to carry an orphan tuple. parseAddPathFromTree (internal/component/bgp/reactor/config_capabilities.go) derives the tuples from addPath.Families, the same slice that reaches the wire. What nothing checks, because no code does it: the draft asks for a knob that specifies &#34;the maximum number of paths to accept from a sender&#34;, and ze&#39;s knob states a number to the peer without bounding what ze accepts. EncodingCaps.PathsLimitRecv is read by internal/core/bgp/context/context.go, internal/component/bgp/format/json.go and internal/component/bgp/reactor/negotiated.go, all of which carry it into a negotiated context or into show output, and no reader drops a received path above it. A peer that ignores the request is not policed. The verdict is weak rather than enforced because the tag ties this body to the whole requirement, and the reading under which &#34;accept&#34; means local enforcement is not proven by anything. The absent behavior is disclosed on the summary&#39;s Support remaining row. No discrimination record was written, because the owner&#39;s open decision on building the receive side can reword this claim, and rewording stales a record.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L14" title="internal/component/bgp/reactor/config_paths_limit_test.go" target="_blank" rel="noopener"><code>TestConfiguredPathsLimitOpen</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_paths_limit_test.go#L13" title="internal/component/bgp/reactor/config_paths_limit_test.go" target="_blank" rel="noopener"><code>TestConfiguredPathsLimitOpen</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_test.go#L564" title="internal/component/bgp/reactor/config_test.go" target="_blank" rel="noopener"><code>TestParsePeerCapabilityPathsLimit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -558,7 +682,7 @@ Per-family path-count limit capability for ADD-PATH.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 13:12 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

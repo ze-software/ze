@@ -44,6 +44,10 @@ any of the three reloads the daemon.
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
+`commit` reaches the same reload as `ze signal reload`. Which configuration
+changes stop a session, and in what order, is in
+[The order of a commit](https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md#the-order-of-a-commit).
+
 The `|` after an editor command belongs to the editor's own filter language.
 It is separate from the operational command operators published by
 `ze help command --json`, so names such as `blame`, `compare`, and `history`

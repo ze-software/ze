@@ -164,6 +164,9 @@ any of the three reloads the daemon.</p>
 </tbody>
 </table>
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
+<p><code>commit</code> reaches the same reload as <code>ze signal reload</code>. Which configuration
+changes stop a session, and in what order, is in
+<a href="https://github.com/ze-software/ze/blob/main/docs/guide/config-reload.md#the-order-of-a-commit" target="_blank" rel="noopener">The order of a commit</a>.</p>
 <p>The <code>|</code> after an editor command belongs to the editor's own filter language.
 It is separate from the operational command operators published by
 <code>ze help command --json</code>, so names such as <code>blame</code>, <code>compare</code>, and <code>history</code>
@@ -559,7 +562,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

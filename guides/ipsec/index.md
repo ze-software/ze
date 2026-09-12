@@ -1018,9 +1018,10 @@ the kernel refused, a state it expired, and a policy that outlived its owner.
 
 | Command | What it reads |
 |---|---|
-| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects one SA. SPI 0 is refused, because RFC 4303 Section 2.1 reserves it and a typo must not look like a full dump |
+| `show vpn ipsec dataplane sa [spi <spi>]` | The Security Association Database: SPI, addresses, if-id, mode, algorithms, replay window, byte and packet counters, and timestamps. `spi <spi>` selects every matching SPI, which can occur under different destinations or interfaces. SPI 0 is refused under RFC 4303 Section 2.1 |
 | `show vpn ipsec dataplane policy` | The Security Policy Database: selector prefixes and ports, direction, priority, upper-layer protocol, if-id, tunnel endpoints, and the peer that installed each policy. A policy Ze did not install reports its owner as unknown |
-| `show vpn ipsec dataplane drift` | Each Child SA the engine counts as installed whose SPI the kernel does not hold. The command exits non-zero when it finds drift, so a script can test it |
+| `show vpn ipsec dataplane drift` | Each expected Child SA identity absent from the kernel. The command exits non-zero when it finds drift, so a script can test it |
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
 
 RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this command tree.
 
@@ -1031,23 +1032,26 @@ the truth is that nobody asked the kernel.
 
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, dataplaneReadError, activeDataplane -->
 
-Drift is compared in ONE direction. An SPI the kernel holds that the engine does not name
-is not drift. RFC 7296 Section 2.8 keeps the old and the new Child SA alive until the old
-one is deleted. A rekey window therefore holds two SPIs.
+Drift compares expected SA identities: SPI, destination, protocol, and XFRM
+interface ID. Extra kernel SAs are permitted during rekey. RFC 7296 Section 2.8
+permits the old and new Child SAs to coexist until cleanup.
+<!-- source: internal/component/ike/engine/health_drift.go -- driftingPeersFrom -->
 
 `show vpn ipsec sa` and `show vpn ipsec peer name <name>` carry the kernel counters in each
 child SA object: `bytes-in`, `packets-in`, `bytes-out`, and `packets-out`. They come from
-the kernel because the IKE engine never sees ESP payload. Each is null rather than zero
-when Ze cannot read the SAD, and `counters-known` says which answer you hold. Null says
-nobody asked the kernel. Zero says the SA carried nothing.
+the kernel because the IKE engine never sees ESP payload. A failed or changing
+observation sets `counters-known: false` and all counters to null. A stable SAD
+read sets `counters-known: true`; a missing SA then has null counters, while an
+SA that carried no traffic has numeric zero counters.
 
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- readSADCounters, addChildCounters -->
 
-The health registry folds the same comparison in. A peer whose Child SA the kernel does not
-hold reports `degraded` and names the peer. A dataplane that cannot be read is not drift,
-so it never turns the status green on a question nobody asked.
+The health registry uses the same observation. A missing expected Child SA
+reports `degraded` and names the peer. An unreadable or changing observation
+also reports `degraded`, with an unknown-dataplane diagnosis.
 
 <!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftDetail -->
+<!-- source: internal/component/ike/engine/health.go -- checkIPsecHealth -->
 
 IPsec is an enrolled kernel capability. When the configuration installs a Security
 Association and the kernel holds no XFRM dataplane, `ze doctor` reports
@@ -1113,19 +1117,18 @@ name of that guard.
 
 Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
 
-Two more gauges report the KERNEL, not what the engine believes it installed.
-`ze_ipsec_dataplane_sa_count{if_id}` reports how many SAs the kernel SAD holds
-under each XFRM if_id, and `ze_ipsec_dataplane_drift{peer}` reads 1 when the
-kernel does not hold a Child SA SPI the engine counts as installed. A kernel
-expiry, an external flush, or a rekey that stranded a policy each show up here
-while `ze_ipsec_tunnel_up` still reads 1, because that gauge reports the install
-call, not the kernel.
+Two more gauges report kernel state. `ze_ipsec_dataplane_sa_count{if_id}` counts
+SAs under each interface ID used by an installed Child SA.
+`ze_ipsec_dataplane_drift{peer}` reads 1 when the kernel lacks an expected SA
+identity. Kernel expiry or an external flush can produce drift while
+`ze_ipsec_tunnel_up` still reports a successful install.
+<!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges -->
 
-Neither dataplane gauge publishes a series when the kernel cannot be read: no
-backend loaded, a backend that cannot enumerate, or netlink refusing the dump
-without CAP_NET_ADMIN. A series an earlier scrape carried is deleted. Alert on
-the drift gauge being 1, never on it being absent, because absence says the
-question was not answered rather than answered no.
+A failed or changing dataplane observation removes both gauge families'
+previous series. Absent series mean the observation is unknown, not that the
+kernel holds no SAs or that no drift exists. Peer removal also removes the
+peer's drift series and unused interface-ID series.
+<!-- source: internal/component/ike/engine/metrics.go -- clearDataplaneGauges, publishDataplaneGauges, setGaugeSeries -->
 
 `ze_ipsec_tunnel_up` reads 1 only when the IKE SA is established and the Child SA is
 installed in the dataplane. A tunnel whose ESP install the kernel refused reads

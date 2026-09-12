@@ -82,6 +82,7 @@ into the protocol RIB.</p>
 <li><a href="#per-session-counters-labels-username-session-id-interface">Per-session counters (labels: username, session_id, interface)</a></li>
 <li><a href="#cqm-metrics-labels-username">CQM metrics (labels: username)</a></li>
 <li><a href="#ppp-negotiation-counters-labels-reason">PPP negotiation counters (labels: reason)</a></li>
+<li><a href="#reader-loop-error-counters">Reader-loop error counters</a></li>
 <li><a href="#radius-metrics-labels-server">RADIUS metrics (labels: server)</a></li>
 </ol></li>
 <li><a href="#web-ui">Web UI</a>
@@ -955,6 +956,38 @@ deliberately not a label: a subscriber daemon carries thousands of sessions.</p>
 </tbody>
 </table>
 <p>This counter is shared with PPPoE subscribers, which run the same PPP driver.</p>
+<h3 id="reader-loop-error-counters">Reader-loop error counters</h3>
+<p>A receiver goroutine that cannot classify a socket read error retries it
+with a growing delay, capped at 250ms, instead of spinning. Each swallowed
+error is counted, so a failing socket is visible on these counters without
+a profiler.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze_l2tp_listener_read_errors_total</code></td>
+<td>counter</td>
+<td>UDP read errors the L2TP listener's receiver goroutine swallowed and retried</td>
+</tr>
+<tr>
+<td><code>ze_ppp_reader_errors_total</code></td>
+<td>counter</td>
+<td>Socket read errors a PPP reader goroutine swallowed and retried, labelled <code>loop</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>ze_ppp_reader_errors_total</code> carries one series per reader: <code>loop="ra"</code> for
+the IPv6 Router Advertisement listener, <code>loop="dhcpv6"</code> for the DHCPv6-PD
+listener. Both run once per PPP session with a negotiated IPv6 interface
+identifier, for L2TP and PPPoE subscribers alike.</p>
+<p>The PPPoE discovery reader's own counter is listed in <code>pppoe.md</code>, because
+it is PPPoE-specific.</p>
 <h3 id="radius-metrics-labels-server">RADIUS metrics (labels: server)</h3>
 <table>
 <thead>
@@ -1290,7 +1323,7 @@ goroutine-per-tunnel.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

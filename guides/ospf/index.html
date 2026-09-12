@@ -139,12 +139,13 @@ and <code>ze_ospf_ptmp_host_routes{interface,af}</code> metrics track NBMA/PtMP 
 </code></pre>
 <p>The quotient is clamped to the range a Router-LSA link metric carries, 1 to 65535: RFC 2328 Appendix C.3 states that the interface output cost "must always be greater than 0", and the wire field is two octets wide. A link at or above the reference bandwidth therefore costs 1, and a link slow enough to exceed 65535 is capped there.</p>
 <p>The speed comes from the kernel, and which devices answer is the kernel's decision: a loopback, a dummy and a tunnel report none, a bridge and any link with no carrier report a negative speed, and a veth reports 10000 because its driver declares 10 Gbit/s. An interface with no reported speed costs 1, which is what Ze advertised for every unconfigured interface before auto-cost existed. Set <code>cost</code> on it to price it deliberately. The speed is read again on each origination pass rather than cached, so a link that renegotiates re-prices itself on the next pass. The same cost is what <code>show ospf interface</code> reports, what an LDP-IGP sync hold-down raises to <code>65535</code>, and what the RFC 3630 TE metric falls back to when <code>te-metric</code> is unset.</p>
-<p>Changing <code>reference-bandwidth</code> costs no adjacency. Ze re-prices each interface in place and originates its Router-LSA at the commit, so no neighbor goes down and no database exchange runs. Raise the leaf across a router with forty auto-costed links and all forty adjacencies stay up. Two reloads do restart an interface, because both change what it stamps into the Hellos it sends: a new router id, and an area type that changes the E-bit or the N-bit.</p>
+<p>Changing <code>reference-bandwidth</code>, or adding, changing, or removing an interface's <code>cost</code> leaf, preserves established adjacencies in every address family. Removing <code>cost</code> restores auto-cost from the current reference bandwidth and link speed. Ze re-prices each interface in place and requests self-LSA origination at the commit. If MinLSInterval prevents publication, the maintenance timer retries after the interval, including on passive-only and loopback-only routers. A new router ID or an area-type change that changes the E-bit or N-bit still restarts the affected interfaces. Other restart boundaries inside an interface block, including area, network type, timers, and authentication, remain unchanged.</p>
+<!-- source: internal/plugins/ospf/instance.go -- reconcile, startNeighborRetransmitLoop, openConfiguredInterface, interfaceParamsEqual, interfaceGlobalParamsChanged -->
 <p><code>reference-bandwidth</code> is one router-wide number. Every OSPFv3 address family under <code>address-family</code> prices a link exactly as the IPv4 family does, and no address family carries a reference bandwidth of its own, so one physical link never advertises two costs.</p>
 <!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig -->
 <!-- source: internal/plugins/ospf/interface_cost.go -- interfaceCost, interfaceLinkSpeedMbps -->
 <!-- source: internal/plugins/ospf/types/metric.go -- DefaultMetric -->
-<!-- source: internal/plugins/ospf/instance.go -- interfaceRuntimeConfigLocked, lsdbTopology, interfaceGlobalParamsChanged, repriceInterfaceLocked -->
+<!-- source: internal/plugins/ospf/instance.go -- interfaceRuntimeConfigLocked, lsdbTopology, interfaceParamsEqual, interfaceGlobalParamsChanged, repriceInterfaceLocked -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- Interface.SetCost -->
 <p>Three conditions report no speed for any interface, not only for one device. A VPP interface has no <code>/sys/class/net</code> entry, so the VPP backend answers 0 for every interface. A host that is not Linux runs the stub backend, which answers 0 for every interface. Ze itself answers 0 when no interface backend is loaded. Auto-cost prices nothing under these three conditions, and every interface with no <code>cost</code> leaf costs 1. Set <code>cost</code> on each interface you must price there.</p>
 <!-- source: internal/plugins/iface/vpp/query.go -- vppBackendImpl.LinkSpeedDuplex -->
@@ -579,7 +580,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

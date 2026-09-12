@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Dependencies - Ze</title>
-        <meta name="description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 48 packages across 8 groups." />
+        <meta name="description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 49 packages across 8 groups." />
         <meta property="og:title" content="Dependencies - Ze" />
-        <meta property="og:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 48 packages across 8 groups." />
+        <meta property="og:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 49 packages across 8 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Dependencies - Ze" />
-        <meta name="twitter:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 48 packages across 8 groups." />
+        <meta name="twitter:description" content="Every direct Go dependency Ze ships with and why, generated from go.mod -- 49 packages across 8 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Platform</span>
     <h1 id="dependencies-title">Dependencies</h1>
-    <p>Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight from <code>go.mod</code> so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.</p>
+    <p>Ze is Go, and Go code leans on packages. 49 direct dependencies, read straight from <code>go.mod</code> so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.</p>
 </div>
                 <input id="dep-search" type="search" placeholder="Filter dependencies (e.g. netlink, ssh, prometheus)..." aria-label="Filter dependencies" />
 <details class="dep-group" open>
@@ -100,16 +100,17 @@
 <tr><td><code>google.golang.org/grpc/cmd/protoc-gen-go-grpc</code></td><td><code>v1.6.2</code></td><td>Build-time only: the protoc plugin used to regenerate the gRPC API&#39;s Go bindings from ze.proto.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
-<summary>Observability <span class="dep-group-count">3</span></summary>
+<summary>Observability <span class="dep-group-count">4</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
 <tr><td><code>github.com/prometheus/client_golang</code></td><td><code>v1.24.1</code></td><td>Ze&#39;s internal metrics backend: counters, gauges, and histograms against a private registry.</td></tr>
+<tr><td><code>github.com/prometheus/common</code></td><td><code>v0.70.1</code></td><td>Reads the Prometheus text exposition format back: the IPsec interop test parses Ze&#39;s own metrics answer and compares the gauges against the kernel.</td></tr>
 <tr><td><code>github.com/prometheus/procfs</code></td><td><code>v0.22.0</code></td><td>Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.</td></tr>
 <tr><td><code>github.com/sirupsen/logrus</code></td><td><code>v1.10.2</code></td><td>Only to satisfy GoVPP&#39;s logging interface, bridged into Ze&#39;s own slog logger via a hook. Not used as Ze&#39;s own logger.</td></tr>
 </tbody></table></details>
 <details class="dep-group" open>
 <summary>Standard Library Extensions (golang.org/x) <span class="dep-group-count">7</span></summary>
 <table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>
-<tr><td><code>golang.org/x/crypto</code></td><td><code>v0.55.0</code></td><td>SSH protocol primitives and certificate signing for the SSH server, plus password hashing.</td></tr>
+<tr><td><code>golang.org/x/crypto</code></td><td><code>v0.56.0</code></td><td>SSH protocol primitives and certificate signing for the SSH server, plus password hashing.</td></tr>
 <tr><td><code>golang.org/x/mod</code></td><td><code>v0.40.0</code></td><td>Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy.</td></tr>
 <tr><td><code>golang.org/x/net</code></td><td><code>v0.58.0</code></td><td>Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP&#39;s auth.</td></tr>
 <tr><td><code>golang.org/x/sys</code></td><td><code>v0.47.0</code></td><td>Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components.</td></tr>
@@ -163,7 +164,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

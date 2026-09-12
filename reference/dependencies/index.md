@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 49 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
 ## Terminal, Web & SSH Interfaces (9)
 
@@ -56,11 +56,12 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 | `google.golang.org/protobuf` | `v1.36.12` | Runtime support for the generated protobuf message types behind Ze's gRPC API. |
 | `google.golang.org/grpc/cmd/protoc-gen-go-grpc` | `v1.6.2` | Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto. |
 
-## Observability (3)
+## Observability (4)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `github.com/prometheus/client_golang` | `v1.24.1` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
+| `github.com/prometheus/common` | `v0.70.1` | Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel. |
 | `github.com/prometheus/procfs` | `v0.22.0` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
 | `github.com/sirupsen/logrus` | `v1.10.2` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
@@ -68,7 +69,7 @@ Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `golang.org/x/crypto` | `v0.55.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
+| `golang.org/x/crypto` | `v0.56.0` | SSH protocol primitives and certificate signing for the SSH server, plus password hashing. |
 | `golang.org/x/mod` | `v0.40.0` | Parses and rewrites go.mod files when the appliance build prepares an isolated instance of the tree, so an image is never built from the tracked working copy. |
 | `golang.org/x/net` | `v0.58.0` | Raw ICMP packet connections for the traceroute plugin, and hostname normalization for MCP's auth. |
 | `golang.org/x/sys` | `v0.47.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |

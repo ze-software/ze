@@ -1716,7 +1716,7 @@ name the URLs that run actually read.</p>
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system/rir/delegation-source -->
 <h3 id="show-vpn-ipsec-dataplane">show vpn ipsec dataplane</h3>
 <pre><code>show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
-show vpn ipsec dataplane sa spi &lt;spi&gt;        # One SA, by SPI (1-4294967295)
+show vpn ipsec dataplane sa spi &lt;spi&gt;        # Matching SAs, by SPI (1-4294967295)
 show vpn ipsec dataplane policy              # The Security Policy Database the kernel holds
 show vpn ipsec dataplane drift               # Where engine belief and kernel state disagree
 </code></pre>
@@ -1729,10 +1729,12 @@ counters, and the add and use timestamps. It never renders key material.
 <code>policy</code> lists each policy with its selector prefixes and ports, direction,
 priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
 installed it. A policy Ze did not install reports its owner as unknown.</p>
-<p><code>drift</code> names each Child SA the engine counts as installed whose SPI the kernel
-does not hold, and exits non-zero when it finds one. It exits zero when the two
-agree. A rekey window is not drift: RFC 7296 Section 2.8 keeps the old and the
-new Child SA alive together.</p>
+<p><code>drift</code> names each expected Child SA identity the kernel does not hold and exits
+non-zero when it finds one. Identity includes SPI, destination, protocol, and
+XFRM interface ID. Extra kernel SAs are permitted during rekey. A failed or
+changing observation returns an error rather than a clean result.</p>
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 <p>A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
 process without CAP_NET_ADMIN. An empty table would answer "nothing is
@@ -3039,6 +3041,14 @@ matched peers:</p>
 <pre><code class="language-json">{"peers": [{"peer": "192.0.2.1", "state": "idle", "negotiation-complete": false}]}
 </code></pre>
 <p>A capabilities row adds a <code>negotiated</code> object once the session negotiates.</p>
+<p>The <code>negotiated</code> object carries <code>paths-limit</code> when the session negotiated
+PATHS-LIMIT (capability 76) for a family that also negotiated ADD-PATH. The
+<code>send</code> map holds the limit the peer advertised, which caps the number of paths
+Ze announces to that peer for each prefix. The <code>receive</code> map holds the limit Ze
+advertised, which is what Ze asked the peer for. A family with ADD-PATH and no
+limit is in neither map, because no limit is not a limit of zero. The same
+object appears under <code>capabilities</code> on <code>show bgp peer &lt;sel&gt; detail</code>.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPathsLimitFields -->
 <p>Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. <code>show bgp peer * statistics | count</code> therefore answered on a
 router with three peers, and was refused on a router with one. A script that
@@ -4317,7 +4327,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

@@ -406,6 +406,14 @@ every `ze.conf` (`renderScenario`), so no scenario carries the boilerplate and
 none can forget it. The native IPsec plan appends the same blocks in
 `renderZeConfig` (`internal/le/interoplab/ipsec/ipsec.go`).
 
+Rendered configurations stay under `tmp/interop-rendered` in the checkout.
+Docker must share the checkout with its Linux VM. An unshared system-temp path
+gives the container a directory instead of the configuration file.
+IPsec and L2TP create private directories there even without an AI session ID.
+<!-- source: internal/le/interoplab/lab.go -- RenderedConfigDirectory -->
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- renderInitiatorConfig -->
+
 **A Ze helper never converts a failed query into a plausible number.**
 `Ze.rib_count` raises when the command fails or answers without a `routes-in`
 field, because 0 is a legitimate RIB size and a failed query is not
@@ -439,11 +447,42 @@ about the uint64 byte counter beside it.
 Two empty sets are equal, so a read-only comparison passes over a kernel that
 holds nothing, which is what the dump answers with its whole body deleted.
 `requireSameSPISet` refuses an empty side first and names which side was empty.
-`requireSPISetChanged` then refuses a rekey after which the set is unchanged, so
-`dataplane-readback` asserts a transition rather than a state: RFC 7296
-Section 2.8 replaces the SPI while the selector stays identical.
+`requireSPISetChanged` refuses any old SPI that remains after rekey. The checker
+polls through the bounded old-SA cleanup window until Ze and iproute2 agree on a
+nonempty replacement set, and checks strongSwan's kernel against that set too.
+RFC 7296 Section 2.8 permits overlap during rekey; overlap after cleanup fails.
 <!-- source: internal/le/interoplab/ipsec/helpers.go -- decodeZeDataplaneSPIs, spiValues, requireSameSPISet, requireSPISetChanged -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkDataplaneReadback -->
+
+The same scenario reads all four Child SA byte and packet counters as `uint64`
+values and compares them with the directed lifetime-current records from
+`ip -s xfrm state`. It samples before and after bidirectional traffic and requires
+each counter to advance. A bounded one-way probe makes the directions differ,
+so swapping inbound and outbound counters cannot pass on a symmetric ping.
+
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- requireZeCountersAdvanced, readbackAsymmetricTraffic, requireCounterAdvancement -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- readbackCounters, requireDirectedCounters -->
+Dataplane observation also crosses the live operator surfaces. With the
+Prometheus exporter enabled, the checker scrapes the installed-SA count and
+clean drift gauge, deletes one kernel SA, and requires CLI drift, degraded
+`show health`, and the corresponding gauge transition. It restores the kernel
+state and waits for recovery. Removing the configured peer then removes both
+the peer and interface-label series.
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkDataplaneMonitoring, requireLiveDataplaneHealth -->
+
+An unreadable observation is induced inside the Ze scenario container by
+temporarily setting only the daemon's soft `RLIMIT_NOFILE` to zero. The netlink
+package's default handle opens a socket for each XFRM dump. A Python helper
+opens and warms an HTTP connection before changing the limit, scrapes that same
+connection until both dataplane metric families have no series, and restores
+the original limit in `finally`. Reconnection is refused during the fault.
+During the fault, live health must identify an unknown or unreadable dataplane;
+the preceding known-drift diagnosis cannot satisfy that assertion. Restoring
+the limit must restore both the drift diagnosis and the published drift gauges.
+The checker requires published series before the fault and their return after
+restoration, so an exporter that never publishes cannot satisfy the test.
+This helper needs Python in the lab image; it changes no production backend.
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- unreadableDataplaneProbe, requireUnreadableDataplane -->
 
 All session waiters use explicit bounds (default 90 seconds, override via
 `SESSION_TIMEOUT`). The harness passes that value into the Ze container so a

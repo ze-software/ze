@@ -19,7 +19,7 @@ Expected initial release: Q4 2026.
 
 ### [Reference stays attached to code](https://ze-software.net/blog/reference-from-the-system/)
 
-How Ze builds its command reference from the binary, and why generated pages still need human judgement.
+Ze's command and configuration declarations also feed its reference pages. That leaves the writing for the…
 
  Recently shipped
 
@@ -37,7 +37,7 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**29,400+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**29,800+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
@@ -168,14 +168,6 @@ A lab peer, a migrated ExaBGP config, or a looking-glass instance can produce us
 ## Safe ways to try Ze before the first release.
 
 Ze is early enough that routing feedback can still change the system. These cards give each reader a low-risk starting point.
-
-**IXP**
-
-### [Route server](https://ze-software.net/use-cases/route-server/)
-
-IXP operators can run the route-server lab first and compare policy behaviour before touching members.
-
-`Peering` `Policy` `Replay` Route server policy and replay
 
 **Lab**
 

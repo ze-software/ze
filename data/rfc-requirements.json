@@ -317,9 +317,9 @@
       "display": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT",
       "title": "Scalability Considerations for ADD-PATH with PATHS-LIMIT",
       "enrolled": true,
-      "enrolment-reason": "BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements, all met and test-bound. 3-2 (limit ignored when ADD-PATH capability absent), 3-3 (per-family limit ignored when the AFI/SAFI was not in ADD-PATH), 3-4 (duplicate tuple: first considered, others ignored) each carry positive+negative tags on internal/core/bgp/capability negotiation/parse tests; 3-1 (a single PATHS-LIMIT capability instance carries all families) is {single-polarity: positive} bound to a new reactor emit test, since the encoder appends exactly one capability.PathsLimit by construction (internal/component/bgp/reactor/config_capabilities.go:388-391).",
+      "enrolment-reason": "BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements with positive and negative test carriers. For 3-1, coalescePathsLimit in internal/component/bgp/reactor/session_negotiate.go merges configuration and plugin declarations; TestBuildOpenCoalescesPathsLimit checks multiple families in one emitted instance and prevents repeated input instances from leaking into OPEN. For 3-2 and 3-3, core capability negotiation tests cover ADD-PATH present/absent and matching/unmatched families; for 3-4, TestParsePathsLimitDuplicateFirstWins covers retaining the first tuple and ignoring later duplicates. SHOULD-level zero handling (3-5) and session-wide sender enforcement (3-6) have separate parser, negotiation, and sender regression carriers.",
       "public-status": "Supported",
-      "public-coverage": "Per-family path-count limit capability for ADD-PATH.",
+      "public-coverage": "Receiver-advertised per-family path-count requests for ADD-PATH, with session-wide outbound enforcement across normal sends and forwarding, including the route-server fast path. The configuration knob states a request to the peer and does not bound what Ze accepts: a peer that ignores it is not policed.",
       "public-remaining": "-",
       "summary-path": "rfc/short/draft-abraitis-idr-addpath-paths-limit.md",
       "shard-path": "rfc/requirements/draft-abraitis-idr-addpath-paths-limit.md",
@@ -327,21 +327,21 @@
       "coverage": {
         "requirements": 7,
         "gated": 4,
-        "both": 3,
+        "both": 4,
         "one": 0,
-        "annotated": 1,
+        "annotated": 0,
         "missing": 0,
         "nightly-only": 0,
         "gaps": 0,
         "gated-gaps": 0,
         "out-of-scope": 0,
-        "excused-one-polarity": 1,
+        "excused-one-polarity": 0,
         "met-below": 0,
         "optional-not-offered": 0,
-        "tags": 7,
-        "units": 7,
-        "audited": 0,
-        "discrimination-records": 0,
+        "tags": 23,
+        "units": 23,
+        "audited": 7,
+        "discrimination-records": 11,
         "escapes": 0,
         "stale-records": 0
       },
@@ -352,26 +352,61 @@
           "section": "3",
           "text": "A BGP speaker wishing to indicate support for multiple AFI/SAFIs \"MUST do so by including the information in a single instance of the PATHS-LIMIT capability\" (§3)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/reactor/config_test.go` `TestParsePeerCapabilityPathsLimitSingleInstance` (unit/verify)",
-          "negative-test": "--",
-          "note": "{single-polarity} the encoder appends exactly one capability.PathsLimit holding all families at internal/component/bgp/reactor/config_capabilities.go:388-391, so no code path can emit a second instance and a two-instance negative case cannot be constructed",
+          "positive-test": "`internal/component/bgp/reactor/config_test.go` `TestParsePeerCapabilityPathsLimitSingleInstance` (unit/verify), `internal/component/bgp/reactor/session_negotiate_test.go` `TestBuildOpenCoalescesPathsLimit` (unit/verify)",
+          "negative-test": "`internal/component/bgp/reactor/session_negotiate_test.go` `TestBuildOpenCoalescesPathsLimit` (unit/verify)",
+          "note": "",
           "nightly-only": false,
-          "annotation": {
-            "kind": "single-polarity",
-            "polarity": "positive",
-            "reason": "the encoder appends exactly one capability.PathsLimit holding all families at internal/component/bgp/reactor/config_capabilities.go:388-391, so no code path can emit a second instance and a two-instance negative case cannot be constructed"
-          },
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit",
+              "file": "internal/component/bgp/reactor/session_negotiate_test.go",
+              "line": 384,
+              "carrier": "unit/verify",
+              "claim": "-- repeated configuration and plugin instances, including an empty instance and duplicate tuples, do not escape as multiple OPEN capabilities.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_negotiate.go::coalescePathsLimit",
+                "break": "line 291: \"merged == nil\" -\u003e \"true\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimitSingleInstance",
               "file": "internal/component/bgp/reactor/config_test.go",
-              "line": 603,
+              "line": 604,
               "carrier": "unit/verify",
-              "claim": "-- multiple AFI/SAFIs are advertised in a single instance of the PATHS-LIMIT capability.",
+              "claim": "-- the config parser builds one PathsLimit capability holding both configured families.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit",
+              "file": "internal/component/bgp/reactor/session_negotiate_test.go",
+              "line": 383,
+              "carrier": "unit/verify",
+              "claim": "-- configuration and raw plugin families reach the peer together in one PATHS-LIMIT instance.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_negotiate.go::coalescePathsLimit",
+                "break": "line 300: \"seen[f]\" -\u003e \"true\"",
+                "verified": true,
+                "proves": true
+              }
             }
-          ]
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "Re-judged on 2026-09-11 against the draft text and both carriers, after the config-parser carrier's claim was reworded. Section 3: \"A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the PATHS-LIMIT capability.\" TestBuildOpenCoalescesPathsLimit is what proves it. It drives buildOpen, the one producer of ze's OPEN, with four PATHS-LIMIT inputs: an empty configured instance, a configured ipv4/unicast tuple, and two raw code-76 plugin payloads carrying a duplicate and a zero tuple. It re-parses the encoded OPEN and makes two distinct assertions, not one wearing two hats. The negative is the draft's own violation shape offered as input, several instances in and require.Len(limits, 1) out. The positive is that the information for both families travels inside that one instance, pinned as exactly [ipv4/unicast 4, ipv4/multicast 3]. buildOpen runs twice in the loop, so a second OPEN over the same caller-owned capabilities cannot leak a second instance either. The read-back drops the plugin's ipv6/unicast limit-0 tuple under 3-5, which is why the expectation names two families and not three; the instance-count assertion is untouched by that skip, so no neighbouring rule decides this one. coalescePathsLimit (internal/component/bgp/reactor/session_negotiate.go) is the enforcing function and buildOpen calls it on every OPEN. Both polarities carry a discrimination record over it: \"merged == nil\" -\u003e true emits four instances and reds the negative, \"seen[f]\" -\u003e true empties the merged instance and reds the positive. TestParsePeerCapabilityPathsLimitSingleInstance is a subordinate positive one hop short of the wire, and its reworded claim now matches its body: it reads the capability list parsePeerFromTree BUILDS, asserts one *capability.PathsLimit holding both configured families, and never encodes or parses an OPEN. It adds no proof of this requirement, because the regression it prevents cannot reach a peer: a parser emitting one instance per family is merged back into one by coalescePathsLimit before any OPEN is encoded, and the other readers of ps.Capabilities (configuredCapabilities, read in reactor.go and reactor_api.go) take Multiprotocol families and ConfigProvider values rather than PATHS-LIMIT framing. It stays tagged as a true config-path regression guard whose claim no longer over-states it. Whether a redundant carrier is worth keeping is an owner decision, not an audit finding.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2",
@@ -402,7 +437,13 @@
               "claim": "-- with ADD-PATH negotiated for the family, the PATHS-LIMIT is honored and stored per direction.",
               "tags": 1
             }
-          ]
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "TestNegotiatePathsLimit pins both stored directions on exact values, the remote's 10 constraining our send and the local's 5 constraining the peer's send, so a direction swap fails it. TestNegotiatePathsLimitNoAddPath offers the same two PATHS-LIMIT capabilities with no ADD-PATH on either side and requires both maps to stay at zero. The producing branch is \"n.addPath[f]\u0026direction == 0\" in negotiatePathsLimitDirection (internal/core/bgp/capability/negotiated.go). The negative buffer holds Multiprotocol and PathsLimit only, so no neighbouring rule can trip first. No discrimination record: both tags predate HEAD and the gate grandfathers them.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3",
@@ -433,7 +474,13 @@
               "claim": "-- the IPv4 tuple is present in ADD-PATH, so its PATHS-LIMIT tuple applies.",
               "tags": 1
             }
-          ]
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "One test carries both polarities on two distinct assertions rather than one assertion wearing two hats: ipv4/unicast is present in ADD-PATH so its tuple applies in both directions (10 and 5), and ipv6/unicast is absent from ADD-PATH so both directions stay zero while its PATHS-LIMIT tuple is present in the same capability. Same producing branch as 3-2, evaluated per family. No discrimination record: the tags predate HEAD.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4",
@@ -450,7 +497,7 @@
               "polarity": "negative",
               "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins",
               "file": "internal/core/bgp/capability/capability_test.go",
-              "line": 876,
+              "line": 879,
               "carrier": "unit/verify",
               "claim": "-- all other duplicate tuples for that pair are ignored (the limit-20 duplicate is dropped, one entry remains).",
               "tags": 1
@@ -459,12 +506,18 @@
               "polarity": "positive",
               "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins",
               "file": "internal/core/bgp/capability/capability_test.go",
-              "line": 875,
+              "line": 878,
               "carrier": "unit/verify",
               "claim": "-- for a repeated AFI/SAFI pair only the first tuple is considered (limit 10 kept).",
               "tags": 1
             }
-          ]
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "TestParsePathsLimitDuplicateFirstWins parses two ipv4/unicast tuples, limit 10 then limit 20, and requires one entry whose limit is 10. The positive is the kept value and the negative is the count, which are separate assertions over the same buffer. Removing the \"seen[f]\" guard in parsePathsLimit (internal/core/bgp/capability/capability.go) yields two entries, so the count assertion discriminates. No discrimination record: the tags predate HEAD.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
@@ -472,10 +525,87 @@
           "section": "3",
           "text": "\"If the received Paths Limit is zero (0), the tuple SHOULD be ignored\" (§3)",
           "gated": false,
-          "positive-test": "--",
-          "negative-test": "--",
+          "positive-test": "`internal/core/bgp/capability/capability_test.go` `TestParsePathsLimitSkipZero` (unit/verify), `internal/core/bgp/capability/negotiated_test.go` `TestNegotiatePathsLimitDuplicateEntries` (unit/verify)",
+          "negative-test": "`internal/core/bgp/capability/capability_test.go` `TestParsePathsLimitSkipZero` (unit/verify), `internal/core/bgp/capability/capability_test.go` `TestParsePathsLimitZeroFirst` (unit/verify), `internal/core/bgp/capability/negotiated_test.go` `TestNegotiatePathsLimitDuplicateEntries` (unit/verify)",
           "note": "",
-          "nightly-only": false
+          "nightly-only": false,
+          "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero",
+              "file": "internal/core/bgp/capability/capability_test.go",
+              "line": 847,
+              "carrier": "unit/verify",
+              "claim": "-- the received zero IPv4 tuple is omitted rather than imposing a zero-path limit.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+                "break": "line 873: \"limit == 0\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
+              "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitZeroFirst",
+              "file": "internal/core/bgp/capability/capability_test.go",
+              "line": 906,
+              "carrier": "unit/verify",
+              "claim": "-- ignoring a first zero tuple leaves that family without a limit even when a later duplicate advertises a nonzero value.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+                "break": "line 873: \"limit == 0\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
+              "unit": "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries",
+              "file": "internal/core/bgp/capability/negotiated_test.go",
+              "line": 746,
+              "carrier": "unit/verify",
+              "claim": "-- neither direct nor wire-parsed zero-first tuples impose an IPv4 limit in either negotiated direction.",
+              "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero",
+              "file": "internal/core/bgp/capability/capability_test.go",
+              "line": 846,
+              "carrier": "unit/verify",
+              "claim": "-- the nonzero IPv6 limit remains usable when another family's received limit is zero.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+                "break": "line 873: \"limit == 0\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/core/bgp/capability/negotiated_test.go::TestNegotiatePathsLimitDuplicateEntries",
+              "file": "internal/core/bgp/capability/negotiated_test.go",
+              "line": 745,
+              "carrier": "unit/verify",
+              "claim": "-- direct and wire-parsed capabilities preserve the nonzero IPv6 limit alongside a zero IPv4 tuple.",
+              "tags": 1
+            }
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "parsePathsLimit marks a family seen BEFORE it skips a zero limit, so a first zero tuple also suppresses a later duplicate for that family. TestParsePathsLimitSkipZero covers the plain skip and TestParsePathsLimitZeroFirst covers that interplay with 3-4, requiring ipv4/unicast to stay absent even though a later duplicate advertises 10. TestNegotiatePathsLimitDuplicateEntries runs one set of tuples through the direct API and through the wire parser and requires the negotiated maps to hold ipv6 alone in both directions. All three units carry a discrimination record over \"limit == 0\" -\u003e false in parsePathsLimit, under which each goes red.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
@@ -483,10 +613,120 @@
           "section": "3",
           "text": "\"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability\" (§3)",
           "gated": false,
-          "positive-test": "--",
-          "negative-test": "--",
+          "positive-test": "`internal/component/bgp/reactor/session_paths_limit_test.go` `TestPathsLimitSessionAcrossUpdates` (unit/verify), `internal/component/bgp/reactor/session_paths_limit_test.go` `TestPathsLimitForwardWritersShareState` (unit/verify), `test/plugin/paths-limit-live.ci` (functional/verify)",
+          "negative-test": "`internal/component/bgp/reactor/session_paths_limit_test.go` `TestPathsLimitSessionAcrossUpdates` (unit/verify), `internal/component/bgp/reactor/session_paths_limit_test.go` `TestPathsLimitForwardWritersShareState` (unit/verify), `test/plugin/paths-limit-live.ci` (functional/verify)",
           "note": "",
-          "nightly-only": false
+          "nightly-only": false,
+          "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState",
+              "file": "internal/component/bgp/reactor/session_paths_limit_test.go",
+              "line": 182,
+              "carrier": "unit/verify",
+              "claim": "-- re-encoded forwarding cannot exceed a prefix's limit after raw forwarding has consumed its slot.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+                "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates",
+              "file": "internal/component/bgp/reactor/session_paths_limit_test.go",
+              "line": 139,
+              "carrier": "unit/verify",
+              "claim": "-- excess paths for the same prefix never reach the wire, including a later all-withheld batch and a retry after an unknown withdrawal.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+                "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
+              "unit": "test/plugin/paths-limit-live.ci",
+              "file": "test/plugin/paths-limit-live.ci",
+              "line": 10,
+              "carrier": "functional/verify",
+              "claim": "-- an identifier above the peer's advertised number never reaches the wire: it is absent from the hex before the next different-prefix sentinel, and it appears only after a withdrawal frees a slot and the operator retries it.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+                "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitForwardWritersShareState",
+              "file": "internal/component/bgp/reactor/session_paths_limit_test.go",
+              "line": 181,
+              "carrier": "unit/verify",
+              "claim": "-- raw forwarding admits the first path and re-encoded forwarding admits a different prefix under the same session limit.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+                "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/reactor/session_paths_limit_test.go::TestPathsLimitSessionAcrossUpdates",
+              "file": "internal/component/bgp/reactor/session_paths_limit_test.go",
+              "line": 138,
+              "carrier": "unit/verify",
+              "claim": "-- paths within the peer's limit reach the wire; replacements and reuse after withdrawal remain allowed across UPDATEs.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+                "break": "line 141: \"!withdraw \u0026\u0026 !held \u0026\u0026 prefix != nil \u0026\u0026 len(prefix.ids) \u003e= int(state.limit)\" -\u003e \"true\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "test/plugin/paths-limit-live.ci",
+              "file": "test/plugin/paths-limit-live.ci",
+              "line": 9,
+              "carrier": "functional/verify",
+              "claim": "-- the paths the daemon sends for one prefix stay within the number the peer advertised, for IPv4 and IPv6, and a replacement of an admitted identifier and a reuse of a withdrawn slot both reach the wire.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/session_paths_limit.go::pathsLimitSection",
+                "break": "body of pathsLimitSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            }
+          ],
+          "audit": {
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "The unit tests assert the exact identifier sequence that reached the wire, for ipv4/unicast and ipv6/unicast: announced [0 1 1 4] and withdrawn [99 0] across eight sends, which pins the withheld path, the replacement at capacity, the unknown withdrawal that frees nothing, and the reuse after a real withdrawal. TestPathsLimitForwardWritersShareState proves raw forwarding and re-encoded forwarding draw on one per-session budget, forwarding [5 7] and never 6. test/plugin/paths-limit-live.ci carries the same requirement at the daemon: it starts ze and a peer that advertises ipv4 1 and ipv6 2, drives the real `ze send bgp * update text` CLI over SSH, and asserts by hex, in sequence groups, that an excess identifier never reaches the wire before the next different-prefix sentinel and appears only after a withdrawal and an explicit retry. Six records: the four unit tags over the admission guard in pathsLimitSection, and the two .ci tags by revert of that same function, each citing the expect directive its red was tied to. The enforcing code is Session.pathsLimitSection, reached from writeRawUpdateBody through filterPathsLimit, which is why the route-server fast path is covered by the same state.",
+            "freshness": "fresh"
+          }
         },
         {
           "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7",
@@ -494,10 +734,45 @@
           "section": "3",
           "text": "\"An implementation SHOULD provide a configuration knob to specify the maximum number of paths to accept from a sender\" (§3)",
           "gated": false,
-          "positive-test": "--",
-          "negative-test": "--",
-          "note": "",
-          "nightly-only": false
+          "positive-test": "`internal/component/bgp/reactor/config_paths_limit_test.go` `TestConfiguredPathsLimitOpen` (unit/verify), `internal/component/bgp/reactor/config_test.go` `TestParsePeerCapabilityPathsLimit` (unit/verify)",
+          "negative-test": "`internal/component/bgp/reactor/config_paths_limit_test.go` `TestConfiguredPathsLimitOpen` (unit/verify)",
+          "note": "**audit: weak**",
+          "nightly-only": false,
+          "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen",
+              "file": "internal/component/bgp/reactor/config_paths_limit_test.go",
+              "line": 14,
+              "carrier": "unit/verify",
+              "claim": "-- an omitted limit requests no bound, and disabled/refused families cannot advertise an orphan limit.",
+              "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/reactor/config_paths_limit_test.go::TestConfiguredPathsLimitOpen",
+              "file": "internal/component/bgp/reactor/config_paths_limit_test.go",
+              "line": 13,
+              "carrier": "unit/verify",
+              "claim": "-- the container receive-request knob and per-family override determine the limits encoded in OPEN.",
+              "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit",
+              "file": "internal/component/bgp/reactor/config_test.go",
+              "line": 564,
+              "carrier": "unit/verify",
+              "claim": "-- the per-family configuration knob sets the advertised receive request.",
+              "tags": 1
+            }
+          ],
+          "audit": {
+            "verdict": "weak",
+            "meaning": "the tests pass over code that does not enforce the requirement",
+            "note": "The pair over TestConfiguredPathsLimitOpen is a strong test of half the sentence and nothing tests the other half. What it checks: the container knob `session \u003e capability \u003e add-path \u003e limit`, the per-family override, and the interaction with disabled, refused and required families decide the tuples encoded in the OPEN, with an omitted limit advertising none and a disabled or refused family unable to carry an orphan tuple. parseAddPathFromTree (internal/component/bgp/reactor/config_capabilities.go) derives the tuples from addPath.Families, the same slice that reaches the wire. What nothing checks, because no code does it: the draft asks for a knob that specifies \"the maximum number of paths to accept from a sender\", and ze's knob states a number to the peer without bounding what ze accepts. EncodingCaps.PathsLimitRecv is read by internal/core/bgp/context/context.go, internal/component/bgp/format/json.go and internal/component/bgp/reactor/negotiated.go, all of which carry it into a negotiated context or into show output, and no reader drops a received path above it. A peer that ignores the request is not policed. The verdict is weak rather than enforced because the tag ties this body to the whole requirement, and the reading under which \"accept\" means local enforcement is not proven by anything. The absent behavior is disclosed on the summary's Support remaining row. No discrimination record was written, because the owner's open decision on building the receive side can reword this claim, and rewording stales a record.",
+            "freshness": "fresh"
+          }
         }
       ],
       "extraction": {
@@ -39364,7 +39639,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeZero",
               "file": "internal/component/bgp/reactor/session_negotiate_test.go",
-              "line": 72,
+              "line": 74,
               "carrier": "unit/verify",
               "claim": "-- the smaller-of-the-two rule is not applied blindly: a zero proposed by either side yields zero rather than the other side's non-zero value (internal/component/bgp/reactor/session_negotiate.go:50-53).",
               "tags": 1
@@ -39373,7 +39648,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth",
               "file": "internal/component/bgp/reactor/session_negotiate_test.go",
-              "line": 43,
+              "line": 45,
               "carrier": "unit/verify",
               "claim": "-- the negotiated Hold Time is the smaller of the configured and the received value, whichever side it comes from (internal/component/bgp/reactor/session_negotiate.go:47-54).",
               "tags": 1
@@ -42885,7 +43160,7 @@
         "audited": 0,
         "discrimination-records": 12,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -43534,10 +43809,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/dataplane/xfrm_linux.go::policyInfoFromKernel",
                 "break": "body of policyInfoFromKernel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -47176,7 +47452,7 @@
               "polarity": "negative",
               "unit": "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal",
               "file": "internal/le/interoplab/bgp/check_special.go",
-              "line": 137,
+              "line": 138,
               "carrier": "interop/nightly",
               "claim": "-- Ze creates no ORIGINATOR_ID on the withdrawal of that same route, asserted byte-exact on the wire, because the clause's condition (\"reflects a route\") is not met.",
               "tags": 1
@@ -47194,7 +47470,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal",
               "file": "internal/le/interoplab/bgp/check_special.go",
-              "line": 136,
+              "line": 137,
               "carrier": "interop/nightly",
               "claim": "-- Ze sets ORIGINATOR_ID on a route it reflects between two clients, observed on the wire by the receiving peer, so the identifier is set when a route IS reflected.",
               "tags": 1
@@ -47225,7 +47501,7 @@
               "polarity": "negative",
               "unit": "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal",
               "file": "internal/le/interoplab/bgp/check_special.go",
-              "line": 139,
+              "line": 140,
               "carrier": "interop/nightly",
               "claim": "-- and the withdrawal carries none, for the same reason, in the same byte-exact assertion.",
               "tags": 1
@@ -47243,7 +47519,7 @@
               "polarity": "positive",
               "unit": "internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal",
               "file": "internal/le/interoplab/bgp/check_special.go",
-              "line": 138,
+              "line": 139,
               "carrier": "interop/nightly",
               "claim": "-- the same reflected route carries a CLUSTER_LIST, prepended with Ze's configured cluster-id.",
               "tags": 1
@@ -50290,7 +50566,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability",
               "file": "internal/component/bgp/reactor/session_negotiate_test.go",
-              "line": 214,
+              "line": 216,
               "carrier": "unit/verify",
               "claim": "-- VPN-IPv6 is not negotiated (family inactive) when the peer does not advertise the Multiprotocol capability for AFI=2/SAFI=128.",
               "tags": 1
@@ -50299,7 +50575,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/session_negotiate_test.go::TestOpenAdvertisesVPNv6Capability",
               "file": "internal/component/bgp/reactor/session_negotiate_test.go",
-              "line": 169,
+              "line": 171,
               "carrier": "unit/verify",
               "claim": "-- when the ipv6/mpls-vpn family is configured, the OPEN advertises the Multiprotocol capability for AFI=2/SAFI=128 so VPN-IPv6 is exchanged via BGP capability negotiation.",
               "tags": 1
@@ -69361,12 +69637,12 @@
         "excused-one-polarity": 8,
         "met-below": 0,
         "optional-not-offered": 0,
-        "tags": 159,
-        "units": 159,
+        "tags": 160,
+        "units": 160,
         "audited": 0,
-        "discrimination-records": 0,
+        "discrimination-records": 1,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 1
       },
       "requirements": [
         {
@@ -71121,7 +71397,7 @@
           "section": "6.8.6",
           "text": "Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6)",
           "gated": true,
-          "positive-test": "`internal/component/bfd/engine/rfc5881_test.go` `TestRFC5881FirstPacketMatchesByTuple` (unit/verify)",
+          "positive-test": "`internal/component/bfd/engine/rfc5881_test.go` `TestRFC5881FirstPacketMatchesByTuple` (unit/verify), `internal/component/bfd/engine/rfc5881_test.go` `TestFirstPacketMatchesWhatTheTransportSurfaces` (unit/verify)",
           "negative-test": "`internal/component/bfd/engine/rfc5881_test.go` `TestRFC5881FirstPacketWrongSourceDropped` (unit/verify)",
           "note": "",
           "nightly-only": false,
@@ -71130,16 +71406,34 @@
               "polarity": "negative",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 128,
+              "line": 151,
               "carrier": "unit/verify",
               "claim": "-- selection is ON the combination of fields, not despite it. Changing only the source address moves the packet off the tuple, so no session is selected. Without this, the positive passes on code that hands every zero-discriminator packet to the one session it holds, which selects on nothing.",
               "tags": 1
             },
             {
               "polarity": "positive",
+              "unit": "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces",
+              "file": "internal/component/bfd/engine/rfc5881_test.go",
+              "line": 356,
+              "carrier": "unit/verify",
+              "claim": "-- the selection runs on fields the receiver can OBSERVE. A packet carrying this session's real destination address selects it, and one carrying the wildcard the socket binds does not, so the \"combination of other fields\" is read off the packet rather than copied from the session being looked for.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "unit-changed",
+                "detail": "the tagged unit's behavior changed since the red was observed",
+                "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+                "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": false,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 105,
+              "line": 128,
               "carrier": "unit/verify",
               "claim": "-- the same producer performs the zero-discriminator selection RFC 5880 Section 6.8.6 mandates. Source addressing information (peer, local) and the ingress interface are the \"combination of other fields\" the session is selected on. A packet carrying Your Discriminator = 0 therefore reaches the session bound to that tuple.",
               "tags": 1
@@ -73002,7 +73296,7 @@
               "polarity": "negative",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 289,
+              "line": 312,
               "carrier": "unit/verify",
               "claim": "-- session separation is keyed by the address (which bears the protocol), not created unconditionally. Two requests for the SAME peer address coalesce into ONE session via refcounting (EnsureSession, internal/component/bfd/engine/engine.go:349-351), proving the key is what separates protocols rather than every EnsureSession minting a new session.",
               "tags": 1
@@ -73011,7 +73305,7 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 247,
+              "line": 270,
               "carrier": "unit/verify",
               "claim": "-- a separate BFD session MUST be established for each protocol (IPv4 and IPv6) over a link. The session key (internal/component/bfd/api/events.go:166-174) carries the peer/local netip.Addr, whose family differs between IPv4 and IPv6, so an IPv4 peer and an IPv6 peer form two distinct sessions with distinct discriminators.",
               "tags": 1
@@ -73094,7 +73388,7 @@
               "polarity": "negative",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 122,
+              "line": 145,
               "carrier": "unit/verify",
               "claim": "-- the first-packet association is scoped to the bound tuple, not blanket-accept. A packet with Your Discriminator = 0 arriving from a DIFFERENT source address misses the byKey lookup (loop.go:104, entry == nil) and is dropped, so RemoteDiscr stays zero. Without this the positive test could pass on code that accepts any first packet regardless of source.",
               "tags": 1
@@ -73103,7 +73397,7 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 98,
+              "line": 121,
               "carrier": "unit/verify",
               "claim": "-- a received packet with Your Discriminator = 0 MUST be associated with the session bound to the remote address, ingress interface, and protocol. handleInbound (internal/component/bfd/engine/loop.go:96-102) builds firstPacketKey{peer: in.From, local, vrf, iface, mode} and finds the session via byKey, so a first packet whose tuple matches is delivered (RemoteDiscr becomes the peer's MyDiscriminator).",
               "tags": 1
@@ -73198,7 +73492,7 @@
               "polarity": "negative",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 169,
+              "line": 192,
               "carrier": "unit/verify",
               "claim": "-- a packet whose Your Discriminator matches no session is not associated with one.",
               "tags": 1
@@ -73207,7 +73501,7 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 146,
+              "line": 169,
               "carrier": "unit/verify",
               "claim": "-- ultimately RFC 5880 mechanisms (Your Discriminator) demux incoming packets to the proper session.",
               "tags": 1
@@ -73446,7 +73740,7 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 195,
+              "line": 218,
               "carrier": "unit/verify",
               "claim": "-- the transmitted Control packet's destination is the operator-configured single-hop peer (on-subnet by config), the same sendLocked To: PeerAddr producer.",
               "tags": 1
@@ -73498,7 +73792,7 @@
               "polarity": "negative",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 171,
+              "line": 194,
               "carrier": "unit/verify",
               "claim": "-- demux is by discriminator alone, so a nonzero Your Discriminator that is unallocated (loop.go:83, byDiscr miss) is dropped even though its source equals the configured peer. Without this the positive could pass on code that fell back to source matching.",
               "tags": 1
@@ -73507,7 +73801,7 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 148,
+              "line": 171,
               "carrier": "unit/verify",
               "claim": "-- once a discriminator is learned, subsequent packets are demuxed SOLELY by Your Discriminator. handleInbound (internal/component/bfd/engine/loop.go:82-83) looks the session up in byDiscr by c.YourDiscriminator, so a packet carrying the local discriminator is delivered even when its source differs from the configured peer.",
               "tags": 1
@@ -73529,7 +73823,7 @@
               "polarity": "negative",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationIgnoresChangedSource",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 223,
+              "line": 246,
               "carrier": "unit/verify",
               "claim": "-- the transmit destination is the configured peer and MUST NOT be the changed received source. The same sendLocked producer (loop.go:232) never copies in.From into the outbound To, so a spoofed source that reached the session by discriminator does not redirect transmission. Without this the positive could pass on code that happened to leave PeerAddr equal to the source by coincidence.",
               "tags": 1
@@ -73538,7 +73832,7 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable",
               "file": "internal/component/bfd/engine/rfc5881_test.go",
-              "line": 188,
+              "line": 211,
               "carrier": "unit/verify",
               "claim": "-- when a received source address changes on a point-to-point link, the local system MUST continue using the destination configured at session creation. sendLocked (internal/component/bfd/engine/loop.go:232) always sends To: entry.machine.PeerAddr(), which returns the immutable configReq.Peer (internal/component/bfd/session/session.go:302), so after receiving from a changed source the transmit destination is still the configured peer.",
               "tags": 1
@@ -73662,7 +73956,7 @@
       "display": "RFC 5882",
       "title": "Generic Application of Bidirectional Forwarding Detection (BFD)",
       "enrolled": true,
-      "enrolment-reason": "Generic Application of BFD: three MUST-level requirements. RFC5882-4.4-1 (multiple control protocols wanting a BFD session to the same remote/data-protocol MUST share a single BFD session) is met by the refcounted, path-keyed session registry EnsureSession (internal/component/bfd/engine/engine.go:344), keyed by api.Key{Peer,Local,Interface,VRF,Mode} which deliberately excludes timers (internal/component/bfd/api/events.go:155-156); both polarities: TestBFDSharedSessionSameKey proves a second same-Key request bumps the refcount to 2 on ONE session and the session survives until the last release, TestBFDDistinctSessionsDifferentKey proves two different remotes get two distinct sessions. RFC5882-4.1-1 (establishment allowed under AdminDown) is {not-applicable}: Ze never gates control-protocol establishment on BFD state -- the BFD client attaches only after the adjacency is up (BGP on StateEstablished, OSPF on Full) and is strictly additive, so no AdminDown session can block establishment. RFC5882-10.1.3-1 (OSPF virtual links MUST use RFC 5883 multihop) is {not-applicable}: Ze does not run BFD on OSPF virtual links (the BFD-for-OSPF client keys on per-interface config; a virtual link is a synthetic backbone link, not a configured interface, so it never gets a session). The SHOULD/SHOULD-NOT clauses (single session per path, hysteresis notify, AdminDown/bring-up connectivity semantics, GR fate-sharing, static-route withdrawal, planned-outage AdminDown, authentication) and the MAY clauses are not gated.",
+      "enrolment-reason": "Generic Application of BFD: three MUST-level requirements. RFC5882-4.4-1 (multiple control protocols wanting a BFD session to the same remote/data-protocol MUST share a single BFD session) is met for every configuration in which the clients reach one key, and PARTIALLY met otherwise, which is what docs/features/rfc-status.md publishes. The registry half is complete: EnsureSession (internal/component/bfd/engine/engine.go:344) is refcounted and path-keyed on api.Key{Peer,Local,Interface,VRF,Mode}, deliberately excluding timers (internal/component/bfd/api/events.go:155-156), and both polarities are proven by TestBFDSharedSessionSameKey (a second same-Key request bumps the refcount to 2 on ONE session, which survives until the last release) and TestBFDDistinctSessionsDifferentKey (two different remotes get two distinct sessions). The key half, api.SessionRequest.Canonical, completes what a client left out so OSPF, BGP and a pinned session reach the same key, and it REFUSES to derive where the answer is ambiguous: seven configurations, listed under \"Multiple Control Protocols (Section 4.4)\" on this page, leave two clients for one remote system with two sessions rather than one (and, until the interface-less first-packet lookup landed, left the single-hop four with two sessions NEITHER of which could be selected for a packet carrying no discriminator) (an IPv6 link-local peer, two links on one subnet, an off-link peer, no route, an egress interface with no or several addresses of the peer family, multi-hop in a non-default VRF, and any mode with no interface backend loaded). Each closes when the operator names the local address on both sides. RFC5882-4.1-1 (establishment allowed under AdminDown) is {not-applicable}: Ze never gates control-protocol establishment on BFD state -- the BFD client attaches only after the adjacency is up (BGP on StateEstablished, OSPF on Full) and is strictly additive, so no AdminDown session can block establishment. RFC5882-10.1.3-1 (OSPF virtual links MUST use RFC 5883 multihop) is {not-applicable}: Ze does not run BFD on OSPF virtual links (the BFD-for-OSPF client keys on per-interface config; a virtual link is a synthetic backbone link, not a configured interface, so it never gets a session). The SHOULD/SHOULD-NOT clauses (single session per path, hysteresis notify, AdminDown/bring-up connectivity semantics, GR fate-sharing, static-route withdrawal, planned-outage AdminDown, authentication) and the MAY clauses are not gated.",
       "public-status": "Partial",
       "public-coverage": "BFD integration model used by BGP and static next-hop tracking.",
       "public-remaining": "Same BFD partial status.",
@@ -73683,12 +73977,12 @@
         "excused-one-polarity": 0,
         "met-below": 0,
         "optional-not-offered": 0,
-        "tags": 6,
-        "units": 6,
+        "tags": 7,
+        "units": 7,
         "audited": 0,
-        "discrimination-records": 4,
+        "discrimination-records": 5,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -73712,7 +74006,7 @@
           "section": "4.4",
           "text": "If multiple control protocols want a BFD session to the same remote system for the same data protocol, all must share a single BFD session (§4.4)",
           "gated": true,
-          "positive-test": "`internal/component/bfd/api/session_identity_test.go` `TestCanonicalCollapsesEveryClientShapeOntoOneKey` (unit/verify), `internal/component/bfd/engine/rfc5882_shared_session_test.go` `TestBFDSharedSessionSameKey` (unit/verify), `internal/component/bfd/session_identity_test.go` `TestPinnedSessionReachesTheSharedKey` (unit/verify), `internal/component/bgp/reactor/config_bfd_strict_test.go` `TestStrictPeerRequestReachesTheSharedKey` (unit/verify), `internal/plugins/ospf/rfc5882_shared_key_test.go` `TestOSPFNeighborRequestReachesTheSharedKey` (unit/verify)",
+          "positive-test": "`internal/component/bfd/api/session_identity_test.go` `TestCanonicalCollapsesEveryClientShapeOntoOneKey` (unit/verify), `internal/component/bfd/api/session_identity_test.go` `TestCanonicalCollapsesMultiHopShapesOntoOneKey` (unit/verify), `internal/component/bfd/engine/rfc5882_shared_session_test.go` `TestBFDSharedSessionSameKey` (unit/verify), `internal/component/bfd/session_identity_test.go` `TestPinnedSessionReachesTheSharedKey` (unit/verify), `internal/component/bgp/reactor/config_bfd_strict_test.go` `TestStrictPeerRequestReachesTheSharedKey` (unit/verify), `internal/plugins/ospf/rfc5882_shared_key_test.go` `TestOSPFNeighborRequestReachesTheSharedKey` (unit/verify)",
           "negative-test": "`internal/component/bfd/engine/rfc5882_shared_session_test.go` `TestBFDDistinctSessionsDifferentKey` (unit/verify)",
           "note": "",
           "nightly-only": false,
@@ -73730,15 +74024,33 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey",
               "file": "internal/component/bfd/api/session_identity_test.go",
-              "line": 57,
+              "line": 59,
               "carrier": "unit/verify",
               "claim": "-- \"If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session\" (RFC 5882 sec 4.4). Sharing is looked up by api.Key, so the requirement binds the KEY as much as the registry that looks it up. Canonical derives the interface and the local address a client left out, so the OSPF shape (both named), the BGP shape (neither named) and the two half-named shapes in between all reduce to one key and therefore to one session.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "unit-changed",
+                "detail": "the tagged unit's behavior changed since the red was observed",
                 "producer": "internal/component/bfd/api/session_identity.go::Canonical",
                 "break": "body of Canonical replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": false,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey",
+              "file": "internal/component/bfd/api/session_identity_test.go",
+              "line": 150,
+              "carrier": "unit/verify",
+              "claim": "-- \"If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session\" (RFC 5882 sec 4.4). The requirement does not stop at single-hop. A pinned multi-hop-session must name `local`, while a BGP peer with no `connection local ip` names none, so the two built two keys for one remote system. Canonical closes it by taking the local address from the interface the route to the peer leaves by, which is the source the stack would have chosen, and by clearing the interface, which plays no part in a routed session.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bfd/api/session_identity.go::canonicalMultiHop",
+                "break": "body of canonicalMultiHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -73756,16 +74068,17 @@
               "polarity": "positive",
               "unit": "internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey",
               "file": "internal/component/bfd/session_identity_test.go",
-              "line": 17,
+              "line": 19,
               "carrier": "unit/verify",
               "claim": "-- \"If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session\" (RFC 5882 sec 4.4). A pinned session is a client like any other (RFC 5882 sec 5, configuration-driven bootstrapping), so applyPinned canonicalizes its request through the same api.SessionRequest.Canonical that pluginService.EnsureSession applies to every protocol client. This drives the real parser, parseSingleHopSession, and the real request builder, toSessionRequest. The two protocol halves are TestStrictPeerRequestReachesTheSharedKey (internal/component/bgp/reactor/config_bfd_strict_test.go) and TestOSPFNeighborRequestReachesTheSharedKey (internal/plugins/ospf), which assert this same key.",
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "unit-changed",
+                "detail": "the tagged unit's behavior changed since the red was observed",
                 "producer": "internal/component/bfd/config.go::toSessionRequest",
                 "break": "body of toSessionRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -73779,10 +74092,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "unit-changed",
+                "detail": "the tagged unit's behavior changed since the red was observed",
                 "producer": "internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor",
                 "break": "body of bfdRequestFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -78597,7 +78911,7 @@
               "polarity": "negative",
               "unit": "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance",
               "file": "internal/plugins/ospf/instance_test.go",
-              "line": 470,
+              "line": 467,
               "carrier": "unit/verify",
               "claim": "-- the discard is confined to mismatches: a packet carrying the engine's own Instance ID (5) is NOT discarded but delivered to the handler, so the demux is not a blanket drop of every packet.",
               "tags": 1
@@ -78606,7 +78920,7 @@
               "polarity": "positive",
               "unit": "internal/plugins/ospf/instance_test.go::TestDispatchDropsMismatchedInstance",
               "file": "internal/plugins/ospf/instance_test.go",
-              "line": 457,
+              "line": 454,
               "carrier": "unit/verify",
               "claim": "-- a received packet whose Instance ID does not match one configured for the receiving interface MUST be discarded (§2, §3.1): each of {0,1,4,6,255} != the engine's Instance 5 is dropped by dispatch() before any handler runs.",
               "tags": 1
@@ -78755,10 +79069,10 @@
         "excused-one-polarity": 1,
         "met-below": 0,
         "optional-not-offered": 0,
-        "tags": 67,
-        "units": 67,
+        "tags": 77,
+        "units": 77,
         "audited": 0,
-        "discrimination-records": 4,
+        "discrimination-records": 41,
         "escapes": 0,
         "stale-records": 0
       },
@@ -78908,7 +79222,7 @@
           "section": "4.1",
           "text": "AS4_PATH and AS4_AGGREGATOR MUST NOT be carried in an UPDATE between NEW BGP speakers (Section 4.1, Section 6)",
           "gated": true,
-          "positive-test": "`test/plugin/rfc6793-no-as4path-from-new-speaker.ci` (functional/verify)",
+          "positive-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker` (unit/verify), `test/plugin/rfc6793-no-as4path-from-new-speaker.ci` (functional/verify)",
           "negative-test": "`test/plugin/rfc6793-narrow-to-old-speaker.ci` (functional/verify)",
           "note": "",
           "nightly-only": false,
@@ -78926,6 +79240,23 @@
                 "state": "verified",
                 "producer": "internal/component/bgp/wireu/aspath_as4.go::AS4PathForRewrite",
                 "break": "body of AS4PathForRewrite replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathTowardNewSpeaker",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 285,
+              "carrier": "unit/verify",
+              "claim": "-- an originated UPDATE toward a NEW speaker carries no AS4_PATH, whatever the AS numbers in its path, because the AS_PATH itself is four-octet.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+                "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
                 "verified": true,
                 "proves": true
               }
@@ -78967,7 +79298,15 @@
               "line": 205,
               "carrier": "unit/verify",
               "claim": "-- the discard is conditioned on the SOURCE being a NEW BGP speaker, so an AS4_PATH from an OLD one is not discarded: its four-octet AS numbers are the AS path information the reconciliation answers with.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::canonicalizeASPath",
+                "break": "body of canonicalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -78976,7 +79315,15 @@
               "line": 531,
               "carrier": "unit/verify",
               "claim": "-- a NEW BGP speaker receiving an AS4_PATH or an AS4_AGGREGATOR from another NEW BGP speaker discards the path attribute and continues processing the UPDATE message, so neither reaches the AS path information or the aggregating node.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ReconcileASPathFamily",
+                "break": "body of ReconcileASPathFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79065,25 +79412,76 @@
           "section": "4.2.2",
           "text": "When sending to an OLD speaker with non-mappable ASes, MUST also send AS4_PATH encoded with four-octet AS numbers (Section 4.2.2)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeEmitsAS4PathForNonMappable` (unit/verify)",
-          "negative-test": "`internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeOmitsAS4PathWhenAllMappable` (unit/verify)",
+          "positive-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker` (unit/verify), `internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedUpdateCarriesAS4PathForANonMappableLocalAS` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeEmitsAS4PathForNonMappable` (unit/verify)",
+          "negative-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeOmitsAS4PathWhenAllMappable` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 267,
+              "carrier": "unit/verify",
+              "claim": "-- the AS4_PATH is not written into every OLD-speaker UPDATE: with every AS mappable the attribute is absent.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+                "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 84,
+              "line": 87,
               "carrier": "unit/verify",
               "claim": "-- the AS4_PATH is not emitted unconditionally for every OLD-speaker UPDATE: with every AS mappable the attribute is absent.",
               "tags": 1
             },
             {
               "polarity": "positive",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathForANonMappableLocalAS",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 238,
+              "carrier": "unit/verify",
+              "claim": "-- a four-octet local AS prepended to an originated route toward an OLD speaker is sent as AS_TRANS in AS_PATH and as its real value in AS4_PATH.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+                "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 200,
+              "carrier": "unit/verify",
+              "claim": "-- every originated UPDATE toward an OLD speaker whose AS path holds a non-mappable four-octet AS carries the AS path again in an AS4_PATH encoded with four-octet AS numbers, beside an AS_PATH carrying AS_TRANS.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+                "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 49,
+              "line": 52,
               "carrier": "unit/verify",
               "claim": "-- sending to an OLD speaker a path containing a non-mappable four-octet AS, the AS_PATH carries AS_TRANS and an AS4_PATH carrying the real four-octet AS numbers is also sent.",
               "tags": 1
@@ -79096,25 +79494,59 @@
           "section": "4.2.2",
           "text": "When sending to an OLD speaker and all ASes are mappable, MUST NOT send AS4_PATH (Section 4.2.2)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeOmitsAS4PathWhenAllMappable` (unit/verify)",
-          "negative-test": "`internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeEmitsAS4PathForNonMappable` (unit/verify)",
+          "positive-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeOmitsAS4PathWhenAllMappable` (unit/verify)",
+          "negative-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793TranscodeEmitsAS4PathForNonMappable` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
             {
               "polarity": "negative",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 203,
+              "carrier": "unit/verify",
+              "claim": "-- the AS4_PATH suppression is conditional: an originated path that is not composed of mappable AS numbers only does get an AS4_PATH.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+                "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 52,
+              "line": 55,
               "carrier": "unit/verify",
               "claim": "-- the AS4_PATH suppression is conditional: a path that is NOT composed of mappable AS numbers only does get an AS4_PATH.",
               "tags": 1
             },
             {
               "polarity": "positive",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 265,
+              "carrier": "unit/verify",
+              "claim": "-- when all of the originated AS path information is composed of mappable four-octet AS numbers only, no AS4_PATH is sent to the OLD speaker.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ASPathNeedsAS4",
+                "break": "body of ASPathNeedsAS4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 82,
+              "line": 85,
               "carrier": "unit/verify",
               "claim": "-- when all of the AS path information is composed of mappable four-octet AS numbers only, no AS4_PATH attribute is sent to the OLD speaker.",
               "tags": 1
@@ -79136,7 +79568,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 224,
+              "line": 304,
               "carrier": "unit/verify",
               "claim": "-- the exclusion is scoped to confederation segments: the ordinary AS_SEQUENCE from the same path IS carried in the AS4_PATH, and the confederation segment still rides in the two-octet AS_PATH.",
               "tags": 1
@@ -79145,7 +79577,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ConstructedAS4PathExcludesConfed",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 222,
+              "line": 302,
               "carrier": "unit/verify",
               "claim": "-- the AS_CONFED_SEQUENCE segment present in the AS path information is excluded from the AS4_PATH attribute being constructed.",
               "tags": 1
@@ -79189,11 +79621,28 @@
           "section": "4.2.2",
           "text": "When aggregator AS is non-mappable, MUST use AS4_AGGREGATOR and set AGGREGATOR AS field to AS_TRANS (Section 4.2.2)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestForwardedAggregatorIsDowngradedWithItsCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793AS4AggregatorForNonMappableAggregator` (unit/verify)",
-          "negative-test": "`internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestAMappableAggregatorGetsNoCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793NoAS4AggregatorForMappableAggregator` (unit/verify)",
+          "positive-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker` (unit/verify), `internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestForwardedAggregatorIsDowngradedWithItsCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793AS4AggregatorForNonMappableAggregator` (unit/verify)",
+          "negative-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedMappableAggregatorGetsNoCompanion` (unit/verify), `internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestAMappableAggregatorGetsNoCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793NoAS4AggregatorForMappableAggregator` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 440,
+              "carrier": "unit/verify",
+              "claim": "-- the companion is not written into every OLD-speaker AGGREGATOR: a mappable aggregating AS gets none.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+                "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion",
@@ -79207,10 +79656,27 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 191,
+              "line": 271,
               "carrier": "unit/verify",
               "claim": "-- the AS_TRANS substitution is scoped to non-mappable aggregating AS numbers: a mappable one is left intact in AGGREGATOR.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 410,
+              "carrier": "unit/verify",
+              "claim": "-- an originated AGGREGATOR whose aggregating AS is non-mappable is sent to an OLD speaker with AS_TRANS in the AGGREGATOR AS field and the real four-octet AS number in an AS4_AGGREGATOR.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+                "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79225,7 +79691,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 154,
+              "line": 234,
               "carrier": "unit/verify",
               "claim": "-- when the aggregating AS is non-mappable the speaker sends AS4_AGGREGATOR with the real four-octet AS and sets the AS number field of the existing AGGREGATOR to AS_TRANS.",
               "tags": 1
@@ -79238,11 +79704,28 @@
           "section": "4.2.2",
           "text": "If aggregator AS is mappable, AS4_AGGREGATOR MUST NOT be sent (Section 4.2.2)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestAMappableAggregatorGetsNoCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793NoAS4AggregatorForMappableAggregator` (unit/verify)",
-          "negative-test": "`internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestForwardedAggregatorIsDowngradedWithItsCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793AS4AggregatorForNonMappableAggregator` (unit/verify)",
+          "positive-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedMappableAggregatorGetsNoCompanion` (unit/verify), `internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestAMappableAggregatorGetsNoCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793NoAS4AggregatorForMappableAggregator` (unit/verify)",
+          "negative-test": "`internal/component/bgp/message/rfc6793_originate_as4_test.go` `TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker` (unit/verify), `internal/component/bgp/rib/rfc6793_aggregator_test.go` `TestForwardedAggregatorIsDowngradedWithItsCompanion` (unit/verify), `internal/component/bgp/wireu/rfc6793_as4_test.go` `TestRFC6793AS4AggregatorForNonMappableAggregator` (unit/verify)",
           "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 413,
+              "carrier": "unit/verify",
+              "claim": "-- the AS4_AGGREGATOR suppression is conditional: a non-mappable aggregating AS does get the companion attribute.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+                "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion",
@@ -79256,10 +79739,27 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 157,
+              "line": 237,
               "carrier": "unit/verify",
               "claim": "-- the AS4_AGGREGATOR suppression is conditional: a non-mappable aggregating AS does produce the attribute.",
               "tags": 1
+            },
+            {
+              "polarity": "positive",
+              "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion",
+              "file": "internal/component/bgp/message/rfc6793_originate_as4_test.go",
+              "line": 438,
+              "carrier": "unit/verify",
+              "claim": "-- an originated AGGREGATOR whose aggregating AS is mappable is sent to an OLD speaker with no AS4_AGGREGATOR beside it.",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+                "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79274,7 +79774,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 189,
+              "line": 269,
               "carrier": "unit/verify",
               "claim": "-- when the aggregating AS is mappable the AS4_AGGREGATOR attribute is not sent and the two-octet AGGREGATOR carries the real AS.",
               "tags": 1
@@ -79299,7 +79799,15 @@
               "line": 222,
               "carrier": "unit/verify",
               "claim": "-- when no AS4_PATH accompanies the AS_PATH, no four-octet AS numbers are fabricated: the AS_TRANS placeholder is carried through as 23456, so the positive case's four-octet path really comes from the received AS4_PATH.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::expandASPath2to4",
+                "break": "body of expandASPath2to4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79308,7 +79816,15 @@
               "line": 202,
               "carrier": "unit/verify",
               "claim": "-- an UPDATE from an OLD speaker carrying an AS4_PATH alongside the existing AS_PATH is accepted, and the four-octet AS numbers from the AS4_PATH become the route's AS path instead of the AS_TRANS-bearing two-octet AS_PATH.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+                "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79335,7 +79851,15 @@
               "line": 237,
               "carrier": "unit/verify",
               "claim": "-- an UPDATE from an OLD speaker carrying an AS4_AGGREGATOR alongside the existing AGGREGATOR is accepted rather than rejected: parsing succeeds and the four-octet aggregating AS the pair carries survives ingest.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79357,7 +79881,15 @@
               "line": 483,
               "carrier": "unit/verify",
               "claim": "-- an AGGREGATOR whose length does not match the negotiated AS width does not make the AS4_PATH ignored: the AS path is still reconstructed, and the unreadable value travels on exactly as it arrived rather than being reinterpreted at a width nobody negotiated.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::aggregatorASIsTrans",
+                "break": "body of aggregatorASIsTrans replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -79366,7 +79898,15 @@
               "line": 383,
               "carrier": "unit/verify",
               "claim": "-- the AS4_AGGREGATOR and AS4_PATH are ignored only when the AGGREGATOR carries an AS that is not AS_TRANS: here it carries AS_TRANS, so both are used.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+                "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79375,7 +79915,15 @@
               "line": 337,
               "carrier": "unit/verify",
               "claim": "-- an AGGREGATOR whose AS is not AS_TRANS makes both the AS4_AGGREGATOR and the AS4_PATH ignored: the AS4_AGGREGATOR's four-octet AS is not stored with the route, and the AS4_PATH's AS numbers do not reach the route's AS path.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79397,7 +79945,15 @@
               "line": 387,
               "carrier": "unit/verify",
               "claim": "-- the AGGREGATOR is not taken as the aggregating node in this direction, so the AS_TRANS placeholder never becomes the route's aggregating AS.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79406,7 +79962,15 @@
               "line": 341,
               "carrier": "unit/verify",
               "claim": "-- the received AGGREGATOR is taken as the information about the aggregating node, so the aggregating AS is 64500 with address 10.0.0.1, written in the four-octet form every consumer downstream of the reconciliation reads.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::canonicalAggregator",
+                "break": "body of canonicalAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79428,7 +79992,15 @@
               "line": 390,
               "carrier": "unit/verify",
               "claim": "-- the AS_PATH is not taken as the AS path information in this direction: the reconstruction runs and the four-octet 4200000001 replaces the AS_TRANS placeholder.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::reconstructASPath",
+                "break": "body of reconstructASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79437,7 +80009,15 @@
               "line": 345,
               "carrier": "unit/verify",
               "claim": "-- the AS_PATH is taken as the AS path information, so the route's path is the received two-octet AS_PATH widened to four octets, AS_TRANS included.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::expandASPath2to4",
+                "break": "body of expandASPath2to4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79459,7 +80039,15 @@
               "line": 349,
               "carrier": "unit/verify",
               "claim": "-- the AGGREGATOR is ignored only when it carries AS_TRANS: here it carries 64500 and is kept.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::aggregatorASIsTrans",
+                "break": "body of aggregatorASIsTrans replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79468,7 +80056,15 @@
               "line": 376,
               "carrier": "unit/verify",
               "claim": "-- an AGGREGATOR carrying AS_TRANS is ignored: the two-octet AS_TRANS value is not what the route records as its aggregating node.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::aggregatorASIsTrans",
+                "break": "body of aggregatorASIsTrans replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79490,7 +80086,15 @@
               "line": 352,
               "carrier": "unit/verify",
               "claim": "-- the AS4_AGGREGATOR is taken as the aggregating node only when the AGGREGATOR carries AS_TRANS: here it is not, so 4200000001 is not the route's aggregating AS.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -79499,7 +80103,15 @@
               "line": 511,
               "carrier": "unit/verify",
               "claim": "-- an AS4_AGGREGATOR arriving without an AGGREGATOR is not promoted to the route's aggregating node, because the rule that promotes it is written for the pair; nothing records an aggregating node for that route.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79508,7 +80120,15 @@
               "line": 379,
               "carrier": "unit/verify",
               "claim": "-- the AS4_AGGREGATOR is taken as the information about the aggregating node, so the route's aggregator is the four-octet AS 4200000001 with address 10.0.0.1.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79530,7 +80150,15 @@
               "line": 260,
               "carrier": "unit/verify",
               "claim": "-- the AS4_PATH is NOT ignored when the AS_PATH carries at least as many AS numbers: its 199524 replaces the AS_TRANS placeholder rather than the two-octet AS_PATH being taken whole.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+                "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79539,7 +80167,15 @@
               "line": 277,
               "carrier": "unit/verify",
               "claim": "-- when the AS_PATH carries fewer AS numbers than the AS4_PATH, the AS4_PATH is ignored and the AS_PATH is taken as the AS path information, so the route's path is the two-octet AS_PATH widened to four octets with its AS_TRANS intact and none of the AS4_PATH's AS numbers.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::MergeAS4Path",
+                "break": "body of MergeAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79561,7 +80197,15 @@
               "line": 282,
               "carrier": "unit/verify",
               "claim": "-- no prepend happens in this direction: the reconstructed path is the AS_PATH alone rather than leading AS_PATH hops joined to the AS4_PATH.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::countASNs",
+                "break": "body of countASNs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79570,7 +80214,15 @@
               "line": 418,
               "carrier": "unit/verify",
               "claim": "-- an AS_PATH and an AS4_PATH of two AS numbers each reconstruct to the AS4_PATH's own two AS numbers, so the result keeps the AS_PATH's AS number count and no leading AS number is prepended.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::countASNs",
+                "break": "body of countASNs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79579,7 +80231,15 @@
               "line": 438,
               "carrier": "unit/verify",
               "claim": "-- an AS_SET in the leading part of the AS_PATH is prepended whole, with both of its AS numbers, and counts as one AS number toward the leading part the reconstruction takes.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::leadingPart",
+                "break": "body of leadingPart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79588,7 +80248,15 @@
               "line": 255,
               "carrier": "unit/verify",
               "claim": "-- with an AS_PATH of three AS numbers and an AS4_PATH of one, the reconstructed AS path is built by taking the two leading AS numbers of the AS_PATH and prepending them to the AS4_PATH, so it carries 64500, 65001 and 199524 and has the same AS number count as the received AS_PATH.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
+                "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79610,7 +80278,15 @@
               "line": 319,
               "carrier": "unit/verify",
               "claim": "-- the confederation-segment rule is conditional: an AS_CONFED_SEQUENCE that is neither the leading path segment nor adjacent to a prepended segment is not prepended, so the reconstructed path is the AS4_PATH alone.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
+                "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -79619,7 +80295,15 @@
               "line": 299,
               "carrier": "unit/verify",
               "claim": "-- the leading AS_CONFED_SEQUENCE of the AS_PATH is prepended whole to the reconstructed path, and because RFC 5065 counts no AS numbers for it, the one AS number of prepend budget is still spent on the AS_SEQUENCE hop 64500 that follows it.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::appendLeadingSegments",
+                "break": "body of appendLeadingSegments replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79659,7 +80343,15 @@
               "line": 459,
               "carrier": "unit/verify",
               "claim": "-- a malformed AS4_PATH is discarded and the UPDATE continues to be processed, so the route is stored carrying the AS_PATH it arrived with rather than being rejected.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::ParseAS4Path",
+                "break": "body of ParseAS4Path replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             }
           ]
         },
@@ -79709,7 +80401,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 331,
+              "line": 409,
               "carrier": "unit/verify",
               "claim": "-- the discard is scoped to the confederation segment types: the AS_SEQUENCE segment carried alongside them in the same received AS4_PATH is retained rather than dropped with them.",
               "tags": 1
@@ -79718,7 +80410,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793ReceivedConfedInAS4PathDiscarded",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 328,
+              "line": 406,
               "carrier": "unit/verify",
               "claim": "-- AS_CONFED_SEQUENCE / AS_CONFED_SET path segments received in an AS4_PATH are discarded, the attribute length is adjusted to match the remaining segments, and the UPDATE continues to be processed.",
               "tags": 1
@@ -79740,7 +80432,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793WellFormedAS4PathNotDiscarded",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 297,
+              "line": 377,
               "carrier": "unit/verify",
               "claim": "-- the discard is scoped to malformed attributes: a well-formed AS4_PATH received from an OLD speaker is NOT discarded, its four-octet AS numbers survive into the AS4_PATH sent onward.",
               "tags": 1
@@ -79749,7 +80441,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793MalformedAS4PathDiscarded",
               "file": "internal/component/bgp/wireu/rfc6793_as4_test.go",
-              "line": 262,
+              "line": 343,
               "carrier": "unit/verify",
               "claim": "-- a malformed AS4_PATH received from an OLD speaker is discarded and the UPDATE continues to be processed: the rewrite succeeds, the AS_PATH is prepended, and the malformed octets never reach the emitted AS4_PATH.",
               "tags": 1
@@ -79774,7 +80466,15 @@
               "line": 350,
               "carrier": "unit/verify",
               "claim": "-- the malformed-attribute discard is not a blanket one: this AS4_AGGREGATOR is eight octets, so it is read rather than discarded as malformed, and its four-octet AS number becomes the aggregating node on the arm where the AGGREGATOR beside it carries AS_TRANS (Section 6 against Section 4.2.3).",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+                "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -105920,7 +106620,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/reactor/forward_body_test.go::TestForwardSplitConvertsAddPathContext",
               "file": "internal/component/bgp/reactor/forward_body_test.go",
-              "line": 23,
+              "line": 24,
               "carrier": "unit/verify",
               "claim": "-- the destination peer has not negotiated ADD-PATH (dest ctx addPath=false) while the source has, so buildFwdBody strips the 4-octet Path IDs and emits plain RFC 4271 NLRI (each destination prefix is 4 bytes, no path id).",
               "tags": 1
@@ -105938,7 +106638,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/reactor/forward_body_test.go::TestForwardSplitSameContextKeepsRawSplit",
               "file": "internal/component/bgp/reactor/forward_body_test.go",
-              "line": 118,
+              "line": 128,
               "carrier": "unit/verify",
               "claim": "-- source and destination share an ADD-PATH-negotiated context (both addPath=true), so ze generates the route update from the combination of the address prefix and the Path Identifier and emits the extended NLRI encoding: every emitted NLRI carries a 4-octet Path Identifier field ahead of the prefix the source sent.",
               "tags": 1

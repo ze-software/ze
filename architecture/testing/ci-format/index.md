@@ -377,8 +377,8 @@ option=<type>:key=value[:key=value...]
 | `asn` | `value=<N>[:peer=<ip>]` | The AS ze-peer opens with. It reaches BOTH carriers RFC 6793 defines: the two-octet My Autonomous System field, narrowed to AS_TRANS (23456) above 65535, and the Capability Value of capability 65. The range is 1 to 4294967295 and a value outside it fails the file when it is read, naming the option and the value. `peer=<ip>` binds the declaration to one of ze's endpoint addresses, for a peer process that serves several of ze's peers at once (`option=conn_map`). With no `option=asn` line at all the runner derives one from the `session { asn { remote N } }` leaf of the ze configuration the `.ci` names. It reads a `tmpfs=` block, a `stdin=` block and the file an `option=file:path=` points at, and it follows the inheritance chain: the router's own `bgp { session { asn { ... } } }`, then a `group` or `template`, then the peer, each level overriding the one above. Three things fail the file at read time rather than being guessed: two peers ze dials at ONE address expecting different ASNs, a declared AS the reader cannot read, and an eBGP peer the derivation reached with nothing. **That last refusal knows only what the reader knows.** A peer is judged eBGP by comparing the local and remote AS, so a peer for which NO local AS is declared at any level of the chain is not judged eBGP and is not refused; it inherits ze's own AS from the mirror, which is right for an iBGP session and wrong for an eBGP one. The derivation reaches no peer at all when a compiled fixture under `internal/test/fixture` writes the configuration and launches `ze-test peer` itself, because no `.ci` block is involved; such a fixture passes `--asn` (`cliWirePeerAS`, `internal/test/fixture/ui_fixture_send_bgp.go`). |
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
-| `tcp_connections` | `value=<N>` | Number of TCP connections |
-| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. A `reject=bgp` that fires during the linger loop RETRACTS the success token already printed, so the peer still fails the test. |
+| `tcp_connections` | `value=<N>` | The number of TCP connections the peer serves. It is a BOUND, never a witness: the count says how many connections happened and not who caused them. A peer that closes when its expectations are met makes ze dial again on its retry timer, so `value=2` is reached by a daemon that did nothing. To assert that the DAEMON dropped and restarted a session, add `option=linger`, which makes the peer incapable of causing the second connection. |
+| `linger` | `value=true` | Peer-block only: the check peer never closes a connection itself. After ALL expectations complete it prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. BETWEEN connections, where one connection's expectations are met and a later connection is still owed, it holds that connection until the REMOTE closes it, and fails the test if teardown comes first. Without it a completed peer closes, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers, and it also makes the daemon's OWN close unobservable, because ze dials again on its retry timer whoever closed (`test/reload/config-apply-ordering-address-swap.ci` asserts a stop and a restart, and needs the peer to be incapable of causing one). A `conn_map` peer is excluded from the between-connections hold: it serves every connection of one batch in turn and then waits for the daemon to close them all, so holding the first would starve the batch. A `reject=bgp` that fires during either hold RETRACTS the success token already printed, so the peer still fails the test. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
@@ -464,7 +464,7 @@ option=open:value=paths-limit:family=<f>[,<f>]:limit=<N>
 | `seconds` | 0, or 3 to 65535 | `session_negotiate` takes the smaller of this and ze's `receive-hold-time`, then calls `timers.SetHoldTime`. RFC 4271 Section 4.2. 1 and 2 fail the file |
 | `restart-time` | 0 to 4095 | `grStateManager.onSessionDown` arms the restart timer on it, `runPeer` gives it to `startEORTimer`, and `show bgp peer` prints it. RFC 4724 Section 3 gives the field 12 bits |
 | `stale-time` | 0 to 16777215 | `enterLLGRLocked` arms one timer per family on it. RFC 9494 Section 3 gives the field 24 bits |
-| `limit` | 0 to 65535 | `CommitService.enforcePathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
+| `limit` | 0 to 65535 | The Max Paths field of the code 76 entry this peer advertises. `Session.filterPathsLimit` drops paths past it, so ze sends this peer no more than `limit` paths for one prefix |
 | `family` | a family name, or a comma-separated list | The `<AFI, SAFI, Flags>` tuples of code 64, the 7-octet tuples of code 71, and the entries of code 76 |
 | `forward-state` | `true` (default) or `false` | The F bit of every tuple. `onSessionReestablished` purges the stale routes of a family whose F bit is clear |
 
@@ -629,7 +629,7 @@ cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4
 For orchestrating multiple processes:
 
 ```
-cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>]
+cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>][:timeout=<dur>]
 cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>][:exit=<N>]
 cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 ```
@@ -639,7 +639,7 @@ cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 | `seq` | Execution order (lower first) |
 | `exec` | Command to execute |
 | `stdin` | Stdin block name to pipe |
-| `timeout` | Foreground timeout (e.g., `10s`) |
+| `timeout` | Foreground test budget, or background process lifetime (e.g., `10s`). |
 | `exit` | Exit code asserted for **this** command (0..255). See below. |
 | `name` | Handle for a background process, so a later `cmd=stop` can target it. |
 | `signal` | `cmd=stop` only: `kill` (SIGKILL, default) or `term` (SIGTERM). |
@@ -666,9 +666,16 @@ keep their own default when it does not parse, so it is refused here instead.
 <!-- source: internal/test/runner/record_parse_keys.go -- checkMarkerKeys -->
 <!-- test: internal/test/runner/record_parse_cmd_test.go TestCmdUnknownKeyRefused, TestCmdUnknownKeyNotSwallowedIntoExec -->
 
-**Background:** Starts and keeps running until test ends.
-**Foreground:** Starts and waits for completion.
+**Background:** Starts and keeps running until its timeout, an explicit stop, or test completion.
+**Foreground:** Setup commands finish before the next step. A `ze` daemon starts
+without blocking later steps. Its peers or observer determine when teardown starts.
 **Stop:** Terminates a named background process mid-test (see below).
+
+When an embedded observer sends `request shutdown`, teardown gives that daemon
+its bounded self-stop grace before stopping the other background processes.
+
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, startBackgroundLifetime -->
+<!-- source: internal/test/runner/runner_exec_util.go -- tmpfsRequestsDaemonShutdown, terminateAfterSelfExit -->
 
 #### How an `exec=` value becomes argv
 
@@ -1308,6 +1315,16 @@ action=rewrite:conn=<N>:seq=<N>:source=<tmpfs-file>:dest=<config-file>
 ```
 
 Copies a tmpfs file over the daemon's config file. Used with `action=sighup` to test config reload.
+
+It also writes a marker a second process can wait on, which is its other use:
+`test/reload/config-apply-ordering-address-swap.ci` copies one file to
+`session-returned.txt` once the restarted BGP session has re-announced its
+routes, and the test's own driver waits for that file before it signals the
+daemon. When the rewrite is the LAST item the peer block queues, the exchange
+is over and the peer completes on it, exactly as `action=sighup` and
+`action=sigterm` do. Without that the peer kept matching, and the daemon's
+shutdown NOTIFICATION arrived against an empty expectation list and failed the
+test as a message mismatch.
 
 | Key | Description |
 |-----|-------------|

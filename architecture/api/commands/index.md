@@ -1565,7 +1565,7 @@ help page prints its summary alone. An empty `Description` is a defect:
 
 An RPC carries the same two texts, in the same two YANG statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
-`RPCMeta.Description` and `RPCMeta.Help`. `getHelpExtension` is the ONE reader
+`RPCMeta.Description` and `RPCMeta.Help`. `GetHelpExtension` is the ONE reader
 of the extension for both carriers. A command container reaches it through
 `Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
 `./le docvalid help-shape` holds the two corpora to one shape.
@@ -1675,7 +1675,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/api/schema.go -- OpenAPISchema -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMeta, buildCommandMeta -->
 
-<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, getHelpExtension, PathToHelp -->
+<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, GetHelpExtension, PathToHelp -->
 <!-- source: internal/component/command/node.go -- Node, CommandEntry -->
 <!-- source: internal/component/plugin/server/command_registry.go -- RegisteredCommand, VisibleCommandEntries -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, commandHelpText -->

@@ -162,6 +162,19 @@ byte for byte, so it is the stable contract for a script:</p>
 </code></pre>
 <p><code>| json</code> is a renderer, not this. It unwraps a single-key object holding an
 array, so <code>{"commands": [...]}</code> reaches the caller as a bare <code>[...]</code>.</p>
+<p>JSON numbers retain their exact value through pipe decoding, row selection,
+metadata injection and address enrichment. <code>json</code> and <code>ndjson</code> emit integer
+fields as numbers, including <code>9007199254740993</code> (2^53 + 1) and
+<code>18446744073709551615</code> (the largest uint64), without float64 rounding or quotes.
+The same integers render in full decimal form in <code>yaml</code>, <code>table</code> and <code>text</code>.
+This guarantee applies to inline pipes, streamed records and <code>ze pipe</code> stdin;
+it cannot recover precision already lost by an upstream producer.</p>
+<p>Formatting still unwraps single-key array wrappers where documented. Malformed
+JSON or trailing content is never accepted as one complete JSON value: format
+operators pass it through, while line-oriented fallbacks keep their existing
+behaviour.</p>
+<!-- source: internal/component/command/pipe.go -- decodePipeJSON, applyJSON, applyNDJSON -->
+<!-- source: internal/component/command/format.go -- formatNumber, writeScalar -->
 <p>Ze's own tooling uses the same operator. Completion, the runtime command tree
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.</p>
@@ -545,7 +558,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

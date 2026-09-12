@@ -1935,7 +1935,7 @@
                                 "type": "enumeration"
                               },
                               {
-                                "description": "Maximum paths per prefix to receive (PATHS-LIMIT capability).",
+                                "description": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
                                 "kind": "leaf",
                                 "name": "limit",
                                 "source": "config",
@@ -1955,7 +1955,7 @@
                             "source": "config"
                           },
                           {
-                            "description": "Default maximum paths per prefix (PATHS-LIMIT).",
+                            "description": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
                             "kind": "leaf",
                             "name": "limit",
                             "source": "config",
@@ -2739,7 +2739,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Maximum paths per prefix to receive (PATHS-LIMIT capability).",
+                            "description": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
                             "kind": "leaf",
                             "name": "limit",
                             "source": "config",
@@ -2759,7 +2759,7 @@
                         "source": "config"
                       },
                       {
-                        "description": "Default maximum paths per prefix (PATHS-LIMIT).",
+                        "description": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
                         "kind": "leaf",
                         "name": "limit",
                         "source": "config",
@@ -4237,7 +4237,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Maximum paths per prefix to receive (PATHS-LIMIT capability).",
+                            "description": "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).",
                             "kind": "leaf",
                             "name": "limit",
                             "source": "config",
@@ -4257,7 +4257,7 @@
                         "source": "config"
                       },
                       {
-                        "description": "Default maximum paths per prefix (PATHS-LIMIT).",
+                        "description": "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).",
                         "kind": "leaf",
                         "name": "limit",
                         "source": "config",
@@ -17947,7 +17947,7 @@
       {
         "children": [
           {
-            "description": "Ingress interfaces to match. The policy matches a packet\nthat arrives on any one of them. A trailing '*' enables\nprefix (wildcard) matching (e.g. 'l2tp*').",
+            "description": "Ingress interfaces to match, where a trailing '*' matches by prefix.",
             "kind": "leaf-list",
             "name": "interface",
             "source": "config",

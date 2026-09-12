@@ -20,7 +20,7 @@ Show full detail for one or more peers.
 - Command pipes: none
 - Pipe aliases: none
 
-Each peer row carries the remote and local ASN, the router ID, the peer type, and four timers: receive hold time, send hold time, keepalive, and connect retry. The 'connect' and 'accept' flags say which directions this session opens. A 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and End-of-RIB in each direction.
+Each peer row carries the remote and local ASN, the router ID, the peer type, and four timers: receive hold time, send hold time, keepalive, and connect retry. The 'connect' and 'accept' flags say which directions this session opens. A 'messages' map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and End-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear under capabilities.paths-limit, keyed by family: send is the peer's maximum paths per prefix enforced on our outbound updates; receive is our advertised receive request, not a locally enforced inbound limit. Zero or absent limits are omitted.
 
 ## Arguments
 

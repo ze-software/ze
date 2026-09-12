@@ -742,12 +742,12 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>tcp_connections</code></td>
 <td><code>value=&lt;N&gt;</code></td>
-<td>Number of TCP connections</td>
+<td>The number of TCP connections the peer serves. It is a BOUND, never a witness: the count says how many connections happened and not who caused them. A peer that closes when its expectations are met makes ze dial again on its retry timer, so <code>value=2</code> is reached by a daemon that did nothing. To assert that the DAEMON dropped and restarted a session, add <code>option=linger</code>, which makes the peer incapable of causing the second connection.</td>
 </tr>
 <tr>
 <td><code>linger</code></td>
 <td><code>value=true</code></td>
-<td>Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. A <code>reject=bgp</code> that fires during the linger loop RETRACTS the success token already printed, so the peer still fails the test.</td>
+<td>Peer-block only: the check peer never closes a connection itself. After ALL expectations complete it prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. BETWEEN connections, where one connection's expectations are met and a later connection is still owed, it holds that connection until the REMOTE closes it, and fails the test if teardown comes first. Without it a completed peer closes, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers, and it also makes the daemon's OWN close unobservable, because ze dials again on its retry timer whoever closed (asserts a stop and a restart, and needs the peer to be incapable of causing one). A <code>conn_map</code> peer is excluded from the between-connections hold: it serves every connection of one batch in turn and then waits for the daemon to close them all, so holding the first would starve the batch. A <code>reject=bgp</code> that fires during either hold RETRACTS the success token already printed, so the peer still fails the test. <span class="ev-src"><span class="ev-ref"><code>test/reload/config-apply-ordering-address-swap.ci</code></span></span></td>
 </tr>
 <tr>
 <td><code>silent</code></td>
@@ -948,7 +948,7 @@ option=open:value=paths-limit:family=&lt;f&gt;[,&lt;f&gt;]:limit=&lt;N&gt;
 <tr>
 <td><code>limit</code></td>
 <td>0 to 65535</td>
-<td><code>CommitService.enforcePathsLimit</code> drops paths past it, so ze sends this peer no more than <code>limit</code> paths for one prefix</td>
+<td>The Max Paths field of the code 76 entry this peer advertises. <code>Session.filterPathsLimit</code> drops paths past it, so ze sends this peer no more than <code>limit</code> paths for one prefix</td>
 </tr>
 <tr>
 <td><code>family</code></td>
@@ -1146,7 +1146,7 @@ a route was NOT forwarded pass because no route was ever offered.</p>
 </code></pre>
 <h3 id="process-commands-foregroundbackground">Process Commands (Foreground/Background)</h3>
 <p>For orchestrating multiple processes:</p>
-<pre><code>cmd=background:seq=&lt;N&gt;:exec=&lt;command&gt;[:stdin=&lt;name&gt;][:name=&lt;handle&gt;]
+<pre><code>cmd=background:seq=&lt;N&gt;:exec=&lt;command&gt;[:stdin=&lt;name&gt;][:name=&lt;handle&gt;][:timeout=&lt;dur&gt;]
 cmd=foreground:seq=&lt;N&gt;:exec=&lt;command&gt;[:stdin=&lt;name&gt;][:timeout=&lt;dur&gt;][:exit=&lt;N&gt;]
 cmd=stop:seq=&lt;N&gt;:name=&lt;handle&gt;[:signal=kill|term]
 </code></pre>
@@ -1172,7 +1172,7 @@ cmd=stop:seq=&lt;N&gt;:name=&lt;handle&gt;[:signal=kill|term]
 </tr>
 <tr>
 <td><code>timeout</code></td>
-<td>Foreground timeout (e.g., <code>10s</code>)</td>
+<td>Foreground test budget, or background process lifetime (e.g., <code>10s</code>).</td>
 </tr>
 <tr>
 <td><code>exit</code></td>
@@ -1206,9 +1206,14 @@ keep their own default when it does not parse, so it is refused here instead.</p
 <!-- source: internal/test/runner/record_parse_cmd.go -- cmdExecKeys, cmdStopKeys, parseCmdExec -->
 <!-- source: internal/test/runner/record_parse_keys.go -- checkMarkerKeys -->
 <!-- test: internal/test/runner/record_parse_cmd_test.go TestCmdUnknownKeyRefused, TestCmdUnknownKeyNotSwallowedIntoExec -->
-<p><strong>Background:</strong> Starts and keeps running until test ends.
-<strong>Foreground:</strong> Starts and waits for completion.
+<p><strong>Background:</strong> Starts and keeps running until its timeout, an explicit stop, or test completion.
+<strong>Foreground:</strong> Setup commands finish before the next step. A <code>ze</code> daemon starts
+without blocking later steps. Its peers or observer determine when teardown starts.
 <strong>Stop:</strong> Terminates a named background process mid-test (see below).</p>
+<p>When an embedded observer sends <code>request shutdown</code>, teardown gives that daemon
+its bounded self-stop grace before stopping the other background processes.</p>
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, startBackgroundLifetime -->
+<!-- source: internal/test/runner/runner_exec_util.go -- tmpfsRequestsDaemonShutdown, terminateAfterSelfExit -->
 <h4 id="how-an-exec-value-becomes-argv">How an <code>exec=</code> value becomes argv</h4>
 <p>The runner splits the value on spaces and tabs, and a span inside <code>"</code> or <code>'</code>
 stays ONE argument. Quote an argument that carries a space or a pipe, exactly as
@@ -1762,6 +1767,15 @@ entry. Keep the reason greppable and truthful (name the covering test).</p>
 <pre><code>action=rewrite:conn=&lt;N&gt;:seq=&lt;N&gt;:source=&lt;tmpfs-file&gt;:dest=&lt;config-file&gt;
 </code></pre>
 <p>Copies a tmpfs file over the daemon's config file. Used with <code>action=sighup</code> to test config reload.</p>
+<p>It also writes a marker a second process can wait on, which is its other use:
+<code>test/reload/config-apply-ordering-address-swap.ci</code> copies one file to
+<code>session-returned.txt</code> once the restarted BGP session has re-announced its
+routes, and the test's own driver waits for that file before it signals the
+daemon. When the rewrite is the LAST item the peer block queues, the exchange
+is over and the peer completes on it, exactly as <code>action=sighup</code> and
+<code>action=sigterm</code> do. Without that the peer kept matching, and the daemon's
+shutdown NOTIFICATION arrived against an empty expectation list and failed the
+test as a message mismatch.</p>
 <table>
 <thead>
 <tr>
@@ -2776,7 +2790,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

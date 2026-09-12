@@ -562,11 +562,11 @@ Border Gateway Protocol routing configuration.
             - **direction** `enumeration`
               ADD-PATH direction override for this family.
             - **limit** `uint16`
-              Maximum paths per prefix to receive (PATHS-LIMIT capability).
+              Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
             - **mode** `enumeration`
               ADD-PATH negotiation mode for this family.
           - **limit** `uint16`
-            Default maximum paths per prefix (PATHS-LIMIT).
+            Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
         - **asn4** `boolean`
           Advertise the 4-byte ASN capability (RFC 6793).
         - **extended-message** `container`
@@ -784,11 +784,11 @@ Border Gateway Protocol routing configuration.
           - **direction** `enumeration`
             ADD-PATH direction override for this family.
           - **limit** `uint16`
-            Maximum paths per prefix to receive (PATHS-LIMIT capability).
+            Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
           - **mode** `enumeration`
             ADD-PATH negotiation mode for this family.
         - **limit** `uint16`
-          Default maximum paths per prefix (PATHS-LIMIT).
+          Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
       - **asn4** `boolean`
         Advertise the 4-byte ASN capability (RFC 6793).
       - **extended-message** `container`
@@ -1200,11 +1200,11 @@ Border Gateway Protocol routing configuration.
           - **direction** `enumeration`
             ADD-PATH direction override for this family.
           - **limit** `uint16`
-            Maximum paths per prefix to receive (PATHS-LIMIT capability).
+            Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).
           - **mode** `enumeration`
             ADD-PATH negotiation mode for this family.
         - **limit** `uint16`
-          Default maximum paths per prefix (PATHS-LIMIT).
+          Default maximum paths per prefix requested from the peer (PATHS-LIMIT).
       - **asn4** `boolean`
         Advertise the 4-byte ASN capability (RFC 6793).
       - **extended-message** `container`
@@ -5073,7 +5073,7 @@ Policy routing configuration.
 - **route <name>** `list`
   A named policy route applied to ingress interfaces.
   - **interface** `string[]`
-    Ingress interfaces to match. The policy matches a packet that arrives on any one of them. A trailing '*' enables prefix (wildcard) matching (e.g. 'l2tp*').
+    Ingress interfaces to match, where a trailing '*' matches by prefix.
   - **rule <name>** `list`
     Ordered list of match/action rules.
     - **from** `container`

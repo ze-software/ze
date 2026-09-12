@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 76.0% | 73 of 96 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 8.3% | 8 of 96 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 96 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 159 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 0.0% | 0 of 160 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -65,10 +65,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps | 14 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 159 |
-| Tagged units | 159 |
+| Test tags | 160 |
+| Tagged units | 160 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 1 |
 | Summary | `rfc/short/rfc5880.md` |
 | Requirement shard | `rfc/requirements/rfc5880.md` |
 | RFC text | `rfc/full/rfc5880.txt` |
@@ -170,7 +170,7 @@ Fourteen MUST gaps, gated in [`rfc/short/rfc5880.md`](https://github.com/ze-soft
 | `RFC5880-6.8.6-14` | Reception: if remote Demand mode active (D=1, both Up), cease periodic Control packet transmission (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** no positive test. **negative:** no negative test. **{gap}:** tick transmits whenever the periodic deadline has passed and never consults the remote Demand state (internal/component/bfd/engine/loop.go:192-201), so periodic Control packets continue after the peer sets D=1 |
 | `RFC5880-6.8.6-15` | Reception: if remote Demand mode not active, send periodic Control packets (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PeriodicTransmitWhenRemoteDemandInactive`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L368). **negative:** `unit/verify` [`TestRFC5880NoPeriodicTransmitWhileAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L403) |
 | `RFC5880-6.8.6-16` | Reception: if P=1, send Final packet immediately (§6.8.6, §6.8.7) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880PollAnsweredWithImmediateFinal`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L322). **negative:** `unit/verify` [`TestRFC5880NonPollProducesNoImmediateReply`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L352) |
-| `RFC5880-6.8.6-18` | Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L105). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128) |
+| `RFC5880-6.8.6-18` | Reception: if Your Discriminator zero, select the session on a combination of other fields, which can include source addressing information, My Discriminator, and the ingress interface (§6.8.6) | MUST | 6.8.6 - Reception of BFD Control Packets | **positive:** `unit/verify` [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L356). **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L151) |
 | `RFC5880-6.8.7-1` | Transmission: must not transmit at interval less than max(bfd.DesiredMinTxInterval, bfd.RemoteMinRxInterval) less jitter (§6.8.7) | MUST NOT | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880TransmitDeadlineUsesNegotiatedInterval`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1015). **negative:** `unit/verify` [`TestRFC5880TransmitDeadlineClampsBadJitter`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5880_test.go#L1045) |
 | `RFC5880-6.8.7-2` | Transmission: periodic TX must be jittered by 0-25% per packet (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880JitterIsAppliedPerPacket`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L422). **negative:** `unit/verify` [`TestRFC5880JitterStaysWithinBand`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L450) |
 | `RFC5880-6.8.7-3` | Transmission: if bfd.DetectMult == 1, interval must be 75-90% of negotiated interval (§6.8.7) | MUST | 6.8.7 - Transmitting BFD Control Packets | **positive:** `unit/verify` [`TestRFC5880JitterDetectMultOneWindow`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L470). **negative:** `unit/verify` [`TestRFC5880JitterFloorOnlyForDetectMultOne`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5880_test.go#L488) |
@@ -898,8 +898,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128) | unit/verify | unproven |
-| positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L105) | unit/verify | unproven |
+| negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L151) | unit/verify | unproven |
+| positive | [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L356) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128) | unit/verify | unproven |
 
 ### [`RFC5880-6.8.7-1`](#rfc5880-6.8.7-1)
 

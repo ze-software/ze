@@ -2,60 +2,66 @@
 
 *2026-08-10 by Thomas Mangin*
 
-An agent can read repository documentation, but each project still has to teach it where authoritative decisions live and how they relate to the code.
+Once Claude knew how to maintain the design documents and follow their links to the code, better documentation led to better implementations. The missing convention is the structure which makes that possible.
 
 ![A recognised generated repository tree is compared with an arbitrary tree whose design, rules and tests sit apart; a shared convention joins project meaning to predictable locations.](../../assets/blog/ai-coding-has-not-had-its-rails-moment.svg)
 
-An agent entering a repository needs to learn which decisions govern the code it is about to change. A project may have excellent documentation and still require a maintainer to explain where to begin, which pages are authoritative and how they relate to the tests.
+Claude already knew how to write Go when I began building Ze, a network operating system. The difficulty was getting it to write the code this project needed, according to its architecture and the decisions already made. A familiar programming pattern could produce a plausible implementation while undoing something the project was deliberately trying to preserve.
 
-I have been building that explanation into Ze, the network operating system I am working on. The difficulty is familiar from organising repositories for people, and Rails gives me a useful comparison: a convention that developers and tools can recognise before they understand the application. AI coding has some agreed entry points, but I do not yet see an equivalent shared convention for the project knowledge behind them.
+Much of the effort therefore went into teaching the AI where to write documentation and designs, then how to find them from the code and find the code from them. As those documents improved, the quality of the generated code improved too. The explanations were becoming part of what the next implementation was built from.
+
+That required more than putting some Markdown in a `docs/` directory. The agent had to know when to consult it, where a new decision belonged and how to keep the explanation connected to the implementation. Building that arrangement became a way of programming how the AI would approach the project.
 
 *This article was co-authored with Claude and revised with OpenAI Codex. The argument and the conclusions are mine. Claude helped organise the material and draft the original text.*
 
-## A layout I could carry between projects
+## Giving the next session something to learn from
 
-At Exa in the early 2000s, our convention put each project's configuration in `etc/`, its working data in `data/`, reusable code in `lib/` and the rest in `src/`. It was not a one-to-one match with the Filesystem Hierarchy Standard, but changing `$ETC` and `$DATA` was enough to point a project at the right place on an installed system. During development, the repository acted as the installed root, so I could stay in the code-test loop without an installation step.
+A correction made in a conversation helps with the change in progress, but the next session needs a way to recover it. Without that, an agent can arrive at the same alternative which was rejected earlier, and there is another conversation to have before development can continue.
 
-The [first ExaBGP commit, from September 2009](https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532), had `daemon`, `etc`, `lib` and `test` directories. Its commit message records that the `supervisor.py` test announced a route to a Cisco 7204 and kept the connection alive. The tree held the configuration and the code needed to try it.
+Plugin registration is a useful example. A central switch can be a reasonable way to dispatch a known set of commands. Ze's plugins, including third-party extensions, are meant to remain separate from the core, so adding a branch there for every new plugin would defeat the design. The model needs the reason for that choice as well as an example of the registration code.
 
-That arrangement was familiar inside Exa. Rails made a shared layout part of the framework itself, and its [official philosophy](https://guides.rubyonrails.org/getting_started.html#rails-philosophy) calls the approach Convention over Configuration. Running `rails new` creates recognised places for application code and configuration, along with database migrations, libraries and tests.
+Writing the reason down gives the next session a chance to use it, provided the session knows where to look. In Ze, the task-oriented [`ai/INDEX.md`](https://github.com/ze-software/ze/blob/main/ai/INDEX.md) directs an agent towards the relevant guidance. Work on the modular core leads to the [registration pattern](https://github.com/ze-software/ze/blob/main/ai/patterns/registration.md), where the explanation and an approved way of doing it can be found together.
 
-A developer who knows Rails can enter an unfamiliar Rails application with some useful knowledge already, and the framework relies on the same conventions. The application still has to supply its own behaviour, but neither the person nor the tool has to begin by inventing where a model belongs.
+The same organisation has to guide what the agent writes. A new design needs a known home, and a change to an existing decision needs to update its explanation instead of leaving a contradictory account elsewhere. Teaching those habits prevents each session from inventing another place to put the information which later sessions will need.
 
-Younger programmers may never have worked with Rails, but they will recognise the same benefit in React projects today. Familiar component conventions give them a starting point in a codebase they have never seen before.
+Once the documents have a place, links make them useful from whichever end a task begins. Source files carry `// Design:` references to their design documents, while documents cite the source through `<!-- source: ... -->` anchors. The generated [code-to-documents](https://github.com/ze-software/ze/blob/main/ai/CODE-TO-DOCS.md) and [design-to-code](https://github.com/ze-software/ze/blob/main/ai/DOCS-TO-CODE.md) indexes provide the corresponding lookups.
 
-I want that familiarity for the decisions around an AI-assisted change. The agent should have a predictable route from the source file to the design which governs it, and from that design to the evidence required when it changes.
+An agent investigating a function can therefore reach the reasoning behind it. An agent starting with a design can find the implementation it governs. When either changes, there is also a route to the other half which needs attention, so the next session can recover the decision without needing the conversation in which it was made.
 
-## A harness cannot supply project decisions
+## The documentation began to affect the code
 
-An agent can search a repository and read its files, but finding a function does not establish which pattern the project expects it to follow. Ze requires registration for features which another project might put in a central switch statement. A general-purpose harness has no basis for choosing between those designs unless the project supplies the reason.
+These links would achieve little if the model were left to ignore them. `CLAUDE.md` is the entry point to the rules which teach it how to work with the repository, including how to find the relevant design before changing the code and how to maintain that design afterwards. The files and the [instructions for using them](../the-repository-is-the-ai-harness/) have to be developed together.
 
-Repository documentation already answers some of this. An `AGENTS.md` or `CLAUDE.md` can explain the project and point to further reading, and those filenames are a useful beginning. They leave the organisation behind the entry point to each maintainer, so an agent still has to learn a different route to architectural decisions and checks in each repository.
+Better explanations of the project's choices gave the model better guidance for its next implementation. A correction which once needed to be repeated in conversation could instead improve the document the following session was directed to read. As the documentation became more useful, the generated code followed the intended design more closely.
 
-The convention I am looking for would make those routes familiar without requiring every project to share Ze's architecture. The project would remain free to choose its implementation, while the harness could recognise where to find the rules for changing it. Better search helps recover a decision that has been written down; it cannot recover one which remains in my head.
+The design documents give the model a reason to choose a project-specific approach even when a different pattern would be more familiar from training. Its knowledge of programming is still useful, but the project supplies the decisions about how that knowledge should be applied. A new request can build on that guidance without repeating the whole architecture in its prompt.
 
-## Existing attempts give us something to copy
+I have always enjoyed metaprogramming and macros, so this turned out to be a satisfying way to work. Part of programming Ze had become describing how another program should approach its implementation. The `CLAUDE.md` system is a meta-system in that sense: its rules govern how the agent finds the information it needs and how its changes contribute to what the next agent will find.
 
-Cloudflare described its own response in [How Cloudflare enforces engineering standards using AI](https://blog.cloudflare.com/engineering-standards-enforcement/) in August 2026. Its guidance already existed in formal documentation and repository files, as well as chat threads and engineers' accumulated knowledge. Engineers had trouble establishing whether what they found was current, authoritative or applicable to their situation.
+## This is where Rails comes in
 
-Cloudflare organised its standards as RFCs with `MUST` and `SHOULD` requirements, using the meanings in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119.html). Statements receive stable identifiers, and agents can load a compact set of statements before requesting the full documents. Cloudflare also separates an approved standard from an enforced one, so publication does not immediately make every violation a reason to block a merge.
+Most projects do not come with this arrangement already in place. They may have code and documentation, but the rules for creating the documentation and navigating between it and the implementation still need to be supplied. A `CLAUDE.md` or `AGENTS.md` gives the agent an entrance; somebody has to organise what lies behind it.
 
-Ze has a task-oriented `ai/INDEX.md`, which points to rules and architecture documents, and source annotations which link the implementation back to its design. For example, the index sends a developer learning the modular core to `ai/patterns/registration.md`; it gives a separate route for implementing an RFC. [The repository is half the AI harness](../the-repository-is-the-ai-harness/) describes that navigation and the feedback provided during development.
+That is a familiar kind of problem. At Exa in the early 2000s, we carried a common layout between projects: configuration in `etc/`, working data in `data/`, reusable code in `lib/` and the rest in `src/`. Changing `$ETC` and `$DATA` pointed a project at the installed locations, while the repository itself acted as the installed root during development.
 
-Cloudflare's governed standards and Ze's repository rules serve different organisations, but both give an agent a route to guidance which people have already decided applies. Neither establishes an industry convention by itself. They are examples concrete enough for other projects to compare and adapt.
+The layout meant the configuration needed to try a program was already beside its code. The [first ExaBGP commit, from September 2009](https://github.com/Exa-Networks/exabgp/commit/5490f7baf5981279e2360d88c735570bc9f72532), contains `daemon`, `etc`, `lib` and `test` directories, and its commit message records a test announcing a route to a Cisco 7204. A convention familiar to us removed some of the setup and explanation each project would otherwise require.
 
-## A starter command can only supply the structure
+Rails made that benefit available across a much larger community through [Convention over Configuration](https://guides.rubyonrails.org/getting_started.html#rails-philosophy). Running `rails new` creates recognised places for application code and configuration, along with database migrations, libraries and tests. The framework uses the arrangement too, so a developer entering another Rails application already knows something about how it works before reading its code.
 
-Andrej Karpathy's [LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) describes another recognisable arrangement: raw sources kept separately from cross-linked Markdown pages, an `index.md` for discovery, and an `AGENTS.md` or `CLAUDE.md` explaining the conventions. It is a proposal for a knowledge base rather than a software repository, but I recognised the use of ordinary files and links from what we had been doing in Ze.
+Younger programmers who have never used Rails will recognise the same benefit in React projects. React leaves more of the surrounding structure to its ecosystem, but familiar component conventions still reduce the amount a newcomer has to learn. Once that familiarity exists, every project no longer needs to explain its organisation from the beginning.
 
-A command could generate the equivalent starting structure for a repository. It could create an entry document and places for decisions, with an index and a convention for links between source and design. That would save each maintainer from inventing the arrangement, and give harness authors something consistent to support.
+An equivalent convention for AI development would extend that familiarity to the design and to the way the agent is expected to use it. A new repository would have a structure for recording decisions and finding their implementations, with instructions for keeping those relationships useful. The project would supply its own architecture within that arrangement, much as a Rails application supplies its own behaviour within the framework's conventions.
 
-It could not decide which dependencies the project permits or why one implementation was rejected. Maintainers would still have to supply those decisions and choose the checks that make them enforceable. An empty architecture directory has no more meaning than an empty Rails model, and generated guidance would need the same review as generated code.
+## A structure other projects could start with
 
-I am inclined to think a convention will spread through a project people can copy, though I do not know which one. A useful example would show both the starter structure and the project-specific reasoning added to it, so copying the files did not get mistaken for completing the job.
+There are already related attempts to make project knowledge usable this way. Cloudflare's [engineering standards system](https://blog.cloudflare.com/engineering-standards-enforcement/) gives standards stable identifiers which agents can use during reviews, addressing guidance previously spread between documents, repositories and conversations. Its setting is a large organisation, but the need to recover an earlier decision is much the same.
 
-ExaBGP could run from its project folder because the layout let the program find its environment. I want an agent to find Ze's development environment with as little prior knowledge, including the designs which explain the code and the checks a change has to face. Building that for one repository is what I have spent much of this year doing.
+Andrej Karpathy's [LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) provides a recognisable arrangement for a knowledge base, with raw sources separate from cross-linked Markdown pages, an index and instructions explaining the conventions. Much of that was familiar from Ze's ordinary files and links. Describing the arrangement together gives others something to copy instead of requiring them to discover each part independently.
 
-The machinery supporting Ze's development is in place, and I have finished the update for Opus 5. I am going back to writing the router rather than spending the year on the tools used to build it.
+For a software project, the convention would also need to cover the relationship between a design and its implementation. A session starting from either would know how to reach the other and where to record what it changes.
 
-*Last updated: 8 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/ai-coding-has-not-had-its-rails-moment.md).*
+A shared starting structure could save another project from having to invent all of this before benefiting from it. Its author would still decide how the software should be built; the convention would give those decisions a place and teach the agent how to work with them. That is the part which ought to become ordinary.
+
+For Ze, the machinery is now in place and the update for Opus 5 is finished. I am going back to writing the router, with its design documents now helping to determine what the AI writes next.
+
+*Last updated: 11 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/ai-coding-has-not-had-its-rails-moment.md).*

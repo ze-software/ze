@@ -371,10 +371,10 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>MUST</td>
 <td>5 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L118" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L128" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L88" title="internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section54ReadsTypedNLRIUnderAddPath</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L221" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDLeavesNonAddPathDestinationAlone</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L23" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L24" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-4">RFC7911-5-4</code></td><td colspan="3"><span class="rfc-subject">When ADD-PATH is negotiated, speaker must generate route updates based on (address prefix, Path Identifier) combination using extended NLRI encodings (Section 5)</span></td></tr>
@@ -668,7 +668,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L23" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L24" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -678,7 +678,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L118" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L128" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -926,7 +926,7 @@ Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

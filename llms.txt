@@ -14,22 +14,22 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 4 roadmap cards, 466 CLI commands, 36 config sections, 89 plugin registrations, 48 direct Go dependencies, 39 weekly change entries.
-- Test evidence counts: 29,400+ unit tests, 83 fuzz targets, 2,000+ end-to-end transcript steps, 145 interop scenarios across 9 target implementations.
-- Generated date: 2026-09-09.
+- Current generated counts: 52 shipped or experimental feature cards, 4 roadmap cards, 466 CLI commands, 36 config sections, 89 plugin registrations, 49 direct Go dependencies, 39 weekly change entries.
+- Test evidence counts: 29,800+ unit tests, 83 fuzz targets, 2,000+ end-to-end transcript steps, 151 interop scenarios across 9 target implementations.
+- Generated date: 2026-09-12.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 29,400+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 29,800+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 83 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
 - Editor `.et` transcripts: drive the headless interactive editor.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
-- Interop: 145 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
+- Interop: 151 scenarios against 9 target implementations, including FRR, BIRD, GoBGP, RustyBGP, OpenBGPD, ExaBGP, and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repository` is the narrower handoff gate.
 - Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
@@ -853,8 +853,9 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - `google.golang.org/protobuf`: Runtime support for the generated protobuf message types behind Ze's gRPC API.
 - `google.golang.org/grpc/cmd/protoc-gen-go-grpc`: Build-time only: the protoc plugin used to regenerate the gRPC API's Go bindings from ze.proto.
 
-### Observability (3)
+### Observability (4)
 - `github.com/prometheus/client_golang`: Ze's internal metrics backend: counters, gauges, and histograms against a private registry.
+- `github.com/prometheus/common`: Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel.
 - `github.com/prometheus/procfs`: Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet.
 - `github.com/sirupsen/logrus`: Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger.
 
@@ -1030,7 +1031,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 - [Code quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Testing health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
 - [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/index.md): RFC requirements, tests, gaps, and public claims checked by AI (web: https://ze-software.net/quality/rfc-compliance/)
-- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 48 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
+- [Dependencies](https://ze-software.net/reference/dependencies/index.md): 49 direct packages, generated from go.mod (web: https://ze-software.net/reference/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 
 ## Docs

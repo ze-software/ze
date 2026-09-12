@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>4 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>28.6%</strong><b>2 of 7 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -216,16 +216,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5882.md</code></td>
@@ -241,7 +241,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Generic Application of BFD: three MUST-level requirements. RFC5882-4.4-1 (multiple control protocols wanting a BFD session to the same remote/data-protocol MUST share a single BFD session) is met by the refcounted, path-keyed session registry EnsureSession (internal/component/bfd/engine/engine.go:344), keyed by api.Key{Peer,Local,Interface,VRF,Mode} which deliberately excludes timers (internal/component/bfd/api/events.go:155-156); both polarities: TestBFDSharedSessionSameKey proves a second same-Key request bumps the refcount to 2 on ONE session and the session survives until the last release, TestBFDDistinctSessionsDifferentKey proves two different remotes get two distinct sessions. RFC5882-4.1-1 (establishment allowed under AdminDown) is {not-applicable}: Ze never gates control-protocol establishment on BFD state -- the BFD client attaches only after the adjacency is up (BGP on StateEstablished, OSPF on Full) and is strictly additive, so no AdminDown session can block establishment. RFC5882-10.1.3-1 (OSPF virtual links MUST use RFC 5883 multihop) is {not-applicable}: Ze does not run BFD on OSPF virtual links (the BFD-for-OSPF client keys on per-interface config; a virtual link is a synthetic backbone link, not a configured interface, so it never gets a session). The SHOULD/SHOULD-NOT clauses (single session per path, hysteresis notify, AdminDown/bring-up connectivity semantics, GR fate-sharing, static-route withdrawal, planned-outage AdminDown, authentication) and the MAY clauses are not gated.</p>
+<p>Enrolled: Generic Application of BFD: three MUST-level requirements. RFC5882-4.4-1 (multiple control protocols wanting a BFD session to the same remote/data-protocol MUST share a single BFD session) is met for every configuration in which the clients reach one key, and PARTIALLY met otherwise, which is what docs/features/rfc-status.md publishes. The registry half is complete: EnsureSession (internal/component/bfd/engine/engine.go:344) is refcounted and path-keyed on api.Key{Peer,Local,Interface,VRF,Mode}, deliberately excluding timers (internal/component/bfd/api/events.go:155-156), and both polarities are proven by TestBFDSharedSessionSameKey (a second same-Key request bumps the refcount to 2 on ONE session, which survives until the last release) and TestBFDDistinctSessionsDifferentKey (two different remotes get two distinct sessions). The key half, api.SessionRequest.Canonical, completes what a client left out so OSPF, BGP and a pinned session reach the same key, and it REFUSES to derive where the answer is ambiguous: seven configurations, listed under &#34;Multiple Control Protocols (Section 4.4)&#34; on this page, leave two clients for one remote system with two sessions rather than one (and, until the interface-less first-packet lookup landed, left the single-hop four with two sessions NEITHER of which could be selected for a packet carrying no discriminator) (an IPv6 link-local peer, two links on one subnet, an off-link peer, no route, an egress interface with no or several addresses of the peer family, multi-hop in a non-default VRF, and any mode with no interface backend loaded). Each closes when the operator names the local address on both sides. RFC5882-4.1-1 (establishment allowed under AdminDown) is {not-applicable}: Ze never gates control-protocol establishment on BFD state -- the BFD client attaches only after the adjacency is up (BGP on StateEstablished, OSPF on Full) and is strictly additive, so no AdminDown session can block establishment. RFC5882-10.1.3-1 (OSPF virtual links MUST use RFC 5883 multihop) is {not-applicable}: Ze does not run BFD on OSPF virtual links (the BFD-for-OSPF client keys on per-interface config; a virtual link is a synthetic backbone link, not a configured interface, so it never gets a session). The SHOULD/SHOULD-NOT clauses (single session per path, hysteresis notify, AdminDown/bring-up connectivity semantics, GR fate-sharing, static-route withdrawal, planned-outage AdminDown, authentication) and the MAY clauses are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -302,9 +302,10 @@ Same BFD partial status.
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5882-4.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L18" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDSharedSessionSameKey</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L57" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesEveryClientShapeOntoOneKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L59" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesEveryClientShapeOntoOneKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L150" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesMultiHopShapesOntoOneKey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16" title="internal/plugins/ospf/rfc5882_shared_key_test.go" target="_blank" rel="noopener"><code>TestOSPFNeighborRequestReachesTheSharedKey</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L17" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L19" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_shared_session_test.go#L73" title="internal/component/bfd/engine/rfc5882_shared_session_test.go" target="_blank" rel="noopener"><code>TestBFDDistinctSessionsDifferentKey</code></a></span></div>
 </div></td>
@@ -574,7 +575,12 @@ Same BFD partial status.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L57" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesEveryClientShapeOntoOneKey</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L59" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesEveryClientShapeOntoOneKey</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/api/session_identity_test.go#L150" title="internal/component/bfd/api/session_identity_test.go" target="_blank" rel="noopener"><code>TestCanonicalCollapsesMultiHopShapesOntoOneKey</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -584,14 +590,14 @@ Same BFD partial status.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L17" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/session_identity_test.go#L19" title="internal/component/bfd/session_identity_test.go" target="_blank" rel="noopener"><code>TestPinnedSessionReachesTheSharedKey</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config_bfd_strict_test.go#L205" title="internal/component/bgp/reactor/config_bfd_strict_test.go" target="_blank" rel="noopener"><code>TestStrictPeerRequestReachesTheSharedKey</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_shared_key_test.go#L16" title="internal/plugins/ospf/rfc5882_shared_key_test.go" target="_blank" rel="noopener"><code>TestOSPFNeighborRequestReachesTheSharedKey</code></a></td>
@@ -641,7 +647,7 @@ Same BFD partial status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:33 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

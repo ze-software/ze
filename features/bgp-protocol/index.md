@@ -76,7 +76,7 @@ That includes a route distinguisher in every form Ze parses one, and the
 administrator of an extended community such as `target:1.10:5`. It also
 includes the `as-path` of `show bgp encode route`, the MVPN `source-as`, the
 `show bgp rib path` filter, the `AS<n>` peer selector, and `rpki validate`. The
-`ze-analyse` binary reads them on `--peer-asn` and `--local-as`.
+`ze-analyze` binary reads them on `--peer-asn` and `--local-as`.
 
 One reader answers each of those forms. `selector.ParseASNSelector` is the
 `AS<n>` selector, for every peer command and for the policy filter.

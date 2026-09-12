@@ -111,15 +111,15 @@ Six MUST gaps, gated in [`rfc/short/rfc5881.md`](https://github.com/ze-software/
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5881-2-1` | Each BFD session between a pair of systems must traverse a separate network-layer path in both directions (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze cannot select or guarantee the network-layer path a session's packets take; the datagram is handed to the kernel FIB by internal/component/bfd/transport/udp.go:226 (conn.WriteToUDP), and separating two sessions onto distinct L3 paths is an operator topology property the BFD plugin does not control |
-| `RFC5881-2-2` | A separate BFD session must be established for each protocol (IPv4 and IPv6) over a link (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5881PerProtocolSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L247). **negative:** `unit/verify` [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L289) |
+| `RFC5881-2-2` | A separate BFD session must be established for each protocol (IPv4 and IPv6) over a link (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC5881PerProtocolSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L270). **negative:** `unit/verify` [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L312) |
 | `RFC5881-2-3` | Implementations supporting Echo function must ensure ingress filtering is not used on the Echo interface, or make an exception for Echo packets (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ingress filtering (BCP 38) is host and network policy; the echo transport opens a plain UDP socket at internal/component/bfd/bfd.go:393 (newEchoTransport) and the BFD plugin neither configures nor exempts kernel ingress filters |
 | `RFC5881-2-4` | A system implementing Echo must be capable of sending packets to its own address (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's echo does not address packets to its own address; sendEchoLocked (internal/component/bfd/engine/echo.go:96) sets the datagram destination to the peer (To: PeerAddr) and relies on the peer's application-level ZEEC reflection (internal/component/bfd/engine/echo.go:203), so the RFC 5881 self-addressed echo is unimplemented |
 | `RFC5881-3-1` | Both sides of a session must take the Active role (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5881SingleHopTakesActiveRole`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37). **negative:** `unit/verify` [`TestRFC5881NonActiveStaysSilent`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52) |
-| `RFC5881-3-2` | A received packet with Your Discriminator = 0 must be associated with the session bound to the remote system, interface, and protocol (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L98). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L122) |
+| `RFC5881-3-2` | A received packet with Your Discriminator = 0 must be associated with the session bound to the remote system, interface, and protocol (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L121). **negative:** `unit/verify` [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L145) |
 | `RFC5881-4-1` | BFD Control packets must be transmitted in UDP with destination port 3784 (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881ControlDestPort3784`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L18). **negative:** `unit/verify` [`TestRFC5881ControlPortNotUsedForEcho`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L34) |
 | `RFC5881-4-2` | UDP source port must be in the range 49152-65535 (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the control transport binds one UDP socket to port 3784 (internal/component/bfd/bfd.go:356,360) and reuses it for TX (internal/component/bfd/transport/udp.go:225, conn.WriteToUDP), so the source port of transmitted Control packets is 3784, not a value in the ephemeral 49152-65535 range |
 | `RFC5881-4-3` | The same UDP source port must be used for all Control packets in a session (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881SingleSourcePortPerSession`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L71). **negative:** no negative test. **{single-polarity}:** every Control packet in a session leaves from the one UDP socket the (vrf,mode) loop binds (internal/component/bfd/bfd.go:355-367, internal/component/bfd/transport/udp.go:218-228), so the source port is a fixed socket property; there is no per-packet source-port selection that could vary it, hence no negative state to exercise |
-| `RFC5881-4-4` | Ultimately, RFC 5880 mechanisms must be used to demultiplex incoming packets to the proper session (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L146). **negative:** `unit/verify` [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L169) |
+| `RFC5881-4-4` | Ultimately, RFC 5880 mechanisms must be used to demultiplex incoming packets to the proper session (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L169). **negative:** `unit/verify` [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L192) |
 | `RFC5881-4-5` | BFD Echo packets must be transmitted in UDP with destination port 3785 (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC5881EchoDestPort3785`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L46). **negative:** `unit/verify` [`TestRFC5881EchoPortNotUsedForControl`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L60) |
 | `RFC5881-4-6` | Echo destination address must cause the remote system to forward the packet back (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the echo destination is the peer address (internal/component/bfd/engine/echo.go:96, To: PeerAddr), reflected by the peer's ze application (internal/component/bfd/engine/echo.go:203), not an address chosen so the peer's forwarding plane loops the packet back, so the RFC 5881 echo dest-addressing rule is unimplemented |
 | `RFC5881-4-7` | Echo source address must preclude the remote system from generating ICMP or ND Redirect messages (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** sendEchoLocked (internal/component/bfd/engine/echo.go:83-101) sets no source address on the echo datagram (the kernel selects it) and applies no redirect-avoidance, because ze's echo is peer-addressed and application-reflected rather than looped by the peer's forwarding plane |
@@ -128,11 +128,11 @@ Six MUST gaps, gated in [`rfc/short/rfc5881.md`](https://github.com/ze-software/
 | `RFC5881-5-2` | If authentication is not in use: received packets must be discarded if TTL/Hop Limit != 255 (§5) | MUST | 5 | **positive:** `unit/verify` [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/ttl_test.go#L16). **negative:** `unit/verify` [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/ttl_test.go#L20) |
 | `RFC5881-5-3` | If authentication is in use: TTL/Hop Limit must be 255 on transmit (§5) | MUST | 5 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L28). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L163) |
 | `RFC5881-6-1` | All BFD Control packets must be transmitted over the one-hop path being protected (§6) | MUST | 6 | **positive:** `unit/verify` [`TestUDPSetOutboundTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L31). **negative:** `unit/verify` [`TestUDPDefaultTTLNot255`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_ttl_linux_test.go#L166) |
-| `RFC5881-6-2` | On multiaccess networks, Control packets must be transmitted with source and destination addresses on the subnet (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L195). **negative:** no negative test. **{single-polarity}:** ze transmits single-hop Control packets to the operator-configured peer (internal/component/bfd/engine/loop.go:232, To: PeerAddr) and the kernel selects the interface source; subnet membership is set by operator config and routing, and no ze code rewrites either address off-subnet, so there is no negative polarity |
+| `RFC5881-6-2` | On multiaccess networks, Control packets must be transmitted with source and destination addresses on the subnet (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L218). **negative:** no negative test. **{single-polarity}:** ze transmits single-hop Control packets to the operator-configured peer (internal/component/bfd/engine/loop.go:232, To: PeerAddr) and the kernel selects the interface source; subnet membership is set by operator config and routing, and no ze code rewrites either address off-subnet, so there is no negative polarity |
 | `RFC5881-6-3` | On point-to-point links, source address must not be used to identify the session (§6) | MUST NOT | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session |
 | `RFC5881-6-4` | On point-to-point links, initial BFD packet must be accepted with any source address (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the first-packet demux requires the source to equal the configured peer (internal/component/bfd/engine/loop.go:88-94, byKey lookup on in.From), so ze does not accept a point-to-point initial packet bearing an arbitrary source address; once a discriminator is learned, subsequent packets are demuxed by Your Discriminator alone (internal/component/bfd/engine/loop.go:82) as RFC5881-6-5 requires |
-| `RFC5881-6-5` | On point-to-point links, subsequent packets must be demultiplexed solely by Your Discriminator (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L148). **negative:** `unit/verify` [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L171) |
-| `RFC5881-6-6` | If received source address changes on point-to-point, local system must not use that address as the destination; must continue using the address configured at session creation (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L188). **negative:** `unit/verify` [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L223) |
+| `RFC5881-6-5` | On point-to-point links, subsequent packets must be demultiplexed solely by Your Discriminator (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L171). **negative:** `unit/verify` [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L194) |
+| `RFC5881-6-6` | If received source address changes on point-to-point, local system must not use that address as the destination; must continue using the address configured at session creation (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L211). **negative:** `unit/verify` [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L246) |
 | `RFC5881-4-9` | UDP source port number should be unique among all BFD sessions on the system (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5881-4-10` | Echo source address should not be part of the subnet bound to the egress interface (§4) | SHOULD NOT | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5881-4-11` | Echo source address should not be an IPv6 link-local address (§4) | SHOULD NOT | 4 | **positive:** no positive test. **negative:** no negative test |
@@ -177,8 +177,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L289) | unit/verify | unproven |
-| positive | [`TestRFC5881PerProtocolSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L247) | unit/verify | unproven |
+| negative | [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L312) | unit/verify | unproven |
+| positive | [`TestRFC5881PerProtocolSessions`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L270) | unit/verify | unproven |
 
 ### [`RFC5881-2-3`](#rfc5881-2-3)
 
@@ -215,8 +215,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L122) | unit/verify | unproven |
-| positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L98) | unit/verify | unproven |
+| negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L145) | unit/verify | unproven |
+| positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L121) | unit/verify | unproven |
 
 ### [`RFC5881-4-1`](#rfc5881-4-1)
 
@@ -255,8 +255,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L169) | unit/verify | unproven |
-| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L146) | unit/verify | unproven |
+| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L192) | unit/verify | unproven |
+| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L169) | unit/verify | unproven |
 
 ### [`RFC5881-4-5`](#rfc5881-4-5)
 
@@ -347,7 +347,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L195) | unit/verify | unproven |
+| positive | [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L218) | unit/verify | unproven |
 
 ### [`RFC5881-6-3`](#rfc5881-6-3)
 
@@ -373,8 +373,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L171) | unit/verify | unproven |
-| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L148) | unit/verify | unproven |
+| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L194) | unit/verify | unproven |
+| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L171) | unit/verify | unproven |
 
 ### [`RFC5881-6-6`](#rfc5881-6-6)
 
@@ -384,8 +384,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L223) | unit/verify | unproven |
-| positive | [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L188) | unit/verify | unproven |
+| negative | [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L246) | unit/verify | unproven |
+| positive | [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L211) | unit/verify | unproven |
 
 ## Extraction sign-off
 

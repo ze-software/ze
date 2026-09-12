@@ -91,7 +91,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6549-2-1` | Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go` (`h.InstanceID != instanceID` discard, before any handler), one engine per Instance ID (`internal/plugins/ospf/multi_instance.go`); spec-ospf-ext-12 | MUST | 2 | **positive:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L457). **negative:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L470) |
+| `RFC6549-2-1` | Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded (§2, §3.1) -- `internal/plugins/ospf/dispatcher.go` (`h.InstanceID != instanceID` discard, before any handler), one engine per Instance ID (`internal/plugins/ospf/multi_instance.go`); spec-ospf-ext-12 | MUST | 2 | **positive:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L454). **negative:** `unit/verify` [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467) |
 | `RFC6549-6-1` | ("recommended") Implementations of this specification and the OSPF MIB also implement SNMP Notification filtering as specified in Section 6 of RFC 3413 (§6) -- N/A: Ze has no OSPF SNMP MIB surface, so there is nothing to filter (recorded as a Known Limitation) | SHOULD | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6549-5-1` | OSPFv2 routers not supporting this specification should only support the default instance (§5) -- Ze at Instance ID 0 is bit-for-bit compatible with base OSPFv2 (`internal/plugins/ospf/packet/header.go`; `TestHeaderInstanceZeroUnchanged`) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6549-3-1` | Setting the OSPFv2 Interface Instance ID to a non-zero value may be accomplished through configuration (§3) -- the per-interface `instance-id` leaf-list (`internal/plugins/ospf/yang/ze-ospf-conf.yang`); spec-ospf-ext-12 | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -112,8 +112,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L470) | unit/verify | unproven |
-| positive | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L457) | unit/verify | unproven |
+| negative | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L467) | unit/verify | unproven |
+| positive | [`TestDispatchDropsMismatchedInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/instance_test.go#L454) | unit/verify | unproven |
 
 ## Extraction sign-off
 

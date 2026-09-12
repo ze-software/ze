@@ -255,6 +255,9 @@ ze cli -c "monitor event | match rx"  # Regex filter on output
 <!-- source: internal/component/plugin/server/ -- event dispatch to plugins -->
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <p>Ze exposes Prometheus metrics when <code>telemetry { prometheus { ... } }</code> is configured. BGP metrics are refreshed every 10 seconds. By default the HTTP listener binds to <code>127.0.0.1:9273</code>; configure an explicit server address to expose it to remote scrapers.</p>
+<p>Without BGP, Ze installs the metrics registry before plugins start. Their
+startup counters then use the same registry that the exporter serves.</p>
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig; cmd/ze/hub/main_system.go -- startStandaloneTelemetry -->
 <p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
 <pre><code>telemetry {
     prometheus {
@@ -1110,7 +1113,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,18 +1,18 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 102,
+    "error-count": 105,
     "gated-must": 3309,
     "enrolled-rfcs": 183,
-    "test-tags": 4532,
-    "message": "rfc-requirements: 102 violation(s)",
+    "test-tags": 4560,
+    "message": "rfc-requirements: 105 violation(s)",
     "violations": [
       "internal/component/bgp/reactor/session_as_migration_test.go:79: unknown RFC requirement: RFC7705-4.2-2",
       "internal/component/bgp/reactor/session_as_migration_test.go:82: unknown RFC requirement: RFC7705-4.2-2",
       "internal/component/bgp/reactor/session_as_migration_test.go:139: unknown RFC requirement: RFC7705-4.2-3",
       "internal/component/bgp/reactor/session_as_migration_test.go:143: unknown RFC requirement: RFC7705-4.2-3",
-      "internal/component/bgp/reactor/session_as_migration_test.go:218: unknown RFC requirement: RFC7705-4.2-4",
-      "internal/component/bgp/reactor/session_as_migration_test.go:221: unknown RFC requirement: RFC7705-4.2-4",
+      "internal/component/bgp/reactor/session_as_migration_test.go:219: unknown RFC requirement: RFC7705-4.2-4",
+      "internal/component/bgp/reactor/session_as_migration_test.go:222: unknown RFC requirement: RFC7705-4.2-4",
       "internal/component/tacacs/packet_test.go:161: unknown RFC requirement: RFC8907-10-2",
       "rfc/short/draft-abraitis-bgp-version-capability.md:70: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
       "rfc/short/draft-abraitis-bgp-version-capability.md:71: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
@@ -83,7 +83,6 @@
       "rfc/short/rfc5798.md:242: RFC5798-8.2.3-1 [MUST] has no test and no annotation: Configure Backup routers to send the same Router Advertisement options",
       "rfc/short/rfc5798.md:243: RFC5798-8.4.2-1 [MUST] has no test and no annotation: Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at th",
       "rfc/short/rfc5798.md:244: RFC5798-A.2-1 [MUST] has no test and no annotation: Token Ring: implement the functional-address mode of operation when su",
-      "internal/component/bgp/reactor: `go vet` cannot type-check this package, so the 149 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1, DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1, DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2, DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1, .... go vet said: internal/component/bgp/reactor/session_paths_limit.go:80:4: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:88:8: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:89:6: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:91:5: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:153:13: s.pathsLimit undefined (type *Session has no field or method pathsLimit) (and 4 more). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`",
       "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7606.md:340: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/discrimination/rfc2385.json: the revert record for RFC2385-2.0-4 positive at internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of NewSession replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/session.go::NewSession. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
@@ -105,6 +104,10 @@
       "rfc/discrimination/rfc5176.json: the revert record for RFC5176-3.2-1 negative at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-3 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of finalRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::finalRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-4 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of failure replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::failure. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5880.json: the revert record for RFC5880-6.8.6-18 positive at internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of handleInbound replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/engine/loop.go::handleInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of Canonical replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/api/session_identity.go::Canonical. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of toSessionRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/config.go::toSessionRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of bfdRequestFor replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 positive at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendStaleReadvertise replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
@@ -124,10 +127,10 @@
         "message": "internal/component/bgp/reactor/session_as_migration_test.go:143: unknown RFC requirement: RFC7705-4.2-3"
       },
       {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:218: unknown RFC requirement: RFC7705-4.2-4"
+        "message": "internal/component/bgp/reactor/session_as_migration_test.go:219: unknown RFC requirement: RFC7705-4.2-4"
       },
       {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:221: unknown RFC requirement: RFC7705-4.2-4"
+        "message": "internal/component/bgp/reactor/session_as_migration_test.go:222: unknown RFC requirement: RFC7705-4.2-4"
       },
       {
         "message": "internal/component/tacacs/packet_test.go:161: unknown RFC requirement: RFC8907-10-2"
@@ -754,9 +757,6 @@
         "issue": "has no test and no annotation"
       },
       {
-        "message": "internal/component/bgp/reactor: `go vet` cannot type-check this package, so the 149 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1, DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1, DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2, DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1, .... go vet said: internal/component/bgp/reactor/session_paths_limit.go:80:4: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:88:8: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:89:6: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:91:5: s.pathsLimit undefined (type *Session has no field or method pathsLimit) / internal/component/bgp/reactor/session_paths_limit.go:153:13: s.pathsLimit undefined (type *Session has no field or method pathsLimit) (and 4 more). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`"
-      },
-      {
         "message": "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
       },
       {
@@ -820,6 +820,18 @@
         "message": "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-4 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of failure replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::failure. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       },
       {
+        "message": "rfc/discrimination/rfc5880.json: the revert record for RFC5880-6.8.6-18 positive at internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of handleInbound replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/engine/loop.go::handleInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of Canonical replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/api/session_identity.go::Canonical. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of toSessionRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/config.go::toSessionRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of bfdRequestFor replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
         "message": "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       },
       {
@@ -844,11 +856,11 @@
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 1477
+      "count": 1478
     },
     {
       "key": "single_polarity",
-      "count": 357
+      "count": 356
     },
     {
       "key": "gap",
@@ -974,15 +986,15 @@
     ]
   },
   "audit": {
-    "verdicts": 52,
-    "fresh": 50,
+    "verdicts": 56,
+    "fresh": 54,
     "shifted": 0,
     "stale": 2,
-    "missing": 3257
+    "missing": 3253
   },
   "verify": {
     "command": "./le rfc check",
-    "stages": 50,
+    "stages": 49,
     "gate-stages": 1
   }
 }

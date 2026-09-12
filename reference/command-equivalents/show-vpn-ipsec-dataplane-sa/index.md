@@ -20,7 +20,7 @@ Show the Security Association Database the kernel holds.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each installed ESP SA with its SPI, addresses, mode, algorithms, replay window, byte and packet counters, and timestamps. Give 'spi <spi>' to show one SA. Without a selector the command dumps every SA, which on a device with many tunnels is one row per SA.
+Lists each installed ESP SA with its SPI, addresses, mode, algorithms, replay window, byte and packet counters, and timestamps. Give 'spi <spi>' to show all matching SAs. Without a selector the command dumps every SA, which on a device with many tunnels is one row per SA.
 
 ## Arguments
 

@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*.json`.
 
 ## Gate verdict
 
-RED. 102 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 102 violation(s)`.
+RED. 105 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 105 violation(s)`.
 
 ### Overall
 
@@ -22,9 +22,9 @@ what Ze has
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Proven by test | 60.2% | 1,834 of 3,047 gated MUSTs across the 146 RFCs Ze implements | the share this site publishes everywhere: Tested both ways and One polarity plus reason added together, two of the five shares that partition the same denominator. That denominator keeps the {not-applicable} obligations, so annotating a requirement away cannot raise it |
-| Tested both ways | 48.5% | 1,477 of 3,047 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 11.7% | 357 of 3,047 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| Proven by a recorded break | 8.9% | 388 of 4,340 tagged units in enrolled RFCs, 2 escaped and 23 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 48.5% | 1,478 of 3,047 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 11.7% | 356 of 3,047 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Proven by a recorded break | 9.9% | 433 of 4,368 tagged units in enrolled RFCs, 2 escaped and 28 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ measures that are neither good news nor bad
 | Not applicable | 20.8% | 635 of 3,047 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.9% | 26 of 3,047 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.1% | 2 of 3,047 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 50 | 0 shifted, 2 stale, 3,257 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 54 | 0 shifted, 2 stale, 3,253 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -45,7 +45,7 @@ what Ze owes
 |---|---:|---|---|
 | One polarity, unexcused | 0.2% | 7 of 3,047 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 17.8% | 543 of 3,047 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 102 open gate issues | whether ./le rfc check passes over this tree |
+| Gate verdict | RED | 105 open gate issues | whether ./le rfc check passes over this tree |
 
 The 7 shares marked as a part above are the whole of the 3,047 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -69,13 +69,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 102 |
+| Gate issues | 105 |
 | Gated MUST-level requirements | 3,309 |
 | Enrolled RFCs | 183 |
-| Resolved test tags | 4,532 |
+| Resolved test tags | 4,560 |
 | Declared gaps | 481 |
 | RFCs with declared gaps | 78 |
-| Fresh semantic audit verdicts | 50 |
+| Fresh semantic audit verdicts | 54 |
 | Shifted semantic audit verdicts | 0 |
 | Stale semantic audit verdicts | 2 |
 
@@ -85,8 +85,8 @@ The bar is every one of the 3,047 gated MUST-level requirements. 637 of them are
 
 | Bucket | Count | Share of gated | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 1,477 | 48.5% | `positive tag + negative tag` |
-| One polarity plus reason | 357 | 11.7% | `{single-polarity} annotation + required tag` |
+| Positive and negative tests | 1,478 | 48.5% | `positive tag + negative tag` |
+| One polarity plus reason | 356 | 11.7% | `{single-polarity} annotation + required tag` |
 | Declared gap | 481 | 15.8% | `{gap} annotation + public ledger disclosure` |
 | One polarity, unexcused | 7 | 0.2% | `tag without annotation` |
 | Missing, unexcused | 62 | 2.0% | `no tag, no annotation` |
@@ -180,17 +180,17 @@ These 13 sentences are NOT scope. Each is an obligation Ze owes and has not buil
 
 ## How this is checked
 
-This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 that ./le verify current mode full runs.
+This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 that ./le verify current mode full runs.
 
 | Input | Producer | What it answered here |
 |---|---|---|
-| Reproduce it | `./le rfc check` | 1 of 50 full-mode verify stages run it |
+| Reproduce it | `./le rfc check` | 1 of 49 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 3,309 gated MUST-level requirements |
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 183 enrolled RFCs |
-| Test tags | `internal/`, `pkg/`, `test/` | 4,532 resolved tags |
+| Test tags | `internal/`, `pkg/`, `test/` | 4,560 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 78 RFCs with gaps, 3 Supported with Remaining |
-| Semantic audits | `rfc/audit/*.json` | 50 fresh, 0 shifted, 2 stale, 3,257 missing |
-| Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 50 full-mode stages |
+| Semantic audits | `rfc/audit/*.json` | 54 fresh, 0 shifted, 2 stale, 3,253 missing |
+| Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 49 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
 ## Check results
@@ -201,8 +201,8 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:82: unknown RFC requirement: RFC7705-4.2-2 | - |
 | - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:139: unknown RFC requirement: RFC7705-4.2-3 | - |
 | - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:143: unknown RFC requirement: RFC7705-4.2-3 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:218: unknown RFC requirement: RFC7705-4.2-4 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:221: unknown RFC requirement: RFC7705-4.2-4 | - |
+| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:219: unknown RFC requirement: RFC7705-4.2-4 | - |
+| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:222: unknown RFC requirement: RFC7705-4.2-4 | - |
 | - | `-` | - | internal/component/tacacs/packet_test.go:161: unknown RFC requirement: RFC8907-10-2 | - |
 | DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-1) | MUST | has no test and no annotation | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the configuration option half (§3) |
 | DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-2) | MUST | has no test and no annotation | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the default-to-disabled half (§3) |
@@ -223,7 +223,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-4) | MUST NOT | has no test and no annotation | "If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker" (§4) |
 | DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-5) | MUST NOT | has no test and no annotation | "A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser" (§4) |
 
-77 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+80 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## Enrolled RFCs
 

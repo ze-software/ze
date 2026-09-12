@@ -1394,7 +1394,7 @@ name the URLs that run actually read.
 
 ```
 show vpn ipsec dataplane sa                  # The Security Association Database the kernel holds
-show vpn ipsec dataplane sa spi <spi>        # One SA, by SPI (1-4294967295)
+show vpn ipsec dataplane sa spi <spi>        # Matching SAs, by SPI (1-4294967295)
 show vpn ipsec dataplane policy              # The Security Policy Database the kernel holds
 show vpn ipsec dataplane drift               # Where engine belief and kernel state disagree
 ```
@@ -1410,10 +1410,12 @@ counters, and the add and use timestamps. It never renders key material.
 priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
 installed it. A policy Ze did not install reports its owner as unknown.
 
-`drift` names each Child SA the engine counts as installed whose SPI the kernel
-does not hold, and exits non-zero when it finds one. It exits zero when the two
-agree. A rekey window is not drift: RFC 7296 Section 2.8 keeps the old and the
-new Child SA alive together.
+`drift` names each expected Child SA identity the kernel does not hold and exits
+non-zero when it finds one. Identity includes SPI, destination, protocol, and
+XFRM interface ID. Extra kernel SAs are permitted during rekey. A failed or
+changing observation returns an error rather than a clean result.
+<!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
+<!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 
 A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
@@ -2334,6 +2336,15 @@ matched peers:
 ```
 
 A capabilities row adds a `negotiated` object once the session negotiates.
+
+The `negotiated` object carries `paths-limit` when the session negotiated
+PATHS-LIMIT (capability 76) for a family that also negotiated ADD-PATH. The
+`send` map holds the limit the peer advertised, which caps the number of paths
+Ze announces to that peer for each prefix. The `receive` map holds the limit Ze
+advertised, which is what Ze asked the peer for. A family with ADD-PATH and no
+limit is in neither map, because no limit is not a limit of zero. The same
+object appears under `capabilities` on `show bgp peer <sel> detail`.
+<!-- source: internal/component/bgp/plugins/cmd/peer/fields.go -- addPathsLimitFields -->
 
 Until 2026-08 each command answered a bare object for one matched peer and an
 array for several. `show bgp peer * statistics | count` therefore answered on a
