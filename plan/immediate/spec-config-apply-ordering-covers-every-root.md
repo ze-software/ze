@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-08 |
+| Updated | 2026-09-12 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -623,6 +623,16 @@ enforcing code.
 
 ## Review Gate
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/config-apply-ordering-covers-every-root-cbc36cee-41ac-4afd-8b71-1bae841964d9.md` |
+| `./le spec session review check` | clean, hashes match |
+| Rounds | 7, the last CLEAN. Rounds 6 and 7 were authorized by Thomas on 2026-09-12 |
+| Reviewer lenses used | ordering against the owner's five phases, wiring from the operator's entry point, fail-safe direction, test discrimination by overlay probe, and the record against the code |
+
+The rounds, their findings and their dispositions follow. The closure summary of
+the same gate is under "Review Gate (closure summary)".
+
 Round 1, independent reader, 2026-09-11. Findings artifact:
 `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao.md`.
 Verdict: **findings** -- 2 BLOCKER, 6 ISSUE, 3 NOTE. The gate is NOT clean.
@@ -837,6 +847,101 @@ The blind plan is a superset: more disturbance, which is the cheap error in the
 page's own table, and the configure operation re-applies the entry's own
 addresses behind every destroy. Naming the device needs the listing, so no gate
 that runs without one can do better.
+
+Round 7, independent reader, 2026-09-12. Findings artifact:
+`tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/review-findings-cao-round7.md`.
+Verdict: **0 BLOCKER, 0 ISSUE, 0 NIT. The gate is CLEAN.**
+
+Thomas authorised this round on 2026-09-12, over closing on round 6's
+dispositions, on the ground that round 6's fixes should not be reviewed only by
+the agent that wrote them. Scope is commit `2a6f74c7e` and what it touched, plus
+the closing re-verifications: the five phases at their producers, the fail-safe
+direction at every point that decides a disturbance or a kind, every round's
+dispositions, `test/weakened/4c26aef3.md`, and the QEMU evidence. The probes are
+`go test -overlay` runs under `.../scratch/r7probe/` that edit no file in the
+tree.
+
+**No diff shape needs the listing and takes none.** The listing's whole
+influence on this decomposer is `bindDevices`, which reads `cfg.Ethernet` and
+the listing and nothing else; `deviceFor` answers `(name, true)` for every name
+absent from that map, so with no listing exactly the ethernet entries lose their
+addresses and `desiredState` drops them from BOTH sides. The operations are
+derived from the DIFFERENCE, so the drop cancels unless it lands on a name this
+commit changes, which is what the arms read. The keys and the parsed sides
+cannot disagree about which entries exist: `buildDiffSections` preserves the
+absolute key while grouping, and the diff is `DiffMaps(running, newTree)` over
+the same two trees `decomposeRoots` marshals into `ActiveRoot` and
+`CandidateRoot`. Each arm was cut in an overlay: the short-key arm reddens the
+whole-container subtest, the shared-name arm reddens the shared-name subtest,
+and an early `return false` reddens both arms of
+`TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind` as well. The
+ethernet-kind arm SURVIVES its mutant, and that says it is redundant rather than
+untested: a key `interface/ethernet/X/...` exists only when X is an ethernet
+entry on one side, and `boundNames` is the union of both sides, so the
+shared-name arm fires first for every key it could catch. The redundancy is
+fail-CLOSED and is left alone; deleting a defensive arm from a guard is the
+wrong direction.
+
+**The residual holds, measured at `desiredState` rather than accepted.** For an
+`ethernet uplink` with `os-name eth3` beside a dummy on the same device, the
+listing gives `adds=[10.9.0.1/24] removes=[]` and the blind read gives
+`adds=[10.9.0.1/24] removes=[10.5.0.1/24]`: one removal gained, none lost. The
+algebra is general, because with the ethernet side equal on both sides the
+listing's removals are `(A\C)\E` against the blind `A\C`. The address the blind
+plan removes comes back: `applyIfaceOperation` refuses the configure operation
+because the pending-config applier owns it, and the four
+`interface-*-before-configure` rules put that whole-root apply after every
+removal. The shape is also unreachable in a config that works, because
+`desiredState` marks the colliding kind managed and Ze would try to create a
+device the hardware already owns.
+
+**`TestExecuteAbortsWhenThePlannerRefuses` discriminates, in both halves.**
+Cutting the planner-error branch reddens it (`timed out waiting for the
+transaction to abort`), and naming the wrong phase at that site reddens it
+(`detail.phase = verify, want "operation planning"`). It does assert nothing is
+applied: five event classes are checked absent for both participants, and both
+ack paths are wired so a run that ignored the error reaches the end rather than
+hanging. `publishAbort` has exactly seven call sites and each names its own
+step, in `abortForShutdown`'s vocabulary. The only assertion on the old value,
+`fixture06ErrorsConfigAbort`, rejects in `OnConfigVerify` and still reads
+`phase == "verify"`.
+
+**The five phases hold against the owner's words, and the MTU carve-out is
+measured.** An ethernet MTU edit with identical addresses plans as
+`ops=[interface-configure] disturbed=[]`; the same edit with no listing is
+refused, which applies nothing. Phase 2 loses no disturbance to the narrowing:
+the blind plan equals the plan with a listing for the dummy move, and the
+ethernet move still refuses. The wildcard refinement holds with no carve-out in
+code, and Ze has no VRF.
+
+**The fail-safe direction is unchanged and the new decision point follows it.**
+Every unknown in `listingDecidesTheAnswer` resolves to "take the listing", and a
+listing that cannot be taken aborts. The `false` answer is reachable only where
+the drop is symmetric or over-disturbing. Nothing resolves to "leave the session
+up".
+
+**Every record checked.** All 40 finding ids from rounds 1 to 6 carry a
+disposition row, with no orphan either way, and round 6's three are each true at
+the producer. `test/weakened/4c26aef3.md` is unchanged and owes nothing new;
+`./le commit audit base origin/main` names 23 weakened or deleted tests and not
+one is in this spec's three packages. `plan/verification-debt/4c26aef3.md` gains
+this commit's row and bumps both counters. Every evidence path the spec and the
+round-6 dispositions cite exists on disk. No Goal Validation table exists and
+none is owed yet: it belongs to `plan/TEMPLATE-CLOSURE.md`, appended at closure.
+
+**The QEMU evidence still describes the code, and `2a6f74c7e` cannot reach it.**
+Neither walked `.ci` carries an `ethernet` stanza, so `ethernetNames` is empty
+for both and `decomposeIfaceListing` returns at its FIRST guard,
+`len(boundNames) == 0`, before `listingDecidesTheAnswer` is consulted. No
+operation, no edge and no rung moves, and neither recorded revert is touched.
+Both files skip on this darwin host and were not re-walked: this is a reading of
+the change against the producer.
+
+**Checks.** `go test` green over `internal/component/iface` and
+`internal/component/config/transaction`. Lint over the transaction package
+reports 0 issues in both flavors; over `iface` it reports the same six foreign
+findings round 6 recorded, one gofmt and five misspell, in five files this
+commit does not carry.
 
 ## Phase 5 (2026-09-11): the ordering policy becomes the owner's
 
@@ -1217,3 +1322,392 @@ UNBOUND against a listing that answered, and that is not silence: either its
 device is absent, so its addresses are not on the host and there is nothing to
 remove, or more than one present device answers its `mac/match` selector, which
 `validateSelectors` refuses inside the transaction at the configure operation.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **Every participant with a diff is a node.** `TxCoordinator.Execute`
+  (`orchestrator.go`) synthesizes one coarse node for each participant the
+  planner leaves uncovered (`participantsWithoutOperations`), so the operation
+  path runs for every reload. The fallback branch and its `Info` line are
+  deleted, and no grep finds "using section apply".
+- **The coarse node is applied through the section RPC.** `emitSectionApply`
+  serves both routes, and `sectionDiffsFor` takes the same `filterDiffs` output
+  `runApply` took. `configTxBridge` dispatches it through `SendConfigApply`.
+- **The ordering vocabulary is a verb plus a resource kind.** `ConfigOperation`
+  carries `verb`, `produces` and `consumes` (`pkg/plugin/rpc/types.go`). The
+  seven unused operation constants are deleted, the per-root labels live in
+  `internal/component/iface/operation.go` and `internal/core/bgp/configop`, and
+  the solver compares no label to a constant.
+- **Edges are derived.** `addDerivedEdges` (`depgraph.go`) orders a producer
+  before its consumers, a consumer before the destroy of what it consumes, and a
+  destroy before every create or modify that consumes what it takes away. The
+  nine hand-written produce/consume rules are deleted. Two rules survive because
+  no pair of declarations can carry what they state.
+- **Make-before-break is deleted.** `Params.AllowDual`, `markDualPresence`,
+  `tryRelaxCycle`, `isAddressOperation` and `opInterface` are gone with the
+  policy they served. Every cycle is now rejected.
+- **The owner's five phases are what a reload applies.** `operationPhase`
+  (`solver.go`) puts each operation on one of three rungs, a stop, an addressing
+  change and a start, and `kahnSort` drains the lowest rung that is ready.
+  `placeSectionNodes` puts each coarse node at the phase 4 to phase 5 boundary.
+  No core package names a root, a participant or a label to do it.
+- **Phases 2 and 5 reach a binder whose own config did not change.**
+  `DisturbedAddresses` (`operation.go`) reads the planned destroys,
+  `operationPlannerFromTrees` carries the set to every root that registered a
+  decomposer, and `peerBindingDisturbed` (`internal/component/bgp/plugin/operation.go`)
+  decides what stopping means for BGP.
+- **A commit Ze cannot resolve is refused.** `decomposeIfaceListing` takes the
+  interface listing where `listingDecidesTheAnswer` reads a diff key it binds a
+  name for, and answers an error when it cannot. The transaction aborts before
+  anything is applied.
+- **The applied order is read off a real kernel.** Four `.ci` tests were written
+  and each was observed RED under its own revert.
+
+### Bugs Found/Fixed
+
+- **Every `bgp` reload took the fallback.** Measured again at closure: 22
+  non-test `WantsConfig` declarations name the `bgp` root, across 21 plugins
+  under `internal/component/bgp/plugins/`, and none of them registers a
+  decomposer. So `participantsWithoutOperations` was never
+  empty and the ordered path had never run in production. Covered by
+  `TestParticipantsWithoutOperationsEmptyAfterSynthesis` and
+  `TestExecuteMixedRootTakesOperationPath`.
+- **`modify-peer` on the operation path rebuilt the session.** `applyBGPOperation`
+  removed and re-added the peer, so turning coverage on would have bounced every
+  session on every reload. `swapPeerForOperation` now asks `peerSettingsSwapPlan`,
+  which is the decision the section apply already took. Covered by
+  `TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession`.
+- **A rolled-back peer came back silent.** The inverse of a remove rebuilt the
+  peer from the operation's config subtree, which drops eleven kinds of state.
+  `runningPeerSettings` answers with the settings the reactor is running.
+  Covered by `test/reload/config-apply-ordering-mixed-rollback.ci` and
+  `TestApplyConfigOperationRemovePeerRollbackRestoresAnnouncedState`.
+  Journalled in `plan/journal/announced-state-never-replayed.md`.
+- **Two of the nine constraint rules ordered nothing.**
+  `iface-remove-address-before-interface` compared an address operation's
+  interface against a field an interface operation does not carry, so it never
+  fired. `bgp-add-address-before-peer` selected the `add-peer` label, so a
+  `modify-peer` rebinding the same address got no edge. The derivation produces
+  both edges, which is why the edge set grew by two.
+  Covered by `TestBuildOperationGraphDerivedEdgesMatchDeletedRules`.
+- **The iface decomposer emitted nothing for a mixed diff.** One key with no
+  primitive suppressed the whole root, so a commit that edited an MTU and moved
+  an address read as a commit that disturbed nothing. The decomposer now covers
+  its whole root and the remainder rides `ifaceConfigureOperation`. Covered by
+  `TestIfaceOperationDecomposerMixedDiffStillMovesTheAddress`.
+- **The configure operation declared nothing.** An address arriving on a device
+  only that operation can create was ordered against nothing, so a passive peer
+  bound to it opened its listener before the address existed. It now declares
+  what it creates. Covered by
+  `TestIfaceConfigureOperationDeclaresTheAddressingItCreates`.
+- **An ethernet entry the decomposer could not bind was read as no change.** The
+  listing error was discarded, so an ethernet address move answered "nothing
+  disturbed" and no binder was stopped. Covered by
+  `TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind`.
+- **The coarse sort was not deterministic.** `AllProcesses` ranges a map and
+  `participantsWithoutOperations` did not sort, so two coarse sections applied in
+  a different order from run to run. Covered by
+  `TestParticipantsWithoutOperationsSortsTheCoarseNodes`.
+- **The apply deadline was a per-tier maximum for work that runs one node at a
+  time.** `computeSequentialDeadline` (`orchestrator_budget.go`) sums the
+  participants' budgets. Covered by `TestApplyDeadlineSumsEveryParticipantBudget`.
+- **Two diff predicates spelled a parse error as "nothing changed".**
+  `ifaceDiffKeys` and `bgpDiffTouchesPeer` answer an error, and each decomposer
+  aborts the transaction.
+- **The address-swap test asserted a connection count.**
+  `option=tcp_connections:value=2` is reached by a daemon that emits no peer
+  operation at all, on its own retry timer. Journalled in
+  `plan/journal/green-that-could-not-have-been-red.md`.
+
+### Documentation Updates
+
+- `docs/architecture/config/apply-ordering.md`: gained "The requirement", which
+  quotes the owner verbatim and is now the authority for the order; gained "What
+  is not built"; the cycle relaxation, the dual-presence paragraph and the
+  "current decomposers never emit an ADD_ADDRESS" claim are rewritten against the
+  code. Anchors name `decomposeIfaceListing`, `listingDecidesTheAnswer`,
+  `placeSectionNodes`, `RegisterOperationDecomposer`, `CreateReactorFromTree`,
+  `startMultiListeners` and `listenDHCP`.
+- `docs/architecture/config/transaction-protocol.md`: the 21-constant operation
+  table and nine constraint rule rows are gone, the deadline is described as a
+  flat sum with the rollback multiplier stated, and the "Next transaction" row no
+  longer names a transaction the coordinator does not live to see.
+- `docs/architecture/api/process-protocol.md`: the `config-operation-*` payload
+  carries the verb and the produce and consume sets, and a coarse root node
+  routes through `config-apply`.
+- `docs/plugin-development/protocol.md`: the `config-operations` registration
+  field and the callback table.
+- `docs/architecture/testing/ci-format.md`: `option=linger` holds a connection
+  between connections, `action=rewrite` answers completion, and the
+  `tcp_connections` row now says what a connection count does not witness.
+- `./le doc check verify` names none of the six pages above. It fails tree-wide
+  on this checkout and the failing set belongs to other sessions. Re-run at
+  closure on 2026-09-12: 8 summary rules broken, and 4 source anchors naming a
+  symbol that is not declared where the anchor says, in
+  `docs/architecture/api/commands.md`, `docs/architecture/exabgp-bridge.md` and
+  `docs/architecture/firewall/firewall-irr.md`. Log:
+  `.../scratch/closure-doc-check.log`. The set has already turned over once:
+  the 2026-09-11 run named 6 anchors into
+  `internal/component/bgp/reactor/session_bfd_strict.go`, and another session has
+  since repaired them (`.../scratch/cao2-doc-check-verify.log`).
+
+### Deviations from Plan
+
+- **The order itself.** The spec was written from a paraphrase that said
+  make-before-break. The owner's own words say remove before add, with the
+  binders stopped around the move. Phase 5 corrected the spec and the code, AC-4
+  now states the opposite of what it stated, and
+  `docs/architecture/config/apply-ordering.md` is the authority.
+- **The BGP labels went to `internal/core/bgp/configop`**, not into
+  `internal/component/bgp/plugin`. The reactor applies those operations and
+  neither side can import the other.
+- **`internal/component/config/transaction/orchestrator_budget.go` is new.** The
+  deadline concern moved out of `orchestrator.go` when that file crossed 1000
+  lines.
+- **A coarse node is a placement and a rung, not an edge.** An edge from every
+  create and to every destroy closes a cycle with the surviving address rule.
+- **`internal/component/bgp/reactor/operation.go` is in the change** and the
+  original Files to Modify did not name it. The operation path went live here, so
+  what it reaches is this spec's.
+- **`decomposeIfaceListing` is new work found at review round 5.** The spec
+  planned no listing gate, because it did not know the decomposer discarded the
+  listing error.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| escalation | The spec, its tests and both `.ci` files stated make-before-break, taken from a paraphrase of the owner's May 2026 requirement | The owner's order removes before it adds, with the binders stopped around the move | The owner read the design page and quoted his own words back | The words are quoted verbatim in `docs/architecture/config/apply-ordering.md` under "The requirement", and every artifact points at that page. A rule about recording an owner requirement verbatim is proposed in `plan/learned/020-quote-the-requirement-do-not-summarize-it.md` |
+| assumption | A-5 assumed an uncovered participant was a rare case worth one test | Every `bgp` reload was uncovered, because 22 BGP plugins declare the root and none decomposes | Reading `RegisterOperationDecomposer`'s call sites at phase 1 | The coarse node is the normal case, not the exception, and `TestParticipantsWithoutOperationsEmptyAfterSynthesis` states it |
+| approach | Round 1 placed the coarse node after the last create-or-modify. Round 2 reproduced a shape where a create is delayed behind a destroy, and the node then ran after the destroys | No single insertion point satisfies both bounds while phase 4 and phase 5 interleave | Review round 2, on a probe over the two registered iface rules | Replaced by `operationPhase` and the three-rung `kahnSort`, which orders the whole commit rather than one insertion |
+| approach | The address-swap test asserted `option=tcp_connections:value=2` and waited for `ip addr` before it signalled | The count is reached by a daemon that emits no peer operation, on its retry timer, and the SIGTERM landed inside the reload | Measured under the revert: `ze-peer` reported success after two connections with the defect present | `option=linger`, a `session-returned.txt` marker the driver waits for, and `action=rewrite` answering completion |
+| assumption | A-7 assumed `Params.AllowDual` only needed a decision about keeping it | Nothing read the field. Its only writer was also its last reader | Reading every reference at phase 4 | Deleted with the policy it labelled |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1: a transaction with one uncovered participant must not drop to the unordered section apply | Done | `TxCoordinator.Execute`, `participantsWithoutOperations` (`orchestrator.go`) | The fallback branch and its log line are deleted |
+| D2: a root that registers no decomposer must still be ordered | Done | `operationNodes`, `sectionDiffsFor` (`orchestrator.go`), `placeSectionNodes` (`solver.go`) | One coarse node per uncovered participant, placed between phases 4 and 5 |
+| D3: the ordering vocabulary must stop being a central enumeration | Done | `pkg/plugin/rpc/types.go`, `internal/core/bgp/configop`, `internal/component/iface/operation.go` | Seven unused constants deleted, labels moved to their owners, four unused resource kinds deleted at review round 1 |
+| D4: the applied order must be read off a real kernel | Done | `test/reload/config-apply-ordering-address-swap.ci`, `-mixed-root.ci` | Both walked in the QEMU guest on 2026-09-11, red under each recorded revert |
+| The owner's five phases | Done for BGP, partial elsewhere | `operationPhase` (`solver.go`), `peerBindingDisturbed` (`internal/component/bgp/plugin/operation.go`) | Phases 1, 3, 4 and 5 hold for every root. Phase 2 reaches a binder that decomposes, and BGP is the only one. See Work Not Done |
+| The vocabulary is the page's, with no second word for any of it | Done | This spec and the page | Checked at review rounds 3 to 7 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/reload/config-apply-ordering-mixed-root.ci`, `TestExecuteMixedRootTakesOperationPath` | Walked in QEMU, red under two separate reverts |
+| AC-2 | Done | `test/reload/config-apply-ordering-coarse-root.ci`, `TestExecuteCoarseNodeAppliesSection` | PASS 3.9s in today's native reload run |
+| AC-3 | Done | `TestBuildOperationGraphDerivesProducerBeforeConsumer`, `TestBuildOperationGraphDerivesConsumerBeforeProducerOnDestroy` | No constraint rule registered in either case |
+| AC-4 | Done | `test/reload/config-apply-ordering-address-swap.ci` | Walked in QEMU, 11 of 11 steps, red under one revert for each half. The row states the requirement's order, not the paraphrase |
+| AC-5 | Done | `TestOperationPathCarriesUnknownLabel`, `TestTopologicalSortOrdersASwapWhoseLabelsItDoesNotKnow` | The solver compares no label to a constant |
+| AC-6 | Done | `TestExecuteRefusesOperationWithNoVerb` | Observed RED with the guard deleted |
+| AC-7 | Done | `test/reload/config-apply-ordering-mixed-rollback.ci`, `TestExecuteRollsBackAnAppliedCoarseNode` | PASS 9.0s in today's native reload run |
+| AC-8 | Done | `TestIfaceOperationDecomposerMixedDiffStillMovesTheAddress`, `TestReloadStopsABinderWhenTheCommitAlsoEditsAnMTU` | Driven through the planner over the real decomposer |
+| AC-9 | Done | `TestBGPLeavesThePeerAloneWhenTheAddressRowIsIntact`, `TestReloadDisturbsNothingWhenOnlyTheMTUChanges` | One decompose pass, no root without a diff is asked |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The five derivation tests plus `TestBuildOperationGraphDerivesModifyProducerBeforeConsumer` | PASS | `internal/component/config/transaction/depgraph_test.go` | Fresh run today, log `.../scratch/job-cao-closure-v-50121571.log` |
+| The nine solver tests, rung tests included | PASS | `internal/component/config/transaction/solver_test.go` | Same run. `TestTopologicalSortRelaxesCycleByVerbAndKind` is gone with the relaxation |
+| The fourteen orchestrator and executor tests | PASS | `internal/component/config/transaction/orchestrator_test.go`, `executor_test.go` | Same run |
+| The iface decomposer tests, nine of them | PASS | `internal/component/iface/operation_test.go` | Same run |
+| The BGP decomposer and disturbance tests, seven of them | PASS | `internal/component/bgp/plugin/operation_test.go`, `operation_disturbed_test.go` | Same run |
+| The nine reload and disturbance tests | PASS | `internal/component/plugin/server/reload_test.go`, `reload_disturbed_test.go`, `reload_iface_mixed_test.go` | Fresh run today under the feature tags, log `.../scratch/job-cao-closure-reload-67a71d9e.log` |
+| `TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession` | PASS | `internal/component/bgp/reactor/operation_test.go` | Fresh run today, log `.../scratch/job-cao-closure-two-1393820e.log` |
+| `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod` | PASS | `pkg/plugin/sdk/sdk_test.go` | Same run |
+| `config-apply-ordering-coarse-root`, `-mixed-rollback`, `tx-protocol-external-plugin` | PASS | `test/reload/` | Today's `./le functional reload`: 44 of 44 pass, 19 skip, 125.4s |
+| `config-apply-ordering-address-swap`, `-mixed-root` | SKIP on darwin, PASS in QEMU | `test/reload/` | Both carry `option=needs-linux:caps=net-admin`. Walked on 2026-09-11 with their reverts |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/config/transaction/operation.go` | Done | Verb, produce and consume, `DisturbedAddresses`, `OperationDecomposerRoots`. Two relations deleted |
+| `internal/component/config/transaction/depgraph.go` | Done | `addDerivedEdges` with its three directions |
+| `internal/component/config/transaction/solver.go` | Done | `operationPhase`, `placeSectionNodes`, `providesAddressing`. The relaxation and its helpers are deleted |
+| `internal/component/config/transaction/executor.go` | Done | The section route for a coarse node |
+| `internal/component/config/transaction/orchestrator.go` | Done | Synthesis, the root-coverage guard, `publishAbort` naming its own phase |
+| `internal/component/config/transaction/orchestrator_budget.go` | Done (new) | Not in the original plan. Added at review round 2 |
+| `internal/component/bgp/reactor/operation.go` | Done | `runningPeerSettings`, `swapPeerForOperation` |
+| `internal/component/plugin/server/reload_tx.go` | Done | The verb refusal, the second decompose pass, `checkDisturbanceSettled`. `sortParticipantsBGPLast` deleted |
+| `internal/component/plugin/server/reload.go` | Done | `appendDecomposingPlugins` |
+| `internal/component/plugin/server/config_tx_bridge.go` | Done | `SendConfigApply` for a coarse node |
+| `internal/component/iface/operation.go` | Done | Declarations, the widened rule, the listing gate |
+| `internal/component/bgp/plugin/operation.go` | Done | `peerAddressConsumes`, `peerBindingDisturbed` |
+| `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_types.go` | Done | Verb and sets added, the unused constants and kinds deleted |
+| The four documentation pages | Done | Listed under Documentation Updates |
+| `test/reload/config-apply-ordering-rotation.ci`, `-swap.ci`, `-reip.ci` | Done | Comments corrected and pointed at the address-swap test |
+| The four new `.ci` files | Done | Each observed RED under its own revert |
+| `internal/core/bgp/configop/configop.go` | Done (new) | Not in the original plan. The leaf both the plugin and the reactor import |
+
+### Audit Summary
+- **Total items:** 6 requirements, 9 acceptance criteria, 10 test groups, 17 file rows
+- **Done:** 41
+- **Partial:** 1 (the five phases: phase 2 reaches BGP only, and the remainder is named in Work Not Done with the spec that owns it)
+- **Skipped:** 0
+- **Changed:** 6 (recorded in Deviations from Plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every config root with a diff is a node in the operation graph | functional plus unit | `test/reload/config-apply-ordering-coarse-root.ci` PASS 3.9s in today's `./le functional reload` (44 of 44, 19 skip, 125.4s, `.../scratch/closure-functional-reload.log`), over a commit whose only diff is in the `rsvp-te` root, which registers no decomposer. `TestParticipantsWithoutOperationsEmptyAfterSynthesis` asserts no participant is left uncovered, and `TestExecuteMixedRootTakesOperationPath` asserts the mixed transaction takes `runOperationPath`. The coarse-root test was observed RED with the synthesis deleted |
+| The ordering is derived from what each operation produces and consumes, not from named operation pairs | unit, with a before-and-after edge set | `TestBuildOperationGraphDerivedEdgesMatchDeletedRules` builds the graph over the real iface and bgp fixtures and compares it against the edge set the nine deleted rules produced. The derivation loses none and adds two, each of which a deleted rule's own ID promised and its body never produced. Observed RED with the derivation removed. `grep -rn RegisterConstraintRule internal/` returns two non-test call sites, both in `internal/component/iface/operation.go`, and neither states a produce/consume fact |
+| The section-apply fallback is deleted | grep plus unit | `grep -n "using section apply" internal/component/config/transaction/orchestrator.go` returns nothing, and the branch it logged from does not exist. `TestExecuteRefusesAParticipantCoveredForOneRootAndNotAnother` shows the remaining uncovered shape aborts rather than falling through, observed RED at `state = committed (err <nil>), want aborted` |
+| The applied order is read off a real kernel and matches the owner's five phases | QEMU walk with a recorded RED for each half | `test/reload/config-apply-ordering-address-swap.ci` in the QEMU guest on Ze's runtime kernel 7.2, 11 of 11 steps, 3.2s. RED for phases 2 and 5 under the pre-`284620ac2` early return in `decomposeBGPOperations`: `ZE-OBSERVER-FAIL: the check peer never wrote session-returned.txt`. RED for phases 3 and 4 under `iface-remove-address-before-add-address` unregistered: `ZE-OBSERVER-FAIL: interface zdual0 held both addresses after add address 10.91.0.1/24 dev zdual0`. `config-apply-ordering-mixed-root.ci` adds the cross-root case and reddens under two reverts of its own. Logs `.../scratch/sw/walk-2.log`, `.../scratch/dw/walk-1.log`, one-tree evidence in `.../scratch/dw/pairbuild-4.log` |
+| Phase 2 stops a binder whose own config did not change | unit through the planner | `TestReloadStopsABinderWhoseAddressMovesAndItsOwnConfigDidNot` drives `Server.ReloadConfig` with a `bgp` root carrying no diff and asserts the second decompose pass reaches it. `TestReloadAsksNoUnchangedRootWhenNoAddressMoves` is its negative. Both PASS in today's tagged run, `.../scratch/job-cao-closure-reload-67a71d9e.log`. On the kernel it is the phases 2 and 5 half of the address-swap walk above |
+| Total coverage does not cost the operator reload time (R-1) | measurement | `./le functional reload` today: 44 of 44 pass, 125.4s. The same suite measured 182.3s before the deadline change and 162.9s after it, on a busier host. No test moved outside the spread the suite's own "slow" lines report, and none timed out |
+
+## Security Review (closure)
+
+The checklist's four rows, each answered at the producer on 2026-09-12.
+
+| Check | Answer |
+|-------|--------|
+| Input validation | An operation arrives from an external plugin process as JSON, so the verb, the target kind and the produce and consume entries are attacker-influenced when a plugin is hostile. `ValidateOperations` (`operation.go`) refuses an operation with no verb, and `validateResourceRefs` refuses the first entry of either declaration whose identity is empty. Both are driven from `Server.ReloadConfig`, not from the helper, by `TestReloadRefusesAPluginOperationCarryingTheReservedSectionApplyLabel` and `TestReloadRefusesAPluginOperationDeclaringAResourceWithNoIdentity` |
+| Resource exhaustion | The derivation is not the quadratic pair walk the rule path uses. `addDerivedEdges` (`depgraph.go`) indexes the produce and consume sets by resource identity once (`indexResourceRefs`) and then walks each operation's own declarations, so the cost is the number of declarations times the number of operations sharing ONE identity. A hostile plugin can still make that product large by declaring many operations over one resource. Nothing bounds it, and nothing bounded the rule path either. Config is operator supplied, so this is not a security boundary, and the graph build on the largest realistic config was NOT measured. Recorded, not claimed |
+| Error leakage | Both refusals name the plugin, the root, the operation id and, for a blank entry, the declaration and its index. Neither carries `Params`, so no config value reaches the message. Read at both `fmt.Errorf` sites |
+| Authorization that could fail open | The blank-identity entry is refused TWICE, and the second refusal is the one that matters: `indexResourceRefs` skips an entry whose identity is empty, so a blank entry that reached the graph would match nothing rather than everything. The comment above `addDerivedEdges` states that this repetition is deliberate and names `ai/rules/principles.md` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Phases 2 and 5 for every binder except BGP: ike, l2tp, dhcp, ntp, gnmi, tftp and every plugin listener are started against the new addresses and are never stopped before the old ones go | Both phases need one binder to take TWO steps in one commit. A participant with no decomposer gets one coarse node, and one node cannot be split in two. Making each binder root decompose is one feature per root, and this spec's scope was the ORDERING core rather than the roots | `plan/immediate/spec-every-binder-root-stops-and-starts-around-an-address-move.md` |
+| The wildcard refinement is implemented for no binder and verified for BGP only. Whether any other binder binds `0.0.0.0` or `::` is not established | Ze's BGP binds specific addresses, so the carve-out frees no BGP session and nothing in this spec depended on it. Settling it means reading each remaining binder's own listen call, and the carve-out has no observable effect until the row above lands | `plan/spec-wildcard-bind-excuses-a-binder-from-an-address-move.md` |
+| `ConfigOperationParams.OldConfig` stayed on the plugin ABI after this spec's own change left it with no reader | The remove path now reads the running peer (`runningPeerSettings`), so the field the BGP decomposer still fills is consumed by nobody. Deleting it is an ABI edit plus two test assertions, and it arrived after the review artifact was recorded | `plan/spec-config-operation-oldconfig-has-no-reader.md` |
+
+VRF is not in this table. The owner's third refinement says a change of VRF
+changes who can speak to a binder with the address, the prefix length and the
+interface all unchanged. Ze has no VRF, so there is no behavior here to build or
+to get wrong. `docs/architecture/config/apply-ordering.md` records it as a
+constraint on the design, which is what keeps the disturbance list known to be
+open rather than closed.
+
+## Review Gate (closure summary)
+
+The machine-readable row pair is under the first `## Review Gate` heading above,
+which is where `reviewGateRecorded` (`internal/le/commit/discharge.go`) reads it.
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/config-apply-ordering-covers-every-root-cbc36cee-41ac-4afd-8b71-1bae841964d9.md` |
+| `./le spec session review check` | clean, hashes match |
+| Rounds | 7. Rounds 6 and 7 were authorized by Thomas on 2026-09-12. Round 6 earned round 7 by finding R6-I-1, a listing gate wider than its own reason, which refused a commit during the designed VPP handshake window. Round 7 found nothing |
+| Reviewer lenses used | Ordering and graph correctness against the owner's five phases; wiring and reach from the operator's entry point; fail-safe direction at every decision point; test discrimination, driven by `go test -overlay` probes that edit no file in the tree; the record itself, spec against code |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| B-1 | BLOCKER | A coarse node could earn no edge, so its position was the slice tie-break | `orchestrator.go` `operationNodes`, `solver.go` `kahnSort` | `placeSectionNodes` places it by decision. Superseded by the three rungs at round 4 |
+| B-2 | BLOCKER | The reserved-label and blank-resource refusals were driven from the helper, never from an entry point | `reload_tx.go` `validateOperationDeclarations` | Both driven from `Server.ReloadConfig` by two new tests |
+| I-1 | ISSUE | The apply deadline was a per-tier maximum for work that runs one node at a time | `orchestrator.go` `computeTieredDeadline` | `computeSequentialDeadline` (`orchestrator_budget.go`), and R-1 measured |
+| I-2 | ISSUE | A participant covered for one root and not another reached nothing and still committed | `orchestrator.go` `participantsWithoutOperations` | `checkOperationRootCoverage` aborts, named |
+| I-3 | ISSUE | No test rolled back an APPLIED coarse node | `executor_test.go` | `TestExecuteRollsBackAnAppliedCoarseNode` |
+| I-4 | ISSUE | The spec and the weakened shard claimed a listener declaration the decomposer does not emit | this spec, `test/weakened/4c26aef3.md` | Both corrected: the two listener rules ordered nothing and their coverage is LOST, not replaced |
+| I-5 | ISSUE | Four resource kinds and one relation had no user outside their declaration | `pkg/plugin/rpc/types.go` | Deleted, with `resourceKey`, `opAddrIface` and `firstNonZeroUint16` |
+| I-6 | ISSUE | `swapPeerForOperation` was new behavior with no test in which the swap returns true | `bgp/reactor/operation.go` | `TestApplyConfigOperationModifyPeerSwapsInPlaceAndKeepsTheSession` |
+| R2-B-1 | BLOCKER | The coarse node ran after the destroys whenever a create was delayed behind one | `solver.go` `placeSectionNodes` | MOOT once the requirement replaced the paraphrase: a coarse node runs after the destructions by design |
+| R2-B-2 | BLOCKER | The `bgp` participant applied before its own root's sibling sections | `solver.go` with `orchestrator.go` | A peer operation targets `ResourcePeer` and is a phase 5 start. Fenced by `TestReloadTxAppliesCoarseSectionsBeforeBinderStarts` |
+| R2-I-1 | ISSUE | Two sentences still credited the engine with a graph-aware deadline | `docs/architecture/config/transaction-protocol.md` | Both state the flat sum |
+| R3-B-1 | BLOCKER | A phase 5 start earned no edge when no create produced the disturbed address, so it restarted into the removal | `bgp/plugin/operation.go` `peerAddressConsumes`, `depgraph.go` | A third derived edge: a destroy runs before every create and modify that consumes what it takes away |
+| R3-B-2 | BLOCKER | An operation whose kind the engine cannot read was treated as a binder, so coarse nodes went before it | `solver.go` `isAddressingKind` | `providesAddressing` reads an operation declaring NOTHING as providing addressing. Narrowed again at round 4 |
+| R3-B-3 | BLOCKER | The applied order of two coarse sections was not deterministic | `reload.go` `affected`, `orchestrator.go` | `participantsWithoutOperations` sorts. 50 runs of 50 green |
+| R3-B-4 | BLOCKER | Four TDD rows named tests that do not exist | this spec | Corrected in `d4f54da586`, re-resolved by round 4 |
+| R3-B-5 | BLOCKER | Fourteen places stated the superseded make-before-break policy, AC-4 among them | this spec | Corrected in `d4f54da586`. Round 4 found no residue outside Current Behavior |
+| R3-I-1 | ISSUE | The page contradicted itself on cycle relaxation | `docs/architecture/config/transaction-protocol.md` | The relaxation sentence and its heading are gone |
+| R3-I-2 | ISSUE | Round 2's two findings had no disposition row | this spec | Rows written |
+| R3-I-3 | ISSUE | A comment claimed a sort the body did not do | `orchestrator.go` | Fixed with R3-B-3 |
+| R3-I-4 | ISSUE | The weakened shard contradicted itself about a renamed test | `test/weakened/4c26aef3.md` | The false paragraph is deleted |
+| R3-I-5 | ISSUE | The deadline sums the budgets of participants no phase reaches | `reload.go`, `orchestrator_budget.go` | NOT A DEFECT. The sum must include a diffless decomposing participant, and the comment that gave a false reason is corrected |
+| R3-I-6 | ISSUE | Two diff predicates answered `false` on a parse error | `iface/operation.go`, `bgp/plugin/operation.go` | Both answer `(bool, error)` and each decomposer aborts |
+| R4-B-1 | BLOCKER | A start earned no edge when the address it consumes arrives through the configure operation | `iface/operation.go` `ifaceConfigureOperation` | The configure operation declares the interfaces and addresses it creates |
+| R4-B-2 | BLOCKER | A decomposed binder start sorted before every coarse section | `solver.go` `sectionNodePosition` | `operationPhase` and the three-rung `kahnSort` |
+| R4-I-1 | ISSUE | Four round-3 findings had no disposition row | this spec | Rows written |
+| R4-I-2 | ISSUE | The Critical Review Checklist asked for something `providesAddressing` cannot meet | this spec, `continue.md` | The row polices no root, no participant and no label |
+| R5-B-1 | BLOCKER | The interface listing's error was discarded, so an ethernet address move answered "nothing disturbed" | `iface/operation.go` `decomposeIfaceOperations` | `decomposeIfaceListing` refuses the commit. Narrowed at round 6 |
+| R6-I-1 | ISSUE | The listing gate was broader than its hazard and refused commits on a designed path | `iface/operation.go` `decomposeIfaceListing` | `listingDecidesTheAnswer` asks for the listing only where a diff key it binds a name for is present |
+| R6-I-2 | ISSUE | The planner-error abort every listing guard rests on was driven by no test | `orchestrator.go` `Execute` | `TestExecuteAbortsWhenThePlannerRefuses`, discriminated by a mutation |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/reload/config-apply-ordering-mixed-root.ci` | Yes | `ls -l`: 5.4K, 2026-09-11 |
+| `test/reload/config-apply-ordering-coarse-root.ci` | Yes | `ls -l`: 3.5K, 2026-09-08 |
+| `test/reload/config-apply-ordering-address-swap.ci` | Yes | `ls -l`: 11K, 2026-09-11 |
+| `test/reload/config-apply-ordering-mixed-rollback.ci` | Yes | `ls -l`: 6.1K, 2026-09-08 |
+| `test/reload/tx-protocol-external-plugin.ci` | Yes | `ls -l`: 5.9K, 2026-09-08, extended by this spec |
+| `internal/component/config/transaction/orchestrator_budget.go` | Yes | `ls -l`: 4.6K, 2026-09-11 |
+| `internal/core/bgp/configop/configop.go` | Yes | `ls -l`: 1.5K, 2026-09-08 |
+| `internal/test/fixture/register_tx_protocol_external_plugin.go` | Yes | `ls -l`: 1.7K, 2026-09-08 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Address ordering survives a mixed-root commit, and no line says the section apply was used | `grep -n "using section apply" internal/component/config/transaction/orchestrator.go` returns nothing. `TestExecuteMixedRootTakesOperationPath` PASS today |
+| AC-2 | A root with no decomposer still applies, identically to the section apply | `config-apply-ordering-coarse-root` PASS 3.9s today. `TestExecuteCoarseNodeAppliesSection` PASS today |
+| AC-3 | A declared consume earns an edge with no rule registered | `TestBuildOperationGraphDerivesProducerBeforeConsumer` and `...ConsumerBeforeProducerOnDestroy` PASS today |
+| AC-4 | Each address leaves its interface before it arrives on the other, and the bound peer stops and starts around the move | `TestTopologicalSortSwapsAddressesBreakBeforeMake` PASS today; the kernel evidence is the QEMU walk in Goal Validation |
+| AC-5 | A label no core package names is ordered by verb and resource and carried unchanged | `TestOperationPathCarriesUnknownLabel` and `TestTopologicalSortOrdersASwapWhoseLabelsItDoesNotKnow` PASS today. `grep -n "OperationAdd\|OperationRemove" internal/component/config/transaction/solver.go` returns nothing |
+| AC-6 | A verbless operation aborts, named | `TestExecuteRefusesOperationWithNoVerb` PASS today |
+| AC-7 | Rollback reaches a decomposed operation and a coarse node alike | `config-apply-ordering-mixed-rollback` PASS 9.0s today. `TestExecuteRollsBackAnAppliedCoarseNode` and `TestExecuteRollsBackMixedTransaction` PASS today |
+| AC-8 | An MTU edit beside an address move still stops the binder | `TestReloadStopsABinderWhenTheCommitAlsoEditsAnMTU` PASS today, and `TestReloadMovesTheAddressWithNoOtherInterfaceChange` shows the MTU is not what produces the stop |
+| AC-9 | A change that leaves the address row intact stops nobody | `TestReloadDisturbsNothingWhenOnlyTheMTUChanges` and `TestBGPLeavesThePeerAloneWhenTheAddressRowIsIntact` PASS today |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| SIGHUP on a config changing an interface address and a static route | `test/reload/config-apply-ordering-mixed-root.ci` | Yes. Read: the driver renumbers `zmix0`, asserts three kernel notifications in order through `assertMixedRootOrder`, and the static route installs last. Walked in QEMU, red under two reverts |
+| SIGHUP whose only diff is in a root with no decomposer | `test/reload/config-apply-ordering-coarse-root.ci` | Yes. Read: the `rsvp-te` root's own section applies and the transaction reports committed. PASS today |
+| SIGHUP swapping two addresses between two interfaces, with a peer bound to one | `test/reload/config-apply-ordering-address-swap.ci` | Yes. Read: it asserts no interface holds both addresses, and that the peer's session is dropped and returns, through the `session-returned.txt` marker. Walked in QEMU, red under one revert per half |
+| A mixed transaction whose apply fails | `test/reload/config-apply-ordering-mixed-rollback.ci` | Yes. Read: connection 2 asserts the re-added peer's `192.168.1.0/24` UPDATE, not the End-of-RIB alone. PASS today |
+| The plugin ABI across a process boundary | `test/reload/tx-protocol-external-plugin.ci` | Yes. Read: the observer process declares the `bgp` root, decomposes nothing, and the test asserts its own `OnConfigApply` line and the `bgp config operation journal committed` line only `OnConfigOperationCommit` writes. PASS 4.8s today |
+| A decomposer declaring produces and consumes and registering no rule | `depgraph_test.go` | Yes. Unit, by design: the derivation is a core property with no operator surface of its own |
+| An operation whose label the core does not name | `executor_test.go` | Yes. Unit at the executor, plus the solver test above |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | One `emitSectionApply` serves both routes and both take their diffs from `filterDiffs`. `TestExecuteCoarseNodeAppliesSection` |
+| A-2 | confirmed | `Execute` runs `runVerify` for every participant before the planner, and `OperationExecutor.Verify` skips a coarse node. `TestExecuteCoarseNodeEmitsNoOperationVerify` |
+| A-3 | confirmed | `initCallbackDefaults` registers no `config-operation-*` default. `TestSDKPluginWithoutOperationCallbacksAnswersUnknownMethod` PASS today |
+| A-4 | confirmed | `resourceIdentity` keeps the default branch. `TestBuildOperationGraphUnknownResourceKindOrders` |
+| A-5 | confirmed as a fact, premise broken | `static` is a real uncovered participant. What was wrong is "uncovered participants are rare": every `bgp` reload was uncovered. Mistake Log row written |
+| A-6 | confirmed | No other spec edits these files. Two mention the page and neither touches them |
+| A-7 | confirmed, then moot | Nothing read `Params.AllowDual`. The field, its writer and the relaxation that fed it are deleted |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 4, API and RPC: the operation payload carries the verb and the sets | `ConfigOperation` and `ConfigOperationParams` (`pkg/plugin/rpc/types.go`) read against `docs/architecture/api/process-protocol.md` | Yes |
+| Row 8, plugin SDK: the `config-operations` field and the callback table | `docs/plugin-development/protocol.md` read against `initCallbackDefaults` (`pkg/plugin/sdk/sdk_callbacks.go`) | Yes |
+| Row 10, test infrastructure: `option=linger`, `action=rewrite`, and what a connection count does not witness | `docs/architecture/testing/ci-format.md` read against `endSequence` (`internal/test/peer/reject.go`) | Yes |
+| Row 12, architecture: the requirement, the five phases, the fail-safe, what is not built | `docs/architecture/config/apply-ordering.md` read against `operationPhase`, `providesAddressing`, `decomposeIfaceListing`, `listingDecidesTheAnswer` | Yes |
+| Row 6, user guide: no ordering claim to update | `grep -n "order\|section apply" docs/guide/config-reload.md` returns no claim about ordering or coverage | Yes, none needed |
+| Row 9, RFC: no RFC governs this path | Scope is `config`. The plugin RPC contract is Ze's own | Yes, none needed |
+| Row 15, inventory: no page copies an operation label | `docs/features/plugins.md` and `docs/plugin-overview.md` name no label, no `ConfigOperationType` and no `config-operation-*` callback | Yes, none needed |
+| `./le doc check verify` | Re-run at closure, 2026-09-12. Red tree-wide, 8 summary rules and 4 stale source anchors, and none of the six pages this spec edits is named. Every failing page belongs to another session. Log `.../scratch/closure-doc-check.log` | Recorded as the state |
+| `./le spec citation` | Re-run at closure, 2026-09-12. Red with 16 dangling references, all of them in `plan/immediate/spec-remove-takes-the-working-tree-copy.md` and `plan/spec-web-plugin-extension-registry.md`. NOTHING names this spec, so commit B leaves no new dangle, and the three specs its Work Not Done names all exist on disk. Log `.../scratch/closure-citation.log` | Verified. The closure owes nothing here |
+| `./le verify worktree` | NOT green. Two full runs are recorded for this spec and both exit 1, at commits `381ec2e19872` and `940fb364fb78`. Both were killed the same way: the `plugin` functional suite reached its 1500s wall-clock budget (`ZE_SUITE_TIMEOUT_PLUGIN`), and the second also failed `ze-test exabgp` 2 of 40, cases 18 `api-healthcheck-module` and 31. Neither failure names a file of this spec. Logs `.../scratch/verify-worktree.log` and `.../scratch/verify-worktree-2.log` | Recorded as the state, not as a pass. The Goal Gate asking for a green `./le verify worktree` is NOT met |
+
+## Core Insight
+
+The subsystem was built from a paraphrase, and the paraphrase was wrong in the
+one direction that matters: it added before it removed. Nothing in the tree could
+find that. The code agreed with itself, every test asserted the paraphrase, and
+both existing `.ci` files were green under the wrong policy and would have been
+green under the right one, because no test ever read the order a commit APPLIES.
+A requirement is a fact, and a summary of it is a second declaration of that
+fact. This one drifted for four months with nothing able to arbitrate it, because
+the arbitrating text, the owner's own sentence, was not in the repository. The
+repair is to QUOTE him on one page and point every other artifact at that page.

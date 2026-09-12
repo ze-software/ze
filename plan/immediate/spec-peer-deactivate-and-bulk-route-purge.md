@@ -289,7 +289,7 @@ The configured path is:
 | Ze ↔ BGP peer | UPDATE withdrawals and the Cease NOTIFICATION | No |
 
 ### Integration Points
-- `pkg/plugin/rpc/types.go` - `OperationRemovePeer` and its siblings. A pause needs a new declared operation type, or a peer setting the existing modify path carries.
+- `internal/core/bgp/configop/configop.go` - `OperationRemovePeer` and its siblings. A pause needs a new declared operation label, or a peer setting the existing modify path carries. The labels moved out of `pkg/plugin/rpc/types.go` on 2026-09-08 (`6ffcdaf25`), because the shared ABI carrying a per-root label list is a central enumeration; the ABI now carries a verb and a resource kind, and each root owns its own labels.
 - `internal/core/bgp/ribevents/ribevents.go` - the bulk purge event and any per-peer attribution live here, because the consumer side stays compiled when the BGP engine is compiled out.
 - `pkg/plugin/rpc/enums.go` - `ReasonPeerRemoved`. A pause needs its own reason, because `internal/component/bgp/plugins/gr/gr.go` already branches on this one.
 
