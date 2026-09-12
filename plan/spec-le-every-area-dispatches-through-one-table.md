@@ -97,7 +97,7 @@ rather than merely unserved.
 | `ste` | `check` published zero-argument while `Answer` hand-parsed `file <path>`, so `./le ste check file -xh` answered `OK` at exit 0 having examined no document | FIXED in that spec: `check` declares `file`, and dispatch goes through `AnswerArgs` |
 | `worktree` | `update` is published zero-argument while `Answer` hand-parses `path <path>` and `all`. `--help` names no keyword, and `update path -xh` reaches `updater.One` with the option as a path | open |
 | `functional` | `list`, `gating` and `select` are published but absent from the sweep table, so `./le functional list zzprobe` refuses the verb the manifest advertises | open |
-| `doc wiring` | publishes one truthful zero-argument verb; its own `changed-file <path>` and `dry-run` grammar is unpublished. A gap rather than a false claim | open |
+| `doc wiring` | RECLASSIFIED in round 6. Not a gap: `parseOptions` (`internal/le/doc/wiring/docwiring.go`) hand-parses `changed-file <path>` and `dry-run` with no dash refusal, so `./le doc wiring changed-file -xh dry-run` answers `No wiring/doc/inventory checks needed` at exit 0. That is the same silent success `ste check file -xh` gave, and round 5 mis-read it as a missing publication | open |
 
 The three open rows are this spec's, and they carry a lesson for its own
 migration: declaring a table is not the deliverable. Dispatching through it is.

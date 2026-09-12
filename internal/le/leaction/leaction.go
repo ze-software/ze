@@ -319,8 +319,13 @@ func (l List) UsageText(verb string) (string, bool) {
 //
 // That holds for every slot of an area that DISPATCHES through its table. An
 // area that declares one and parses the line itself never reaches
-// parseArguments. Its own parser owns the refusal there, and `worktree` has
-// none: it still reads `update path -xh` as a path
+// parseArguments, so its own parser owns the refusal, and two areas have none:
+// `worktree` reads `update path -xh` as a path, and `doc wiring` answers
+// `changed-file -xh dry-run` with "No wiring/doc/inventory checks needed" at
+// exit 0. Do not read the pair as the whole population. It is what one probe
+// over the published verbs found (review round 5, corrected round 6), and only
+// a probe can find the next one, because nothing in the declaration says
+// whether the area honors it
 // (plan/spec-le-every-area-dispatches-through-one-table.md).
 //
 // A verb this listing does not hold answers false. The listing is what the area
