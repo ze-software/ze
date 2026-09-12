@@ -139,6 +139,19 @@ func rebuildLedger(root string) error {
 //   - .github/workflows says which native actions CI runs on a SCHEDULE, through
 //     carriers and scheduledWorkflowActions, and that set decides the Nightly-only
 //     column and every row's evidence tier.
+//   - a spec under plan/, through the same extraction chain: relocationErrors
+//     reads the spec a `relocated-to` site names and drops the whole sign-off
+//     when the id it reserved is gone from that prose. Editing one moves a stem
+//     between the signed table and the unsigned backlog.
+//
+// The spec clause is the whole of plan/ rather than the three files the
+// extractions name today, because the predicate is handed a path and nothing
+// else. Narrowing it means reading every rfc/extraction/*.json on each write to
+// learn which specs are relocation targets, which is the render's own work done
+// to decide whether to do the render. Over-invalidating costs one rebuild that
+// announces itself; under-invalidating is the silent stale answer this whole
+// mechanism exists to remove, and the review found this class after the first
+// four were fixed.
 //
 // A tag carrier holds the evidence itself. Production Go is in the set because
 // RenderInput.Unscanned reports an `RFC requirement:` comment that no carrier
@@ -154,6 +167,17 @@ func feedsRFCLedger(_, path string) bool {
 	} {
 		if strings.HasPrefix(path, directory+"/") {
 			return true
+		}
+	}
+	if strings.HasSuffix(path, ".md") {
+		// specDirNames is specpath.Dirs, the one declaration of the release
+		// buckets. Spelling "plan" here instead is the mistake rfc.go records
+		// this gate already made once, when every relocation to a spec in
+		// plan/immediate/ stopped being recognized.
+		for _, directory := range specDirNames() {
+			if strings.HasPrefix(path, directory+"/") {
+				return true
+			}
 		}
 	}
 	return strings.HasSuffix(path, ".go") || IsTagCarrier(path)

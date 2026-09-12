@@ -336,13 +336,19 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// immediately before MUST, which is the shape gapCountRE reads. The row
 	// joined the population rather than the population changing shape.
 	//
+	// 57 since 2026-09-09: RFC 2516's Remaining cell was rewritten when its last
+	// MUST gap closed, and it now opens "No MUST gap remains gated", which spells
+	// no digit before MUST. The row left the population because the gap it
+	// counted is gone, which is the one shrink this test wants to see argued
+	// rather than absorbed.
+	//
 	// The number is hand-maintained on purpose -- a population that SHRINKS in
 	// silence is what this test exists to catch, so it cannot be derived from
 	// the same rows it judges. The cost is this two-sided edit, and
 	// plan/journal/hardcoded-count-in-test.md records that the cost has now
 	// been paid several times across the repository.
-	if counted != 58 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 58",
+	if counted != 57 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 57",
 			counted, len(rows))
 	}
 }

@@ -120,8 +120,17 @@ edit anywhere else.
 
 The registry gives the artifact its lifecycle. A `Write` or an `Edit` to a file
 the predicate accepts REMOVES the artifact. A Bash command that names its path
-REBUILDS it before that command runs, and a session start builds every artifact
-the tree does not hold. Both build only what the tree does not already hold
+REBUILDS it before that command runs, and a session start builds the artifacts
+that DECLARE it should. That declaration is `SessionStartPolicy`, and it exists
+because the two kinds of artifact are read differently. An artifact a grep reads
+is named by nobody, so an unnamed search over an absent one reads nothing and
+reports nothing: the session start must build it, and the three documentation
+indexes declare `SessionStartBuild`. An artifact a COMMAND reads is always named
+on the command line, so the Bash hook already covers it and the session start
+must not pay for it: the five RFC artifacts declare `SessionStartDefer`, because
+rendering 194 requirement shards took the hook from 2.2 seconds to 5.32 against
+its 5 second budget. The zero value is invalid, so a new registration cannot
+default into either class. Both hooks build only what the tree does not hold
 WHOLE, so a write that reaches an input with no hook in its path leaves the
 artifact present and stale until the next hooked write removes it. A native
 action writing from Go is such a write: `./le rfc reseal` edits an input of the

@@ -529,8 +529,13 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	// draft-abraitis-bgp-version-capability the five exact. The draft is the
 	// one of the seven outside the eight RFC sections, which is why the RFC
 	// count below drops by six.
-	if len(mapped) != 44 || exact != 35 || qualified != 9 || yes != 0 {
-		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 44 (35, 9, 0)",
+	// 45 (36 exact) since 2026-09-11: a8f7323f64 enrolled
+	// draft-ietf-idr-bgp-bfd-strict-mode with `| Support status | Supported |`,
+	// the first new support-promising row since the seven were lowered above. It
+	// carries `| Support | drafts 70 |`, so it joins the DRAFT table and the RFC
+	// section counts below are unchanged.
+	if len(mapped) != 45 || exact != 36 || qualified != 9 || yes != 0 {
+		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 45 (36, 9, 0)",
 			len(mapped), exact, qualified, yes)
 	}
 	if exact+qualified+yes != len(mapped) {

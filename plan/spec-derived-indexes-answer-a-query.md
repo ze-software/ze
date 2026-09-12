@@ -431,8 +431,11 @@ Added in review round 1:
   stays green and the next `update` rewrites those bytes with no diff anybody has to approve. Left
   as it is here on purpose: regenerating the health record is another session's commit, and this
   one carries no page of it.
-- A DIRECTORY artifact answers `Complete` from a marker its generator writes last, so a member
-  deleted by hand under a finished run still reads as whole. The exact question is the expected
+- A DIRECTORY artifact answers `Complete` from a marker its generator writes last, so two states
+  read as whole that are not: a member deleted by hand under a finished run, and a concurrent
+  invalidation landing mid-render, which leaves a short directory under a ledger the same run
+  writes last. The second is not theoretical in this checkout, because every `*.go` write in any
+  of about twenty sessions invalidates the family. The exact question is the expected
   member set, which for `rfc/requirements` costs `Collect` plus a render (1.52s of user time over
   this checkout) to decide whether to run that same render. `./le rfc index-update` restores the
   directory in one command.

@@ -166,7 +166,7 @@ func TestTheAuditReportsEveryDocumentOfABulletRenderedPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build the reverse index: %v", err)
 	}
-	source, documents := bulletRenderedPath(t, model)
+	source, documents := bulletRenderedPath(t, root, model)
 
 	specPath := filepath.Join(t.TempDir(), "spec-bullet-rendered-path.md")
 	// The spec names the SOURCE and no document, so every document that anchors
@@ -202,7 +202,7 @@ func TestTheAuditReportsEveryDocumentOfABulletRenderedPath(t *testing.T) {
 // case on every machine. A tree that offers none fails rather than passes: this
 // test's whole subject is that shape, and a silent skip would report a corpus
 // fact as a green assertion (ai/rules/principles.md).
-func bulletRenderedPath(t *testing.T, model map[string][]string) (string, []string) {
+func bulletRenderedPath(t *testing.T, root string, model map[string][]string) (string, []string) {
 	t.Helper()
 
 	// namedInline, the bound renderCodeIndex switches shape at, restated here
@@ -229,6 +229,16 @@ func bulletRenderedPath(t *testing.T, model map[string][]string) (string, []stri
 			continue
 		}
 		if len(model[path]) == 0 {
+			continue
+		}
+		// The document must come from the INDEX and not from the file's own
+		// `// Design:` header. AuditAnchors builds report.Owners from
+		// declaredDesignDocument, which never reads the index, so a path whose
+		// only anchor IS its declared owner is reported either way and proves
+		// nothing about the index. Picking one would leave this test green under
+		// the table-only blind spot it exists to catch, with no edit to it.
+		owner := declaredDesignDocument(root, path)
+		if !slices.ContainsFunc(model[path], func(document string) bool { return document != owner }) {
 			continue
 		}
 		return path, model[path]

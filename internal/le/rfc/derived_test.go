@@ -103,6 +103,8 @@ func TestTheRFCArtifactsAreFedByEverySourceTheRenderReads(t *testing.T) {
 		"test/plugin/open-hold-time.ci":                  "tagCovers: a tag carrier",
 		"internal/component/bgp/reactor/reactor.go":      "unscannedTags: an unclaimed `RFC requirement:` comment",
 		"internal/le/interoplab/ipsec/checkers.go":       "unscannedTags, over native interop Go",
+		"plan/immediate/spec-ipsec-remote-access.md":     "relocationErrors: a spec a relocated-to site names",
+		"plan/spec-ipsec-ipcomp.md":                      "relocationErrors, for a spec at the plan/ root",
 	}
 	for path, walk := range feeds {
 		if !artifact.Feeds(".", path) {
@@ -114,7 +116,6 @@ func TestTheRFCArtifactsAreFedByEverySourceTheRenderReads(t *testing.T) {
 	// read pays a rebuild.
 	for _, path := range []string{
 		"docs/guide/bgp-peering.md",
-		"plan/spec-derived-indexes-answer-a-query.md",
 		"website/blog/posts/reference-from-the-system.md",
 	} {
 		if artifact.Feeds(".", path) {
