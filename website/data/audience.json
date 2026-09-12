@@ -27,14 +27,6 @@
     ],
     "who": [
         {
-            "title": "Route server",
-            "label": "IXP",
-            "category": "routing",
-            "chips": ["Peering", "Policy", "Replay"],
-            "body": "IXP operators can run the route-server lab first and compare policy behaviour before touching members.",
-            "link": {"href": "use-cases/route-server/", "label": "Route server", "sublabel": "policy and replay"}
-        },
-        {
             "title": "Lab router",
             "label": "Lab",
             "category": "operate",
