@@ -394,3 +394,46 @@ func TestPolicyOwnerHoldsTheSelectorAcrossTheKernelDelete(t *testing.T) {
 			"the selector is genuinely free once the record is dropped", err)
 	}
 }
+
+// VALIDATES: spelling a full-tunnel IPv4 selector as nil cannot bypass its
+// owner's claim, and releasing it cannot erase a distinct IPv6 claim.
+func TestPolicyOwnerNormalizesWildcardClaims(t *testing.T) {
+	var owners policyOwners
+	v4 := siteSelector(t, "0.0.0.0/0", SADirOut, "ipv4-peer")
+	v6 := siteSelector(t, "::/0", SADirOut, "ipv6-peer")
+	v6.Src = v6.Dst
+	for _, p := range []SPParams{v4, v6} {
+		if _, err := owners.claim(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	nilSelector := SPParams{Dir: SADirOut, Owner: "intruder"}
+	if _, err := owners.claim(nilSelector); err == nil {
+		t.Fatal("nil selectors bypassed the explicit IPv4 wildcard owner")
+	} else if _, ok := errors.AsType[*PolicyOwnedError](err); !ok {
+		t.Fatalf("claim: %v", err)
+	}
+	owners.releaseBySelector(nil, nil, SADirOut)
+	if _, err := owners.claim(nilSelector); err != nil {
+		t.Fatalf("IPv4 wildcard was not released: %v", err)
+	}
+	v6.Owner = "intruder"
+	if _, err := owners.claim(v6); err == nil {
+		t.Fatal("releasing IPv4 wildcard erased the IPv6 owner")
+	}
+}
+
+func TestPolicyOwnerNilSourceUsesDestinationFamily(t *testing.T) {
+	var owners policyOwners
+	explicit := siteSelector(t, "2001:db8:1::/64", SADirOut, "ipv6-peer")
+	_, explicit.Src, _ = net.ParseCIDR("::/0")
+	if _, err := owners.claim(explicit); err != nil {
+		t.Fatal(err)
+	}
+	other := explicit
+	other.Src = nil
+	other.Owner = "intruder"
+	if _, err := owners.claim(other); err == nil {
+		t.Fatal("nil IPv6 source bypassed the explicit wildcard owner")
+	}
+}

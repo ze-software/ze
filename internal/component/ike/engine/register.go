@@ -182,6 +182,7 @@ func PeerInfoMap() map[string]PeerInfo {
 func setActivePeers(m map[string]*PeerSession) {
 	peersMu.Lock()
 	activePeersMap = m
+	dataplaneChanged()
 	peersMu.Unlock()
 }
 
@@ -205,6 +206,7 @@ func TerminateAllSAs() int {
 		// would escape the cleanup below and leak.
 		peersMu.Lock()
 		delete(activePeersMap, name)
+		dataplaneChanged()
 		peersMu.Unlock()
 		// StopGraceful: the owner loop sends an authenticated INFORMATIONAL Delete on
 		// its way out (RFC 7296 Section 1.4) so the peer tears down at once instead of
@@ -238,6 +240,7 @@ func TerminatePeerSA(name string) bool {
 		return false
 	}
 	delete(activePeersMap, name)
+	dataplaneChanged()
 	peersMu.Unlock()
 
 	ps.StopGraceful()
@@ -751,6 +754,7 @@ func runEngine(conn net.Conn) int {
 		ps.cleanupPendingSA(table, dataplane.Get(), shutdownBus, log)
 		peersMu.Lock()
 		delete(activePeers, name)
+		dataplaneChanged()
 		peersMu.Unlock()
 	}
 	if tr != nil {

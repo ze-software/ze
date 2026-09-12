@@ -93,6 +93,10 @@ type XfrmPolicy struct {
 	Ifid     int
 	Mark     *XfrmMark
 	Tmpls    []XfrmPolicyTmpl
+	// Masks returned by the kernel, in host byte order. Read-only: the writer
+	// continues to derive exact/any masks from the port values.
+	DstPortMask uint16
+	SrcPortMask uint16
 }
 
 func (p XfrmPolicy) String() string {
@@ -322,6 +326,21 @@ func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPo
 	return parseXfrmPolicy(msgs[0], FAMILY_ALL)
 }
 
+// XFRM addresses are unions; the message family, rather than their bytes,
+// selects the IPv4 or IPv6 arm.
+func xfrmIPFromAddress(addr *nl.XfrmAddress, family uint16) net.IP {
+	addrLen := net.IPv4len
+	if family == nl.FAMILY_V6 {
+		addrLen = net.IPv6len
+	}
+	return append(net.IP(nil), addr[:addrLen]...)
+}
+
+func xfrmIPNetFromAddress(addr *nl.XfrmAddress, prefixlen uint8, family uint16) *net.IPNet {
+	ip := xfrmIPFromAddress(addr, family)
+	return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), len(ip)*8)}
+}
+
 func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 	msg := nl.DeserializeXfrmUserpolicyInfo(m)
 
@@ -332,11 +351,13 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 
 	var policy XfrmPolicy
 
-	policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, uint16(family))
-	policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, uint16(family))
+	policy.Dst = xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family)
+	policy.Src = xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family)
 	policy.Proto = Proto(msg.Sel.Proto)
 	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
 	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
+	policy.DstPortMask = nl.Swap16(msg.Sel.DportMask)
+	policy.SrcPortMask = nl.Swap16(msg.Sel.SportMask)
 	policy.Ifindex = int(msg.Sel.Ifindex)
 	policy.Priority = int(msg.Priority)
 	policy.Index = int(msg.Index)
@@ -355,8 +376,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
 				var resTmpl XfrmPolicyTmpl
 				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
-				resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
-				resTmpl.Src = tmpl.Saddr.ToIP()
+				resTmpl.Dst = xfrmIPFromAddress(&tmpl.XfrmId.Daddr, tmpl.Family)
+				resTmpl.Src = xfrmIPFromAddress(&tmpl.Saddr, tmpl.Family)
 				resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
 				resTmpl.Mode = Mode(tmpl.Mode)
 				resTmpl.Spi = int(nl.Swap32(tmpl.XfrmId.Spi))

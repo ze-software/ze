@@ -103,6 +103,21 @@ ssh ze-host 'show bgp peer list | raw'
 `| json` is a renderer, not this. It unwraps a single-key object holding an
 array, so `{"commands": [...]}` reaches the caller as a bare `[...]`.
 
+JSON numbers retain their exact value through pipe decoding, row selection,
+metadata injection and address enrichment. `json` and `ndjson` emit integer
+fields as numbers, including `9007199254740993` (2^53 + 1) and
+`18446744073709551615` (the largest uint64), without float64 rounding or quotes.
+The same integers render in full decimal form in `yaml`, `table` and `text`.
+This guarantee applies to inline pipes, streamed records and `ze pipe` stdin;
+it cannot recover precision already lost by an upstream producer.
+
+Formatting still unwraps single-key array wrappers where documented. Malformed
+JSON or trailing content is never accepted as one complete JSON value: format
+operators pass it through, while line-oriented fallbacks keep their existing
+behaviour.
+<!-- source: internal/component/command/pipe.go -- decodePipeJSON, applyJSON, applyNDJSON -->
+<!-- source: internal/component/command/format.go -- formatNumber, writeScalar -->
+
 Ze's own tooling uses the same operator. Completion, the runtime command tree
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.

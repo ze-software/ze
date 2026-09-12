@@ -4,14 +4,27 @@
 package command
 
 import (
+	"encoding/json"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // formatNumber displays integers without decimal points.
-// JSON unmarshals all numbers as float64; this restores integer display.
+// Integer JSON tokens stay exact; fractional and exponent forms retain the
+// established human-readable float formatting.
 func formatNumber(v any) any {
+	if number, ok := v.(json.Number); ok {
+		if !strings.ContainsAny(number.String(), ".eE") {
+			return number
+		}
+		parsed, err := number.Float64()
+		if err != nil {
+			return number
+		}
+		v = parsed
+	}
 	if n, ok := v.(float64); ok {
 		if n == float64(int64(n)) {
 			return int64(n)
@@ -48,19 +61,22 @@ func writeValue(b *textbuf.Buffer, v any, indent string) {
 		b.Str(indent).Bool(val).Byte('\n')
 	case string:
 		b.Str(indent).Str(val).Byte('\n')
-	case float64:
+	case float64, json.Number:
 		b.Str(indent)
-		writeScalar(b, formatNumber(val))
+		writeScalar(b, val)
 		b.Byte('\n')
 	}
 }
 
 func writeScalar(b *textbuf.Buffer, v any) {
+	v = formatNumber(v)
 	switch s := v.(type) {
 	case string:
 		b.Str(s)
 	case int64:
 		b.Int(s)
+	case json.Number:
+		b.Str(s.String())
 	case float64:
 		b.Float(s, -1)
 	case bool:
@@ -110,13 +126,9 @@ func writeKeyValue(b *textbuf.Buffer, key string, value any, prefix, indent stri
 		b.Str(prefix).Str(key).Str(": ").Bool(child).Byte('\n')
 	case string:
 		b.Str(prefix).Str(key).Str(": ").Str(child).Byte('\n')
-	case float64:
+	case float64, json.Number:
 		b.Str(prefix).Str(key).Str(": ")
-		if child == float64(int64(child)) {
-			b.Int(int64(child))
-		} else {
-			b.Float(child, -1)
-		}
+		writeScalar(b, child)
 		b.Byte('\n')
 	}
 }

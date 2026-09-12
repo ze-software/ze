@@ -16,7 +16,9 @@ engine state and touches no kernel or network code.
 **The SA table is an atomic pointer; the active peer map is behind a mutex and
 readers get snapshot copies.** The first attempt held the peer map behind an
 atomic pointer too, which raced the engine's configure callback against the RPC
-goroutines.
+goroutines. `setActivePeers` advances the dataplane generation under that same
+mutex. A kernel read that spans a republished map then answers unknown rather
+than drift.
 
 <!-- source: internal/component/ike/engine/register.go -- ActiveTable, ActivePeers, PeerInfoMap, setActivePeers -->
 
@@ -26,7 +28,10 @@ can race on the same session, and a double close of the stop channel panics.
 **`PeerInfo` is a snapshot struct, not exported fields.** The peer session holds
 crypto key material on the child SA. Exporting the fields would leak it into the
 show layer. `Info()` copies under the mutex; `PeerInfoMap()` returns value
-copies.
+copies. The snapshot names each child SA half as a destination-qualified
+`SAIdentity`, not as a bare SPI, so a kernel lookup matches one SA. It also
+carries whether removal of that child SA has started, read under the observation
+mutex.
 
 <!-- source: internal/component/ike/engine/reconcile.go -- PeerInfo, Info, Stop, StopGraceful -->
 
@@ -72,18 +77,23 @@ held in engine memory and it resets when the engine restarts. A true counter
 needs persistence.
 
 **Byte counters come from the kernel, not from this layer.** The engine never
-sees ESP payload, so a count kept here would report zero forever. `show vpn
-ipsec sa` reads them from the kernel SAD and renders null, never zero, when the
-SAD cannot be read. See
+sees ESP payload, so a count kept here would report zero forever.
+`readSADCounters` takes one `ObserveDataplane` observation, which carries engine
+belief and the kernel SAD together, and indexes that SAD by SA identity. A
+counter renders null, never zero, when the observation failed and when the
+kernel holds no SA under that identity. `counters-known` is false only in the
+first case. See
 [`ipsec-dataplane-inspection.md`](ipsec-dataplane-inspection.md).
 
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- sadCounters, readSADCounters -->
 
 **Two gauges report the kernel, and they publish nothing when it cannot be
 read.** `ze_ipsec_dataplane_sa_count{if_id}` and `ze_ipsec_dataplane_drift{peer}`
-sit beside the belief gauges above. `Update` takes one SAD dump for the pass and
-feeds both from it, and only when `ActiveTable()` is non-nil. An unreadable SAD
-deletes every series and sets none. See
+sit beside the belief gauges above. `publishDataplaneGauges` takes one
+`ObserveDataplane` observation for the pass and feeds both from it, and `Update`
+calls it only when `ActiveTable()` is non-nil. An unreadable SAD, and an
+observation the engine changed across, each delete every series and set none.
+See
 [`ipsec-dataplane-inspection.md`](ipsec-dataplane-inspection.md).
 
 <!-- source: internal/component/ike/engine/metrics.go -- publishDataplaneGauges, setGaugeSeries -->

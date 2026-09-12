@@ -249,6 +249,7 @@ func (ps *PeerSession) setPendingIKESwap(newSA *SA) {
 func (ps *PeerSession) setChildSA(c *ChildSA) {
 	ps.mu.Lock()
 	ps.childSA = c
+	dataplaneChanged()
 	ps.mu.Unlock()
 }
 
@@ -274,6 +275,8 @@ type PeerInfo struct {
 	ChildInSPI    uint32
 	ChildOutSPI   uint32
 	ChildIfID     uint32
+	ChildInID     dataplane.SAIdentity
+	ChildOutID    dataplane.SAIdentity
 	TSLocal       string
 	TSRemote      string
 	ESPEncryption string
@@ -281,6 +284,7 @@ type PeerInfo struct {
 	Lifetime      uint32
 	RekeyCount    uint64
 	HasChild      bool
+	childRemoving bool
 }
 
 // Info returns a snapshot of the peer session for display.
@@ -300,9 +304,15 @@ func (ps *PeerSession) Info() PeerInfo {
 	}
 	if child != nil {
 		info.HasChild = true
+		dataplaneObservation.Lock()
+		info.childRemoving = child.dataplaneRemoving
+		dataplaneObservation.Unlock()
 		info.ChildInSPI = child.InboundSPI
 		info.ChildOutSPI = child.OutboundSPI
 		info.ChildIfID = child.IfID
+		// These are the endpoints and protocol installChildSA passes to InstallSA.
+		info.ChildInID = dataplane.IdentityOf(child.InboundSPI, child.LocalAddr, protoESP, child.IfID)
+		info.ChildOutID = dataplane.IdentityOf(child.OutboundSPI, child.RemoteAddr, protoESP, child.IfID)
 		if child.TSLocal != nil {
 			info.TSLocal = child.TSLocal.String()
 		}
@@ -404,6 +414,7 @@ func reconcilePeers(
 		r.ps.cleanupPendingSA(table, dp, bus, log)
 		peersMu.Lock()
 		delete(active, r.name)
+		dataplaneChanged()
 		peersMu.Unlock()
 	}
 
@@ -429,6 +440,7 @@ func reconcilePeers(
 		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, natt, bus, log)
 		peersMu.Lock()
 		active[name] = ps
+		dataplaneChanged()
 		peersMu.Unlock()
 		log.Info("ike: started peer", "peer", name, "connection-type", peer.ConnectionType)
 	}

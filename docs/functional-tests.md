@@ -815,7 +815,9 @@ The namespace runner locks its goroutine to one OS thread, enters a disposable
 network namespace, and starts every child from that thread. The Go fixture
 drivers inherit that namespace with the daemon. Cleanup restores the original
 namespace and deletes the disposable one, so host firewall and link state stay
-unchanged.
+unchanged. `runOrchestrated` stops the children before that cleanup runs: the
+foreground daemon gets its self-stop grace first, then the other background
+processes are stopped.
 
 <!-- source: internal/test/runner/netns_linux.go -- enterTestNetns, testNetnsName -->
 <!-- source: internal/test/runner/netns_linux_test.go -- TestNetnsLaunchChildInheritsNamespace -->

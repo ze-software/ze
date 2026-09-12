@@ -54,13 +54,15 @@ engine runs as a plugin subprocess and has no access to the interface backend.
 
 <!-- source: internal/component/ike/engine/established.go -- resolveIfID -->
 
-**Local VPP API message types, not the vendored govpp binapi.** The IPsec binapi
-module is not in the vendored dependency, so the backend compiles against local
-types. It has the right structure and cannot run until that module is vendored.
+The VPP backend uses the vendored, generated GoVPP IPsec API types. Its initial
+SAD-ID allocation uses `IpsecSaV3Dump`. Public SAD and SPD inspection still return
+`ErrNotSupported`; the allocation dump does not implement the readback contract.
+<!-- source: internal/component/ike/dataplane/vpp.go -- firstFreeSadID, ListSAs -->
+<!-- source: internal/component/ike/dataplane/vpp_policy.go -- ListPolicies -->
 
 ## Vendored netlink patch
 
-The pinned `github.com/vishvananda/netlink` release lacks three XFRM
+The pinned `github.com/vishvananda/netlink` release lacks these XFRM
 corrections. Ze records them in
 `internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch`:
 
@@ -71,6 +73,24 @@ corrections. Ze records them in
 - The policy writer copies the selector family into any template that carries no
   destination, which in ze is every transport-mode template. An explicit
   destination still determines the template family.
+- The policy reader preserves source and destination port masks, including partial
+  masks and an exact port zero installed by another writer. These read-only fields
+  leave the writer's existing any-port and non-zero exact-port semantics unchanged.
+- The policy reader decodes selectors using each message's selector family.
+  An all-family dump keeps `0.0.0.0/0` and `::/0` distinct, and IPv6 prefixes
+  whose trailing bytes are zero retain their IPv6 identity. Tunnel endpoints use
+  their template's family, which can differ from the selector family.
+- The state reader uses the SAD message family for both outer addresses and the
+  nested selector's family for its prefixes. The same address conversion serves
+  the policy reader, so `2001:db8::` remains distinct from `32.1.13.184` even when
+  SPI, protocol and interface id agree. Nested selectors retain raw port masks.
+<!-- source: internal/le/vendorpatch/patches/netlink-xfrm-fixes.patch -- XFRM state and policy decoding corrections -->
+
+`TestXFRMReadbackPolicyTunnelAddressFamily` installs an IPv4 policy with IPv6
+tunnel endpoints whose trailing bytes are zero, including `2001:db8::`.
+It checks both endpoints through the backend and checks that removal clears the
+policy from the kernel dump.
+<!-- source: internal/component/ike/dataplane/xfrm_readback_integration_linux_test.go -- TestXFRMReadbackPolicyTunnelAddressFamily -->
 
 Keep the patch and its drift test outside `vendor/` because `go mod vendor`
 replaces that directory. Run this command from the repository root after every
@@ -202,6 +222,19 @@ Ownership applies to PROTECT entries alone. `policyOwners` exempts every
 template-free policy, because ownership exists to stop one PEER's selector
 taking another peer's live tunnel over, and a bypass or a discard belongs to the
 node rather than to a peer.
+
+Installation and readback use the same ownership key. A nil selector becomes the
+wildcard for the family the netlink writer selects: the destination prefix's
+family, or IPv4 when the destination is nil. Explicit full-tunnel prefixes compare
+equal to that wildcard, while IPv4 and IPv6 remain separate policies. Readback
+retains the kernel prefixes and port masks; a foreign partial-mask policy cannot
+borrow the owner of an exact-port policy.
+<!-- source: internal/component/ike/dataplane/policy_owner.go -- policyKey, cidrKey -->
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- policyInfoFromKernel -->
+
+The SAD reader translates the kernel's `XFRM_INF` hard byte and packet limits to
+the public zero value for unlimited. Every finite `uint64` limit is retained.
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- hardLimitFromKernel, saInfoFromState -->
 
 <!-- source: internal/component/ike/dataplane/policy_owner.go -- policyOwners.claim, policyOwners.release, PolicyOwnedError -->
 <!-- source: internal/component/ike/engine/child.go -- childPolicyParams, firstSharingSelector, samePolicySelector -->

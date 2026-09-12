@@ -5,6 +5,7 @@ package ipsec
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -1063,11 +1064,15 @@ func TestDataplaneReadbackRequiresTheSPISetToChange(t *testing.T) {
 	if err := requireSPISetChanged(before, after); err != nil {
 		t.Errorf("a fully replaced SPI set was refused: %v", err)
 	}
-	// One SPI in common is still a change: a rekey that has replaced one
-	// direction and not yet the other is legitimately half-way.
+	// An overlap is legitimate during cleanup, but cannot complete the waiter.
 	half := map[uint32]struct{}{0xc1a2b3c4: {}, 0x55667788: {}}
-	if err := requireSPISetChanged(before, half); err != nil {
-		t.Errorf("a half-replaced SPI set was refused: %v", err)
+	if err := requireSPISetChanged(before, half); err == nil {
+		t.Error("a lingering old SPI completed the rekey assertion")
+	}
+	if err := requireSPISetChanged(before, map[uint32]struct{}{
+		0xc1a2b3c4: {}, 0x0d0e0f10: {}, 0x11223344: {}, 0x55667788: {},
+	}); err == nil {
+		t.Error("adding new SAs without deleting old SAs completed the rekey assertion")
 	}
 }
 
@@ -1105,5 +1110,160 @@ func TestDataplaneSPIsDecodeAsIntegers(t *testing.T) {
 	}
 	if _, err := spiValues(map[string]struct{}{"esp": {}}); err == nil {
 		t.Error("an unparsable kernel SPI produced a set rather than an error")
+	}
+}
+
+func TestDataplaneReadbackMatchesEveryDirectedCounter(t *testing.T) {
+	const answer = `{"inbound-spi":2,"outbound-spi":1,"if-id":9,"bytes-in":9007199254740993,"bytes-out":9007199254741007,"packets-in":5,"packets-out":8,"counters-known":true}`
+	var child zeChildCounters
+	if err := json.Unmarshal([]byte(answer), &child); err != nil {
+		t.Fatal(err)
+	}
+	kernel, err := readbackLifetimes("src 172.28.0.2 dst 172.28.0.3\n" +
+		"\tproto esp spi 0x1 reqid 1 mode tunnel\n\tif_id 0x9\n" +
+		"\tlifetime config:\n\t\t9999999999999999(bytes), 999(packets)\n" +
+		"\tlifetime current:\n\t\t9007199254741007(bytes), 8(packets)\n" +
+		"src 172.28.0.3 dst 172.28.0.2\n\tproto esp spi 0x2 reqid 1 mode tunnel\n" +
+		"\tif_id 0x9\n\tlifetime current:\n\t\t9007199254740993(bytes), 5(packets)\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := requireDirectedCounters(child, kernel); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"bytes-in", "bytes-out", "packets-in", "packets-out"} {
+		t.Run(field, func(t *testing.T) {
+			var wrong zeChildCounters
+			if err := json.Unmarshal([]byte(answer), &wrong); err != nil {
+				t.Fatal(err)
+			}
+			switch field {
+			case "bytes-in":
+				*wrong.BytesIn++
+			case "bytes-out":
+				*wrong.BytesOut++
+			case "packets-in":
+				*wrong.PacketsIn++
+			case "packets-out":
+				*wrong.PacketsOut++
+			}
+			if err := requireDirectedCounters(wrong, kernel); err == nil {
+				t.Fatalf("accepted incorrect %s", field)
+			}
+		})
+	}
+	swapped := child
+	swapped.BytesIn, swapped.BytesOut = child.BytesOut, child.BytesIn
+	swapped.PacketsIn, swapped.PacketsOut = child.PacketsOut, child.PacketsIn
+	if err := requireDirectedCounters(swapped, kernel); err == nil {
+		t.Fatal("accepted counters from the reverse direction")
+	}
+	wrongID := child
+	wrongID.IfID++
+	if err := requireDirectedCounters(wrongID, kernel); err == nil {
+		t.Fatal("accepted a different XFRM interface's counters")
+	}
+	unknown := child
+	unknown.CountersKnown = false
+	if err := requireDirectedCounters(unknown, kernel); err == nil {
+		t.Fatal("accepted an unknown kernel observation")
+	}
+	null := child
+	null.PacketsIn = nil
+	if err := requireDirectedCounters(null, kernel); err == nil {
+		t.Fatal("accepted a null counter")
+	}
+}
+
+func TestDataplaneCounterAdvancementRequiresEachCounter(t *testing.T) {
+	pointer := func(value uint64) *uint64 { return &value }
+	before := zeChildCounters{
+		InboundSPI: 2, OutboundSPI: 1, CountersKnown: true,
+		BytesIn: pointer(100), BytesOut: pointer(200), PacketsIn: pointer(1), PacketsOut: pointer(2),
+	}
+	after := zeChildCounters{
+		InboundSPI: 2, OutboundSPI: 1, CountersKnown: true,
+		BytesIn: pointer(200), BytesOut: pointer(400), PacketsIn: pointer(2), PacketsOut: pointer(4),
+	}
+	if err := requireCounterAdvancement(before, after); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"bytes-in", "bytes-out", "packets-in", "packets-out"} {
+		t.Run(field, func(t *testing.T) {
+			stalled := after
+			switch field {
+			case "bytes-in":
+				stalled.BytesIn = before.BytesIn
+			case "bytes-out":
+				stalled.BytesOut = before.BytesOut
+			case "packets-in":
+				stalled.PacketsIn = before.PacketsIn
+			case "packets-out":
+				stalled.PacketsOut = before.PacketsOut
+			}
+			if err := requireCounterAdvancement(before, stalled); err == nil {
+				t.Fatalf("accepted stalled %s", field)
+			}
+		})
+	}
+	rekeyed := after
+	rekeyed.InboundSPI++
+	if err := requireCounterAdvancement(before, rekeyed); err == nil {
+		t.Fatal("compared counters across distinct Child SAs")
+	}
+}
+
+func TestDataplaneLifetimesRefuseMissingAndOverflowCounters(t *testing.T) {
+	for _, dump := range []string{
+		"\tproto esp spi 0x1\n\tlifetime current:\n\t\t12(bytes), 1(packets)\n",
+		"src a dst b\n\tproto esp spi 0x1\n\tlifetime config:\n\t\t12(bytes), 1(packets)\n",
+		"src a dst b\n\tproto esp spi 0x1\n\tlifetime current:\n\t\t18446744073709551616(bytes), 1(packets)\n",
+		"src a dst b\n\tproto esp spi 0x1\n\tlifetime current:\n\t\t12(bytes), 18446744073709551616(packets)\n",
+	} {
+		if _, err := readbackLifetimes(dump); err == nil {
+			t.Fatalf("accepted unmeasured lifetime: %s", dump)
+		}
+	}
+}
+
+func TestDataplaneGaugesRejectFalseCleanAndStaleSeries(t *testing.T) {
+	cleanText := "# TYPE ze_ipsec_dataplane_sa_count gauge\nze_ipsec_dataplane_sa_count{if_id=\"9\"} 2\n" +
+		"# TYPE ze_ipsec_dataplane_drift gauge\nze_ipsec_dataplane_drift{peer=\"swan\"} 0\n"
+	clean, err := decodeDataplaneGauges(cleanText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := requireDataplaneGauges(clean, dataplaneGauges{
+		count: map[string]float64{"9": 2}, drift: map[string]float64{"swan": 0},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := requireDataplaneGauges(clean, dataplaneGauges{
+		count: map[string]float64{"9": 1}, drift: map[string]float64{"swan": 1},
+	}); err == nil {
+		t.Fatal("clean gauges passed after a directed kernel SA disappeared")
+	}
+	if err := requireDataplaneGauges(clean, dataplaneGauges{}); err == nil {
+		t.Fatal("published gauges passed an unreadable or removed-label observation")
+	}
+	absent, err := decodeDataplaneGauges("# TYPE ze_ipsec_dataplane_sa_count gauge\n# TYPE ze_ipsec_dataplane_drift gauge\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := requireDataplaneGauges(absent, dataplaneGauges{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := requireDataplaneGauges(absent, clean); err == nil {
+		t.Fatal("an exporter that never published passed the initial measurement")
+	}
+	for _, stale := range []dataplaneGauges{
+		{count: clean.count},
+		{drift: clean.drift},
+		{count: map[string]float64{"9": 2, "10": 0}, drift: clean.drift},
+		{count: clean.count, drift: map[string]float64{"swan": 0, "removed": 0}},
+	} {
+		if err := requireDataplaneGauges(stale, dataplaneGauges{}); err == nil {
+			t.Fatal("accepted a retained interface or peer series")
+		}
 	}
 }

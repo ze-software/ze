@@ -3,7 +3,10 @@
 The native IKEv2 state machine. It sits above the wire codec and the crypto
 layer and below the Child SA and dataplane layer. It owns the per-peer
 goroutines, the IKE_SA_INIT and IKE_AUTH exchanges, config reconciliation, and
-the SA lifecycle events.
+the SA lifecycle events. Every change it makes to the peer roster advances the
+dataplane generation: `reconcilePeers` when it starts or stops a peer, and
+`setActivePeers` when it publishes a new map. A kernel read that spans one of
+those answers unknown rather than drift.
 
 <!-- source: internal/component/ike/engine/fsm.go -- runOnce, runInitiator, runResponder, handleInbound, handleSAInitResponse, handleAuthResponse -->
 <!-- source: internal/component/ike/engine/sa.go -- SA, SAState, GenerateSPI, GenerateNonce -->
@@ -38,6 +41,9 @@ An initiator inserts its SA before sending IKE_SA_INIT. A responder inserts one
 only when `tryResponderSAInit` admits a received request from a configured peer.
 The establishment lines come from `runInitiator` and `runResponder` after the
 handshake reaches `StateEstablished`.
+
+Shutdown runs the reverse. `runEngine` stops each peer session, removes the peer
+from the map, and advances the dataplane generation for each removal.
 
 <!-- source: internal/component/ike/engine/register.go -- runEngine, tryResponderSAInit -->
 <!-- source: internal/component/ike/engine/fsm.go -- runInitiator, runResponder -->

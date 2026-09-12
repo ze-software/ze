@@ -10,12 +10,14 @@ package engine
 
 import (
 	"errors"
+	"net"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // useDriftSAD scripts the kernel half of the comparison.
@@ -93,7 +95,7 @@ func TestCheckIPsecHealthDegradedOnDrift(t *testing.T) {
 	t.Cleanup(func() { SetActivePeersForTest(nil) })
 
 	t.Run("kernel holds both SPIs", func(t *testing.T) {
-		useDriftSAD(t, []dataplane.SAInfo{{SPI: 100}, {SPI: 200}}, nil)
+		useDriftSAD(t, []dataplane.SAInfo{{SPI: 100, Proto: dataplane.ProtoESP}, {SPI: 200, Proto: dataplane.ProtoESP}}, nil)
 		status, detail := checkIPsecHealth()
 		if status != health.StatusHealthy {
 			t.Errorf("status = %v (%q), want healthy when belief and kernel agree", status, detail)
@@ -101,7 +103,7 @@ func TestCheckIPsecHealthDegradedOnDrift(t *testing.T) {
 	})
 
 	t.Run("kernel is missing the outbound SPI", func(t *testing.T) {
-		useDriftSAD(t, []dataplane.SAInfo{{SPI: 100}}, nil)
+		useDriftSAD(t, []dataplane.SAInfo{{SPI: 100, Proto: dataplane.ProtoESP}}, nil)
 		status, detail := checkIPsecHealth()
 		if status == health.StatusHealthy {
 			t.Error("status = healthy while the kernel does not hold the outbound child SA")
@@ -111,11 +113,11 @@ func TestCheckIPsecHealthDegradedOnDrift(t *testing.T) {
 		}
 	})
 
-	t.Run("SAD unreadable is not drift", func(t *testing.T) {
+	t.Run("SAD unreadable is unknown health", func(t *testing.T) {
 		useDriftSAD(t, nil, errors.New("operation not permitted"))
 		status, detail := checkIPsecHealth()
-		if status != health.StatusHealthy {
-			t.Errorf("status = %v (%q): an unreadable dataplane is not evidence of drift", status, detail)
+		if status == health.StatusHealthy || detail == "" {
+			t.Errorf("unreadable dataplane returned status %v and detail %q", status, detail)
 		}
 	})
 }
@@ -159,10 +161,141 @@ func TestDriftingPeersFromSAsComparesOneDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := driftingPeersFrom(tt.sas)
+			for i := range tt.sas {
+				tt.sas[i].Proto = dataplane.ProtoESP
+			}
+			got := driftingPeersFrom(DataplaneSnapshot{Peers: PeerInfoMap(), SAs: tt.sas})
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("driftingPeersFrom = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// Equal SPIs can name different destinations, interfaces, and protocols. A foreign
+// state must neither conceal missing ESP state nor make the peer healthy.
+func TestHealthDriftUsesQualifiedSAIdentity(t *testing.T) {
+	establishedPeer(t, "peer-alpha", 100, 200)
+	ps := ActivePeers()["peer-alpha"]
+	local := net.ParseIP("192.0.2.1")
+	remote := net.ParseIP("192.0.2.2")
+	ps.setChildSA(&ChildSA{InboundSPI: 100, OutboundSPI: 200, LocalAddr: local, RemoteAddr: remote, IfID: 7})
+	inbound := dataplane.SAInfo{SPI: 100, Dst: local.To4(), Proto: dataplane.ProtoESP, IfID: 7}
+	outbound := dataplane.SAInfo{SPI: 200, Dst: remote.To4(), Proto: dataplane.ProtoESP, IfID: 7}
+	for _, field := range []string{"destination", "interface", "protocol"} {
+		t.Run(field, func(t *testing.T) {
+			other := outbound
+			switch field {
+			case "destination":
+				other.Dst = net.ParseIP("192.0.2.3")
+			case "interface":
+				other.IfID = 8
+			case "protocol":
+				other.Proto = dataplane.ProtoAH
+			}
+			useDriftSAD(t, []dataplane.SAInfo{inbound, outbound, other}, nil)
+			if status, detail := checkIPsecHealth(); status != health.StatusHealthy {
+				t.Fatalf("coexisting SAs returned %v (%s)", status, detail)
+			}
+			useDriftSAD(t, []dataplane.SAInfo{inbound, other}, nil)
+			status, detail := checkIPsecHealth()
+			if status == health.StatusHealthy || !strings.Contains(detail, "peer-alpha") {
+				t.Fatalf("same SPI concealed missing %s-qualified SA: %v (%s)", field, status, detail)
+			}
+		})
+	}
+}
+
+// Publication in the dump callback deterministically crosses the observation.
+// The replacement is already installed; the returned dump predates it.
+func TestHealthUnknownWhenChildChangesDuringDump(t *testing.T) {
+	establishedPeer(t, "peer-alpha", 100, 200)
+	ps := ActivePeers()["peer-alpha"]
+	old := driftSAD
+	t.Cleanup(func() { driftSAD = old })
+	driftSAD = func() ([]dataplane.SAInfo, error) {
+		ps.setChildSA(&ChildSA{InboundSPI: 300, OutboundSPI: 400})
+		return []dataplane.SAInfo{{SPI: 100, Proto: dataplane.ProtoESP}, {SPI: 200, Proto: dataplane.ProtoESP}}, nil
+	}
+	status, detail := checkIPsecHealth()
+	if status == health.StatusHealthy || strings.Contains(detail, "drift:") || detail == "" {
+		t.Fatalf("changing observation returned %v (%s), want unknown health", status, detail)
+	}
+	useDriftSAD(t, []dataplane.SAInfo{
+		{SPI: 100, Proto: dataplane.ProtoESP}, {SPI: 200, Proto: dataplane.ProtoESP},
+		{SPI: 300, Proto: dataplane.ProtoESP}, {SPI: 400, Proto: dataplane.ProtoESP},
+	}, nil)
+	if status, detail := checkIPsecHealth(); status != health.StatusHealthy {
+		t.Fatalf("stable rekey overlap returned %v (%s)", status, detail)
+	}
+}
+
+type observationBlockingDP struct {
+	mockDP
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (d *observationBlockingDP) RemoveSA(uint32, net.IP, uint8) error {
+	close(d.entered)
+	<-d.release
+	return nil
+}
+
+// Two independent peer actors can change the dataplane at once. Completing one
+// removal must not let health call the still-active writer's observation clean.
+func TestHealthUnknownUntilEveryDataplaneWriterFinishes(t *testing.T) {
+	establishedPeer(t, "peer-alpha", 100, 200)
+	useDriftSAD(t, []dataplane.SAInfo{
+		{SPI: 100, Proto: dataplane.ProtoESP}, {SPI: 200, Proto: dataplane.ProtoESP},
+	}, nil)
+	var done [2]chan struct{}
+	var backends [2]*observationBlockingDP
+	for i := range backends {
+		d := &observationBlockingDP{entered: make(chan struct{}), release: make(chan struct{})}
+		backends[i] = d
+		done[i] = make(chan struct{})
+		go func() {
+			defer close(done[i])
+			removeChildSAOutgoing(&ChildSA{OutboundSPI: uint32(300 + i)}, d, slogutil.DiscardLogger(), false)
+		}()
+		<-d.entered
+	}
+	// Both blocked removals are joined even if an assertion fails.
+	t.Cleanup(func() {
+		for i, d := range backends {
+			select {
+			case <-d.release:
+			default:
+				close(d.release)
+			}
+			<-done[i]
+		}
+	})
+	for i, d := range backends {
+		if status, detail := checkIPsecHealth(); status == health.StatusHealthy {
+			t.Fatalf("%d writers remained, health returned %v (%s)", 2-i, status, detail)
+		}
+		close(d.release)
+		<-done[i]
+	}
+	if status, detail := checkIPsecHealth(); status != health.StatusHealthy {
+		t.Fatalf("completed removals left health %v (%s)", status, detail)
+	}
+}
+
+func TestHealthUnknownBetweenRemovalAndChildPublication(t *testing.T) {
+	establishedPeer(t, "peer-alpha", 100, 200)
+	ps := ActivePeers()["peer-alpha"]
+	// The backend removal has returned, but the owner has not cleared belief yet.
+	removeChildSAOutgoing(ps.getChildSA(), &mockDP{}, slogutil.DiscardLogger(), false)
+	useDriftSAD(t, []dataplane.SAInfo{{SPI: 100, Proto: dataplane.ProtoESP}}, nil)
+	status, detail := checkIPsecHealth()
+	if status == health.StatusHealthy || strings.Contains(detail, "drift:") || detail == "" {
+		t.Fatalf("removal/publication gap returned %v (%s)", status, detail)
+	}
+	ps.setChildSA(nil)
+	if status, detail := checkIPsecHealth(); status != health.StatusHealthy {
+		t.Fatalf("published child removal returned %v (%s)", status, detail)
 	}
 }

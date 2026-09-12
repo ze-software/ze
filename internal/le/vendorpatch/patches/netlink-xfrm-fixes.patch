@@ -1,8 +1,18 @@
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
-index bf143a1b1..2227d2dbf 100644
 --- a/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go
-@@ -170,7 +170,14 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
+@@ -93,6 +93,10 @@ type XfrmPolicy struct {
+ 	Ifid     int
+ 	Mark     *XfrmMark
+ 	Tmpls    []XfrmPolicyTmpl
++	// Masks returned by the kernel, in host byte order. Read-only: the writer
++	// continues to derive exact/any masks from the port values.
++	DstPortMask uint16
++	SrcPortMask uint16
+ }
+ 
+ func (p XfrmPolicy) String() string {
+@@ -170,7 +174,14 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
  		userTmpl := nl.DeserializeXfrmUserTmpl(tmplData[start : start+nl.SizeofXfrmUserTmpl])
  		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
  		userTmpl.Saddr.FromIP(tmpl.Src)
@@ -18,8 +28,55 @@ index bf143a1b1..2227d2dbf 100644
  		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
  		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
  		userTmpl.Mode = uint8(tmpl.Mode)
+@@ -315,6 +326,21 @@ func (h *Handle) xfrmPolicyGetOrDelete(policy *XfrmPolicy, nlProto int) (*XfrmPolicy, error) {
+ 	return parseXfrmPolicy(msgs[0], FAMILY_ALL)
+ }
+ 
++// XFRM addresses are unions; the message family, rather than their bytes,
++// selects the IPv4 or IPv6 arm.
++func xfrmIPFromAddress(addr *nl.XfrmAddress, family uint16) net.IP {
++	addrLen := net.IPv4len
++	if family == nl.FAMILY_V6 {
++		addrLen = net.IPv6len
++	}
++	return append(net.IP(nil), addr[:addrLen]...)
++}
++
++func xfrmIPNetFromAddress(addr *nl.XfrmAddress, prefixlen uint8, family uint16) *net.IPNet {
++	ip := xfrmIPFromAddress(addr, family)
++	return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), len(ip)*8)}
++}
++
+ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
+ 	msg := nl.DeserializeXfrmUserpolicyInfo(m)
+ 
+@@ -326,10 +352,12 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
+ 	var policy XfrmPolicy
+ 
+-	policy.Dst = msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, uint16(family))
+-	policy.Src = msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, uint16(family))
++	policy.Dst = xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family)
++	policy.Src = xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family)
+ 	policy.Proto = Proto(msg.Sel.Proto)
+ 	policy.DstPort = int(nl.Swap16(msg.Sel.Dport))
+ 	policy.SrcPort = int(nl.Swap16(msg.Sel.Sport))
++	policy.DstPortMask = nl.Swap16(msg.Sel.DportMask)
++	policy.SrcPortMask = nl.Swap16(msg.Sel.SportMask)
+ 	policy.Ifindex = int(msg.Sel.Ifindex)
+ 	policy.Priority = int(msg.Priority)
+ 	policy.Index = int(msg.Index)
+@@ -348,8 +376,8 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
+ 			for i := 0; i < max; i += nl.SizeofXfrmUserTmpl {
+ 				var resTmpl XfrmPolicyTmpl
+ 				tmpl := nl.DeserializeXfrmUserTmpl(attr.Value[i : i+nl.SizeofXfrmUserTmpl])
+-				resTmpl.Dst = tmpl.XfrmId.Daddr.ToIP()
+-				resTmpl.Src = tmpl.Saddr.ToIP()
++				resTmpl.Dst = xfrmIPFromAddress(&tmpl.XfrmId.Daddr, tmpl.Family)
++				resTmpl.Src = xfrmIPFromAddress(&tmpl.Saddr, tmpl.Family)
+ 				resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
+ 				resTmpl.Mode = Mode(tmpl.Mode)
+ 				resTmpl.Spi = int(nl.Swap32(tmpl.XfrmId.Spi))
 diff --git a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
-index 092ffe97b..85035e9db 100644
 --- a/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 +++ b/vendor/github.com/vishvananda/netlink/xfrm_state_linux.go
 @@ -205,6 +205,10 @@ func writeMark(m *XfrmMark) []byte {
@@ -57,7 +114,15 @@ index 092ffe97b..85035e9db 100644
  		out := nl.NewRtAttr(nl.XFRMA_REPLAY_ESN_VAL, writeReplayEsn(state.ReplayWindow))
  		req.AddData(out)
  	}
-@@ -509,6 +516,7 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
+@@ -503,19 +510,22 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
+ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
+ 	var state XfrmState
+-	state.Dst = msg.Id.Daddr.ToIP()
+-	state.Src = msg.Saddr.ToIP()
++	state.Dst = xfrmIPFromAddress(&msg.Id.Daddr, msg.Family)
++	state.Src = xfrmIPFromAddress(&msg.Saddr, msg.Family)
+ 	state.Proto = Proto(msg.Id.Proto)
+ 	state.Mode = Mode(msg.Mode)
  	state.Spi = int(nl.Swap32(msg.Id.Spi))
  	state.Reqid = int(msg.Reqid)
  	state.ReplayWindow = int(msg.ReplayWindow)
@@ -65,7 +130,22 @@ index 092ffe97b..85035e9db 100644
  	lftToLimits(&msg.Lft, &state.Limits)
  	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
  	state.Selector = &XfrmPolicy{
-@@ -605,6 +613,16 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
+-		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
+-		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
+-		Proto:   Proto(msg.Sel.Proto),
+-		DstPort: int(nl.Swap16(msg.Sel.Dport)),
+-		SrcPort: int(nl.Swap16(msg.Sel.Sport)),
+-		Ifindex: int(msg.Sel.Ifindex),
++		Dst:         xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family),
++		Src:         xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family),
++		Proto:       Proto(msg.Sel.Proto),
++		DstPort:     int(nl.Swap16(msg.Sel.Dport)),
++		SrcPort:     int(nl.Swap16(msg.Sel.Sport)),
++		DstPortMask: nl.Swap16(msg.Sel.DportMask),
++		SrcPortMask: nl.Swap16(msg.Sel.SportMask),
++		Ifindex:     int(msg.Sel.Ifindex),
+ 	}
+@@ -605,6 +615,16 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
  		case nl.XFRMA_SA_PCPU:
  			pcpuNum := native.Uint32(attr.Value)
  			state.Pcpunum = &pcpuNum

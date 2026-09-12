@@ -10,6 +10,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/engine"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -56,6 +58,7 @@ type fakeDataplane struct {
 	policies []dataplane.PolicyInfo
 	saErr    error
 	polErr   error
+	onSAD    func()
 }
 
 func (f *fakeDataplane) InstallSA(dataplane.SAParams) error          { return nil }
@@ -67,6 +70,9 @@ func (f *fakeDataplane) Close() error                                { return ni
 func (f *fakeDataplane) RemovePolicy(*net.IPNet, *net.IPNet, dataplane.SADir) error { return nil }
 
 func (f *fakeDataplane) ListSAs(uint32) ([]dataplane.SAInfo, error) {
+	if f.onSAD != nil {
+		f.onSAD()
+	}
 	return f.sas, f.saErr
 }
 
@@ -95,9 +101,25 @@ func noDataplane(t *testing.T) {
 // usePeerInfo scripts the engine-belief half of the drift comparison.
 func usePeerInfo(t *testing.T, peers map[string]engine.PeerInfo) {
 	t.Helper()
-	old := driftPeerInfo
-	driftPeerInfo = func() map[string]engine.PeerInfo { return peers }
-	t.Cleanup(func() { driftPeerInfo = old })
+	for name, info := range peers {
+		if info.ChildInID.SPI == 0 {
+			info.ChildInID = dataplane.IdentityOf(info.ChildInSPI, nil, 0, info.ChildIfID)
+		}
+		if info.ChildOutID.SPI == 0 {
+			info.ChildOutID = dataplane.IdentityOf(info.ChildOutSPI, nil, 0, info.ChildIfID)
+		}
+		peers[name] = info
+	}
+	old := observeDataplane
+	observeDataplane = func() (engine.DataplaneSnapshot, error) {
+		dp := dataplane.Get()
+		if dp == nil {
+			return engine.DataplaneSnapshot{Peers: peers}, dataplane.ErrNotRegistered
+		}
+		sas, err := dp.ListSAs(0)
+		return engine.DataplaneSnapshot{Peers: peers, SAs: sas}, err
+	}
+	t.Cleanup(func() { observeDataplane = old })
 }
 
 func responseMap(t *testing.T, resp *plugin.Response) plugin.Map {
@@ -316,6 +338,61 @@ func TestShowDataplanePolicyRendersFields(t *testing.T) {
 	require.Equal(t, true, row["owner-known"])
 }
 
+// Partial masks must survive the handler and public renderers without becoming
+// exact ports. Exact port zero must also remain distinct from a wildcard.
+func TestShowDataplanePolicyPreservesPortMasks(t *testing.T) {
+	useDataplane(t, &fakeDataplane{policies: []dataplane.PolicyInfo{
+		{
+			SrcPort: dataplane.PortMatch{Port: 0x1200, Mask: 0xff00},
+			DstPort: dataplane.PortMatch{Port: 0x3401, Mask: 0x00f3},
+			Dir:     dataplane.SADirOut,
+		},
+		{
+			SrcPort: dataplane.ExactPortMatch(0),
+			DstPort: dataplane.AnyPortMatch(),
+			Dir:     dataplane.SADirOut,
+		},
+		{
+			SrcPort: dataplane.PortMatch{Port: 500, Mask: 0},
+			DstPort: dataplane.ExactPortMatch(4500),
+			Dir:     dataplane.SADirOut,
+		},
+	}})
+
+	resp, err := handleShowVPNIPsecDataplanePolicy(nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	want := [][2]string{
+		{"4608/0xff00", "13313/0x00f3"},
+		{"0", "any"},
+		{"any", "4500"},
+	}
+	rows := rowsOf(t, resp, "policies")
+	require.Len(t, rows, len(want))
+	for i, ports := range want {
+		require.Equal(t, ports[0], rows[i]["src-port"], "policy %d source", i)
+		require.Equal(t, ports[1], rows[i]["dst-port"], "policy %d destination", i)
+	}
+
+	payload, err := json.Marshal(resp.Data)
+	require.NoError(t, err)
+	_, renderJSON, errMsg := command.ProcessPipesDefaultFormatChecked("show vpn ipsec dataplane policy | json", "")
+	require.Empty(t, errMsg)
+	var publicRows []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(renderJSON(string(payload))), &publicRows))
+	require.Len(t, publicRows, len(want))
+	for i, ports := range want {
+		require.Equal(t, ports[0], publicRows[i]["src-port"], "public policy %d source", i)
+		require.Equal(t, ports[1], publicRows[i]["dst-port"], "public policy %d destination", i)
+	}
+
+	_, renderTable, errMsg := command.ProcessPipesDefaultFormatChecked("show vpn ipsec dataplane policy | table", "")
+	require.Empty(t, errMsg)
+	table := renderTable(string(payload))
+	require.Contains(t, table, "4608/0xff00")
+	require.Contains(t, table, "13313/0x00f3")
+}
+
 // TestShowDataplanePolicyUnknownOwnerSaysSo is the fail-closed rendering. A
 // policy another daemon installed must not print as a blank cell that reads as
 // "unowned" (ai/rules/evidence.md).
@@ -453,11 +530,13 @@ func TestSAToMapCarriesCounters(t *testing.T) {
 			HasChild:    true,
 			ChildInSPI:  100,
 			ChildOutSPI: 200,
+			ChildInID:   dataplane.IdentityOf(100, nil, 0, 0),
+			ChildOutID:  dataplane.IdentityOf(200, nil, 0, 0),
 		},
 	}
-	kernel := sadCounters{known: true, bySPI: map[uint32]dataplane.SAInfo{
-		100: {SPI: 100, BytesCurrent: 4096, PacketsCurrent: 12},
-		200: {SPI: 200, BytesCurrent: 8192, PacketsCurrent: 24},
+	kernel := sadCounters{known: true, byID: map[dataplane.SAIdentity]dataplane.SAInfo{
+		{SPI: 100}: {SPI: 100, BytesCurrent: 4096, PacketsCurrent: 12},
+		{SPI: 200}: {SPI: 200, BytesCurrent: 8192, PacketsCurrent: 24},
 	}}
 
 	row := saToMap(&engine.SA{PeerName: "peer-alpha", State: engine.StateEstablished},
@@ -500,10 +579,11 @@ func TestSAToMapCountersUnknownWhenSADUnreadable(t *testing.T) {
 // SA specifically, and zero would claim it carried nothing.
 func TestSAToMapCountersUnknownWhenSPIAbsent(t *testing.T) {
 	peers := map[string]engine.PeerInfo{
-		"peer-alpha": {PeerName: "peer-alpha", HasChild: true, ChildInSPI: 100, ChildOutSPI: 200},
+		"peer-alpha": {PeerName: "peer-alpha", HasChild: true, ChildInSPI: 100, ChildOutSPI: 200,
+			ChildInID: dataplane.IdentityOf(100, nil, 0, 0), ChildOutID: dataplane.IdentityOf(200, nil, 0, 0)},
 	}
-	kernel := sadCounters{known: true, bySPI: map[uint32]dataplane.SAInfo{
-		100: {SPI: 100, BytesCurrent: 4096, PacketsCurrent: 12},
+	kernel := sadCounters{known: true, byID: map[dataplane.SAIdentity]dataplane.SAInfo{
+		{SPI: 100}: {SPI: 100, BytesCurrent: 4096, PacketsCurrent: 12},
 	}}
 
 	row := saToMap(&engine.SA{PeerName: "peer-alpha", State: engine.StateEstablished},
@@ -527,17 +607,20 @@ func TestSAToMapCountersUnknownWhenSPIAbsent(t *testing.T) {
 // what keeps them apart.
 func TestReadSADCountersUnreadableIsNotKnown(t *testing.T) {
 	useDataplane(t, &fakeDataplane{saErr: dataplane.ErrNotSupported})
-	require.False(t, readSADCounters().known,
+	_, counters := readSADCounters()
+	require.False(t, counters.known,
 		"a dump that failed must not be recorded as a successful read of an empty SAD")
 
 	useDataplane(t, &fakeDataplane{sas: nil})
-	require.True(t, readSADCounters().known,
+	_, counters = readSADCounters()
+	require.True(t, counters.known,
 		"a dump that succeeded and returned nothing IS a known, empty SAD")
 }
 
 func TestReadSADCountersNoBackendIsNotKnown(t *testing.T) {
 	noDataplane(t)
-	require.False(t, readSADCounters().known)
+	_, counters := readSADCounters()
+	require.False(t, counters.known)
 }
 
 // TestDataplaneReadErrorKeepsCausesDistinct proves the three failure causes do
@@ -552,4 +635,72 @@ func TestDataplaneReadErrorKeepsCausesDistinct(t *testing.T) {
 	require.Contains(t, other.Error, "netlink socket closed")
 	require.NotContains(t, other.Error, "CAP_NET_ADMIN")
 	require.NotContains(t, unsupported.Error, "CAP_NET_ADMIN")
+}
+
+// The same SPI on another destination must keep its own counters and cannot
+// conceal deletion of the expected state.
+func TestShowIPsecSameSPIKeepsCountersAndDriftSeparate(t *testing.T) {
+	local := net.ParseIP("192.0.2.1")
+	remote := net.ParseIP("192.0.2.2")
+	other := net.ParseIP("192.0.2.3")
+	usePeerInfo(t, map[string]engine.PeerInfo{
+		"peer-alpha": {
+			HasChild: true, ChildInSPI: 100, ChildOutSPI: 200, ChildIfID: 7,
+			ChildInID:  dataplane.IdentityOf(100, local, dataplane.ProtoESP, 7),
+			ChildOutID: dataplane.IdentityOf(200, remote, dataplane.ProtoESP, 7),
+		},
+	})
+	table := engine.NewSATable()
+	table.Insert(&engine.SA{PeerName: "peer-alpha", State: engine.StateEstablished})
+	engine.SetActiveTableForTest(table)
+	t.Cleanup(func() { engine.SetActiveTableForTest(nil) })
+	fake := &fakeDataplane{sas: []dataplane.SAInfo{
+		{SPI: 100, Dst: local.To4(), Proto: dataplane.ProtoESP, IfID: 7},
+		{SPI: 200, Dst: remote.To4(), Proto: dataplane.ProtoESP, IfID: 7, BytesCurrent: 4096, PacketsCurrent: 12},
+		{SPI: 200, Dst: other, Proto: dataplane.ProtoESP, IfID: 7, BytesCurrent: 8192, PacketsCurrent: 24},
+	}}
+	useDataplane(t, fake)
+	resp, err := handleShowVPNIPsecSA(nil, nil)
+	require.NoError(t, err)
+	child := rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
+	require.Equal(t, uint64(4096), child["bytes-out"])
+	require.Equal(t, uint64(12), child["packets-out"])
+	require.Equal(t, uint64(0), child["bytes-in"], "a measured zero remains numeric")
+	require.Equal(t, true, child["counters-known"])
+
+	fake.sas = append(fake.sas[:1], fake.sas[2])
+	resp, err = handleShowVPNIPsecSA(nil, nil)
+	require.NoError(t, err)
+	child = rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
+	require.Nil(t, child["bytes-out"])
+	require.Nil(t, child["packets-out"])
+	require.Equal(t, true, child["counters-known"], "the missing SA was observed")
+	resp, err = handleShowVPNIPsecDataplaneDrift(nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	require.Contains(t, resp.Error, "peer-alpha")
+	require.Contains(t, resp.Error, "outbound")
+	require.NotContains(t, resp.Error, "inbound")
+}
+
+// A roster publication inside ListSAs exercises the real engine observation
+// guard through the CLI. Raw readback remains available during the transition.
+func TestDriftRejectsGenerationChangeDuringDump(t *testing.T) {
+	engine.SetActivePeersForTest(nil)
+	t.Cleanup(func() { engine.SetActivePeersForTest(nil) })
+	fake := &fakeDataplane{
+		sas:   []dataplane.SAInfo{{SPI: 100, Proto: dataplane.ProtoESP}},
+		onSAD: func() { engine.SetActivePeersForTest(nil) },
+	}
+	useDataplane(t, fake)
+	resp, err := handleShowVPNIPsecDataplaneDrift(nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusError, resp.Status)
+	require.NotContains(t, resp.Error, "ipsec dataplane drift:")
+	_, counters := readSADCounters()
+	require.False(t, counters.known)
+	resp, err = handleShowVPNIPsecDataplaneSA(nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, plugin.StatusDone, resp.Status)
+	require.Equal(t, uint32(100), rowsOf(t, resp, "sas")[0]["spi"])
 }

@@ -17,6 +17,8 @@ package command
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -1006,7 +1008,7 @@ func applyMatch(input, pattern string) (string, string) {
 	lower := strings.ToLower(pattern)
 
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err == nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err == nil {
 		rows, keys, key, ok := rowsInKeyed(data)
 		if !ok {
 			return "", rowOperatorRefusal("match", data)
@@ -1117,7 +1119,7 @@ func applyCountLines(input string) string {
 // and the operator falls back to lines.
 func rowsForOperator(input, operator string) (rows []any, isJSON bool, errMsg string) {
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
 		return nil, false, ""
 	}
 	rows, _, ok := rowsIn(data)
@@ -1192,7 +1194,7 @@ func injectPipeMeta(input string, meta pipeChainMeta) (string, string) {
 	}
 	trimmed := strings.TrimSpace(input)
 	var data any
-	if err := json.Unmarshal([]byte(trimmed), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(trimmed), &data); err != nil {
 		return input, ""
 	}
 	switch val := data.(type) {
@@ -1237,7 +1239,7 @@ func applyTake(input, arg, operator string, fromEnd bool) (string, string) {
 		return input, ""
 	}
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
 		return applyTakeLines(input, arg, fromEnd), ""
 	}
 	rows, keys, key, ok := rowsInKeyed(data)
@@ -1311,11 +1313,25 @@ func applyLastLines(input string, n int) string {
 	return b.String()
 }
 
+// decodePipeJSON preserves number tokens and accepts exactly one JSON value.
+// The EOF check keeps the fallback semantics of json.Unmarshal for trailing data.
+func decodePipeJSON(input io.Reader, target any) error {
+	decoder := json.NewDecoder(input)
+	decoder.UseNumber()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("trailing data after JSON value")
+	}
+	return nil
+}
+
 // applyJSON reformats JSON output as valid JSON. Single-key wrapper maps
 // containing arrays are unwrapped. "pretty" indents, "compact" produces one line.
 func applyJSON(input, mode string) string {
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
 
@@ -1340,7 +1356,7 @@ func applyJSON(input, mode string) string {
 // object per line). Single-key wrapper maps containing arrays are unwrapped.
 func applyNDJSON(input string) string {
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
 
@@ -1389,7 +1405,7 @@ func marshalNDJSON(arr []any, marshal func(any) ([]byte, error)) string {
 // Non-JSON input passes through unchanged.
 func applyYAML(input string) string {
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
 	return RenderYAML(data)

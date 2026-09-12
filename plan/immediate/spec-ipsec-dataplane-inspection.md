@@ -5,12 +5,15 @@
 | Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | 9/9 (phases 1-8 written; phase 8 owes a RUN this checkout cannot build) |
-| Updated | 2026-09-08 |
+| Phase | 9/9 (independent closure review) |
+| Updated | 2026-09-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+The task and original research below record the starting defect. The closure
+sections record the implemented contract, proof, and remaining publication work.
 
 Ze cannot see its own IPsec dataplane. Every IPsec surface it exposes reports what
 the IKE engine believes at install time, and nothing in the product reads the
@@ -83,7 +86,10 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `netlink.XfrmState` (vendored) carries `Limits`, `Statistics`, `Replay`, `ESN`, `Encap`, `Mode`, `Reqid`. `SAInfo` keeps four of those fields and drops the rest.
 - `ze doctor` runs offline against a config file. `ActiveTable()` returns nil in that process, so belief-versus-kernel reconciliation cannot be a doctor check. It belongs on the live surfaces.
 
-## Current Behavior (MANDATORY)
+## Current Behavior
+
+The reading below is the research baseline: what the tree held before this
+spec's implementation started.
 
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `internal/component/ike/dataplane/dataplane.go` - `Dataplane` has four write methods (`InstallSA`, `RemoveSA`, `InstallPolicy`, `RemovePolicy`, `RemovePolicyParams`) and one read, `ListSAs(ifID uint32) ([]SAInfo, error)`. `SAInfo` carries `SPI`, `Src`, `Dst`, `IfID`. There is no `ListPolicies`. `Get()` returns the active backend and returns nil when none is loaded.
@@ -132,47 +138,47 @@ command grammar has advertised since 2026-06-03 and never emitted.
 3. The handler calls `dataplane.Get()`. A nil backend is an error response, not an empty list.
 4. The handler calls `ListSAs` or `ListPolicies` on the backend.
 5. On Linux, `xfrmBackend` issues `netlink.XfrmStateList` or `netlink.XfrmPolicyList` and maps each kernel record into `SAInfo` or `PolicyInfo`.
-6. For the policy view, the handler joins each kernel policy against `ownerOf` so a selector shows which peer claims it.
+6. `policyInfoFromKernel` joins the complete kernel selector against `ownerOf` before the handler maps the record.
 7. The handler returns `plugin.Map`. It performs no formatting.
 8. `command.ApplyPipes` renders a table, or JSON when the operator appends `| json`.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| CLI ↔ plugin server | wire method `ze-show:vpn-ipsec-dataplane-*`, `plugin.Response` with `plugin.Map` data | No |
-| Command handler ↔ dataplane backend | `dataplane.Get()` then the `Dataplane` interface | No |
-| Dataplane ↔ Linux kernel | netlink `XFRM_MSG_GETSA` and `XFRM_MSG_GETPOLICY` dumps through the vendored `vishvananda/netlink` | No |
-| Engine belief ↔ kernel truth | drift handler reads `engine.PeerInfoMap()` and the SAD dump, and reports the difference | No |
-| Interop harness ↔ ze container | new `ze_cli` helper in `test/interop-ipsec/lab.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> running `ze cli -c` through `docker_exec` | No |
+| CLI ↔ plugin server | Registered `ze-show:vpn-ipsec-dataplane-*` methods and structured responses | Yes: real CLI functional and strongSwan evidence in Goal Validation |
+| Command handler ↔ dataplane backend | `dataplane.Get()` and the shared interface | Yes: command source and live kernel reads |
+| Dataplane ↔ Linux kernel | Vendored netlink SAD/SPD dumps | Yes: real-kernel readback, mask, family, and removal regressions |
+| Engine belief ↔ kernel truth | `ObserveDataplane` guards a peer-map and SAD observation against concurrent publication and writes | Yes: observation units and live health/metric transitions |
+| Interop harness ↔ ze container | `scenarioLab.zeCLI` in `internal/le/interoplab/ipsec/helpers.go` | Yes: populated readback red/green walk |
 
 ### Integration Points
 - `dataplane.Get()` - already the accessor used by `engine/register.go` and `engine/reconcile.go`.
-- `pluginserver.RegisterRPCs` in the existing `init()` of `show_ipsec.go` - one added registration per command.
-- `registry.DoctorCheckDef` list in `engine/register.go` - one added entry for the reachability check.
+- `pluginserver.RegisterRPCs` in `show_dataplane.go` registers all three readback methods.
+- `kernelcap.Register` in `engine/kernelcap_linux.go` enrolls the IPsec capability for doctor, startup, and validation.
 - `health.Register("ipsec", checkIPsecHealth)` in `engine/health.go` - the drift signal joins the existing status computation.
 - `ownerOf` in `dataplane/policy_owner.go` - the join key for the policy view.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers | Yes | Real CLI dispatch reaches handlers, the shared backend, netlink, and public renderers |
+| No unintended coupling | Yes | IKE owns identity and observation. Generic command formatting knows no IPsec fields |
+| No duplicated functionality | Yes | Readback reuses `ownerOf`, the netlink dump, the operational response bus, and the existing interop CLI helper |
+| Zero-copy preserved where applicable | Yes | `SAIdentity` uses comparable `netip.Addr` values. Kernel address copies own their bytes. Each metrics pass uses one SAD dump |
+| Registration over hardcoding | Yes | IKE registers its RPCs and capability. No IKE dispatch case enters a shared package |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `netlink.XfrmState.Statistics` is populated by a plain `XfrmStateList` dump, without a per-SA `XFRM_MSG_GETSA` round trip | vendored `xfrm_state_linux.go` declares `Statistics XfrmStateStats` on the dump-parsed struct | the byte counters need a second netlink call per SA, which changes the handler and the interop assertions | `TestXFRMReadbackCountersAdvance` sends traffic through a known SA and asserts the counter rises | **confirmed** 2026-08-03: `XfrmStateList` parses every dump message through `parseXfrmState` and then `xfrmStateFromXfrmUsersaInfo` (vendored `xfrm_state_linux.go`), which calls `curToStats` into `state.Statistics`. The same function fills `Mode`, `Reqid`, `ReplayWindow`, `Limits` and `Selector`. No second round trip |
+| A-1 | A plain SAD dump carries current counters | `xfrmStateFromXfrmUsersaInfo` calls `curToStats` | Per-SA reads would otherwise be required | Live directed counter agreement in `dataplane-readback` | **confirmed**: four counters match iproute2 before and after traffic |
 | A-2 | `policy_owner.go` lands on main before this spec is implemented | the file is untracked in the working tree at the time of writing | the policy view drops its Owner column and `ownerOf` stays unwired | grep for `ownerOf` on main before starting Phase 3 | **confirmed** 2026-08-03: the file is tracked, and `policyOwners.ownerOf` exists in `internal/component/ike/dataplane/policy_owner.go`. Phase 3's stop condition does not fire |
-| A-3 | An appliance kernel with `CONFIG_XFRM_USER=y` lists nothing for `xfrm_user` in `/proc/modules`, so `checkKernelModules` reports a false error today | `loadedKernelModules` reads `/proc/modules`, which lists loaded modules only; built-in code never appears there | the module check is correct and only the ESP floor is missing | run `ze doctor` in QEMU against an IPsec config on the appliance kernel and observe the diagnostic | **confirmed at source** 2026-08-03: `readLoadedModules` (`internal/component/doctor/checks_linux.go`) parses `/proc/modules` alone, and `checkKernelModules` in the same file appends `xfrm_user` and `xfrm_algo`. Observing the diagnostic on a built-in kernel still needs QEMU |
-| A-4 | A `.ci` under `option=needs-linux:caps=net-admin` can run the real xfrm backend once `fsuite ipsec` is added to the QEMU runner | `ikeDataplaneName()` defaults to `xfrm` when no override is set; other suites already run with that option | the kernel-level `.ci` has no home and the evidence must come from the Go integration tier alone | add the `fsuite` line and run `./le qemu run command "./le qemu all-tests"` | unvalidated. `internal/le/qemu/alltests.go` carries 23 `fsuite` lines and none is `ipsec`; `caps=net-admin` is already used by several `test/reload/*.ci`. Settled only by a QEMU run |
-| A-5 | `XfrmPolicyList` returns the policies IKE installs at `if_id 0`, so the SPD dump is not limited to xfrm-interface peers | `GetXFRMInfo` (`internal/plugins/iface/netlink/xfrm_linux.go`) filters the same call by `Ifid`, which implies the unfiltered call returns all of them | the SPD dump misses site-to-site policies, which is most of them | `TestXFRMReadbackPolicyNoIfID` installs a policy with `IfID` zero and asserts the dump returns it | unvalidated. Settled only by a real kernel, and not upgraded on inference |
-| A-6 | Returning `ErrNotSupported` from the noop backend does not break an existing functional test | no `.ci` calls `ListSAs` today, because no production caller exists | a `.ci` goes red and the change needs a different shape | `./le verify current mode full` after Phase 1 | **confirmed** 2026-08-03: the retired `ze-functional-ipsec-test` (current: `./le functional ipsec`) is 13/13 with the change in place, including the new `ipsec-dataplane-show.ci`. Earlier runs of the same suite showed 1 to 3 reds that did not reproduce (privileged UDP 500 bind, NAT-T 4500 contention under parallelism); those are load-sensitive and independent of this change |
-| A-7 | A kernel policy row from `XfrmPolicyList` inverts back to the `policySelectorKey` that `ownerOf` compares, losslessly, for every policy Ze itself installs | `xfrmSelectorPort` (`internal/component/ike/dataplane/xfrm_linux.go`) REFUSES any port mask other than 0 or `0xffff`, so Ze installs two port shapes and both invert; every other key field (src, dst, dir, upper proto, ifindex, if_id) appears verbatim on `netlink.XfrmPolicy` | the owner join is unsound and the Owner column must be dropped rather than guessed | `TestPolicyOwnerJoinRoundTrips` covers both port shapes and the wildcard prefix | **confirmed** 2026-08-03, by reading `xfrmSelectorPort` and the vendored `parseXfrmPolicy` |
+| A-3 | `/proc/modules` cannot establish availability of built-in XFRM | `readLoadedModules` reads only loaded modules | A module-name check would misdiagnose the appliance | `checkKernelModules` and `kernelcap.ProbeXFRMSocket` | **confirmed at source**: XFRM now uses the enrolled capability. No fresh appliance doctor run is claimed |
+| A-4 | The two privileged inspection fixtures can run under QEMU | QEMU IPsec suite and XFRM backend | Only integration-tier proof would remain | Functional discrimination walk in Goal Validation | **confirmed**: both real-kernel `.ci` files fail on empty readback and pass after restoration |
+| A-5 | Policy enumeration includes `if_id 0` | Unfiltered `XfrmPolicyList` | Ordinary site-to-site policies would disappear | `TestXFRMReadbackPolicyNoIfID` on Linux | **confirmed**: supplied QEMU log records PASS, without a skip |
+| A-6 | Explicit noop refusal preserves existing functional behavior | Historical unprivileged fixture run | Callers might treat unsupported as empty | Recorded 2026-08-03 IPsec result | **confirmed**: 13/13 in that historical run. No fresh full-suite claim |
+| A-7 | Kernel policies reconstruct the ownership key without losing selector identity | Original reasoning considered only Ze's installable port subset | Readback could lose an owner or borrow one from another policy | Wildcard-owner, family, and foreign-mask regressions | **broken and repaired**: normalize implicit prefixes using the writer-selected family, preserve explicit families and raw masks, and compare the complete key |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -197,15 +203,15 @@ command grammar has advertised since 2026-06-03 and never emitted.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `show vpn ipsec dataplane sa` typed at the CLI | → | `handleShowVPNIPsecDataplaneSA` | `TestShowDataplaneSARegistered` |
-| `show vpn ipsec dataplane policy` typed at the CLI | → | `handleShowVPNIPsecDataplanePolicy` | `TestShowDataplanePolicyRegistered` |
-| `show vpn ipsec dataplane drift` typed at the CLI | → | `handleShowVPNIPsecDataplaneDrift` | `TestShowDataplaneDriftRegistered` |
-| CLI dispatch through the plugin server, end to end | → | the three handlers | `ipsec-dataplane-show.ci` |
-| `ze doctor <config>` with an ipsec container | → | the IPsec kernel-capability check in `internal/component/ike/engine/doctor.go`, sourced from `internal/component/kernelcap` | `TestXFRMAbsentIsAStartupError`, `TestXFRMUnknownWarnsRatherThanRefusing`, `TestIPsecCapabilityEnrolled`, `doctor-ipsec-xfrm.ci` |
+| `show vpn ipsec dataplane sa` typed at the CLI | → | `handleShowVPNIPsecDataplaneSA` | `ipsec-show-dataplane-kernel.ci` and `ipsec-dataplane-show.ci` |
+| `show vpn ipsec dataplane policy` typed at the CLI | → | `handleShowVPNIPsecDataplanePolicy` | `ipsec-dataplane-show.ci`, `TestShowDataplanePolicyRendersFields`, `TestShowDataplanePolicyPreservesPortMasks` |
+| `show vpn ipsec dataplane drift` typed at the CLI | → | `handleShowVPNIPsecDataplaneDrift` | `ipsec-dataplane-show.ci` and live `checkDataplaneMonitoring` |
+| CLI dispatch through the plugin server, end to end | → | The three handlers | `ipsec-dataplane-show.ci` and `dataplane-readback` |
+| `ze doctor <config>` with IPsec in use | → | Enrollment in `engine/kernelcap_linux.go`, evaluated by `kernelcap` | `TestXFRMAbsentIsAStartupError`, `TestXFRMUnknownWarnsRatherThanRefusing`, `doctor-ipsec-xfrm.ci` |
 | `show vpn ipsec sa \| json` | → | `saToMap` counter fields | `ipsec-show-sa-counters.ci` |
 | Appliance kernel build | → | `runtimeKernelRequirements` ESP entries | `TestRuntimeFloorRequiresESP` |
 | strongSwan interop run | → | `scenarioLab.zeCLI` reading the SAD dump | scenario `dataplane-readback`, checker `checkDataplaneReadback` |
-| Prometheus scrape of a running daemon | → | `IPsecMetrics.Update` publishing the two dataplane gauges | `TestDataplaneGaugesPublishFromOneDump` |
+| Prometheus scrape of a running daemon | → | `IPsecMetrics.Update` and `publishDataplaneGauges` | `TestDataplaneGaugesPublishFromOneDump` and live `checkDataplaneMonitoring` |
 
 ## Acceptance Criteria
 
@@ -213,13 +219,13 @@ command grammar has advertised since 2026-06-03 and never emitted.
 |-------|-------------------|-------------------|
 | AC-1 | A Child SA is installed on Linux and the operator runs `show vpn ipsec dataplane sa \| json` | Output lists that SA with its SPI, source, destination, if_id, mode, reqid, encryption and integrity algorithm names, replay window, current and hard byte and packet counters, and the add and use timestamps |
 | AC-2 | A Child SA policy is installed and the operator runs `show vpn ipsec dataplane policy \| json` | Output lists that policy with its selector prefixes and ports, direction, priority, upper-layer protocol, if_id, template tunnel endpoints, and the owning peer name resolved through `ownerOf` |
-| AC-3 | The engine believes a Child SA is installed and the kernel SAD does not hold its SPI | `show vpn ipsec dataplane drift` names the peer, the missing SPI, and the direction, and the command exits non-zero |
+| AC-3 | The engine believes a Child SA is installed and the kernel SAD lacks its identity | `show vpn ipsec dataplane drift` names the peer, missing SPI, and direction, and exits non-zero. Identity includes SPI, destination, protocol, and XFRM interface ID |
 | AC-4 | Engine belief and kernel state agree for every peer | `show vpn ipsec dataplane drift` reports no drift and exits zero |
 | AC-5 | Drift exists while the daemon is running | `checkIPsecHealth` reports degraded and names the drifting peer |
 | AC-6 | The active dataplane backend is VPP or noop, and the operator runs either dump | The command reports that the backend cannot enumerate the dataplane, and never renders an empty table that reads as "nothing installed" |
 | AC-7 | `dataplane.Get()` returns nil, or netlink returns EPERM | The command returns an error response naming the cause. It never returns an empty list |
 | AC-8 | An established Child SA has passed traffic, and the operator runs `show vpn ipsec sa \| json` | Each child SA object carries `bytes-in`, `bytes-out`, `packets-in`, and `packets-out`, sourced from the kernel SAD, matching the "byte counts" the YANG description has advertised |
-| AC-9 | `ze doctor` runs on a host where the XFRM netlink socket cannot be opened, with an ipsec config | A `doctor-ipsec-xfrm-unavailable` diagnostic is emitted at warning severity, naming the netlink failure |
+| AC-9 | `ze doctor` probes XFRM with IPsec in use | Kernel absence emits `doctor-ipsec-xfrm-unavailable` at error severity. An inconclusive probe emits `doctor-ipsec-xfrm-unknown` at warning severity. This replaces the original warning-only plan, as recorded under Deviations from Plan |
 | AC-10 | `ze doctor` runs on a kernel where XFRM is built in rather than modular, with an ipsec config | No `doctor-module-missing` diagnostic is emitted for `xfrm_user` or `xfrm_algo` |
 | AC-11 | The appliance runtime kernel config omits `CONFIG_INET_ESP` | `enforceKernelRequirements` fails the build and names the missing symbol |
 | AC-12 | A strongSwan interop scenario establishes a tunnel and passes traffic | Ze's own SAD dump reports the same SPI set that `ip xfrm state` reports in the ze container, and the same set strongSwan reports for the reverse direction |
@@ -232,12 +238,15 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Asks whether a Child SA reached the kernel | CLI → `ze-show:vpn-ipsec-dataplane-sa` → `dataplane.Get().ListSAs` → `netlink.XfrmStateList` → table | `ipsec-show-dataplane-kernel.ci` |
-| 2 | Asks why traffic is not encrypted after the tunnel came up | CLI → `ze-show:vpn-ipsec-dataplane-drift` → engine peer map joined against the SAD dump | `TestDriftReportsMissingSPI` |
-| 3 | Asks which peer owns a policy selector | CLI → `ze-show:vpn-ipsec-dataplane-policy` → `netlink.XfrmPolicyList` joined with `ownerOf` | `TestPolicyDumpNamesOwner` |
+| 2 | Asks why traffic is not encrypted after the tunnel came up | CLI → drift handler → coherent peer/SAD observation | `TestDriftReportsMissingSPI` and live `checkDataplaneMonitoring` |
+| 3 | Asks which peer owns a policy selector | CLI → policy handler → kernel dump joined with `ownerOf` | `TestShowDataplanePolicyRendersFields` and `TestPolicyOwnerJoinRoundTrips` |
 | 4 | Asks how much traffic a tunnel has carried | CLI → `ze-show:vpn-ipsec-sa` → `saToMap` counter fields sourced from the SAD | `ipsec-show-sa-counters.ci` |
-| 5 | Checks an appliance is fit to run IPsec before configuring it | `ze doctor` → `checkXFRMReachable` → netlink probe | `doctor-ipsec-xfrm.ci` |
+| 5 | Checks an appliance is fit to run IPsec before configuring it | `ze doctor` → enrolled IPsec capability → `ProbeXFRMSocket` | `doctor-ipsec-xfrm.ci` and `TestXFRMAbsentIsAStartupError` |
 
 ## 🧪 TDD Test Plan
+
+This is the original test plan. The closure audit names the implemented tests
+and distinguishes supplied executions from source-only evidence.
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -283,14 +292,14 @@ command grammar has advertised since 2026-06-03 and never emitted.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ipsec-dataplane-show` | `test/ipsec/ipsec-dataplane-show.ci` | the operator reaches all three new commands end to end under the noop backend, and each reports that the backend cannot enumerate rather than showing an empty table. Reachability evidence only, not kernel evidence | |
-| `ipsec-show-dataplane-kernel` | `test/ipsec/ipsec-show-dataplane-kernel.ci` | the responder daemon runs the real xfrm backend and the initiator runs noop, as `ipsec-teardown-leaves-nothing.ci` does. After the Child SA establishes, `show vpn ipsec dataplane sa` names the addresses and the ESP algorithm this test configured. After `clear vpn ipsec sa` the same command no longer names them, which is the transition, not a state | |
-| `ipsec-show-sa-counters` | `test/ipsec/ipsec-show-sa-counters.ci` | on the same real-kernel fixture, `show vpn ipsec sa \| json` reports `counters-known` true and a numeric `bytes-out`. Zero is the expected value with no traffic through the tunnel, and null is the failure it discriminates: null says the SAD was never read | |
+| `ipsec-show-dataplane-kernel` | `test/ipsec/ipsec-show-dataplane-kernel.ci` | the responder daemon runs the real xfrm backend and the initiator runs noop, as `ipsec-teardown-leaves-nothing.ci` does. After the Child SA establishes, `show vpn ipsec dataplane sa` names the addresses and the ESP algorithm this test configured. After `clear vpn ipsec sa` the same command no longer names them, which is the transition, not a state | Passed in the QEMU guest, 2026-09-11. RED and GREEN below |
+| `ipsec-show-sa-counters` | `test/ipsec/ipsec-show-sa-counters.ci` | on the same real-kernel fixture, `show vpn ipsec sa \| json` reports `counters-known` true and a numeric `bytes-out`. Zero is the expected value with no traffic through the tunnel, and null is the failure it discriminates: null says the SAD was never read | Passed in the QEMU guest, 2026-09-11. RED and GREEN below |
 | `doctor-ipsec-xfrm` | `test/ui/doctor-ipsec-xfrm.ci` | `ze doctor --json` on an ipsec config emits the reachability diagnostic when the probe seam fails | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `dataplane-readback` | `test/interop-ipsec/scenarios/dataplane-readback/` | strongSwan | `checkDataplaneReadback` proves four things in order: `show vpn ipsec dataplane sa` and `ip xfrm state` in the ze container report the same non-empty SPI set (AC-12); traffic passes and `show vpn ipsec sa \| json` then reports a `bytes-out` above zero, which is the only place AC-8 is proven against real ESP bytes; strongSwan holds the reverse pair of the same tunnel; and after the Child SA rekeys the set changes, with the old SPI absent from both readers and the new SPI present in both (AC-13) | |  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+| `dataplane-readback` | `test/interop-ipsec/scenarios/dataplane-readback/` | strongSwan | Non-empty SAD agreement, reverse peer SPIs, all four directed counters, complete old-SPI removal across rekey, and clean/drift/unknown/restored/removed monitoring states | Passed: Goal Validation records the red/green evidence |
 
 ## Files to Modify
 - `internal/component/ike/dataplane/dataplane.go` - widen `SAInfo`, add `PolicyInfo`, add `ListPolicies` to the `Dataplane` interface
@@ -299,17 +308,10 @@ command grammar has advertised since 2026-06-03 and never emitted.
 - `internal/component/ike/dataplane/vpp.go` - both list methods return `ErrNotSupported`
 - `internal/component/ike/dataplane/noop.go` - both list methods return `ErrNotSupported`
 - `internal/component/ike/dataplane/policy_owner.go` - expose the owner lookup for the policy view.
-  → Decision (2026-08-03): the join RECONSTRUCTS `SPParams` from the kernel dump row and calls the
-  existing `ownerOf`, rather than adding a second lookup keyed on `policySelectorKey`. Both routes
-  face the same normalization, because the key and the reconstruction read the same fields, so the
-  second lookup buys nothing and adds an API. A-7 records why the inversion is lossless: Ze cannot
-  install a port mask other than 0 or `0xffff`, so the kernel's mask-free `SrcPort`/`DstPort` invert
-  to exactly `AnyPortMatch()` or `ExactPortMatch(n)`.
-  → Constraint: the two places the inversion is NOT a plain copy are the direction, where Ze's
-  `SADir` is one greater than the kernel's `netlink.Dir`, and the wildcard prefix, where Ze installs
-  a nil `*net.IPNet` and the kernel dumps a materialized `0.0.0.0/0` or `::/0`. Both are normalized
-  in the reconstruction and both carry a test, because a silent error in either mis-attributes an
-  owner rather than failing.
+  → Decision: reconstruct `SPParams` from the kernel policy and use the existing
+  `ownerOf` lookup. The key preserves address families and both raw port masks.
+  The original mask-free inversion was wrong for foreign policies and could
+  misattribute ownership. A-7 records the corrected normalization.
   → Constraint (`ai/rules/evidence.md`, fail closed): a kernel policy Ze did not install has no
   owner, which is a legitimate and common answer (strongSwan's own policies, the OSPF proto-89
   policies, an operator's). That row renders the owner as `unknown`. It is never blank, and it is
@@ -373,27 +375,26 @@ command grammar has advertised since 2026-06-03 and never emitted.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | Yes | `docs/features.md`, the IPsec row |
 | 2 | Config syntax changed? | N-A | no config leaf is added or changed |
-| 3 | CLI command added/changed? | Yes, OPEN | `docs/guide/command-reference.md`. Verified 2026-09-08: the page names no `vpn ipsec dataplane` command, while `docs/guide/ipsec.md` already carries all three |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` documents all three commands, qualified drift identity, and SPI filtering |
 | 4 | API/RPC added/changed? | N-A | `docs/architecture/api/commands.md` documents the operational report bus, not an inventory of wire methods, and it names no `ze-show:` method outside that bus. The three methods are described where the commands are, in `docs/guide/ipsec.md` |
 | 5 | Plugin added/changed? | N-A | the ike component is not a plugin in the `internal/plugins/` sense, and no plugin inventory changes |
 | 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md`, the command table plus a new troubleshooting section |
 | 7 | Wire format changed? | N-A | nothing on the wire changes. Every new surface is read-only and local |
 | 8 | Plugin SDK/protocol changed? | N-A | the `Dataplane` interface is internal to the ike component and is not part of `pkg/plugin/` |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | no RFC requirement changes polarity. The interop scenario proves an existing claim more strongly, which adds no row |
-| 10 | Test infrastructure changed? | Yes, OPEN | `docs/functional-tests.md`, the two new `.ci` files. The QEMU `ipsec` suite and the interop CLI helper are already in HEAD and already described, so what is owed is the two files and the `dataplane-readback` row in `docs/architecture/testing/interop.md` |
-| 11 | Affects daemon comparison? | Yes, OPEN | `docs/comparison.md`, the diagnostic surface row. strongSwan answers this with `swanctl --list-sas`, and the row does not yet say that Ze reads the kernel back |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md`, the dataplane abstraction gains a read side |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` names the fixtures and exclusive group. `docs/architecture/testing/interop.md` documents directed counters and monitoring proof. `ci-format.md` documents foreground lifetime |
+| 11 | Affects daemon comparison? | N-A | `docs/comparison.md` has no IPsec or strongSwan comparison. The original checklist premise was wrong |
+| 12 | Internal architecture changed? | Yes | The subsystem pages `docs/architecture/ike/ipsec-dataplane-inspection.md` and `ipsec-8-ikev2-child-xfrm.md` own the readback contract and canonical netlink patch |
 | 13 | Route metadata keys added/changed? | N-A | no route metadata is involved |
-| 14 | Prometheus counters added/changed? | Yes, OPEN | Verified 2026-09-08: `docs/plugin-development/metrics.md` carries no `ze_ipsec_` gauge at all, so it is the wrong page. The IPsec gauges are declared in `docs/architecture/ike/ipsec-10-cli-diag.md` and published to operators in `docs/guide/ipsec.md` and the `docs/features.md` IPsec CLI and Diagnostics row. The two new gauges go in those three |
+| 14 | Prometheus counters added/changed? | Yes | The two dataplane gauges and unknown-state behavior appear in `ipsec-10-cli-diag.md`, the inspection architecture page, `docs/guide/ipsec.md`, and `docs/features.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | N-A | `docs/guide/status.md` carries no `vpn ipsec` command inventory to extend. `docs/guide/command-reference.md` is the inventory, and row 3 owns it |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` for anchors naming `show_ipsec.go`, `dataplane.go`, `xfrm_linux.go`, `checks_linux.go`, and `kernelreq.go`, then correct each stale claim |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ipsec.md` states that `show vpn ipsec sa` reports byte counts. That claim becomes true in AC-8 and its example output must be regenerated |
+| 16 | Changed source referenced by existing documentation? | Yes | Closure repaired stale family, mask, owner, VPP type, sort, counter, and drift claims and their source anchors |
+| 17 | Existing CLI/API examples? | Yes | Operator pages describe the live kernel counters and distinguish absent identities from failed observations. No fabricated sample counter output was added |
 
 ## Implementation Steps
 
-Phases 1 to 6 are in HEAD, verified at the producers on 2026-09-08. They are kept
-below because they say WHY each surface has the shape it has. Phase 7 and phase 8
-are the work that remains, and they are restated in full.
+These phases preserve the original implementation plan. The closure audit is
+the current state and identifies the tests and files that replaced planned names.
 
 1. **Phase: Wiring (MANDATORY FIRST)** - register the three commands as stubs and prove they are reachable
    - Tests: `TestShowDataplaneSARegistered`, `TestShowDataplanePolicyRegistered`, `TestShowDataplaneDriftRegistered`, `ipsec-dataplane-show.ci`
@@ -419,7 +420,7 @@ are the work that remains, and they are restated in full.
    - Tests: `TestXFRMReachableDoctorCheckRegistered`, `TestXFRMUnavailableDiagnostic`, `TestKernelModulesBuiltInNotMissing`, `TestRuntimeFloorRequiresESP`, `doctor-ipsec-xfrm.ci`
    - Files: `doctor_xfrm.go`, `doctor_xfrm_linux.go`, `doctor_xfrm_other.go`, `engine/register.go`, `internal/component/doctor/checks_linux.go`, `internal/core/diagnostic/codes.go`, `internal/appliance/kernelreq.go`, `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`
    - Verify: the kernel floor change and the config fragment change land together, or the appliance build fails
-   - Landed differently (verified 2026-09-08): no `doctor_xfrm*.go` was written. The probe is the enrolled kernel capability, read by `internal/component/ike/engine/doctor.go`. The file list above is the plan this phase started from, not what it produced
+   - Landed differently: the probe is enrolled by `engine/kernelcap_linux.go`, not by the planned doctor-local files. `kernelcap` supplies the shared doctor, startup, and validation behavior.
 7. **Phase: the two dataplane gauges** - the kernel-aware signal beside the belief gauges
    - Tests: `TestDriftingPeersFromSAsComparesOneDirection`, `TestDataplaneGaugesPublishFromOneDump`, `TestDataplaneGaugesAbsentWhenKernelUnreadable`, `TestDataplaneGaugesDeleteAPeerThatWentAway`
    - Files: `internal/component/ike/engine/health_drift.go`, `internal/component/ike/engine/metrics.go`
@@ -429,14 +430,14 @@ are the work that remains, and they are restated in full.
    - Verify: `TestDataplaneGaugesAbsentWhenKernelUnreadable` fails if the publisher sets 0 instead of deleting
 8. **Phase: kernel and interop evidence** - prove it against a real kernel and a real peer
    - Tests: `ipsec-show-dataplane-kernel.ci`, `ipsec-show-sa-counters.ci`, scenario `dataplane-readback`
-   - Files: `test/ipsec/ipsec-show-dataplane-kernel.ci`, `test/ipsec/ipsec-show-sa-counters.ci`, `internal/le/interoplab/ipsec/checkers.go`, `internal/le/interoplab/ipsec/helpers.go`, `internal/le/interoplab/ipsec/ipsec_test.go`, `test/interop-ipsec/scenarios/dataplane-readback/`  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `in-progress` and the work is not implemented) -->
+   - Files: the two `.ci` files, `internal/le/interoplab/ipsec/{checkers,helpers,ipsec_test}.go`, and `test/interop-ipsec/scenarios/dataplane-readback/`
    - Shape of the two `.ci` files: copy the fixture of `test/ipsec/ipsec-teardown-leaves-nothing.ci`. ONE daemon runs the real xfrm backend and the other runs noop through `env ze_test_ike_dataplane=noop` on its own `cmd=` line, because two real backends in one kernel install the same policy twice and the second install fails. Both files carry `option=needs-linux:caps=net-admin` and `option=exclusive:group=ipsec-xfrm`: `ip xfrm state` is node-wide, so a sibling real-XFRM test running beside them puts its own SPIs in the dump
    - Shape of the assertions: engine steps, which are the only per-command scope a `.ci` has. `expect=output:contains=` and `expect=output:json=` re-dispatch the command until the predicate holds, and `expect=output:absent=` is how the transition after `clear vpn ipsec sa` is asserted. A file-level `expect=stdout:contains=` would be satisfied by any command's output and could not express before-and-after
    - Shape of the scenario: `ze.conf` and `swanctl.conf` beside the other 30 scenario directories, plus `checkDataplaneReadback` in `scenarioCheckers`. It reuses `zeCLI`, `espSPIs` and `verifyTunnelTraffic`, which the lab already carries, and adds only the Ze dump reader and the SPI normalization
    - Constraint: iproute2 prints an SPI as `0x...` and the Ze dump answers a JSON number. The join normalizes both to `uint32`, and the Ze answer decodes into a typed struct rather than `map[string]any`, so no SPI passes through `float64`
    - Verify: run the discrimination walk `ai/rules/interop-and-goal-validation.md` requires. Make `xfrmBackend.ListSAs` return an empty slice, rebuild the ze image, and confirm `dataplane-readback` goes RED and `ipsec-show-dataplane-kernel.ci` goes RED. Restore, confirm GREEN, and record the RED output in the spec. Assert the set is non-empty before asserting it is equal
 9. **Phase: Documentation** - every row of the Documentation checklist marked Yes
-   - Files: as listed in that checklist, with rows 3, 11 and 14 outstanding and rows 4 and 15 answered N-A with the reason
+   - Files: the Documentation Update Checklist records the completed updates and justified N-A rows.
    - Verify: `./le doc check verify` and `./le repository check`
 
 ### Critical Review Checklist
@@ -455,17 +456,17 @@ are the work that remains, and they are restated in full.
 | Rule: `ai/rules/interop-and-goal-validation.md` | Each kernel assertion names an object the test installed, and asserts a transition |
 
 ### Deliverables Checklist
-| Deliverable | Verification method |
+| Deliverable | Verification result |
 |-------------|---------------------|
-| Three commands registered and reachable | `bin/ze cli -c 'show vpn ipsec dataplane sa'` returns a response, and `./le docvalid command-contract` passes |
-| `ListSAs` has a production caller | grep for `ListSAs` outside `_test.go` returns a handler |
-| `ListPolicies` exists on every backend | `go build ./...` with the `ze_vpp` tag set and unset |
-| Byte counters present | `test/ipsec/ipsec-show-sa-counters.ci` passes, and `dataplane-readback` asserts `bytes-out` above zero after traffic |
-| Doctor check registered | `bin/ze doctor --json <conf>` lists the code, and `ze explain doctor-ipsec-xfrm-unavailable` resolves |
-| Kernel floor enforced | `ze appliance kernel` fails when the ESP symbol is removed from the fragment |
-| QEMU suite wired | the `ipsec` row of `vmSuites` and the `./internal/component/ike/dataplane` row of `integrationPackages` (`internal/le/qemu/alltests.go`). Both are in HEAD, so the deliverable is a RUN of `./le qemu all-tests` that reports the two new `.ci` files green |
-| Interop scenario passes | `./le integration interop-ipsec` includes `dataplane-readback`, and the RED half of its discrimination walk is recorded |
-| Both gauges fail closed | `TestDataplaneGaugesAbsentWhenKernelUnreadable` passes, and a scrape of a daemon on the noop backend carries neither series |
+| Three commands registered and reachable | Functional and interop command paths ran. The old command-contract gate was not rerun for closure |
+| Production list callers | `show_dataplane.go` calls both list methods. `ObserveDataplane` supplies counter, drift, health, and metric consumers |
+| Every backend implements the read interface | Source confirms XFRM enumeration and explicit noop/VPP/other-platform refusal. No fresh all-tags build claimed |
+| Kernel counters | QEMU counter-source fixture and strongSwan directed-counter agreement passed |
+| Doctor capability | Source confirms absent versus unknown handling. Existing Linux boundary tests were inspected. No fresh appliance doctor invocation or Linux doctor test run is claimed |
+| Kernel floor | `enforceKernelRequirements`, `runtimeKernelRequirements`, and the fragments agree. Existing boundary test inspected. No fresh kernel build |
+| QEMU suite | Both selected inspection `.ci` files passed inside QEMU. This is not a claim that `qemu all-tests` ran |
+| Interop scenario | Populated readback failed with empty SAD output and passed after restoration |
+| Gauge refusal and cleanup | Live exporter proof covered clean, drift, unknown, restored, and peer-removed states |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -488,43 +489,10 @@ are the work that remains, and they are restated in full.
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
-## Implementation State (re-verified at the producers, 2026-09-08)
+## Implementation State
 
-Phases 1 to 6 are in HEAD. Every row below was checked by reading the producing
-function on 2026-09-08, not by reading the earlier state note.
-
-| AC | State | Producing symbol |
-|----|-------|------------------|
-| AC-1 | done | `saInfoFromState` (`internal/component/ike/dataplane/xfrm_linux.go`), rendered by `saInfoToMap` (`internal/component/ike/cmd/show_dataplane.go`) |
-| AC-2 | done | `xfrmBackend.ListPolicies` and `policyInfoFromKernel` (`xfrm_linux.go`), rendered by `policyInfoToMap` (`show_dataplane.go`) |
-| AC-3 | done | `handleShowVPNIPsecDataplaneDrift` and `driftMessage` (`show_dataplane.go`) |
-| AC-4 | done | same handler, `StatusDone` with an empty `drift` list |
-| AC-5 | done | `driftingPeers` and `driftDetail` (`internal/component/ike/engine/health_drift.go`), folded into `checkIPsecHealth` (`health.go`) |
-| AC-6 | done | `noopDataplane.ListSAs`/`ListPolicies` (`noop.go`), `vppBackend.ListSAs`/`ListPolicies` (`vpp.go`), reported by `dataplaneReadError` (`show_dataplane.go`) |
-| AC-7 | done | `activeDataplane` and `dataplaneReadError` (`show_dataplane.go`) |
-| AC-8 | done | `readSADCounters`, `sadCounters.lookup`, `addChildCounters` (`internal/component/ike/cmd/show_ipsec.go`) |
-| AC-9 | done | `doctor-ipsec-xfrm-unavailable` and `doctor-ipsec-xfrm-unknown` (`internal/component/ike/engine/doctor.go`), sourced from the enrolled kernel capability in `internal/component/kernelcap`, and declared in `internal/core/diagnostic/codes.go` |
-| AC-10 | done | `checkKernelModules` (`internal/component/doctor/checks_linux.go`) asks about no XFRM module at all. The comment at the removal site says why: an appliance kernel builds XFRM in, so `/proc/modules` can never answer for it |
-| AC-11 | done | `runtimeKernelRequirements` (`internal/appliance/kernelreq.go`) carries `CONFIG_INET_ESP`, `CONFIG_INET6_ESP` and `CONFIG_XFRM_STATISTICS`, and `gokrazy/kernel/runtime.config` and `runtime.require` set them |
-| AC-12, AC-13 | WRITTEN, UNRUN | `checkDataplaneReadback` (`internal/le/interoplab/ipsec/checkers.go`), its scenario `test/interop-ipsec/scenarios/dataplane-readback/`, and the SPI join in `internal/le/interoplab/ipsec/helpers.go` (`decodeZeDataplaneSPIs`, `spiValues`, `requireSameSPISet`, `requireSPISetChanged`). The pure halves are proven by three unit tests. The SCENARIO has not run: the working tree does not compile, so the lab cannot build the ze image (see "Phase 8 could not run" below) |
-| AC-14 | done | `publishDataplaneGauges` and `setGaugeSeries` (`internal/component/ike/engine/metrics.go`), fed by `driftingPeersFrom` (`health_drift.go`). `ze_ipsec_dataplane_sa_count{if_id}` and `ze_ipsec_dataplane_drift{peer}` |
-| AC-15 | done | `clearDataplaneGauges` and the `values == nil` path of `setGaugeSeries` (`metrics.go`). Proven by `TestDataplaneGaugesAbsentWhenKernelUnreadable`, which reds when the publisher sets 0 in place of deleting |
-
-Two items of the 2026-08-03 list are now DONE and are struck from it. The QEMU
-runner carries the `ipsec` suite and the `./internal/component/ike/dataplane`
-integration package (`vmSuites` and `integrationPackages`,
-`internal/le/qemu/alltests.go`), and the interop lab carries the CLI helper the
-old note wanted in `lab.py`: `scenarioLab.zeCLI`
-(`internal/le/interoplab/ipsec/helpers.go`) already runs `ze cli -c` in the ze
-container, and `zeIKESAs` already reads `show vpn ipsec sa | json` through it.
-
-Still to do:
-- a RUN of `test/ipsec/ipsec-show-dataplane-kernel.ci` and
-  `test/ipsec/ipsec-show-sa-counters.ci` under QEMU, and of the `dataplane-readback`
-  scenario against strongSwan, plus the discrimination walk both owe
-- `docs/features.md`, the IPsec CLI and Diagnostics row (checklist rows 1 and 14).
-  NOT edited on 2026-09-08: another live session holds an unlanded hunk in that
-  file, and a second writer would strand it (`ai/rules/git-safety.md`)
+The Implementation Audit below supersedes the 2026-09-08 state table.
+The two functional fixtures and the strongSwan scenario have now run.
 
 ## Phase 7 and 8 evidence (2026-09-08)
 
@@ -605,51 +573,124 @@ ok  github.com/ze-software/ze/internal/le/interoplab/ipsec 4.021s
 ok  github.com/ze-software/ze/test/interop-ipsec 0.486s
 ```
 
-The `.ci` half: `./le functional ipsec` is 22/22 with 7 SKIP, and both new files
-are among the skips, because a darwin host has no CAP_NET_ADMIN and no XFRM.
-That proves they PARSE and are selected. It is not kernel evidence.
+The `.ci` half on a darwin host: `./le functional ipsec` is 22/22 with 7 SKIP,
+and both new files are among the skips, because a darwin host has no
+CAP_NET_ADMIN and no XFRM. That proves they PARSE and are selected. The kernel
+evidence is the section below.
 
-## Phase 8 could not run (2026-09-08)
+## Kernel and strongSwan discrimination walk (2026-09-11)
 
-The two `.ci` files and the `dataplane-readback` scenario are written and
-unrun, and the reason is outside this spec: the working tree does not compile.
-Two uncommitted changes from other live sessions break it, in packages this
-spec does not touch.
+One break serves all three artifacts. `xfrmBackend.ListSAs`
+(`internal/component/ike/dataplane/xfrm_linux.go`) returns an empty SAD in place
+of the netlink dump, which is the vacuity a read-only dump invites. The two
+`.ci` files run against a cross-built `ze` carrying it, and the interop scenario
+rebuilds its container image from the same source, so the break reaches the
+daemon each artifact actually drives. The source was restored between the RED
+and the GREEN of each.
+
+Evidence paths below are relative to
+`tmp/session/2026-09-08-0a21e591-d035-4f7c-8d1b-231ab023a478/scratch/`.
+
+### The two `.ci` files, in the QEMU Linux guest
+
+Driver: `./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap"`,
+guest command `ze-test ipsec -v -p 1 ipsec-show-dataplane-kernel ipsec-show-sa-counters`.
+Log: `job-ipsec-dpi-qemu-walk-5d0a1d41.log`.
+
+RED, with the empty SAD:
 
 ```
-# github.com/ze-software/ze/internal/component/bgp/reactor
-internal/component/bgp/reactor/peer.go:1873:2: undefined: report
-internal/component/bgp/reactor/peer.go:1875:3: undefined: reportCodeOpQueueFull
-internal/component/bgp/reactor/peer.go:1877:36: undefined: textbuf
+=================== RED: ListSAs returns an empty SAD ===================
+47.3s    1/2  FAIL  24  ipsec-show-dataplane-kernel
+19.7s    2/2  FAIL  25  ipsec-show-sa-counters
+fail  0/2  0.0%  67.0s  failed 2 [24, 25]
+EXPECTED_RED:1
 ```
 
+The two failures name the surface each file exists to prove:
+
 ```
-# github.com/ze-software/ze/internal/component/plugin
-internal/component/plugin/coordinator.go:165:9: cannot use c (variable of type
-*Coordinator) as ReactorLifecycle value in return statement: *Coordinator does
-not implement ReactorLifecycle (missing method UpdateDelayStatus)
+TEST FAILURE: 24 ipsec-show-dataplane-kernel
+engine step 4: output missing "cbc(aes)" within 45s
+  (last "show vpn ipsec dataplane sa" output "done {\"sas\":[]}")
+
+TEST FAILURE: 25 ipsec-show-sa-counters
+engine step 5: json path "peers.0.child-sa.bytes-out" never equaled "0" within 15s
+  (last "show vpn ipsec sa" data "{"peers":[{"behind-nat":false,"child-sa":
+   {"bytes-in":null,"bytes-out":null,"counters-known":true,...")
 ```
 
-Both block `go build ./cmd/ze`, so the QEMU guest cannot build the daemon
-(`./le qemu run command "./le functional ipsec"` fails at the first error above)
-and the interop lab cannot build the ze container image. What is owed once the
-tree builds:
+The counters failure is the one the file's own comment predicted: `counters-known`
+stays true because the SAD READ succeeded, and the four counters read null
+because the dump named nothing. Null, not zero, is what the fixture
+discriminates.
 
-- `./le qemu run command "./le functional ipsec"`, reporting
-  `ipsec-show-dataplane-kernel` and `ipsec-show-sa-counters` green
-- `IPSEC_INTEROP_SCENARIO=dataplane-readback ./le integration interop-ipsec`
-- the discrimination walk of step 8: make `xfrmBackend.ListSAs` return an empty
-  slice, rebuild the ze image, confirm both the scenario and
-  `ipsec-show-dataplane-kernel.ci` go RED, restore, confirm GREEN, record the RED
+GREEN, source restored:
 
-### Documentation checklist, answered 2026-09-08
+```
+=================== GREEN: the SAD read restored ===================
+4.6s     1/2  PASS  24  ipsec-show-dataplane-kernel
+2.8s     2/2  PASS  25  ipsec-show-sa-counters
+pass  2/2  100.0%  7.4s
+GREEN_EXIT:0
+QEMU VM: PASS
+```
+
+### The `dataplane-readback` scenario, against strongSwan
+
+Driver: `IPSEC_INTEROP_SCENARIO=dataplane-readback ./le integration interop-ipsec`.
+
+GREEN before the break (`job-ipsec-dpi-interop-green-32b5021c.log`):
+
+```
+integration: 1 action(s) passed.
+```
+
+RED with the break (`job-ipsec-dpi-interop-red-32b5021c.log`):
+
+```
+── dataplane-readback ──
+  ✗ FAIL: show vpn ipsec dataplane sa reports no ESP SPI, so an agreement with ip xfrm state in the ze container would be vacuous
+
+FAIL  0 passed, 1 failed: dataplane-readback
+Failed: interop-ipsec
+```
+
+That message is `requireSameSPISet`'s emptiness guard firing BEFORE the
+comparison, which is the ordering R-7 asks for: two empty sets are equal, so an
+agreement checked first would have held over a kernel holding nothing.
+
+GREEN after the source was restored
+(`job-ipsec-dpi-interop-restored-32b5021c.log`):
+
+```
+integration: 1 action(s) passed.
+```
+
+### The SPI base join was exercised
+
+The design phase warned that the two readers print an SPI in different bases.
+The GREEN scenario run exercised the join: `requireSameSPISet` compared a
+non-empty Ze set against a non-empty iproute2 set and found them EQUAL, which is
+reachable only if both sides normalized. `decodeZeDataplaneSAs` unmarshals into
+`zeDataplaneSA{SPI uint32}`, so the Ze side is a typed decode with no
+`map[string]any` float64 in the path, and `spiValues` parses iproute2's
+`0xc1a2b3c4` with `strconv.ParseUint(..., 16, 32)`. The RED run proves the same
+join refuses rather than agreeing when one side is empty.
+
+## Historical Phase 8 Blocker (2026-09-08)
+
+Unrelated BGP and plugin compile failures prevented the initial QEMU and interop
+runs. Those are not current blockers. Goal Validation records the later executions.
+
+### Documentation Checklist Resolution
 
 | # | Answer |
 |---|--------|
 | 3 | DONE. `docs/guide/command-reference.md` gained a `show vpn ipsec dataplane` section carrying the three commands, the `spi` selector's RFC 4303 refusal, and the "cannot enumerate" answer |
 | 10 | DONE. `docs/functional-tests.md` names both new `.ci` files and adds them to the `ipsec-xfrm` exclusive group paragraph. `docs/architecture/testing/interop.md` gained the typed-decode and non-empty-before-equal rules the readback scenario turns on |
 | 11 | N-A, and the checklist's premise was wrong. `docs/comparison.md` compares BGP and routing daemons (BIRD, FRR, GoBGP, OpenBGPd, ExaBGP). It names strongSwan nowhere and IPsec nowhere, so there is no diagnostic-surface row for an IPsec read-back to join. Verified 2026-09-08 by grep: zero occurrences of `ipsec` or `strongswan` in the page |
-| 14 | PARTLY DONE. The two gauges are in `docs/architecture/ike/ipsec-10-cli-diag.md`, in a new decision section of `docs/architecture/ike/ipsec-dataplane-inspection.md`, and in the Prometheus paragraph of `docs/guide/ipsec.md`. `docs/features.md` is NOT edited: another live session holds an unlanded hunk in it |
+| 14 | DONE in the working tree. The gauge documentation is present in the architecture, guide, and feature pages. Shared-page publication must preserve unrelated owner edits |
 
 One piece of test INFRASTRUCTURE was added because the deliverable needed it:
 `expect=command-error:contains=` (`parseEngineExpectCommandError` and
@@ -683,7 +724,7 @@ class AC-6 and AC-7 live in.
 | The interop join normalizes both SPIs to `uint32` (2026-09-08) | Compare the printed forms | iproute2 prints an SPI as `0xc1a2b3c4` and the Ze dump answers a JSON number. A string comparison would be false for every SPI, and decoding the Ze answer into `map[string]any` would route a `uint32` through `float64`. The checker decodes into a typed struct and normalizes both sides to `uint32` |
 
 ## Known Limitations
-- The VPP backend reports that it cannot enumerate rather than dumping the VPP SAD. Implementing the VPP binary-API dump is separable work and does not block any goal here. Row in the deferral shard.
+- VPP enumeration belongs to `plan/spec-ipsec-vpp-dataplane-readback.md`, an owner-approved, unimplemented backlog spec. AC-6 and AC-15 retain explicit unsupported behavior here.
 - The SPD dump reports the kernel's policies for the whole node, not per VRF. Ze does not install per-VRF IPsec policies today.
 - `ze_ipsec_tunnel_up` keeps its current definition, so it still reports engine belief. The new `ze_ipsec_dataplane_drift` gauge is the kernel-aware signal beside it. Redefining the existing gauge would change what every deployed dashboard means.
 
@@ -699,7 +740,7 @@ and RFC 4303 Section 2.1 for the reserved SPI values the selector rejects.
 - [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`), and under `ai/rules/pre-release.md` a commit owes no green gate, so closure records product proof and review rather than a green worktree
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -718,18 +759,243 @@ and RFC 4303 Section 2.1 for the reserved SPI values the selector rejects.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] Recurring mistakes recorded in the existing `plan/journal/` topics named under Mistake Log
+- [ ] Main prepares the separate number-precision, runner-lifetime, and inspection closure commits through the native route
+- [ ] Main deletes this spec in the separate closure deletion commit after its complete record is preserved
 
 ## Work Inherited From a Deferral Row
 
-<!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
-     its destination is reproduced here, so the item and the reasoning behind it
-     survive the directory. Each row is outstanding work this spec owns. -->
+The 2026-08-02 row requested VPP binary-API SAD and SPD enumeration behind the
+shared list methods. On 2026-09-11 the owner approved XFRM-only inspection for
+this release and separated that feature into
+`plan/spec-ipsec-vpp-dataplane-readback.md`.
 
-### From `ipsec-dataplane-inspection.md`, 2026-08-02
+That backlog preserves full SAD/SPD enumeration, public command and consumer
+reachability, no key disclosure, and explicit unknown/unsupported fields.
+It is a skeleton with research and design open. No VPP readback implementation
+or proof is claimed by this closure.
 
-Deferred by spec-ipsec-dataplane-inspection.
+---
 
-Implement the VPP binary-API SAD and SPD dump behind `Dataplane.ListSAs` and `Dataplane.ListPolicies`, so `show vpn ipsec dataplane sa` and `... policy` report real state on a VPP dataplane instead of reporting that the backend cannot enumerate
+## Implementation Summary
+
+### What Was Built
+
+The three public dataplane commands read XFRM SAD/SPD state. Counter, drift,
+health, and metric consumers use destination-qualified SA identities and one
+generation-checked observation. Unsupported and failed observations remain
+errors or unknown values.
+
+The shared command renderers preserve integer JSON tokens through pipes and
+record rendering. The functional runner keeps background peers alive until a
+self-stopping foreground daemon exits.
+
+### Bugs Fixed
+
+| Defect | Source fix |
+|--------|------------|
+| SPI-only joins could borrow another SA's counters or presence | `dataplane.SAIdentity` and the qualified joins in `show_ipsec.go` and `health_drift.go` |
+| Rekey or removal could mix old kernel state with new engine belief | `ObserveDataplane`, publication generations, and paired backend-write guards |
+| Unknown readback could report healthy or retain clean metrics | Degraded unknown health and deletion of both dataplane gauge families |
+| Wildcard family and raw-mask loss could corrupt policy identity | Complete policy ownership keys and family-aware netlink decoding |
+| Unlimited limits appeared finite, and wide counters lost precision | `hardLimitFromKernel` and number-preserving shared JSON decoding |
+| Fixtures stopped peers before foreground observations completed | Removed early stops and corrected runner teardown order |
+| Interop evidence accepted incomplete rekey cleanup or ambiguous counters | Require every old SPI absent and compare all four directed kernel counters |
+| Policy template endpoints ignored their address family | Decode both endpoints with `tmpl.Family` in the canonical vendor patch |
+| The CLI rendered a masked port as an exact port | `portString` retains partial masks and distinguishes exact zero from any |
+
+### Documentation Updates
+
+The inspection and child-XFRM architecture pages describe the identity,
+observation, sentinel, mask, family, and VPP contracts. The operator guide,
+command reference, and feature row describe the public results. The interop
+page explains directed counters and live monitoring transitions.
+
+Go Design headers now name the durable inspection page. The DPD backlog reuses
+that page and names the new VPP backlog. Three functional fixture headers retain
+the historical spec stem without a dangling path. Historical citation testdata
+was not rewritten.
+
+### Deviations from Plan
+
+| Original plan | Implemented result and reason |
+|---------------|-------------------------------|
+| A doctor-local XFRM probe that always warns | Existing kernel-capability enrollment supplies doctor, startup, and validation. Confirmed absence is an error. An inconclusive probe is a warning |
+| A mask-free policy-key inversion | The kernel can hold policies Ze cannot install. Readback preserves their raw masks and address families |
+| SPI-only comparison | Full identity is necessary because distinct destinations, protocols, or interfaces can share an SPI |
+| Counter `.ci` proves traffic volume | The `.ci` proves numeric zero from a real SAD. The strongSwan lab proves traffic, direction, and agreement with iproute2 |
+| Full QEMU and worktree gates as closure conditions | Targeted product proofs ran. Broad red instruments remain red under the pre-release rule and are listed below |
+| VPP inherited work stays in this spec | Owner explicitly separated it into `plan/spec-ipsec-vpp-dataplane-readback.md`. AC-6 and AC-15 remain unchanged |
+
+## Mistake Log
+
+Main owns the existing `plan/journal/` rows. No new learned-summary file replaces
+those records.
+
+| Journal topic | Recorded lesson |
+|---------------|-----------------|
+| `key-omits-a-fact-the-builder-uses.md` | SA identity and address decoding must retain the builder's family and destination facts |
+| `absent-value-is-a-distinct-identity.md` | An implicit wildcard must use the writer-selected family |
+| `zero-value-as-valid-answer.md` | Unknown dataplane state cannot report healthy |
+| `reconciler-repairs-against-a-stale-snapshot.md` | Belief and kernel reads need one consistency boundary |
+| `field-carries-two-meanings.md` | Preserve mask semantics and translate only the unlimited sentinel |
+| `declared-format-contradicts-payload.md` | Wide integer counters must not pass through float64 |
+| `false-synchronization-claim.md` | Foreground readiness does not mean the foreground observation has finished |
+| `green-that-could-not-have-been-red.md` | Prove complete rekey cleanup, directed counters, and an executable rendering fixture |
+| `lint-contract-not-applied.md` | Keep bounded scaffolding findings visible instead of extending product work to erase them |
+| `declared-summary-without-its-explanation.md` | Preserve the unrelated startup warning rather than hide it |
+
+## Implementation Audit
+
+### Requirements
+
+The read interface, public commands, counters, drift, health, metrics, diagnostic
+capability, and appliance floor have producing code and consumers. The
+Acceptance Criteria table below distinguishes runtime proof from source review.
+No VPP implementation is included.
+
+### Acceptance Criteria
+
+| AC | Result | Producer and evidence |
+|----|--------|-----------------------|
+| AC-1 | Implemented and exercised | `saInfoFromState` → `saInfoToMap`. E1, E2, E3 |
+| AC-2 | Implemented and exercised | `policyInfoFromKernel` → `policyInfoToMap`. E3 proves ownership, raw masks, and wildcard families. E8 breaks and restores each round 5 repair: `portString` for the public mask, `parseXfrmPolicy` for the template family |
+| AC-3 | Implemented and exercised | `handleShowVPNIPsecDataplaneDrift` returns an error naming missing identities. E2 and E4 |
+| AC-4 | Implemented and exercised | The drift handler accepts extra kernel SAs and a stable matching observation. E2 and E4 |
+| AC-5 | Implemented and exercised | `checkIPsecHealth` distinguishes drift from unknown observations. E2 and E4 |
+| AC-6 | Preserved | VPP/noop list methods return `ErrNotSupported`. Handler refusal is covered by E4 and historical reachability evidence |
+| AC-7 | Implemented and exercised | `activeDataplane` and `dataplaneReadError` retain nil, unsupported, and permission causes. E4 |
+| AC-8 | Implemented and exercised | `readSADCounters` and `addChildCounters` preserve four directed uint64 counters. E1, E2, E4, E5 |
+| AC-9 | Landed capability behavior verified at source | `kernelcap_linux.go` enrolls the two diagnostic codes. `kernelcap.evaluateOne` distinguishes absence/error from unknown/warning |
+| AC-10 | Verified at source | `checkKernelModules` no longer checks XFRM module names. The capability probe works independently of module packaging |
+| AC-11 | Verified at source | `enforceKernelRequirements` rejects missing built-in floor entries. `TestRuntimeFloorRequiresESP` covers each ESP/statistics symbol. No fresh appliance build |
+| AC-12 | Implemented and exercised | `checkDataplaneReadback` requires non-empty Ze/kernel SPI agreement and the reverse strongSwan pair. E2 |
+| AC-13 | Implemented and exercised | Rekey replaces the SPI set and removes every old SPI. E2 |
+| AC-14 | Implemented and exercised | `publishDataplaneGauges` uses one observation and qualified identities. E2 and E4 |
+| AC-15 | Preserved and exercised | `clearDataplaneGauges` removes earlier series on failed or changing observations. E2 and E4 |
+
+### Tests
+
+The retained regressions defend observable failures: missing objects, wrong
+identities, stale observations, imprecise numbers, lost selector semantics, and
+premature teardown. The tests and live scenarios named in Goal Validation were
+read with their assertions. This closure agent ran no tests or validators.
+
+### Files Created or Modified
+
+The source inventory is
+`tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/ipsec-proof/closure-handoff.json`.
+The repair round also updates the existing command YANG help. Closure adds the
+operator-page and historical-citation repairs described above. The VPP backlog
+is the only new spec.
+
+### Audit Summary
+
+The full closure review found two AC-2 defects. Separate repair owners fixed
+both. The bounded fifth source pass found no remaining product defect. E8 then
+ran each repair red and green, so every AC is implemented and exercised.
+
+## Goal Validation
+
+Evidence paths below are relative to
+`tmp/session/2026-09-09-5bc855cc-5761-4012-8d90-7a9823029ab3/scratch/`.
+Main ran these proofs before the closure review. The closure agent read their
+outputs rather than repeat them.
+
+| ID | Evidence | Observed result |
+|----|----------|-----------------|
+| E1 | `job-ipsec-functional-discrimination-45ec986d.log` | Empty SAD overlay: both inspection fixtures failed, `EXPECTED_INSPECTION_RED:1`. Restored: `pass 2/2 100.0% 2.6s`, QEMU PASS |
+| E2 | `job-ipsec-interop-dump-red-f5b3f152.log`, `job-ipsec-interop-restored-green-6b154269.log`, `ipsec-proof/interop-repaired-green.json` | Empty dump: `no ESP SPI` and `0 passed, 1 failed`. Restored live scenario: `integration: 1 action(s) passed.` |
+| E3 | `job-ipsec-family-red-67b6cc47.log`, `job-ipsec-linux-readback-green-6fba7f2e.log` | Old address inference collapsed IPv6 into `32.1.13.184`, leaving one identity instead of two. Fixed kernel readback tests passed without skips |
+| E4 | `job-ipsec-observation-unit-784b33c3.log` | Command, engine, interop checker, and vendor-patch packages passed |
+| E5 | `job-ipsec-integer-red-6eb423e9.log`, `job-ipsec-integer-green-83913299.log`, `job-ipsec-record-precision-green-8aa5208d.log`, `ipsec-proof/integer-green/cli-proof.json` | Old decoding rounded `18446744073709551615` and `9007199254740993`. Corrected record fixture passed. CLI emitted both exact numeric tokens and exit 0 |
+| E6 | `job-ipsec-teardown-discrimination-5622dd03.log` | Old runner lost the peer before the foreground observation, `EXPECTED_TEARDOWN_RED:1`. Fixed runner: `pass 1/1 100.0% 1.2s`, QEMU PASS |
+| E7 | `job-ipsec-dpi-qemu-walk-5d0a1d41.log`, `job-ipsec-dpi-interop-red-32b5021c.log`, `job-ipsec-dpi-interop-restored-32b5021c.log` (session `2026-09-08-0a21e591-d035-4f7c-8d1b-231ab023a478`) | Empty `ListSAs`: both `.ci` files FAIL in the QEMU guest (`EXPECTED_RED:1`) and `dataplane-readback` fails on `reports no ESP SPI`. Restored: `pass 2/2 100.0% 7.4s`, `QEMU VM: PASS`, and `integration: 1 action(s) passed.` Detail in "Kernel and strongSwan discrimination walk (2026-09-11)" |
+| E8 | `ac2-proof/portmask-red.log`, `ac2-proof/portmask-green.log`, `ac2-proof/qemu-family-walk.log`, `ac2-proof/qemu-family-green.log` (session `2026-09-12-3c95c23d-22f9-4872-9b71-423a77f312e9`) | The two round 5 AC-2 repairs, each broken then restored. Port mask: `portString` without its mask arm reports `4608` where the policy holds `4608/0xff00`, and `TestShowDataplanePolicyPreservesPortMasks` FAILS, then PASSES on the restored source. Template family: `parseXfrmPolicy` back on `ToIP()` reports `32.1.13.185 -> 32.1.13.184` for a `2001:db9:: -> 2001:db8::` tunnel, and `TestXFRMReadbackPolicyTunnelAddressFamily` FAILS against a real kernel (`QEMU VM: FAIL`), then the restored build passes every `TestXFRMReadback` and `TestPolicyReadback` case (`QEMU VM: PASS`). The four host packages pass beside it |
+
+The live interop checker covers clean state, deleted-SA drift, unknown state
+under a temporary daemon-only descriptor limit, restoration, and peer removal.
+Its helper warms the exporter connection before the limit and restores the
+limit through both a watchdog and a `finally` path. All four traffic counters
+must advance in their measured direction and agree with `ip -s xfrm state`.
+
+### Instruments Left Red or Not Rerun
+
+| Instrument | Recorded result |
+|------------|-----------------|
+| Documentation check | `job-ipsec-prerequisite-docs-a984b406.log` reports 3,759 drift issues. No baseline refresh or closure rerun |
+| Scoped lint | Command: 1 `appendAssign`. IKE: 6 host / 9 Linux findings. Interop: 6 constant/error-text findings. Earlier runner lint: 2 unrelated test findings |
+| Integer rendering fixture | The first fixed-source run still failed resolve variants because the synthetic command lacked a registered shape. The corrected fixture passed in E5 |
+| CLI startup | E5 retains `WARN YANG command node missing description path=request` on stderr. Exact JSON and exit 0 were unaffected |
+| Broad gates | No fresh worktree, repository, command-contract, citation, full-QEMU, all-tags build, or appliance-build run is claimed |
+
+## Work Not Done
+
+| Work | Owner and destination | Closure treatment |
+|------|-----------------------|-------------------|
+| VPP SAD/SPD enumeration and consumer integration | `plan/spec-ipsec-vpp-dataplane-readback.md`, owner-separated VPP readback work | Explicitly approved backlog. The current backend continues to refuse enumeration |
+
+## Review Gate
+
+| Item | Result |
+|------|--------|
+| Independence | IpsecClosure did not author the product changes and ran all review lenses inline |
+| Model | Available independent reviewer used with the owner's approval because Opus 5 was unavailable |
+| Rounds | 5 total: initial inspection, repair review, SAD-family/NOFILE rereview, full closure review, bounded policy-repair rereview |
+| Final source pass | 0 remaining product BLOCKER, 0 remaining product ISSUE |
+| Native artifact | `tmp/review/ipsec-dataplane-inspection-3c95c23d-22f9-4872-9b71-423a77f312e9.md`, verdict clean over the 59 files of the closure commit. Recorded on 2026-09-12 after E8 ran the final policy repair proof |
+
+### Findings Fixed
+
+| Severity | Finding | Location | Fixed by |
+|----------|---------|----------|----------|
+| ISSUE | IPv6 policy tunnel endpoints decoded as IPv4 when their trailing bytes were zero | Canonical netlink patch, `parseXfrmPolicy` | PolicyEndpointRepair: use template family for both endpoints and add a real-kernel regression |
+| ISSUE | A partial port mask disappeared from public policy output | `show_dataplane.go`, `portString` | PolicyMaskRepair: masked spelling with handler, JSON, and table assertions |
+
+The Go style and security pass checked changed error paths, ownership, bounds,
+locks, goroutine joins, shared-layer registration, and public output. No new
+peer-reachable panic or key-material publication was found. SPI input is
+bounded and zero is rejected. Netlink errors remain failures. Raw dumps are
+read-only and allocate one report row per returned object. They do not promise
+pagination or a single globally atomic kernel snapshot.
+
+## Pre-Commit Verification
+
+### Files Exist
+
+| Scope | Result |
+|-------|--------|
+| Handoff source and evidence inventory | Read at the paths listed in the handoff manifest |
+| New VPP backlog | Present at `plan/spec-ipsec-vpp-dataplane-readback.md`, status skeleton |
+| Planned doctor-local files | Not created. Existing enrolled capability is the implemented producer |
+| Durable citations | Full-path scan leaves only this spec's self-reference and historical citation testdata |
+
+### Acceptance Criteria Verified
+
+| Scope | Result |
+|-------|--------|
+| AC-1 through AC-15 | Producer and proof level recorded in Implementation Audit. AC-2's two round 5 repairs carry their own red-then-green walk in E8 |
+
+### Wiring Verified
+
+| Path | Evidence |
+|------|----------|
+| CLI → handler → backend → public renderer | E1 and E2, with source registration and handler review |
+| Counters, drift, health, and gauges → coherent observation | E2 and E4. Direct gopls definition resolves the CLI call to `engine.ObserveDataplane` |
+| Doctor and appliance build → existing capability/floor | Source review and existing boundary tests. No fresh full build claimed |
+
+### Assumptions Resolved
+
+| Scope | Result |
+|-------|--------|
+| A-1 through A-6 | Confirmed, with source-only limits stated where applicable |
+| A-7 | Original inversion was broken. Complete family and mask semantics repair it |
+
+### Documentation Verified
+
+| Scope | Result |
+|-------|--------|
+| Category checklist | Updated with the actual subsystem pages and justified N-A rows |
+| Changed behavioral prose | Checked against producing symbols. No documentation validator was rerun |
+| Shared publication | Main owns commit preparation. `docs/features.md` rides along with one PATHS-LIMIT row another session rewrote: its producer `internal/component/bgp/reactor/session_paths_limit.go` and the guide it links are both in HEAD, so the row states nothing the committed tree cannot support, and holding the file back would leave this spec's own IPsec row unpublished (`ai/rules/git-safety.md`, `ai/rules/documentation.md`) |
+| Runner documentation | Main owns the authorized runner-only `ci-format.md` snapshot and restoration. This closure agent did not edit that file |

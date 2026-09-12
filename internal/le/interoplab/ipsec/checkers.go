@@ -1535,40 +1535,12 @@ func checkRealNATTunnelControl(ctx context.Context, lab *scenarioLab) error {
 		pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner}, natESPDirections)
 }
 
-// zeChildCounters is the child-SA counter block of `show vpn ipsec sa | json`,
-// decoded into the types the kernel holds it in.
-//
-// Every counter is a POINTER, because null and 0 are different answers and this
-// scenario turns on telling them apart. null says the SAD was never read; 0 says
-// the kernel was asked and this SA has carried nothing
-// (addChildCounters, internal/component/ike/cmd/show_ipsec.go).
-type zeChildCounters struct {
-	BytesOut      *uint64 `json:"bytes-out"`
-	BytesIn       *uint64 `json:"bytes-in"`
-	CountersKnown bool    `json:"counters-known"`
-}
-
-type zeIKESARecord struct {
-	Child *zeChildCounters `json:"child-sa"`
-}
-
 // checkDataplaneReadback proves Ze reads its OWN dataplane back, against the
 // kernel and against strongSwan, and that what it reads follows a rekey.
 //
-// It proves four things, in this order:
-//
-//  1. `show vpn ipsec dataplane sa` and `ip xfrm state` in the ze container name
-//     the same NON-EMPTY SPI set (AC-12). Non-empty first, because two empty sets
-//     are equal and a read-only dump answers an empty kernel with its body gone.
-//  2. Traffic passes, and `show vpn ipsec sa | json` then reports a bytes-out
-//     ABOVE zero. This is the only place AC-8 meets real ESP bytes: a .ci fixture
-//     has no route through its tunnel, so it can prove the SOURCE of the number
-//     and never the number itself.
-//  3. strongSwan's kernel holds the same pair, so the set Ze reports is the
-//     tunnel the peer is really using rather than a local artifact.
-//  4. After the Child SA rekeys, the set CHANGES and both readers still agree on
-//     it (AC-13). RFC 7296 Section 2.8 replaces the SPI while the selector stays
-//     identical, so the set changing is the discriminating assertion.
+// It compares directed byte and packet counters before and after traffic,
+// waits for every pre-rekey SPI to disappear, and exercises the live drift,
+// health and Prometheus surfaces against controlled kernel faults.
 func checkDataplaneReadback(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {
 		return err
@@ -1596,35 +1568,43 @@ func checkDataplaneReadback(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 
-	if err := lab.verifyTunnelTraffic(ctx, "no ESP traffic across the tunnel before the counter read"); err != nil {
-		return err
-	}
 	if err := requireZeCountersAdvanced(ctx, lab); err != nil {
 		return err
 	}
 
 	before := zeSPIs
-	if err := waitRekeyAndDelete(ctx, lab, 90*time.Second, false); err != nil {
+	if err := waitRekeyAndDelete(ctx, lab, 180*time.Second, false); err != nil {
 		return err
 	}
-	if err := waitDuration(ctx, 3*time.Second); err != nil {
-		return err
-	}
-
-	afterZe, afterKernel, err := readbackSPIs(ctx, lab)
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: xfrmWaitTimeout, Interval: time.Second, Description: "every old ESP SPI removed and replacement readers agreeing",
+	}, func(probe context.Context) (bool, error) {
+		afterZe, afterKernel, err := readbackSPIs(probe, lab)
+		if err != nil {
+			return false, err
+		}
+		if err := requireSPISetChanged(before, afterKernel); err != nil {
+			return false, err
+		}
+		if err := requireSPISetChanged(before, afterZe); err != nil {
+			return false, err
+		}
+		if err := requireSameSPISet(afterZe, afterKernel, "Ze after rekey", "Ze kernel after rekey"); err != nil {
+			return false, err
+		}
+		afterSwan, err := lab.espSPIValues(probe, swanPeer)
+		if err != nil {
+			return false, err
+		}
+		if err := requireSameSPISet(afterZe, afterSwan, "Ze after rekey", "strongSwan kernel after rekey"); err != nil {
+			return false, err
+		}
+		return true, nil
+	}, func(ready bool) bool { return ready })
 	if err != nil {
 		return err
 	}
-	if err := requireSPISetChanged(before, afterKernel); err != nil {
-		return err
-	}
-	// AC-13 is about what ZE reports, so the agreement is asserted again on the
-	// replaced set: a dump that answered the pre-rekey SPIs would satisfy the
-	// change assertion above through the kernel alone.
-	if err := requireSameSPISet(afterZe, afterKernel, "show vpn ipsec dataplane sa after the rekey", "ip xfrm state after the rekey"); err != nil {
-		return err
-	}
-	return requireSPISetChanged(before, afterZe)
+	return checkDataplaneMonitoring(ctx, lab)
 }
 
 // readbackSPIs reads the SPI set from BOTH readers in the ze container: Ze's own
@@ -1645,37 +1625,213 @@ func readbackSPIs(ctx context.Context, lab *scenarioLab) (zeSPIs, kernelSPIs map
 	return zeSPIs, kernelSPIs, nil
 }
 
-// requireZeCountersAdvanced refuses unless `show vpn ipsec sa | json` reports a
-// counter the kernel really moved.
-//
-// counters-known is asserted separately from the value, because the two failures
-// are different: false says nobody asked the kernel, and a zero beside true says
-// the kernel was asked and this SA carried nothing. Traffic has crossed the
-// tunnel by the time this runs, so zero here is a failure rather than a fact.
+// requireZeCountersAdvanced compares both directions with the kernel on both
+// sides of traffic. Each of the four counters MUST advance on the same SA.
 func requireZeCountersAdvanced(ctx context.Context, lab *scenarioLab) error {
-	answer, err := lab.zeCLI(ctx, "show vpn ipsec sa | json")
+	before, _, err := lab.readbackCounters(ctx)
 	if err != nil {
 		return err
 	}
-	var records []zeIKESARecord
-	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &records); err != nil {
-		return fmt.Errorf("show vpn ipsec sa | json is not a list of IKE SAs: %w; answer: %s", err, answer)
+	if err := lab.verifyTunnelTraffic(ctx, "no ESP traffic across the tunnel before the counter read"); err != nil {
+		return err
 	}
-	for i := range records {
-		child := records[i].Child
-		if child == nil {
+	if err := readbackAsymmetricTraffic(ctx, lab); err != nil {
+		return err
+	}
+	after, _, err := lab.readbackCounters(ctx)
+	if err != nil {
+		return err
+	}
+	return requireCounterAdvancement(before, after)
+}
+
+func requireCounterAdvancement(before, after zeChildCounters) error {
+	if before.InboundSPI != after.InboundSPI || before.OutboundSPI != after.OutboundSPI || before.IfID != after.IfID {
+		return errors.New("Child SA changed during the counter measurement")
+	}
+	for _, counter := range []struct {
+		name   string
+		before *uint64
+		after  *uint64
+	}{
+		{"bytes-in", before.BytesIn, after.BytesIn},
+		{"bytes-out", before.BytesOut, after.BytesOut},
+		{"packets-in", before.PacketsIn, after.PacketsIn},
+		{"packets-out", before.PacketsOut, after.PacketsOut},
+	} {
+		if counter.before == nil || counter.after == nil || *counter.after <= *counter.before {
+			return fmt.Errorf("%s did not advance on the measured Child SA", counter.name)
+		}
+	}
+	if *after.BytesIn == *after.BytesOut || *after.PacketsIn == *after.PacketsOut {
+		return errors.New("directed counters remain symmetric, so swapped directions would be indistinguishable")
+	}
+	return nil
+}
+
+func readbackAsymmetricTraffic(ctx context.Context, lab *scenarioLab) (result error) {
+	rule := []string{"OUTPUT", "-d", zeIP, "-p", "icmp", "--icmp-type", "echo-reply", "-j", "DROP"}
+	if _, err := lab.exec(ctx, swanPeer, append([]string{"iptables", "-I"}, rule...)...); err != nil {
+		return err
+	}
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), probeWaitTimeout)
+		defer cancel()
+		_, err := lab.exec(cleanup, swanPeer, append([]string{"iptables", "-D"}, rule...)...)
+		result = errors.Join(result, err)
+	}()
+	// Requests still cross ESP, but the peer drops only their echo replies.
+	// The earlier lossless bidirectional probe remains a separate assertion.
+	output := lab.execQuiet(ctx, zePeer, "ping", "-c", "3", "-W", "1", swanIP)
+	loss, err := pingLoss(output)
+	if err != nil {
+		return err
+	}
+	if loss != 100 {
+		return fmt.Errorf("one-way counter probe lost %d%%, want every echo reply suppressed", loss)
+	}
+	return nil
+}
+
+func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
+	child, kernel, err := lab.readbackCounters(ctx)
+	if err != nil {
+		return err
+	}
+	clean := dataplaneGauges{count: make(map[string]float64), drift: map[string]float64{"swan": 0}}
+	for key := range kernel {
+		clean.count[strconv.FormatUint(uint64(key.ifID), 10)]++
+	}
+	if err := lab.waitDataplaneGauges(ctx, clean); err != nil {
+		return err
+	}
+	if err := requireLiveDataplaneHealth(ctx, lab, false); err != nil {
+		return err
+	}
+	deleted := readbackSAKey{zeIP, swanIP, child.OutboundSPI, child.IfID}
+	command := []string{"ip", "xfrm", "state", "delete", "src", deleted.source, "dst", deleted.target,
+		"proto", "esp", "spi", strconv.FormatUint(uint64(deleted.spi), 10)}
+	if deleted.ifID != 0 {
+		command = append(command, "if_id", strconv.FormatUint(uint64(deleted.ifID), 10))
+	}
+	if _, err := lab.exec(ctx, zePeer, command...); err != nil {
+		return err
+	}
+	remaining, err := lab.exec(ctx, zePeer, "ip", "-s", "xfrm", "state")
+	if err != nil {
+		return err
+	}
+	remainingSAs, err := readbackLifetimes(remaining)
+	if err != nil {
+		return err
+	}
+	if _, present := remainingSAs[deleted]; present || len(remainingSAs) != len(kernel)-1 {
+		return fmt.Errorf("directed kernel SA deletion did not remove exactly %+v", deleted)
+	}
+	if err := requireLiveDataplaneHealth(ctx, lab, true); err != nil {
+		return err
+	}
+	drifted := dataplaneGauges{count: make(map[string]float64), drift: map[string]float64{"swan": 1}}
+	for key := range remainingSAs {
+		drifted.count[strconv.FormatUint(uint64(key.ifID), 10)]++
+	}
+	if err := lab.waitDataplaneGauges(ctx, drifted); err != nil {
+		return err
+	}
+	if err := lab.requireUnreadableDataplane(ctx, drifted); err != nil {
+		return err
+	}
+	// The existing clear/re-establish path reinstalls kernel state through IKE.
+	if err := checkClearReestablish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.waitChild(ctx, ""); err != nil {
+		return err
+	}
+	if err := lab.waitDataplaneGauges(ctx, clean); err != nil {
+		return err
+	}
+	if err := requireLiveDataplaneHealth(ctx, lab, false); err != nil {
+		return err
+	}
+	if err := lab.reloadZe(ctx, filepath.Join(lab.check.Source.Directory, "ze-no-peers.conf")); err != nil {
+		return err
+	}
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: xfrmWaitTimeout, Interval: time.Second, Description: "peer removal deleting kernel ESP labels",
+	}, func(probe context.Context) (bool, error) {
+		kernel, err := lab.espSPIValues(probe, zePeer)
+		if err != nil {
+			return false, err
+		}
+		reported, _, err := lab.dataplaneSAs(probe)
+		if err != nil {
+			return false, err
+		}
+		answer, err := lab.zeCLI(probe, "show vpn ipsec status | json")
+		if err != nil {
+			return false, err
+		}
+		var status struct {
+			ConfiguredPeers *int `json:"configured-peers"`
+		}
+		if err := json.Unmarshal([]byte(answer), &status); err != nil {
+			return false, err
+		}
+		return len(kernel) == 0 && len(reported) == 0 && status.ConfiguredPeers != nil && *status.ConfiguredPeers == 0, nil
+	}, func(removed bool) bool { return removed })
+	if err != nil {
+		return err
+	}
+	return lab.waitDataplaneGauges(ctx, dataplaneGauges{})
+}
+
+func requireLiveDataplaneHealth(ctx context.Context, lab *scenarioLab, drifting bool) error {
+	answer, commandErr := lab.zeCLI(ctx, "show vpn ipsec dataplane drift | json")
+	if drifting {
+		detail := answer
+		if commandErr != nil {
+			detail += commandErr.Error()
+		}
+		if commandErr == nil || !strings.Contains(detail, "dataplane drift") || !strings.Contains(detail, "swan") {
+			return fmt.Errorf("CLI failed to report swan dataplane drift: %s", detail)
+		}
+	} else {
+		if commandErr != nil {
+			return commandErr
+		}
+		var findings []json.RawMessage
+		if err := json.Unmarshal([]byte(answer), &findings); err != nil || len(findings) != 0 {
+			return fmt.Errorf("CLI clean drift answer is not an empty list: %s", answer)
+		}
+	}
+	answer, err := lab.zeCLI(ctx, "show health | json")
+	if err != nil {
+		return err
+	}
+	var health struct {
+		Components []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Reason string `json:"reason"`
+		} `json:"components"`
+	}
+	if err := json.Unmarshal([]byte(answer), &health); err != nil {
+		return err
+	}
+	for _, component := range health.Components {
+		if component.Name != "ipsec" {
 			continue
 		}
-		if !child.CountersKnown {
-			return fmt.Errorf("show vpn ipsec sa reports counters-known false over a real kernel, so the SAD was never read: %s", answer)
-		}
-		if child.BytesOut == nil || child.BytesIn == nil {
-			return fmt.Errorf("show vpn ipsec sa reports a null byte counter beside counters-known true: %s", answer)
-		}
-		if *child.BytesOut == 0 {
-			return fmt.Errorf("show vpn ipsec sa reports bytes-out 0 after ESP crossed the tunnel: %s", answer)
+		if drifting {
+			if component.Status != "degraded" || !strings.Contains(component.Reason, "dataplane drift") ||
+				!strings.Contains(component.Reason, "swan") {
+				return fmt.Errorf("live IPsec health did not report swan drift: %s", answer)
+			}
+		} else if component.Status != "healthy" {
+			return fmt.Errorf("live IPsec health failed to recover: %s", answer)
 		}
 		return nil
 	}
-	return fmt.Errorf("show vpn ipsec sa reports no child SA to read a counter from: %s", answer)
+	return fmt.Errorf("live health omitted the IPsec probe: %s", answer)
 }

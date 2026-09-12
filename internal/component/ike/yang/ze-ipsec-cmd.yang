@@ -55,7 +55,7 @@ kernel expiry, an external flush, or a stranded policy becomes visible.";
                         description "Show the Security Association Database the kernel holds.";
                         ze:help "Lists each installed ESP SA with its SPI,
 addresses, mode, algorithms, replay window, byte and packet counters, and
-timestamps. Give 'spi <spi>' to show one SA. Without a selector the command
+timestamps. Give 'spi <spi>' to show all matching SAs. Without a selector the command
 dumps every SA, which on a device with many tunnels is one row per SA.";
                         // RFC 4303 Section 2.1 reserves SPI 0 and the range 1 to
                         // 255, so 0 is not a valid selector and the command
@@ -64,7 +64,7 @@ dumps every SA, which on a device with many tunnels is one row per SA.";
                             type uint32 {
                                 range "1..4294967295";
                             }
-                            description "Show only the SA with this SPI.";
+                            description "Show all SAs with this SPI.";
                         }
                     }
 
@@ -84,7 +84,7 @@ separate, and so does this tree.";
                         ze:command "ze-show:vpn-ipsec-dataplane-drift";
                         description "Compare what the IKE engine believes against what the kernel holds.";
                         ze:help "Reports each Child SA the engine counts as
-installed whose SPI the kernel SAD does not hold. The command exits non-zero
+installed whose expected identity the kernel SAD does not hold. The command exits non-zero
 when it finds drift, so a script CAN test it. A rekey window holds two SPIs and
 is not drift.";
                     }

@@ -1859,6 +1859,11 @@ Without that agreement a nested sub-table and the JSON behind it would answer
 with different fields. Without it a record naming nothing displayed would render
 as a box with no rows.
 
+`applyDisplaySelect` decodes the payload through `decodePipeJSON`, the decoder
+every JSON-reading operator shares. It keeps each number as written and refuses
+a payload with trailing data. A uint64 wider than a float64 therefore reaches
+the rendering with its digits intact.
+
 **A kind the `foldFilters` switch does not name stays in the chain.** The switch
 names the five kinds a command can own as a filter it resolves itself. Its
 `default:` arm carries every other kind to the chain `ApplyPipes` runs over the

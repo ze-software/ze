@@ -275,12 +275,14 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 // Prometheus spells "unknown" as the absence of a series.
 //
 // Safe for concurrent use.
-func (m *IPsecMetrics) publishDataplaneGauges(infos map[string]PeerInfo) {
-	sas, err := driftSAD()
+func (m *IPsecMetrics) publishDataplaneGauges() {
+	observation, err := ObserveDataplane()
 	if err != nil {
 		m.clearDataplaneGauges()
 		return
 	}
+	sas := observation.SAs
+	infos := observation.Peers
 
 	counts := make(map[string]float64, len(sas))
 	for i := range sas {
@@ -289,18 +291,14 @@ func (m *IPsecMetrics) publishDataplaneGauges(infos map[string]PeerInfo) {
 
 	// A peer with a Child SA reads 0 or 1. A peer with none has no belief to
 	// contradict, so it gets no series rather than a 0 that reads as agreement.
-	//
-	// The peer set comes from the caller's snapshot, so the whole pass publishes
-	// against ONE reading of PeerInfoMap. A peer the comparison names that this
-	// snapshot does not hold is skipped rather than published: a series for a
-	// peer the pass never counted is a value nothing will ever clear.
+	// Both the peer set and the comparison come from the validated observation.
 	drift := make(map[string]float64, len(infos))
 	for name := range infos {
 		if infos[name].HasChild {
 			drift[name] = 0
 		}
 	}
-	for _, name := range driftingPeersFrom(sas) {
+	for _, name := range driftingPeersFrom(observation) {
 		if _, known := drift[name]; known {
 			drift[name] = 1
 		}
@@ -449,5 +447,5 @@ func (m *IPsecMetrics) Update() {
 		m.rekeyTotal.With(name).Set(float64(info.RekeyCount))
 	}
 
-	m.publishDataplaneGauges(infos)
+	m.publishDataplaneGauges()
 }

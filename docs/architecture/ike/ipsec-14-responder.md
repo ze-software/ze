@@ -21,6 +21,11 @@ enough. Three more sites depend on the role:
 All four reduce to Remote and Local when the SA is the initiator, so an
 initiator SA stays byte identical.
 
+`installChildSA` marks the dataplane busy for the length of its kernel writes,
+so a read that spans an install answers unknown rather than naming a
+half-installed pair as drift. It clears the child's removing flag once the pair
+is in place.
+
 <!-- source: internal/component/ike/engine/auth.go -- computeSignedOctets, skSendEncKey, skRecvEncKey -->
 <!-- source: internal/component/ike/engine/sa.go -- initiatorNonce, responderNonce -->
 <!-- source: internal/component/ike/engine/child.go -- ChildSA, installChildSA -->
@@ -203,7 +208,9 @@ in-process tests use a non-IP peer name and passed either way.
 **An unlocked read of a mutable SA.** Making the peer session's SA mutable from
 the dispatch goroutine left `TerminateAllSAs`, `TerminatePeerSA` and the
 reconcile stop path reading it unlocked. `Stop()` joins the session goroutine,
-not dispatch. Every reader goes through `getSA`.
+not dispatch. Every reader goes through `getSA`. Both terminate functions
+advance the dataplane generation while they hold `peersMu`, so a kernel read
+that spans a teardown answers unknown rather than drift.
 
 <!-- source: internal/component/ike/engine/register.go -- TerminateAllSAs, TerminatePeerSA -->
 

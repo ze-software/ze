@@ -1,5 +1,5 @@
 # Functional test: show vpn ipsec dataplane sa reads a REAL kernel SAD back.
-# Spec: plan/immediate/spec-ipsec-dataplane-inspection.md (AC-1, user story 1)
+# Spec: spec-ipsec-dataplane-inspection (AC-1, user story 1)
 #
 # VALIDATES: after a Child SA establishes on a real kernel, `show vpn ipsec
 #            dataplane sa` names the two ESP addresses and the ESP transform
@@ -142,17 +142,13 @@ vpn {
 }
 EOF_INITIATOR
 
-# The initiator's dataplane, and ONLY the initiator's: option=env applies to every
-# process the runner launches, so the per-daemon override rides in front of the
-# command. `env` rather than a shell, because a shell is free to drop an
-# assignment whose name is not an identifier; env just execs, so the daemon still
-# gets the signal cmd=stop sends.
-cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
+# Keep the noop override on the initiator only. env execs ze directly, so
+# teardown signals the daemon rather than an intermediate shell.
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator
 # The responder runs in the FOREGROUND because it carries the executor: the
 # engine steps end with `request shutdown`, so this process exits when they are
-# done and the run has no fixed sleep in it.
+# done. Automatic teardown then stops the initiator, with no fixed sleep.
 cmd=foreground:seq=2:exec=ze -:stdin=responder:timeout=110s
-cmd=stop:seq=3:name=initiator:signal=term
 
 # ── Engine steps, dispatched inside the responder ──
 

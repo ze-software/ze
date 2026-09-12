@@ -478,10 +478,8 @@ func recordsPositionalSelected(
 }
 
 func selectPositionalItem(item json.RawMessage, indices []int, fieldCount int) (json.RawMessage, string) {
-	decoder := json.NewDecoder(bytes.NewReader(item))
-	decoder.UseNumber()
 	var values []any
-	if err := decoder.Decode(&values); err != nil {
+	if err := decodePipeJSON(bytes.NewReader(item), &values); err != nil {
 		return nil, "display cannot select a positional row: the row is not a JSON array"
 	}
 	if len(values) != fieldCount {
@@ -504,10 +502,8 @@ func selectPositionalItem(item json.RawMessage, indices []int, fieldCount int) (
 // selectItem keeps the named fields of one self-describing result and answers
 // the result unchanged when it does not decode.
 func selectItem(item json.RawMessage, keep map[string]struct{}) (json.RawMessage, bool) {
-	decoder := json.NewDecoder(bytes.NewReader(item))
-	decoder.UseNumber()
 	var element any
-	if err := decoder.Decode(&element); err != nil {
+	if err := decodePipeJSON(bytes.NewReader(item), &element); err != nil {
 		return item, true
 	}
 	selected, matched := selectElement(element, keep)
@@ -606,10 +602,8 @@ func transformPositionalAddressItem(
 	fieldCount int,
 	kind pipeKind,
 ) (json.RawMessage, string) {
-	decoder := json.NewDecoder(bytes.NewReader(item))
-	decoder.UseNumber()
 	var values []any
-	if err := decoder.Decode(&values); err != nil {
+	if err := decodePipeJSON(bytes.NewReader(item), &values); err != nil {
 		return nil, "address operator cannot transform a positional row: the row is not a JSON array"
 	}
 	if len(values) != fieldCount {
@@ -672,7 +666,7 @@ func recordsTransformed(records iter.Seq[rpc.Record], transform func(any) any) i
 // applyJSONTransform decodes a whole payload so the two answer alike.
 func transformItem(item json.RawMessage, transform func(any) any) json.RawMessage {
 	var element any
-	if err := json.Unmarshal(item, &element); err != nil {
+	if err := decodePipeJSON(bytes.NewReader(item), &element); err != nil {
 		return item
 	}
 	transformed, err := json.Marshal(transform(element))
@@ -758,7 +752,7 @@ func recordPayload(record rpc.Record) json.RawMessage {
 
 func marshalRecordJSON(record rpc.Record) ([]byte, error) {
 	var value any
-	if err := json.Unmarshal(recordPayload(record), &value); err != nil {
+	if err := decodePipeJSON(bytes.NewReader(recordPayload(record)), &value); err != nil {
 		return nil, err
 	}
 	return json.Marshal(value)
@@ -769,7 +763,7 @@ func marshalRecordJSONFields(record rpc.Record, fields []string) ([]byte, error)
 		return marshalRecordJSON(record)
 	}
 	var values []any
-	if err := json.Unmarshal(record.Item, &values); err != nil {
+	if err := decodePipeJSON(bytes.NewReader(record.Item), &values); err != nil {
 		return nil, err
 	}
 	if len(values) != len(fields) {

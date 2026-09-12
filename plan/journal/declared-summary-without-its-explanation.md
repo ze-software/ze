@@ -8,4 +8,5 @@ gate that counts them is the only reader that can tell.
 
 | Date | Spec | Surface | Symptom | Fix |
 |------|------|---------|---------|-----|
+| 2026-09-10 | spec-ipsec-dataplane-inspection | Host `ze pipe json compact` startup | The command emits `WARN YANG command node missing description path=request` on stderr. Its numeric JSON output and exit code are correct. | Not changed. The declaration's producer was not traced; inspect that declaration before changing it. |
 | 2026-09-07 | daemon-backed-command-catalog | seven YANG RPCs, judged by `TestEveryCommandNodeHasASummary` (`internal/le/docvalid/helpshape_test.go`) | Red at HEAD with every YANG module named in the report clean in the working tree: `ze-bgp-cmd-peer-api:peer-add`, `:peer-save`, `ze-bgp-cmd-update-api:peer-update-hex`, `ze-cli-set-api:bgp-peer-save`, `:bgp-peer-with` and two more. Each carries `description` and no `ze:help` beside it, so the run reports `missing-long-help 7` over 184 RPCs. Walked into while running `go test ./internal/le/docvalid/` for Phase 4 of this spec | not fixed, and not this spec's surface |

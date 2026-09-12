@@ -1,10 +1,12 @@
-// Design: plan/immediate/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // Related: health.go -- checkIPsecHealth, which folds this signal in
 
 package engine
 
 import (
+	"errors"
 	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -20,51 +22,109 @@ var driftSAD = func() ([]dataplane.SAInfo, error) {
 	return dp.ListSAs(0)
 }
 
-// driftingPeers names every peer whose Child SA the engine counts as installed
-// and whose SPI the kernel SAD does not hold.
-//
-// The second result says whether the kernel could be READ. When it is false the
-// first is empty and means nothing: no backend, an unprivileged process, or a
-// backend that cannot enumerate all land there. A caller that treated that as
-// "no drift" would report healthy on the strength of a question nobody asked,
-// which is the exact false green this spec exists to remove
-// (ai/rules/evidence.md).
-//
-// The comparison runs in ONE direction. An SPI the kernel holds that the engine
-// does not name is not drift: RFC 7296 Section 2.8 keeps the old and the new
-// Child SA alive together until the old one is deleted, so a rekey window
-// legitimately holds both.
-func driftingPeers() (peers []string, known bool) {
+// dataplaneObservation tracks publications and backend writes. The mutex is never
+// held across a dump or while acquiring a peer lock.
+var dataplaneObservation struct {
+	sync.Mutex
+	generation uint64
+	writers    uint64
+}
+
+func dataplaneChanged() {
+	dataplaneObservation.Lock()
+	dataplaneObservation.generation++
+	dataplaneObservation.Unlock()
+}
+
+// beginDataplaneWrite MUST be paired with deferred endDataplaneWrite.
+func beginDataplaneWrite() {
+	dataplaneObservation.Lock()
+	dataplaneObservation.generation++
+	dataplaneObservation.writers++
+	dataplaneObservation.Unlock()
+}
+
+// endDataplaneWrite MUST run after each beginDataplaneWrite, including failed writes.
+func endDataplaneWrite() {
+	dataplaneObservation.Lock()
+	dataplaneObservation.generation++
+	dataplaneObservation.writers--
+	dataplaneObservation.Unlock()
+}
+
+func dataplaneGeneration() (uint64, bool) {
+	dataplaneObservation.Lock()
+	defer dataplaneObservation.Unlock()
+	return dataplaneObservation.generation, dataplaneObservation.writers == 0
+}
+
+// setChildRemoving runs within a guarded backend write. Successful reinstallation
+// clears the flag; a replacement Child SA starts with it clear.
+func setChildRemoving(child *ChildSA, removing bool) {
+	dataplaneObservation.Lock()
+	child.dataplaneRemoving = removing
+	dataplaneObservation.Unlock()
+}
+
+var errDataplaneChanging = errors.New("cannot obtain a consistent Child SA generation; dataplane state is unknown")
+
+// DataplaneSnapshot joins one peer generation with one SAD dump. Peers remains
+// available on error for engine-belief displays; SAs must only be used on success.
+type DataplaneSnapshot struct {
+	Peers map[string]PeerInfo
+	SAs   []dataplane.SAInfo
+}
+
+// ObserveDataplane reads belief and kernel state without blocking an installation
+// on netlink readback. Any publication or backend write across the read invalidates
+// the observation, even if the replacement reuses the previous SPI.
+func ObserveDataplane() (DataplaneSnapshot, error) {
+	generation, idle := dataplaneGeneration()
+	observation := DataplaneSnapshot{Peers: PeerInfoMap()}
+	if !idle {
+		return observation, errDataplaneChanging
+	}
+	for name := range observation.Peers {
+		if observation.Peers[name].childRemoving {
+			return observation, errDataplaneChanging
+		}
+	}
 	sas, err := driftSAD()
+	if err != nil {
+		return observation, err
+	}
+	after, idle := dataplaneGeneration()
+	if !idle || generation != after {
+		return observation, errDataplaneChanging
+	}
+	observation.SAs = sas
+	return observation, nil
+}
+
+func driftingPeers() (peers []string, known bool) {
+	observation, err := ObserveDataplane()
 	if err != nil {
 		return nil, false
 	}
-	return driftingPeersFrom(sas), true
+	return driftingPeersFrom(observation), true
 }
 
-// driftingPeersFrom is the comparison itself, over an SA list the caller already
-// holds. It is split out so ONE kernel dump answers both readers: the health
-// check reaches it through driftingPeers, and the metrics pass passes the same
-// slice it published the SA count from. Two dumps would be two answers to one
-// question, and they disagree across a rekey.
-//
-// The one-direction rule described above lives here.
-func driftingPeersFrom(sas []dataplane.SAInfo) []string {
-	inKernel := make(map[uint32]bool, len(sas))
-	for i := range sas {
-		inKernel[sas[i].SPI] = true
+// driftingPeersFrom compares only expected identities. Old SAs may coexist with
+// replacements during rekey (RFC 7296 Section 2.8).
+func driftingPeersFrom(observation DataplaneSnapshot) []string {
+	inKernel := make(map[dataplane.SAIdentity]bool, len(observation.SAs))
+	for i := range observation.SAs {
+		sa := &observation.SAs[i]
+		inKernel[dataplane.IdentityOf(sa.SPI, sa.Dst, sa.Proto, sa.IfID)] = true
 	}
-
-	// PeerInfo is large, so the map is indexed rather than range-copied.
 	var peers []string
-	infos := PeerInfoMap()
-	for name := range infos {
-		info := infos[name]
+	for name := range observation.Peers {
+		info := observation.Peers[name]
 		if !info.HasChild {
 			continue
 		}
-		missing := (info.ChildInSPI != 0 && !inKernel[info.ChildInSPI]) ||
-			(info.ChildOutSPI != 0 && !inKernel[info.ChildOutSPI])
+		missing := (info.ChildInSPI != 0 && !inKernel[info.ChildInID]) ||
+			(info.ChildOutSPI != 0 && !inKernel[info.ChildOutID])
 		if missing {
 			peers = append(peers, name)
 		}

@@ -35,9 +35,14 @@ type policySelectorKey struct {
 }
 
 func policyKey(p SPParams) policySelectorKey {
+	// selFromPolicy selects the destination's family, defaulting to IPv4.
+	ipv6 := false
+	if p.Dst != nil {
+		ipv6 = len(p.Dst.IP) > net.IPv4len && p.Dst.IP.To4() == nil
+	}
 	return policySelectorKey{
-		src:        cidrKey(p.Src),
-		dst:        cidrKey(p.Dst),
+		src:        cidrKey(p.Src, ipv6),
+		dst:        cidrKey(p.Dst, ipv6),
 		dir:        p.Dir,
 		upperProto: p.UpperProto,
 		srcPort:    p.SrcPort,
@@ -47,12 +52,14 @@ func policyKey(p SPParams) policySelectorKey {
 	}
 }
 
-// cidrKey renders one selector prefix into a comparable string. A nil prefix is the
-// wildcard the kernel writes as a zero address with a zero mask, and it must compare
-// equal to another nil rather than to any real prefix.
-func cidrKey(n *net.IPNet) string {
+// cidrKey materializes a nil selector in the family the kernel writer chooses.
+// Explicit /0 prefixes retain their family and compare equal to that wildcard.
+func cidrKey(n *net.IPNet, ipv6 bool) string {
 	if n == nil {
-		return ""
+		if ipv6 {
+			return "::/0"
+		}
+		return "0.0.0.0/0"
 	}
 	return n.String()
 }
@@ -190,12 +197,12 @@ func (o *policyOwners) deleteThenRelease(p SPParams, del func() error) error {
 // registry from outliving the kernel policies: a record left behind would refuse a
 // later, legitimate install of the same selector.
 func (o *policyOwners) releaseBySelector(src, dst *net.IPNet, dir SADir) {
-	srcKey, dstKey := cidrKey(src), cidrKey(dst)
+	selector := policyKey(SPParams{Src: src, Dst: dst, Dir: dir})
 
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	for key := range o.owners {
-		if key.src == srcKey && key.dst == dstKey && key.dir == dir {
+		if key.src == selector.src && key.dst == selector.dst && key.dir == selector.dir {
 			delete(o.owners, key)
 		}
 	}

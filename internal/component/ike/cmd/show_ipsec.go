@@ -46,8 +46,7 @@ func handleShowVPNIPsecSA(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 	allSAs := table.All()
 	sort.Slice(allSAs, func(i, j int) bool { return allSAs[i].PeerName < allSAs[j].PeerName })
 
-	peerInfos := engine.PeerInfoMap()
-	kernel := readSADCounters()
+	peerInfos, kernel := readSADCounters()
 	now := time.Now()
 	rows := make([]map[string]any, 0, len(allSAs))
 	for _, sa := range allSAs {
@@ -115,8 +114,7 @@ func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, args []string) (*p
 	}
 
 	allSAs := table.All()
-	peerInfos := engine.PeerInfoMap()
-	kernel := readSADCounters()
+	peerInfos, kernel := readSADCounters()
 	now := time.Now()
 	var matched []map[string]any
 	for _, sa := range allSAs {
@@ -138,24 +136,21 @@ func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, args []string) (*p
 	}, nil
 }
 
-// sadCounters is the kernel SAD, indexed by SPI, for one command invocation.
+// sadCounters is the kernel SAD, indexed by full identity, for one observation.
 //
-// known says whether the SAD was READ AT ALL. It is not the same question as
-// whether a given SPI is in it, and collapsing the two is how a tunnel that has
-// carried gigabytes comes to report zero: the noop backend and an unprivileged
-// process both leave the SAD unreadable, and a zero counter there is a wrong
-// answer rather than a missing one (ai/rules/evidence.md).
+// known says whether the SAD was read against a stable Child SA generation. It
+// is distinct from whether a given SA exists in that observation.
 type sadCounters struct {
 	known bool
-	bySPI map[uint32]dataplane.SAInfo
+	byID  map[dataplane.SAIdentity]dataplane.SAInfo
 }
 
-// lookup returns the counters for one SPI, and whether they are known.
-func (c sadCounters) lookup(spi uint32) (bytes, packets uint64, ok bool) {
+// lookup returns the counters for one SA, and whether they are known.
+func (c sadCounters) lookup(id dataplane.SAIdentity) (bytes, packets uint64, ok bool) {
 	if !c.known {
 		return 0, 0, false
 	}
-	info, found := c.bySPI[spi]
+	info, found := c.byID[id]
 	if !found {
 		return 0, 0, false
 	}
@@ -168,20 +163,17 @@ func (c sadCounters) lookup(spi uint32) (bytes, packets uint64, ok bool) {
 // belief and has done so since before this surface existed; losing the kernel
 // columns must not lose the command. The failure is recorded as "not known" and
 // every counter renders as null rather than as zero.
-func readSADCounters() sadCounters {
-	dp := dataplane.Get()
-	if dp == nil {
-		return sadCounters{}
-	}
-	sas, err := dp.ListSAs(0)
+func readSADCounters() (map[string]engine.PeerInfo, sadCounters) {
+	observation, err := observeDataplane()
 	if err != nil {
-		return sadCounters{}
+		return observation.Peers, sadCounters{}
 	}
-	bySPI := make(map[uint32]dataplane.SAInfo, len(sas))
-	for i := range sas {
-		bySPI[sas[i].SPI] = sas[i]
+	byID := make(map[dataplane.SAIdentity]dataplane.SAInfo, len(observation.SAs))
+	for i := range observation.SAs {
+		sa := observation.SAs[i]
+		byID[dataplane.IdentityOf(sa.SPI, sa.Dst, sa.Proto, sa.IfID)] = sa
 	}
-	return sadCounters{known: true, bySPI: bySPI}
+	return observation.Peers, sadCounters{known: true, byID: byID}
 }
 
 func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo, kernel sadCounters) map[string]any {
@@ -272,22 +264,17 @@ func selectorAddressText(ip net.IP) any {
 // nobody could ask. A caller that renders null as 0 would reintroduce exactly the
 // false-green this spec exists to remove (ai/rules/evidence.md).
 func addChildCounters(child map[string]any, info engine.PeerInfo, kernel sadCounters) {
-	inBytes, inPackets, inKnown := kernel.lookup(info.ChildInSPI)
-	outBytes, outPackets, outKnown := kernel.lookup(info.ChildOutSPI)
+	inBytes, inPackets, inKnown := kernel.lookup(info.ChildInID)
+	outBytes, outPackets, outKnown := kernel.lookup(info.ChildOutID)
 
 	child["bytes-in"] = counterOrNil(inBytes, inKnown)
 	child["packets-in"] = counterOrNil(inPackets, inKnown)
 	child["bytes-out"] = counterOrNil(outBytes, outKnown)
 	child["packets-out"] = counterOrNil(outPackets, outKnown)
 
-	// counters-known reports whether the SAD WAS READ, not whether this SA was
-	// found in it. The two are different answers and the difference is this
-	// spec's whole subject:
-	//
-	//   false -- nobody could ask the kernel (no backend, noop or VPP backend,
-	//            no CAP_NET_ADMIN). Nothing is known about this tunnel.
-	//   true, with null counters -- the kernel WAS asked and does not hold this
-	//            SPI. That is drift, and `show vpn ipsec dataplane drift` names it.
+	// A successful, stable dump with a missing identity is drift and leaves that
+	// SA's counters null. An unreadable or changing observation makes the whole
+	// counter observation unknown.
 	//
 	// Deriving this from whether the lookups hit would collapse the two and throw
 	// the more interesting one away.

@@ -176,7 +176,7 @@ func applyJSONTransform(input string, transform func(any) any) string {
 	trimmed := strings.TrimSpace(input)
 
 	var data any
-	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
+	if err := decodePipeJSON(strings.NewReader(trimmed), &data); err == nil {
 		compact := !strings.Contains(trimmed, "\n")
 		data = transform(data)
 		var out []byte
@@ -199,7 +199,7 @@ func applyJSONTransform(input string, transform func(any) any) string {
 			continue
 		}
 		var obj any
-		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+		if err := decodePipeJSON(strings.NewReader(line), &obj); err != nil {
 			sb.Str(line).Byte('\n')
 			continue
 		}

@@ -509,8 +509,8 @@ var familyError = fmt.Errorf("family error")
 
 func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	var state XfrmState
-	state.Dst = msg.Id.Daddr.ToIP()
-	state.Src = msg.Saddr.ToIP()
+	state.Dst = xfrmIPFromAddress(&msg.Id.Daddr, msg.Family)
+	state.Src = xfrmIPFromAddress(&msg.Saddr, msg.Family)
 	state.Proto = Proto(msg.Id.Proto)
 	state.Mode = Mode(msg.Mode)
 	state.Spi = int(nl.Swap32(msg.Id.Spi))
@@ -520,12 +520,14 @@ func xfrmStateFromXfrmUsersaInfo(msg *nl.XfrmUsersaInfo) *XfrmState {
 	lftToLimits(&msg.Lft, &state.Limits)
 	curToStats(&msg.Curlft, &msg.Stats, &state.Statistics)
 	state.Selector = &XfrmPolicy{
-		Dst:     msg.Sel.Daddr.ToIPNet(msg.Sel.PrefixlenD, msg.Sel.Family),
-		Src:     msg.Sel.Saddr.ToIPNet(msg.Sel.PrefixlenS, msg.Sel.Family),
-		Proto:   Proto(msg.Sel.Proto),
-		DstPort: int(nl.Swap16(msg.Sel.Dport)),
-		SrcPort: int(nl.Swap16(msg.Sel.Sport)),
-		Ifindex: int(msg.Sel.Ifindex),
+		Dst:         xfrmIPNetFromAddress(&msg.Sel.Daddr, msg.Sel.PrefixlenD, msg.Sel.Family),
+		Src:         xfrmIPNetFromAddress(&msg.Sel.Saddr, msg.Sel.PrefixlenS, msg.Sel.Family),
+		Proto:       Proto(msg.Sel.Proto),
+		DstPort:     int(nl.Swap16(msg.Sel.Dport)),
+		SrcPort:     int(nl.Swap16(msg.Sel.Sport)),
+		DstPortMask: nl.Swap16(msg.Sel.DportMask),
+		SrcPortMask: nl.Swap16(msg.Sel.SportMask),
+		Ifindex:     int(msg.Sel.Ifindex),
 	}
 
 	return &state

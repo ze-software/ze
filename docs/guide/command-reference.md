@@ -1370,19 +1370,26 @@ encryption and integrity algorithm names, replay window, byte and packet
 counters, and the add and use timestamps. It never renders key material.
 `policy` lists each policy with its selector prefixes and ports, direction,
 priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
-installed it. A policy Ze did not install reports its owner as unknown.
+installed it. A port reads `any` under a zero mask, a decimal number under mask
+`0xffff`, and `<port>/0x<mask>` under any other mask, so a masked selector never
+appears as one exact port. A policy Ze did not install reports its owner as
+unknown.
 
 `drift` names each expected Child SA identity the kernel does not hold and exits
 non-zero when it finds one. Identity includes SPI, destination, protocol, and
-XFRM interface ID. Extra kernel SAs are permitted during rekey. A failed or
-changing observation returns an error rather than a clean result.
+XFRM interface ID. Extra kernel SAs are permitted during rekey. Engine belief
+and the kernel dump come from one observation, taken under a generation check.
+A failed observation, an install or a removal running across the read, and a
+Child SA whose removal has started each return an error rather than a clean
+result.
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
 <!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 
 A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
-process without CAP_NET_ADMIN. An empty table would answer "nothing is
-installed" to a question nobody asked the kernel.
+process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
+backend at all. An empty table would answer "nothing is installed" to a question
+nobody asked the kernel.
 
 RFC 4303 Section 2.1 reserves SPI 0, so the `spi` selector refuses it rather
 than reading it as "every SPI".

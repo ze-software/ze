@@ -45,7 +45,11 @@ func checkIPsecHealth() (health.Status, string) {
 	// A dataplane that cannot be read is NOT drift. It is a question that was not
 	// asked, and reporting healthy on it would be the same false green in a new
 	// place (ai/rules/evidence.md).
-	if drifting, known := driftingPeers(); known && len(drifting) > 0 {
+	drifting, known := driftingPeers()
+	if !known {
+		return health.StatusDegraded, "cannot determine ipsec dataplane state"
+	}
+	if len(drifting) > 0 {
 		return health.StatusDegraded, driftDetail(drifting)
 	}
 

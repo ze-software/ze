@@ -1240,12 +1240,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// own observer asks to stop is given that chance first: see
 	// selfStopGrace and terminateAfterSelfExit.
 	selfStop := fgProc != nil && tmpfsRequestsDaemonShutdown(rec.TmpfsFiles)
+	if selfStop {
+		terminateAfterSelfExit(fgProc, selfStopGrace(r.withParallelHeadroom(testBudget)))
+	}
 	for _, p := range bgProcs {
-		if peerProcs[p] || p.Process == nil {
-			continue
-		}
-		if selfStop && p == fgProc {
-			terminateAfterSelfExit(p, selfStopGrace(r.withParallelHeadroom(testBudget)))
+		if peerProcs[p] || p.Process == nil || (selfStop && p == fgProc) {
 			continue
 		}
 		terminateGracefully(p)

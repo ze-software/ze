@@ -190,6 +190,10 @@ type ChildSA struct {
 	// A false value means the tunnel forwards no encrypted traffic. The peer metric
 	// reads it, so an operator sees degraded rather than up (metrics.go).
 	ESPInstalled bool
+
+	// dataplaneRemoving is protected by dataplaneObservation. A published child
+	// remains inconclusive between removal and its replacement/clear publication.
+	dataplaneRemoving bool
 }
 
 // Clear zeroes key material.
@@ -378,6 +382,9 @@ func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
 }
 
 func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
+	beginDataplaneWrite()
+	defer endDataplaneWrite()
+
 	isAEAD := prop.Encryption.IsAEAD()
 	encAlgo := prop.Encryption.String()
 	authAlgo := prop.Hash.String()
@@ -541,6 +548,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		return fmt.Errorf("child-sa: install outbound policy: %w", err)
 	}
 
+	setChildRemoving(child, false)
 	log.Info("child-sa: installed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "ifid", child.IfID)
 	return nil
 }
@@ -709,6 +717,9 @@ func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 // session teardown the retired pair is passed keep = the live child, so its policy
 // survives the first call and is removed by the second -- once, in total.
 func removeChildSAExcept(child, keep *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+	beginDataplaneWrite()
+	defer endDataplaneWrite()
+
 	if dp == nil || child == nil {
 		return
 	}
@@ -726,9 +737,13 @@ func removeChildSAExcept(child, keep *ChildSA, dp dataplane.Dataplane, log *slog
 // deletes "the outgoing SAs while processing the request and the incoming SAs while
 // processing the response". Callers that close a whole pair use removeChildSA above.
 func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) {
+	beginDataplaneWrite()
+	defer endDataplaneWrite()
+
 	if dp == nil || child == nil {
 		return
 	}
+	setChildRemoving(child, true)
 	if dropPolicy {
 		// RemovePolicyParams, not the three-argument RemovePolicy: it names the whole
 		// selector the install used, and it carries the Owner the dataplane refuses a
@@ -747,9 +762,13 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 // removeChildSAIncoming removes the half of a Child SA pair this node RECEIVES on.
 // The companion of removeChildSAOutgoing above.
 func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) {
+	beginDataplaneWrite()
+	defer endDataplaneWrite()
+
 	if dp == nil || child == nil {
 		return
 	}
+	setChildRemoving(child, true)
 	if dropPolicy {
 		if err := dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirIn)); err != nil {
 			logPolicyRemoveFailure(log, "inbound", child, err)

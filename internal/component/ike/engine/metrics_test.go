@@ -208,9 +208,9 @@ func TestDataplaneGaugesPublishFromOneDump(t *testing.T) {
 	establishedPeer(t, "peer-b", 300, 400)
 
 	calls := useCountingDriftSAD(t, []dataplane.SAInfo{
-		{SPI: 100, IfID: 0},
-		{SPI: 200, IfID: 0},
-		{SPI: 300, IfID: 7},
+		{SPI: 100, IfID: 0, Proto: dataplane.ProtoESP},
+		{SPI: 200, IfID: 0, Proto: dataplane.ProtoESP},
+		{SPI: 300, IfID: 7, Proto: dataplane.ProtoESP},
 	}, nil)
 
 	reg := recordingRegistry{values: map[string]float64{}}
@@ -291,4 +291,29 @@ func TestDataplaneGaugesDeleteAPeerThatWentAway(t *testing.T) {
 // the daemon down at startup rather than at a scrape.
 func TestIPsecMetricsRegisterOnPrometheus(t *testing.T) {
 	RegisterMetrics(metrics.NewPrometheusRegistry())
+}
+
+// A formerly clean series must disappear when a dump crosses a publication,
+// even if the returned SAD would satisfy the preceding generation.
+func TestDataplaneGaugesClearOnGenerationChange(t *testing.T) {
+	establishedPeer(t, "peer-a", 100, 200)
+	sas := []dataplane.SAInfo{{SPI: 100, Proto: dataplane.ProtoESP}, {SPI: 200, Proto: dataplane.ProtoESP}}
+	useDriftSAD(t, sas, nil)
+	reg := recordingRegistry{values: map[string]float64{}}
+	m := RegisterMetrics(reg)
+	m.Update()
+	if got, ok := reg.values["ze_ipsec_dataplane_drift{peer-a}"]; !ok || got != 0 {
+		t.Fatalf("initial observation drift = %v, present = %v", got, ok)
+	}
+	ps := ActivePeers()["peer-a"]
+	driftSAD = func() ([]dataplane.SAInfo, error) {
+		ps.setChildSA(&ChildSA{InboundSPI: 300, OutboundSPI: 400})
+		return sas, nil
+	}
+	m.Update()
+	for name := range reg.values {
+		if strings.HasPrefix(name, "ze_ipsec_dataplane_") {
+			t.Errorf("%s survived an inconclusive observation", name)
+		}
+	}
 }

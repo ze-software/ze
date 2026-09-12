@@ -1,4 +1,4 @@
-// Design: plan/immediate/spec-ipsec-dataplane-inspection.md -- kernel dataplane read surface
+// Design: docs/architecture/ike/ipsec-dataplane-inspection.md -- kernel dataplane read surface
 // RFC: rfc/short/rfc4301.md -- Section 4.4 keeps the SPD and the SAD separate
 // RFC: rfc/short/rfc4303.md -- Section 2.1 reserves the low SPI values
 // Related: show_ipsec.go -- the engine-belief siblings of these kernel readers
@@ -45,14 +45,8 @@ func init() {
 	)
 }
 
-// driftPeerInfo is the engine-belief half of the drift comparison.
-//
-// It is a variable so the comparison can be driven from a fixture. PeerInfoMap
-// derives its result from live PeerSession values, and building those to test a
-// set difference would test the session machinery instead of the comparison. The
-// engine keeps no seam of its own here, and adding one would change production
-// code to suit a test; this keeps the seam in the package that consumes it.
-var driftPeerInfo = engine.PeerInfoMap
+// observeDataplane supplies one generation-consistent observation to both commands.
+var observeDataplane = engine.ObserveDataplane
 
 // dataplaneReadError turns a failed dataplane read into an error RESPONSE that
 // names its cause.
@@ -65,6 +59,8 @@ var driftPeerInfo = engine.PeerInfoMap
 func dataplaneReadError(what string, err error) *plugin.Response {
 	var b textbuf.Buffer
 	switch {
+	case errors.Is(err, dataplane.ErrNotRegistered):
+		b.Str("no ipsec dataplane backend is loaded, so the kernel cannot be read; this is not the same answer as an empty dataplane")
 	case errors.Is(err, dataplane.ErrNotSupported):
 		b.Str("the active dataplane backend cannot enumerate the ").Str(what)
 		b.Str(": ").Err(err)
@@ -85,10 +81,7 @@ func dataplaneReadError(what string, err error) *plugin.Response {
 func activeDataplane() (dataplane.Dataplane, *plugin.Response) {
 	dp := dataplane.Get()
 	if dp == nil {
-		return nil, &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "no ipsec dataplane backend is loaded, so the kernel cannot be read; this is not the same answer as an empty dataplane",
-		}
+		return nil, dataplaneReadError("dataplane", dataplane.ErrNotRegistered)
 	}
 	return dp, nil
 }
@@ -235,28 +228,19 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 }
 
 func handleShowVPNIPsecDataplaneDrift(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	dp, errResp := activeDataplane()
-	if errResp != nil {
-		return errResp, nil
-	}
-
-	sas, err := dp.ListSAs(0)
+	observation, err := observeDataplane()
 	if err != nil {
 		return dataplaneReadError("SAD", err), nil
 	}
 
-	// The comparison runs in ONE direction: an SPI the engine expects that the
-	// kernel does not hold is drift. An SPI the kernel holds that the engine does
-	// not expect is NOT drift, and that asymmetry is what makes a rekey window
-	// quiet. RFC 7296 Section 2.8 has the old and the new Child SA coexist until
-	// the old one is deleted, so the kernel legitimately holds both while the
-	// engine names only the replacement.
-	inKernel := make(map[uint32]bool, len(sas))
-	for i := range sas {
-		inKernel[sas[i].SPI] = true
+	// Extra kernel identities are legitimate during make-before-break rekey.
+	inKernel := make(map[dataplane.SAIdentity]bool, len(observation.SAs))
+	for i := range observation.SAs {
+		sa := &observation.SAs[i]
+		inKernel[dataplane.IdentityOf(sa.SPI, sa.Dst, sa.Proto, sa.IfID)] = true
 	}
 
-	peers := driftPeerInfo()
+	peers := observation.Peers
 	names := make([]string, 0, len(peers))
 	for name := range peers {
 		names = append(names, name)
@@ -270,17 +254,17 @@ func handleShowVPNIPsecDataplaneDrift(_ *pluginserver.CommandContext, _ []string
 			continue
 		}
 		for _, want := range []struct {
-			spi uint32
+			id  dataplane.SAIdentity
 			dir string
 		}{
-			{info.ChildInSPI, "inbound"},
-			{info.ChildOutSPI, "outbound"},
+			{info.ChildInID, "inbound"},
+			{info.ChildOutID, "outbound"},
 		} {
-			if want.spi == 0 || inKernel[want.spi] {
+			if want.id.SPI == 0 || inKernel[want.id] {
 				continue
 			}
 			found = append(found, driftFinding{
-				peer: name, spi: want.spi, dir: want.dir, ifID: info.ChildIfID,
+				peer: name, spi: want.id.SPI, dir: want.dir, ifID: info.ChildIfID,
 			})
 		}
 	}
@@ -360,7 +344,12 @@ func portString(p dataplane.PortMatch) string {
 		return "any"
 	}
 	var b textbuf.Buffer
-	return b.Uint16(p.Port).String()
+	b.Reset().Uint16(p.Port)
+	if p.Mask != 0xffff {
+		mask := [2]byte{byte(p.Mask >> 8), byte(p.Mask)}
+		b.Str("/0x").Hex(mask[:])
+	}
+	return b.String()
 }
 
 // timeString renders the zero time as an empty string. The zero time means the

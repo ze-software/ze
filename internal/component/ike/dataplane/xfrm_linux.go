@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -500,8 +501,8 @@ func saInfoFromState(s *netlink.XfrmState) SAInfo {
 		ReplayWindow:   uint32(s.ReplayWindow),
 		BytesCurrent:   s.Statistics.Bytes,
 		PacketsCurrent: s.Statistics.Packets,
-		BytesHard:      s.Limits.ByteHard,
-		PacketsHard:    s.Limits.PacketHard,
+		BytesHard:      hardLimitFromKernel(s.Limits.ByteHard),
+		PacketsHard:    hardLimitFromKernel(s.Limits.PacketHard),
 		AddedAt:        unixOrZero(s.Statistics.AddTime),
 		UsedAt:         unixOrZero(s.Statistics.UseTime),
 	}
@@ -524,6 +525,14 @@ func saInfoFromState(s *netlink.XfrmState) SAInfo {
 		info.IntegrityKeyBits = len(s.Auth.Key) * 8
 	}
 	return info
+}
+
+// hardLimitFromKernel maps XFRM_INF to the public unlimited value.
+func hardLimitFromKernel(limit uint64) uint64 {
+	if limit == nl.XFRM_INF {
+		return 0
+	}
+	return limit
 }
 
 // unixOrZero converts a kernel epoch stamp, keeping "never" distinct from 1970.
@@ -558,21 +567,19 @@ func (b *xfrmBackend) ListPolicies() ([]PolicyInfo, error) {
 // alone and stores no installer, so the only way to name one is to invert the
 // kernel row back into the SPParams key policyOwners recorded at install time.
 //
-// That inversion is lossless for every policy ze can install, and the reason is
-// xfrmSelectorPort: it REFUSES any port mask other than 0 or 0xffff, so the
-// kernel's mask-free port maps back to exactly AnyPortMatch or ExactPortMatch.
-// A backend that could install a partial mask would need the mask from the
-// kernel, and netlink's parseXfrmPolicy discards it.
+// The dump retains prefix families and raw port masks. Ownership therefore
+// compares the full selector, including constraints from foreign writers that
+// xfrmSelectorPort cannot install.
 //
 // A policy ze did not install resolves to no owner. That is the common case on a
 // node running another IKE daemon, and OwnerKnown false is the answer, never a
 // blank owner and never a nearest match.
 func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 	info := PolicyInfo{
-		Src:        normalizeSelectorPrefix(p.Src),
-		Dst:        normalizeSelectorPrefix(p.Dst),
-		SrcPort:    portMatchFromKernel(p.SrcPort),
-		DstPort:    portMatchFromKernel(p.DstPort),
+		Src:        p.Src,
+		Dst:        p.Dst,
+		SrcPort:    PortMatch{Port: uint16(p.SrcPort), Mask: p.SrcPortMask},
+		DstPort:    PortMatch{Port: uint16(p.DstPort), Mask: p.DstPortMask},
 		Dir:        SADir(p.Dir) + 1,
 		UpperProto: uint8(p.Proto),
 		Priority:   p.Priority,
@@ -614,39 +621,6 @@ func (b *xfrmBackend) policyInfoFromKernel(p *netlink.XfrmPolicy) PolicyInfo {
 		IfID:       info.IfID,
 	})
 	return info
-}
-
-// normalizeSelectorPrefix turns the kernel's materialized wildcard back into the
-// nil prefix ze installs.
-//
-// policySelectorKey renders a nil prefix as the empty string (cidrKey), while
-// the kernel always returns a real *net.IPNet and writes a wildcard as 0.0.0.0/0
-// or ::/0. Left alone, a site-to-site policy installed with a nil selector would
-// never match its own ownership record, and every such row would report no
-// owner. The prefix is the SAME selector either way, so this is normalization,
-// not a guess.
-func normalizeSelectorPrefix(n *net.IPNet) *net.IPNet {
-	if n == nil {
-		return nil
-	}
-	ones, bits := n.Mask.Size()
-	if ones == 0 && bits != 0 && n.IP.IsUnspecified() {
-		return nil
-	}
-	return n
-}
-
-// portMatchFromKernel inverts one kernel selector port.
-//
-// The kernel selector carries a port and a mask, but netlink's parseXfrmPolicy
-// keeps only the port. The inverse is still exact HERE because xfrmSelectorPort
-// refuses to install any mask but 0 or 0xffff: port 0 was written by an any
-// match, and a non-zero port by an exact one.
-func portMatchFromKernel(port int) PortMatch {
-	if port == 0 {
-		return AnyPortMatch()
-	}
-	return ExactPortMatch(uint16(port))
 }
 
 // zeXFRMMode is the inverse of kernelXFRMMode. The two constant sets are offset

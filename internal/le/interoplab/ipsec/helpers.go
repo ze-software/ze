@@ -15,6 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
@@ -1097,18 +1100,20 @@ func requireSameSPISet(first, second map[uint32]struct{}, firstName, secondName 
 	return nil
 }
 
-// requireSPISetChanged refuses unless the rekey REPLACED at least one SPI.
-//
-// RFC 7296 Section 2.8 replaces the Child SA's SPI while the selector stays
-// identical, so an unchanged set is the evidence the rekey never reached the
-// kernel. An empty set after the rekey is refused for the reason above: it would
-// satisfy "changed" while proving the readers stopped answering.
+// requireSPISetChanged requires a nonempty replacement with every old SPI gone.
+// Callers MUST poll through the RFC 7296 Section 2.8 cleanup window before
+// treating an overlapping set as a failed rekey.
 func requireSPISetChanged(before, after map[uint32]struct{}) error {
+	if len(before) == 0 {
+		return errors.New("no ESP SPI was observed before rekey")
+	}
 	if len(after) == 0 {
 		return fmt.Errorf("the kernel SAD reports no ESP SPI after the rekey, so the change is unproven; before: %v", sortedSPIs(before))
 	}
-	if sameSPISet(before, after) {
-		return fmt.Errorf("the ESP SPI set did not change across the rekey: %v", sortedSPIs(after))
+	for spi := range before {
+		if _, remains := after[spi]; remains {
+			return fmt.Errorf("old ESP SPI %#x remains after rekey: before %v, after %v", spi, sortedSPIs(before), sortedSPIs(after))
+		}
 	}
 	return nil
 }
@@ -1134,4 +1139,362 @@ func sortedSPIs(spis map[uint32]struct{}) []uint32 {
 	}
 	slices.Sort(out)
 	return out
+}
+
+type zeChildCounters struct {
+	InboundSPI    uint32  `json:"inbound-spi"`
+	OutboundSPI   uint32  `json:"outbound-spi"`
+	IfID          uint32  `json:"if-id"`
+	BytesOut      *uint64 `json:"bytes-out"`
+	BytesIn       *uint64 `json:"bytes-in"`
+	PacketsOut    *uint64 `json:"packets-out"`
+	PacketsIn     *uint64 `json:"packets-in"`
+	CountersKnown bool    `json:"counters-known"`
+}
+
+type zeIKESARecord struct {
+	Peer  string           `json:"peer-name"`
+	Child *zeChildCounters `json:"child-sa"`
+}
+
+type readbackSAKey struct {
+	source string
+	target string
+	spi    uint32
+	ifID   uint32
+}
+
+type espLifetime struct {
+	bytes   uint64
+	packets uint64
+}
+
+var xfrmLifetime = regexp.MustCompile(`(\d+)\(bytes\),\s*(\d+)\(packets\)`)
+
+// readbackLifetimes reads only ESP lifetime-current counters. Other protocols
+// cannot satisfy a Child SA lookup, even when they reuse its SPI.
+func readbackLifetimes(output string) (map[readbackSAKey]espLifetime, error) {
+	result := make(map[readbackSAKey]espLifetime)
+	var key readbackSAKey
+	var lifetime espLifetime
+	var esp, current, known bool
+	flush := func() error {
+		if !esp {
+			return nil
+		}
+		if key.source == "" || key.target == "" || key.spi == 0 || !known {
+			return fmt.Errorf("ESP state has incomplete identity or lifetime-current counters: %s", output)
+		}
+		if _, duplicate := result[key]; duplicate {
+			return fmt.Errorf("duplicate directed ESP state: %+v", key)
+		}
+		result[key] = lifetime
+		return nil
+	}
+	for line := range strings.SplitSeq(output, "\n") {
+		if match := srcDstPattern.FindStringSubmatch(line); match != nil {
+			if err := flush(); err != nil {
+				return nil, err
+			}
+			key = readbackSAKey{source: match[1], target: match[2]}
+			lifetime = espLifetime{}
+			esp, current, known = false, false, false
+			continue
+		}
+		if match := espSPIPattern.FindStringSubmatch(line); match != nil {
+			spi, err := strconv.ParseUint(match[1], 0, 32)
+			if err != nil {
+				return nil, err
+			}
+			key.spi, esp = uint32(spi), true
+		}
+		fields := strings.Fields(line)
+		for i := 0; i+1 < len(fields); i++ {
+			if fields[i] == "if_id" {
+				ifID, err := strconv.ParseUint(fields[i+1], 0, 32)
+				if err != nil {
+					return nil, err
+				}
+				key.ifID = uint32(ifID)
+			}
+		}
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "lifetime current") {
+			current = true
+		} else if strings.HasPrefix(trimmed, "lifetime config") || strings.HasPrefix(trimmed, "stats") {
+			current = false
+		}
+		if current && esp {
+			if match := xfrmLifetime.FindStringSubmatch(line); match != nil {
+				bytes, err := strconv.ParseUint(match[1], 10, 64)
+				if err != nil {
+					return nil, err
+				}
+				packets, err := strconv.ParseUint(match[2], 10, 64)
+				if err != nil {
+					return nil, err
+				}
+				lifetime, known = espLifetime{bytes: bytes, packets: packets}, true
+			}
+		}
+	}
+	if err := flush(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (l *scenarioLab) readbackCounters(ctx context.Context) (zeChildCounters, map[readbackSAKey]espLifetime, error) {
+	answer, err := l.zeCLI(ctx, "show vpn ipsec sa | json")
+	if err != nil {
+		return zeChildCounters{}, nil, err
+	}
+	var records []zeIKESARecord
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &records); err != nil {
+		return zeChildCounters{}, nil, fmt.Errorf("decode Child SA counters: %w; answer: %s", err, answer)
+	}
+	var child *zeChildCounters
+	for i := range records {
+		if records[i].Peer == "swan" && records[i].Child != nil {
+			if child != nil {
+				return zeChildCounters{}, nil, fmt.Errorf("multiple Child SA records for swan: %s", answer)
+			}
+			child = records[i].Child
+		}
+	}
+	if child == nil {
+		return zeChildCounters{}, nil, fmt.Errorf("no Child SA counters for swan: %s", answer)
+	}
+	output, err := l.exec(ctx, zePeer, "ip", "-s", "xfrm", "state")
+	if err != nil {
+		return zeChildCounters{}, nil, err
+	}
+	counters, err := readbackLifetimes(output)
+	if err != nil {
+		return zeChildCounters{}, nil, err
+	}
+	if err := requireDirectedCounters(*child, counters); err != nil {
+		return zeChildCounters{}, nil, err
+	}
+	return *child, counters, nil
+}
+
+func requireDirectedCounters(child zeChildCounters, kernel map[readbackSAKey]espLifetime) error {
+	if !child.CountersKnown {
+		return errors.New("Child SA reports unknown counters over a readable kernel")
+	}
+	for _, direction := range []struct {
+		key     readbackSAKey
+		bytes   *uint64
+		packets *uint64
+	}{
+		{readbackSAKey{zeIP, swanIP, child.OutboundSPI, child.IfID}, child.BytesOut, child.PacketsOut},
+		{readbackSAKey{swanIP, zeIP, child.InboundSPI, child.IfID}, child.BytesIn, child.PacketsIn},
+	} {
+		observed, ok := kernel[direction.key]
+		if !ok || direction.bytes == nil || direction.packets == nil {
+			return fmt.Errorf("missing directed kernel or CLI counters for %+v", direction.key)
+		}
+		if *direction.bytes != observed.bytes || *direction.packets != observed.packets {
+			return fmt.Errorf("directed counter mismatch for %+v: CLI bytes=%d packets=%d, kernel bytes=%d packets=%d",
+				direction.key, *direction.bytes, *direction.packets, observed.bytes, observed.packets)
+		}
+	}
+	return nil
+}
+
+const dataplaneCountMetric = "ze_ipsec_dataplane_sa_count"
+const dataplaneDriftMetric = "ze_ipsec_dataplane_drift"
+
+type dataplaneGauges struct {
+	count map[string]float64
+	drift map[string]float64
+}
+
+func decodeDataplaneGauges(answer string) (dataplaneGauges, error) {
+	parser := expfmt.NewTextParser(model.UTF8Validation)
+	families, err := parser.TextToMetricFamilies(strings.NewReader(answer))
+	if err != nil {
+		return dataplaneGauges{}, err
+	}
+	gauges := dataplaneGauges{count: make(map[string]float64), drift: make(map[string]float64)}
+	for _, family := range []struct {
+		name   string
+		label  string
+		values map[string]float64
+	}{
+		{dataplaneCountMetric, "if_id", gauges.count},
+		{dataplaneDriftMetric, "peer", gauges.drift},
+	} {
+		for _, metric := range families[family.name].GetMetric() {
+			if metric.Gauge == nil || len(metric.Label) != 1 || metric.Label[0].GetName() != family.label {
+				return dataplaneGauges{}, fmt.Errorf("%s has an unexpected type or label set", family.name)
+			}
+			label := metric.Label[0].GetValue()
+			if _, duplicate := family.values[label]; duplicate {
+				return dataplaneGauges{}, fmt.Errorf("%s repeats label %q", family.name, label)
+			}
+			family.values[label] = metric.Gauge.GetValue()
+		}
+	}
+	return gauges, nil
+}
+
+func requireDataplaneGauges(got, want dataplaneGauges) error {
+	for _, family := range []struct {
+		name string
+		got  map[string]float64
+		want map[string]float64
+	}{
+		{dataplaneCountMetric, got.count, want.count},
+		{dataplaneDriftMetric, got.drift, want.drift},
+	} {
+		if len(family.got) != len(family.want) {
+			return fmt.Errorf("%s series: got %v, want %v", family.name, family.got, family.want)
+		}
+		for label, want := range family.want {
+			got, present := family.got[label]
+			if !present || got != want {
+				return fmt.Errorf("%s{%s}: got %v (present %t), want %v", family.name, label, got, present, want)
+			}
+		}
+	}
+	return nil
+}
+
+func (l *scenarioLab) waitDataplaneGauges(ctx context.Context, want dataplaneGauges) error {
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: probeWaitTimeout, Interval: time.Second, Description: "live Prometheus dataplane gauge transition",
+	}, func(probe context.Context) (bool, error) {
+		answer, err := l.query(probe, zePeer, "python3", "-c",
+			"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:9273/metrics', timeout=3).read().decode())")
+		if err != nil {
+			return false, err
+		}
+		got, err := decodeDataplaneGauges(answer)
+		if err != nil {
+			return false, err
+		}
+		if err := requireDataplaneGauges(got, want); err != nil {
+			return false, err
+		}
+		return true, nil
+	}, func(ready bool) bool { return ready })
+	return err
+}
+
+// unreadableDataplaneProbe MUST restore the soft limit before returning. The
+// watchdog restores it even if docker exec's caller loses the helper process.
+// Its HTTP socket stays open throughout; reconnecting would test accept(), not
+// the netlink dump that publishDataplaneGauges performs on its five-second tick.
+const unreadableDataplaneProbe = `
+import http.client
+import json
+import os
+import resource
+import select
+import signal
+import time
+
+class HeldHTTP(http.client.HTTPConnection):
+    sealed = False
+    def connect(self):
+        if self.sealed:
+            raise RuntimeError("metrics connection closed during NOFILE fault")
+        super().connect()
+
+http = HeldHTTP("127.0.0.1", 9273, timeout=3)
+def get(path):
+    http.request("GET", path)
+    response = http.getresponse()
+    body = response.read().decode()
+    if response.status != 200 and not (path == "/health" and response.status == 503):
+        raise RuntimeError("HTTP %d: %s" % (response.status, body))
+    return body
+
+before = get("/metrics")
+http.sealed = True
+if http.sock is None:
+    raise RuntimeError("exporter did not preserve the warmed HTTP connection")
+children = open("/proc/1/task/1/children").read().split()
+pids = [int(pid) for pid in children if os.path.basename(os.readlink("/proc/" + pid + "/exe")) == "ze"]
+if len(pids) != 1:
+    raise RuntimeError("expected one Ze child of tini, found %r" % pids)
+pid = pids[0]
+original = resource.prlimit(pid, resource.RLIMIT_NOFILE)
+watchdog = os.fork()
+if watchdog == 0:
+    http.close()
+    # sleep(poll): watchdog restores the daemon limit at its absolute fault deadline.
+    select.select([], [], [], 25)
+    try:
+        resource.prlimit(pid, resource.RLIMIT_NOFILE, original)
+    except ProcessLookupError:
+        pass
+    os._exit(0)
+
+def interrupted(signum, frame):
+    raise RuntimeError("NOFILE probe interrupted by signal %d" % signum)
+signal.signal(signal.SIGTERM, interrupted)
+signal.signal(signal.SIGINT, interrupted)
+try:
+    resource.prlimit(pid, resource.RLIMIT_NOFILE, (0, original[1]))
+    if resource.prlimit(pid, resource.RLIMIT_NOFILE) != (0, original[1]):
+        raise RuntimeError("daemon soft NOFILE limit was not lowered")
+    deadline = time.monotonic() + 18
+    prefixes = ("ze_ipsec_dataplane_sa_count{", "ze_ipsec_dataplane_drift{")
+    while True:
+        unknown = get("/metrics")
+        if not any(line.startswith(prefixes) for line in unknown.splitlines()):
+            break
+        if time.monotonic() >= deadline:
+            raise RuntimeError("dataplane series survived unreadable kernel: " + unknown)
+        # sleep(poll): poll the existing connection until the metrics tick removes both series.
+        select.select([], [], [], 0.25)
+    health = json.loads(get("/health"))
+    ipsec = [row for row in health["components"] if row["name"] == "ipsec"]
+    if len(ipsec) != 1:
+        raise RuntimeError("unreadable dataplane omitted its health probe: %r" % health)
+    reason = ipsec[0].get("reason", "").casefold()
+    unreadable = any(term in reason for term in ("unknown", "unreadable", "cannot determine"))
+    if ipsec[0]["status"] == "healthy" or "dataplane" not in reason or "drift" in reason or not unreadable:
+        raise RuntimeError("unreadable dataplane did not report an unknown observation: %r" % health)
+finally:
+    resource.prlimit(pid, resource.RLIMIT_NOFILE, original)
+    os.kill(watchdog, signal.SIGTERM)
+    os.waitpid(watchdog, 0)
+    http.close()
+print(json.dumps({"before": before, "unknown": unknown}))
+`
+
+func (l *scenarioLab) requireUnreadableDataplane(ctx context.Context, wantBefore dataplaneGauges) error {
+	answer, err := l.query(ctx, zePeer, "python3", "-c", unreadableDataplaneProbe)
+	if err != nil {
+		return fmt.Errorf("bounded daemon NOFILE fault: %w", err)
+	}
+	var observed struct {
+		Before  string `json:"before"`
+		Unknown string `json:"unknown"`
+	}
+	if err := json.Unmarshal([]byte(answer), &observed); err != nil {
+		return err
+	}
+	before, err := decodeDataplaneGauges(observed.Before)
+	if err != nil {
+		return err
+	}
+	if err := requireDataplaneGauges(before, wantBefore); err != nil {
+		return fmt.Errorf("before NOFILE fault: %w", err)
+	}
+	unknown, err := decodeDataplaneGauges(observed.Unknown)
+	if err != nil {
+		return err
+	}
+	if err := requireDataplaneGauges(unknown, dataplaneGauges{}); err != nil {
+		return fmt.Errorf("during NOFILE fault: %w", err)
+	}
+	if err := l.waitDataplaneGauges(ctx, wantBefore); err != nil {
+		return err
+	}
+	return requireLiveDataplaneHealth(ctx, l, true)
 }

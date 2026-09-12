@@ -206,10 +206,8 @@ func applyDisplaySelect(input string, request columnRequest) (string, string) {
 		return selected, ""
 	}
 
-	decoder := json.NewDecoder(strings.NewReader(payload))
-	decoder.UseNumber()
 	var data any
-	if err := decoder.Decode(&data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(payload), &data); err != nil {
 		return input, ""
 	}
 	selected, matched := selectFields(data, keep)

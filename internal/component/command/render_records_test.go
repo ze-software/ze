@@ -1331,6 +1331,65 @@ func TestNDJSONLineTransformsTreatFaultsAsRenderedLines(t *testing.T) {
 	}
 }
 
+func TestRenderRecordsIntegerPrecision(t *testing.T) {
+	ResetShapesForTest()
+	t.Cleanup(ResetShapesForTest)
+	RegisterShape([]string{"show test integer records"}, ShapeTab)
+	ResetAddressFieldsForTest()
+	t.Cleanup(ResetAddressFieldsForTest)
+	RegisterAddressFields([]string{"show test integer records"}, "address")
+	for _, positional := range []bool{false, true} {
+		for _, count := range []int{rpc.AnswerBufferThreshold, rpc.AnswerBufferThreshold + 1} {
+			for _, chain := range []string{
+				"json compact",
+				"ndjson",
+				"resolve | origin | ndjson",
+				"display bytes packets | ndjson",
+				"ndjson | match 9007199254740993",
+				"yaml",
+				"table",
+				"text",
+			} {
+				name := textbuf.StringInt(int64(count)) + "/" + chain
+				if positional {
+					name += "/positional"
+				}
+				t.Run(name, func(t *testing.T) {
+					var fields []string
+					item := json.RawMessage(`{"address":"*","bytes":18446744073709551615,"packets":9007199254740993}`)
+					if positional {
+						fields = []string{"address", "bytes", "packets"}
+						item = json.RawMessage(`["*",18446744073709551615,9007199254740993]`)
+					}
+					records := func(yield func(rpc.Record) bool) {
+						for range count {
+							if !yield(rpc.Record{Item: item}) {
+								return
+							}
+						}
+					}
+					var out bytes.Buffer
+					answer, err := RenderRecords(&out, "show test integer records | "+chain, "", "rows", fields, records)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if answer.Count != uint64(count) {
+						t.Fatalf("rendered %d records, want %d: %s", answer.Count, count, out.String())
+					}
+					for _, value := range []string{"18446744073709551615", "9007199254740993"} {
+						if got := strings.Count(out.String(), value); got != count {
+							t.Errorf("exact counter %s occurs %d times, want %d", value, got, count)
+						}
+						if strings.Contains(out.String(), `"`+value+`"`) {
+							t.Errorf("counter %s was quoted", value)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
 // TestNDJSONLineSpellingDoesNotChangeAtTheThreshold keeps mixed result and
 // fault answers as one canonical JSON value per line on both sides of the
 // document/stream framing boundary.

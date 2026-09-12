@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -16,6 +17,21 @@ var (
 	ErrNotRegistered = errors.New("dataplane: no backend registered")
 	ErrNotSupported  = errors.New("dataplane: operation not supported on this platform")
 )
+
+// SAIdentity is the destination-qualified SAD key, including the XFRM interface.
+// It is comparable and normalizes IPv4 addresses without allocating strings.
+type SAIdentity struct {
+	SPI   uint32
+	Dst   netip.Addr
+	Proto uint8
+	IfID  uint32
+}
+
+// IdentityOf returns the same key for net.IP's four-byte and sixteen-byte IPv4 forms.
+func IdentityOf(spi uint32, dst net.IP, proto uint8, ifID uint32) SAIdentity {
+	addr, _ := netip.AddrFromSlice(dst)
+	return SAIdentity{SPI: spi, Dst: addr.Unmap(), Proto: proto, IfID: ifID}
+}
 
 // SADir is the direction of a Security Association / Policy.
 type SADir uint8

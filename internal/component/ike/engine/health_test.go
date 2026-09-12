@@ -49,6 +49,7 @@ func TestIPsecHealthCheck_Degraded(t *testing.T) {
 }
 
 func TestIPsecHealthCheck_Healthy(t *testing.T) {
+	useDriftSAD(t, nil, nil)
 	table := NewSATable()
 	sa := &SA{PeerName: "peer-a", State: StateEstablished}
 	sa.InitiatorSPI = [8]byte{1, 2, 3, 4, 5, 6, 7, 8}

@@ -7,7 +7,6 @@
 package command
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
@@ -43,7 +42,7 @@ func ApplyTable(input string) string {
 // Non-JSON input passes through unchanged.
 func applyTableStyled(input string, style tableStyle) string {
 	var data any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
+	if err := decodePipeJSON(strings.NewReader(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
 	return style.renderValue(data)

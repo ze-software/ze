@@ -251,7 +251,7 @@ func renderedRecordCount(rendered string, hasMetadata bool) uint64 {
 		return 0
 	}
 	var data any
-	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
+	if err := decodePipeJSON(strings.NewReader(trimmed), &data); err == nil {
 		if object, ok := data.(map[string]any); ok {
 			if hasMetadata {
 				delete(object, pipeMetaKey)

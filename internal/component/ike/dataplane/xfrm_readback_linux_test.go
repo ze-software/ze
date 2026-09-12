@@ -254,14 +254,15 @@ func TestPolicyDirectionIsOffsetFromKernel(t *testing.T) {
 func TestPolicyInfoCarriesSelectorAndTemplate(t *testing.T) {
 	b := &xfrmBackend{}
 	got := b.policyInfoFromKernel(&netlink.XfrmPolicy{
-		Src:      mustPrefix(t, "192.168.1.0/24"),
-		Dst:      mustPrefix(t, "192.168.2.0/24"),
-		Proto:    netlink.Proto(89),
-		SrcPort:  0,
-		DstPort:  4500,
-		Dir:      netlink.XFRM_DIR_OUT,
-		Priority: 1000,
-		Ifid:     3,
+		Src:         mustPrefix(t, "192.168.1.0/24"),
+		Dst:         mustPrefix(t, "192.168.2.0/24"),
+		Proto:       netlink.Proto(89),
+		SrcPort:     0,
+		DstPort:     4500,
+		DstPortMask: 0xffff,
+		Dir:         netlink.XFRM_DIR_OUT,
+		Priority:    1000,
+		Ifid:        3,
 		Tmpls: []netlink.XfrmPolicyTmpl{{
 			Src:   net.ParseIP("10.0.0.1"),
 			Dst:   net.ParseIP("10.0.0.2"),
@@ -316,13 +317,8 @@ func TestPolicyBypassRecognized(t *testing.T) {
 	}
 }
 
-// TestPolicyOwnerJoinRoundTrips is A-7's evidence: a policy ze installed is
-// found again in the ownership registry after a round trip through the kernel's
-// representation, for every selector shape ze can install.
-//
-// The kernel drops the port MASK, and the join survives that only because
-// xfrmSelectorPort refuses to install a mask other than 0 or 0xffff. Each case
-// below is one of the shapes that survives.
+// TestPolicyOwnerJoinRoundTrips resolves installed selectors from decoded
+// kernel records, including explicit full-tunnel prefixes and raw port masks.
 func TestPolicyOwnerJoinRoundTrips(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -353,18 +349,18 @@ func TestPolicyOwnerJoinRoundTrips(t *testing.T) {
 				DstPort:    ExactPortMatch(4500),
 			},
 			kernel: netlink.XfrmPolicy{
-				Src:     mustPrefix(t, "10.1.0.0/16"),
-				Dst:     mustPrefix(t, "10.2.0.0/16"),
-				Dir:     netlink.XFRM_DIR_IN,
-				Proto:   netlink.Proto(17),
-				SrcPort: 500,
-				DstPort: 4500,
+				Src:         mustPrefix(t, "10.1.0.0/16"),
+				Dst:         mustPrefix(t, "10.2.0.0/16"),
+				Dir:         netlink.XFRM_DIR_IN,
+				Proto:       netlink.Proto(17),
+				SrcPort:     500,
+				DstPort:     4500,
+				SrcPortMask: 0xffff,
+				DstPortMask: 0xffff,
 			},
 		},
 		{
-			// The site-to-site case, and the one that fails without
-			// normalizeSelectorPrefix: ze installs a nil selector and the kernel
-			// dumps a materialized 0.0.0.0/0.
+			// The writer defaults a nil destination to IPv4.
 			name: "wildcard selector installed as nil, dumped as 0.0.0.0/0",
 			params: SPParams{
 				Src: nil,
@@ -380,14 +376,39 @@ func TestPolicyOwnerJoinRoundTrips(t *testing.T) {
 		{
 			name: "wildcard selector, IPv6",
 			params: SPParams{
-				Src: nil,
-				Dst: nil,
+				Src: mustPrefix(t, "::/0"),
+				Dst: mustPrefix(t, "::/0"),
 				Dir: SADirIn,
 			},
 			kernel: netlink.XfrmPolicy{
 				Src: mustPrefix(t, "::/0"),
 				Dst: mustPrefix(t, "::/0"),
 				Dir: netlink.XFRM_DIR_IN,
+			},
+		},
+		{
+			name: "explicit IPv4 full-tunnel selector",
+			params: SPParams{
+				Src: mustPrefix(t, "0.0.0.0/0"),
+				Dst: mustPrefix(t, "0.0.0.0/0"),
+				Dir: SADirOut,
+			},
+			kernel: netlink.XfrmPolicy{
+				Src: mustPrefix(t, "0.0.0.0/0"),
+				Dst: mustPrefix(t, "0.0.0.0/0"),
+				Dir: netlink.XFRM_DIR_OUT,
+			},
+		},
+		{
+			name: "nil source inherits IPv6 destination family",
+			params: SPParams{
+				Dst: mustPrefix(t, "2001:db8:1::/64"),
+				Dir: SADirOut,
+			},
+			kernel: netlink.XfrmPolicy{
+				Src: mustPrefix(t, "::/0"),
+				Dst: mustPrefix(t, "2001:db8:1::/64"),
+				Dir: netlink.XFRM_DIR_OUT,
 			},
 		},
 		{
@@ -463,13 +484,9 @@ func TestSAInfoCountersAreNotNarrowed(t *testing.T) {
 	const beyond32Bits = uint64(1)<<32 + 12345
 	got := saInfoFromState(&netlink.XfrmState{
 		Statistics: netlink.XfrmStateStats{Bytes: beyond32Bits, Packets: beyond32Bits},
-		Limits:     netlink.XfrmStateLimits{ByteHard: ^uint64(0), PacketHard: ^uint64(0)},
 	})
 	if got.BytesCurrent != beyond32Bits || got.PacketsCurrent != beyond32Bits {
 		t.Errorf("counters narrowed: got %d/%d, want %d", got.BytesCurrent, got.PacketsCurrent, beyond32Bits)
-	}
-	if got.BytesHard != ^uint64(0) || got.PacketsHard != ^uint64(0) {
-		t.Errorf("hard limits narrowed: got %d/%d, want %d", got.BytesHard, got.PacketsHard, ^uint64(0))
 	}
 }
 
@@ -480,5 +497,71 @@ func TestSAInfoMaxSPI(t *testing.T) {
 	got := saInfoFromState(&netlink.XfrmState{Spi: int(^uint32(0))})
 	if got.SPI != ^uint32(0) {
 		t.Errorf("SPI = %d, want %d", got.SPI, ^uint32(0))
+	}
+}
+
+// VALIDATES: only the kernel's unlimited sentinel is translated; the largest
+// finite limits survive the read boundary without narrowing or saturation.
+func TestSAInfoHardLimitSentinel(t *testing.T) {
+	const maxFinite = ^uint64(0) - 1
+	cases := []struct {
+		limits                 netlink.XfrmStateLimits
+		wantBytes, wantPackets uint64
+	}{
+		{netlink.XfrmStateLimits{ByteHard: ^uint64(0), PacketHard: maxFinite}, 0, maxFinite},
+		{netlink.XfrmStateLimits{ByteHard: maxFinite, PacketHard: ^uint64(0)}, maxFinite, 0},
+	}
+	for _, tc := range cases {
+		got := saInfoFromState(&netlink.XfrmState{Limits: tc.limits})
+		if got.BytesHard != tc.wantBytes || got.PacketsHard != tc.wantPackets {
+			t.Errorf("hard limits = %d/%d, want %d/%d", got.BytesHard, got.PacketsHard, tc.wantBytes, tc.wantPackets)
+		}
+	}
+}
+
+// VALIDATES: readback retains foreign constraints even when a Ze-owned policy
+// has the same addresses and port values. Masks are part of policy identity.
+func TestPolicyReadbackForeignPortMasks(t *testing.T) {
+	b := &xfrmBackend{}
+	claim := SPParams{
+		Src: mustPrefix(t, "10.88.4.0/24"), Dst: mustPrefix(t, "10.88.5.0/24"),
+		Dir: SADirOut, UpperProto: 17, SrcPort: ExactPortMatch(0x1200),
+		Owner: "exact-port-peer",
+	}
+	if _, err := b.policies.claim(claim); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		src, dst PortMatch
+	}{
+		{PortMatch{Port: 0x1200, Mask: 0xff00}, AnyPortMatch()},
+		{ExactPortMatch(0x1200), ExactPortMatch(0)},
+		{PortMatch{Port: 0x1200, Mask: 0}, PortMatch{Port: 0x3400, Mask: 0xff00}},
+	}
+	for _, tc := range cases {
+		got := b.policyInfoFromKernel(&netlink.XfrmPolicy{
+			Src: claim.Src, Dst: claim.Dst, Dir: netlink.XFRM_DIR_OUT, Proto: 17,
+			SrcPort: int(tc.src.Port), SrcPortMask: tc.src.Mask,
+			DstPort: int(tc.dst.Port), DstPortMask: tc.dst.Mask,
+		})
+		if got.SrcPort != tc.src || got.DstPort != tc.dst {
+			t.Errorf("port matches = %+v/%+v, want %+v/%+v", got.SrcPort, got.DstPort, tc.src, tc.dst)
+		}
+		if got.OwnerKnown || got.Owner != "" {
+			t.Errorf("foreign policy acquired owner %q", got.Owner)
+		}
+	}
+}
+
+func TestPolicyReadbackSeparatesWildcardFamilies(t *testing.T) {
+	b := &xfrmBackend{}
+	if _, err := b.policies.claim(SPParams{Dir: SADirOut, Owner: "ipv4-peer"}); err != nil {
+		t.Fatal(err)
+	}
+	got := b.policyInfoFromKernel(&netlink.XfrmPolicy{
+		Src: mustPrefix(t, "::/0"), Dst: mustPrefix(t, "::/0"), Dir: netlink.XFRM_DIR_OUT,
+	})
+	if got.OwnerKnown || got.Owner != "" {
+		t.Fatalf("IPv6 wildcard acquired IPv4 owner %q", got.Owner)
 	}
 }

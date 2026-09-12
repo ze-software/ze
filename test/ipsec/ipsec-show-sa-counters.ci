@@ -1,5 +1,5 @@
 # Functional test: show vpn ipsec sa reports counters SOURCED from the kernel SAD.
-# Spec: plan/immediate/spec-ipsec-dataplane-inspection.md (AC-8, user story 4)
+# Spec: spec-ipsec-dataplane-inspection (AC-8, user story 4)
 #
 # VALIDATES: over a real kernel, `show vpn ipsec sa | json` reports
 #            `counters-known` true and a NUMERIC `bytes-out`, `bytes-in`,
@@ -134,9 +134,8 @@ vpn {
 }
 EOF_INITIATOR
 
-cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator:name=initiator
+cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=initiator
 cmd=foreground:seq=2:exec=ze -:stdin=responder:timeout=110s
-cmd=stop:seq=3:name=initiator:signal=term
 
 # ── Engine steps, dispatched inside the responder ──
 

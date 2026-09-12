@@ -671,8 +671,10 @@ keep their own default when it does not parse, so it is refused here instead.
 without blocking later steps. Its peers or observer determine when teardown starts.
 **Stop:** Terminates a named background process mid-test (see below).
 
-When an embedded observer sends `request shutdown`, teardown gives that daemon
-its bounded self-stop grace before stopping the other background processes.
+When an embedded observer sends `request shutdown`, teardown waits out that
+daemon's bounded self-stop grace before it stops any other background process,
+whatever order those processes started in. A helper the daemon still talks to
+during its own shutdown stays up for that wait.
 
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, startBackgroundLifetime -->
 <!-- source: internal/test/runner/runner_exec_util.go -- tmpfsRequestsDaemonShutdown, terminateAfterSelfExit -->

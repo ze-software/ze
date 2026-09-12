@@ -261,6 +261,171 @@ func TestApplyTakeRefusesOneValue(t *testing.T) {
 	}
 }
 
+// A renderer or row transform must never round a uint64 counter through float64.
+func TestApplyPipesIntegerPrecision(t *testing.T) {
+	const row = `{"bytes":18446744073709551615,"known":true,"packets":9007199254740993,"ratio":1.5,"unknown":null}`
+	const selected = `{"bytes":18446744073709551615,"packets":9007199254740993}`
+	input := `{"rows":[` + row + `]}`
+	tests := []struct {
+		chain string
+		want  string
+	}{
+		{"json compact", "[" + row + "]"},
+		{"json pretty", "[" + row + "]"},
+		{"ndjson", row},
+		{"first 1 | json compact", "[" + row + "]"},
+		{"last 1 | ndjson", row},
+		{"match 9007199254740993 | json compact", "[" + row + "]"},
+		{"display bytes packets | json compact", "[" + selected + "]"},
+		{"resolve | json compact", "[" + row + "]"},
+		{"origin | ndjson", row},
+		{"json compact | first 1", "[" + row + "]"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.chain, func(t *testing.T) {
+			_, ops := ParsePipe("show test | " + tt.chain)
+			for i := range ops {
+				if isAddressOp(ops[i].kind) {
+					ops[i].allAddressFields = true
+				}
+			}
+			got, msg := ApplyPipes(input, ops, nil, nil)
+			if msg != "" {
+				t.Fatal(msg)
+			}
+			var compact bytes.Buffer
+			if err := json.Compact(&compact, []byte(got)); err != nil {
+				t.Fatalf("invalid JSON output %q: %v", got, err)
+			}
+			if compact.String() != tt.want {
+				t.Errorf("answer = %s, want %s", compact.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestStandalonePipesIntegerMetadata(t *testing.T) {
+	const input = `{"rows":[{"bytes":18446744073709551615,"packets":9007199254740993}]}`
+	for _, chain := range []string{
+		"first 1 | display bytes packets | json compact",
+		"json compact | first 1",
+		"match 9007199254740993 | json compact",
+	} {
+		t.Run(chain, func(t *testing.T) {
+			format, msg := ProcessStandalonePipesChecked(chain)
+			if msg != "" {
+				t.Fatal(msg)
+			}
+			got := format(input)
+			type counters struct {
+				Bytes   uint64 `json:"bytes"`
+				Packets uint64 `json:"packets"`
+			}
+			var answer struct {
+				Rows []counters        `json:"rows"`
+				Data []counters        `json:"data"`
+				Pipe []json.RawMessage `json:"pipe"`
+			}
+			if err := json.Unmarshal([]byte(got), &answer); err != nil {
+				t.Fatalf("counters must remain numeric uint64 values: %v: %s", err, got)
+			}
+			rows := append(answer.Rows, answer.Data...)
+			if len(rows) != 1 || rows[0].Bytes != 18446744073709551615 || rows[0].Packets != 9007199254740993 {
+				t.Fatalf("counter values changed: %s", got)
+			}
+			if len(answer.Pipe) == 0 {
+				t.Fatalf("row transform metadata missing: %s", got)
+			}
+		})
+	}
+}
+
+func TestApplyPipesIntegerHumanFormats(t *testing.T) {
+	const input = `{"rows":[{"bytes":18446744073709551615,"packets":9007199254740993,"ratio":1.5}]}`
+	for _, format := range []string{"yaml", "table", "text"} {
+		t.Run(format, func(t *testing.T) {
+			_, ops := ParsePipe("show test | first 1 | " + format)
+			got, msg := ApplyPipes(input, ops, nil, nil)
+			if msg != "" {
+				t.Fatal(msg)
+			}
+			for _, value := range []string{"18446744073709551615", "9007199254740993", "1.5"} {
+				if !strings.Contains(got, value) {
+					t.Errorf("missing exact value %s in %q", value, got)
+				}
+			}
+		})
+	}
+	for _, input := range []string{"18446744073709551615", "[9007199254740993,18446744073709551615]"} {
+		_, ops := ParsePipe("show test | yaml")
+		got, msg := ApplyPipes(input, ops, nil, nil)
+		if msg != "" {
+			t.Fatal(msg)
+		}
+		want := "18446744073709551615\n"
+		if strings.HasPrefix(input, "[") {
+			want = "- 9007199254740993\n- 18446744073709551615\n"
+		}
+		if got != want {
+			t.Errorf("YAML scalar/sequence = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestApplyPipesRejectsTrailingJSON(t *testing.T) {
+	for _, input := range []string{
+		`{"bytes":18446744073709551615`,
+		`{"bytes":18446744073709551615} {"other":1}`,
+		`{"bytes":18446744073709551615} trailing`,
+		"[9007199254740993]\n[18446744073709551615]",
+	} {
+		for _, chain := range []string{"json compact", "json pretty", "ndjson", "yaml", "table", "text", "display bytes"} {
+			t.Run(chain+"/"+input, func(t *testing.T) {
+				_, ops := ParsePipe("show test | " + chain)
+				got, msg := ApplyPipes(input, ops, nil, nil)
+				if msg != "" || got != input {
+					t.Errorf("invalid document must pass through: got %q, error %q", got, msg)
+				}
+			})
+		}
+	}
+}
+
+func TestStandalonePipesNDJSONFallbackKeepsIntegers(t *testing.T) {
+	const first = `{"bytes":18446744073709551615,"packets":9007199254740993}`
+	const second = `{"bytes":9007199254740993} trailing`
+	input := first + "\n" + second + "\n"
+	format, msg := ProcessStandalonePipesChecked("resolve | origin")
+	if msg != "" {
+		t.Fatal(msg)
+	}
+	if got := format(input); got != input {
+		t.Errorf("NDJSON fallback = %q, want %q", got, input)
+	}
+}
+
+func TestApplyPipesHumanNumberFormatting(t *testing.T) {
+	for _, chain := range []string{"yaml", "text"} {
+		for _, tt := range []struct {
+			input string
+			want  string
+		}{
+			{"1.0", "1\n"},
+			{"1e3", "1000\n"},
+			{"1.5", "1.5\n"},
+			{"-9223372036854775808", "-9223372036854775808\n"},
+		} {
+			t.Run(chain+"/"+tt.input, func(t *testing.T) {
+				_, ops := ParsePipe("show test | " + chain)
+				got, msg := ApplyPipes(tt.input, ops, nil, nil)
+				if msg != "" || got != tt.want {
+					t.Errorf("number rendering = %q, error %q, want %q", got, msg, tt.want)
+				}
+			})
+		}
+	}
+}
+
 // VALIDATES: json compact produces single-line JSON from pretty JSON.
 // PREVENTS: multi-line JSON output when compact is requested.
 func TestApplyJSONCompact(t *testing.T) {

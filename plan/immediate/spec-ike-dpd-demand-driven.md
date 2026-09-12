@@ -54,7 +54,7 @@ rules both out by name.
      survive compaction; track reading progress in the session state file. -->
 
 ### Architecture Docs
-- [ ] `plan/immediate/spec-ipsec-dataplane-inspection.md` - the spec that built the kernel SAD read surface this work would reuse
+- [ ] `docs/architecture/ike/ipsec-dataplane-inspection.md` - the kernel SAD read surface this work would reuse
   → Decision: `SAInfo` carries `BytesCurrent`, `PacketsCurrent`, `AddedAt` and `UsedAt` because the IKE engine never sees ESP payload, so counting in userspace reports zero forever.
   → Constraint: a dataplane that cannot be READ is never reported as an empty dataplane. `ListSAs` returns `ErrNotSupported` and a nil slice, never an empty slice and a nil error.
 - [ ] `ai/rules/evidence.md` - the guard rule that governs what happens when the SAD read fails
@@ -190,20 +190,19 @@ backend-dependent and is already written down in the code.
 
 | Caller | File | What it does with the SAD dump |
 |--------|------|-------------------------------|
-| `driftSAD` and `driftingPeers` | `internal/component/ike/engine/health_drift.go` | An ENGINE-side reader. `driftSAD` calls `dataplane.Get()` then `ListSAs(0)`; `driftingPeers` indexes the result by SPI and compares it against `PeerInfoMap()`, matching on `info.ChildInSPI` and `info.ChildOutSPI`. It returns a second `known` result so that "could not read" never renders as "no drift" |
-| `readSADCounters` and `addChildCounters` | `internal/component/ike/cmd/show_ipsec.go` | The CLI reader. `readSADCounters` builds a `map[uint32]SAInfo` keyed by SPI; `addChildCounters` looks up `info.ChildInSPI` and `info.ChildOutSPI` and renders `bytes-in`, `packets-in`, `bytes-out`, `packets-out`, plus a `counters-known` flag that separates "nobody could ask" from "the kernel does not hold this SPI" |
+| `ObserveDataplane` and `driftingPeers` | `internal/component/ike/engine/health_drift.go` | Reads peer belief and the SAD under a generation check. Drift compares destination-qualified `SAIdentity` values. An unreadable or changing observation returns unknown. |
+| `readSADCounters` and `addChildCounters` | `internal/component/ike/cmd/show_ipsec.go` | Uses the same observation and indexes counters by `SAIdentity`. Each counter remains null when its identity is absent, and `counters-known` distinguishes failed observation from measured absence. |
 
-**The SPI key already exists in the engine.** `PeerInfo.ChildInSPI` is written by
-`reconcile.go` line 285 from `child.InboundSPI`, and `ChildSA` (`child.go` line
-64) carries `InboundSPI` and `OutboundSPI` as its first two fields.
+`PeerInfo.ChildInID` and `ChildOutID` carry SPI, normalized destination, protocol,
+and interface ID. `PeerSession.Info` derives them from the negotiated Child SA
+endpoints used by `installChildSA`.
 
 **Therefore:** on Linux with the XFRM backend, every part needed to observe Child
 SA receive traffic is present and proven in two independent call sites. The
 missing piece is a decision about polling cadence and about what happens on a
 backend that cannot answer. On VPP the signal does not exist at all, and
 creating it means implementing the VPP IPsec SAD dump, which is separable work
-already recorded as a Known Limitation of `plan/immediate/spec-ipsec-dataplane-inspection.md`
-and adjacent to `spec-fixit-vpp-ipsec-inoperable`.
+owned by `plan/spec-ipsec-vpp-dataplane-readback.md`.
 
 **One thing is NOT established and must be validated before it is relied on:**
 whether the Linux kernel updates `use_time` and the packet counters on the
@@ -317,7 +316,7 @@ Path B, the Child SA liveness signal that does not exist:
 |----------|--------|
 | What breaks if this is wrong? | A dead peer is not detected, so a tunnel black-holes traffic until an operator notices. That is the exact failure S-3 and S-5 exist to prevent, and it is worse than the over-probing being fixed. The opposite error, over-suppression, is silent |
 | How is it reverted? | Single commit revert. No wire format changes, no config migration, no peer-visible state. The probe's wire form is untouched |
-| Who else touches this path? | `spec-fixit-ike-resource-lifetime-leaks`, closed 2026-08-22, which resolved the `sendDPD` request-window row on 2026-08-07, and `spec-fixit-ike-test-discrimination`, closed 2026-08-15, which added `test/ipsec/ipsec-dpd-holds-tunnel.ci` to assert a healthy tunnel outlives more than one DPD interval. `plan/immediate/spec-ipsec-dataplane-inspection.md` owns the SAD read surface. Another agent was editing `internal/component/ike/engine/dpd.go` on 2026-08-07 |
+| Who else touches this path? | `spec-fixit-ike-resource-lifetime-leaks`, closed 2026-08-22, resolved the `sendDPD` request-window row. `spec-fixit-ike-test-discrimination`, closed 2026-08-15, added the healthy-tunnel DPD test. `docs/architecture/ike/ipsec-dataplane-inspection.md` documents the SAD read contract. `plan/spec-ipsec-vpp-dataplane-readback.md` owns VPP enumeration. |
 
 ## Open Questions for Thomas
 

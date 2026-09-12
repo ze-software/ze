@@ -4,7 +4,7 @@
 
 FROM alpine:3.21
 
-RUN apk add --no-cache tini iproute2
+RUN apk add --no-cache tini iproute2 python3
 
 COPY test/interop-ipsec/ze-linux /usr/local/bin/ze
 
