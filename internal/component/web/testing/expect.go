@@ -189,7 +189,7 @@ func checkHTML(b *Browser, e *WBExpectation) error {
 				return fmt.Errorf("html: %w", htmlErr)
 			}
 			if !strings.Contains(current, sub) {
-				return fmt.Errorf("HTML does not contain %q", sub)
+				return fmt.Errorf("HTML does not contain %q%s", sub, htmlEvidence(current))
 			}
 			return nil
 		}); err != nil {
@@ -198,10 +198,46 @@ func checkHTML(b *Browser, e *WBExpectation) error {
 	}
 	if sub, ok := e.Values["not-contains"]; ok {
 		if strings.Contains(html, sub) {
-			return fmt.Errorf("HTML unexpectedly contains %q", sub)
+			return fmt.Errorf("HTML unexpectedly contains %q%s", sub, htmlEvidence(html))
 		}
 	}
 	return nil
+}
+
+// htmlEvidenceLimit bounds the excerpt a failed HTML assertion carries. A
+// workbench page is tens of kilobytes and a test report is read in a terminal,
+// so the whole document helps nobody; this is enough to show the shell, the
+// form and the first fields.
+const htmlEvidenceLimit = 4000
+
+// htmlEvidence renders what the page actually held, for a message that would
+// otherwise state only what it did not hold.
+//
+// checkElement already prints its whole snapshot on failure and checkHTML
+// printed nothing, so an `expect=html:contains=` red named the string it wanted
+// and gave the reader no way to see what was there instead. That is a verdict
+// with its cause withheld (plan/journal/failing-gate-prints-no-cause.md), and
+// it cost a session the diagnosis of test/web/interface-mac-override.wb.
+//
+// The excerpt is TRUNCATED and says so, because a reader who takes a bounded
+// excerpt for the whole document reads the absence of a string in it as the
+// absence of that string on the page, which is the same wrong answer one layer
+// along.
+func htmlEvidence(html string) string {
+	var tb textbuf.Buffer
+	tb.Str("\nHTML was ").Int(int64(len(html))).Str(" bytes")
+	if len(html) <= htmlEvidenceLimit {
+		return tb.Str(":\n").Str(html).String()
+	}
+	// Both ends rather than the head alone. A workbench page opens with the
+	// shell and the navigation, which is the same on every page and answers
+	// nothing; the form and its fields are further down. Taking only the first
+	// bytes showed a reader the chrome and hid the thing under test.
+	half := htmlEvidenceLimit / 2
+	return tb.Str(", first and last ").Int(int64(half)).
+		Str(" shown and the MIDDLE TRUNCATED:\n").Str(html[:half]).
+		Str("\n...[").Int(int64(len(html) - 2*half)).Str(" bytes omitted]...\n").
+		Str(html[len(html)-half:]).String()
 }
 
 // checkHead validates one expectation against the page head, which is where a
