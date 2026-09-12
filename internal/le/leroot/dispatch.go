@@ -145,11 +145,10 @@ func Dispatch(program string, args []string) int {
 		// A help word the reader typed LAST asks what this command takes, and
 		// it is answered here rather than by the handler: an area that
 		// hand-rolls its dispatch reads the word as a value and starts the work
-		// it names. A help word further up the line is not this question, and
-		// travels on, because a keyword before it can have introduced it as a
-		// value.
+		// it names. A help word a declared keyword introduced is not this
+		// question, and travels on, wherever it stands on the line.
 		own, _ := splitChain(toolArgs)
-		if asksForUsage(own) {
+		if asksForUsage(name, own) {
 			return helpTrailing(program, name, own)
 		}
 		return Run(name, Answer(handler), toolArgs, os.Stdout, os.Stderr)
@@ -194,14 +193,30 @@ func helpAsked(program string, words []string) int {
 	return helpNode(program, name)
 }
 
-// asksForUsage reports whether the reader's LAST word is a help word, which is
-// the gesture that asks what a command takes. A help word anywhere else can be
-// the value a keyword before it introduced.
-func asksForUsage(args []string) bool {
+// asksForUsage reports whether the reader's LAST word is a help word ASKING a
+// question, rather than a help word an area's grammar reads as data. A help
+// word anywhere on the line can be the value a keyword introduced, the trailing
+// one included: `le source-rewrite replace file <path> old beta new help` types
+// `help` as the text `new` takes.
+//
+// The area's registered table is what tells the two apart, so an area that
+// registered one is asked. An area that registered none publishes no grammar,
+// so the dispatcher cannot know and it guards. To run a probe's work is the
+// worse of the two failures, and it is the burn this guard exists to stop. The
+// cost is a value spelled like a help word, unreachable in those areas until
+// spec 2 has each one declare its table.
+func asksForUsage(name string, args []string) bool {
 	if len(args) == 0 {
 		return false
 	}
-	return isHelpArg(args[len(args)-1])
+	if !isHelpArg(args[len(args)-1]) {
+		return false
+	}
+	list, declared := ActionsOf(name)
+	if !declared {
+		return true
+	}
+	return !list.TrailingWordIsValue(args)
 }
 
 // helpTrailing answers a help word typed at the end of an invocation. It calls

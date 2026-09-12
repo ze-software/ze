@@ -11,7 +11,8 @@ func init() {
 		Description: "read and write the verification certificate for the current checkout",
 		Mode:        "offline",
 		Section:     registry.SectionTest,
-		Subs:        "write check show tree-hash",
+		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(name, Actions)
 	leroot.RegisterShape(name, command.ShapeDoc)
 }

@@ -3,10 +3,10 @@ package verifystatus
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/job"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -15,63 +15,60 @@ import (
 
 const name = "verify status"
 
-// Action is one closed command form supported by verify-status.
-type Action struct {
-	Action string `json:"action"`
-	Usage  string `json:"usage"`
-}
+// actions is this area's whole command surface. The table is what the manifest
+// publishes and what `le verify status <verb> --help` renders. A reader learns
+// the grammar and no verb runs, so the certificate stays as it was.
+//
+// check declares `path` Repeat. An operator scopes one check to as many paths
+// as they name, and the body reads every one with Values.
+var actions = leaction.New(name,
+	leaction.Action{
+		Verb:   "write",
+		Why:    "record the verdict of a verification run as this checkout's certificate",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: "exit-code", Value: "code", Requirement: leaction.Required},
+			{Keyword: "mode", Value: "name", Requirement: leaction.Optional},
+		},
+		AnswerArgs: write,
+	},
+	leaction.Action{
+		Verb: "check",
+		Why:  "report whether the recorded PASS still covers the tree, or the paths named",
+		Parameters: []leaction.Parameter{
+			{Keyword: "path", Value: "path", Requirement: leaction.Optional, Repeat: true},
+		},
+		AnswerArgs: check,
+	},
+	leaction.Action{
+		Verb:   "show",
+		Why:    "print the certificate the last verification wrote",
+		Answer: show,
+	},
+	leaction.Action{
+		Verb:   treeHashAction,
+		Why:    "print the hash of the tracked tree as it stands now",
+		Answer: treeHash,
+	},
+)
 
-// Actions is the structured command inventory.
-type Actions struct {
-	Actions []Action `json:"actions"`
-}
+// treeHashAction is spelled once because the verb carries a hyphen, and a
+// second spelling of it drifts in silence.
+const treeHashAction = "tree-hash"
+
+// defaultMode is the mode a write records when the caller names none. It is
+// what this command has written since it replaced verify-status.sh.
+const defaultMode = "ze-verify"
+
+// Actions answers the command surface as data, for the manifest and for the
+// help the dispatcher renders. It calls no handler.
+func Actions() leaction.List { return actions.Actions() }
+
+// Subs answers the action hint command help renders under this area.
+func Subs() string { return actions.Subs() }
 
 // Answer runs the native replacement for verify-status.sh.
-func Answer(args []string) (any, int) {
-	if len(args) == 0 {
-		return actions(), 0
-	}
-	root, err := lepath.Root()
-	if err != nil {
-		leaction.ReportError(err)
-		return nil, 1
-	}
-	switch args[0] {
-	case "write":
-		return write(root, args[1:])
-	case "check":
-		return check(root, args[1:])
-	case showAction:
-		if len(args) != 1 {
-			refuse(args[1])
-			return nil, 2
-		}
-		certificate, readErr := verifyengine.ReadCertificate(root)
-		if os.IsNotExist(readErr) {
-			return verifyengine.Freshness{Reason: "no status file at " + verifyengine.StatusPath}, 1
-		}
-		if readErr != nil {
-			leaction.ReportError(readErr)
-			return nil, 1
-		}
-		return certificate, 0
-	case treeHashAction:
-		if len(args) != 1 {
-			refuse(args[1])
-			return nil, 2
-		}
-		return TreeHash{TreeHash: job.TreeHash(root)}, 0
-	default:
-		refuse(args[0])
-		return nil, 2
-	}
-}
-
-// The read-only verbs this command accepts.
-const (
-	showAction     = "show"
-	treeHashAction = "tree-hash"
-)
+func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 // TreeHash is the structured tree-hash answer.
 type TreeHash struct {
@@ -81,35 +78,45 @@ type TreeHash struct {
 // Text preserves the script's one-line tree hash output.
 func (h TreeHash) Text() string { return h.TreeHash + "\n" }
 
-func write(root string, args []string) (any, int) {
-	if len(args) < 2 {
+// treeRoot answers the checkout every verb reads and writes under, and the
+// code to answer when there is none. A tool that cannot find the tree says so
+// and answers 1. That is the code for verification that did not run, which is
+// a different fact from a grammar the area refused.
+func treeRoot() (string, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return "", 1
+	}
+	return root, 0
+}
+
+// write records the verdict of one verification run. exit-code is declared
+// Required and refused here, because the table PUBLISHES requiredness and each
+// action's own body enforces it.
+func write(args leaction.Arguments) (any, int) {
+	if !args.Has("exit-code") {
 		refuse("write requires exit-code <code>")
 		return nil, 2
 	}
-	if args[0] != "exit-code" {
-		refuse(args[0])
-		return nil, 2
-	}
-	code, err := strconv.Atoi(args[1])
+	exit, err := strconv.Atoi(args.One("exit-code"))
 	if err != nil {
-		refuse(fmt.Sprintf("exit-code %q is not an integer", args[1]))
+		var tb textbuf.Buffer
+		refuse(tb.Str("exit-code ").Quoted(args.One("exit-code")).Str(" is not an integer").String())
 		return nil, 2
 	}
-	mode := "ze-verify"
-	if len(args) != 2 {
-		if len(args) != 4 {
-			refuse("write accepts only mode <name> after the exit code")
-			return nil, 2
-		}
-		if args[2] != "mode" {
-			refuse(args[2])
-			return nil, 2
-		}
-		mode = args[3]
+	root, failed := treeRoot()
+	if failed != 0 {
+		return nil, failed
+	}
+
+	mode := defaultMode
+	if args.Has("mode") {
+		mode = args.One("mode")
 	}
 	start := job.SnapshotTree(root)
 	certificate, err := verifyengine.WriteCertificate(root, verifyengine.WriteRequest{
-		Exit: code, Mode: mode, Skipped: verifyengine.SkippedSuites(), Start: start,
+		Exit: exit, Mode: mode, Skipped: verifyengine.SkippedSuites(), Start: start,
 	})
 	if err != nil {
 		leaction.ReportError(err)
@@ -118,36 +125,52 @@ func write(root string, args []string) (any, int) {
 	return certificate, 0
 }
 
-func check(root string, args []string) (any, int) {
-	paths := make([]string, 0, len(args)/2)
-	for len(args) != 0 {
-		if len(args) < 2 {
-			refuse("path requires a value")
-			return nil, 2
-		}
-		if args[0] != "path" {
-			refuse(args[0])
-			return nil, 2
-		}
-		paths = append(paths, args[1])
-		args = args[2:]
+// check answers whether the recorded PASS still covers the tree. A stale
+// verdict answers 1, which is the code every caller of this gate reads.
+func check(args leaction.Arguments) (any, int) {
+	root, failed := treeRoot()
+	if failed != 0 {
+		return nil, failed
 	}
-	freshness := verifyengine.CheckCertificate(root, paths)
+
+	// Values rather than One: `path` is declared Repeat, so an invocation
+	// naming several paths scopes the check to all of them.
+	freshness := verifyengine.CheckCertificate(root, args.Values("path"))
 	if freshness.Fresh {
 		return freshness, 0
 	}
 	return freshness, 1
 }
 
-func actions() Actions {
-	return Actions{Actions: []Action{
-		{Action: "write", Usage: "write exit-code <code> [mode <name>]"},
-		{Action: "check", Usage: "check [path <path> ...]"},
-		{Action: showAction, Usage: showAction},
-		{Action: treeHashAction, Usage: treeHashAction},
-	}}
+// show prints the certificate the last verification wrote. A checkout that was
+// never verified holds none, which is a verdict rather than a failure to read.
+func show() (any, int) {
+	root, failed := treeRoot()
+	if failed != 0 {
+		return nil, failed
+	}
+
+	certificate, err := verifyengine.ReadCertificate(root)
+	if os.IsNotExist(err) {
+		return verifyengine.Freshness{Reason: "no status file at " + verifyengine.StatusPath}, 1
+	}
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 1
+	}
+	return certificate, 0
 }
 
+// treeHash prints the hash a certificate is compared against.
+func treeHash() (any, int) {
+	root, failed := treeRoot()
+	if failed != 0 {
+		return nil, failed
+	}
+	return TreeHash{TreeHash: job.TreeHash(root)}, 0
+}
+
+// refuse writes one failure line naming the command a reader typed.
 func refuse(message string) {
 	leaction.ReportError(errors.New(name + ": " + message))
 }

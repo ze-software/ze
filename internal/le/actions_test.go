@@ -43,7 +43,6 @@ var areasWithoutAnActionTable = []string{
 	"token-economy",
 	"tracked",
 	"verify lock",
-	"verify status",
 	"verify summary",
 	"weekly",
 	"working-tree",

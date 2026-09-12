@@ -167,7 +167,7 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 | AC-6 | `./le stress-repro run suite --help` | Renders usage and starts no burn, proven by the run function not being reached |
 | AC-7 | An action declaring a parameter with `Repeat` true, given that keyword twice | Both values are parsed, and a parameter without `Repeat` given twice is still refused with the existing message and code |
 | AC-8 | An action declaring a parameter with `Required` true, invoked without it | Refused exactly where and how it is refused today, because requiredness is published rather than newly enforced |
-| AC-9 | Every registered le area | Either registers an actions provider, or is named in the migration list, and no other area may register none. Measured 2026-09-12: 89 areas, 63 wired, 26 on the list. The list ratchets both ways, so an unlisted area with no table fails and a listed area that starts publishing fails until its row is deleted |
+| AC-9 | Every registered le area | Either registers an actions provider, or is named in the migration list, and no other area may register none. Measured 2026-09-12: 89 areas, 63 wired, 26 on the list; after review round 1 migrated `verify status`, 64 wired and 25 on the list. The list ratchets both ways, so an unlisted area with no table fails and a listed area that starts publishing fails until its row is deleted |
 | AC-10 | An action body reading a keyword's value | Reads it through a named accessor. A direct index of `Arguments` does not compile, so a `Repeat` keyword cannot be read as a single string by accident |
 
 ## 🧪 TDD Test Plan
@@ -336,6 +336,29 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
   area registered, so `le <area> <verb> --help` answers the area page rather
   than the action's keywords until step 4 wires the 63 `register.go` files. The
   two steps belong in one landing.
+- The trailing POSITION is a proxy for the question "is this word data", and the
+  proxy is wrong wherever a keyword's value is the last thing typed. Review
+  round 1 measured it: `le source-rewrite replace file <path> old beta new help`
+  answered 0, printed usage and ran nothing, where the same line ran the
+  replacement before this spec. A guard that swallows an invocation and answers
+  0 is the silent-wrong-value failure `ai/rules/principles.md` names, inside the
+  commit that exists to remove one.
+  → Decision: the guard asks the area's registered table whether the last word
+  lands in a declared keyword's VALUE slot (`leaction.List.TrailingWordIsValue`,
+  over `trailingIsValue`). A word in a value slot is data and travels on; a word
+  anywhere else is the question and is answered without the handler.
+  → Constraint: `leroot.Dispatch` is not the only guard site.
+  `leaction.Area.Answer` holds the same trailing-help check for the area's own
+  callers, so both read one predicate. Two copies of the walk would be two
+  answers to one question about one grammar.
+- `Arguments.Values` and `Parameter.Repeat` shipped with a test as their only
+  user, which `ai/rules/completion.md` calls dead code. `verify status check`
+  was already accumulating repeated `path <value>` pairs in a hand-rolled loop,
+  so the repeat machinery had a production caller waiting for it.
+  → Decision: `verify status` migrates onto `leaction.New`, declares `path` with
+  `Repeat`, and reads it with `Values("path")`. One area leaves the exemption
+  list (26 rows, now 25), the machinery gets its caller, and the area publishes
+  the grammar its four verbs always had.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -348,7 +371,8 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 
 ## Known Limitations
 - A help word that is not in the trailing position still reaches the handler. `./le stress-repro run suite --help burners 4` would still run. The realistic probe is trailing, and refusing the word everywhere would make it unusable as a value.
-- Twenty-six areas are guarded but publish no grammar, because they declare no `leaction` table. Seven of them hand-roll a multi-verb dispatcher and are the subject of `plan/spec-le-every-area-dispatches-through-one-table.md`. The other nineteen are single-verb tools that refuse every argument by hand, declare their own `ActionList` type, or build a `leaction.List` inline from an unexported function. That spec empties seven rows; deciding what the remaining nineteen owe is its to settle, and the list ratchets so neither group can grow.
+- In an area that declares no action table, a legitimate value spelled `help`, `-h` or `--help` is unreachable when it is typed LAST: the dispatcher cannot read a grammar nobody published, so it guards and renders the node page. That is the safe direction, because the alternative is the `stress-repro` burn, and it is a NEW limitation this spec introduces. It holds for the areas named in `areasWithoutAnActionTable` (`internal/le/actions_test.go`) and for no other, and `plan/spec-le-every-area-dispatches-through-one-table.md` removes it one area at a time as each declares its table. An area that HAS declared one takes the word as data whenever a declared keyword introduced it.
+- Twenty-five areas are guarded but publish no grammar, because they declare no `leaction` table. Six of them hand-roll a multi-verb dispatcher and are the subject of `plan/spec-le-every-area-dispatches-through-one-table.md`, which named seven until `verify status` migrated here (review round 1, to give `Repeat` and `Values` a production caller). The other nineteen are single-verb tools that refuse every argument by hand, declare their own `ActionList` type, or build a `leaction.List` inline from an unexported function. That spec empties the six remaining rows; deciding what the nineteen owe is its to settle, and the list ratchets so neither group can grow.
 - Requiredness is PUBLISHED and not newly ENFORCED (AC-8). The table therefore states a fact each action's own body also enforces, which is a second declaration of one fact. It stays that way deliberately: `commit create` requires `subject` only sometimes and `commit debt-discharge` requires `owner` only when `kind` is `owner`, and a flat keyword table cannot express a cross-field rule. Central enforcement needs conditionality in the grammar, which is its own spec.
 - Verb vocabulary, exit-code discipline and help-text wrapping are untouched here. They are spec 3 of this series.
 

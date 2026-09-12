@@ -85,11 +85,19 @@ the registry rather than from the command.** `le` alone prints the grouped page;
 carries the registered description, the actions its `Meta.Subs` line declares,
 and the commands registered under it. `le <command> <action> --help` prints that
 action's closed keyword grammar, which the dispatcher renders from the table the
-area registered. A help word never reaches the handler, because a single-action
-area answers a bare invocation by RUNNING its gate, so rendering help through
-the handler would scan the tree or start a build. Only a trailing help word asks
-the question: a help word further up the line can be the value a keyword before
-it introduced.
+area registered. A help word that asks a question never reaches the handler,
+because a single-action area answers a bare invocation by RUNNING its gate, so
+rendering help through the handler would scan the tree or start a build.
+
+**The area's own table decides which help word is a question and which is
+data.** A help word that a declared keyword introduced is the value the operator
+typed, wherever it stands on the line. So `le source-rewrite replace file
+<path> old beta new help` runs the replacement. Every other help word asks the
+question, and the registry answers it.
+
+An area that registered no table publishes no grammar. The dispatcher cannot
+read one, so it guards. A value spelled `help`, `-h` or `--help` is unreachable
+in that area until the area declares its table.
 
 **The grouped page is a rendering of a payload, so le publishes what it
 declares.** `Manifest` carries every registered area, its group and its

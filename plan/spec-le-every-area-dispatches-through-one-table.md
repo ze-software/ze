@@ -29,7 +29,7 @@ this shape. These seven are the same class on le's own command surface.
 | `weekly` | `internal/le/weekly/answer.go` | 1 implicit, unnamed | No verb dispatch at all: every word is a keyword arm. Exit 1 for every failure, usage and execution alike |
 | `go-extract` | `internal/le/goextract/answer.go` | 1 implicit, unnamed | Same shape as `weekly` |
 | `spec status` | `internal/le/spec/status/answer.go` | 3 | The bare form uses exit 1 for its errors while both `closure` sub-verbs use exit 2 for theirs, in one area |
-| `verify status` | `internal/le/verify/status/answer.go` | 4 | Flat already; the copy is the dispatch and the refusals |
+| ~~`verify status`~~ | `internal/le/verify/status/answer.go` | 4 | DONE 2026-09-12, in `plan/spec-le-publishes-its-command-surface.md`. Its `check` verb accumulates repeated `path <value>` pairs, so migrating it was what gave `leaction.Parameter.Repeat` and `Arguments.Values` a production caller and closed that spec's unwired-symbol finding. Six areas remain |
 
 Spec 1 publishes the surface and stops a help word from running work. It cannot
 publish what these seven declare, because they declare no table. This spec makes

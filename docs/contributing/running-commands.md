@@ -23,12 +23,20 @@ therefore starts no work, whatever the area does with its first argument. A
 required keyword prints bare, an optional one prints inside brackets, and a
 keyword that repeats carries a trailing ellipsis.
 
+A help word that a declared keyword introduced is that keyword's VALUE, and the
+action runs. `./le source-rewrite replace file <path> old beta new help`
+replaces `beta` with the word `help`. The registered table tells a value from a
+question, so the two never collide in an area that declares one.
+
 <!-- source: internal/le/leroot/manifest.go -- Manifest -->
 <!-- source: internal/le/leroot/dispatch.go -- Dispatch, helpTrailing -->
 <!-- source: internal/le/leaction/leaction.go -- parameterForm -->
 
 An area that hand-rolls its own dispatch registers no table. The manifest then
 carries its description and not its grammar, and `--help` answers its node page.
+A trailing help word is read as a question there, because the dispatcher has no
+grammar to read it against. A value spelled `help`, `-h` or `--help` is
+therefore unreachable as the last word of such an area's line.
 `internal/le/actions_test.go` names those areas and refuses a new one.
 
 ## A bare `go test` is not `./le test-unit`

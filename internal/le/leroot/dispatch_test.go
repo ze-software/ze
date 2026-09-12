@@ -329,3 +329,63 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 		t.Errorf("the dispatcher rendered\n%q\nwant the area's own grammar\n%q", page, want)
 	}
 }
+
+// VALIDATES: a trailing help word that a declared keyword introduced reaches
+// the handler as that keyword's value, and the same word outside a value slot
+// still stops before the handler.
+// PREVENTS: the guard refusing an invocation whose last word is data. `le
+// source-rewrite replace file <path> old beta new help` answered 0, wrote
+// nothing and changed no file. No caller can tell that from the replacement it
+// asked for (ai/rules/principles.md).
+func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
+	var got leaction.Arguments
+	area := leaction.New("trailing-help-value-probe", leaction.Action{
+		Verb: "replace", Why: "replace one word in one file", Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: "file", Value: "path", Requirement: leaction.Required},
+			{Keyword: "old", Value: "text", Requirement: leaction.Required},
+			{Keyword: "new", Value: "text", Requirement: leaction.Required},
+			{Keyword: "apply"},
+		},
+		AnswerArgs: func(args leaction.Arguments) (any, int) {
+			got = args
+			return map[string]string{"new": args.One("new")}, 0
+		},
+	})
+	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{
+		Description: "an area whose last keyword takes a value",
+		Mode:        "offline", Section: registry.SectionTest,
+	})
+	RegisterActions(area.Name(), area.Actions)
+	RegisterShape(area.Name(), command.ShapeDoc)
+
+	code := 1
+	out := captureStdout(t, func() {
+		code = Dispatch("le", []string{area.Name(), "replace",
+			"file", "probe.txt", "old", "beta", "new", "help"})
+	})
+	if code != 0 {
+		t.Errorf("an invocation ending in a value answered %d, want 0", code)
+	}
+	if got == nil {
+		t.Fatalf("the action did not run: stdout was %q", out)
+	}
+	if got.One("new") != "help" {
+		t.Errorf("new carries %q, want the word the operator typed", got.One("new"))
+	}
+
+	// The same word outside a value slot is the question it has always been.
+	got = nil
+	page := captureStderr(t, func() {
+		code = Dispatch("le", []string{area.Name(), "replace", "file", "probe.txt", "--help"})
+	})
+	if code != 0 {
+		t.Errorf("a help word at a keyword position answered %d, want 0", code)
+	}
+	if got != nil {
+		t.Errorf("a help word at a keyword position ran the action with %#v", got)
+	}
+	if !strings.Contains(page, "usage: le trailing-help-value-probe replace") {
+		t.Errorf("a help word at a keyword position printed %q", page)
+	}
+}

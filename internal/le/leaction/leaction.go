@@ -309,6 +309,30 @@ func (l List) UsageText(verb string) (string, bool) {
 	return "", false
 }
 
+// TrailingWordIsValue reports whether the LAST word of an invocation is the
+// value a declared keyword introduced. args starts at the verb, so
+// `replace file <path> old beta new help` answers true: `help` is what `new`
+// takes, and the operator typed it as data.
+//
+// A verb this listing does not hold answers false. The listing is what the area
+// published, and a word this table cannot read is not a word this table can
+// claim (ai/rules/principles.md).
+//
+// The dispatcher asks it before it renders usage. A help word in a value slot
+// then reaches the handler, and the work the operator asked for runs
+// (internal/le/leroot).
+func (l List) TrailingWordIsValue(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for _, row := range l.Actions {
+		if row.Verb == args[0] {
+			return trailingIsValue(row.Parameters, args[1:])
+		}
+	}
+	return false
+}
+
 // parameterForm renders one keyword in the form that says what the reader owes:
 // `keyword <value>` for a keyword the action requires, the same in brackets for
 // one it does not, and a trailing ellipsis for one that may be given again.
@@ -368,11 +392,12 @@ func (a Area) Answer(args []string) (any, int) {
 		if verb != args[0] {
 			continue
 		}
-		// An action's keyword grammar is declared here and nowhere else, so this
-		// is the only surface that can answer `le <area> <verb> --help`. Only a
-		// TRAILING help word asks: a help word further up the line can be the
-		// value a keyword before it introduced.
-		if len(args) > 1 && IsHelpArg(args[len(args)-1]) {
+		// A TRAILING help word asks what this action takes. A help word
+		// anywhere on the line can also be the value a keyword introduced, so
+		// the grammar decides which it is. `new help` is the text `new` takes.
+		// To swallow it is to answer 0 and run nothing, which no caller can
+		// tell from the work it asked for (ai/rules/principles.md).
+		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
 		}
 		if act.AnswerArgs != nil {
@@ -473,6 +498,44 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 		index += 2
 	}
 	return parsed, nil
+}
+
+// trailingIsValue walks one action's grammar over the words after its verb. It
+// reports whether the LAST of them lands in a value slot, which is the question
+// a help word raises. `new help` is a keyword and the text it takes.
+// `file <path> --help` is a keyword, its value, and a word standing where the
+// next keyword would.
+//
+// It answers false as soon as a word is not a declared keyword, because the
+// grammar has ended and parseArguments refuses the invocation. Deciding the
+// question after that point would be a guess about a line the parser will not
+// accept.
+func trailingIsValue(parameters []Parameter, args []string) bool {
+	last := len(args) - 1
+	if last < 1 {
+		return false
+	}
+
+	declared := make(map[string]Parameter, len(parameters))
+	for _, parameter := range parameters {
+		declared[parameter.Keyword] = parameter
+	}
+
+	for index := 0; index < last; {
+		parameter, known := declared[args[index]]
+		if !known {
+			return false
+		}
+		if parameter.Value == "" {
+			index++
+			continue
+		}
+		if index+1 == last {
+			return true
+		}
+		index += 2
+	}
+	return false
 }
 
 // parameterNames answers the allowed keywords in declaration order.

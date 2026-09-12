@@ -726,3 +726,38 @@ func TestARequiredKeywordIsPublishedRatherThanNewlyEnforced(t *testing.T) {
 		t.Errorf("the action's body was reached %d time(s), want 1: requiredness is published, not parsed", reached)
 	}
 }
+
+// VALIDATES: a help word that a declared keyword introduced is the VALUE the
+// operator typed, so the action runs with it, while the same word at a keyword
+// position still asks what the action takes.
+// PREVENTS: the trailing-help guard swallowing an invocation whose last word is
+// data, which answers 0 and runs nothing: a caller cannot tell that no-op from
+// the work it asked for (ai/rules/principles.md).
+func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	answer, code := area.Answer([]string{"run", "timeout", "5s", "command", "help"})
+	if code != 0 {
+		t.Errorf("an invocation ending in a value answered %d, want 0", code)
+	}
+	if got == nil {
+		t.Fatalf("the action did not run: the answer was %v", answer)
+	}
+	if got.One("command") != "help" {
+		t.Errorf("command carries %q, want the word the operator typed", got.One("command"))
+	}
+
+	got = nil
+	page := captureStderr(t, func() {
+		if _, code := area.Answer([]string{"run", "command", "ls", "help"}); code != 0 {
+			t.Errorf("a help word at a keyword position answered %d, want 0", code)
+		}
+	})
+	if got != nil {
+		t.Errorf("a help word at a keyword position ran the action with %#v", got)
+	}
+	if !strings.HasPrefix(page, "usage: le qemu run") {
+		t.Errorf("a help word at a keyword position printed %q", page)
+	}
+}
