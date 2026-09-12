@@ -1,4 +1,4 @@
-// Design: docs/architecture/bgp/rib.md -- AS-number notation in a path pattern
+// Design: docs/architecture/api/commands.md -- AS-number notation in the `show bgp rib` path filter
 package rib
 
 import "testing"

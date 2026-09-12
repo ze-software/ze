@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf.md -- AS-number notation on the inter-AS TE link
+// Design: docs/guide/ospf.md -- AS-number notation on the inter-AS TE link
 package ospf
 
 import (

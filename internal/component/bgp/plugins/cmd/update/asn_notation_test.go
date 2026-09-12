@@ -1,4 +1,4 @@
-// Design: docs/architecture/bgp/update-command.md -- AS notation at `update text`
+// Design: docs/architecture/api/update-syntax.md -- AS notation in the `rd` word of `update text`
 package update
 
 import "testing"

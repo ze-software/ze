@@ -1,7 +1,7 @@
-// Design: the ONE published answer to "how much of what Ze implements is proven
-// by test". Three surfaces state that number -- the site home page,
-// /quality/health/ and /quality/rfc-compliance/ -- and they state the same one
-// because each reads this.
+// Design: docs/contributing/rfc-conformance-gates.md -- the ONE published
+// answer to "how much of what Ze implements is proven by test". Three surfaces
+// state that number, the site home page, /quality/health/ and
+// /quality/rfc-compliance/, and they state the same one because each reads this.
 // Related: coverage.go holds the per-RFC partition this sums; meta.go holds the
 // public row whose status decides which RFCs are counted at all.
 package rfc

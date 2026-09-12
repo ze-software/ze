@@ -87,7 +87,7 @@ tables it built from what it fetched. Nothing else does on a cold cache:
 ### A table term declares both families or neither
 
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- buildTermSets -->
-<!-- source: internal/component/firewall/config.go -- expandIRRTermV6 -->
+<!-- source: internal/component/firewall/config.go -- expandProvidedTermV6 -->
 
 The parser cannot see the prefix data. It emits an IPv6 twin of every IRR term,
 whatever the entry announces. An ASN or AS-SET announcing IPv4 and no IPv6 is
@@ -133,7 +133,8 @@ mutation persists before it returns.
 
 ### A crash starts the plugin again
 
-<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, sdk.Registration.FailurePolicy -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR -->
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.FailurePolicy -->
 <!-- source: internal/component/plugin/server/failure_policy.go -- (*Server).applyFailurePolicy -->
 
 The plugin declares `failure-policy: restart`, so a process that ends is started

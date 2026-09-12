@@ -569,7 +569,7 @@ An `rpc` statement carries the same pair, in the same two statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
 `RPCMeta.Description` and `RPCMeta.Help`.
 
-One reader serves both carriers. `getHelpExtension` takes the extension
+One reader serves both carriers. `GetHelpExtension` takes the extension
 statement list, which a command container reaches through `Entry.Exts` and an
 rpc through `gyang.RPC.Exts()`. A second reader would let the two surfaces drift
 into two spellings of one declaration.

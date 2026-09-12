@@ -57,7 +57,7 @@ it forces no rename, and an existing protocol keeps its own vocabulary.
 | `reactor` | BGP-specific and historical: THE BGP event loop, owning peer sessions, wire events and plugin dispatch. Do not reuse it for a new protocol; use `engine` | `component/bgp/reactor` |
 | `wireu` | "wire UPDATE": lazy-parsed BGP UPDATE messages with zero-copy iterators. A kept name; a new package with this concern would spell it out | `component/bgp/wireu` |
 
-<!-- source: ai/PACKAGE-MAP.md -- package responsibilities backing each definition, derived on demand and untracked -->
+<!-- source: internal/le/discoveryindex/discoveryindex.go -- the generator of the package map that backs each definition; `./le discovery-index update` writes ai/PACKAGE-MAP.md, which is derived on demand and untracked -->
 
 The per-protocol layout these names compose into is
 `docs/architecture/protocol-skeleton.md`.

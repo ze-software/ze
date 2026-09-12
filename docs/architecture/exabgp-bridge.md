@@ -418,7 +418,7 @@ error and no log line.
 <!-- source: internal/plugins/exabgp/bridgeplugin/config.go -- parseEncoder, parseFeeds -->
 
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Start, Fleet.Broadcast -->
-<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.line, script.writeLoop -->
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.batch, script.writeLoop -->
 
 ## A script that exits is started again, unless `respawn` says otherwise
 

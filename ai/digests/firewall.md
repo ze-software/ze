@@ -33,7 +33,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
    `Match`/`Action` values, `parseSet` (`firewall/config.go`), `parseFlowtable` (`firewall/config.go`).
 4. **IRR set-name expansion at parse time.** Inside `parseChain`, any term whose `from` block
    matches an `irr_v4_*` named set gets an auto-generated `_v6` sibling term against
-   `irr_v6_*` (`expandIRRTermV6`, `firewall/config.go`, hooked at `firewall/config.go`), the operator
+   `irr_v6_*` (`expandProvidedTermV6`, `firewall/config.go`, hooked at `firewall/config.go`), the operator
    writes one term, gets two.
 5. **Verify-time checks.** `parseAndVerifyFirewallSections` (`firewall/engine.go`) runs, in order:
    `ExtractGlobalOptions` (`firewall/config.go`, `firewall/engine.go`), the YANG `ze:backend` commit-time
@@ -220,7 +220,7 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
   bodies, not `show`.
 - **IRR v6 companion terms are synthesized, not configured.** Any term whose `from` block
   matches an `irr_v4_*` set gets an automatic `_v6` sibling against `irr_v6_*`
-  (`expandIRRTermV6`, `firewall/config.go`, hooked in `parseChain` at `firewall/config.go`), one
+  (`expandProvidedTermV6`, `firewall/config.go`, hooked in `parseChain` at `firewall/config.go`), one
   term written, two applied.
 - **Policy routing double-applies across two mechanisms.** nftables marks the packet
   (`RegisterTables`+`ApplyAll`) and netlink separately selects the routing table by that mark

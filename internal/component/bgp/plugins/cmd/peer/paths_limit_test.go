@@ -1,7 +1,8 @@
-// Design: the operator-facing half of PATHS-LIMIT, capability 76
-// (draft-abraitis-idr-addpath-paths-limit). The number that silently caps what
-// Ze announces to a peer must be readable from `show bgp peer detail` and
-// `show bgp peer capabilities`, in both directions, from the negotiated state.
+// Design: docs/guide/command-reference.md -- the operator-facing half of
+// PATHS-LIMIT, capability 76 (draft-abraitis-idr-addpath-paths-limit). The
+// number that silently caps what Ze announces to a peer must be readable from
+// `show bgp peer detail` and `show bgp peer capabilities`, in both directions,
+// from the negotiated state.
 //
 // VALIDATES: addPathsLimitFields writes capabilities.paths-limit for both
 //            directions, and writes nothing when there is no limit.
