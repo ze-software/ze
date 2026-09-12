@@ -149,6 +149,10 @@
                     "why": "Ze's internal metrics backend: counters, gauges, and histograms against a private registry."
                 },
                 {
+                    "module": "github.com/prometheus/common",
+                    "why": "Reads the Prometheus text exposition format back: the IPsec interop test parses Ze's own metrics answer and compares the gauges against the kernel."
+                },
+                {
                     "module": "github.com/prometheus/procfs",
                     "why": "Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet."
                 },
