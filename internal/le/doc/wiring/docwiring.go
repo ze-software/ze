@@ -271,6 +271,13 @@ func usageLine() string {
 		Str(" [| json | yaml | table]").String()
 }
 
+// Actions answers the action table this area declared, which is the exact
+// action above. The changed-file router is parsed by hand, so the manifest
+// publishes the one action and Subs still names the router's keywords, until
+// plan/spec-le-every-area-dispatches-through-one-table.md folds the router into
+// the same table.
+func Actions() leaction.List { return zeroArgumentActions.Actions() }
+
 // Subs is the one-line hint help renders under the command.
 func Subs() string {
 	var tb textbuf.Buffer

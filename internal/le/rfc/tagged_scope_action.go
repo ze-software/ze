@@ -312,11 +312,11 @@ func taggedScopeError(path string, err error) taggedScopeActionReport {
 }
 
 func taggedScopeAnswer(args leaction.Arguments) (any, int) {
-	path, held := args["path"]
-	if !held {
+	if !args.Has("path") {
 		err := errors.New("rfc tagged-scope requires path <path>")
 		return taggedScopeError("", err), 2
 	}
+	path := args.One("path")
 	root, err := lepath.Root()
 	if err != nil {
 		return taggedScopeError(path, err), 2

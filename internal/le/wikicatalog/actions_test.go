@@ -49,7 +49,7 @@ func TestAnswerRejectsOpenOrIncompleteGrammar(t *testing.T) {
 }
 
 func TestRunReturnsStructuredReportAndDistinctStaleCode(t *testing.T) {
-	arguments := leaction.Arguments{"file": "chosen.md"}
+	arguments := leaction.Arguments{"file": {"chosen.md"}}
 	answer, code := run(arguments, func(destination string) (Report, error) {
 		return Report{File: destination, Stale: true, Bytes: 7}, nil
 	})

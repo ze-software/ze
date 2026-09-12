@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every answer this command can give carries one row set -- the actions,
 	// the findings, the selftest results, or the roots -- so the row operators

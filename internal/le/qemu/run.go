@@ -120,8 +120,8 @@ type RunOptions struct {
 // parseRunArguments validates the qemu run keyword values.
 func parseRunArguments(args leaction.Arguments) (RunOptions, error) {
 	options := RunOptions{
-		Command: args["command"], Packages: strings.Fields(args["packages"]),
-		Timeout: DefaultCommandTimeout, Kernel: args["kernel"],
+		Command: args.One("command"), Packages: strings.Fields(args.One("packages")),
+		Timeout: DefaultCommandTimeout, Kernel: args.One("kernel"),
 		KeepAlive: args.Has("keep-alive"), Memory: settingOr(runMemoryEntry.Key, DefaultRunMemory),
 		CPUs: settingOr(runCPUsEntry.Key, DefaultRunCPUs), Boot: DefaultBootTimeout,
 	}
@@ -129,7 +129,7 @@ func parseRunArguments(args leaction.Arguments) (RunOptions, error) {
 	if !hasRunMode {
 		return options, errors.New("qemu run requires command <value> or keep-alive")
 	}
-	if named := args["timeout"]; named != "" {
+	if named := args.One("timeout"); named != "" {
 		timeout, err := positiveWholeSeconds("timeout", named)
 		if err != nil {
 			return options, err

@@ -107,7 +107,7 @@ func runCurrent(ctx context.Context, root, mode string, runner verifyengine.Acti
 // and a changed run judge different stage populations, so they MUST NOT share
 // one verdict.
 func currentArgv(certificateMode string) []string {
-	return []string{"le", "verify", "current", "mode", certificateMode}
+	return []string{"le", area, "current", modeKeyword, certificateMode}
 }
 
 // admissionFailure answers the report for a run the registry could not admit.
@@ -159,7 +159,7 @@ func currentHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	mode := args["mode"]
+	mode := args.One("mode")
 	ctx, stop := signalContext()
 	defer stop()
 	report := runCurrent(ctx, root, mode, actionRunner())
@@ -181,7 +181,7 @@ func withoutStageLog(code int) bool {
 }
 
 func listHere(args leaction.Arguments) (any, int) {
-	list, err := listCurrent(args["mode"])
+	list, err := listCurrent(args.One("mode"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

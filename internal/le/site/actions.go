@@ -21,17 +21,25 @@ const valueDirectory = "directory"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "build", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory}, {Keyword: "partial"}}, AnswerArgs: runBuild},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory, Requirement: leaction.Optional}, {Keyword: "partial"}}, AnswerArgs: runBuild},
 	leaction.Action{Verb: "check", Why: "verify that the Pages artifact contains no source-only website inputs",
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory}}, AnswerArgs: runCheck},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory, Requirement: leaction.Optional}}, AnswerArgs: runCheck},
 	leaction.Action{Verb: "bundle", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordInput, Value: "html-file"}}, AnswerArgs: runBundle},
+		Parameters: []leaction.Parameter{{Keyword: keywordInput, Value: "html-file", Requirement: leaction.Required}}, AnswerArgs: runBundle},
 	leaction.Action{Verb: "activity", Why: "render repository line and commit activity as a presentation-ready HTML page", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: "html-file"}, {Keyword: "days", Value: "count"}, {Keyword: "ref", Value: "revision"}, {Keyword: "today", Value: "date"}}, AnswerArgs: runActivity},
+		Parameters: []leaction.Parameter{
+			{Keyword: keywordOutput, Value: "html-file", Requirement: leaction.Optional},
+			{Keyword: "days", Value: "count", Requirement: leaction.Optional},
+			{Keyword: "ref", Value: "revision", Requirement: leaction.Optional},
+			{Keyword: "today", Value: "date", Requirement: leaction.Optional},
+		}, AnswerArgs: runActivity},
 	leaction.Action{Verb: "update-talk", Why: "refresh one talk's live statistics, activity page, and standalone deck", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: "talk", Value: "slug"}, {Keyword: "bundle-only"}}, AnswerArgs: runUpdateTalk},
+		Parameters: []leaction.Parameter{{Keyword: "talk", Value: "slug", Requirement: leaction.Required}, {Keyword: "bundle-only"}}, AnswerArgs: runUpdateTalk},
 	leaction.Action{Verb: "config-tree", Why: "extract the live YANG configuration tree for the public configuration reference", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory}, {Keyword: "binary", Value: "ze-binary"}}, AnswerArgs: runConfigTree},
+		Parameters: []leaction.Parameter{
+			{Keyword: keywordOutput, Value: valueDirectory, Requirement: leaction.Optional},
+			{Keyword: "binary", Value: "ze-binary", Requirement: leaction.Optional},
+		}, AnswerArgs: runConfigTree},
 )
 
 func Actions() leaction.List          { return actions.Actions() }
@@ -44,7 +52,7 @@ func runBuild(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, err := Build(BuildOptions{Repository: root, Output: arguments[keywordOutput], Partial: arguments.Has("partial")})
+	report, err := Build(BuildOptions{Repository: root, Output: arguments.One(keywordOutput), Partial: arguments.Has("partial")})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -89,7 +97,7 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	paths, err := resolvePaths(root, arguments[keywordOutput])
+	paths, err := resolvePaths(root, arguments.One(keywordOutput))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
@@ -133,7 +141,7 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 }
 
 func runBundle(arguments leaction.Arguments) (any, int) {
-	output, err := bundlePresentation(arguments["input"])
+	output, err := bundlePresentation(arguments.One("input"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -148,7 +156,7 @@ func runActivity(arguments leaction.Arguments) (any, int) {
 		return nil, 1
 	}
 	days := sourcerewrite.ActivityDaysDefault
-	if raw := arguments["days"]; raw != "" {
+	if raw := arguments.One("days"); raw != "" {
 		days, err = strconv.Atoi(raw)
 		if err != nil {
 			leaction.ReportError(fmt.Errorf("invalid days %q: %w", raw, err))
@@ -156,18 +164,18 @@ func runActivity(arguments leaction.Arguments) (any, int) {
 		}
 	}
 	today := time.Now().UTC()
-	if raw := arguments["today"]; raw != "" {
+	if raw := arguments.One("today"); raw != "" {
 		today, err = time.Parse("2006-01-02", raw)
 		if err != nil {
 			leaction.ReportError(fmt.Errorf("invalid today %q: %w", raw, err))
 			return nil, 1
 		}
 	}
-	output := arguments[keywordOutput]
+	output := arguments.One(keywordOutput)
 	if output == "" {
 		output = filepath.Join(root, "tmp", "code-activity.html")
 	}
-	err = renderActivity(ActivityOptions{Repository: root, Ref: arguments["ref"], Output: output, Days: days, Today: today})
+	err = renderActivity(ActivityOptions{Repository: root, Ref: arguments.One("ref"), Output: output, Days: days, Today: today})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -181,7 +189,7 @@ func runUpdateTalk(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	slug := arguments["talk"]
+	slug := arguments.One("talk")
 	if slug == "" || slug == "." || slug == ".." || filepath.Base(slug) != slug {
 		leaction.ReportError(fmt.Errorf("talk must name one directory under website/talks"))
 		return nil, 1
@@ -204,12 +212,12 @@ func runConfigTree(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	paths, err := resolvePaths(root, arguments[keywordOutput])
+	paths, err := resolvePaths(root, arguments.One(keywordOutput))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	count, err := extractYANGConfigTree(root, paths.Output, arguments["binary"])
+	count, err := extractYANGConfigTree(root, paths.Output, arguments.One("binary"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

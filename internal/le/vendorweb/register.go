@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every answer this command can give carries one row set -- the actions,
 	// the problems, or the files the sync acted on -- so the row operators act

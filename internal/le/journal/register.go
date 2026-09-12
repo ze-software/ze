@@ -17,6 +17,7 @@ func init() {
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// The listing is one row set and the report has three problem-class views.
 	// Any-shape operators render both payloads. Row-only operators are refused

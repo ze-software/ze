@@ -13,7 +13,7 @@ import (
 )
 
 func TestReapDryAcceptsKeywordAndEnvironment(t *testing.T) {
-	if !reapDry(leaction.Arguments{"dry": ""}, func(string) string { return "" }) {
+	if !reapDry(leaction.Arguments{"dry": {""}}, func(string) string { return "" }) {
 		t.Fatal("dry keyword was ignored")
 	}
 	if !reapDry(leaction.Arguments{}, func(name string) string {

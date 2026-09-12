@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// The answer carries the findings beside the changed set and the two
 	// counts, so the any-shape operators render the whole document.

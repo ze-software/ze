@@ -85,7 +85,7 @@ type Reds struct {
 
 // redsHere is the `le verify reds file <path>` action.
 func redsHere(args leaction.Arguments) (any, int) {
-	path, err := askedPath(args["file"])
+	path, err := askedPath(args.One("file"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

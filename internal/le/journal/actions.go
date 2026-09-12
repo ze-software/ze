@@ -18,7 +18,7 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb:       "validate",
 		Why:        "validate one edited plan/journal class file's header, rows, dates, and Spec keys",
-		Parameters: []leaction.Parameter{{Keyword: "file", Value: "path"}},
+		Parameters: []leaction.Parameter{{Keyword: "file", Value: "path", Requirement: leaction.Required}},
 		AnswerArgs: validateHere,
 	},
 )
@@ -38,7 +38,7 @@ func validateHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := ValidateFile(root, args["file"])
+	report, err := ValidateFile(root, args.One("file"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

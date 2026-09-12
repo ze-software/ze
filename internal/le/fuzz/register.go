@@ -22,6 +22,7 @@ func init() {
 		// listing about which action writes.
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Each answer has one row set: actions, planned runs, or completed runs.
 	// The row operators therefore act on that set instead of being refused.

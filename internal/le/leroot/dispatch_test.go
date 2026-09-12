@@ -11,6 +11,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 func captureStdout(t *testing.T, fn func()) string {
@@ -137,9 +138,6 @@ func TestDispatchRefusesUnknownAndHandlesHelp(t *testing.T) {
 	if code := Dispatch("le", []string{"no-such-tool"}); code != 1 {
 		t.Errorf("unknown tool answered %d, want 1", code)
 	}
-	if code := Dispatch("le", nil); code != 1 {
-		t.Errorf("empty invocation answered %d, want 1", code)
-	}
 	if code := Dispatch("le", []string{"--help"}); code != 0 {
 		t.Errorf("help answered %d, want 0", code)
 	}
@@ -190,5 +188,144 @@ func TestHelpNamesWhatANamespaceHolds(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("namespace page missing %q: %s", want, page)
 		}
+	}
+}
+
+// ─── The root answers a payload, and a help word runs nothing ───────────────
+
+// VALIDATES: a bare invocation answers the manifest as a payload on stdout with
+// exit 0, and the text it prints is the root help.
+// PREVENTS: the root writing finished text to stderr, which is what made
+// `./le | json` answer `unknown command: |`.
+func TestBareRootAnswersTheManifestAsAPayload(t *testing.T) {
+	code := 1
+	out := captureStdout(t, func() { code = Dispatch("le", nil) })
+	if code != 0 {
+		t.Errorf("a bare invocation answered %d, want 0", code)
+	}
+	if want := manifestOf("le").Text(); out != want {
+		t.Errorf("the bare root printed\n%q\nwant the manifest's own text\n%q", out, want)
+	}
+	if !strings.Contains(out, "the Ze repository and development entry point") {
+		t.Errorf("the bare root printed no root help:\n%s", out)
+	}
+}
+
+// VALIDATES: the manifest reaches the pipe operators, so `./le | json` renders
+// one document naming every area, its group and its actions.
+// PREVENTS: a payload the operator chain cannot reach, which is a rendering
+// picked for the reader (ai/rules/cli.md).
+func TestRootManifestRendersThroughTheJSONOperator(t *testing.T) {
+	const name = "manifest-json-probe"
+	Register(name, GroupReport, func([]string) (any, int) { return nil, 0 },
+		registry.Meta{Description: "a probe the manifest names", Mode: "offline", Section: registry.SectionTest})
+
+	code := 1
+	out := captureStdout(t, func() { code = Dispatch("le", []string{"|", "json"}) })
+	if code != 0 {
+		t.Fatalf("`le | json` answered %d: %s", code, out)
+	}
+
+	var manifest struct {
+		Program string `json:"program"`
+		Areas   []struct {
+			Name        string `json:"name"`
+			Group       string `json:"group"`
+			Description string `json:"description"`
+		} `json:"areas"`
+	}
+	if err := json.Unmarshal([]byte(out), &manifest); err != nil {
+		t.Fatalf("`le | json` is not one JSON document: %v\n%s", err, out)
+	}
+	if manifest.Program != "le" {
+		t.Errorf("the document names the program %q, want le", manifest.Program)
+	}
+	for _, area := range manifest.Areas {
+		if area.Name != name {
+			continue
+		}
+		if area.Group != string(GroupReport) || area.Description != "a probe the manifest names" {
+			t.Errorf("the rendered area is %+v", area)
+		}
+		return
+	}
+	t.Errorf("the rendered document does not name %q: %s", name, out)
+}
+
+// VALIDATES: a help word at the end of an invocation renders usage and returns
+// WITHOUT calling the handler, for an area that declares its actions and for
+// one that hand-rolls its own dispatch.
+// PREVENTS: AC-6, the reason this spec exists: `./le stress-repro run suite
+// --help` reads the help word as the suite name and starts a multi-hour burn.
+func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
+	const burner = "trailing-help-burn-probe"
+	burns := 0
+	Register(burner, GroupSuite, func([]string) (any, int) {
+		burns++
+		return map[string]string{"probe": "the burn started"}, 0
+	}, registry.Meta{
+		Description: "a probe that starts work from its first argument",
+		Mode:        "offline", Section: registry.SectionTest,
+	})
+	RegisterShape(burner, command.ShapeDoc)
+
+	// The hand-rolled shape: no action table is registered, so the dispatcher
+	// can guard the area but cannot render its grammar.
+	for _, args := range [][]string{
+		{burner, "run", "suite", "gating", "--help"},
+		{burner, "run", "suite", "gating", "-h"},
+		{burner, "run", "suite", "gating", "help"},
+		{burner, "run", "--help"},
+		{burner, "--help"},
+		{burner, "run", "--help", "|", "json"},
+	} {
+		code := 1
+		page := captureStderr(t, func() { code = Dispatch("le", args) })
+		if code != 0 {
+			t.Errorf("%v answered %d, want 0", args, code)
+		}
+		if burns != 0 {
+			t.Fatalf("%v reached the handler: the burn ran %d time(s)", args, burns)
+		}
+		if !strings.Contains(page, "le "+burner) {
+			t.Errorf("%v printed no usage: %q", args, page)
+		}
+	}
+
+	// The declared shape: the dispatcher renders the action's own grammar from
+	// the listing the area registered, and still calls nothing.
+	area := leaction.New("trailing-help-grammar-probe", leaction.Action{
+		Verb: "run", Why: "run the probe over one scope",
+		Parameters: []leaction.Parameter{
+			{Keyword: "scope", Value: "packages", Requirement: leaction.Required},
+			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+		},
+		AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
+	})
+	reached := 0
+	Register(area.Name(), GroupSuite, func(args []string) (any, int) {
+		reached++
+		return area.Answer(args)
+	}, registry.Meta{
+		Description: "an area that declares its actions",
+		Mode:        "offline", Section: registry.SectionTest,
+	})
+	RegisterActions(area.Name(), area.Actions)
+
+	code := 1
+	page := captureStderr(t, func() {
+		code = Dispatch("le", []string{area.Name(), "run", "scope", "./internal", "--help"})
+	})
+	if code != 0 {
+		t.Errorf("a declared area answered %d for a help word, want 0", code)
+	}
+	if reached != 0 {
+		t.Errorf("the area's handler ran %d time(s) for a help word", reached)
+	}
+	want := "usage: le trailing-help-grammar-probe run scope <packages>" +
+		" [timeout <duration>] [| json | yaml | table]\n" +
+		"  run the probe over one scope\n"
+	if page != want {
+		t.Errorf("the dispatcher rendered\n%q\nwant the area's own grammar\n%q", page, want)
 	}
 }

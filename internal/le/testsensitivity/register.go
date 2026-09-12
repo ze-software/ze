@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// The scan answers ONE document holding two row sets, the assert-nothing
 	// tests and the tag orphans, so the row operators are refused by name while

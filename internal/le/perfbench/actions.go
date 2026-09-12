@@ -34,7 +34,7 @@ var actions = leaction.New(area,
 			" latency against every DUT, then record the run. Needs Docker and minutes." +
 			" `dut ze` measures one, `dut \"ze bird\"` measures several",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: dutKeyword, Value: "names"}},
+		Parameters: []leaction.Parameter{{Keyword: dutKeyword, Value: "names", Requirement: leaction.Optional}},
 		AnswerArgs: runHere,
 	},
 	leaction.Action{
@@ -94,7 +94,7 @@ func runHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return RunReport{Action: runVerb, Error: err.Error(), Code: 1}, 1
 	}
-	return bench.Run(splitDUTs(args[dutKeyword]))
+	return bench.Run(splitDUTs(args.One(dutKeyword)))
 }
 
 // historyHere appends the last measurement's results over this checkout.

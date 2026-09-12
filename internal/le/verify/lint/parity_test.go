@@ -330,7 +330,7 @@ func TestScopedRunParsesPackagesAndNeverBroadensToTheTree(t *testing.T) {
 	var code int
 	stdout, stderr := captureLintOutput(t, func() {
 		answer, code = runRunner(runner, leaction.Arguments{
-			"scope": " \t./pkg/alpha\n./pkg/beta  ",
+			"scope": {" \t./pkg/alpha\n./pkg/beta  "},
 		})
 	})
 	if code != 0 {
@@ -452,7 +452,7 @@ func TestEmptyScopeRunsNoCommandsAndPrintsNothing(t *testing.T) {
 	var answer any
 	var code int
 	stdout, stderr := captureLintOutput(t, func() {
-		answer, code = runRunner(runner, leaction.Arguments{"scope": ""})
+		answer, code = runRunner(runner, leaction.Arguments{"scope": {""}})
 	})
 	if code != 0 || stdout != "" || stderr != "" {
 		t.Fatalf("empty scope = report %#v code %d stdout %q stderr %q, want a silent success", answer, code, stdout, stderr)
@@ -800,7 +800,7 @@ func TestExecuteCopiesChildOutputToTheSlotLog(t *testing.T) {
 // a scoped run borrowing a full run's green would report packages nobody linted.
 func TestJobArgvSeparatesAFullRunFromAScopedRun(t *testing.T) {
 	full := jobArgv(leaction.Arguments{})
-	scoped := jobArgv(leaction.Arguments{"scope": "./internal/le ./cmd/ze"})
+	scoped := jobArgv(leaction.Arguments{"scope": {"./internal/le ./cmd/ze"}})
 	if reflect.DeepEqual(full, scoped) {
 		t.Fatalf("full and scoped runs share one work identity %q", full)
 	}

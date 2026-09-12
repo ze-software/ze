@@ -67,7 +67,7 @@ func actionTable() leaction.Area {
 			Answer: func() (any, int) { return runRenderer(rendererRenderMode, true) }},
 		leaction.Action{Verb: "render", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo",
 			Writes:     true,
-			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Value: "demo-id"}},
+			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Value: "demo-id", Requirement: leaction.Required}},
 			AnswerArgs: runRenderOne},
 	)
 }
@@ -229,7 +229,7 @@ func runImageBuild() (any, int) {
 // records the whole gallery is render-all, and a developer who typed `render`
 // asked for one demo.
 func runRenderOne(args leaction.Arguments) (any, int) {
-	demoID := args[demoKeyword]
+	demoID := args.One(demoKeyword)
 	if demoID == "" {
 		leaction.ReportError(errors.New(
 			"terminal-demo render names one demo: le terminal-demo render name <demo-id>" +

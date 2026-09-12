@@ -277,13 +277,28 @@ all render it.
 3. Register the area with `leroot.Register`, naming the group help files it
    under (`leroot.GroupWorkflow`, `GroupGate`, `GroupGenerate`, `GroupSuite`,
    or `GroupReport`); return structured answers so the shared pipe renderers
-   remain available.
+   remain available. Register the action table beside it with
+   `leroot.RegisterActions`, which is what puts the area's keyword grammar in
+   the manifest and behind `--help`.
 4. Blank-import the package exactly once from `internal/le/register.go`. Do not
    import it from normal `cmd/ze` composition.
 5. Add its operator and producer row here. Remove the retired implementation
    and migrate every caller to the native action.
 
 ### Native command inventory
+
+**`./le '|' json` is the authority.** It answers the manifest, which names every
+registered area, its group and its description
+(`internal/le/leroot/manifest.go`, `Manifest`). An area that registered an
+action table also carries each action, with its verb, its purpose, its write
+flag and its keyword grammar. `./le` with no argument prints the same manifest
+as the root help page, on stdout, and exits 0. `./le <area> <verb> --help`
+prints one action's usage line, and the dispatcher renders it without a call to
+the action.
+
+The table below is a convenience copy for a reader with no checkout in hand. No
+generator writes it and no gate compares it. Where a row and the manifest
+disagree, the manifest is right and the row is stale.
 
 | Command | Producer | Purpose |
 |---------|----------|---------|

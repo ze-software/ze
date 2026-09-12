@@ -144,10 +144,10 @@ func discriminateRecordAnswer(args leaction.Arguments) (any, int) {
 		return nil, 2
 	}
 	report, err := recordDiscrimination(tree, recordRequest{
-		rid: args[keyID], polarity: args[keyPolarity], unit: args[keyUnit],
-		route: args[keyRoute], producer: args[keyProducer],
-		citation: args[keyCitation], reason: args[keyReason],
-		report: args[keyReport], mutant: args[keyMutant],
+		rid: args.One(keyID), polarity: args.One(keyPolarity), unit: args.One(keyUnit),
+		route: args.One(keyRoute), producer: args.One(keyProducer),
+		citation: args.One(keyCitation), reason: args.One(keyReason),
+		report: args.One(keyReport), mutant: args.One(keyMutant),
 	})
 	if err != nil {
 		leaction.ReportError(err)

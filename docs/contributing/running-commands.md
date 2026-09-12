@@ -5,6 +5,32 @@
 How the `./le` action surface, the session scratch tree, and the Bash guard
 behave. The obligations that follow from this page are `ai/rules/commands.md`.
 
+## Finding a command and what it takes
+
+`./le '|' json` answers le's whole surface as one document. It names every
+registered area, the group it renders under, and its description. An area that
+registered an action table also carries each action, with its verb, its purpose,
+its write flag and its keyword grammar. The bar is quoted because a shell
+consumes an unquoted one. `| yaml` and `| table` render the same payload.
+
+`./le` with no argument prints that manifest as the root help page. It writes to
+stdout and exits 0. It wrote to stderr and exited 1 until 2026-09-12, so a
+caller that reads stdout or tests the status now receives the page.
+
+`./le <area> <verb> --help` prints one action's usage line. The dispatcher
+renders it from the registered action table and calls no handler. The help word
+therefore starts no work, whatever the area does with its first argument. A
+required keyword prints bare, an optional one prints inside brackets, and a
+keyword that repeats carries a trailing ellipsis.
+
+<!-- source: internal/le/leroot/manifest.go -- Manifest -->
+<!-- source: internal/le/leroot/dispatch.go -- Dispatch, helpTrailing -->
+<!-- source: internal/le/leaction/leaction.go -- parameterForm -->
+
+An area that hand-rolls its own dispatch registers no table. The manifest then
+carries its description and not its grammar, and `--help` answers its node page.
+`internal/le/actions_test.go` names those areas and refuses a new one.
+
 ## A bare `go test` is not `./le test-unit`
 
 Ze compiles features out behind build tags (`//go:build ze_isis`, `ze_ospf`,

@@ -52,10 +52,13 @@ var actions = leaction.New(area,
 			" packages, and run one command over SSH. The host process owns the ISO" +
 			" cache, QEMU lifecycle, bounded waits, and cleanup",
 		Parameters: []leaction.Parameter{
-			{Keyword: "command", Value: "command"},
-			{Keyword: "packages", Value: "space-separated-packages"},
-			{Keyword: "timeout", Value: "duration"},
-			{Keyword: "kernel", Value: "path"},
+			// A run needs command or keep-alive, and parseRunArguments is
+			// what refuses one carrying neither. The keyword is optional
+			// because the switch beside it can answer for it.
+			{Keyword: "command", Value: "command", Requirement: leaction.Optional},
+			{Keyword: "packages", Value: "space-separated-packages", Requirement: leaction.Optional},
+			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+			{Keyword: "kernel", Value: "path", Requirement: leaction.Optional},
 			{Keyword: "keep-alive"},
 		},
 		AnswerArgs: runQEMUHere,
@@ -89,7 +92,7 @@ var actions = leaction.New(area,
 			// the run itself selects from. Spelled out here it went stale the
 			// day a fourth scenario was added, and the new one was then
 			// undiscoverable from `./le qemu`.
-			{Keyword: "scenarios", Value: strings.Join(vrrpScenarioNames, ",")},
+			{Keyword: "scenarios", Value: strings.Join(vrrpScenarioNames, ","), Requirement: leaction.Optional},
 		},
 		AnswerArgs: runVRRPHere,
 	},
@@ -103,7 +106,7 @@ var actions = leaction.New(area,
 		Why: "run the selected functional subsets through the credential-dropped network" +
 			" namespace launcher and prove the guest root nftables state is unchanged",
 		Parameters: []leaction.Parameter{
-			{Keyword: "suites", Value: "firewall,policy,ospf,ospfv3,pppoe"},
+			{Keyword: "suites", Value: "firewall,policy,ospf,ospfv3,pppoe", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runNetnsHere,
 	},
@@ -123,7 +126,7 @@ var actions = leaction.New(area,
 			" `only needs-linux` narrows the functional suites to the .ci tests marked" +
 			" option=needs-linux, which is the tight loop for a change to a Linux-only path",
 		Parameters: []leaction.Parameter{
-			{Keyword: onlyKeyword, Value: linuxOnlySelection},
+			{Keyword: onlyKeyword, Value: linuxOnlySelection, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runAllTestsHere,
 	},
@@ -275,7 +278,8 @@ func signalExitCode(caught os.Signal) int {
 // the caller believed it had narrowed it.
 func runAllTestsHere(args leaction.Arguments) (any, int) {
 	run := newAllTests()
-	if selection, named := args[onlyKeyword]; named {
+	if args.Has(onlyKeyword) {
+		selection := args.One(onlyKeyword)
 		if selection != linuxOnlySelection {
 			var tb textbuf.Buffer
 			leaction.ReportError(errors.New(tb.Str("qemu all-tests only takes ").

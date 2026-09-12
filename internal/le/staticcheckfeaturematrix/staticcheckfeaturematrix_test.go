@@ -248,17 +248,17 @@ func TestThePartGrammarNeedsBothKeywords(t *testing.T) {
 	if err != nil || index != 1 || count != 1 {
 		t.Errorf("an uncut run answers (%d, %d, %v), want part 1 of 1", index, count, err)
 	}
-	if index, count, err := partFrom(leaction.Arguments{"part": "3", "of": "6"}); err != nil || index != 3 || count != 6 {
+	if index, count, err := partFrom(leaction.Arguments{"part": {"3"}, "of": {"6"}}); err != nil || index != 3 || count != 6 {
 		t.Errorf("`part 3 of 6` answers (%d, %d, %v)", index, count, err)
 	}
 
 	for name, args := range map[string]leaction.Arguments{
-		"an index with no count": {"part": "3"},
-		"a count with no index":  {"of": "6"},
-		"an index of zero":       {"part": "0", "of": "6"},
-		"a negative index":       {"part": "-1", "of": "6"},
-		"a count of zero":        {"part": "1", "of": "0"},
-		"a word for an index":    {"part": "first", "of": "6"},
+		"an index with no count": {"part": {"3"}},
+		"a count with no index":  {"of": {"6"}},
+		"an index of zero":       {"part": {"0"}, "of": {"6"}},
+		"a negative index":       {"part": {"-1"}, "of": {"6"}},
+		"a count of zero":        {"part": {"1"}, "of": {"0"}},
+		"a word for an index":    {"part": {"first"}, "of": {"6"}},
 	} {
 		if _, _, err := partFrom(args); err == nil {
 			t.Errorf("%s was accepted", name)

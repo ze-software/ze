@@ -23,6 +23,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(Area, Actions)
 
 	// ShapeDoc applies because these answers do not share one row set.
 	// The suite table has rows, a gating run has one verdict, and a sweep has separate rows.

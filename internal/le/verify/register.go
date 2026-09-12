@@ -16,6 +16,7 @@ func init() {
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)
 
 }

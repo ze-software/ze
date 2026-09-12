@@ -41,9 +41,9 @@ func TestTunnelDiagnosticDefaultsMatchTheProducer(t *testing.T) {
 
 func TestTunnelDiagnosticAcceptsEveryEncodingBoundary(t *testing.T) {
 	got, err := parseTunnelDiagnosticArguments(leaction.Arguments{
-		"local": "0.0.0.0", "remote": "255.255.255.255",
-		"source-port": "0", "destination-port": "65535",
-		"tunnel-id": "0", "peer-tunnel-id": "4294967295",
+		"local": {"0.0.0.0"}, "remote": {"255.255.255.255"},
+		"source-port": {"0"}, "destination-port": {"65535"},
+		"tunnel-id": {"0"}, "peer-tunnel-id": {"4294967295"},
 	})
 	if err != nil {
 		t.Fatalf("parse boundaries: %v", err)
@@ -56,8 +56,8 @@ func TestTunnelDiagnosticAcceptsEveryEncodingBoundary(t *testing.T) {
 
 func TestPPPoXDiagnosticAcceptsEveryPackedIDBoundary(t *testing.T) {
 	got, err := parsePPPoXDiagnosticArguments(leaction.Arguments{
-		"tunnel-id": "0", "peer-tunnel-id": "65535",
-		"session-id": "0", "peer-session-id": "65535",
+		"tunnel-id": {"0"}, "peer-tunnel-id": {"65535"},
+		"session-id": {"0"}, "peer-session-id": {"65535"},
 	})
 	if err != nil {
 		t.Fatalf("parse boundaries: %v", err)
@@ -74,12 +74,12 @@ func TestDiagnosticArgumentsRefuseMalformedValuesBeforeThePlatformRuns(t *testin
 		args leaction.Arguments
 		want string
 	}{
-		{name: "IPv6", args: leaction.Arguments{"local": "::1"}, want: "dotted-quad"},
-		{name: "trailing address data", args: leaction.Arguments{"remote": "127.0.0.1x"}, want: "dotted-quad"},
-		{name: "negative port", args: leaction.Arguments{"source-port": "-1"}, want: "unsigned 16-bit"},
-		{name: "large port", args: leaction.Arguments{"destination-port": "65536"}, want: "unsigned 16-bit"},
-		{name: "large PPP tunnel", args: leaction.Arguments{"tunnel-id": "65536"}, want: "unsigned 16-bit"},
-		{name: "large session", args: leaction.Arguments{"session-id": "65536"}, want: "unsigned 16-bit"},
+		{name: "IPv6", args: leaction.Arguments{"local": {"::1"}}, want: "dotted-quad"},
+		{name: "trailing address data", args: leaction.Arguments{"remote": {"127.0.0.1x"}}, want: "dotted-quad"},
+		{name: "negative port", args: leaction.Arguments{"source-port": {"-1"}}, want: "unsigned 16-bit"},
+		{name: "large port", args: leaction.Arguments{"destination-port": {"65536"}}, want: "unsigned 16-bit"},
+		{name: "large PPP tunnel", args: leaction.Arguments{"tunnel-id": {"65536"}}, want: "unsigned 16-bit"},
+		{name: "large session", args: leaction.Arguments{"session-id": {"65536"}}, want: "unsigned 16-bit"},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestDiagnosticArgumentsRefuseMalformedValuesBeforeThePlatformRuns(t *testin
 }
 
 func TestTunnelDiagnosticKeepsTheProtocolV3IDWidth(t *testing.T) {
-	if _, err := parseTunnelDiagnosticArguments(leaction.Arguments{"tunnel-id": "4294967296"}); err == nil {
+	if _, err := parseTunnelDiagnosticArguments(leaction.Arguments{"tunnel-id": {"4294967296"}}); err == nil {
 		t.Fatal("accepted an ID wider than its netlink attribute")
 	}
 }

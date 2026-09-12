@@ -28,8 +28,8 @@ var actions = leaction.New(area,
 		Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged; " +
 			"part <index> of <count> judges one piece of the rows, and the pieces together judge every row",
 		Parameters: []leaction.Parameter{
-			{Keyword: "part", Value: "index"},
-			{Keyword: "of", Value: "count"},
+			{Keyword: "part", Value: "index", Requirement: leaction.Optional},
+			{Keyword: "of", Value: "count", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runCheck,
 	},
@@ -131,8 +131,8 @@ func runCheck(args leaction.Arguments) (any, int) {
 // "part 3" alone cannot say how many pieces the rows were dealt into, and a
 // guess would silently judge the wrong subset.
 func partFrom(args leaction.Arguments) (int, int, error) {
-	declaredIndex, hasIndex := args["part"]
-	declaredCount, hasCount := args["of"]
+	hasIndex := args.Has("part")
+	hasCount := args.Has("of")
 	if !hasIndex && !hasCount {
 		return 1, 1, nil
 	}
@@ -140,11 +140,11 @@ func partFrom(args leaction.Arguments) (int, int, error) {
 		return 0, 0, fmt.Errorf(
 			"a cut run needs both keywords: check part <index> of <count>; matrix could not be judged")
 	}
-	index, err := wholeNumber("part", declaredIndex)
+	index, err := wholeNumber("part", args.One("part"))
 	if err != nil {
 		return 0, 0, err
 	}
-	count, err := wholeNumber("of", declaredCount)
+	count, err := wholeNumber("of", args.One("of"))
 	if err != nil {
 		return 0, 0, err
 	}

@@ -51,7 +51,8 @@ interface editor.
 
 To add a repository tool, add one package under `internal/le/`, register its
 area through `leroot.Register`, and add one blank import to
-`internal/le/register.go`. Keep each action callable as Go. Go callers invoke
+`internal/le/register.go`. Register the area's action table beside it, through
+`leroot.RegisterActions`. Keep each action callable as Go. Go callers invoke
 that function directly, and repository workflows invoke
 `./le <area> <action>`. A package must return structured answers through the
 shared renderer rather than add a private JSON mode.
@@ -82,12 +83,26 @@ prints one section for each group in that order. The group is a parameter of
 the registry rather than from the command.** `le` alone prints the grouped page;
 `le <command> --help` and `le help <command>` print that node's page, which
 carries the registered description, the actions its `Meta.Subs` line declares,
-and the commands registered under it; `le <command> <action> --help` prints that
-action's closed keyword grammar, which only `leaction.Area` holds. A help word
-never reaches the handler, because a single-action area answers a bare
-invocation by RUNNING its gate, so rendering help through the handler would scan
-the tree or start a build. Only a trailing help word asks the question: a help
-word further up the line can be the value a keyword before it introduced.
+and the commands registered under it. `le <command> <action> --help` prints that
+action's closed keyword grammar, which the dispatcher renders from the table the
+area registered. A help word never reaches the handler, because a single-action
+area answers a bare invocation by RUNNING its gate, so rendering help through
+the handler would scan the tree or start a build. Only a trailing help word asks
+the question: a help word further up the line can be the value a keyword before
+it introduced.
+
+**The grouped page is a rendering of a payload, so le publishes what it
+declares.** `Manifest` carries every registered area, its group and its
+description. An area that registered an action table also carries each action,
+with its verb, its purpose, its write flag and its keyword grammar. `./le '|'
+json` renders the manifest as data. A bare `./le` renders the same payload as
+the page a person reads, on stdout, with exit 0. The page is derived from the
+manifest rather than written beside it, so the text and the document name one
+command set.
+
+An area that hand-rolls its own dispatch registers no table, and
+its actions key is then absent rather than empty. Absent says the area declared
+nothing, which is a different fact from an area that declared no action.
 
 Several commands answer to more than one group, so the choice is a ladder.
 Read from the top and stop at the first row that matches.
@@ -206,9 +221,10 @@ under the `testdata/` directory of the Go package that owns them.
 <!-- source: internal/le/testunit/groups.go -- allGroups -->
 <!-- source: internal/le/rfc/check.go -- Check -->
 <!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
-<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, usageSections, helpNode -->
+<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, helpTrailing, helpNode -->
+<!-- source: internal/le/leroot/manifest.go -- Manifest, Text -->
 <!-- source: internal/le/leaction/leaction.go -- IsHelpArg, actionUsage -->
-<!-- source: internal/le/leroot/leroot.go -- Register -->
+<!-- source: internal/le/leroot/leroot.go -- Register, RegisterActions -->
 <!-- source: internal/le/leroot/group.go -- Group, GroupTitle -->
 <!-- source: internal/le/derived/derived.go -- Artifact, Register, All -->
 <!-- source: cmd/ze/ze_le_register.go -->

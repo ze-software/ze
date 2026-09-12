@@ -18,6 +18,7 @@ func init() {
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(Area, Actions)
 
 	// The listing and a sweep contain different row sets. The document shape
 	// keeps every pipe operator honest instead of selecting one set by accident.

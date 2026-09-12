@@ -14,7 +14,7 @@ var actions = leaction.New(area,
 		Verb: "check",
 		Why:  "compare a command-catalog Markdown file with the live product command registries",
 		Parameters: []leaction.Parameter{
-			{Keyword: "file", Value: "destination"},
+			{Keyword: "file", Value: "destination", Requirement: leaction.Required},
 		},
 		AnswerArgs: runCheck,
 	},
@@ -23,7 +23,7 @@ var actions = leaction.New(area,
 		Why:    "write the live product command catalog as exact Markdown",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "file", Value: "destination"},
+			{Keyword: "file", Value: "destination", Requirement: leaction.Required},
 		},
 		AnswerArgs: runUpdate,
 	},
@@ -64,9 +64,8 @@ func run(arguments leaction.Arguments, judge func(string) (Report, error)) (any,
 }
 
 func catalogDestination(arguments leaction.Arguments) (string, error) {
-	path, ok := arguments["file"]
-	if !ok {
+	if !arguments.Has("file") {
 		return "", errDestinationRequired
 	}
-	return validateDestination(path)
+	return validateDestination(arguments.One("file"))
 }

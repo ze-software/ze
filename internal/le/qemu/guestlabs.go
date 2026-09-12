@@ -170,7 +170,7 @@ func guestContext() (context.Context, context.CancelFunc) {
 }
 
 func runVRRPHere(args leaction.Arguments) (any, int) {
-	selected, err := parseClosedCSV(args["scenarios"], "scenario", vrrpScenarioNames, vrrpScenarioNames)
+	selected, err := parseClosedCSV(args.One("scenarios"), "scenario", vrrpScenarioNames, vrrpScenarioNames)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -199,7 +199,7 @@ func runPPPoEAccelHere() (any, int) {
 }
 
 func runNetnsHere(args leaction.Arguments) (any, int) {
-	raw := args["suites"]
+	raw := args.One("suites")
 	if raw == "" {
 		raw = strings.Join(strings.Fields(os.Getenv("ZE_NETNS_QEMU_SUITES")), ",")
 	}

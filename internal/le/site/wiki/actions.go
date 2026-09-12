@@ -32,13 +32,16 @@ const (
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "update",
-		Why:        "derive the wiki page index from a wiki checkout and write website/data/wiki.json, the file the site build reads instead of opening the wiki",
-		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: keywordWiki, Value: "directory"}, {Keyword: keywordBaseURL, Value: "url"}},
+		Why:    "derive the wiki page index from a wiki checkout and write website/data/wiki.json, the file the site build reads instead of opening the wiki",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keywordWiki, Value: "directory", Requirement: leaction.Optional},
+			{Keyword: keywordBaseURL, Value: "url", Requirement: leaction.Optional},
+		},
 		AnswerArgs: runUpdate},
 	leaction.Action{Verb: "check",
 		Why:        "report whether the committed wiki index still states what the wiki checkout holds",
-		Parameters: []leaction.Parameter{{Keyword: keywordWiki, Value: "directory"}},
+		Parameters: []leaction.Parameter{{Keyword: keywordWiki, Value: "directory", Requirement: leaction.Optional}},
 		AnswerArgs: runCheck},
 )
 
@@ -78,12 +81,12 @@ func runUpdate(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	wikiRoot, err := wikiCheckout(root, arguments[keywordWiki])
+	wikiRoot, err := wikiCheckout(root, arguments.One(keywordWiki))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	index, err := Derive(wikiRoot, arguments[keywordBaseURL])
+	index, err := Derive(wikiRoot, arguments.One(keywordBaseURL))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1
@@ -111,7 +114,7 @@ func runCheck(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	wikiRoot, err := wikiCheckout(root, arguments[keywordWiki])
+	wikiRoot, err := wikiCheckout(root, arguments.One(keywordWiki))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

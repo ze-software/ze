@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeDoc, because the answers are documents rather than one row set: the
 	// listing is rows, while each proof report is one verdict with nested

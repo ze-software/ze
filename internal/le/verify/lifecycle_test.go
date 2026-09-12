@@ -343,7 +343,7 @@ func TestActionsDeclareWorktreeCurrentRedsAndList(t *testing.T) {
 }
 
 func leactionArguments(key, value string) leaction.Arguments {
-	return leaction.Arguments{key: value}
+	return leaction.Arguments{key: {value}}
 }
 
 // TestGitBoundsSeparateAWholeCheckoutFromARefRead drives the lifecycle with a

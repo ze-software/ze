@@ -14,6 +14,7 @@ func init() {
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)
 
 	// `verify-lint run` is an internal verifier verb rather than a second

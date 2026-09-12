@@ -1,12 +1,13 @@
 // Design: docs/architecture/core-design.md -- the post-verify repository checks
 //
-// Package repository is the post-verify validation gate: five checks, each
+// Package repository is the post-verify validation gate: six checks, each
 // derived from a documented defect pattern in
 // plan/learned/RECURRING-PATTERNS.md.
 //
-// Three checks read the complete tree. They find numbered source anchors, stale
-// source paths, and acceptance criteria without demonstrations. Two checks read
-// only session changes. They find uncalled exported symbols and CLI commands
+// Four checks read the complete tree. They find numbered source anchors, stale
+// source paths, acceptance criteria without demonstrations, and a 32-bit
+// text-to-integer parse that no allowlist line justifies. Two checks read only
+// session changes. They find uncalled exported symbols and CLI commands
 // without .ci coverage.
 //
 // The two gates select between those scopes. `le repository check` gets the
@@ -16,6 +17,7 @@
 // checkout. Verify CAN otherwise fail work from another session.
 //
 // Detail: wiring.go -- the cross-package caller search
+// Detail: numberparse.go -- the 32-bit parse allowlist, and what it cannot see
 // Detail: report.go -- what the checks answer
 package repository
 
@@ -430,6 +432,7 @@ func Run(ctx context.Context, tree string, changed []string) (Report, error) {
 		func() ([]Finding, error) { return checkCrossPackageWiring(ctx, tree, changed) },
 		func() ([]Finding, error) { return checkSpecACCompleteness(tree) },
 		func() ([]Finding, error) { return checkCLIHandlerCoverage(tree, changed) },
+		func() ([]Finding, error) { return checkNumberParseSites(tree) },
 	}
 	for _, step := range steps {
 		findings, err := step()

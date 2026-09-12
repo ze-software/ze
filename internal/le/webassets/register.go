@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// The answers hold several row sets between them -- the actions, the
 	// derived files, and the pages, which are one map of page to asset list --

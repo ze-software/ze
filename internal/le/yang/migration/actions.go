@@ -24,13 +24,18 @@ var actions = leaction.New(area,
 		Why:    "rewrite one removed, renamed, or moved YANG path across YANG, Go, .ci, and .et syntax",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "operation", Value: "remove|rename|move"},
-			{Keyword: "target", Value: "segment"},
-			{Keyword: "replacement", Value: "segment"},
-			{Keyword: "under", Value: valuePath},
-			{Keyword: "source", Value: valuePath},
-			{Keyword: "destination", Value: valuePath},
-			{Keyword: "list-nodes", Value: "comma-list"},
+			{Keyword: "operation", Value: "remove|rename|move", Requirement: leaction.Required},
+			// Each of the five below is required by one operation and refused
+			// by another, which a flat keyword table cannot say: remove needs
+			// target and under, rename needs replacement as well, and move
+			// needs source and destination instead. pathOperation.Validate
+			// holds that rule and refuses what this table cannot.
+			{Keyword: "target", Value: "segment", Requirement: leaction.Optional},
+			{Keyword: "replacement", Value: "segment", Requirement: leaction.Optional},
+			{Keyword: "under", Value: valuePath, Requirement: leaction.Optional},
+			{Keyword: "source", Value: valuePath, Requirement: leaction.Optional},
+			{Keyword: "destination", Value: valuePath, Requirement: leaction.Optional},
+			{Keyword: "list-nodes", Value: "comma-list", Requirement: leaction.Optional},
 			{Keyword: keywordApply},
 		},
 		AnswerArgs: runPathRefactorHere,
@@ -112,9 +117,9 @@ func actionResult(report Report, err error) (any, int) {
 }
 
 func operationFromArguments(args leaction.Arguments) (pathOperation, error) {
-	kind := PathOperationKind(args["operation"])
+	kind := PathOperationKind(args.One("operation"))
 	listNodes := defaultListNodes()
-	if value := args["list-nodes"]; value != "" {
+	if value := args.One("list-nodes"); value != "" {
 		listNodes = make(map[string]bool)
 		for name := range strings.SplitSeq(value, ",") {
 			if name == "" {
@@ -125,11 +130,11 @@ func operationFromArguments(args leaction.Arguments) (pathOperation, error) {
 	}
 	op := pathOperation{
 		Kind:        kind,
-		Target:      args["target"],
-		Replacement: args["replacement"],
-		Under:       args["under"],
-		Source:      args["source"],
-		Destination: args["destination"],
+		Target:      args.One("target"),
+		Replacement: args.One("replacement"),
+		Under:       args.One("under"),
+		Source:      args.One("source"),
+		Destination: args.One("destination"),
 		ListNodes:   listNodes,
 	}
 	if err := op.Validate(); err != nil {

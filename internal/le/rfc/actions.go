@@ -20,7 +20,7 @@ var actions = leaction.New(area,
 		"scratch, because one unclassified artifact in the corpus fails `./le rfc check` for all of it",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyStem, Value: keyStem},
+			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionCreateAnswer},
 	leaction.Action{Verb: "extraction-classify", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
@@ -31,7 +31,7 @@ var actions = leaction.New(area,
 		"sentence that makes the feature optional, checked against the RFC's own text",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyDecisions, Value: keyPath},
+			{Keyword: keyDecisions, Value: keyPath, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionClassifyAnswer},
 	leaction.Action{Verb: "extraction-status", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
@@ -42,7 +42,7 @@ var actions = leaction.New(area,
 		Why: "judge one proposed file from stdin against its existing RFC-tagged test units, " +
 			"and return the carrier predicate, widened edit scope, and owner-approval decision",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyPath, Value: keyPath},
+			{Keyword: keyPath, Value: keyPath, Requirement: leaction.Required},
 		},
 		AnswerArgs: taggedScopeAnswer,
 	},
@@ -53,9 +53,12 @@ var actions = leaction.New(area,
 			"record. A tag's prose says what a test demonstrates and no gate can read a sentence, " +
 			"so a record is what replaces reading it",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyStem, Value: keyStem},
-			{Keyword: keyID, Value: keyID},
-			{Keyword: keyReport, Value: keyPath},
+			// Exactly one of stem and id selects the report, which a flat
+			// keyword table cannot say: naming both, or neither, is refused
+			// by discriminateAnswer.
+			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Optional},
+			{Keyword: keyID, Value: keyID, Requirement: leaction.Optional},
+			{Keyword: keyReport, Value: keyPath, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateAnswer},
 	leaction.Action{
@@ -66,15 +69,20 @@ var actions = leaction.New(area,
 			"that unit: a red it did not observe is never written, and a green run refuses",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyID, Value: keyID},
-			{Keyword: keyPolarity, Value: keyPolarity},
-			{Keyword: keyUnit, Value: keyUnit},
-			{Keyword: keyRoute, Value: keyRoute},
-			{Keyword: keyProducer, Value: keyProducer},
-			{Keyword: keyReport, Value: keyPath},
-			{Keyword: keyMutant, Value: "file:line:column#n"},
-			{Keyword: keyCitation, Value: keyCitation},
-			{Keyword: keyReason, Value: keyReason},
+			{Keyword: keyID, Value: keyID, Requirement: leaction.Required},
+			{Keyword: keyPolarity, Value: keyPolarity, Requirement: leaction.Required},
+			{Keyword: keyUnit, Value: keyUnit, Requirement: leaction.Required},
+			{Keyword: keyRoute, Value: keyRoute, Requirement: leaction.Required},
+			// The five below are each required by one route and refused by
+			// another: a proving route names its producer, the mutant route
+			// names the report and the mutant it applies, and the no-break
+			// route gives a reason instead. validateDiscrimination holds that
+			// rule, which a flat keyword table cannot state.
+			{Keyword: keyProducer, Value: keyProducer, Requirement: leaction.Optional},
+			{Keyword: keyReport, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyMutant, Value: "file:line:column#n", Requirement: leaction.Optional},
+			{Keyword: keyCitation, Value: keyCitation, Requirement: leaction.Optional},
+			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
@@ -112,11 +120,11 @@ func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 // extractionCreateAnswer writes one unsigned skeleton in this checkout.
 func extractionCreateAnswer(args leaction.Arguments) (any, int) {
-	stem, held := args[keyStem]
-	if !held {
+	if !args.Has(keyStem) {
 		leaction.ReportError(errors.New("rfc extraction-create requires stem <stem>"))
 		return nil, 2
 	}
+	stem := args.One(keyStem)
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
@@ -132,11 +140,11 @@ func extractionCreateAnswer(args leaction.Arguments) (any, int) {
 
 // extractionClassifyAnswer applies one decisions file in this checkout.
 func extractionClassifyAnswer(args leaction.Arguments) (any, int) {
-	path, held := args[keyDecisions]
-	if !held {
+	if !args.Has(keyDecisions) {
 		leaction.ReportError(errors.New("rfc extraction-classify requires decisions <path>"))
 		return nil, 2
 	}
+	path := args.One(keyDecisions)
 	tree, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
@@ -182,8 +190,10 @@ func extractionStatusAnswer() (any, int) {
 // stopped it, which includes a malformed record: a corrupt artifact must never
 // read as a stem with nothing proven.
 func discriminateAnswer(args leaction.Arguments) (any, int) {
-	stem, hasStem := args[keyStem]
-	rid, hasID := args[keyID]
+	stem := args.One(keyStem)
+	rid := args.One(keyID)
+	hasStem := args.Has(keyStem)
+	hasID := args.Has(keyID)
 	if hasStem == hasID {
 		leaction.ReportError(errors.New("rfc discriminate requires exactly one of stem <stem> or id <ID>"))
 		return nil, 2
@@ -203,7 +213,7 @@ func discriminateAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	status, err := discriminationStatusOf(tree, selector, args[keyReport], selected)
+	status, err := discriminationStatusOf(tree, selector, args.One(keyReport), selected)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

@@ -28,6 +28,7 @@ func init() {
 		// listing about which verbs exist (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeDoc, because the answers are not one row set. The listing is rows,
 	// a group selection is two lists, and a scope answer is a list plus the

@@ -30,7 +30,7 @@ var actions = leaction.New(area, leaction.Action{
 	Verb: actionRun,
 	Why:  "lint the full tree or a declared package scope through the host, Linux integration, platform, capability, personality, and compile-out builds",
 	Parameters: []leaction.Parameter{
-		{Keyword: "scope", Value: "packages"},
+		{Keyword: "scope", Value: "packages", Requirement: leaction.Optional},
 	},
 	AnswerArgs: runHere,
 })
@@ -114,15 +114,15 @@ func runHere(arguments leaction.Arguments) (any, int) {
 // a scoped run do different work, so they must not share one verdict.
 func jobArgv(arguments leaction.Arguments) []string {
 	argv := []string{"le", "verify", "lint", actionRun}
-	if scope, scoped := arguments["scope"]; scoped {
-		argv = append(argv, strings.Fields(scope)...)
+	if arguments.Has("scope") {
+		argv = append(argv, strings.Fields(arguments.One("scope"))...)
 	}
 	return argv
 }
 
 func runRunner(runner *Runner, arguments leaction.Arguments) (any, int) {
-	if scope, scoped := arguments["scope"]; scoped {
-		return runner.runScope(strings.Fields(scope))
+	if arguments.Has("scope") {
+		return runner.runScope(strings.Fields(arguments.One("scope")))
 	}
 	return runner.Run()
 }

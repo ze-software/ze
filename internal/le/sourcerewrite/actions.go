@@ -27,7 +27,7 @@ var actions = leaction.New(area,
 		Why:    "permute committed BGP UPDATE attributes without changing their bytes",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "files", Value: "comma-separated-paths"},
+			{Keyword: "files", Value: "comma-separated-paths", Requirement: leaction.Required},
 			{Keyword: "check"},
 			{Keyword: "write"},
 		},
@@ -38,9 +38,9 @@ var actions = leaction.New(area,
 		Why:    "preview or apply one deterministic literal or regular-expression replacement",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "file", Value: valuePath},
-			{Keyword: "old", Value: "text"},
-			{Keyword: "new", Value: "text"},
+			{Keyword: "file", Value: valuePath, Requirement: leaction.Required},
+			{Keyword: "old", Value: "text", Requirement: leaction.Required},
+			{Keyword: "new", Value: "text", Requirement: leaction.Required},
 			{Keyword: "regex"}, {Keyword: "all"}, {Keyword: "apply"},
 		},
 		AnswerArgs: replaceAnswer,
@@ -50,17 +50,17 @@ var actions = leaction.New(area,
 		Why:    "render or serve the self-contained Git activity and Go source dashboard",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "repo", Value: valuePath},
-			{Keyword: "days", Value: "count"},
-			{Keyword: "output", Value: valuePath},
-			{Keyword: "ref", Value: "git-ref"},
+			{Keyword: "repo", Value: valuePath, Requirement: leaction.Optional},
+			{Keyword: "days", Value: "count", Requirement: leaction.Optional},
+			{Keyword: "output", Value: valuePath, Requirement: leaction.Optional},
+			{Keyword: "ref", Value: "git-ref", Requirement: leaction.Optional},
 			{Keyword: "all"},
 			{Keyword: "all-files"},
-			{Keyword: "extensions", Value: "comma-separated-extensions"},
-			{Keyword: "exclude", Value: "comma-separated-patterns"},
-			{Keyword: "author", Value: "git-author-regex"},
+			{Keyword: "extensions", Value: "comma-separated-extensions", Requirement: leaction.Optional},
+			{Keyword: "exclude", Value: "comma-separated-patterns", Requirement: leaction.Optional},
+			{Keyword: "author", Value: "git-author-regex", Requirement: leaction.Optional},
 			{Keyword: "serve"},
-			{Keyword: "address", Value: "host:port"},
+			{Keyword: "address", Value: "host:port", Requirement: leaction.Optional},
 			{Keyword: "open"},
 		},
 		AnswerArgs: activityAnswer,
@@ -105,8 +105,8 @@ func rulesReformatAnswer(args leaction.Arguments) (any, int) {
 }
 
 func reorderExpectationsAnswer(args leaction.Arguments) (any, int) {
-	files, ok := args["files"]
-	if !ok || files == "" {
+	files := args.One("files")
+	if files == "" {
 		_, _ = fmt.Fprintln(os.Stderr, "error: files is required")
 		return nil, 2
 	}
@@ -149,10 +149,10 @@ func reorderExpectationsAnswer(args leaction.Arguments) (any, int) {
 }
 
 func replaceAnswer(args leaction.Arguments) (any, int) {
-	file, fileOK := args["file"]
-	old, oldOK := args["old"]
-	newText, newOK := args["new"]
-	if !fileOK || !oldOK || !newOK {
+	file := args.One("file")
+	old := args.One("old")
+	newText := args.One("new")
+	if !args.Has("file") || !args.Has("old") || !args.Has("new") {
 		_, _ = fmt.Fprintln(os.Stderr, "error: file, old, and new are required")
 		return nil, 2
 	}
@@ -192,38 +192,38 @@ func activityAnswer(args leaction.Arguments) (any, int) {
 		return nil, code
 	}
 	options := defaultActivityOptions(root)
-	if value, ok := args["repo"]; ok {
-		options.Repo = value
+	if args.Has("repo") {
+		options.Repo = args.One("repo")
 	}
-	if value, ok := args["days"]; ok {
-		days, err := strconv.Atoi(value)
+	if args.Has("days") {
+		days, err := strconv.Atoi(args.One("days"))
 		if err != nil || days <= 0 {
 			_, _ = fmt.Fprintln(os.Stderr, "error: --days must be positive")
 			return nil, 2
 		}
 		options.Days = days
 	}
-	if value, ok := args["output"]; ok {
-		options.Output = value
+	if args.Has("output") {
+		options.Output = args.One("output")
 	}
-	if value, ok := args["ref"]; ok {
-		options.Ref = value
+	if args.Has("ref") {
+		options.Ref = args.One("ref")
 	}
 	options.AllRefs = args.Has("all")
 	options.AllFiles = args.Has("all-files")
-	if value, ok := args["extensions"]; ok {
-		extensions, err := parseExtensions(value)
+	if args.Has("extensions") {
+		extensions, err := parseExtensions(args.One("extensions"))
 		if err != nil {
 			leaction.ReportError(err)
 			return nil, 2
 		}
 		options.Extensions = extensions
 	}
-	if value, ok := args["exclude"]; ok {
-		options.Excludes = append(options.Excludes, splitComma(value)...)
+	if args.Has("exclude") {
+		options.Excludes = append(options.Excludes, splitComma(args.One("exclude"))...)
 	}
-	if value, ok := args["author"]; ok {
-		options.Author = value
+	if args.Has("author") {
+		options.Author = args.One("author")
 	}
 	options.Open = args.Has("open")
 	if args.Has("address") && !args.Has("serve") {
@@ -232,8 +232,8 @@ func activityAnswer(args leaction.Arguments) (any, int) {
 	}
 	if args.Has("serve") {
 		address := defaultActivityServe
-		if value, ok := args["address"]; ok {
-			address = value
+		if args.Has("address") {
+			address = args.One("address")
 		}
 		if err := serveActivity(options, address); err != nil {
 			leaction.ReportError(err)

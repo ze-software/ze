@@ -23,6 +23,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeDoc is required because one answer is a document and the other is a
 	// row set. The listing is rows. A proof report is one verdict with a kernel

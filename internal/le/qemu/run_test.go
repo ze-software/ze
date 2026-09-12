@@ -47,7 +47,7 @@ func TestParseRunArgumentsAndBoundaries(t *testing.T) {
 	env.ResetCache()
 
 	got, err := parseRunArguments(leaction.Arguments{
-		"command": "go test ./...", "packages": "git  curl", "timeout": "45s",
+		"command": {"go test ./..."}, "packages": {"git  curl"}, "timeout": {"45s"},
 	})
 	if err != nil {
 		t.Fatalf("parseRunArguments: %v", err)
@@ -67,9 +67,9 @@ func TestParseRunArgumentsAndBoundaries(t *testing.T) {
 		args leaction.Arguments
 	}{
 		{"missing command", leaction.Arguments{}},
-		{"zero timeout", leaction.Arguments{"command": "true", "timeout": "0s"}},
-		{"negative timeout", leaction.Arguments{"command": "true", "timeout": "-1s"}},
-		{"fractional timeout", leaction.Arguments{"command": "true", "timeout": "1500ms"}},
+		{"zero timeout", leaction.Arguments{"command": {"true"}, "timeout": {"0s"}}},
+		{"negative timeout", leaction.Arguments{"command": {"true"}, "timeout": {"-1s"}}},
+		{"fractional timeout", leaction.Arguments{"command": {"true"}, "timeout": {"1500ms"}}},
 	} {
 		t.Run(one.name, func(t *testing.T) {
 			if _, parseErr := parseRunArguments(one.args); parseErr == nil {
@@ -78,7 +78,7 @@ func TestParseRunArgumentsAndBoundaries(t *testing.T) {
 		})
 	}
 
-	keep, err := parseRunArguments(leaction.Arguments{"keep-alive": ""})
+	keep, err := parseRunArguments(leaction.Arguments{"keep-alive": {""}})
 	if err != nil || !keep.KeepAlive {
 		t.Fatalf("keep-alive alone = %#v, %v", keep, err)
 	}

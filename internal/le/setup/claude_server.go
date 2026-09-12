@@ -104,10 +104,10 @@ type claudeServerSetup struct {
 
 func runClaudeServer(args leaction.Arguments) (any, int) {
 	name := "thomas"
-	if supplied, ok := args["user"]; ok {
-		name = supplied
+	if args.Has("user") {
+		name = args.One("user")
 	}
-	setup := &claudeServerSetup{User: name, SSHKeyDir: args["ssh-key-dir"]}
+	setup := &claudeServerSetup{User: name, SSHKeyDir: args.One("ssh-key-dir")}
 	report, code, err := setup.setup()
 	if err != nil {
 		leaction.ReportError(err)

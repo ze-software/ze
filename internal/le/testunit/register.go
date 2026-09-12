@@ -15,6 +15,7 @@ func init() {
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(Area, Actions)
 
 	// A listing and a sweep have different row shapes. Document rendering keeps
 	// both structured answers available without claiming one common row set.

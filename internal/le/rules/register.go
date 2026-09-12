@@ -23,6 +23,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every answer contains one row set: actions, gate-map sets, or a transcript
 	// coverage report. Thus, row operators apply to each answer.

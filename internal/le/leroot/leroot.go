@@ -16,10 +16,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
 // Answer is what an le tool implements. The payload MUST be structured data a
@@ -105,6 +107,59 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 		meta,
 		command.RenderLocalAnswer,
 	)
+}
+
+// RegisterActions records the action table one area declared, so the dispatcher
+// can publish that area's grammar and render it WITHOUT calling the area's
+// handler. `le stress-repro run suite --help` started a multi-hour burn because
+// the only surface holding the grammar was the handler itself.
+//
+// It is a second call beside Register rather than a fifth argument to it: the
+// seven areas that hand-roll their own dispatch hold no action table yet, and
+// plan/spec-le-every-area-dispatches-through-one-table.md migrates them, after
+// which the table stops being optional.
+func RegisterActions(name string, actions func() leaction.List) {
+	if actions == nil {
+		panic("BUG: leroot.RegisterActions: nil actions; see the init frame above for the tool")
+	}
+	setActions(name, actions)
+}
+
+// actionTables holds the action table of every area that declared one.
+// Registration runs in init() and every read happens after it, but help runs on
+// any goroutine, so the map is guarded. Safe for concurrent use.
+var actionTables struct {
+	sync.RWMutex
+	byName map[string]func() leaction.List
+}
+
+// ActionsOf answers the action table an area registered, and whether it
+// registered one. An area that hand-rolls its own dispatch answers false, which
+// a caller tells apart from an area whose table is empty.
+//
+// The manifest renders it, the help guard reads one action's grammar out of it,
+// and the composition root asks it of every registered area, so the question
+// "what did this area publish" is answered in one place.
+func ActionsOf(name string) (leaction.List, bool) {
+	actionTables.RLock()
+	actions, declared := actionTables.byName[name]
+	actionTables.RUnlock()
+	if !declared {
+		return leaction.List{}, false
+	}
+	return actions(), true
+}
+
+// setActions records one area's action table. RegisterActions calls it after it
+// has refused a nil provider, so a call through a nil function never reaches
+// the map.
+func setActions(name string, actions func() leaction.List) {
+	actionTables.Lock()
+	defer actionTables.Unlock()
+	if actionTables.byName == nil {
+		actionTables.byName = make(map[string]func() leaction.List, 64)
+	}
+	actionTables.byName[name] = actions
 }
 
 // CommandPath answers the canonical local-data path for one le tool.

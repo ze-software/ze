@@ -29,6 +29,7 @@ func init() {
 		// listing about which action WRITES (actions.go).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every answer this command can give carries one row set, so the row
 	// operators act on it.

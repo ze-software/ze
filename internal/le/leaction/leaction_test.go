@@ -3,6 +3,9 @@
 package leaction
 
 import (
+	"encoding/json"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -125,17 +128,31 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 		{"no answer", []Action{{Verb: "check", Why: "why"}}},
 		{"no why", []Action{{Verb: "check", Answer: answer}}},
 		{"both answer forms", []Action{{
-			Verb: "check", Why: "why", Parameters: []Parameter{{Keyword: "name", Value: "name"}},
-			Answer: answer, AnswerArgs: answerArgs,
+			Verb: "check", Why: "why",
+			Parameters: []Parameter{{Keyword: "name", Value: "name", Requirement: Required}},
+			Answer:     answer, AnswerArgs: answerArgs,
 		}}},
 		{"zero-argument answer with parameters", []Action{{
-			Verb: "check", Why: "why", Parameters: []Parameter{{Keyword: "name", Value: "name"}},
-			Answer: answer,
+			Verb: "check", Why: "why",
+			Parameters: []Parameter{{Keyword: "name", Value: "name", Requirement: Required}},
+			Answer:     answer,
 		}}},
 		{"argument answer with no parameters", []Action{{Verb: "check", Why: "why", AnswerArgs: answerArgs}}},
 		{"duplicate parameter", []Action{{
 			Verb: "check", Why: "why",
 			Parameters: []Parameter{{Keyword: "name"}, {Keyword: "name"}}, AnswerArgs: answerArgs,
+		}}},
+		{"required switch", []Action{{
+			Verb: "check", Why: "why",
+			Parameters: []Parameter{{Keyword: "force", Requirement: Required}}, AnswerArgs: answerArgs,
+		}}},
+		{"repeating switch", []Action{{
+			Verb: "check", Why: "why",
+			Parameters: []Parameter{{Keyword: "force", Repeat: true}}, AnswerArgs: answerArgs,
+		}}},
+		{"value parameter with no requirement", []Action{{
+			Verb: "check", Why: "why",
+			Parameters: []Parameter{{Keyword: "file", Value: "path"}}, AnswerArgs: answerArgs,
 		}}},
 		{"two actions one verb", []Action{
 			{Verb: "check", Why: "first", Answer: answer},
@@ -165,8 +182,8 @@ func TestArgumentAwareActionValidatesItsClosedGrammar(t *testing.T) {
 		Verb: "run",
 		Why:  "boot a guest",
 		Parameters: []Parameter{
-			{Keyword: "command", Value: "command"},
-			{Keyword: "timeout", Value: "duration"},
+			{Keyword: "command", Value: "command", Requirement: Required},
+			{Keyword: "timeout", Value: "duration", Requirement: Optional},
 			{Keyword: "keep-alive"},
 		},
 		AnswerArgs: func(args Arguments) (any, int) {
@@ -181,7 +198,7 @@ func TestArgumentAwareActionValidatesItsClosedGrammar(t *testing.T) {
 	if code != 7 {
 		t.Fatalf("argument-aware action code = %d, want 7", code)
 	}
-	if payload == nil || got["command"] != "go test ./..." || got["timeout"] != "30s" {
+	if payload == nil || got.One("command") != "go test ./..." || got.One("timeout") != "30s" {
 		t.Fatalf("argument-aware action got %#v", got)
 	}
 	if !got.Has("keep-alive") {
@@ -331,7 +348,7 @@ func TestTakesArgumentsSeparatesGrammarFromActionNames(t *testing.T) {
 		Action{Verb: "plain", Why: "a probe", Answer: func() (any, int) { return nil, 0 }},
 		Action{
 			Verb: "typed", Why: "a probe that selects one member",
-			Parameters: []Parameter{{Keyword: "name", Value: "id"}},
+			Parameters: []Parameter{{Keyword: "name", Value: "id", Requirement: Required}},
 			AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
 		},
 	)
@@ -357,7 +374,7 @@ func TestSweepRefusesAnArgumentAwareAction(t *testing.T) {
 		Action{Verb: "plain", Why: "a probe", Answer: func() (any, int) { ran = true; return nil, 0 }},
 		Action{
 			Verb: "typed", Why: "a probe that selects one member",
-			Parameters: []Parameter{{Keyword: "name", Value: "id"}},
+			Parameters: []Parameter{{Keyword: "name", Value: "id", Requirement: Required}},
 			AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
 		},
 	)
@@ -382,7 +399,7 @@ func TestAHelpWordAnswersUsageAndRunsNothing(t *testing.T) {
 		Action{
 			Verb:       "run",
 			Why:        "run the probe over a scope",
-			Parameters: []Parameter{{Keyword: "scope", Value: "packages"}},
+			Parameters: []Parameter{{Keyword: "scope", Value: "packages", Requirement: Optional}},
 			AnswerArgs: func(Arguments) (any, int) { ran++; return nil, 0 },
 		},
 	)
@@ -482,5 +499,230 @@ func TestSweepTextStaysASummaryWhenNothingFailed(t *testing.T) {
 	}
 	if want := "\nprobe: 1 action(s) passed.\n"; sweep.Text() != want {
 		t.Errorf("text = %q, want %q", sweep.Text(), want)
+	}
+}
+
+// ─── The published grammar: requiredness, repetition, and what usage says ────
+
+// captureStderr runs fn with os.Stderr replaced by a pipe and answers what fn
+// wrote. Usage and every refusal name os.Stderr directly, which is what keeps
+// them inside the one exemption the no-Sprintf check makes, so reading them
+// back means moving the file rather than injecting a writer.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("open a pipe: %v", err)
+	}
+	saved := os.Stderr
+	os.Stderr = write
+	t.Cleanup(func() { os.Stderr = saved })
+
+	done := make(chan string, 1)
+	go func() {
+		var sb strings.Builder
+		buf := make([]byte, 4096)
+		for {
+			n, readErr := read.Read(buf)
+			sb.Write(buf[:n]) //nolint:errcheck // strings.Builder never fails
+			if readErr != nil {
+				break
+			}
+		}
+		done <- sb.String()
+	}()
+
+	fn()
+	write.Close() //nolint:errcheck // the reader answers what it has
+	captured := <-done
+	read.Close() //nolint:errcheck // read to EOF
+	return captured
+}
+
+// grammarArea is an action whose four parameters cover every published shape:
+// a required value, an optional one, a repeatable one, and a boolean switch.
+func grammarArea(got *Arguments) Area {
+	return New("qemu", Action{
+		Verb: "run",
+		Why:  "boot a guest",
+		Parameters: []Parameter{
+			{Keyword: "command", Value: "command", Requirement: Required},
+			{Keyword: "timeout", Value: "duration", Requirement: Optional},
+			{Keyword: "share", Value: "path", Requirement: Optional, Repeat: true},
+			{Keyword: "keep-alive"},
+		},
+		AnswerArgs: func(args Arguments) (any, int) {
+			*got = args
+			return args, 0
+		},
+	})
+}
+
+// VALIDATES: an area's listing carries each action's whole keyword grammar,
+// and publishes required and repeat for every parameter rather than dropping
+// the false ones.
+// PREVENTS: a reader having to invoke an action to learn what it takes, and a
+// manifest whose silence about requiredness reads as "nobody said".
+func TestRowCarriesTheParametersItsActionDeclares(t *testing.T) {
+	var got Arguments
+	rows := grammarArea(&got).Actions().Actions
+	if len(rows) != 1 {
+		t.Fatalf("the area answers %d actions, want 1", len(rows))
+	}
+
+	want := []Parameter{
+		{Keyword: "command", Value: "command", Requirement: Required},
+		{Keyword: "timeout", Value: "duration", Requirement: Optional},
+		{Keyword: "share", Value: "path", Requirement: Optional, Repeat: true},
+		{Keyword: "keep-alive"},
+	}
+	if !slices.Equal(rows[0].Parameters, want) {
+		t.Fatalf("the row carries %#v, want %#v", rows[0].Parameters, want)
+	}
+
+	raw, err := json.Marshal(rows[0])
+	if err != nil {
+		t.Fatalf("a row does not encode: %v", err)
+	}
+	var decoded struct {
+		Parameters []map[string]any `json:"parameters"`
+	}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("a row does not decode: %v", err)
+	}
+	if len(decoded.Parameters) != len(want) {
+		t.Fatalf("the encoded row carries %d parameters, want %d: %s", len(decoded.Parameters), len(want), raw)
+	}
+	for index, parameter := range decoded.Parameters {
+		for _, key := range []string{"keyword", "value", "required", "repeat"} {
+			if _, published := parameter[key]; !published {
+				t.Errorf("parameter %d publishes no %q: %s", index, key, raw)
+			}
+		}
+	}
+}
+
+// VALIDATES: usage renders a required keyword without brackets, an optional one
+// inside them, and a repeatable one with the ellipsis that says it may be given
+// again.
+// PREVENTS: the bracket telling every reader the same thing about every
+// keyword, which is what makes the reachable grammar wrong about itself.
+func TestUsageDistinguishesARequiredKeywordFromAnOptionalOne(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	page := captureStderr(t, func() {
+		if _, code := area.Answer([]string{"run", "--help"}); code != 0 {
+			t.Errorf("a help word answered %d, want 0", code)
+		}
+	})
+	if got != nil {
+		t.Fatalf("a help word reached the handler with %#v", got)
+	}
+
+	want := "usage: le qemu run command <command> [timeout <duration>]" +
+		" [share <path>]... [keep-alive] [| json | yaml | table]\n" +
+		"  boot a guest\n"
+	if page != want {
+		t.Errorf("usage reads\n%q\nwant\n%q", page, want)
+	}
+}
+
+// VALIDATES: a keyword declared Repeat accumulates every value it was given, in
+// the order typed, and a keyword without it keeps refusing a second occurrence
+// with the message and the code it answers today.
+// PREVENTS: loosening the parser for every action rather than the one that
+// declared it, and a repeated value silently replacing the one before it.
+func TestARepeatableKeywordIsParsedTwiceAndANonRepeatableIsStillRefused(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	if _, code := area.Answer([]string{
+		"run", "command", "true", "share", "/one", "share", "/two",
+	}); code != 0 {
+		t.Fatalf("a repeated keyword answered %d, want 0", code)
+	}
+	if values := got.Values("share"); !slices.Equal(values, []string{"/one", "/two"}) {
+		t.Errorf("share carries %q, want both values in the order typed", values)
+	}
+	if values := got.Values("command"); !slices.Equal(values, []string{"true"}) {
+		t.Errorf("a single-valued keyword answers %q, want one value", values)
+	}
+	if values := got.Values("timeout"); values != nil {
+		t.Errorf("a keyword nobody typed answers %q, want nothing", values)
+	}
+	if !got.Has("share") {
+		t.Error("a repeated keyword is absent from Has")
+	}
+
+	got = nil
+	refusal := captureStderr(t, func() {
+		if _, code := area.Answer([]string{"run", "timeout", "1s", "timeout", "2s"}); code != 2 {
+			t.Errorf("a keyword given twice answered %d, want 2", code)
+		}
+	})
+	if got != nil {
+		t.Errorf("a refused invocation reached the handler with %#v", got)
+	}
+	if want := "error: argument keyword \"timeout\" was provided more than once\n"; refusal != want {
+		t.Errorf("the refusal reads %q, want %q", refusal, want)
+	}
+}
+
+// VALIDATES: a keyword given twice has no single-value reading. Values answers
+// both, and One refuses rather than hand back one of them.
+// PREVENTS: the reversed shape this package shipped first, where indexing the
+// map answered "first\x00second" -- a string a caller cannot tell from a value
+// an operator typed (ai/rules/principles.md).
+func TestARepeatKeywordCannotBeReadAsOneValue(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	if _, code := area.Answer([]string{
+		"run", "command", "true", "share", "/one", "share", "/two",
+	}); code != 0 {
+		t.Fatalf("a repeated keyword answered %d, want 0", code)
+	}
+	if values := got.Values("share"); !slices.Equal(values, []string{"/one", "/two"}) {
+		t.Fatalf("share carries %q, want both values in the order typed", values)
+	}
+
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			t.Fatal("One answered a keyword that carries two values")
+		}
+		if message, isText := recovered.(string); !isText || !strings.HasPrefix(message, "BUG:") {
+			t.Fatalf("One panicked with %v, want a BUG assertion", recovered)
+		}
+	}()
+	_ = got.One("share")
+}
+
+// VALIDATES: Required is PUBLISHED and is not newly enforced: the parser still
+// hands a missing keyword to the action, whose own body refuses it exactly
+// where and how it refuses it today.
+// PREVENTS: marking a parameter required starting to refuse an invocation that
+// works today, which is the one way this field could break a caller.
+func TestARequiredKeywordIsPublishedRatherThanNewlyEnforced(t *testing.T) {
+	reached := 0
+	area := New("probe", Action{
+		Verb: "run", Why: "run the probe over one file",
+		Parameters: []Parameter{{Keyword: "file", Value: "path", Requirement: Required}},
+		AnswerArgs: func(args Arguments) (any, int) {
+			reached++
+			if !args.Has("file") {
+				return nil, 4
+			}
+			return args, 0
+		},
+	})
+
+	if _, code := area.Answer([]string{"run"}); code != 4 {
+		t.Errorf("a missing required keyword answered %d, want the action's own 4", code)
+	}
+	if reached != 1 {
+		t.Errorf("the action's body was reached %d time(s), want 1: requiredness is published, not parsed", reached)
 	}
 }

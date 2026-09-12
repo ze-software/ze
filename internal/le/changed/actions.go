@@ -37,10 +37,10 @@ var actions = leaction.New(area,
 		Verb: "scope",
 		Why:  "the native scoped-verify selector, including feature tags and reverse-import depth",
 		Parameters: []leaction.Parameter{
-			{Keyword: "print", Value: "mode"},
-			{Keyword: "depth", Value: "n"},
-			{Keyword: "paths-from", Value: "path"},
-			{Keyword: "drop-log", Value: "path"},
+			{Keyword: "print", Value: "mode", Requirement: leaction.Optional},
+			{Keyword: "depth", Value: "n", Requirement: leaction.Optional},
+			{Keyword: "paths-from", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "drop-log", Value: "path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: scopeHere,
 	},
@@ -118,8 +118,8 @@ func scopeHere(arguments leaction.Arguments) (any, int) {
 
 	legacy := make([]string, 0, len(arguments))
 	for _, keyword := range []string{"print", "depth", "paths-from", "drop-log"} {
-		if value, present := arguments[keyword]; present {
-			legacy = append(legacy, "--"+keyword+"="+value)
+		if arguments.Has(keyword) {
+			legacy = append(legacy, "--"+keyword+"="+arguments.One(keyword))
 		}
 	}
 	return (Scope{Root: root}).Resolve(legacy)

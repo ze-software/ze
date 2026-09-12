@@ -21,5 +21,6 @@ func init() {
 		// listing about which action WRITES (actions.go, actions).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)
 }

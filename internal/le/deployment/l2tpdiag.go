@@ -58,14 +58,14 @@ func defaultTunnelDiagnosticOptions() l2tpDiagnosticOptions {
 
 func pppoxDiagnosticParameters() []leaction.Parameter {
 	return []leaction.Parameter{
-		{Keyword: "local", Value: "addr"},
-		{Keyword: "remote", Value: "addr"},
-		{Keyword: "source-port", Value: "port"},
-		{Keyword: "destination-port", Value: "port"},
-		{Keyword: "tunnel-id", Value: "id"},
-		{Keyword: "peer-tunnel-id", Value: "id"},
-		{Keyword: "session-id", Value: "id"},
-		{Keyword: "peer-session-id", Value: "id"},
+		{Keyword: "local", Value: "addr", Requirement: leaction.Optional},
+		{Keyword: "remote", Value: "addr", Requirement: leaction.Optional},
+		{Keyword: "source-port", Value: "port", Requirement: leaction.Optional},
+		{Keyword: "destination-port", Value: "port", Requirement: leaction.Optional},
+		{Keyword: "tunnel-id", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "peer-tunnel-id", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "session-id", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "peer-session-id", Value: "id", Requirement: leaction.Optional},
 	}
 }
 
@@ -130,10 +130,10 @@ func parseCommonDiagnosticArguments(args leaction.Arguments, options *l2tpDiagno
 }
 
 func ipv4Argument(args leaction.Arguments, keyword string, fallback [4]byte) ([4]byte, error) {
-	raw, present := args[keyword]
-	if !present {
+	if !args.Has(keyword) {
 		return fallback, nil
 	}
+	raw := args.One(keyword)
 	parsed, err := netip.ParseAddr(raw)
 	if err != nil || !parsed.Is4() || parsed.String() != raw {
 		var tb textbuf.Buffer
@@ -154,10 +154,10 @@ func uint32Argument(args leaction.Arguments, keyword string, fallback uint32) (u
 }
 
 func unsignedArgument(args leaction.Arguments, keyword string, fallback uint64, bits int) (uint64, error) {
-	raw, present := args[keyword]
-	if !present {
+	if !args.Has(keyword) {
 		return fallback, nil
 	}
+	raw := args.One(keyword)
 	value, err := strconv.ParseUint(raw, 10, bits)
 	if err != nil {
 		var tb textbuf.Buffer

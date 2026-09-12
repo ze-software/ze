@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every answer contains one row set: checks, selftest cases, audit rows, or
 	// baseline counts. Thus, row operators apply instead of refusing the answer.

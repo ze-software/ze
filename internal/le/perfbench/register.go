@@ -20,6 +20,7 @@ func init() {
 		Section:  registry.SectionTest,
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeDoc, because the two answers are not one row set: the listing is
 	// rows and the nudge is one verdict carrying a file list. rowsInKeyed

@@ -17,8 +17,11 @@ var actions = leaction.New(area,
 		Why:    "preview or atomically relocate an internal package tree, rewrite imports, refresh plugin discovery, and prove generated registrations are preserved",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "source", Value: "name-or-internal-path"},
-			{Keyword: "destination", Value: "tier-or-internal-path"},
+			{Keyword: "source", Value: "name-or-internal-path", Requirement: leaction.Required},
+			// A component moving to plugins, or back, derives its destination
+			// from the source tier. Every other source needs the keyword, and
+			// moveDestination is what refuses the move without it.
+			{Keyword: "destination", Value: "tier-or-internal-path", Requirement: leaction.Optional},
 			{Keyword: "apply"},
 			{Keyword: "allow-rpc-drop"},
 		},
@@ -29,10 +32,10 @@ var actions = leaction.New(area,
 		Why:    "preview or atomically rename the repository Go module and every tracked textual and on-disk spelling without corrupting generated protobuf descriptors",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "to", Value: "module"},
-			{Keyword: "from", Value: "module"},
-			{Keyword: "repository", Value: "path"},
-			{Keyword: "limit", Value: "rows"},
+			{Keyword: "to", Value: "module", Requirement: leaction.Required},
+			{Keyword: "from", Value: "module", Requirement: leaction.Optional},
+			{Keyword: "repository", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "limit", Value: "rows", Requirement: leaction.Optional},
 			{Keyword: "apply"},
 			{Keyword: "no-goimports"},
 			{Keyword: "no-reseal"},
@@ -51,8 +54,8 @@ func Subs() string { return actions.Subs() }
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
 func answerMove(args leaction.Arguments) (any, int) {
-	source, ok := args["source"]
-	if !ok || source == "" {
+	source := args.One("source")
+	if source == "" {
 		leaction.ReportError(fmt.Errorf("module move requires source <name-or-internal-path>"))
 		return nil, 2
 	}
@@ -62,7 +65,7 @@ func answerMove(args leaction.Arguments) (any, int) {
 		return nil, 2
 	}
 	report, err := Move(root, MoveOptions{
-		Source: source, Destination: args["destination"], Apply: args.Has("apply"),
+		Source: source, Destination: args.One("destination"), Apply: args.Has("apply"),
 		AllowRPCDrop: args.Has("allow-rpc-drop"),
 	})
 	if err != nil {
@@ -75,18 +78,19 @@ func answerMove(args leaction.Arguments) (any, int) {
 }
 
 func answerRename(args leaction.Arguments) (any, int) {
-	to, ok := args["to"]
-	if !ok || to == "" {
+	to := args.One("to")
+	if to == "" {
 		leaction.ReportError(fmt.Errorf("module rename requires to <module>"))
 		return nil, 2
 	}
-	root, err := checkoutRoot(args["repository"])
+	root, err := checkoutRoot(args.One("repository"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
 	limit := 15
-	if raw, held := args["limit"]; held {
+	if args.Has("limit") {
+		raw := args.One("limit")
 		limit, err = strconv.Atoi(raw)
 		if err != nil || limit < 0 {
 			leaction.ReportError(fmt.Errorf("limit requires a non-negative integer, got %q", raw))
@@ -94,7 +98,7 @@ func answerRename(args leaction.Arguments) (any, int) {
 		}
 	}
 	report, err := Rename(root, RenameOptions{
-		Old: args["from"], New: to, Apply: args.Has("apply"), Limit: limit,
+		Old: args.One("from"), New: to, Apply: args.Has("apply"), Limit: limit,
 		NoGoimports: args.Has("no-goimports"), NoReseal: args.Has("no-reseal"),
 	})
 	if err != nil {

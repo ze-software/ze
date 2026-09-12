@@ -26,7 +26,7 @@ var actions = leaction.New(area,
 		Why:    "append the report's package scores to test/mutation/history.ndjson",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "report", Value: "path"},
+			{Keyword: "report", Value: "path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: recordHistoryAnswer,
 	},
@@ -60,7 +60,7 @@ func combineAnswer() (any, int) {
 }
 
 func recordHistoryAnswer(arguments leaction.Arguments) (any, int) {
-	report, err := recordHistory(arguments["report"])
+	report, err := recordHistory(arguments.One("report"))
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

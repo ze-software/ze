@@ -384,9 +384,9 @@ func admitWorktree(root, sha string, part verifyengine.Part) (*job.Ticket, error
 // without starting one of them.
 func worktreeArgv(sha string, part verifyengine.Part) []string {
 	if !part.Cut() {
-		return []string{"le", "verify", actionName, "commit", sha}
+		return []string{"le", area, actionName, commitKeyword, sha}
 	}
-	return []string{"le", "verify", actionName, "commit", sha,
+	return []string{"le", area, actionName, commitKeyword, sha,
 		"part", strconv.Itoa(part.Index), "of", strconv.Itoa(part.Of)}
 }
 

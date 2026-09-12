@@ -23,6 +23,7 @@ func init() {
 		// about which gates exist (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(Area, Actions)
 
 	// ShapeDoc applies because these two answers do not share one row set.
 	// The listing has rows, and a sweep has separate rows for each gate report.

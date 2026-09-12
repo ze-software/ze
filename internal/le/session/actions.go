@@ -19,7 +19,7 @@ var actions = leaction.New(area,
 		Verb:       "seed-store",
 		Why:        "seed this session's isolated ze store once from a ze_core binary",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: "binary", Value: "path"}},
+		Parameters: []leaction.Parameter{{Keyword: "binary", Value: "path", Requirement: leaction.Required}},
 		AnswerArgs: seedHere,
 	},
 	leaction.Action{
@@ -59,7 +59,7 @@ func seedHere(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	report, code, err := seedStore(root, args["binary"], streams{Out: os.Stdout, Err: os.Stderr})
+	report, code, err := seedStore(root, args.One("binary"), streams{Out: os.Stdout, Err: os.Stderr})
 	if err != nil {
 		leaction.ReportError(err)
 	}

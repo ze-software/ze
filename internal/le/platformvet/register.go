@@ -17,6 +17,7 @@ func init() {
 		Section:     registry.SectionTest,
 		SubsFunc:    Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// The listing, each platform report, and a multi-platform sweep each contain
 	// row-shaped data. Pipe operators can render those answers directly.

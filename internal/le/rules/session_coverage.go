@@ -670,9 +670,9 @@ func coverageReportAnswer(args leaction.Arguments) (any, int) {
 	}
 	options := SessionCoverageOptions{
 		Quiet:      args.Has("quiet"),
-		Transcript: args["transcript"],
-		Session:    args["session"],
-		RulesDir:   args["rules-dir"],
+		Transcript: args.One("transcript"),
+		Session:    args.One("session"),
+		RulesDir:   args.One("rules-dir"),
 		NoAppend:   args.Has("no-append"),
 	}
 	return RunSessionCoverage(root, options, NativeTranscriptSource{}, time.Now, os.Stderr)

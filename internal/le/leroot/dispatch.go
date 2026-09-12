@@ -44,55 +44,18 @@ func Commands() []registry.RootCommand {
 	return mine
 }
 
-// Usage lists every registered le tool under the group it declared. program
-// supplies the page name: "le" for the binary and "ze le" for a ze_le build.
-// Thus, every line that a reader copies is valid for the active program.
+// Usage writes the root page to stderr, which is where a refusal's reader is
+// looking. program supplies the page name: "le" for the binary and "ze le" for
+// a ze_le build. Thus, every line that a reader copies is valid for the active
+// program.
 //
-// Eighty-six commands in one alphabetical list read as one thing. They are
-// five. The groups say which, in the order a person meets them (group.go).
+// The page is the manifest's own (manifest.go), so the page beside a refusal
+// and the payload a bare invocation answers name one command set. Eighty-six
+// commands in one alphabetical list read as one thing. They are five, and the
+// groups say which, in the order a person meets them (group.go).
 func Usage(program string) {
-	var tb textbuf.Buffer
-	page := helpfmt.Page{
-		Command:  program,
-		Summary:  "the Ze repository and development entry point",
-		Usage:    []string{tb.Str(program).Str(" <command> [options] [| json | yaml | table]").String()},
-		Sections: usageSections(Commands()),
-	}
+	page := manifestOf(program).page()
 	page.WriteErr()
-}
-
-// usageSections splits the commands into one help section for each group, in
-// render order.
-//
-// A command whose group is unknown still prints. It goes in a final section of
-// its own. A help page that hides a command is worse than one that files a
-// command badly. Only a registration that bypassed Register can produce such a
-// command.
-func usageSections(roots []registry.RootCommand) []helpfmt.HelpSection {
-	byGroup := make(map[Group][]helpfmt.HelpEntry, len(groupOrder))
-	ungrouped := make([]helpfmt.HelpEntry, 0)
-	for _, rc := range roots {
-		entry := helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
-		group, ok := GroupOf(rc.Name)
-		if !ok {
-			ungrouped = append(ungrouped, entry)
-			continue
-		}
-		byGroup[group] = append(byGroup[group], entry)
-	}
-
-	sections := make([]helpfmt.HelpSection, 0, len(groupOrder)+1)
-	for _, group := range groupOrder {
-		entries := byGroup[group]
-		if len(entries) == 0 {
-			continue
-		}
-		sections = append(sections, helpfmt.HelpSection{Title: GroupTitle(group), Entries: entries})
-	}
-	if len(ungrouped) != 0 {
-		sections = append(sections, helpfmt.HelpSection{Title: "Ungrouped", Entries: ungrouped})
-	}
-	return sections
 }
 
 // commandWordsMax bounds how many argv words the lookup may consume. le's
@@ -162,9 +125,12 @@ func members(token string) []string {
 // program supplies the page name for help and refusals. It does not change the
 // registered command set.
 func Dispatch(program string, args []string) int {
-	if len(args) == 0 {
-		Usage(program)
-		return 1
+	// The root names no command, so it answers what le holds, as a payload
+	// through Run: `le | json` renders the manifest, and a bare `le` prints the
+	// page a reader has always seen. `le` asked a question rather than making a
+	// mistake, so the answer goes to stdout and the code is 0.
+	if own, _ := splitChain(args); len(own) == 0 {
+		return Run("", func([]string) (any, int) { return manifestOf(program), 0 }, args, os.Stdout, os.Stderr)
 	}
 	if isHelpArg(args[0]) {
 		if len(args) == 1 {
@@ -176,11 +142,15 @@ func Dispatch(program string, args []string) int {
 
 	name, handler, toolArgs := resolve(args)
 	if handler != nil {
-		// One help word and nothing else asks about the command itself. A help
-		// word after an action belongs to that action's grammar, which only the
-		// area holds, so it travels on to the handler.
-		if len(toolArgs) == 1 && isHelpArg(toolArgs[0]) {
-			return helpNode(program, name)
+		// A help word the reader typed LAST asks what this command takes, and
+		// it is answered here rather than by the handler: an area that
+		// hand-rolls its dispatch reads the word as a value and starts the work
+		// it names. A help word further up the line is not this question, and
+		// travels on, because a keyword before it can have introduced it as a
+		// value.
+		own, _ := splitChain(toolArgs)
+		if asksForUsage(own) {
+			return helpTrailing(program, name, own)
 		}
 		return Run(name, Answer(handler), toolArgs, os.Stdout, os.Stderr)
 	}
@@ -222,6 +192,43 @@ func helpAsked(program string, words []string) int {
 		name = words[0]
 	}
 	return helpNode(program, name)
+}
+
+// asksForUsage reports whether the reader's LAST word is a help word, which is
+// the gesture that asks what a command takes. A help word anywhere else can be
+// the value a keyword before it introduced.
+func asksForUsage(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	return isHelpArg(args[len(args)-1])
+}
+
+// helpTrailing answers a help word typed at the end of an invocation. It calls
+// no handler, so an area whose work starts from its first argument starts
+// nothing.
+//
+// The grammar of one action is rendered from the listing its area registered
+// (leroot.RegisterActions). An area that registered none still gets its page,
+// because guarding every area is what keeps a probe from running work, and the
+// seven that hand-roll their dispatch publish no grammar until
+// plan/spec-le-every-area-dispatches-through-one-table.md migrates them.
+func helpTrailing(program, name string, own []string) int {
+	if len(own) == 1 {
+		return helpNode(program, name)
+	}
+	list, declared := ActionsOf(name)
+	if !declared {
+		return helpNode(program, name)
+	}
+	text, rendered := list.UsageText(own[0])
+	if !rendered {
+		return helpNode(program, name)
+	}
+
+	var tb textbuf.Buffer
+	tb.Str(text).StdErr() //nolint:errcheck // CLI output
+	return 0
 }
 
 // helpNode renders what the registry knows about one command: its summary, the

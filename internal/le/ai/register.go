@@ -29,6 +29,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeDoc, because the answers are not one row set: the listing is rows,
 	// and a sync or a check is one verdict carrying three lists. rowsInKeyed

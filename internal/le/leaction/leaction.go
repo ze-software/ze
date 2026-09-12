@@ -13,28 +13,110 @@
 package leaction
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// Requirement says whether an action can run without one of its keywords. It
+// is a DECLARATION and not a check: the action's own body refuses a missing
+// keyword, in the place and with the code it refuses it today, and usage and
+// the manifest publish what that body requires.
+//
+// The zero value is RequirementUnspecified, so a keyword whose author said
+// nothing is a table New refuses rather than a keyword published as optional
+// (docs/contributing/ze-go-style.md, "Types that cannot lie").
+type Requirement uint8
+
+const (
+	// RequirementUnspecified is what a Parameter holds before its author writes
+	// the field. New refuses it on a parameter that carries a Value, so it
+	// never reaches a reader. It is the state of a boolean switch, which has no
+	// requiredness to state because presence is a switch's whole meaning.
+	RequirementUnspecified Requirement = iota
+	// Optional says the action runs without the keyword, because its body holds
+	// a default for it or a path that does not need it.
+	Optional
+	// Required says the action cannot run without the keyword: its body refuses
+	// the invocation, or takes a path the reader did not ask for.
+	Required
+)
+
+// MarshalJSON publishes the one fact a consumer of the manifest reads: whether
+// the action can run without the keyword. The enum exists so the AUTHOR cannot
+// leave requiredness unsaid, and a reader is not made to learn a third state
+// for a question with two answers.
+//
+// Unspecified therefore publishes false, which is the truth for the one
+// parameter that holds it: a boolean switch is never required.
+func (r Requirement) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r == Required)
+}
+
 // Parameter declares one closed keyword after an action. Value names the value
 // that must follow it. An empty Value makes the keyword a boolean switch.
 type Parameter struct {
-	Keyword string
-	Value   string
+	Keyword string `json:"keyword"`
+	Value   string `json:"value"`
+	// Requirement says whether the action's body can run without this keyword.
+	Requirement Requirement `json:"required"`
+	// Repeat says the keyword may be given more than once, and that every value
+	// it introduces is kept. A keyword without it is refused on its second
+	// occurrence, which is what every parameter declared before this field
+	// existed still gets.
+	Repeat bool `json:"repeat"`
 }
 
-// Arguments is the parsed value of an argument-aware action. Presence matters
-// for boolean parameters, whose value is the empty string.
-type Arguments map[string]string
+// Arguments is the parsed value of an argument-aware action: every keyword the
+// invocation named, and every value each one was given. Presence matters for a
+// boolean parameter, whose one value is the empty string.
+//
+// A keyword is read with One or with Values, and never by indexing the map:
+// One answers a keyword declared once and Values a keyword declared Repeat.
+// Nothing answers the values joined, so the shape a caller could not tell from
+// a value an operator typed has nowhere to live (ai/rules/principles.md).
+type Arguments map[string][]string
 
 // Has reports whether the invocation named a keyword.
 func (a Arguments) Has(keyword string) bool {
-	_, ok := a[keyword]
-	return ok
+	_, named := a[keyword]
+	return named
+}
+
+// One answers the value of a keyword the action declared once. A keyword the
+// invocation did not name answers the empty string, which a caller tells apart
+// from a keyword given an empty value with Has.
+//
+// A keyword carrying several values panics, because only a parameter declared
+// Repeat can carry them: answering the first would drop every value after it,
+// and the caller could not tell that from a keyword given once.
+func (a Arguments) One(keyword string) string {
+	values := a[keyword]
+	if len(values) > 1 {
+		panic("BUG: leaction: a repeated keyword is read as one value: " + keyword)
+	}
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+// Values answers every value one keyword was given, in the order they were
+// typed. A keyword the invocation did not name answers nothing, which a caller
+// tells apart from a keyword given once with an empty value.
+func (a Arguments) Values(keyword string) []string {
+	return a[keyword]
+}
+
+// add records one occurrence of a keyword. A second occurrence of a Repeat
+// keyword is appended rather than replacing the first, so no value the operator
+// typed is lost.
+func (a Arguments) add(keyword, value string) {
+	a[keyword] = append(a[keyword], value)
 }
 
 // Action is one callable row in an area's command table.
@@ -99,6 +181,20 @@ func New(name string, actions ...Action) Area {
 			if parameterSeen[parameter.Keyword] {
 				panic("BUG: leaction.New: an action declares one parameter twice")
 			}
+			if parameter.Value != "" {
+				if parameter.Requirement == RequirementUnspecified {
+					panic("BUG: leaction.New: a parameter carrying a value leaves requiredness " +
+						"unspecified; declare leaction.Optional or leaction.Required")
+				}
+			}
+			if parameter.Value == "" {
+				if parameter.Requirement == Required {
+					panic("BUG: leaction.New: a boolean switch is declared required, and presence is its whole meaning")
+				}
+				if parameter.Repeat {
+					panic("BUG: leaction.New: a boolean switch is declared repeatable, and a second occurrence adds nothing")
+				}
+			}
 			parameterSeen[parameter.Keyword] = true
 		}
 	}
@@ -133,6 +229,10 @@ type Row struct {
 	Verb   string `json:"verb"`
 	Writes bool   `json:"writes"`
 	Why    string `json:"why"`
+	// Parameters is the action's whole keyword grammar, so a reader learns what
+	// an action takes without invoking it. A zero-argument action declares
+	// none, and the key is then absent rather than empty.
+	Parameters []Parameter `json:"parameters,omitempty"`
 }
 
 // List is what `le <area>` answers when no action is named. It is the area
@@ -149,6 +249,9 @@ func (a Area) Actions() List {
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
 			Verb: act.Verb, Writes: act.Writes, Why: act.Why,
+			// Cloned: the listing is a payload a caller may hold and a renderer
+			// may sort, and the declaration behind it belongs to the area.
+			Parameters: slices.Clone(act.Parameters),
 		})
 	}
 	return list
@@ -179,6 +282,52 @@ func (l List) Text() string {
 		tb.Str("  ").PadRight(row.Verb, width).Str("  ").Str(mark).Str("  ").Str(row.Why).Byte('\n')
 	}
 
+	return tb.String()
+}
+
+// UsageText renders one action's whole grammar: the invocation line, then the
+// purpose the action declared. It answers false for a verb this listing does
+// not hold.
+//
+// The grammar is rendered from the LISTING rather than from the action table,
+// so the dispatcher renders the same two lines from the listing an area
+// registered, without calling that area's handler (internal/le/leroot).
+func (l List) UsageText(verb string) (string, bool) {
+	for _, row := range l.Actions {
+		if row.Verb != verb {
+			continue
+		}
+		var tb textbuf.Buffer
+		tb.Str("usage: le ").Str(l.Area).Byte(' ').Str(row.Verb)
+		for _, parameter := range row.Parameters {
+			tb.Byte(' ').Str(parameterForm(parameter))
+		}
+		tb.Str(" [| json | yaml | table]").Byte('\n')
+		tb.Str("  ").Str(row.Why).Byte('\n')
+		return tb.String(), true
+	}
+	return "", false
+}
+
+// parameterForm renders one keyword in the form that says what the reader owes:
+// `keyword <value>` for a keyword the action requires, the same in brackets for
+// one it does not, and a trailing ellipsis for one that may be given again.
+func parameterForm(parameter Parameter) string {
+	var tb textbuf.Buffer
+	optional := parameter.Requirement != Required
+	if optional {
+		tb.Byte('[')
+	}
+	tb.Str(parameter.Keyword)
+	if parameter.Value != "" {
+		tb.Str(" <").Str(parameter.Value).Byte('>')
+	}
+	if optional {
+		tb.Byte(']')
+	}
+	if parameter.Repeat {
+		tb.Str("...")
+	}
 	return tb.String()
 }
 
@@ -276,22 +425,16 @@ func (a Area) refuseValue(verb, got string) int {
 	return 2
 }
 
-// actionUsage prints one action's whole grammar: its purpose, then the closed
-// keywords in declaration order. A reader who typed the help word asked a
-// question rather than making a mistake, so this answers 0.
+// actionUsage prints one action's whole grammar to stderr. A reader who typed
+// the help word asked a question rather than making a mistake, so this
+// answers 0.
 func (a Area) actionUsage(act Action) int {
-	var tb textbuf.Buffer
-	tb.Str("usage: le ").Str(a.name).Byte(' ').Str(a.verbOf(act))
-	for _, parameter := range act.Parameters {
-		tb.Str(" [").Str(parameter.Keyword)
-		if parameter.Value != "" {
-			tb.Str(" <").Str(parameter.Value).Byte('>')
-		}
-		tb.Byte(']')
+	text, declared := a.Actions().UsageText(a.verbOf(act))
+	if !declared {
+		panic("BUG: leaction: an action is absent from the listing its own area builds")
 	}
-	tb.Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
-	tb.Reset()
-	tb.Str("  ").Str(act.Why).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	var tb textbuf.Buffer
+	tb.Str(text).StdErr() //nolint:errcheck // CLI output
 	return 0
 }
 
@@ -312,18 +455,21 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 			return nil, fmt.Errorf("unknown argument keyword %q; use one of: %s",
 				keyword, tb.Join(parameterNames(parameters), ", ").String())
 		}
-		if parsed.Has(keyword) {
+		// A keyword given twice is a mistake, unless the parameter declared that
+		// it may be given again and that every value it introduces is kept.
+		unexpectedRepeat := parsed.Has(keyword) && !parameter.Repeat
+		if unexpectedRepeat {
 			return nil, fmt.Errorf("argument keyword %q was provided more than once", keyword)
 		}
 		if parameter.Value == "" {
-			parsed[keyword] = ""
+			parsed.add(keyword, "")
 			index++
 			continue
 		}
 		if index+1 >= len(args) {
 			return nil, fmt.Errorf("argument keyword %q requires <%s>", keyword, parameter.Value)
 		}
-		parsed[keyword] = args[index+1]
+		parsed.add(keyword, args[index+1])
 		index += 2
 	}
 	return parsed, nil

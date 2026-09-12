@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, actions).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every answer this command can give carries one row set -- the actions, or
 	// the facts the update wrote -- so the row operators act on them rather

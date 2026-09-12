@@ -96,7 +96,7 @@ func TestEnsureActionDefaultOutput(t *testing.T) {
 func TestEnsureActionQuietOutputAndStructure(t *testing.T) {
 	manager := fixtureManager(t)
 	var stderr strings.Builder
-	report, code := answerEnsure(manager, leaction.Arguments{"quiet": ""}, &stderr)
+	report, code := answerEnsure(manager, leaction.Arguments{"quiet": {""}}, &stderr)
 	if code != 0 {
 		t.Fatalf("quiet ensure exit = %d, results = %#v", code, report.Results)
 	}
@@ -127,7 +127,7 @@ func TestEnsureActionQuietErrorStillSpeaks(t *testing.T) {
 	writeFile(t, scratchBase, "blocks target directory", 0o600)
 
 	var stderr strings.Builder
-	report, code := answerEnsure(manager, leaction.Arguments{"quiet": ""}, &stderr)
+	report, code := answerEnsure(manager, leaction.Arguments{"quiet": {""}}, &stderr)
 	if code != 1 {
 		t.Fatalf("quiet ensure exit = %d, want 1; results = %#v", code, report.Results)
 	}

@@ -25,7 +25,7 @@ func TestUsageSectionsFollowGroupOrder(t *testing.T) {
 		{Name: "probe-gate", Meta: metaFor("a gate probe")},
 	}
 
-	sections := usageSections(roots)
+	sections := manifestFrom("le", roots).sections()
 	if len(sections) != 3 {
 		t.Fatalf("sections = %d, want 3", len(sections))
 	}
@@ -49,7 +49,7 @@ func TestUsageSectionsFollowGroupOrder(t *testing.T) {
 func TestUsageSectionsPrintAnUngroupedCommand(t *testing.T) {
 	roots := []registry.RootCommand{{Name: "probe-no-group", Meta: metaFor("a probe with no group")}}
 
-	sections := usageSections(roots)
+	sections := manifestFrom("le", roots).sections()
 	if len(sections) != 1 {
 		t.Fatalf("sections = %d, want 1", len(sections))
 	}

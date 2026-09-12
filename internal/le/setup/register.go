@@ -24,6 +24,7 @@ func init() {
 		// listing about which action writes.
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Every possible answer from this command contains one row set: the actions
 	// or the outcomes of a run. Therefore, the row operators process these rows

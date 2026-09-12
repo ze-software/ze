@@ -26,6 +26,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// ShapeMap: the answer is one key holding rows, so the row operators act on
 	// the worktrees rather than on the report around them.

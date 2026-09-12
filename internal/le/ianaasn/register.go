@@ -22,6 +22,7 @@ func init() {
 		// listing about which action WRITES (actions.go, Subs).
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(area, Actions)
 
 	// Both answers carry one row set -- the actions, or nothing but scalars for
 	// the write verdict -- so the row operators act on them rather than being

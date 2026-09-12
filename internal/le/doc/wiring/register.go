@@ -22,6 +22,7 @@ func init() {
 		// reads what to type.
 		SubsFunc: Subs,
 	})
+	leroot.RegisterActions(name, Actions)
 
 	// The answer carries several lists -- the changed files, the selected
 	// targets, the per-check results and the failure groups -- so no one key
