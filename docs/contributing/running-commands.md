@@ -23,10 +23,15 @@ therefore starts no work, whatever the area does with its first argument. A
 required keyword prints bare, an optional one prints inside brackets, and a
 keyword that repeats carries a trailing ellipsis.
 
-A help word that a declared keyword introduced is that keyword's VALUE, and the
-action runs. `./le source-rewrite replace file <path> old beta new help`
+The bare word `help` that a declared keyword introduced is that keyword's VALUE,
+and the action runs. `./le source-rewrite replace file <path> old beta new help`
 replaces `beta` with the word `help`. The registered table tells a value from a
 question, so the two never collide in an area that declares one.
+
+`-h` and `--help` are flags. `ai/rules/cli.md` never lets a flag be grammar or a
+value, so those two spellings ask the question in every slot.
+`./le verify status check path --help` prints the usage line and reads no path.
+Only the bare word, which is ordinary English, can be data.
 
 <!-- source: internal/le/leroot/manifest.go -- Manifest -->
 <!-- source: internal/le/leroot/dispatch.go -- Dispatch, helpTrailing -->

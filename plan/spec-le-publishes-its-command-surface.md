@@ -163,7 +163,7 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 | AC-2 | `./le \| json` | Answers one JSON document naming every registered area, its group, its description, and for each area its actions with verb, why, writes and parameters |
 | AC-3 | `./le <area> \| json` for a `leaction` area | Each action row carries its parameters, each with keyword, value name, required and repeat |
 | AC-4 | `./le <area> <verb> --help` for an action with a required keyword and an optional one | The required keyword renders without brackets and the optional one renders inside them, and the two are distinguishable in the text |
-| AC-5 | A trailing help word after any verb of any registered area, including the seven that hand-roll dispatch | The handler is not called, usage is rendered, and the exit code is 0 |
+| AC-5 | A trailing help word after any verb of any registered area, including the ones that hand-roll dispatch | The handler is not called, usage is rendered, and the exit code is 0 -- with ONE exception, decided by the word's SPELLING. The bare word `help` is ordinary English, so where a declared keyword's value slot holds it, it is that keyword's value and the action runs (`le source-rewrite replace file <path> old beta new help`). `-h` and `--help` are flags, and `ai/rules/cli.md` makes them the one flag exception in this CLI and bans a flag from being grammar or a value, so neither is ever data and both ask the question in every slot (`le verify status check path --help` renders usage and checks no path). An area that publishes no action table has no value slot the dispatcher can read, so every spelling asks the question there |
 | AC-6 | `./le stress-repro run suite --help` | Renders usage and starts no burn, proven by the run function not being reached |
 | AC-7 | An action declaring a parameter with `Repeat` true, given that keyword twice | Both values are parsed, and a parameter without `Repeat` given twice is still refused with the existing message and code |
 | AC-8 | An action declaring a parameter with `Required` true, invoked without it | Refused exactly where and how it is refused today, because requiredness is published rather than newly enforced |
@@ -359,6 +359,18 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
   `Repeat`, and reads it with `Values("path")`. One area leaves the exemption
   list (26 rows, now 25), the machinery gets its caller, and the area publishes
   the grammar its four verbs always had.
+- The value-slot exemption is drawn at the word's SPELLING, not at its position.
+  Position answers "could a keyword have introduced this word", which is the
+  wrong question for a flag: `ai/rules/cli.md` makes `-h` and `--help` the one
+  flag exception in this CLI and bans a flag from being grammar or a value, so
+  no slot can hold one, while `help` is ordinary English an operator can type as
+  text. Review round 2 measured the cost of the position-only rule:
+  `le verify status check path --help` ran the check over a path named `--help`.
+  → Decision: `trailingIsValue` answers false for a flag spelling before it
+  walks the grammar, so both guard sites get the rule from the one walk they
+  already share. `leaction.isHelpFlag` derives the two flags from `IsHelpArg`
+  rather than listing them again, so a fourth spelling added there is a flag
+  with no second edit.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -371,7 +383,8 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 
 ## Known Limitations
 - A help word that is not in the trailing position still reaches the handler. `./le stress-repro run suite --help burners 4` would still run. The realistic probe is trailing, and refusing the word everywhere would make it unusable as a value.
-- In an area that declares no action table, a legitimate value spelled `help`, `-h` or `--help` is unreachable when it is typed LAST: the dispatcher cannot read a grammar nobody published, so it guards and renders the node page. That is the safe direction, because the alternative is the `stress-repro` burn, and it is a NEW limitation this spec introduces. It holds for the areas named in `areasWithoutAnActionTable` (`internal/le/actions_test.go`) and for no other, and `plan/spec-le-every-area-dispatches-through-one-table.md` removes it one area at a time as each declares its table. An area that HAS declared one takes the word as data whenever a declared keyword introduced it.
+- In an area that declares no action table, a legitimate value spelled `help` is unreachable when it is typed LAST: the dispatcher cannot read a grammar nobody published, so it guards and renders the node page. That is the safe direction, because the alternative is the `stress-repro` burn, and it is a NEW limitation this spec introduces. It holds for the areas named in `areasWithoutAnActionTable` (`internal/le/actions_test.go`) and for no other, and `plan/spec-le-every-area-dispatches-through-one-table.md` removes it one area at a time as each declares its table. An area that HAS declared one takes the bare word as data whenever a declared keyword introduced it.
+- A value spelled `-h` or `--help` is unreachable as the last word of ANY area's line, whether or not the area declares a table. That is not a limitation of the guard, it is `ai/rules/cli.md`: a flag is never grammar and never a value, so the two spellings mean the question everywhere and no migration changes it.
 - Twenty-five areas are guarded but publish no grammar, because they declare no `leaction` table. Six of them hand-roll a multi-verb dispatcher and are the subject of `plan/spec-le-every-area-dispatches-through-one-table.md`, which named seven until `verify status` migrated here (review round 1, to give `Repeat` and `Values` a production caller). The other nineteen are single-verb tools that refuse every argument by hand, declare their own `ActionList` type, or build a `leaction.List` inline from an unexported function. That spec empties the six remaining rows; deciding what the nineteen owe is its to settle, and the list ratchets so neither group can grow.
 - Requiredness is PUBLISHED and not newly ENFORCED (AC-8). The table therefore states a fact each action's own body also enforces, which is a second declaration of one fact. It stays that way deliberately: `commit create` requires `subject` only sometimes and `commit debt-discharge` requires `owner` only when `kind` is `owner`, and a flat keyword table cannot express a cross-field rule. Central enforcement needs conditionality in the grammar, which is its own spec.
 - Verb vocabulary, exit-code discipline and help-text wrapping are untouched here. They are spec 3 of this series.
@@ -379,6 +392,23 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 ## RFC Documentation (Scope: protocol)
 
 N-A. Scope is tooling.
+
+## Review Gate
+
+Scope is declared BEFORE each round runs, so a round cannot shrink to whatever
+produces a clean result (`ai/rules/planning.md`).
+
+| Round | Scope declared before it ran | Commit under review | Result |
+|-------|------------------------------|---------------------|--------|
+| 1 | The whole diff, three lenses: correctness of the help guard on every dispatch path; zero values that read as answers (`Requirement`, `Arguments`, the 22 Required decisions sampled against their bodies); and whether each AC's named test would go red on a regression | `73861cc6c` | 0 BLOCKER, 2 ISSUE. A trailing help word in a declared value slot was swallowed, answering 0 and running nothing. `Arguments.Values` and `Parameter.Repeat` had no non-test caller |
+| 2 | ONLY the two fixes and the call sites they touch: `trailingIsValue` and `List.TrailingWordIsValue` (`internal/le/leaction/leaction.go`), `asksForUsage` and `helpTrailing` (`internal/le/leroot/dispatch.go`), `Area.Answer`'s copy of the same check, and the whole of `internal/le/verify/status` as migrated. Plus the eight always-in-scope classes anywhere | `1b63b7354` | 0 BLOCKER, 2 ISSUE. `trailingIsValue` absorbs `-h` and `--help` as a keyword's value, where `ai/rules/cli.md` makes the flag spellings the one exception that is never data. AC-5 still claims the handler is never called, which `1b63b7354` deliberately changed. It confirmed the guard did not weaken for the 25 table-less areas, that the grammar check is ONE function rather than two copies, and that `Repeat` and `Values` now each have a non-test caller |
+| 3 | ONLY the ISSUE-1 fix in `trailingIsValue` and `leaction.IsHelpArg`, the call sites that read them, and the AC-5 rewording. Plus the eight always-in-scope classes anywhere | pending | |
+
+The eight always-in-scope classes apply to every round whatever its scope: an
+unwired symbol, a vacuous test, an acceptance criterion with no test, a
+user-facing behavior with no functional test, Linux-only code with no QEMU test,
+a removed guard, a newly added guard that fails open, and any RFC or interop
+non-conformance. Where a round's scope and that list disagree, the list wins.
 
 ## Checklist
 

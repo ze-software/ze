@@ -389,3 +389,60 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 		t.Errorf("a help word at a keyword position printed %q", page)
 	}
 }
+
+// VALIDATES: the dispatcher draws the value-slot exemption at the SPELLING. The
+// bare word `help` in a declared keyword's value slot reaches the handler as
+// that keyword's value. `-h` and `--help` in the same slot render usage and
+// reach nothing.
+// PREVENTS: `le verify status check path --help` running the check over a path
+// named `--help`. `ai/rules/cli.md` bans a flag from being grammar or a value,
+// so a flag spelling is the question wherever it stands.
+func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
+	var got leaction.Arguments
+	area := leaction.New("flag-spelling-value-probe", leaction.Action{
+		Verb: "check", Why: "check one path",
+		Parameters: []leaction.Parameter{
+			{Keyword: "path", Value: "path", Requirement: leaction.Required},
+		},
+		AnswerArgs: func(args leaction.Arguments) (any, int) {
+			got = args
+			return map[string]string{"path": args.One("path")}, 0
+		},
+	})
+	Register(area.Name(), GroupReport, area.Answer, registry.Meta{
+		Description: "an area whose only keyword takes a value",
+		Mode:        "offline", Section: registry.SectionTest,
+	})
+	RegisterActions(area.Name(), area.Actions)
+	RegisterShape(area.Name(), command.ShapeDoc)
+
+	code := 1
+	out := captureStdout(t, func() {
+		code = Dispatch("le", []string{area.Name(), "check", "path", "help"})
+	})
+	if code != 0 {
+		t.Errorf("the bare word in a value slot answered %d, want 0", code)
+	}
+	if got == nil {
+		t.Fatalf("the bare word in a value slot did not run the action: stdout was %q", out)
+	}
+	if got.One("path") != "help" {
+		t.Errorf("path carries %q, want the word the operator typed", got.One("path"))
+	}
+
+	for _, flag := range []string{"-h", "--help"} {
+		got = nil
+		page := captureStderr(t, func() {
+			code = Dispatch("le", []string{area.Name(), "check", "path", flag})
+		})
+		if code != 0 {
+			t.Errorf("%s in a value slot answered %d, want 0", flag, code)
+		}
+		if got != nil {
+			t.Errorf("%s in a value slot ran the action with %#v", flag, got)
+		}
+		if !strings.Contains(page, "usage: le flag-spelling-value-probe check") {
+			t.Errorf("%s in a value slot printed %q", flag, page)
+		}
+	}
+}

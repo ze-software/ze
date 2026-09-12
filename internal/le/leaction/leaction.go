@@ -312,7 +312,9 @@ func (l List) UsageText(verb string) (string, bool) {
 // TrailingWordIsValue reports whether the LAST word of an invocation is the
 // value a declared keyword introduced. args starts at the verb, so
 // `replace file <path> old beta new help` answers true: `help` is what `new`
-// takes, and the operator typed it as data.
+// takes, and the operator typed it as data. The same line ending in `--help`
+// answers false, because a flag spelling is the question in every slot
+// (trailingIsValue).
 //
 // A verb this listing does not hold answers false. The listing is what the area
 // published, and a word this table cannot read is not a word this table can
@@ -372,12 +374,24 @@ func (a Area) Subs() string {
 	return tb.String()
 }
 
+// helpWord is the one help spelling that is ordinary English, so it is the one
+// an operator can legitimately type as a keyword's value (trailingIsValue).
+const helpWord = "help"
+
 // IsHelpArg reports whether a word asks for usage rather than naming an action
 // or a value. `ai/rules/cli.md` allows the two flag spellings beside the word,
 // and leroot dispatches on the same three, so the vocabulary is declared here
 // and read there.
 func IsHelpArg(word string) bool {
-	return word == "help" || word == "-h" || word == "--help"
+	return word == helpWord || word == "-h" || word == "--help"
+}
+
+// isHelpFlag reports whether a word is a FLAG spelling of the help question.
+// The set is derived from IsHelpArg rather than listed again. A help spelling
+// that is not the bare word is a flag, so a fourth spelling added there needs
+// no edit here.
+func isHelpFlag(word string) bool {
+	return word != helpWord && IsHelpArg(word)
 }
 
 // Answer is the area's command. The action and each parameter are closed
@@ -392,11 +406,11 @@ func (a Area) Answer(args []string) (any, int) {
 		if verb != args[0] {
 			continue
 		}
-		// A TRAILING help word asks what this action takes. A help word
-		// anywhere on the line can also be the value a keyword introduced, so
-		// the grammar decides which it is. `new help` is the text `new` takes.
-		// To swallow it is to answer 0 and run nothing, which no caller can
-		// tell from the work it asked for (ai/rules/principles.md).
+		// A TRAILING help word asks what this action takes, unless the bare
+		// word is the value a keyword introduced: `new help` is the text `new`
+		// takes. To swallow that line is to answer 0 and run nothing, which no
+		// caller can tell from the work it asked for (ai/rules/principles.md).
+		// A flag spelling is the question in every slot (trailingIsValue).
 		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
 		}
@@ -501,10 +515,13 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 }
 
 // trailingIsValue walks one action's grammar over the words after its verb. It
-// reports whether the LAST of them lands in a value slot, which is the question
-// a help word raises. `new help` is a keyword and the text it takes.
-// `file <path> --help` is a keyword, its value, and a word standing where the
-// next keyword would.
+// reports whether the LAST of them is DATA the operator typed. `new help` is a
+// keyword and the text it takes. `file <path> --help` is a keyword, its value,
+// and a word standing where the next keyword would.
+//
+// Two things make a word data, and both are required. Its SPELLING must be one
+// an operator can mean as text, which the bare word is and a flag is not. Its
+// POSITION must be the value slot a declared keyword opened.
 //
 // It answers false as soon as a word is not a declared keyword, because the
 // grammar has ended and parseArguments refuses the invocation. Deciding the
@@ -513,6 +530,14 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 func trailingIsValue(parameters []Parameter, args []string) bool {
 	last := len(args) - 1
 	if last < 1 {
+		return false
+	}
+
+	// A flag spelling is never data. `ai/rules/cli.md` makes `-h` and `--help`
+	// the one flag exception in this CLI, and it bans a flag from being grammar
+	// or a value. No slot can hold one. `le verify status check path --help`
+	// asks what the action takes, and it names no path.
+	if isHelpFlag(args[last]) {
 		return false
 	}
 

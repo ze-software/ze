@@ -761,3 +761,40 @@ func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
 		t.Errorf("a help word at a keyword position printed %q", page)
 	}
 }
+
+// VALIDATES: the value-slot exemption is drawn at the SPELLING. The bare word
+// `help` in a keyword's value slot reaches the action as its value. `-h` and
+// `--help` in that same slot are the question and stop before it.
+// PREVENTS: a flag spelling read as data. `ai/rules/cli.md` bans a flag from
+// being grammar or a value, so no position turns one into a keyword's value.
+// `le verify status check path --help` ran the check over a path named
+// `--help`.
+func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	if _, code := area.Answer([]string{"run", "timeout", "5s", "command", "help"}); code != 0 {
+		t.Errorf("the bare word in a value slot answered %d, want 0", code)
+	}
+	if got == nil {
+		t.Fatalf("the bare word in a value slot did not run the action")
+	}
+	if got.One("command") != "help" {
+		t.Errorf("command carries %q, want the word the operator typed", got.One("command"))
+	}
+
+	for _, flag := range []string{"-h", "--help"} {
+		got = nil
+		page := captureStderr(t, func() {
+			if _, code := area.Answer([]string{"run", "timeout", "5s", "command", flag}); code != 0 {
+				t.Errorf("%s in a value slot answered %d, want 0", flag, code)
+			}
+		})
+		if got != nil {
+			t.Errorf("%s in a value slot ran the action with %#v", flag, got)
+		}
+		if !strings.HasPrefix(page, "usage: le qemu run") {
+			t.Errorf("%s in a value slot printed %q", flag, page)
+		}
+	}
+}

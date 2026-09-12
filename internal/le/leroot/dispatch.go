@@ -145,8 +145,8 @@ func Dispatch(program string, args []string) int {
 		// A help word the reader typed LAST asks what this command takes, and
 		// it is answered here rather than by the handler: an area that
 		// hand-rolls its dispatch reads the word as a value and starts the work
-		// it names. A help word a declared keyword introduced is not this
-		// question, and travels on, wherever it stands on the line.
+		// it names. The bare word `help` a declared keyword introduced is not
+		// this question, and travels on as that keyword's value.
 		own, _ := splitChain(toolArgs)
 		if asksForUsage(name, own) {
 			return helpTrailing(program, name, own)
@@ -194,10 +194,14 @@ func helpAsked(program string, words []string) int {
 }
 
 // asksForUsage reports whether the reader's LAST word is a help word ASKING a
-// question, rather than a help word an area's grammar reads as data. A help
-// word anywhere on the line can be the value a keyword introduced, the trailing
-// one included: `le source-rewrite replace file <path> old beta new help` types
+// question, rather than the bare word `help` an area's grammar reads as data.
+// The bare word is ordinary English, so a keyword can introduce it in any
+// position. `le source-rewrite replace file <path> old beta new help` types
 // `help` as the text `new` takes.
+//
+// `-h` and `--help` are flags. `ai/rules/cli.md` bans a flag from being a
+// value, so those two ask the question wherever they stand
+// (leaction.trailingIsValue).
 //
 // The area's registered table is what tells the two apart, so an area that
 // registered one is asked. An area that registered none publishes no grammar,
