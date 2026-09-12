@@ -12,6 +12,7 @@ cli-grammar-keywords-before-values ## CLI Grammar: Keywords Before Values
   the-verb-is-chosen-by-the-command-s-effect-on-live-state
   the-action-that-enumerates-a-set-is-spelled-list
   flags-belong-to-the-offline-tooling-only
+  gnu-option-syntax-binds-every-ze-program
   the-r1-to-r9-ruleset-and-where-it-is-implemented
 cli-patterns ## CLI Patterns
   return-exit-codes-and-write-errors-to-stderr
