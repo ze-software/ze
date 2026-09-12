@@ -313,8 +313,9 @@ func (l List) UsageText(verb string) (string, bool) {
 // value a declared keyword introduced. args starts at the verb, so
 // `replace file <path> old beta new help` answers true: `help` is what `new`
 // takes, and the operator typed it as data. The same line ending in `--help`
-// answers false, because a flag spelling is the question in every slot
-// (trailingIsValue).
+// answers false. A dash-leading word is an option, and no value slot holds one
+// (IsOption). An option EARLIER on the line is refused by parseArguments. The
+// two together leave no slot that takes an option as data.
 //
 // A verb this listing does not hold answers false. The listing is what the area
 // published, and a word this table cannot read is not a word this table can
@@ -374,24 +375,43 @@ func (a Area) Subs() string {
 	return tb.String()
 }
 
-// helpWord is the one help spelling that is ordinary English, so it is the one
-// an operator can legitimately type as a keyword's value (trailingIsValue).
+// helpWord is the one help spelling that carries no dash, so it is the one an
+// operator can legitimately type as a keyword's value (trailingIsValue).
 const helpWord = "help"
 
-// IsHelpArg reports whether a word asks for usage rather than naming an action
-// or a value. `ai/rules/cli.md` allows the two flag spellings beside the word,
-// and leroot dispatches on the same three, so the vocabulary is declared here
-// and read there.
-func IsHelpArg(word string) bool {
-	return word == helpWord || word == "-h" || word == "--help"
+// IsOption reports whether a word is an OPTION rather than data.
+//
+// le follows GNU option syntax. `ai/rules/cli.md` declares le's whole option
+// set: `--help`, `-h`, `--version` and `-V`. `--word` is ONE long option, and
+// `-letters` is a CLUSTER of one-letter short options.
+//
+// So `-help` is not "help with one dash". It decomposes to `-h`, `-e`, `-l` and
+// `-p`: a help request, then three options that do not exist.
+//
+// That rule bans every other flag from le's grammar. le has no option for a
+// cluster to carry, and no action takes a value that starts with a dash. A
+// dash-leading word in a value slot is an option the operator got wrong, never
+// the text they meant.
+//
+// A lone `-` is not an option. `ai/rules/cli.md` keeps it for stdin and stdout,
+// so it is a path.
+func IsOption(word string) bool {
+	return len(word) > 1 && word[0] == '-'
 }
 
-// isHelpFlag reports whether a word is a FLAG spelling of the help question.
-// The set is derived from IsHelpArg rather than listed again. A help spelling
-// that is not the bare word is a flag, so a fourth spelling added there needs
-// no edit here.
-func isHelpFlag(word string) bool {
-	return word != helpWord && IsHelpArg(word)
+// IsHelpArg reports whether a word asks for usage rather than naming an action
+// or a value. The bare word `help` asks it. `--help` asks it as a long option.
+// A short cluster that OPENS with `h` asks it too. The first option in that
+// cluster is the help option, and the rest do not exist, so `-h` and `-help`
+// are one question (IsOption).
+//
+// leroot dispatches on the same answer, so the vocabulary is declared here and
+// read there.
+func IsHelpArg(word string) bool {
+	if word == helpWord || word == "--help" {
+		return true
+	}
+	return IsOption(word) && word[1] == 'h'
 }
 
 // Answer is the area's command. The action and each parameter are closed
@@ -410,7 +430,8 @@ func (a Area) Answer(args []string) (any, int) {
 		// word is the value a keyword introduced: `new help` is the text `new`
 		// takes. To swallow that line is to answer 0 and run nothing, which no
 		// caller can tell from the work it asked for (ai/rules/principles.md).
-		// A flag spelling is the question in every slot (trailingIsValue).
+		// An option is never that value, in this slot or in any earlier one:
+		// here it renders usage, and parseArguments refuses it anywhere else.
 		if len(args) > 1 && IsHelpArg(args[len(args)-1]) && !trailingIsValue(act.Parameters, args[1:]) {
 			return nil, a.actionUsage(act)
 		}
@@ -478,7 +499,8 @@ func (a Area) actionUsage(act Action) int {
 }
 
 // parseArguments validates one action's closed keyword grammar. It consumes a
-// value only after the parameter that names its meaning.
+// value only after the parameter that names its meaning, and it refuses an
+// option in every value slot it reads.
 func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 	declared := make(map[string]Parameter, len(parameters))
 	for _, parameter := range parameters {
@@ -508,7 +530,20 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 		if index+1 >= len(args) {
 			return nil, fmt.Errorf("argument keyword %q requires <%s>", keyword, parameter.Value)
 		}
-		parsed.add(keyword, args[index+1])
+		value := args[index+1]
+		// An option is the question, so no value slot holds one, in any
+		// position on the line. A dash opens a long option, or a cluster of
+		// short ones. le declares four options, and `ai/rules/cli.md` bans
+		// every other flag from its grammar (IsOption). A help option typed
+		// LAST is answered before this parser runs, by rendering usage
+		// (Area.Answer). Every other one is answered here, by refusing.
+		if IsOption(value) {
+			return nil, fmt.Errorf(
+				"argument keyword %q cannot take %q, because a value never begins with a dash. "+
+					"Type the <%s> it takes, or --help on its own to see the grammar",
+				keyword, value, parameter.Value)
+		}
+		parsed.add(keyword, value)
 		index += 2
 	}
 	return parsed, nil
@@ -520,8 +555,8 @@ func parseArguments(parameters []Parameter, args []string) (Arguments, error) {
 // and a word standing where the next keyword would.
 //
 // Two things make a word data, and both are required. Its SPELLING must be one
-// an operator can mean as text, which the bare word is and a flag is not. Its
-// POSITION must be the value slot a declared keyword opened.
+// an operator can mean as text, which the bare word is and an option is not.
+// Its POSITION must be the value slot a declared keyword opened.
 //
 // It answers false as soon as a word is not a declared keyword, because the
 // grammar has ended and parseArguments refuses the invocation. Deciding the
@@ -533,11 +568,11 @@ func trailingIsValue(parameters []Parameter, args []string) bool {
 		return false
 	}
 
-	// A flag spelling is never data. `ai/rules/cli.md` makes `-h` and `--help`
-	// the one flag exception in this CLI, and it bans a flag from being grammar
-	// or a value. No slot can hold one. `le verify status check path --help`
-	// asks what the action takes, and it names no path.
-	if isHelpFlag(args[last]) {
+	// An option is never data, whatever it spells. `ai/rules/cli.md` bans a flag
+	// from being grammar or a value, so no value slot holds a dash-leading word
+	// (IsOption). `le verify status check path --help` asks what the action
+	// takes, and it names no path.
+	if IsOption(args[last]) {
 		return false
 	}
 

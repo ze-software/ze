@@ -274,6 +274,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	for _, args := range [][]string{
 		{burner, "run", "suite", "gating", "--help"},
 		{burner, "run", "suite", "gating", "-h"},
+		{burner, "run", "suite", "gating", "-help"},
 		{burner, "run", "suite", "gating", "help"},
 		{burner, "run", "--help"},
 		{burner, "--help"},
@@ -395,8 +396,9 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 // that keyword's value. `-h` and `--help` in the same slot render usage and
 // reach nothing.
 // PREVENTS: `le verify status check path --help` running the check over a path
-// named `--help`. `ai/rules/cli.md` bans a flag from being grammar or a value,
-// so a flag spelling is the question wherever it stands.
+// named `--help`. `ai/rules/cli.md` bans a flag from being grammar or a value.
+// A help option is the question in the trailing slot. Every other option is
+// refused (TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine).
 func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 	var got leaction.Arguments
 	area := leaction.New("flag-spelling-value-probe", leaction.Action{
@@ -443,6 +445,128 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 		}
 		if !strings.Contains(page, "usage: le flag-spelling-value-probe check") {
 			t.Errorf("%s in a value slot printed %q", flag, page)
+		}
+	}
+}
+
+// VALIDATES: the dispatcher refuses an OPTION in a value slot wherever it
+// stands on the line, whatever it spells. It answers 2, and the handler never
+// runs. A bare `help` in the same slot is still the value the keyword
+// introduced, and the action runs.
+// PREVENTS: `le source-rewrite replace file <path> old beta new --help apply`
+// writing the text `--help` into a file, and `le verify status check path
+// --help path internal` checking a path named `--help`. Both were measured on
+// commit 8036f6c2f, where only the last word was read, and only for two
+// spellings.
+func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
+	var got leaction.Arguments
+	area := leaction.New("flag-spelling-anywhere-probe", leaction.Action{
+		Verb: "replace", Why: "replace one word in one file", Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: "file", Value: "path", Requirement: leaction.Required},
+			{Keyword: "old", Value: "text", Requirement: leaction.Required},
+			{Keyword: "new", Value: "text", Requirement: leaction.Required},
+			{Keyword: "apply"},
+		},
+		AnswerArgs: func(args leaction.Arguments) (any, int) {
+			got = args
+			return map[string]string{"new": args.One("new")}, 0
+		},
+	})
+	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{
+		Description: "an area whose keywords take values before the last word",
+		Mode:        "offline", Section: registry.SectionTest,
+	})
+	RegisterActions(area.Name(), area.Actions)
+	RegisterShape(area.Name(), command.ShapeDoc)
+
+	for _, option := range []string{"-h", "--help", "-help", "--list", "-6"} {
+		got = nil
+		code := 0
+		page := captureStderr(t, func() {
+			code = Dispatch("le", []string{area.Name(), "replace",
+				"file", "probe.txt", "old", "beta", "new", option, "apply"})
+		})
+		if code != 2 {
+			t.Errorf("%s in a non-trailing value slot answered %d, want 2", option, code)
+		}
+		if got != nil {
+			t.Errorf("%s in a non-trailing value slot ran the action with %#v", option, got)
+		}
+		if !strings.Contains(page, `keyword "new"`) || !strings.Contains(page, option) {
+			t.Errorf("%s was refused with %q, which names neither the keyword nor the option", option, page)
+		}
+	}
+
+	got = nil
+	code := 1
+	out := captureStdout(t, func() {
+		code = Dispatch("le", []string{area.Name(), "replace",
+			"file", "probe.txt", "old", "beta", "new", "help", "apply"})
+	})
+	if code != 0 {
+		t.Errorf("the bare word in a non-trailing value slot answered %d, want 0", code)
+	}
+	if got == nil {
+		t.Fatalf("the bare word in a non-trailing value slot did not run the action: stdout was %q", out)
+	}
+	if got.One("new") != "help" {
+		t.Errorf("new carries %q, want the word the operator typed", got.One("new"))
+	}
+	if !got.Has("apply") {
+		t.Error("the keyword after the bare word was not parsed")
+	}
+}
+
+// VALIDATES: a trailing option that is NOT the help question reaches an area
+// that published no action table, which is what `command <argv...>` means: the
+// words after that keyword are the child's, and le does not read them.
+// PREVENTS: the help guard swallowing `le job run label encode-list command
+// bin/ze-test bgp encode --list`, the recipe docs/contributing/testing.md
+// prints. The dispatcher has no grammar for a table-less area, so a word it
+// cannot read as a question is the area's to judge.
+func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) {
+	const forwarder = "argv-forwarding-probe"
+	var carried []string
+	Register(forwarder, GroupSuite, func(args []string) (any, int) {
+		carried = args
+		return map[string]int{"argv": len(args)}, 0
+	}, registry.Meta{
+		Description: "an area that hands the words after its keyword to a child",
+		Mode:        "offline", Section: registry.SectionTest,
+	})
+	RegisterShape(forwarder, command.ShapeDoc)
+
+	for _, option := range []string{"--list", "-count=1", "-6", "-1"} {
+		carried = nil
+		code := 1
+		out := captureStdout(t, func() {
+			code = Dispatch("le", []string{forwarder, "run", "command", "child", option})
+		})
+		if code != 0 {
+			t.Errorf("a trailing %s answered %d, want the area's own 0", option, code)
+		}
+		if carried == nil {
+			t.Fatalf("a trailing %s never reached the area: stdout was %q", option, out)
+		}
+		if carried[len(carried)-1] != option {
+			t.Errorf("the area received %v, want the line ending in %s", carried, option)
+		}
+	}
+
+	// The help question is still the question there, however it is spelled.
+	for _, question := range []string{"--help", "-h", "-help", "help"} {
+		carried = nil
+		page := captureStderr(t, func() {
+			if code := Dispatch("le", []string{forwarder, "run", "command", "child", question}); code != 0 {
+				t.Errorf("a trailing %s answered %d, want 0", question, code)
+			}
+		})
+		if carried != nil {
+			t.Errorf("a trailing %s reached the area with %v", question, carried)
+		}
+		if !strings.Contains(page, "le "+forwarder) {
+			t.Errorf("a trailing %s printed no page: %q", question, page)
 		}
 	}
 }

@@ -28,21 +28,36 @@ and the action runs. `./le source-rewrite replace file <path> old beta new help`
 replaces `beta` with the word `help`. The registered table tells a value from a
 question, so the two never collide in an area that declares one.
 
-`-h` and `--help` are flags. `ai/rules/cli.md` never lets a flag be grammar or a
-value, so those two spellings ask the question in every slot.
-`./le verify status check path --help` prints the usage line and reads no path.
-Only the bare word, which is ordinary English, can be data.
+A value never begins with a dash. le follows GNU option syntax, and
+`ai/rules/cli.md` declares le's whole option set: `--help`, `-h`, `--version`
+and `-V`. A dash opens a long option, or a cluster of one-letter short options.
+`-help` is therefore not the word `help` with one dash. It is `-h` followed by
+`-e`, `-l` and `-p`: a help request, then three options le does not declare.
+
+An action that dispatches through its action table refuses a dash-leading word
+in every value slot, and answers 2. `./le verify status check path --help path
+internal` refuses and reads no path. `./le source-rewrite replace file <path>
+old beta new --help apply` refuses and writes nothing. Only the bare word,
+which carries no dash, can be data.
+
+A trailing help option asks the question in every area, whatever it spells.
+`./le stress-repro run suite -help` prints a page and starts no burn.
 
 <!-- source: internal/le/leroot/manifest.go -- Manifest -->
 <!-- source: internal/le/leroot/dispatch.go -- Dispatch, helpTrailing -->
-<!-- source: internal/le/leaction/leaction.go -- parameterForm -->
+<!-- source: internal/le/leaction/leaction.go -- parameterForm, parseArguments -->
 
 An area that hand-rolls its own dispatch registers no table. The manifest then
 carries its description and not its grammar, and `--help` answers its node page.
 A trailing help word is read as a question there, because the dispatcher has no
-grammar to read it against. A value spelled `help`, `-h` or `--help` is
-therefore unreachable as the last word of such an area's line.
+grammar to read it against. A value spelled `help`, or spelled as a help option,
+is therefore unreachable as the last word of such an area's line.
 `internal/le/actions_test.go` names those areas and refuses a new one.
+
+Any OTHER option reaches such an area, because the dispatcher cannot read it as
+a question and the area's own parser owns the line. That is what `command
+<argv...>` means: `./le job run label encode-list command bin/ze-test bgp encode
+--list` hands `--list` to the child.
 
 ## A bare `go test` is not `./le test-unit`
 

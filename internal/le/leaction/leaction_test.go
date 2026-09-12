@@ -763,8 +763,8 @@ func TestATrailingHelpWordInAValueSlotIsTheKeywordsValue(t *testing.T) {
 }
 
 // VALIDATES: the value-slot exemption is drawn at the SPELLING. The bare word
-// `help` in a keyword's value slot reaches the action as its value. `-h` and
-// `--help` in that same slot are the question and stop before it.
+// `help` in a keyword's value slot reaches the action as its value. A help
+// option in that same TRAILING slot is the question and stops before it.
 // PREVENTS: a flag spelling read as data. `ai/rules/cli.md` bans a flag from
 // being grammar or a value, so no position turns one into a keyword's value.
 // `le verify status check path --help` ran the check over a path named
@@ -783,7 +783,7 @@ func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
 		t.Errorf("command carries %q, want the word the operator typed", got.One("command"))
 	}
 
-	for _, flag := range []string{"-h", "--help"} {
+	for _, flag := range []string{"-h", "--help", "-help"} {
 		got = nil
 		page := captureStderr(t, func() {
 			if _, code := area.Answer([]string{"run", "timeout", "5s", "command", flag}); code != 0 {
@@ -796,5 +796,51 @@ func TestAFlagSpellingIsNeverAKeywordsValue(t *testing.T) {
 		if !strings.HasPrefix(page, "usage: le qemu run") {
 			t.Errorf("%s in a value slot printed %q", flag, page)
 		}
+	}
+}
+
+// VALIDATES: an OPTION in a value slot is refused WHEREVER it stands, not only
+// as the last word, and whatever it spells. The parser names the keyword and
+// the option, and answers 2, the code every other keyword mistake answers. The
+// bare word `help` in the same slot is still the value the operator typed,
+// because it carries no dash.
+// PREVENTS: `le source-rewrite replace file <path> old beta new --help apply`
+// writing the text `--help` into a file. The trailing-position rule read the
+// last word only, so an option one slot earlier stayed data. No le action takes
+// a value that begins with a dash (ai/rules/cli.md).
+func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
+	var got Arguments
+	area := grammarArea(&got)
+
+	for _, option := range []string{"-h", "--help", "-help", "--list", "-count=1", "-6"} {
+		got = nil
+		line := []string{"run", "command", option, "keep-alive"}
+		page := captureStderr(t, func() {
+			if _, code := area.Answer(line); code != 2 {
+				t.Errorf("%s in a non-trailing value slot answered %d, want 2", option, code)
+			}
+		})
+		if got != nil {
+			t.Errorf("%s in a non-trailing value slot ran the action with %#v", option, got)
+		}
+		for _, want := range []string{`keyword "command"`, `"` + option + `"`, "never begins with a dash"} {
+			if !strings.Contains(page, want) {
+				t.Errorf("%s was refused with %q, which does not name %s", option, page, want)
+			}
+		}
+	}
+
+	got = nil
+	if _, code := area.Answer([]string{"run", "command", helpWord, "keep-alive"}); code != 0 {
+		t.Errorf("the bare word in a non-trailing value slot answered %d, want 0", code)
+	}
+	if got == nil {
+		t.Fatalf("the bare word in a non-trailing value slot did not run the action")
+	}
+	if got.One("command") != helpWord {
+		t.Errorf("command carries %q, want the word the operator typed", got.One("command"))
+	}
+	if !got.Has("keep-alive") {
+		t.Error("the keyword after the bare word was not parsed")
 	}
 }

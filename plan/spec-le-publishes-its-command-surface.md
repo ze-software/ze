@@ -163,7 +163,7 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 | AC-2 | `./le \| json` | Answers one JSON document naming every registered area, its group, its description, and for each area its actions with verb, why, writes and parameters |
 | AC-3 | `./le <area> \| json` for a `leaction` area | Each action row carries its parameters, each with keyword, value name, required and repeat |
 | AC-4 | `./le <area> <verb> --help` for an action with a required keyword and an optional one | The required keyword renders without brackets and the optional one renders inside them, and the two are distinguishable in the text |
-| AC-5 | A trailing help word after any verb of any registered area, including the ones that hand-roll dispatch | The handler is not called, usage is rendered, and the exit code is 0 -- with ONE exception, decided by the word's SPELLING. The bare word `help` is ordinary English, so where a declared keyword's value slot holds it, it is that keyword's value and the action runs (`le source-rewrite replace file <path> old beta new help`). `-h` and `--help` are flags, and `ai/rules/cli.md` makes them the one flag exception in this CLI and bans a flag from being grammar or a value, so neither is ever data and both ask the question in every slot (`le verify status check path --help` renders usage and checks no path). An area that publishes no action table has no value slot the dispatcher can read, so every spelling asks the question there |
+| AC-5 | A trailing help word after any verb of any registered area, including the ones that hand-roll dispatch | The handler is not called, usage is rendered, and the exit code is 0 -- with ONE exception, decided by whether the word carries a DASH. The bare word `help` carries none, so where a declared keyword's value slot holds it, it is that keyword's value and the action runs (`le source-rewrite replace file <path> old beta new help`). A dash-leading word is an OPTION: le follows GNU option syntax, `ai/rules/cli.md` declares le's whole option set (`--help`, `-h`, `--version`, `-V`) and bans every other flag from its grammar, so no action takes a value that begins with a dash. A help option asks the question in every area, whatever it spells, `-help` among them, because a short cluster opening with `h` is the help option followed by options that do not exist (`le stress-repro run suite -help` renders a page and starts no burn). Every other option in a value slot is REFUSED with code 2 by `parseArguments`, wherever it stands on the line, so `le verify status check path --help path internal` checks no path. An area that publishes no action table has no value slot the dispatcher can read, so the help spellings ask the question there and any other option reaches that area's own parser, which is what `command <argv...>` means for `le job run` |
 | AC-6 | `./le stress-repro run suite --help` | Renders usage and starts no burn, proven by the run function not being reached |
 | AC-7 | An action declaring a parameter with `Repeat` true, given that keyword twice | Both values are parsed, and a parameter without `Repeat` given twice is still refused with the existing message and code |
 | AC-8 | An action declaring a parameter with `Required` true, invoked without it | Refused exactly where and how it is refused today, because requiredness is published rather than newly enforced |
@@ -182,6 +182,8 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 | `TestManifestNamesEveryRegisteredAreaAndItsGroup` | `internal/le/leroot/dispatch_test.go` | AC-2 | |
 | `TestManifestTextIsTheRootHelpAReaderSeesToday` | `internal/le/leroot/dispatch_test.go` | AC-1 | |
 | `TestATrailingHelpWordNeverReachesTheHandler` | `internal/le/leroot/dispatch_test.go` | AC-5, AC-6 | |
+| `TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine` | `internal/le/leaction/leaction_test.go`, `internal/le/leroot/dispatch_test.go` | AC-5. Review round 3: an option in a value slot is refused with code 2 wherever it stands, and the bare word `help` in the same slot is still data | |
+| `TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea` | `internal/le/leroot/dispatch_test.go` | AC-5. Review round 3: the guard fires for every help spelling in an area with no table, and every other option reaches that area as argv | |
 | `TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList` | `internal/le/actions_test.go` | AC-9. It sits in `internal/le` rather than in `leroot`, because `leroot`'s own test binary registers no area and the same assertion there would pass over an empty set | |
 | `TestBareRootAnswersTheManifestAsAPayload` | `internal/le/leroot/dispatch_test.go` | wiring | |
 | `TestRootManifestRendersThroughTheJSONOperator` | `internal/le/leroot/dispatch_test.go` | wiring, AC-2 | |
@@ -359,18 +361,25 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
   `Repeat`, and reads it with `Values("path")`. One area leaves the exemption
   list (26 rows, now 25), the machinery gets its caller, and the area publishes
   the grammar its four verbs always had.
-- The value-slot exemption is drawn at the word's SPELLING, not at its position.
-  Position answers "could a keyword have introduced this word", which is the
-  wrong question for a flag: `ai/rules/cli.md` makes `-h` and `--help` the one
-  flag exception in this CLI and bans a flag from being grammar or a value, so
-  no slot can hold one, while `help` is ordinary English an operator can type as
-  text. Review round 2 measured the cost of the position-only rule:
-  `le verify status check path --help` ran the check over a path named `--help`.
-  → Decision: `trailingIsValue` answers false for a flag spelling before it
-  walks the grammar, so both guard sites get the rule from the one walk they
-  already share. `leaction.isHelpFlag` derives the two flags from `IsHelpArg`
-  rather than listing them again, so a fourth spelling added there is a flag
-  with no second edit.
+- The value-slot exemption is drawn at the DASH, not at the position and not at
+  the two help spellings. Position answers "could a keyword have introduced this
+  word", which is the wrong question for an option: le follows GNU option
+  syntax, `ai/rules/cli.md` declares le's whole option set and bans every other
+  flag from its grammar, so no le action takes a value that begins with a dash,
+  while `help` carries no dash and an operator can type it as text. Review round
+  2 measured the cost of the position-only rule (`le verify status check path
+  --help` ran the check over a path named `--help`), and the owner then measured
+  the cost of the two-spelling rule: `le stress-repro run suite -help` set
+  `suite=-help` and started the burn, because `-help` is a CLUSTER of short
+  options (`-h -e -l -p`) rather than a third spelling of the word.
+  → Decision: `leaction.IsOption` reports a dash-leading word, `trailingIsValue`
+  answers false for one before it walks the grammar, and `parseArguments`
+  refuses one in every value slot with code 2. `IsHelpArg` reads the same
+  syntax, so the bare word, `--help`, and any cluster opening with `h` are one
+  question in every area.
+  → Constraint: the refusal lives in `parseArguments`, so it reaches the actions
+  that dispatch through the table. An area that hand-rolls its parser, and an
+  area that forwards raw argv to a child, are unchanged by it.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -382,9 +391,10 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 | One `helpfmt.Page` builder on the manifest, rendered by `Text` for stdout and by `Usage` for stderr | `Usage` printing `Text` to stderr | The page content is declared once either way. Color is decided per stream, and deciding stderr's color from stdout is the one thing the single-call shape would get wrong |
 
 ## Known Limitations
-- A help word that is not in the trailing position still reaches the handler. `./le stress-repro run suite --help burners 4` would still run. The realistic probe is trailing, and refusing the word everywhere would make it unusable as a value.
+- A dash-leading word in a value slot is refused by `parseArguments`, so the refusal reaches every action that dispatches through its action table, and no other. An area that hand-rolls its own parser still reads one as data: `./le stress-repro run suite --help burners 4` sets `suite=--help` and starts the burn, measured here on 2026-09-12, because `stress-repro` publishes a table for its listing and parses the line itself (`internal/le/stressrepro/actions.go`, `parseOptions`). `plan/spec-le-every-area-dispatches-through-one-table.md` closes it as each area dispatches through the table. The bare word `help` stays data in any slot, in every area.
 - In an area that declares no action table, a legitimate value spelled `help` is unreachable when it is typed LAST: the dispatcher cannot read a grammar nobody published, so it guards and renders the node page. That is the safe direction, because the alternative is the `stress-repro` burn, and it is a NEW limitation this spec introduces. It holds for the areas named in `areasWithoutAnActionTable` (`internal/le/actions_test.go`) and for no other, and `plan/spec-le-every-area-dispatches-through-one-table.md` removes it one area at a time as each declares its table. An area that HAS declared one takes the bare word as data whenever a declared keyword introduced it.
-- A value spelled `-h` or `--help` is unreachable as the last word of ANY area's line, whether or not the area declares a table. That is not a limitation of the guard, it is `ai/rules/cli.md`: a flag is never grammar and never a value, so the two spellings mean the question everywhere and no migration changes it.
+- A value that begins with a dash is unreachable in ANY area's line, whether or not the area declares a table. That is not a limitation of the guard, it is `ai/rules/cli.md`: le follows GNU option syntax, the four options it declares are the whole set, and no flag is grammar or a value. No migration changes it.
+- An option that is NOT the help question still reaches an area that declares no table, because the dispatcher has no grammar to read it against and the area's own parser owns the line. That is what `command <argv...>` means: `./le job run label encode-list command bin/ze-test bgp encode --list` hands `--list` to the child, which `docs/contributing/testing.md` prints as a recipe. Guarding every option there would refuse it.
 - Twenty-five areas are guarded but publish no grammar, because they declare no `leaction` table. Six of them hand-roll a multi-verb dispatcher and are the subject of `plan/spec-le-every-area-dispatches-through-one-table.md`, which named seven until `verify status` migrated here (review round 1, to give `Repeat` and `Values` a production caller). The other nineteen are single-verb tools that refuse every argument by hand, declare their own `ActionList` type, or build a `leaction.List` inline from an unexported function. That spec empties the six remaining rows; deciding what the nineteen owe is its to settle, and the list ratchets so neither group can grow.
 - Requiredness is PUBLISHED and not newly ENFORCED (AC-8). The table therefore states a fact each action's own body also enforces, which is a second declaration of one fact. It stays that way deliberately: `commit create` requires `subject` only sometimes and `commit debt-discharge` requires `owner` only when `kind` is `owner`, and a flat keyword table cannot express a cross-field rule. Central enforcement needs conditionality in the grammar, which is its own spec.
 - Verb vocabulary, exit-code discipline and help-text wrapping are untouched here. They are spec 3 of this series.

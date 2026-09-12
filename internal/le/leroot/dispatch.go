@@ -23,8 +23,8 @@ import (
 )
 
 // isHelpArg reports whether the word asks for usage rather than naming a
-// command. The three spellings are declared once, by the package that also
-// reads them after a verb (leaction.IsHelpArg).
+// command. The spellings are declared once, by the package that also reads
+// them after a verb (leaction.IsHelpArg).
 func isHelpArg(word string) bool { return leaction.IsHelpArg(word) }
 
 // Commands answers le's commands with the metadata from the shared local
@@ -195,20 +195,29 @@ func helpAsked(program string, words []string) int {
 
 // asksForUsage reports whether the reader's LAST word is a help word ASKING a
 // question, rather than the bare word `help` an area's grammar reads as data.
-// The bare word is ordinary English, so a keyword can introduce it in any
-// position. `le source-rewrite replace file <path> old beta new help` types
-// `help` as the text `new` takes.
+// The bare word carries no dash, so a keyword can introduce it in any position.
+// `le source-rewrite replace file <path> old beta new help` types `help` as the
+// text `new` takes.
 //
-// `-h` and `--help` are flags. `ai/rules/cli.md` bans a flag from being a
-// value, so those two ask the question wherever they stand
-// (leaction.trailingIsValue).
+// Every help OPTION asks the question here, in every area. `--help` asks it as
+// a long option. `-h` and `-help` ask it as a short cluster that opens with the
+// help option (leaction.IsHelpArg). `ai/rules/cli.md` bans a flag from being a
+// value, so no area's grammar means one as data. `le stress-repro run suite
+// -help` renders a page rather than the burn.
 //
-// The area's registered table is what tells the two apart, so an area that
-// registered one is asked. An area that registered none publishes no grammar,
-// so the dispatcher cannot know and it guards. To run a probe's work is the
-// worse of the two failures, and it is the burn this guard exists to stop. The
-// cost is a value spelled like a help word, unreachable in those areas until
-// spec 2 has each one declare its table.
+// An option that is NOT the help question reaches the area. Where the area
+// declared a table, its parser refuses the option by name and answers 2
+// (leaction.parseArguments). Where it declared none, the dispatcher has no
+// grammar to read, so the area's own parser decides. `le job run label x
+// command bin/ze-test bgp encode --list` hands `--list` to the child, which is
+// what `command <argv...>` means.
+//
+// The area's registered table is what tells a value from a question, so an area
+// that registered one is asked. An area that registered none publishes no
+// grammar, so the dispatcher guards. To run a probe's work is the worse of the
+// two failures, and it is the burn this guard exists to stop. The cost is a
+// value spelled like a help word, unreachable in those areas until spec 2 has
+// each one declare its table.
 func asksForUsage(name string, args []string) bool {
 	if len(args) == 0 {
 		return false
