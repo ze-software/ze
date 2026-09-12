@@ -230,7 +230,15 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// of session_validate_test.go under another session's edit. The two
 	// refusals are the same pair the 2026-09-02 note names, still waiting on the
 	// human RFC re-read that reseal will not do for them.
-	const want = "9242b1968d44b9acff0107139eb170679559b95a1bc789a1c9e753f4eb84dbcf"
+	// Resealed 2026-09-12 for the RFC ledger family leaving git. What moved in
+	// this package: checkLedgerFresh and the per-shard byte comparison deleted
+	// with the committed copies they compared, PrunableShards unexported,
+	// writePage and writeExact routed through derived.WriteAtomic, the five
+	// derived.Register calls and feedsRFCLedger added, StatusPage exported for
+	// the site to render the status page live, and two hand-maintained pins
+	// moved for other sessions' summary edits. The digest is over HEAD's own
+	// blobs, so it is resealed in the commit AFTER the one that changes them.
+	const want = "f9a2722b71aeecdde4d749a5bec87acb00aada4c626eee92f3b3fc80b23ee22e"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
