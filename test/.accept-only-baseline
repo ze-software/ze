@@ -85,7 +85,6 @@ test/parse/parse-nop-keyword.ci
 test/parse/process-parse.ci
 test/parse/process-receive-leaflist.ci
 test/parse/process-send-leaflist.ci
-test/parse/redistribute-invalid-source.ci
 test/parse/route-priority.ci
 test/parse/send-enhanced-refresh.ci
 test/parse/simple-v4.ci
