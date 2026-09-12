@@ -76,7 +76,7 @@ type ifaceMetrics struct {
 	// increment happens before the lock, so a reconcile that panics or a
 	// process that dies mid-hold leaves a count that no completion counter
 	// contradicts. Both in-tree precedents, ze_as112_config_reload_total and
-	// ze_geodns_config_reload_total, are CounterVecs labelled by result and
+	// ze_geodns_config_reload_total, are CounterVecs labeled by result and
 	// counted AFTER the fact; they argue for a started/completed pair, and a
 	// pair is the honest next step if anyone needs to see a wedged reconcile.
 	//

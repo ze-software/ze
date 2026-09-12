@@ -38,7 +38,7 @@ func TestTruncateOutputKeepsTheTailNotJustTheHead(t *testing.T) {
 	}
 }
 
-// VALIDATES: the bound is honoured, so a report cannot grow past what its
+// VALIDATES: the bound is honored, so a report cannot grow past what its
 // caller asked for, and short input is returned untouched.
 func TestTruncateOutputRespectsItsBoundAndPassesShortInputThrough(t *testing.T) {
 	got := truncateOutput(numberedLines(100), 30)

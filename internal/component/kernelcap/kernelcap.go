@@ -16,7 +16,7 @@
 // setup registry, whose records are written before main() and therefore cannot
 // see the configuration this verdict depends on.
 
-// Package kernelcap enrols the kernel features a configured subsystem cannot
+// Package kernelcap enrolls the kernel features a configured subsystem cannot
 // work without, so ze doctor reports a missing one, the daemon refuses to
 // start, a reload is refused and ze config validate fails, all from one verdict.
 package kernelcap
@@ -118,7 +118,7 @@ var capabilities = struct {
 	names   map[string]struct{}
 }{names: make(map[string]struct{})}
 
-// MustRegister enrols one capability and registers the doctor check that
+// MustRegister enrolls one capability and registers the doctor check that
 // reports it. It panics on an invalid or duplicate enrolment, which only a ze
 // defect can produce: every caller is an init() with a literal.
 func MustRegister(capability Capability) {
@@ -156,7 +156,7 @@ func MustRegister(capability Capability) {
 
 // enrolForTest adds a capability to the enrolment WITHOUT registering a doctor
 // check for it. The doctor check registry is process-global and refuses a
-// duplicate name, so a test that enrols the same subsystem in two cases would
+// duplicate name, so a test that enrolls the same subsystem in two cases would
 // panic on the second. Test use only.
 func enrolForTest(capability Capability) {
 	capabilities.Lock()

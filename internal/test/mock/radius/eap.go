@@ -328,6 +328,8 @@ func encodeEAP(code, identifier uint8, typeData []byte) []byte {
 // of the EAP packet including the Code, Identifier, Length, and Data fields",
 // and "Octets outside the range of the Length field should be treated as Data
 // Link Layer padding and MUST be ignored on reception."
+// So decodeEAP reads the header, then the Length field, and answers the
+// packet those octets describe rather than every octet it was handed.
 func decodeEAP(packet []byte) (eapPacket, error) {
 	if len(packet) < eapHeaderLen {
 		return eapPacket{}, errStr("radius-mock: EAP packet shorter than its header")

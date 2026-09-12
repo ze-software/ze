@@ -48,7 +48,7 @@ func TestDeclaredValueReachesTheProducer(t *testing.T) {
 	}
 }
 
-// TestSetReplacesRatherThanMerges pins reload behaviour: a later Set is the
+// TestSetReplacesRatherThanMerges pins reload behavior: a later Set is the
 // whole table, so a leaf an operator removed reverts to the caller's bootstrap
 // rather than lingering at its old configured value.
 func TestSetReplacesRatherThanMerges(t *testing.T) {

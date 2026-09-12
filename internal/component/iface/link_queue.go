@@ -173,7 +173,7 @@ func (q *linkEventQueue) pushRouter(payload RouterEventPayload, data string, dis
 
 // resyncBlockedLabel is the metric label a block is counted under when the
 // worker was about to handle a resync. A resync is about every interface at
-// once, so it carries no name, and labelling its block with the zero value put
+// once, so it carries no name, and labeling its block with the zero value put
 // it on a `name=""` series that reads as a bug and hid a real one: a test
 // summing only `name="<device>"` saw zero through a genuine block, because the
 // resync ticks every second and is what usually meets a held lock.

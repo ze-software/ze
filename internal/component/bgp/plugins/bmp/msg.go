@@ -350,6 +350,8 @@ func writeTermination(buf []byte, off int, term *Termination) int {
 
 // writePeerUp writes a complete Peer Up message into buf at off.
 // Returns total bytes written.
+//
+//nolint:unparam // buffer-first wire contract write(buf, off) int (ai/rules/performance.md): off says how far the caller's pooled buffer is already filled, and it is what the skip-and-backfill start position is taken from. writeTLVs, writeInitiation and WriteCommonHeader take the same pair. sender.go passes 0 because it sends one BMP message per buffer
 func writePeerUp(buf []byte, off int, pu *PeerUp) int {
 	start := off
 	off += CommonHeaderSize

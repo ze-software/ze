@@ -31,7 +31,7 @@ import (
 // Shrinking this list is worthwhile work and needs a build per architecture to
 // do safely, because a symbol that does not resolve on one arch turns a missing
 // feature into a refused build. The list itself shows why: CONFIG_X86_POWERNOW_K8
-// and its neighbours are x86-only, and asserting them would refuse every arm64
+// and its neighbors are x86-only, and asserting them would refuse every arm64
 // runtime build. That is the trade this list makes explicit rather than the
 // silence it replaces.
 var unverifiedRuntimeSymbols = map[string]bool{

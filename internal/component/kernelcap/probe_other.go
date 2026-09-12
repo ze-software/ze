@@ -4,7 +4,7 @@
 // Overview: probe.go -- the shared /proc root and the test override
 //
 // XFRM and AF_MPLS are Linux dataplanes. Off Linux ze installs neither, so no
-// capability enrols here (the owners' registration files are Linux-only) and
+// capability enrolls here (the owners' registration files are Linux-only) and
 // these probes exist for the readers that ask outside the enrolment.
 //
 // The answer is cannot-determine rather than absent. Absent is a refusal, and

@@ -68,10 +68,10 @@ func newMonitor(eb ze.EventBus) *monitor {
 // The kernel drops a multicast notification it cannot queue, and the loss
 // happens before ze sees it: no amount of care on the reader side recovers a
 // notification that was never delivered. A link that flaps rapidly, a bulk
-// address change, or a neighbour table churning during a scan all produce
+// address change, or a neighbor table churning during a scan all produce
 // bursts far faster than a Go channel hand-off, and a router that silently
 // misses link-state transitions under exactly those conditions is a real
-// operational defect rather than a test artefact.
+// operational defect rather than a test artifact.
 //
 // Measured on the arm64 QEMU VM on 2026-09-04: with the default buffer,
 // test/plugin/iface-link-flap-during-commit lost 1054 and 207 notifications in

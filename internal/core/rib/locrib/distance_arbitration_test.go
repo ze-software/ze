@@ -17,7 +17,7 @@ import (
 // (internal/component/bgp/plugins/rib/rib_bestchange_test.go) proves the
 // declaration reaches the stamp, and stops there; it inserts no OSPF path and
 // asserts only that the stamped value exceeds 110. Three independent closure
-// gates in a row faulted the proof for stopping one layer above the behaviour,
+// gates in a row faulted the proof for stopping one layer above the behavior,
 // and this is that layer: selectBest is where the two protocols actually meet.
 //
 // PREVENTS: the declaration reaching the stamp correctly while cross-protocol

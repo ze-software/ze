@@ -85,12 +85,6 @@ func entryASPath(t *testing.T, entry RouteEntry) []byte {
 	return got
 }
 
-
-
-
-
-
-
 // TestParseAttributesCostsNothingExtraWithoutAS4Path pins the same cost at the
 // ingest entry point rather than at the AS path producer alone. An UPDATE from
 // a session that negotiated four-octet AS support reaches neither the AGGREGATOR
@@ -171,8 +165,3 @@ var wireAggregatorWrongWidth = []byte{
 	0xC0, 0x07, 0x08,
 	0x00, 0x00, 0xFB, 0xF4, 0x0A, 0x00, 0x00, 0x01,
 }
-
-
-
-
-

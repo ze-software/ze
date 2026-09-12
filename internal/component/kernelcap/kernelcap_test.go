@@ -15,7 +15,7 @@ import (
 )
 
 // withEnrolment replaces the enrolment for the duration of a test. Nothing else
-// enrols in this package's own test binary, because the owners that register the
+// enrolls in this package's own test binary, because the owners that register the
 // shipped capabilities are not imported here.
 func withEnrolment(t *testing.T, capabilities ...Capability) {
 	t.Helper()

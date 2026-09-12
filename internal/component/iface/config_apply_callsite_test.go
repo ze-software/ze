@@ -18,7 +18,7 @@ import (
 // the whole 1.1 to 3.3 s window it exists to report, because the reconcile holds
 // the lock for as long as stopping forty DHCP clients takes.
 //
-// This reads the source rather than the behaviour, which is a weaker test than
+// This reads the source rather than the behavior, which is a weaker test than
 // driving the reload, and it is here because the stronger one needs a seam the
 // component does not have. It is deliberately narrow: it asserts the ORDER of
 // two lines it can find, and says plainly when it can find neither.

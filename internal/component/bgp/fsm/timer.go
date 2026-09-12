@@ -107,7 +107,7 @@ type Timers struct {
 	bfdHoldRunning      bool
 	bfdHoldDownRunning  bool
 
-	// BfdHoldTimer generation guard, the same ABA defence the hold timer
+	// BfdHoldTimer generation guard, the same ABA defense the hold timer
 	// carries below: a fired closure that captured an older generation
 	// declines to touch shared state.
 	bfdHoldGen uint64
@@ -477,7 +477,7 @@ func (t *Timers) StopAll() {
 
 // SetBfdHoldDown sets the BFD hold-down interval of
 // draft-ietf-idr-bgp-bfd-strict-mode Section 10. Zero disables the wait, which
-// is the behaviour of a peer that configures no hold-down.
+// is the behavior of a peer that configures no hold-down.
 //
 // Zero is NOT clamped to a default here, unlike SetBfdHoldTime above, and the
 // difference is the draft's: BfdHoldTime is a session attribute with a stated

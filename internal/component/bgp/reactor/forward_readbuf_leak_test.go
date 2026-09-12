@@ -434,7 +434,7 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
 
-	// UPDATE with a 4-byte AS_PATH so RewriteASPathDual produces a valid wire.
+	// UPDATE with a 4-byte AS_PATH so the EBGP dual prepend produces a valid wire.
 	payload := testUpdatePayloadWithASPath([]uint32{65001})
 
 	t.Run("forwardUpdateCore_site2", func(t *testing.T) {

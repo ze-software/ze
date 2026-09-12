@@ -29,6 +29,8 @@ func imageDirWithImage(t *testing.T) string {
 }
 
 // getStatus fetches path from addr and returns the status and the body.
+//
+//nolint:unparam // the body is read by listen_linux_test.go, which the non-linux lint flavors do not compile.
 func getStatus(t *testing.T, addr, path string) (int, string) {
 	t.Helper()
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+addr+path, http.NoBody)
