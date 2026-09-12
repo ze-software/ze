@@ -503,11 +503,12 @@ and both are documented at the producer as well as here.
 
 ## State
 
-Fifteen commits are in HEAD, oldest first. The spec is `in-progress` in
+The commits below are in HEAD, oldest first. The spec is `in-progress` in
 `plan/immediate/` and is claimed by session `cbc36cee`. Every assumption A-1 to
 A-7 is closed, and the Integration and Documentation checklists are answered
-with evidence. Review round 4 is dispositioned and round 5's repairs are
-uncommitted.
+with evidence. The review rounds are declared in the spec's own `## Review Gate`
+section. This file carried a count of them and a count of the commits below.
+Each count was a second copy, and each went stale.
 
 | Commit | What it made true |
 |--------|-------------------|
@@ -526,6 +527,7 @@ uncommitted.
 | `9b07614064` | The peer stop and restart is proven on a kernel, in QEMU |
 | `d4f54da58` | The spec states the requirement rather than the paraphrase it was written from (R3-B-4, R3-B-5) |
 | `bcba32f48e` | A binder starts in the world the removals leave: the third derived edge, the fail-safe for an unreadable kind, and the coarse sort (R3-B-1 to R3-B-3) |
+| `1f9993071` | The configure operation declares the interfaces and the addresses it creates, so a binder of one waits for it. `kahnSort` drains three rungs, so a stop, an addressing change and a start fall in that order (R4-B-1, R4-B-2) |
 
 ## What the change found, and it is the reason the spec existed
 

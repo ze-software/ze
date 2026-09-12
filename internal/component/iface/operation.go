@@ -183,14 +183,11 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	// never settle. One listing serves both sides, which keeps the diff between
 	// them a diff about config rather than about resolution.
 	//
-	// Without a listing every selected entry reads as unbound and contributes no
-	// operation of its own, and the configure operation applies it instead. That
-	// is the same fail-safe direction the apply path takes: never guess a device
-	// for an entry. An entry with no selector needs no listing and is
-	// unaffected.
-	var infos []InterfaceInfo
-	if b := GetBackend(); b != nil {
-		infos, _ = b.ListInterfaces()
+	// A listing this decomposer cannot take ABORTS the transaction, and
+	// decomposeIfaceListing is where that happens.
+	infos, err := decomposeIfaceListing(active, candidate)
+	if err != nil {
+		return nil, err
 	}
 	activeAddrs, activeManaged, _ := active.desiredState(active.bindDevices(infos))
 	candidateAddrs, candidateManaged, _ := candidate.desiredState(candidate.bindDevices(infos))
@@ -260,6 +257,45 @@ func decomposeIfaceOperations(_ context.Context, req tx.DecomposeRequest) ([]tx.
 	}
 
 	return append(ops, ifaceConfigureOperation(configureProduces)), nil
+}
+
+// decomposeIfaceListing takes the one interface listing that resolves both
+// sides' hardware selectors, and refuses to decompose the root without it.
+//
+// Only an ethernet entry carries a selector. A config with none reads no
+// listing and needs none, because every other name is its own kernel device
+// (bindDevices, deviceFor).
+//
+// Where one IS carried and the listing is unavailable, every ethernet entry
+// reads as unbound. desiredState then drops its addresses from BOTH sides of
+// the comparison, and the caller emits no address operation for them. The core
+// reads that plan and answers that the commit disturbs nothing
+// (DisturbedAddresses), so no binder of those addresses is stopped. Two other
+// paths move the addresses meanwhile, each with a listing of its own:
+// applyPendingConfig and reconcileOnReadyWithJournal. The silence is read
+// downstream as a fact about the whole commit, which is the silently wrong
+// value ai/rules/principles.md bans.
+//
+// The owner's rule decides the direction: "If it is not easy to establish what
+// action will lead to what, be safe and deconf/reconf"
+// (docs/architecture/config/apply-ordering.md). Deconf is out of reach here. An
+// operation for an entry with no device would name a device this package
+// guessed, and the executor hands that name straight to the backend. What is
+// left is to apply nothing. The error aborts the transaction before the
+// executor runs, so the running config is what it was.
+func decomposeIfaceListing(active, candidate *ifaceConfig) ([]InterfaceInfo, error) {
+	if len(active.Ethernet) == 0 && len(candidate.Ethernet) == 0 {
+		return nil, nil
+	}
+	b := GetBackend()
+	if b == nil {
+		return nil, fmt.Errorf("iface operation decompose listing: no backend to bind an ethernet selector against")
+	}
+	infos, err := b.ListInterfaces()
+	if err != nil {
+		return nil, fmt.Errorf("iface operation decompose listing: %w", err)
+	}
+	return infos, nil
 }
 
 // ifaceConfigureOperation is the operation that applies the interface

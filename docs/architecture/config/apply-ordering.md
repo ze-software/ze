@@ -282,6 +282,20 @@ available, which is the wrong direction for a deletion, and the four placement
 rules are what keep it behind every destroy.
 <!-- source: internal/component/iface/operation.go -- decomposeIfaceOperations, ifaceConfigureOperation -->
 
+**A commit it cannot resolve is refused, not answered.** An ethernet entry
+carries a hardware selector, which the decomposer resolves against one interface
+listing. Without that listing every entry reads as unbound, and its addresses
+leave BOTH sides of the comparison. The plan then states that the commit
+disturbs nothing. The core reads that for every binder in the transaction.
+
+`decomposeIfaceListing` answers an error instead. The transaction aborts before
+the executor runs, so the running config is what it was. The fail-safe default
+stops a binder where Ze cannot establish the binding context. Here Ze cannot
+establish the DEVICE, so there is no stop to emit. An operation for an entry
+with no device would name a device Ze guessed. A config with no ethernet entry
+reads no listing and is unaffected.
+<!-- source: internal/component/iface/operation.go -- decomposeIfaceListing -->
+
 The kernel-driven path is still there and is not a substitute.
 `handleAddrRemovedPayload` stops the LISTENER bound to a removed address and
 `handleAddrAddedPayload` starts it again. Neither stops a peer, and neither is

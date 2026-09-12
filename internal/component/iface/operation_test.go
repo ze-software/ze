@@ -2,6 +2,7 @@ package iface
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -490,4 +491,84 @@ func TestIfaceConfigureOperationDeclaresTheAddressingItCreates(t *testing.T) {
 		ids = append(ids, sorted[i].ID)
 	}
 	assert.Equal(t, []string{configure.ID, peer.ID}, ids)
+}
+
+// installBackend makes b the active backend for the rest of the test, the way
+// LoadBackend makes one active at startup. It puts the previous backend back
+// when the test ends.
+func installBackend(t *testing.T, b Backend) {
+	t.Helper()
+	backendsMu.Lock()
+	previous := activeBackend
+	activeBackend = b
+	backendsMu.Unlock()
+	t.Cleanup(func() {
+		backendsMu.Lock()
+		activeBackend = previous
+		backendsMu.Unlock()
+	})
+}
+
+// TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind takes this
+// root's decomposer out of the registry the way the planner does. It runs one
+// ethernet address moving between two entries against a backend that lists, and
+// against two that cannot.
+//
+// Ethernet is the only kind that carries a hardware selector. So it is the only
+// kind whose addresses leave BOTH sides of the comparison when the listing is
+// unavailable. bindDevices leaves every entry unbound, and desiredState skips
+// an unbound entry. The decomposer then emits no address operation, and the core
+// reads that plan and finds nothing disturbed. Every binder of that address
+// keeps running, while applyPendingConfig and reconcileOnReadyWithJournal move
+// the address with listings of their own.
+//
+// VALIDATES: phase 2. A listing this decomposer cannot take aborts the
+// transaction, and the same commit with a listing names the address the core
+// stops the binder for.
+// PREVENTS: a plan that answers "this commit disturbs nothing" for a commit
+// that moves an ethernet address, which is the silently wrong value
+// ai/rules/principles.md bans.
+func TestIfaceOperationDecomposerRefusesAnEthernetMoveItCannotBind(t *testing.T) {
+	request := tx.DecomposeRequest{
+		TransactionID: "tx-iface-eth-move",
+		Root:          configRootInterface,
+		ActiveRoot:    `{"interface":{"backend":"test","ethernet":{"eth0":{"unit":{"default":{"ipv4":{"address":"10.0.0.9/24"}}}},"eth1":{}}}}`,
+		CandidateRoot: `{"interface":{"backend":"test","ethernet":{"eth0":{},"eth1":{"unit":{"default":{"ipv4":{"address":"10.0.0.9/24"}}}}}}}`,
+		Diff: tx.DiffSection{
+			Root:    configRootInterface,
+			Added:   `{"interface/ethernet/eth1/unit/default/ipv4/address/0":"10.0.0.9/24"}`,
+			Removed: `{"interface/ethernet/eth0/unit/default/ipv4/address/0":"10.0.0.9/24"}`,
+		},
+	}
+
+	decompose, registered := tx.OperationDecomposerFor(configRootInterface)
+	require.True(t, registered, "the planner takes this root's decomposer from the registry")
+
+	listing := &fakeBackend{}
+	listing.ensureMaps()
+	listing.ifaces["eth0"] = fakeIface{name: "eth0", linkType: "device"}
+	listing.ifaces["eth1"] = fakeIface{name: "eth1", linkType: "device"}
+	installBackend(t, listing)
+
+	ops, err := decompose(context.Background(), request)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.9"}, tx.DisturbedAddresses(ops),
+		"with a listing the move is one destroy and one create, and the core reads the address out of the destroy")
+
+	blind := []struct {
+		name    string
+		backend Backend
+	}{
+		{name: "no backend loaded", backend: nil},
+		{name: "listing fails", backend: &fakeBackend{listErr: errors.New("netlink: rtnetlink receive: permission denied")}},
+	}
+	for _, tc := range blind {
+		t.Run(tc.name, func(t *testing.T) {
+			installBackend(t, tc.backend)
+			ops, err := decompose(context.Background(), request)
+			require.Error(t, err,
+				"an ethernet entry this package cannot bind to a device must abort the transaction, not read as an entry with no address")
+			assert.Nil(t, ops)
+		})
+	}
 }
