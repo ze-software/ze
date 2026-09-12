@@ -17,6 +17,8 @@
 
 **Before you claim code behaves a certain way, or recommend work premised on it, you MUST read the function that PRODUCES the behavior.** Naming the caller, the config that reaches it, or a comment beside it does not discharge this.
 
+**An owner requirement MUST be recorded verbatim on a durable page.** Every spec, comment and test that depends on that requirement MUST point at the page rather than restate it. A summary of a requirement is a second declaration of it, and it drifts like any other copy. Code that agrees with the summary is not evidence, because the code was built from the summary. Where the requirement arrived in conversation, the quote MUST carry its date, and the words MUST NOT be edited. `docs/architecture/config/apply-ordering.md` is the shape: the quote under its own heading, then the design derived from it.
+
 **You MUST read the implementation source this session before you write a spec or a design.** `writeDesignEvidence` (`internal/le/hookruntime/writeedit.go`) refuses the write when the session recorded no source read, and it is a BACKSTOP you MUST NOT treat as evidence: it accepts ANY recorded read rather than the spec's own subject.
 
 **A line number MUST NOT appear in a document unless a GENERATOR maintains it (owner directive, 2026-08-03).** Nothing refreshes a hand-typed one and nothing can tell it has gone wrong, so name the file and the symbol instead. A file earns the exception by declaring `GENERATED ... do not edit` in its first ten lines, which is what `writeLineCitation` reads rather than a list of filenames.

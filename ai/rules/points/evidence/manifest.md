@@ -8,5 +8,6 @@ directives ## Directives
   five-biases-that-are-invisible-from-inside
 no-fabrication ## No Fabrication
   read-the-producing-code-before-claiming-behavior
+  quote-an-owner-requirement-never-summarize-it
   investigate-source-in-session-before-writing-a-spec
   cite-a-line-number-only-when-a-generator-maintains-it
