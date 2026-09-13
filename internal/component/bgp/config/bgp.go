@@ -94,20 +94,6 @@ type StaticRouteConfig struct {
 	Split string
 }
 
-// FlowSpecRouteConfig holds a FlowSpec route configuration.
-// RFC 8955 Section 4: NLRI contains match criteria (destination, source, protocol, ports, etc.)
-// RFC 8955 Section 7: Actions are encoded as Extended Communities (rate-limit, redirect, etc.)
-type FlowSpecRouteConfig struct {
-	Name              string
-	IsIPv6            bool
-	RD                string              // for flow-vpn (SAFI 134)
-	NLRI              map[string][]string // Match criteria (RFC 8955 Section 4)
-	NextHop           string
-	Community         string
-	ExtendedCommunity string // Actions as extended communities (RFC 8955 Section 7)
-	Attribute         string // Raw attribute hex: [ code flags value ]
-}
-
 // PluginRouteConfig holds a generic route produced by a plugin's config parser.
 // Mirrors registry.PluginRoute but lives in the config layer.
 type PluginRouteConfig struct {

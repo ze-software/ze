@@ -477,19 +477,6 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *config.Tree) e
 		ps.PluginRoutes = append(ps.PluginRoutes, route)
 	}
 
-	// Legacy ExaBGP flow{} syntax: route through the flowspec plugin's parser.
-	for _, fr := range extractFlowSpecRoutes(peerTree) {
-		prc, err := flowSpecConfigToPlugin(fr)
-		if err != nil {
-			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
-		}
-		route, err := convertPluginRoute(prc)
-		if err != nil {
-			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
-		}
-		ps.PluginRoutes = append(ps.PluginRoutes, route)
-	}
-
 	return nil
 }
 
