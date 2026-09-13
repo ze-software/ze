@@ -48,7 +48,17 @@ fills. Resume it with the sibling command. The wildcard selector is refused.";
 answer carries the peer address and the action word. The wildcard selector is
 refused, because flow control acts on one peer's read loop.";
   }
-  rpc peer-save { description "Save peer(s) to config file."; }
+  rpc peer-save {
+    description "Write the running peer set to the configuration file.";
+    ze:help "The method takes no argument and acts on the whole running peer
+set. It reconciles the configuration file to that set in both directions: a
+peer created through 'ze-bgp:peer-add' is written into the file, and a peer the
+file declares that 'ze-delete:bgp-peer' removed is taken out of it. A peer both
+sides hold is not rewritten. Nothing about the running daemon changes. The
+answer carries 'added', 'removed' and 'config', which names the file. An
+argument is refused, because after a removal no peer is left for a selector to
+name.";
+  }
   rpc summary {
     description "Show BGP summary (peer table with statistics).";
     ze:help "With no argument, every configured peer appears in the table.

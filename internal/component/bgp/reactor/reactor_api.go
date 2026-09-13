@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"reflect"
 	"slices"
+	"strings"
 	"time"
 
 	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
@@ -24,7 +25,9 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/selector"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -406,6 +409,159 @@ func (a *reactorAPIAdapter) SetConfigTree(tree map[string]any) {
 	a.r.mu.Lock()
 	defer a.r.mu.Unlock()
 	a.r.configTree = tree
+}
+
+// configListNamePeer is the key the peer list sits under in the BGP block of a
+// config tree. It is the YANG list name, so it is also the name an editor path
+// takes for that level (`bgp > peer > <name>`).
+const configListNamePeer = "peer"
+
+// recordPeerConfig writes one peer's own configuration into the running
+// configuration, under bgp > peer > name.
+//
+// The running configuration is what the daemon is RUNNING, so a peer an
+// operator created at runtime belongs in it. The configuration FILE is left
+// alone: `update bgp config` is what writes the running peer set out to it
+// (handleBgpPeerSave, ../plugins/cmd/peer/save.go), and the leaves recorded
+// here are the ones it writes.
+//
+// The tree is REPLACED rather than edited, for the reason SetConfigTree
+// replaces it on a reload: GetConfigTree hands the live map to readers holding
+// no lock, so an entry added in place is a concurrent map write. Only the two
+// maps on the path to the peer list are copied, and every other subtree is
+// shared with the tree that was running a moment ago, which no longer changes.
+func (a *reactorAPIAdapter) recordPeerConfig(name string, peerTree map[string]any) {
+	a.r.mu.Lock()
+	defer a.r.mu.Unlock()
+
+	root, bgp, peers := copyToPeerList(a.r.configTree)
+	order := peerEntryOrder(bgp, peers)
+	if _, known := peers[name]; !known {
+		// Last, because the operator created it after everything the file
+		// already named. That is the order it is written out in too.
+		order = append(order, name)
+	}
+	peers[name] = peerTree
+	writePeerList(bgp, peers, order)
+	a.r.configTree = root
+}
+
+// dropPeerConfig takes one peer's configuration out of the running
+// configuration. The configuration file keeps the peer until `update bgp
+// config` writes the running set out, for the reason recordPeerConfig states.
+func (a *reactorAPIAdapter) dropPeerConfig(name string) {
+	a.r.mu.Lock()
+	defer a.r.mu.Unlock()
+
+	root, bgp, peers := copyToPeerList(a.r.configTree)
+	if _, declared := peers[name]; !declared {
+		return
+	}
+	order := slices.DeleteFunc(peerEntryOrder(bgp, peers), func(key string) bool { return key == name })
+	delete(peers, name)
+	writePeerList(bgp, peers, order)
+	a.r.configTree = root
+}
+
+// peerConfigName answers the name the running configuration declares a peer
+// under, which is the key of its entry in the peer list. false says the reactor
+// holds no peer at that address.
+func (a *reactorAPIAdapter) peerConfigName(addr netip.Addr) (string, bool) {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	peer, exists := a.r.findPeerByAddr(addr)
+	if !exists {
+		return "", false
+	}
+	if name := peer.Settings().Name; name != "" {
+		return name, true
+	}
+	// A peer built from a command carries no name of its own: parsePeerSettings
+	// names only what the configuration keyed, and ParseDynamicGroupTemplate is
+	// the one caller that fills the field afterwards. So the name it is
+	// recorded under is derived from its address.
+	return peerConfigNameFor(addr), true
+}
+
+// peerConfigNameFor answers the name a peer that has none of its own is
+// declared under, derived from its address.
+//
+// The address itself cannot be the name. A standalone peer's key leaf takes the
+// pattern `[a-zA-Z_][a-zA-Z0-9_.\-]*` (`list peer`, ../yang/ze-bgp-conf.yang),
+// so a name starting with a digit is refused and every IPv4 address starts with
+// one. Recording the address as the name produces a configuration file the
+// parser refuses on the next read, which is a peer saved and lost.
+//
+// The colon is the one character an address carries that the pattern does not
+// take, and an address text carries no hyphen, so the substitution is
+// reversible and two addresses never derive one name. A zone would break that,
+// and no address reaching here carries one: `zt:ip-address` (ze-types.yang)
+// declares the two address forms and neither admits a `%`.
+func peerConfigNameFor(addr netip.Addr) string {
+	var name textbuf.Buffer
+	return name.Str("peer-").Str(strings.ReplaceAll(addr.String(), ":", "-")).String()
+}
+
+// copyToPeerList answers a copy of a config tree whose bgp block and peer list
+// are fresh maps the caller may write, every other subtree shared.
+//
+// A level the tree does not hold yet is created, so a reactor that was given no
+// configuration tree still records the peers a command creates.
+func copyToPeerList(tree map[string]any) (root, bgp, peers map[string]any) {
+	root = maps.Clone(tree)
+	if root == nil {
+		root = make(map[string]any)
+	}
+
+	bgp, _ = root[configRootNameBGP].(map[string]any)
+	bgp = maps.Clone(bgp)
+	if bgp == nil {
+		bgp = make(map[string]any)
+	}
+	root[configRootNameBGP] = bgp
+
+	peers, _ = bgp[configListNamePeer].(map[string]any)
+	peers = maps.Clone(peers)
+	if peers == nil {
+		peers = make(map[string]any)
+	}
+	return root, bgp, peers
+}
+
+// peerEntryOrder answers the order the peer list is delivered in, as
+// Tree.ToPluginMap lowered it.
+//
+// A single-entry list carries no order key and its one key IS its order, so
+// that case is completed here: the entry was there first, so it comes first.
+// Above one entry an absent key says the lowering could not account for every
+// entry, nothing here can account for it either, and the answer is empty.
+func peerEntryOrder(bgp, peers map[string]any) []string {
+	if order, recorded := bgp[configorder.OrderKey(configListNamePeer)].([]string); recorded {
+		return slices.Clone(order)
+	}
+	if len(peers) == 1 {
+		for key := range peers {
+			return []string{key}
+		}
+	}
+	return nil
+}
+
+// writePeerList puts the peer list and its entry order back into the bgp block,
+// in the shape Tree.ToPluginMap lowers and configorder.Entries reads: no order
+// key below two entries, and an order naming every entry exactly once above
+// that. An order that does not account for the list is DROPPED rather than
+// half-written, because configorder.Entries refuses a partial order and names
+// the list, while a partial one would drop an entry in silence.
+func writePeerList(bgp, peers map[string]any, order []string) {
+	bgp[configListNamePeer] = peers
+
+	if len(peers) > 1 && len(order) == len(peers) {
+		bgp[configorder.OrderKey(configListNamePeer)] = order
+		return
+	}
+	delete(bgp, configorder.OrderKey(configListNamePeer))
 }
 
 // recordASNotation records the notation this process writes an AS number in.
@@ -1094,13 +1250,46 @@ func waitForCondition(ctx context.Context, tick time.Duration, cond func() bool)
 }
 
 // RemovePeer removes a peer by address.
+//
+// The peer leaves the running configuration with the running peer set, so the
+// two still agree afterwards. The reload path removes a peer through
+// Reactor.RemovePeer instead (applyPeerOperation, operation.go), which leaves
+// the tree alone: a reload REPLACES the running configuration when it succeeds
+// (SetConfigTree above), and a reload that fails partway must not leave a peer
+// the file still declares missing from it.
 func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
-	return a.r.RemovePeer(addr)
+	// Read before the removal: afterwards the reactor holds no peer to ask.
+	name, held := a.peerConfigName(addr)
+	if err := a.r.RemovePeer(addr); err != nil {
+		return err
+	}
+	if held {
+		a.dropPeerConfig(name)
+	}
+	return nil
 }
 
 // AddDynamicPeer adds a peer from a YANG-parsed config tree.
+//
+// The tree is recorded in the running configuration, which is what `update bgp
+// config` writes out to the configuration file (recordPeerConfig above). It is
+// recorded AFTER the peer is built, so a tree the parser refuses is recorded
+// nowhere, and it carries the two leaves Reactor.AddDynamicPeer fills in
+// (the remote address, and `auto` for the local one).
 func (a *reactorAPIAdapter) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
-	return a.r.AddDynamicPeer(addr, tree)
+	if err := a.r.AddDynamicPeer(addr, tree); err != nil {
+		return err
+	}
+	// The name is read back from the peer rather than derived again here, so
+	// the key in the running configuration is the one the peer carries. A miss
+	// is a peer removed between the two calls, and a peer that is gone owes the
+	// running configuration no entry.
+	name, held := a.peerConfigName(addr)
+	if !held {
+		return nil
+	}
+	a.recordPeerConfig(name, tree)
+	return nil
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.

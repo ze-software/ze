@@ -50,6 +50,7 @@ what `show | blame` reports for the changes the console commits.
 | `show bgp peer <sel> detail` | Show peer details and statistics |
 | `request peer <sel> teardown <code>` | Graceful session closure with NOTIFICATION |
 | `delete bgp peer <name>` | Remove peer |
+| `update bgp config` | Write the running peer set to the configuration file |
 | `request peer <sel> pause` | Pause reading from peer (flow control) |
 | `request peer <sel> resume` | Resume reading from peer |
 | `show bgp peer <sel> capabilities` | Show negotiated capabilities |

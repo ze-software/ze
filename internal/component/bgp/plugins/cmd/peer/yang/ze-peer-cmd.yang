@@ -270,8 +270,9 @@ configuration. Does not modify the config file on disk.";
         container bgp {
             config false;
             description "BGP operational updates.";
-            ze:help "This keyword runs nothing on its own. 'update bgp peer <selector> prefix' is the
-one command under it.";
+            ze:help "This keyword runs nothing on its own. 'update bgp peer <selector> prefix'
+refreshes one peer's prefix maximums, and 'update bgp config' writes the running
+peer set to the configuration file.";
 
             container peer {
                 config false;
@@ -292,6 +293,25 @@ and not to the running daemon, so 'config commit' is what applies the result.";
 margin, and writes the result to the config draft. Run 'config commit'
 to apply.";
                 }
+            }
+
+            // The node sits beside `peer` rather than under it, because the
+            // command takes no selector: `update bgp peer` declares a mandatory
+            // one that every node below it inherits, and the absence of a peer
+            // is half of what this command persists.
+            container config {
+                config false;
+                ze:command "ze-bgp:peer-save";
+                description "Write the running peer set to the configuration file.";
+                ze:help "Ze writes the running peer set into the configuration file. A peer
+'create bgp peer' built is added to the file, and a peer the file declares that
+'delete bgp peer' removed is taken out of it. A peer both sides already hold is
+left exactly as it was written. The running daemon does not change: the file is
+brought to it. The command takes no selector, because after a delete no peer is
+left to name and that absence is half of what the command persists. A created
+peer is written under a name derived from its address, such as
+'peer-192.0.2.7', because a peer name cannot start with a digit. The answer
+names what was added, what was removed, and the file that was written.";
             }
         }
     }

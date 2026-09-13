@@ -136,10 +136,19 @@ func (c *Coordinator) SetReactor(r any) error {
 	c.reactors["bgp"] = r
 	replay := make(map[string]bool, len(c.cacheConsumers))
 	maps.Copy(replay, c.cacheConsumers)
+	handover := c.configTree
 	c.mu.Unlock()
 
 	for name, unordered := range replay {
 		lifecycle.RegisterCacheConsumer(name, unordered)
+	}
+	// The running configuration moves to the reactor with the reactor, for the
+	// reason GetConfigTree states: from here on there is ONE tree, and it is
+	// the reactor's. Handing it over rather than leaving each side with its own
+	// copy is what stops the two answering different questions about the same
+	// running daemon.
+	if handover != nil {
+		lifecycle.SetConfigTree(handover)
 	}
 	return nil
 }
@@ -168,14 +177,36 @@ func (c *Coordinator) FullReactor() ReactorLifecycle {
 // --- ReactorConfigurator ---
 
 // GetConfigTree returns the full config as a map for plugin config delivery.
+//
+// The attached reactor HOLDS the running configuration, and this answers its
+// tree rather than a second copy of it. The two were separate fields until
+// 2026-09-13, and each of them missed what the other recorded: a reload wrote
+// here alone, so the reactor's tree stayed at the one it was built with, while
+// a runtime `create bgp peer` or `delete bgp peer` wrote there alone and this
+// one never learned of it. A command handler reads the reactor's tree
+// (Server.Reactor answers the adapter) and the reload decomposer read this
+// one, so after a peer was deleted at runtime and `update bgp config` wrote the
+// file, the next reload still saw that peer here and asked the reactor to
+// remove one it was not running, which failed the whole transaction.
+//
+// The local field answers before a reactor attaches, and for a coordinator
+// that never gets one.
 func (c *Coordinator) GetConfigTree() map[string]any {
+	if r := c.getReactor(); r != nil {
+		return r.GetConfigTree()
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.configTree
 }
 
-// SetConfigTree replaces the running config tree after a successful reload.
+// SetConfigTree replaces the running config tree after a successful reload. It
+// writes the reactor's tree where one is attached, for the reason above.
 func (c *Coordinator) SetConfigTree(tree map[string]any) {
+	if r := c.getReactor(); r != nil {
+		r.SetConfigTree(tree)
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.configTree = tree

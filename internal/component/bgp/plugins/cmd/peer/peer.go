@@ -146,6 +146,10 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: handleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
+		// `update bgp config` writes the running peer set to the configuration
+		// file. No selector: the absence of a peer is half of what it
+		// persists, and a selector cannot name a peer that is gone (save.go).
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-save", Handler: handleBgpPeerSave},
 		// The startup convergence hold. No selector: the hold is a property of
 		// the speaker, not of a peer (update_delay.go).
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:update-delay", Handler: handleBgpUpdateDelay},
@@ -211,6 +215,11 @@ func registerColumns() {
 	// speaks, and what happened. The order is that sentence.
 	command.RegisterColumns([]string{cmdBgpPeerCreate},
 		command.ColumnOrder{fieldPeer, fieldRemoteAS, fieldMessage},
+	)
+	// `update bgp config` answers one record too: what the save put in the
+	// file, what it took out, which file, and what happened.
+	command.RegisterColumns([]string{cmdBgpConfigSave},
+		command.ColumnOrder{fieldSaveAdded, fieldSaveRemoved, fieldSaveConfig, fieldMessage},
 	)
 	// Every branch under `show bgp` declares NO order of its own, which is what
 	// stops it inheriting the two above and rendering peer columns over an
@@ -286,6 +295,14 @@ func registerShapes() {
 	// address, and that is not a field of a ROW: `| resolve` and `| origin` act
 	// on rows, so declaring it would publish support the rows cannot honor.
 	command.RegisterAddressFields([]string{cmdBgpPeerHistory})
+
+	// `update bgp config` answers ONE record of two string lists and two
+	// scalars (handleBgpPeerSave), which is `doc`. The peer names it lists are
+	// members of an array rather than fields of a row, and neither `| resolve`
+	// nor `| origin` decorates an array member, so the address-field list is
+	// empty and both are refused by name.
+	command.RegisterShape([]string{cmdBgpConfigSave}, command.ShapeDoc)
+	command.RegisterAddressFields([]string{cmdBgpConfigSave})
 
 	for _, child := range cmdBgpChildren {
 		if child == cmdBgpUpdateDelay {

@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/configorder"
 )
 
 // TestAddDynamicPeerReadsTheTreeItWasGiven holds the join between the command
@@ -141,4 +143,161 @@ func newDynamicPeerReactor(t *testing.T, localAS, routerID uint32) *Reactor {
 	r := newTestReactor(t)
 	r.config = &Config{LocalAS: localAS, RouterID: routerID}
 	return r
+}
+
+// TestAddDynamicPeerRecordsTheRunningConfig holds the join between the command
+// that creates a peer and the command that saves the running peer set.
+//
+// GOAL: a peer created at runtime is part of the running configuration, so
+// `update bgp config` has the peer's own leaves to write into the file. The
+// create command builds that tree once, and nothing else can rebuild it: a
+// PeerInfo carries no families, no graceful restart time and no process
+// binding.
+// METHOD: create a peer through the API adapter, which is the object every
+// command handler reaches, then read GetConfigTree.
+//
+// VALIDATES: bgp > peer > <address> carries the tree the command built, with
+// the remote address AddDynamicPeer fills in.
+// PREVENTS: `update bgp config` writing a peer the file cannot bring back up,
+// which is what a save reconstructed from PeerInfo would write.
+func TestAddDynamicPeerRecordsTheRunningConfig(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	api := &reactorAPIAdapter{r: r}
+
+	tree := map[string]any{
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65002"},
+			"family": map[string]any{
+				"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "1000"}},
+			},
+		},
+	}
+	require.NoError(t, api.AddDynamicPeer(netip.MustParseAddr("192.0.2.7"), tree))
+
+	peers := runningPeerList(t, api)
+	require.Contains(t, peers, "peer-192.0.2.7",
+		"the running configuration names the created peer, under a name its key leaf accepts")
+
+	entry, ok := peers["peer-192.0.2.7"].(map[string]any)
+	require.True(t, ok, "the entry is the peer's config subtree")
+	session, ok := entry["session"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{
+		"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "1000"}},
+	}, session["family"], "every leaf the command stated is recorded, not the subset PeerInfo carries")
+
+	connection, ok := entry["connection"].(map[string]any)
+	require.True(t, ok, "AddDynamicPeer fills the remote address in")
+	remote, ok := connection["remote"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.7", remote["ip"])
+}
+
+// TestRemovePeerDropsTheRunningConfig holds the absence half of the same join.
+//
+// GOAL: a peer deleted at runtime leaves the running configuration, so a later
+// `update bgp config` takes it out of the file.
+// METHOD: start from a configuration that declares one peer, remove it through
+// the API adapter.
+//
+// VALIDATES: the peer list no longer names it.
+// PREVENTS: a save that writes the deleted peer back, which is what a running
+// configuration that still declared it would produce.
+func TestRemovePeerDropsTheRunningConfig(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	api := &reactorAPIAdapter{r: r}
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+	require.Contains(t, runningPeerList(t, api), "peer-192.0.2.7")
+
+	require.NoError(t, api.RemovePeer(addr))
+	assert.NotContains(t, runningPeerList(t, api), "peer-192.0.2.7",
+		"the running configuration drops the peer with the peer")
+}
+
+// TestRunningConfigKeepsTheEntryOrder holds the shape the peer list is
+// delivered in.
+//
+// GOAL: the list stays readable by configorder.Entries, which refuses a list of
+// two or more entries whose order does not name every one of them exactly once.
+// METHOD: start from a configuration file that declares one peer, create a
+// second at runtime, then delete the first.
+//
+// VALIDATES: two entries carry an order naming both, the configured one first;
+// one entry carries no order key at all.
+// PREVENTS: a peer list every reader refuses, which is what an entry added
+// beside an order that does not name it produces.
+func TestRunningConfigKeepsTheEntryOrder(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	r.configTree = map[string]any{
+		"bgp": map[string]any{
+			"peer": map[string]any{
+				"peer1": map[string]any{"session": map[string]any{"asn": map[string]any{"remote": "65003"}}},
+			},
+		},
+	}
+	api := &reactorAPIAdapter{r: r}
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+
+	bgp := runningBGPBlock(t, api)
+	entries, err := configorder.Entries(bgp, "peer", "name")
+	require.NoError(t, err, "the delivered list and its order agree")
+	require.Len(t, entries, 2)
+	assert.Equal(t, "peer1", entries[0].Key, "the configured peer keeps its place")
+	assert.Equal(t, "peer-192.0.2.7", entries[1].Key, "the created peer goes last")
+
+	require.ErrorIs(t, api.RemovePeer(netip.MustParseAddr("127.0.0.1")), ErrPeerNotFound,
+		"an address naming no peer is refused, and the peer list is left alone")
+	assert.Len(t, runningPeerList(t, api), 2, "a refused removal drops nothing")
+}
+
+// TestReloadRemovalLeavesTheRunningConfig holds the boundary between the two
+// removal paths.
+//
+// GOAL: only an API removal changes the running configuration. A reload removes
+// peers through Reactor.RemovePeer while it applies a candidate, and it
+// REPLACES the whole tree with SetConfigTree when it succeeds. A reload that
+// fails partway must leave the running configuration as it was.
+// METHOD: remove the peer through Reactor.RemovePeer, the way
+// applyPeerOperation does.
+//
+// VALIDATES: the running configuration still names the peer.
+// PREVENTS: a failed reload leaving a configured peer out of the running
+// configuration, where the next `update bgp config` would delete it from the
+// file.
+func TestReloadRemovalLeavesTheRunningConfig(t *testing.T) {
+	r := newDynamicPeerReactor(t, 65001, 0x0A000001)
+	api := &reactorAPIAdapter{r: r}
+
+	addr := netip.MustParseAddr("192.0.2.7")
+	require.NoError(t, api.AddDynamicPeer(addr, map[string]any{
+		"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+	}))
+
+	require.NoError(t, r.RemovePeer(addr))
+	assert.Contains(t, runningPeerList(t, api), "peer-192.0.2.7",
+		"the reload path leaves the running configuration to SetConfigTree")
+}
+
+// runningPeerList answers the peer list of the running configuration.
+func runningPeerList(t *testing.T, api *reactorAPIAdapter) map[string]any {
+	t.Helper()
+	peers, ok := runningBGPBlock(t, api)["peer"].(map[string]any)
+	require.True(t, ok, "the running configuration holds a peer list")
+	return peers
+}
+
+// runningBGPBlock answers the bgp block of the running configuration.
+func runningBGPBlock(t *testing.T, api *reactorAPIAdapter) map[string]any {
+	t.Helper()
+	bgp, ok := api.GetConfigTree()["bgp"].(map[string]any)
+	require.True(t, ok, "the running configuration holds a bgp block")
+	return bgp
 }

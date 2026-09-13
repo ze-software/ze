@@ -48,6 +48,7 @@ func init() {
 		"plugin/api-peer-pause-resume":              {"peer-pause-test", plugin01APIPeerPauseResume},
 		"plugin/api-peer-prefix-update":             {"prefix-update-test", plugin01APIPeerPrefixUpdate},
 		"plugin/api-peer-remove":                    {"peer-remove-test", plugin01APIPeerRemove},
+		"plugin/api-peer-save":                      {"peer-save-test", plugin01APIPeerSave},
 		"plugin/api-peer-show":                      {"peer-show-test", plugin01APIPeerShow},
 		"plugin/api-raw":                            {"raw-test", plugin01APIRaw},
 		"plugin/api-rib-in-clear":                   {"rib-in-clear-test", plugin01APIRIBInClear},

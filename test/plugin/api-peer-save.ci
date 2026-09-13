@@ -1,0 +1,63 @@
+# Test: update bgp config writes the running peer set to the configuration file
+# VALIDATES: a peer created at runtime is written to the file, a peer deleted at
+#            runtime is taken out of it, and the command refuses a selector.
+# PREVENTS: a save that persists presence only, or one that answers success for
+#           a file it never wrote.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration: one peer the file declares, which the save must keep
+# until the runtime delete takes it out.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external peer-save-test {
+		run "ze-test fixture plugin/api-peer-save"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK: the created peer is in the file
+expect=stderr:contains=OK: the deleted peer is out of the file
+expect=stderr:contains=OK: the saved file survives a reload
+# The reload READ the file the save wrote. A file it cannot load answers
+# "reload error: ..." instead, which is what this pair separates.
+expect=stderr:contains=sighup reload complete
+reject=stderr:pattern=reload error
+expect=stderr:contains=OK: a selector is refused

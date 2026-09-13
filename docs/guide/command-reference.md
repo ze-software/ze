@@ -2397,10 +2397,16 @@ are optional: `local-as`, `local-address`, `router-id`, `receive-hold-time`,
 take a comma-separated list. A keyword the command does not take is refused by
 name, and so is a value it cannot use.
 
-The peer lives in the running daemon alone. Nothing is written to the
-configuration, so `show config` does not carry it and a reload removes it. That
-is what `delete bgp peer` mirrors on the way out: it removes the peer from the
-running daemon and leaves the file on disk alone.
+The peer lives in the running daemon. The running configuration carries it, and
+the configuration FILE does not, so `show config` does not carry it and a reload
+removes it. That is what `delete bgp peer` mirrors on the way out: it takes the
+peer out of the running daemon and out of the running configuration, and leaves
+the file on disk alone.
+
+`update bgp config` is what makes either change permanent. It writes the running
+peer set into the file: a peer created here is added to it, and a peer the file
+declares that `delete bgp peer` removed is taken out of it.
+<!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave -->
 
 ### Del Commands
 
@@ -2467,6 +2473,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
 | `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
 | `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
+| `update bgp config` | write | Write the running peer set to the configuration file: a peer `create bgp peer` built is added, and a peer `delete bgp peer` removed is taken out. Takes no selector <!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave --> |
 
 ### Reject-ASN Filter Commands
 

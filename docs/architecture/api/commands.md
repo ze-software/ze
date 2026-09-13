@@ -568,6 +568,7 @@ show bgp peer <selector> history      # Show FSM transition history
 request peer <selector> teardown [<cease-subcode>]  # Disconnect peer
 create bgp peer <address> asn <asn> [...]  # Add a peer to the running daemon
 delete bgp peer <name>             # Remove dynamic peer
+update bgp config                  # Write the running peer set to the config file
 request peer <sel> flush           # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->

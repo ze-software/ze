@@ -11,6 +11,7 @@ Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin.
 | `request peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
 | `create bgp peer <addr> asn <asn>` | Add a peer to the running daemon |
 | `delete bgp peer <name>` | Remove peer |
+| `update bgp config` | Write the running peer set to the configuration file |
 | `request peer <addr> pause` | Pause reading from peer (flow control) |
 | `request peer <addr> resume` | Resume reading from peer |
 | `show bgp peer <addr> capabilities` | Show negotiated capabilities |

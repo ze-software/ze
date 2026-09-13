@@ -200,6 +200,11 @@ The two commands beside it settle the same way, and neither moves under
 `request`. `delete bgp peer <sel>` removes the peer from the running config, so
 it deletes. `update bgp peer prefix` refetches the max-prefix limits from
 PeeringDB and rewrites them, so it updates.
+
+`update bgp config` takes the same verb for the same reason: it brings the
+configuration file up to date with the running peer set. It is not a `set`,
+because `set` mutates one tree node an operator names in path form, and this
+command names none: it takes no selector at all and writes the whole set.
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- delete bgp peer, update bgp peer prefix descriptions -->
 
 ### Where `clear` sits

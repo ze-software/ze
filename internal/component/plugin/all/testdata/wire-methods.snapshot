@@ -37,6 +37,7 @@ ze-bgp:peer-raw
 ze-bgp:peer-refresh
 ze-bgp:peer-resume
 ze-bgp:peer-rib
+ze-bgp:peer-save
 ze-bgp:peer-statistics
 ze-bgp:peer-teardown
 ze-bgp:peer-update

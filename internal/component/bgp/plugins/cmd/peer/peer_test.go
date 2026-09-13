@@ -79,34 +79,8 @@ func TestHandlerPeerListNilReactor(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestHandlerPeerSave verifies HandleBgpPeerSave writes peer config to file.
-//
-// VALIDATES: Save handler creates peer entries in config file via Editor.
-// PREVENTS: Save handler silently failing or writing incorrect config values.
-
-// TestHandlerPeerSaveNonDefaultHoldTime verifies hold-time 0 (RFC 4271) is saved.
-//
-// VALIDATES: Non-default hold-time (including 0) is persisted to config.
-// PREVENTS: RFC 4271 hold-time 0 (no keepalives) being silently dropped.
-
-// TestHandlerPeerSaveLocalAddress verifies local-address is saved to config.
-//
-// VALIDATES: Save handler persists local-address when set on a peer.
-// PREVENTS: LocalAddress being silently dropped during config save.
-
-// TestDefaultReceiveHoldTimeMatchesReactor verifies the local defaultReceiveHoldTime constant
-// matches the reactor's DefaultReceiveHoldTime (90s per RFC 4271 Section 10).
-// Source: internal/component/bgp/reactor/peer_settings.go
-//
-// VALIDATES: defaultReceiveHoldTime is consistent with reactor.DefaultReceiveHoldTime.
-// PREVENTS: Silent divergence between command handler and reactor defaults.
-
-// TestHandlerPeerSaveNoConfigPath verifies save errors when config path is empty.
-//
-// VALIDATES: Handler returns error when config path is not set.
-// PREVENTS: Nil pointer or empty-string file operations.
-
-// TestValidatePeeringDBURL verifies URL scheme validation.
-//
-// VALIDATES: Security -- only http/https schemes allowed for PeeringDB URL.
-// PREVENTS: file:// or ftp:// URLs being used to exfiltrate data.
+// The peer-save tests live in save_test.go, beside the handler. Six comment
+// blocks stood here describing tests that no bodies followed: they were left
+// when `set bgp peer <sel> save` was removed in 6c19edc321, and the command
+// they describe is now `update bgp config`, which saves the whole running peer
+// set rather than the peers a selector names.

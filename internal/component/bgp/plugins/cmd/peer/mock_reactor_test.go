@@ -279,9 +279,10 @@ func (m *mockReactor) SoftClearPeer(sel *selector.Selector, _ plugin.Sender) ([]
 }
 
 // newTestContext creates a CommandContext backed by a mock reactor.
+//
+// A context that also carries a config path is newSaveContext (save_test.go),
+// which writes the file that path names.
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
 	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	return &pluginserver.CommandContext{Server: server}
 }
-
-// newTestContextWithConfig creates a CommandContext with a config path set.
