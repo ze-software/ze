@@ -273,16 +273,30 @@ Usage: `ze signal <command>`
 There is one startup path, `runYANGConfig`, and every config takes it:
 
 1. Load config via the YANG parser
-2. Start SSH server (binds configured listen addresses)
-3. Start reactor with `SignalHandler` (handles SIGHUP/SIGUSR1)
-4. Wait for SIGTERM/SIGINT or reactor done
+2. Create the plugin server and register `sigCh` for SIGINT, SIGTERM and SIGHUP
+3. Start SSH server (binds configured listen addresses)
+4. Start the plugin server, which starts the plugins
+5. Wait for SIGTERM/SIGINT, or for the plugin server to report done
+
+Step 2 comes before step 4 because a plugin takes the process signal
+disposition. Every plugin opens `sdk.SignalContext`, and an in-process plugin
+registers SIGINT and SIGTERM for the whole process. A SIGTERM that arrived
+between the first plugin and the hub's own registration was therefore neither
+fatal nor delivered to the hub: the plugins exited and the daemon waited for a
+second signal. The hub now registers first, and `waitLoop` drains the queued
+signal when startup finishes.
+
+The reactor runs its own `SignalHandler` only when it is standalone. Under the
+hub, `externalServer` is true, the reactor skips `startSignalHandler`, and the
+hub owns every signal.
 
 A second path existed until 2026-08-12, `runOrchestratorWithData`, reached by a
 config whose top-level blocks were only `plugin` and `env`. It parsed the config
 with its own parser and handled its own signals. It is deleted.
-<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
-<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler.StartWithContext -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig, signal.Notify beside apiServer.SetShutdownFunc -->
+<!-- source: pkg/plugin/sdk/signal.go -- SignalContext -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- startSignalHandler, guarded by !r.externalServer -->
 
 ---
 
-**Last Updated:** 2026-08-12
+**Last Updated:** 2026-09-13

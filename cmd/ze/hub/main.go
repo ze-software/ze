@@ -840,10 +840,18 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// runs to its test timeout. Measured on test/bfd/bfd-detection-interval.ci,
 	// whose fixture answers 60ms after the BFD plugin reports running.
 	//
-	// signal.Notify stays where it is. Moving it here would swallow the operator's
-	// first Ctrl-C for the length of startup, and the buffered send below needs no
-	// receiver yet: waitLoop drains the queued SIGTERM when it starts.
+	// signal.Notify is wired here for the same reason, and it MUST stay ahead of
+	// apiServer.StartWithContext below. Every plugin opens sdk.SignalContext
+	// (pkg/plugin/sdk/signal.go), and an in-process plugin registers SIGINT and
+	// SIGTERM for the whole PROCESS. A SIGTERM that arrives after the first
+	// plugin starts and before this line is therefore neither fatal, because a
+	// registered handler replaces the default disposition, nor delivered here:
+	// the plugins cancel and exit, and the daemon waits in waitLoop until the
+	// operator sends a second signal. Registering before any plugin starts
+	// queues that first signal in the buffer instead, and waitLoop drains it as
+	// soon as startup finishes.
 	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	apiServer.SetShutdownFunc(func() {
 		select {
 		case sigCh <- syscall.SIGTERM:
@@ -1272,10 +1280,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		})
 	}
 
-	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
-	// sigCh is created next to apiServer.SetShutdownFunc, far above, so a plugin
-	// that requests shutdown during startup has somewhere to put it.
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	// Signal handling (SIGINT and SIGTERM for shutdown, SIGHUP for config
+	// reload) is registered where sigCh is created, far above, before the first
+	// plugin starts and takes the process signal disposition with it.
 
 	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins,
 	// refreshes the shared ConfigProvider, then notifies every registered
