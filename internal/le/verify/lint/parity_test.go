@@ -63,9 +63,14 @@ func lintFixture(t *testing.T) (string, []string) {
 		files = append(files, path)
 		writeLintFile(t, root, path, "package fixture\n")
 	}
-	files = append(files, "examples/plugin/go/main.go", "tools.go")
+	// The three RESIDUE paths are in the fixture on purpose. An excuse for a
+	// member that has left the population is the same finding as an excuse for
+	// a member that is no longer blind (population.Claim.Assess), so a residue
+	// entry whose file the fixture lacks reports as Healed and fails this test.
+	files = append(files, "examples/plugin/go/main.go", "tools.go", ".golangci/ruleguard/modern.go")
 	writeLintFile(t, root, "examples/plugin/go/main.go", "package main\n")
 	writeLintFile(t, root, "tools.go", "//go:build tools\n\npackage tools\n")
+	writeLintFile(t, root, ".golangci/ruleguard/modern.go", "//go:build ruleguard\n\npackage ruleguard\n")
 	return root, files
 }
 
@@ -308,7 +313,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	if !reflect.DeepEqual(gotTrackedOverrides, wantTrackedOverrides) {
 		t.Errorf("tracked population environment differs:\n got: %q\nwant: %q", gotTrackedOverrides, wantTrackedOverrides)
 	}
-	if plan.Coverage.Code != 0 || plan.Coverage.Population != 22 || plan.Coverage.Walked != 20 || len(plan.Coverage.Blind) != 2 {
+	if plan.Coverage.Code != 0 || plan.Coverage.Population != 23 || plan.Coverage.Walked != 20 || len(plan.Coverage.Blind) != 3 {
 		t.Fatalf("coverage differs: %#v", plan.Coverage)
 	}
 }
