@@ -99,8 +99,17 @@ coverage.html
 # Generated AI tool config (canonical sources: ai/skills/, ai/agents/,
 # ai/INSTRUCTIONS.md)
 # Regenerate with: ./le ai skills-sync
-CLAUDE.md
-AGENTS.md
+#
+# Both names are ANCHORED to the repository root, because only the root pair is
+# generated. An unanchored name matches at every depth, and it took two files
+# out of the commit that nobody meant to exclude: the wiki fixture page
+# internal/le/site/wiki/testdata/wiki/CLAUDE.md, whose absence reddened
+# TestAJudgedOmissionIsPublishedWithItsReason in every detached worktree while
+# the developer checkout held the file and passed, and the vendored
+# vendor/github.com/securego/gosec/v2/CLAUDE.md, which `go mod vendor` writes
+# beside the 297 other vendored markdown files this repository tracks.
+/CLAUDE.md
+/AGENTS.md
 .claude/skills/
 .codex/skills/
 .agents/skills/

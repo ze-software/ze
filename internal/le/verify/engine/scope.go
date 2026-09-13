@@ -85,7 +85,9 @@ func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
 		packagesPath: filepath.Join(logDir, scopePackagesFile),
 		tagsPath:     filepath.Join(logDir, scopeTagsFile),
 	}
-	if err := writeChangeScopeAnswer(answer.packagesPath, report.Packages); err != nil {
+	// The package answer carries the checkout it is about, so a child process
+	// asking about another one selects its own (changed.WriteScopePackages).
+	if err := changed.WriteScopePackages(answer.packagesPath, root, report.Packages); err != nil {
 		return changeScopeAnswer{}, err
 	}
 	if err := writeChangeScopeAnswer(answer.tagsPath, report.Tags); err != nil {
@@ -94,10 +96,16 @@ func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
 	return answer, nil
 }
 
-// writeChangeScopeAnswer writes one answer, one line per entry. An empty answer
-// writes an empty file rather than no file: the file's existence is what tells a
-// stage the run did select, and its emptiness is the selector's own answer that
-// no changed path is compiled or read by a Go package.
+// writeChangeScopeAnswer writes the TAG answer, one line per entry. An empty
+// answer writes an empty file rather than no file: the file's existence is what
+// tells a stage the run did select, and its emptiness is the selector's own
+// answer that no changed path is compiled or read by a Go package.
+//
+// The package answer has a writer of its own (changed.WriteScopePackages),
+// because it carries the checkout it was selected for and its reader lives in
+// that package. The tag answer needs no checkout: its consumer is the
+// Staticcheck feature matrix, which subtracts matrix rows and asks about no
+// tree of its own.
 func writeChangeScopeAnswer(path string, lines []string) error {
 	var body textbuf.Buffer
 	for _, line := range lines {

@@ -465,13 +465,18 @@ func everySuiteReaching(reaching, silent []string) map[string][]string {
 	return reached
 }
 
-// changeSetIs names the change-set answer a verify run published, which is
-// where the selection reads the packages it intersects with the map
+// changeSetIs names the change-set answer a verify run published for root,
+// which is where the selection reads the packages it intersects with the map
 // (publishChangeScope, internal/le/verify/engine/scope.go).
-func changeSetIs(t *testing.T, packages ...string) {
+//
+// The checkout goes into the file because that is what the answer is about: a
+// reader asking about another checkout falls through to the selector
+// (changed.Scope.fromFile), so the root here MUST be the one selectSuites is
+// then called with.
+func changeSetIs(t *testing.T, root string, packages ...string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "scope-packages.txt")
-	if err := os.WriteFile(path, []byte(strings.Join(packages, "\n")+"\n"), 0o600); err != nil {
+	if err := changed.WriteScopePackages(path, root, packages); err != nil {
 		t.Fatalf("write the change-set answer: %v", err)
 	}
 	nameForTest(t, changed.ScopeFileKey, path)
@@ -502,7 +507,7 @@ func TestSuiteSelectionSkipsOnlyUnreachedSuites(t *testing.T) {
 	recordedMap(t, root, head, everySuiteReaching([]string{suiteUi, suiteParse}, silent))
 
 	t.Run("a recorded package runs the suites that reached it, and the unknown suites", func(t *testing.T) {
-		changeSetIs(t, changedPackage)
+		changeSetIs(t, root, changedPackage)
 
 		selection := selectSuites(root)
 
@@ -523,7 +528,7 @@ func TestSuiteSelectionSkipsOnlyUnreachedSuites(t *testing.T) {
 	})
 
 	t.Run("a package the map never recorded widens and is named", func(t *testing.T) {
-		changeSetIs(t, changedPackage, "./internal/component/nowhere")
+		changeSetIs(t, root, changedPackage, "./internal/component/nowhere")
 
 		selection := selectSuites(root)
 
@@ -541,7 +546,7 @@ func TestSuiteSelectionSkipsOnlyUnreachedSuites(t *testing.T) {
 	})
 
 	t.Run("a change set holding no package still runs the suites the map never named", func(t *testing.T) {
-		changeSetIs(t)
+		changeSetIs(t, root)
 
 		selection := selectSuites(root)
 
@@ -554,7 +559,7 @@ func TestSuiteSelectionSkipsOnlyUnreachedSuites(t *testing.T) {
 	})
 
 	t.Run("a recording run runs every suite, because only a full run publishes", func(t *testing.T) {
-		changeSetIs(t, changedPackage)
+		changeSetIs(t, root, changedPackage)
 		nameForTest(t, "ze.cover", "1")
 
 		selection := selectSuites(root)
@@ -580,7 +585,7 @@ func TestStaleMapTreatsTouchedPackagesAsUnknown(t *testing.T) {
 	t.Run("a commit touching the package widens and names it", func(t *testing.T) {
 		root, head := gitCheckout(t)
 		recordedMap(t, root, head, everySuiteReaching([]string{suiteUi}, silent))
-		changeSetIs(t, changedPackage)
+		changeSetIs(t, root, changedPackage)
 
 		writeCheckoutFile(t, root, "internal/component/ssh/ssh.go", "package ssh\n\nfunc Listen() {}\n")
 		commitCheckout(t, root, "ssh moved under the map")
@@ -599,7 +604,7 @@ func TestStaleMapTreatsTouchedPackagesAsUnknown(t *testing.T) {
 	t.Run("a commit touching another package leaves the answer narrow", func(t *testing.T) {
 		root, head := gitCheckout(t)
 		recordedMap(t, root, head, everySuiteReaching([]string{suiteUi}, silent))
-		changeSetIs(t, changedPackage)
+		changeSetIs(t, root, changedPackage)
 
 		writeCheckoutFile(t, root, "internal/component/cli/cli.go", "package cli\n\nfunc Prompt() {}\n")
 		commitCheckout(t, root, "another package moved")
@@ -618,7 +623,7 @@ func TestStaleMapTreatsTouchedPackagesAsUnknown(t *testing.T) {
 		root, _ := gitCheckout(t)
 		recordedMap(t, root, "0000000000000000000000000000000000000000",
 			everySuiteReaching([]string{suiteUi}, silent))
-		changeSetIs(t, changedPackage)
+		changeSetIs(t, root, changedPackage)
 
 		selection := selectSuites(root)
 
@@ -642,7 +647,7 @@ func TestOperatorSkipStillWins(t *testing.T) {
 	recordedMap(t, root, head,
 		everySuiteReaching([]string{suiteUi, suiteParse},
 			[]string{suiteEditor, suiteWeb, suiteRunner, suitePolicy}))
-	changeSetIs(t, changedPackage)
+	changeSetIs(t, root, changedPackage)
 	nameForTest(t, "ze.skip.suites", suiteUi)
 
 	plan, err := planRun(root)

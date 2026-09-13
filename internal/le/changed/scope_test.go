@@ -2,6 +2,7 @@ package changed
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -44,9 +45,12 @@ func TestAMissingScopeFileWidensToEveryPackage(t *testing.T) {
 
 func TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "scope.txt", "./internal/core/env\n./cmd/ze\n")
+	scope := filepath.Join(root, "scope.txt")
+	if err := WriteScopePackages(scope, root, []string{"./internal/core/env", "./cmd/ze"}); err != nil {
+		t.Fatalf("publish the package answer: %v", err)
+	}
 
-	report, code := (Scope{Root: root, File: filepath.Join(root, "scope.txt")}).Resolve(nil)
+	report, code := (Scope{Root: root, File: scope}).Resolve(nil)
 	if code != 0 {
 		t.Fatalf("precomputed package answer exited %d", code)
 	}
@@ -61,6 +65,51 @@ func TestAScopeFileIsReadWhenNoArgumentAsksADifferentQuestion(t *testing.T) {
 		if report.Packages[i] != pkg {
 			t.Errorf("package %d is %q, want %q", i, report.Packages[i], pkg)
 		}
+	}
+}
+
+// A published answer is about ONE checkout, and a caller asking about another
+// one must select its own rather than be handed this one.
+//
+// VALIDATES: the root the publisher writes on the first line is what decides
+// whether the answer applies.
+// PREVENTS: the leak that reddened the gate on 2026-09-11. A verify run names
+// its answer to every child process it starts, `go test` among them, so a unit
+// test driving the selector over a fixture directory was handed the gate's own
+// package list and the fixture's verdict changed with whether a verify run was
+// in progress.
+func TestAScopeFileIsNotReadForAnotherCheckout(t *testing.T) {
+	published := t.TempDir()
+	scope := filepath.Join(published, "scope.txt")
+	if err := WriteScopePackages(scope, published, []string{"./internal/core/env"}); err != nil {
+		t.Fatalf("publish the package answer: %v", err)
+	}
+
+	// A directory that is no checkout at all: the selector refuses it, which is
+	// the answer a caller must get rather than the file's.
+	report, code := (Scope{Root: t.TempDir(), File: scope}).Resolve(nil)
+
+	if code == 0 && len(report.Packages) == 1 && report.Packages[0] == "./internal/core/env" {
+		t.Fatalf("the answer published for %s was handed to another checkout: %+v", published, report)
+	}
+}
+
+// A malformed answer names no checkout, so it cannot be matched to one and the
+// run widens rather than reading its lines as packages.
+func TestAScopeFileWithNoCheckoutWidens(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "scope.txt", "./internal/core/env\n")
+
+	report, code := (Scope{Root: root, File: filepath.Join(root, "scope.txt")}).Resolve(nil)
+
+	if code != 0 {
+		t.Fatalf("a widening answer exited %d", code)
+	}
+	if !report.Widened {
+		t.Fatalf("a package list naming no checkout was read as an answer: %+v", report)
+	}
+	if !strings.Contains(report.Reason, "names no checkout") {
+		t.Errorf("the reason is %q, and it must say what the file is missing", report.Reason)
 	}
 }
 

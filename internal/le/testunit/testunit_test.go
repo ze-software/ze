@@ -155,6 +155,18 @@ func TestAllCoversEveryGoDirectoryOfTheCheckout(t *testing.T) {
 				strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
 				return fs.SkipDir
 			}
+			// A directory holding its own go.mod is a MODULE of its own, and
+			// `go test ./...` stops at it, so no pattern here can select what is
+			// under it and its contents are not this checkout's population.
+			// gokrazy/modcache is one: it is a gitignored Go module cache of
+			// 12,040 Go directories, present on a developer machine that has
+			// built an appliance image and absent from every fresh clone and
+			// every `git worktree add --detach` the gate materializes. Counting
+			// it made this walk answer 14,334 here and 798 inside the gate for
+			// one and the same commit.
+			if _, err := os.Stat(filepath.Join(path, "go.mod")); err == nil {
+				return fs.SkipDir
+			}
 			return nil
 		}
 		if filepath.Ext(entry.Name()) != ".go" {
@@ -191,8 +203,19 @@ func TestAllCoversEveryGoDirectoryOfTheCheckout(t *testing.T) {
 }
 
 // goDirectoryFloor is the smallest Go directory count this checkout can hold.
-// It was 9026 on 2026-09-03 and only grows, so the floor is a fifth of that.
-const goDirectoryFloor = 1800
+//
+// The population is the COMMITTED tree: the walk above stops at a nested module
+// and at a vendor, testdata, dotted or underscored name, which is what
+// `go test ./...` selects too. That was 798 directories on 2026-09-13, measured
+// both in the checkout and in a detached worktree of the same commit, and it
+// only grows.
+//
+// The figure this constant carried until 2026-09-13 was 1800, a fifth of a
+// 9026-directory count taken on 2026-09-03 in a checkout whose gitignored
+// gokrazy/modcache contributed 12,040 of the directories. No worktree and no
+// fresh clone can reach that floor, so the guard failed the gate on every run
+// while passing on the machine that wrote it.
+const goDirectoryFloor = 600
 
 // covered answers whether any `go test` package pattern selects a directory,
 // both spelled relative to the module root. A pattern ending in `...` selects

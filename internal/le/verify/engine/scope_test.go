@@ -226,8 +226,20 @@ func TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces(t *testing.T) {
 	if len(tags) != 1 || tags[0] != "ze_ssh" {
 		t.Fatalf("the published tag answer = %v, want ze_ssh alone", tags)
 	}
-	packages := readAnswerLines(t, seen[0].packagesPath)
-	if len(packages) != 1 || packages[0] != "./ssh" {
-		t.Fatalf("the published package answer = %v, want ./ssh alone", packages)
+	// The package answer is read back through the reader a stage uses, because
+	// the file states the checkout it is about on its first line and that line
+	// is part of the contract (changed.WriteScopePackages).
+	answer, code := (changed.Scope{Root: root, File: seen[0].packagesPath}).Resolve(nil)
+	if code != 0 {
+		t.Fatalf("read the published package answer: exit %d", code)
+	}
+	if len(answer.Packages) != 1 || answer.Packages[0] != "./ssh" {
+		t.Fatalf("the published package answer = %v, want ./ssh alone", answer.Packages)
+	}
+	// And it is about THIS checkout alone: a stage of another one selects its
+	// own change set rather than taking this run's.
+	elsewhere, code := (changed.Scope{Root: t.TempDir(), File: seen[0].packagesPath}).Resolve(nil)
+	if code == 0 && len(elsewhere.Packages) == 1 && elsewhere.Packages[0] == "./ssh" {
+		t.Error("a caller asking about another checkout was handed this run's answer")
 	}
 }

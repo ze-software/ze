@@ -106,8 +106,8 @@ func TestTheGroupVerbsAnswerTwoForACheckoutThatCannotBeRead(t *testing.T) {
 func TestThePackagesVerbAnswersThePrecomputedFile(t *testing.T) {
 	root := t.TempDir()
 	scope := filepath.Join(root, "scope.txt")
-	if err := os.WriteFile(scope, []byte("./cmd/ze\n./internal/core/env\n"), 0o600); err != nil {
-		t.Fatalf("write: %v", err)
+	if err := WriteScopePackages(scope, root, []string{"./cmd/ze", "./internal/core/env"}); err != nil {
+		t.Fatalf("publish the package answer: %v", err)
 	}
 
 	t.Setenv("ZE_REPO_ROOT", root)

@@ -11,7 +11,9 @@
 package changed
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -92,6 +94,33 @@ func lineText(lines []string) string {
 	return tb.String()
 }
 
+// scopeRootHeader opens the package answer with the checkout it is about. A
+// verify run names its answer to every child process it starts, and a child
+// asking about a DIFFERENT checkout must get its own answer rather than this
+// one: `go test` is such a child, and a unit test driving the selector over a
+// fixture directory was handed the gate's own package list, which made the
+// fixture's verdict depend on whether a verify run was in progress.
+const scopeRootHeader = "root "
+
+// WriteScopePackages writes the package answer one verify run publishes for one
+// checkout: the root it was selected for on the first line, then one
+// ./-prefixed package on each line after it.
+//
+// The writer lives beside fromFile, which reads it back, so the format is
+// declared once. A verify run, the functional suite fixture and the unit tests
+// all publish through here.
+func WriteScopePackages(path, root string, packages []string) error {
+	var body textbuf.Buffer
+	body.Str(scopeRootHeader).Str(root).Byte('\n')
+	for _, name := range packages {
+		body.Str(name).Byte('\n')
+	}
+	if err := os.WriteFile(path, body.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", filepath.Base(path), err)
+	}
+	return nil
+}
+
 // Scope resolves the change set for one checkout.
 type Scope struct {
 	// Root is the checkout the answer is about.
@@ -123,24 +152,63 @@ func Packages(root string) (ScopeReport, int) { return newScope(root).Resolve(ni
 // answer applies only to the argument-free package query.
 func (s Scope) Resolve(args []string) (ScopeReport, int) {
 	if len(args) == 0 && s.File != "" {
-		return s.fromFile(), 0
+		// A published answer that is about another checkout answers nothing
+		// here, so this question falls through to the selector, exactly as it
+		// would with no answer published at all.
+		if report, mine := s.fromFile(); mine {
+			return report, 0
+		}
 	}
 	return s.resolveSelector(args)
 }
 
-// fromFile hands back the answer a verify run already computed.
+// fromFile hands back the answer a verify run already computed, and says
+// whether that answer is about THIS checkout. A false second result means the
+// answer belongs to another checkout and this caller must select its own.
 //
 // The read is the guard. The shell half tested the path with `[ -r ]` but
 // ignored `cat`'s exit status. A readable directory therefore returned nothing
 // and exited 0.
-func (s Scope) fromFile() ScopeReport {
+func (s Scope) fromFile() (ScopeReport, bool) {
 	body, err := os.ReadFile(s.File) //nolint:gosec // the path is this run's own published artifact
 	if err != nil {
 		var tb textbuf.Buffer
 		return widen(tb.Str("the precomputed package list at ").Str(s.File).
-			Str(" could not be read: ").Err(err).String())
+			Str(" could not be read: ").Err(err).String()), true
 	}
-	return ScopeReport{Packages: lines(body)}
+	recorded := lines(body)
+	if len(recorded) == 0 {
+		var tb textbuf.Buffer
+		return widen(tb.Str("the precomputed package list at ").Str(s.File).
+			Str(" is empty, so it names no checkout and cannot be matched to one").String()), true
+	}
+	checkout, named := strings.CutPrefix(recorded[0], scopeRootHeader)
+	if !named {
+		var tb textbuf.Buffer
+		return widen(tb.Str("the precomputed package list at ").Str(s.File).
+			Str(" names no checkout on its first line, so it cannot be matched to one").String()), true
+	}
+	if !sameCheckout(checkout, s.Root) {
+		return ScopeReport{}, false
+	}
+	return ScopeReport{Packages: recorded[1:]}, true
+}
+
+// sameCheckout answers whether two paths name one directory. Symbolic links are
+// resolved because the publisher and the reader reach the checkout by different
+// routes: a stage runs with the worktree as its working directory and a caller
+// can hold the path it was given, and on macOS one of the two can arrive with
+// /private in front of it. A path that will not resolve is compared as it
+// stands, which is the answer for a directory that no longer exists.
+func sameCheckout(recorded, asked string) bool {
+	return resolvedPath(recorded) == resolvedPath(asked)
+}
+
+func resolvedPath(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved
+	}
+	return filepath.Clean(path)
 }
 
 // widen answers for every route that fails to resolve a precomputed package

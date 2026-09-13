@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
@@ -306,7 +309,16 @@ func TestAgentEnvLeavesFunctionalScratchOutOfChrome(t *testing.T) {
 // The steps are `action=wait`, which sleeps and issues no browser command below
 // browserIdleWindow/2, so this measures the runner's own bound and not the
 // browser's.
+//
+// Verify mode is named here rather than inherited. `runWBTestCase` multiplies
+// the declared budget by runner.ParallelTimeoutHeadroom when ZE_VERIFY_MODE is
+// set, and a verify run sets it for every child process it starts, `go test`
+// among them. Five 40ms waits against a 60ms budget therefore FAILED on a
+// developer machine and PASSED inside the gate, where the budget is 180ms and
+// the last deadline check falls at 160ms. The headroom has a test of its own
+// below.
 func TestWBTimeoutBoundsTheRun(t *testing.T) {
+	verifyMode(t, false)
 	installFakeAgentBrowser(t)
 	wait := WBAction{Kind: "wait", Values: map[string]string{"ms": "40"}, Line: 1}
 	tc := &WBTestCase{
@@ -331,6 +343,11 @@ func TestWBTimeoutBoundsTheRun(t *testing.T) {
 	if !strings.Contains(res.Error, "option=timeout") {
 		t.Errorf("the failure must name the directive that bounded it, got %q", res.Error)
 	}
+	// The budget it names is the declared one, undoubled, because this run is
+	// not part of a verify run.
+	if !strings.Contains(res.Error, "60ms") {
+		t.Errorf("the failure must name the budget it enforced, got %q", res.Error)
+	}
 	// Five 40ms waits is 200ms of work against a 60ms budget. Stopping means
 	// fewer steps ran than the file declared. Without the bound all five run.
 	if len(res.Steps) >= len(tc.Steps) {
@@ -346,6 +363,64 @@ func TestWBTimeoutBoundsTheRun(t *testing.T) {
 		t.Errorf("no step ran at all in %s: the budget is being evaluated before "+
 			"the run rather than between its steps", elapsed)
 	}
+}
+
+// TestWBTimeoutTakesTheVerifyHeadroom
+//
+// VALIDATES: inside a verify run the enforced budget is the declared one times
+// runner.ParallelTimeoutHeadroom, and the failure names that widened figure.
+// PREVENTS: the headroom being invisible to every test, which is how it came to
+// decide a verdict. Until 2026-09-13 nothing here named ZE_VERIFY_MODE, so the
+// bound test above inherited whatever the environment held and the same commit
+// passed in a checkout and failed inside the gate.
+//
+// Fifteen 40ms waits is 600ms of work, which is over the 180ms the headroom
+// allows as surely as it is over the declared 60ms, so the run stops either
+// way and only the figure in the message separates the two.
+func TestWBTimeoutTakesTheVerifyHeadroom(t *testing.T) {
+	verifyMode(t, true)
+	installFakeAgentBrowser(t)
+	wait := WBAction{Kind: "wait", Values: map[string]string{"ms": "40"}, Line: 1}
+	tc := &WBTestCase{Timeout: 60 * time.Millisecond}
+	for i := range 15 {
+		tc.Actions = append(tc.Actions, wait)
+		tc.Steps = append(tc.Steps, WBStep{Type: WBStepAction, ActionIndex: i})
+	}
+
+	res := runWBTestCase(tc, "https://127.0.0.1:1234", "sess-headroom")
+
+	if res.Passed {
+		t.Fatalf("a test over its widened budget must fail; it passed after %d step(s)", len(res.Steps))
+	}
+	widened := 60 * time.Millisecond * runner.ParallelTimeoutHeadroom
+	if !strings.Contains(res.Error, widened.String()) {
+		t.Errorf("the failure names %q, and the budget a verify run enforces is %s", res.Error, widened)
+	}
+	if len(res.Steps) == 0 || len(res.Steps) >= len(tc.Steps) {
+		t.Errorf("%d of %d step(s) ran, and a widened budget must still stop the run part way through",
+			len(res.Steps), len(tc.Steps))
+	}
+}
+
+// verifyMode names ZE_VERIFY_MODE for one test and restores it afterwards, so a
+// budget this package enforces never depends on whether a verify run started
+// the process.
+func verifyMode(t *testing.T, enabled bool) {
+	t.Helper()
+	const key = "ze.verify.mode"
+	previous := env.Get(key)
+	value := "0"
+	if enabled {
+		value = "1"
+	}
+	if err := env.Set(key, value); err != nil {
+		t.Fatalf("name %s: %v", key, err)
+	}
+	t.Cleanup(func() {
+		if err := env.Set(key, previous); err != nil {
+			t.Fatalf("restore %s: %v", key, err)
+		}
+	})
 }
 
 // TestWBTimeoutLeavesAnUnderBudgetRunAlone

@@ -69,6 +69,15 @@ func (c *capturingCircuit) Close() error {
 	return nil
 }
 
+// frameCount answers how many frames this circuit has been asked to send. It is
+// what tells a test whether anything OTHER than the test itself is writing into
+// the buffer lastSent reads.
+func (c *capturingCircuit) frameCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.sent)
+}
+
 // lastSent returns the most recent PDU and the multicast group it went to.
 func (c *capturingCircuit) lastSent() ([]byte, [transport.MACLen]byte, bool) {
 	c.mu.Lock()
@@ -184,14 +193,27 @@ func TestISISPerLevelHelloTimersReachTheWire(t *testing.T) {
 		t.Fatalf("parseISISConfig: %v", err)
 	}
 	fb := &capturingBackend{}
-	eng := newEngine(transport.New(fb))
+	tr := transport.New(fb)
+	eng := newEngine(tr)
 	eng.setConfig(cfg)
-	if err := eng.openCircuits(); err != nil {
-		t.Fatalf("openCircuits: %v", err)
+
+	// The circuit is opened through the TRANSPORT alone, which is the half of
+	// openCircuit that buildCircuit below needs. openCircuits would also run
+	// launchCircuitGoroutine (circuits.go), whose worker sends an initial Hello
+	// at every level the moment it starts and then ticks. Those frames land in
+	// the one capturingCircuit this test reads, so lastSent() would answer for
+	// whichever send finished most recently rather than for the SendHello under
+	// test. That is a race the machine decides: on a loaded machine the
+	// Level-2 initial Hello arrived after the explicit Level-1 send and the
+	// Level-1 assertion read a holding time of 60, which is Level-2's.
+	ic := cfg.Interfaces[0]
+	tr.EnableInterface(ic.Name, ic.Level.TransportLevel())
+	if err := tr.HandleLinkUp(ic.Name); err != nil {
+		t.Fatalf("HandleLinkUp: %v", err)
 	}
 	defer eng.shutdown()
 
-	c := eng.buildCircuit(cfg.Interfaces[0])
+	c := eng.buildCircuit(ic)
 	if c == nil {
 		t.Fatal("buildCircuit returned nil for the configured eth0 circuit")
 	}
@@ -236,6 +258,16 @@ func TestISISPerLevelHelloTimersReachTheWire(t *testing.T) {
 		if dst != wantMAC {
 			t.Errorf("%v IIH went to %v, want %v", s.Level, dst, wantMAC)
 		}
+	}
+
+	// lastSent answers for the most recent frame, so it only answers for the
+	// SendHello above while this test is the circuit's ONLY writer. The engine's
+	// per-circuit worker would be a second one: it sends an initial Hello at
+	// every level the moment it starts, into this same buffer, and whichever of
+	// the two landed last is what the assertions above would have read.
+	if sent := fb.circuit.frameCount(); sent != len(got) {
+		t.Errorf("the circuit holds %d frame(s) and this test sent %d: another producer is writing "+
+			"into the buffer lastSent reads, so the assertions above are answering about its frames", sent, len(got))
 	}
 }
 
