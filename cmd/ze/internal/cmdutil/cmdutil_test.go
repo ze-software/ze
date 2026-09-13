@@ -494,8 +494,23 @@ func TestRegisteredLocalCommandsStayReachable(t *testing.T) {
 // binary's build tags left unregistered is therefore still listed here, and the
 // case fails rather than disappearing -- which is the whole point, because a
 // child nothing serves must still not be answered by an interface-name lookup.
+//
+// A CHILD THAT HOLDS ITS OWN LOCAL REGISTRATION IS NOT SHADOWED, AND IS LEFT
+// OUT. longestLocalPrefix (internal/component/command/registry/registry.go)
+// walks the words from the longest prefix down, so the registration AT the
+// child answers it and the one above it is never consulted: the capture this
+// test names cannot happen there. `show plugin declarations config` is that
+// shape -- internal/component/plugin/register.go registers it beside `show
+// plugin declarations`, and both are offline commands no built-in RPC declares,
+// so the daemon-dispatch question the caller's second assertion asks does not
+// arise for it either.
 func shadowedDeclaredChildren(t *testing.T) map[string][]string {
 	t.Helper()
+
+	served := make(map[string]struct{}, len(localAtStartup))
+	for _, entry := range localAtStartup {
+		served[entry.Path] = struct{}{}
+	}
 
 	out := make(map[string][]string)
 	for _, entry := range localAtStartup {
@@ -512,7 +527,10 @@ func shadowedDeclaredChildren(t *testing.T) map[string][]string {
 		var walk func(n *cli.Command, path []string)
 		walk = func(n *cli.Command, path []string) {
 			if len(path) > 0 && n.WireMethod != "" {
-				out[entry.Path] = append(out[entry.Path], entry.Path+" "+strings.Join(path, " "))
+				childPath := entry.Path + " " + strings.Join(path, " ")
+				if _, ownRegistration := served[childPath]; !ownRegistration {
+					out[entry.Path] = append(out[entry.Path], childPath)
+				}
 			}
 			for name, child := range n.Children {
 				walk(child, append(append([]string{}, path...), name))

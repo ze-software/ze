@@ -154,6 +154,14 @@ func TestARecordAnswerReachesTheOperatorOverTheExecChannel(t *testing.T) {
 // narrowed and reordered by the same chain.
 // PREVENTS: writeExecRecords framing records.Fields after RenderRecords changed
 // the positional values, which labels each value as the wrong field.
+//
+// THE CHAIN MUST NOT END IN NDJSON, AND THAT IS THE POINT OF THIS COMMENT.
+// applyPipesRecords (internal/component/command/pipe_records.go) canonicalizes
+// each record into a field-named object when it reaches the NDJSON operator and
+// drops the schema, so the head then answers map with no fields, which is what
+// the rows are. A positional head is what this test reads, and a chain carrying
+// NDJSON no longer produces one: the answer and records.Fields would both be
+// empty against [value help], and the framing defect above could not show.
 func TestStreamHeadUsesTheSelectedPositionalSchema(t *testing.T) {
 	const rows = rpc.AnswerBufferThreshold + 1
 	srv := answerServer(t, func(string) (*plugin.Response, error) {
@@ -167,7 +175,7 @@ func TestStreamHeadUsesTheSelectedPositionalSchema(t *testing.T) {
 		}, nil
 	})
 
-	_, stderr := execUndeclared(t, srv, "system command list | display help value | ndjson")
+	_, stderr := execUndeclared(t, srv, "system command list | display help value")
 	var head rpc.AnswerTail
 	for line := range strings.SplitSeq(strings.TrimRight(stderr, "\n"), "\n") {
 		kind, tail, err := rpc.ParseAnswerLine([]byte(line))

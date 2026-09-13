@@ -14,7 +14,7 @@
 #   - internal/le/plugin/imports gates each package and its YANG package
 #   - internal/le/tier proves no always-on package imports a gated package
 #   - internal/le/changed and internal/le/staticcheckfeaturematrix scope the gates
-# feature-tags.sh is the shell one, for the bootstrap that has no le binary yet:
+# feature-tags is the shell one, for the bootstrap that has no le binary yet:
 # the root ze and le launchers and the two Docker images source it.
 #
 # Four consumers cannot parse this manifest at runtime: .golangci.yml

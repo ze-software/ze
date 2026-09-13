@@ -15,11 +15,24 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
+// captureHubStderr reads what a boot writes to stderr while fn runs.
+//
+// crashlog.Init runs FIRST, and the daemon is why. It replaces os.Stderr with a
+// pipe of its own and relays every line to the descriptor it saved, and it does
+// that work inside a sync.Once. The daemon arms it as the first statement of
+// main (cmd/ze/dispatch.go), so by the time a boot reaches
+// crashes.HarvestAtBoot -> crashlog.HarvestKernelCrashes -> Init the Once is
+// spent and nothing moves. A test binary has no such main, so that lazy Init
+// fires mid-boot instead: it took os.Stderr off this pipe part-way through and
+// sent the rest of the boot to the terminal, where the assertion could not see
+// it. Arming it here gives the test the daemon's own ordering.
 func captureHubStderr(t *testing.T, fn func()) string {
 	t.Helper()
+	crashlog.Init()
 	originalStderr := os.Stderr
 	r, w, err := os.Pipe()
 	require.NoError(t, err, "stderr pipe")

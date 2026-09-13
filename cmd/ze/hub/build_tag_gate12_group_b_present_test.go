@@ -32,9 +32,15 @@ func TestBuildTag_Gate12GroupB_Present(t *testing.T) {
 	if !pluginreg.Has("exabgp-bridge") {
 		t.Error("ze_exabgp build: exabgp-bridge plugin not registered")
 	}
+	// The exabgp case spells the process list, which is where the run command
+	// lives: revision 2026-09-06 of ze-exabgp-bridge-conf.yang replaced the one
+	// run leaf under bridge with one process block per script, because an
+	// ExaBGP config declares any number of them. A config written in the old
+	// shape is refused by the schema this test exists to prove is linked, so it
+	// reports the gate broken when the gate is intact.
 	cases := map[string]string{
 		"tacacs": "system {\n\tauthentication {\n\t\ttacacs {\n\t\t\tserver 192.0.2.1 {\n\t\t\t\tport 49;\n\t\t\t}\n\t\t}\n\t}\n}\n",
-		"exabgp": "exabgp {\n\tbridge {\n\t\trun \"./plugin.py\";\n\t}\n}\n",
+		"exabgp": "exabgp {\n\tbridge {\n\t\tprocess watcher {\n\t\t\trun \"./plugin.py\";\n\t\t}\n\t}\n}\n",
 	}
 	for name, cfg := range cases {
 		t.Run(name, func(t *testing.T) {

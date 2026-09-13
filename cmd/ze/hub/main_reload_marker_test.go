@@ -99,6 +99,14 @@ func TestReloadCompleteMarkerDoesNotCollide(t *testing.T) {
 			if strings.HasSuffix(path, "main_reload.go") || strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
+			// internal/test holds the FENCES, not the daemon. A fixture there
+			// carries the phrase because it waits for it, and it compiles into
+			// ze-test rather than into ze, so no line it holds can reach the
+			// daemon stderr an await= reads. Counting a waiter as a producer
+			// reports the collision that every correct fence creates.
+			if strings.Contains(path, filepath.Join("internal", "test")+string(filepath.Separator)) {
+				return nil
+			}
 			data, rerr := os.ReadFile(path) //nolint:gosec // repo source under test
 			if rerr != nil {
 				return nil //nolint:nilerr // unreadable file is not a collision
