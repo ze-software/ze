@@ -82,7 +82,13 @@ func TestRootHandledCommandHelpStatesGeneratedUsage(t *testing.T) {
 		if !strings.Contains(out, "  ze "+spelling) {
 			t.Errorf("ze %s help states no invocation form, wrote: %s", spelling, strings.TrimSpace(out))
 		}
-		if strings.Contains(out, "unknown") {
+		// The refusal, not the word. Every producer of it writes the same
+		// prefix: `unknown command: ` (dispatch.go, ze_core_dispatch.go, and
+		// cmdutil.go behind an `error: `). Scanning for "unknown" alone matched
+		// the prose instead, and `ze plugin command help help` answered
+		// correctly while failing here, because that command's own explanation
+		// says a built-in command is reported as unknown.
+		if strings.Contains(out, "unknown command: ") {
 			t.Errorf("ze %s help wrote an unknown-command answer: %s", spelling, strings.TrimSpace(out))
 		}
 	}

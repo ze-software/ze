@@ -312,14 +312,46 @@ func TestRootLaunchersArePOSIXShellWithoutPython(t *testing.T) {
 			if strings.Contains(strings.ToLower(source), "python") {
 				t.Errorf("%s retains a Python path", launcher)
 			}
-			if strings.Count(source, "$@") != 1 || !strings.Contains(source, `exec "$binary" "$@"`) {
-				t.Errorf("%s does not pass user argv once, quoted, through exec", launcher)
+			if !strings.Contains(source, `exec "$binary" "$@"`) {
+				t.Errorf("%s does not reach the binary through exec with the whole argv", launcher)
+			}
+			for _, split := range unquotedArgvExpansions(source) {
+				t.Errorf("%s expands argv as %s, which re-splits an argument on whitespace", launcher, split)
 			}
 			check := exec.CommandContext(t.Context(), "sh", "-n", path)
 			if out, err := check.CombinedOutput(); err != nil {
 				t.Fatalf("sh -n %s: %v\n%s", launcher, err, out)
 			}
 		})
+	}
+}
+
+// unquotedArgvExpansions names every argv expansion in a launcher that a word
+// split can reach: a bare $@, and $* in any form. Both join the arguments and
+// re-split them on IFS, so `le commit create message "two words"` arrives as two.
+//
+// This replaces a count of the string "$@", which measured the wrong thing. A
+// launcher is free to name the argv more than once (le passes it to the binary
+// under the staleness sample as well as through exec, and its find helper
+// forwards its OWN arguments the same way); what it is never free to do is
+// expand it unquoted. The count read every one of those as a defect and read a
+// single unquoted $@ as correct.
+func unquotedArgvExpansions(source string) []string {
+	splits := make([]string, 0)
+	if strings.Contains(source, "$*") {
+		splits = append(splits, "$*")
+	}
+	for offset := 0; ; {
+		at := strings.Index(source[offset:], "$@")
+		if at < 0 {
+			return splits
+		}
+		at += offset
+		offset = at + 2
+		quoted := at > 0 && source[at-1] == '"' && offset < len(source) && source[offset] == '"'
+		if !quoted {
+			splits = append(splits, "$@")
+		}
 	}
 }
 
@@ -331,6 +363,17 @@ func launcherFixture(t *testing.T, root, launcher string) string {
 		t.Fatalf("read root %s: %v", launcher, err)
 	}
 	writeExecutable(t, filepath.Join(fixture, launcher), string(body))
+	// The launchers source feature-tags to learn which gates to compile, so a
+	// fixture without it is a launcher that cannot build at all. The real file is
+	// copied rather than restated here: it is the reader under test, and a second
+	// copy of its walk would let the two disagree without anything going red.
+	reader, err := os.ReadFile(filepath.Join(root, "feature-tags"))
+	if err != nil {
+		t.Fatalf("read root feature-tags: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture, "feature-tags"), reader, 0o600); err != nil {
+		t.Fatalf("write feature-tags: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(fixture, "go.mod"), []byte("module launcher.test/fixture\n\ngo 1.27\ntoolchain go1.27.0\n"), 0o600); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}

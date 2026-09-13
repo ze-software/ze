@@ -157,8 +157,16 @@ warn_when_stale() {
 # is whether a cached binary is for another platform, and an unrecognised pair
 # is not evidence that it is: refusing one would rebuild on every call for no
 # reason. The failure that matters is the one this catches.
+#
+# A FORMAT this does not know answers TRUE for the same reason, and a shebang is
+# that case. `#!` opens a script the kernel execs on any platform, so it is never
+# the wrong-architecture binary this looks for; judging it by the Mach-O table
+# below called an executable file unrunnable and rebuilt over it.
 le_runs_here() {
 	magic=$(od -An -tx1 -N4 "$1" 2>/dev/null | tr -d ' \n')
+	case $magic in
+	2321*) return 0 ;;
+	esac
 	case $(uname -s) in
 	Linux)
 		[ "$magic" = "7f454c46" ]

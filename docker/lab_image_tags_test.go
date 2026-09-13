@@ -9,10 +9,7 @@ import (
 	"testing"
 )
 
-const (
-	awkProgram     = `$1 ~ /^ze_/ {print $1}`
-	personalityTag = "ze_core"
-)
+const personalityTag = "ze_core"
 
 func repositoryRoot(t *testing.T) string {
 	t.Helper()
@@ -44,15 +41,19 @@ func featureTags(t *testing.T, root string) map[string]bool {
 	return tags
 }
 
-var awkPattern = regexp.MustCompile(`awk\s+'([^']*)'\s*(\S*feature-gates\.txt)`)
+// derivationPattern matches a recipe calling the one shell reader of the feature
+// manifest: `. ./feature-tags` followed by a feature_tags call naming it.
+//
+// It replaced a match on the awk program each recipe used to inline. That
+// assertion pinned the SHAPE of the walk, so collapsing nineteen copies of it
+// into feature-tags and calling the survivor here read as a regression. What the
+// recipe owes is that its feature set is DERIVED from feature-gates.txt rather
+// than spelled out, which the shared reader satisfies and an inline copy no
+// longer does.
+var derivationPattern = regexp.MustCompile(`\.\s+\./feature-tags\b[\s\S]{0,200}?feature_tags\s+feature-gates\.txt`)
 
-func awkPrograms(text string) []string {
-	matches := awkPattern.FindAllStringSubmatch(text, -1)
-	programs := make([]string, 0, len(matches))
-	for _, match := range matches {
-		programs = append(programs, strings.ReplaceAll(match[1], "$$", "$"))
-	}
-	return programs
+func derivesFeatureSet(text string) bool {
+	return derivationPattern.MatchString(instructions(text))
 }
 
 func instructions(text string) string {
@@ -86,9 +87,9 @@ func TestLabImageRecipesUseTheDefaultFeatureSet(t *testing.T) {
 
 	for _, path := range paths {
 		text := readRepositoryFile(t, root, path)
-		t.Run(path+" derives tags once", func(t *testing.T) {
-			if got := awkPrograms(text); !slices.Equal(got, []string{awkProgram}) {
-				t.Fatalf("awk programs = %q, want %q", got, []string{awkProgram})
+		t.Run(path+" derives tags through the shared reader", func(t *testing.T) {
+			if !derivesFeatureSet(text) {
+				t.Fatalf("%s does not source feature-tags and read feature-gates.txt through it", path)
 			}
 		})
 		t.Run(path+" spells no feature tags", func(t *testing.T) {
@@ -113,10 +114,14 @@ func TestLabImageRecipesUseTheDefaultFeatureSet(t *testing.T) {
 		})
 	}
 
-	for _, path := range []string{"docker/Dockerfile", "docker/Dockerfile.lab", "test/interop/Dockerfile.ze"} {
-		if !slices.Contains(awkPrograms(readRepositoryFile(t, root, path)), awkProgram) {
-			t.Errorf("%s does not use the shared feature-gates.txt derivation", path)
-		}
+	// test/interop/Dockerfile.ze is not in that set and must not be: it compiles
+	// nothing. `./le integration interop` cross-compiles both binaries through
+	// internal/le/featuretags and the recipe copies them, so its feature set is
+	// derived by the Go reader before the image build starts. The row asserting an
+	// inline awk here could never pass, and said nothing about the image when it
+	// failed.
+	if strings.Contains(instructions(readRepositoryFile(t, root, "test/interop/Dockerfile.ze")), "go build") {
+		t.Error("test/interop/Dockerfile.ze now compiles, so it owes the feature-gates.txt derivation the other recipes carry")
 	}
 	if !featureTags(t, root)["ze_bgp"] {
 		t.Error("derived feature set does not contain ze_bgp")
