@@ -206,11 +206,15 @@ func publishedEyebrows(t *testing.T) map[string]string {
 // which is one-time, rather than a renderer that stops following GFM, which
 // would be permanent.
 //
-// The escape belongs ONLY inside a table. docs/features.md carries two HTML
-// comments on lines of their own, which end the table, so every row after them
-// is ordinary paragraph text where a backslash before a pipe is published to
-// the reader. Both halves are checked here, because escaping too much is as
-// visible as escaping too little.
+// The escape belongs ONLY inside a table. A `\|` that reaches the reader says
+// one of two things went wrong. Either the escape was written in paragraph
+// text, or a row carrying one fell out of its table.
+//
+// Until 2026-09-13 docs/features.md held the second. Two rows had their
+// trailing `<!-- source: -->` anchors wrapped onto lines of their own. GFM ends
+// a table at the first line that is not a row, so 82 feature rows after them
+// were published as one paragraph of raw pipes. 46 table rows reached the
+// reader where 128 do now. The rows were joined back onto one line each.
 func TestACodeSpanHoldingAPipeStaysInOneTableCell(t *testing.T) {
 	page, _ := renderOnePage(t, sitePage{
 		Source: "docs/features.md",

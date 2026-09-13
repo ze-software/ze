@@ -114,9 +114,12 @@ func onBlock(t *testing.T, name string) string {
 }
 
 type jobBlock struct {
-	name     string
-	body     string
-	advisory bool
+	name string
+	body string
+	// continueOnError is the GitHub key that makes a failed job report
+	// success. It is not the same thing as advisory: a scheduled workflow is
+	// advisory because it gates no merge, whatever its jobs say here.
+	continueOnError bool
 }
 
 func jobBlocks(t *testing.T, name string) []jobBlock {
@@ -162,13 +165,13 @@ func jobBlocks(t *testing.T, name string) []jobBlock {
 			directIndent = leadingSpace(candidate)
 			break
 		}
-		advisory := false
+		continueOnError := false
 		for _, candidate := range lines[index+1 : end] {
 			if leadingSpace(candidate) == directIndent && strings.TrimSpace(candidate) == "continue-on-error: true" {
-				advisory = true
+				continueOnError = true
 			}
 		}
-		jobs = append(jobs, jobBlock{name: jobName, body: jobBody, advisory: advisory})
+		jobs = append(jobs, jobBlock{name: jobName, body: jobBody, continueOnError: continueOnError})
 		index = end
 	}
 	if len(jobs) == 0 {
@@ -273,11 +276,22 @@ func requireScheduledOnly(t *testing.T, name string) {
 	}
 }
 
-func requireEveryJobAdvisory(t *testing.T, name string) {
+// requireEveryJobStatesItsOwnVerdict refuses `continue-on-error: true`, which
+// makes a failed job report success.
+//
+// This replaces a check that DEMANDED the key on every job. It read advisory
+// and continue-on-error as one thing. They are not. A scheduled workflow is
+// advisory because no merge waits on it, and requireScheduledOnly proves that.
+//
+// Commit 7682286f9b removed the key from evidence-nightly.yml on 2026-09-02.
+// The workflow had reported success while five of its six jobs failed. The run
+// the RFC ledger cited as interop evidence had not passed in a week. The old
+// assertion would have refused that repair.
+func requireEveryJobStatesItsOwnVerdict(t *testing.T, name string) {
 	t.Helper()
 	for _, job := range jobBlocks(t, name) {
-		if !job.advisory {
-			t.Errorf("%s job %q must remain advisory", name, job.name)
+		if job.continueOnError {
+			t.Errorf("%s job %q carries continue-on-error: true, so a failed run reports success", name, job.name)
 		}
 	}
 }
@@ -425,7 +439,7 @@ func TestVerifyInstallsPinnedNativeTools(t *testing.T) {
 func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 	const name = "evidence-nightly.yml"
 	requireScheduledOnly(t, name)
-	requireEveryJobAdvisory(t, name)
+	requireEveryJobStatesItsOwnVerdict(t, name)
 	want := []string{
 		"fuzz/run",
 		"integration/iface", "integration/fib", "integration/firewall",
@@ -450,8 +464,12 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 
 func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 	const name = "qemu-nightly.yml"
+	// Advisory is the schedule-only trigger, so requireScheduledOnly is the
+	// whole of it. This workflow's three jobs still carry
+	// `continue-on-error: true`. The 2026-09-02 repair covered
+	// evidence-nightly.yml alone, and widening it here is a decision nobody
+	// has taken.
 	requireScheduledOnly(t, name)
-	requireEveryJobAdvisory(t, name)
 	source := workflowSource(t, name)
 	for _, budget := range []string{"timeout-minutes: 180", "timeout-minutes: 120", "timeout-minutes: 150"} {
 		if !strings.Contains(source, budget) {

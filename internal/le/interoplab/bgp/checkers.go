@@ -337,11 +337,6 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 240 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
-	"bgp-paths-limit-frr": {
-		{kind: opFRRSession, argument: zeLabAddress},
-		{kind: opFRRRoute, argument: injectPrefixFirst},
-		{kind: opFRRSession, argument: zeLabAddress},
-	},
 	"bgp-max-prefix-cease-frr": {
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"prefix count exceeded maximum"}, timeout: 90 * time.Second},
 		{kind: opWaitAbsent, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp neighbor 172.30.0.2"}, absent: []string{"BGP state = Established"}, proof: []string{"BGP neighbor is"}, timeout: 30 * time.Second},

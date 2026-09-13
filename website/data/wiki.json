@@ -270,6 +270,11 @@
           "summary": "Ze does not have a built-in filter language in the style of BIRD's filter DSL or FRR's route-map."
         },
         {
+          "title": "Community Filters",
+          "slug": "community-filters",
+          "summary": "Ze supports tagging and stripping BGP communities on ingress and egress through the bgp-filter-community plugin."
+        },
+        {
           "title": "Address Families",
           "slug": "address-families",
           "summary": "Address families in Ze fall into two groups."
@@ -328,6 +333,11 @@
           "title": "Monitoring",
           "slug": "monitoring",
           "summary": "Ze gives you three different ways to watch a running daemon: an auto-refreshing peer dashboard for the operator at the keyboard, a live event stream for the engineer chasing a bug, and a Prometheus..."
+        },
+        {
+          "title": "Telemetry",
+          "slug": "telemetry",
+          "summary": "Ze can expose internal metrics in Prometheus format over HTTP."
         },
         {
           "title": "Flow Export",
@@ -827,7 +837,7 @@
         {
           "title": "CI",
           "slug": "ci",
-          "summary": "Ze's CI runs the same Make targets that you run locally, so that \"works locally\" and \"passes CI\" are the same statement."
+          "summary": "Ze's CI runs the same ./le actions that you run locally, so that \"works locally\" and \"passes CI\" are the same statement."
         },
         {
           "title": "RFC Compliance",
@@ -905,14 +915,6 @@
     {
       "slug": "command-catalog",
       "why": "a generated command dump; the site publishes its own command reference"
-    },
-    {
-      "slug": "community-filters",
-      "why": "reader content the wiki sidebar omits; add it to _Sidebar.md and this row goes"
-    },
-    {
-      "slug": "telemetry",
-      "why": "reader content the wiki sidebar omits; add it to _Sidebar.md and this row goes"
     }
   ]
 }

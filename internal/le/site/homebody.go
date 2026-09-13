@@ -7,14 +7,16 @@ package site
 // The hero, the proof block, the why-Ze cards, the quickstart terminal and the
 // try-safely panel are bespoke homepage copy: there is nothing repeated here to
 // model as data, and the retired renderer held them as a literal template for
-// the same reason. The eleven placeholders are the parts that ARE data, and
+// the same reason. The fifteen placeholders are the parts that ARE data.
 // home.go fills each one:
 //
 //	{hero_demo}                    the recorded terminal the hero replays
 //	{whats_new}                    the newest article, the newest week, the note
-//	{unit_tests} {e2e_tests}       the proof strip's six data-ze-stat spans
-//	{fuzz_targets} {rfc_enrolled}
-//	{rfc_must_checks} {interop_targets}
+//	{unit_tests} {e2e_tests}       the proof strip's nine data-ze-stat spans
+//	{fuzz_targets} {interop_targets}
+//	{rfc_proven} {rfc_proven_percent}
+//	{rfc_gated_implemented}
+//	{rfc_implemented} {rfc_inspected}
 //	{run_cards} {who_cards}        website/data/audience.json, in its own order
 //	{category_links}               the feature count under each category
 //	{blog_teaser_cards}            the three newest weekly updates

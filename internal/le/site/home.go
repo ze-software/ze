@@ -208,7 +208,8 @@ func homeMirror(page string) (string, error) {
 	return htmlToMarkdown(main, pageCanonicalURL(homeDest))
 }
 
-// homeBody fills the template's eleven slots.
+// homeBody fills the template's fifteen slots: six here, and the nine proof
+// spans homeProofStats answers.
 func homeBody(audience *audienceData, whatsNew *whatsNewData, features featureData,
 	articles []blogArticle, weeks []changeWeek, hero string, stats map[string]string,
 ) (string, error) {

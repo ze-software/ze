@@ -245,7 +245,18 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// does not vouch for those six. It records that they are inside the value,
 	// so a reader who bisects a behavior change through this constant knows the
 	// seal moved for more than the work its subject names.
-	const want = "f9a2722b71aeecdde4d749a5bec87acb00aada4c626eee92f3b3fc80b23ee22e"
+	// Resealed 2026-09-13 for two commits. Neither changes what an rfc action
+	// decides.
+	//
+	// 73861cc6c5 published this area's grammar. Every value-carrying parameter
+	// states leaction.Required or leaction.Optional. register.go calls
+	// leroot.RegisterActions. The five answer bodies read their keywords
+	// through args.Has and args.One rather than indexing the Arguments map.
+	// 5f9bcd0219 put a page reference in the provenshare.go Design header.
+	//
+	// The digest was recomputed over HEAD's own blobs before this value was
+	// written.
+	const want = "f2e0d737987c91e03f11d0b067ed8e471ba8dd6646bc6f8829b59f28aaf1208d"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

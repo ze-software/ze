@@ -37,7 +37,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// Updated 2026-09-05: the task corpus and the spec selector read every
 	// release bucket through internal/le/spec/specpath rather than plan/ alone,
 	// so the router now measures the whole population.
-	const want = "e4f369a93e9ea1bf8aa8393bc892f6cd224e1dca7979d64d52156f37a9ebd8c5"
+	// Updated 2026-09-13: 73861cc6c5 published this area's grammar. The three
+	// value-carrying parameters of `coverage-report` state leaction.Optional,
+	// register.go calls leroot.RegisterActions, and coverageReportAnswer reads
+	// its keywords through args.One instead of indexing the Arguments map. The
+	// coverage report decides exactly what it decided before, which is what the
+	// digest pins. The digest was recomputed before this value was written.
+	const want = "6614e39dcafed98c3ad34ff11f6a1333462411ca3828876de7c340ff731dc5d4"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

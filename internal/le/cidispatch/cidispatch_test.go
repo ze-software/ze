@@ -81,6 +81,42 @@ func TestATreeWithNoEmitterIsAnError(t *testing.T) {
 	}
 }
 
+// interfaceMethodSource declares the emitter as an interface METHOD and then
+// calls it. The declaration names its parameters, so the emitter pattern reads
+// `command string` as the command argument. The call below it is the only line
+// here that emits anything.
+const interfaceMethodSource = `package bridgerun
+
+// Dispatcher is the engine surface a Fleet needs.
+type Dispatcher interface {
+	DispatchCommand(ctx context.Context, command string) (string, error)
+}
+
+func run(ctx context.Context, engine Dispatcher) {
+	engine.DispatchCommand(ctx, "show bgp health")
+}
+`
+
+// VALIDATES: an interface method declaration is a declaration, and the call
+// under it is still read.
+// PREVENTS: internal/plugins/exabgp/bridgerun/fleet.go:30 being reported
+// unverifiable for a line that sends no command. It also prevents the opposite
+// failure, a skip so wide that it swallows the call site.
+func TestAnInterfaceMethodDeclarationIsNotAnEmitter(t *testing.T) {
+	_, loaded := surface(t)
+
+	findings, scanned, passthroughs := ScanFile(loaded, "dispatcher.go", interfaceMethodSource, goEmitters)
+	if scanned != 1 {
+		t.Errorf("the fixture read %d emitters, want 1: only the call emits a command", scanned)
+	}
+	if passthroughs != 0 {
+		t.Errorf("the fixture counted %d pass-through variables, want 0", passthroughs)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("the fixture drew %d findings, want 0: %+v", len(findings), findings)
+	}
+}
+
 // VALIDATES: the recogniser tells five shapes apart over one fixture.
 // PREVENTS: a computed command silently becoming a pass, which is the shape
 // every defect this gate exists for took.

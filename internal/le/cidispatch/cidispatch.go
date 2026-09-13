@@ -27,6 +27,9 @@ package cidispatch
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -158,8 +161,14 @@ func CheckWith(surface Surface, tree string, floor int) (Report, error) {
 func ScanFile(surface Surface, path, src string, emitters []*regexp.Regexp) (findings []Finding, scanned, passthroughs int) {
 	lines := strings.Split(src, "\n")
 
+	// The syntax tree is read at the first candidate line and not before, so a
+	// source holding no emitter at all is never parsed. Most of the tree holds
+	// none.
+	var declarations map[int]bool
+	parsed := false
+
 	for i, line := range lines {
-		if isComment(line) || isDeclaration(line) {
+		if isComment(line) {
 			continue
 		}
 		if strings.Contains(line, dynamicMarker) {
@@ -168,23 +177,40 @@ func ScanFile(surface Surface, path, src string, emitters []*regexp.Regexp) (fin
 		if i > 0 && strings.Contains(lines[i-1], dynamicMarker) {
 			continue
 		}
-		for _, pattern := range emitters {
-			for _, match := range pattern.FindAllStringSubmatch(line, -1) {
-				emitter, arg := match[1], match[2]
-				scanned++
+		matches := emitterMatches(line, emitters)
+		if len(matches) == 0 {
+			continue
+		}
+		if !parsed {
+			declarations, parsed = declarationLines(src), true
+		}
+		if declarations[i+1] {
+			continue
+		}
+		for _, match := range matches {
+			emitter, arg := match[1], match[2]
+			scanned++
 
-				finding, kind := judge(surface, path, i+1, emitter, arg)
-				switch kind {
-				case verdictPassThrough:
-					passthroughs++
-				case verdictFinding:
-					findings = append(findings, finding)
-				case verdictResolved:
-				}
+			finding, kind := judge(surface, path, i+1, emitter, arg)
+			switch kind {
+			case verdictPassThrough:
+				passthroughs++
+			case verdictFinding:
+				findings = append(findings, finding)
+			case verdictResolved:
 			}
 		}
 	}
 	return findings, scanned, passthroughs
+}
+
+// emitterMatches answers every emitter match on one line, in pattern order.
+func emitterMatches(line string, emitters []*regexp.Regexp) [][]string {
+	matches := make([][]string, 0, len(emitters))
+	for _, pattern := range emitters {
+		matches = append(matches, pattern.FindAllStringSubmatch(line, -1)...)
+	}
+	return matches
 }
 
 // verdict is what one emitter turned out to be.
@@ -296,8 +322,44 @@ func isComment(line string) bool {
 	return strings.HasPrefix(trimmed, "//")
 }
 
-// isDeclaration reports a function definition rather than a call. Without
-// this, a SendCommand method's parameter list reads as an emitted command.
-func isDeclaration(line string) bool {
-	return strings.HasPrefix(strings.TrimSpace(line), "func ")
+// declarationLines answers the lines of src that DECLARE a signature rather
+// than send a command: a function declaration's signature, and a method inside
+// an interface. Without this, a named parameter list reads as an emitted
+// command, because `DispatchCommand(ctx context.Context, command string)`
+// matches an emitter pattern exactly as a two-argument call does.
+//
+// The answer comes from the syntax tree. No line pattern separates the two
+// shapes, because an interface method carries neither the `func` keyword nor
+// any other token a call site lacks.
+//
+// A source that does not parse answers no line at all. Every one of its lines
+// is then read as a possible emitter, which is the loud half of the failure.
+// This package chooses that half everywhere else it cannot be sure.
+func declarationLines(src string) map[int]bool {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "src.go", src, parser.SkipObjectResolution)
+	if err != nil {
+		return nil
+	}
+
+	lines := map[int]bool{}
+	mark := func(from, to token.Pos) {
+		first, last := fset.Position(from).Line, fset.Position(to).Line
+		for line := first; line <= last; line++ {
+			lines[line] = true
+		}
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch declaration := node.(type) {
+		case *ast.FuncDecl:
+			// The signature only. A call inside the body is an emitter.
+			mark(declaration.Pos(), declaration.Type.End())
+		case *ast.InterfaceType:
+			for _, method := range declaration.Methods.List {
+				mark(method.Pos(), method.End())
+			}
+		}
+		return true
+	})
+	return lines
 }
