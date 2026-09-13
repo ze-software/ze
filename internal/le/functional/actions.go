@@ -309,11 +309,26 @@ func newSession(args []string) *session {
 			current.chaos = true
 		}
 	}
+	// Both closures ask for the toolchain rather than reading current.tc.
+	// The field is filled lazily, behind s.probed, so reading it directly
+	// hands Prepare and warmCITestPackages a zero Toolchain with an empty
+	// Root whenever binaries() or warm() runs before toolchain() does. That
+	// is a value neither of them can tell from a real answer, and only the
+	// statement order inside suiteRunner kept it populated: an obligation
+	// nothing named and no test held.
 	current.buildFn = func() (BinarySet, error) {
-		return Prepare(current.tc, current.label, current.chaos)
+		tc, err := current.toolchain()
+		if err != nil {
+			return BinarySet{}, err
+		}
+		return Prepare(tc, current.label, current.chaos)
 	}
 	current.warmFn = func() error {
-		return warmCITestPackages(current.tc)
+		tc, err := current.toolchain()
+		if err != nil {
+			return err
+		}
+		return warmCITestPackages(tc)
 	}
 	return current
 }

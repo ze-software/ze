@@ -236,9 +236,14 @@ func asksForUsage(name string, args []string) bool {
 //
 // The grammar of one action is rendered from the listing its area registered
 // (leroot.RegisterActions). An area that registered none still gets its page,
-// because guarding every area is what keeps a probe from running work, and the
-// seven that hand-roll their dispatch publish no grammar until
-// plan/spec-le-every-area-dispatches-through-one-table.md migrates them.
+// because guarding every area is what keeps a probe from running work, and an
+// area that hand-rolls its dispatch publishes no grammar until
+// plan/spec-le-every-area-dispatches-through-one-table.md migrates it.
+//
+// Which areas those are is NOT stated here. It was, as a count, and the count
+// went stale the first time one migrated. areasWithoutAnActionTable
+// (internal/le/actions_test.go) holds the set, and the ratchet beside it
+// refuses a new one.
 func helpTrailing(program, name string, own []string) int {
 	if len(own) == 1 {
 		return helpNode(program, name)

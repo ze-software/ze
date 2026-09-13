@@ -102,10 +102,17 @@ func parseOptions(args []string) (Options, error) {
 			}
 			value := args[0]
 			args = args[1:]
-			// An option is never the value a keyword introduced. This parser
-			// forwards nothing to a child. `ai/rules/cli.md` bans every flag
-			// from le's grammar. So a dash-leading word here is an option the
-			// developer got wrong. Reading it as data is what started the burn.
+			// An option is never the value a keyword introduced, because
+			// `ai/rules/cli.md` bans every flag from le's grammar. So a
+			// dash-leading word HERE is an option the developer got wrong, and
+			// reading it as data is what started the burn.
+			//
+			// The refusal is on the keyword's own word and MUST stay there.
+			// This parser does forward to a child: realProcessRunner.Invoke
+			// (process.go) shell-splits `suite` and `test` into the child's
+			// argv, and docs/functional-tests.md:280 ships
+			// `suite "bgp plugin --draft"`. A refusal widened to the split
+			// words would refuse the documented recipe.
 			// `run suite -help` set suite to the cluster, and the load
 			// generator ran for twenty minutes (2026-09-11).
 			if leaction.IsOption(value) {
