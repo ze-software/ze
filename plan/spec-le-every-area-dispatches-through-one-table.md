@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | tooling |
-| Depends | plan/spec-le-publishes-its-command-surface.md |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-12 |
@@ -29,7 +29,7 @@ this shape. These seven are the same class on le's own command surface.
 | `weekly` | `internal/le/weekly/answer.go` | 1 implicit, unnamed | No verb dispatch at all: every word is a keyword arm. Exit 1 for every failure, usage and execution alike |
 | `go-extract` | `internal/le/goextract/answer.go` | 1 implicit, unnamed | Same shape as `weekly` |
 | `spec status` | `internal/le/spec/status/answer.go` | 3 | The bare form uses exit 1 for its errors while both `closure` sub-verbs use exit 2 for theirs, in one area |
-| ~~`verify status`~~ | `internal/le/verify/status/answer.go` | 4 | DONE 2026-09-12, in `plan/spec-le-publishes-its-command-surface.md`. Its `check` verb accumulates repeated `path <value>` pairs, so migrating it was what gave `leaction.Parameter.Repeat` and `Arguments.Values` a production caller and closed that spec's unwired-symbol finding. Six areas remain |
+| ~~`verify status`~~ | `internal/le/verify/status/answer.go` | 4 | DONE 2026-09-12, in `spec-le-publishes-its-command-surface`. Its `check` verb accumulates repeated `path <value>` pairs, so migrating it was what gave `leaction.Parameter.Repeat` and `Arguments.Values` a production caller and closed that spec's unwired-symbol finding. Six areas remain |
 
 Spec 1 publishes the surface and stops a help word from running work. It cannot
 publish what these seven declare, because they declare no table. This spec makes
@@ -84,7 +84,7 @@ second declaration of the same fact `leaction` already holds.
 
 ## A third group: an area that publishes a table it does not dispatch through
 
-Measured 2026-09-12, during round 5 of `plan/spec-le-publishes-its-command-surface.md`.
+Measured 2026-09-12, during round 5 of `spec-le-publishes-its-command-surface`.
 That spec wired 69 areas to `RegisterActions`, publishing 276 verbs. Probing
 every verb with an undeclared keyword, and then reading the REFUSAL VOICE to
 tell `leaction`'s own words from an area's, found four areas whose table and
@@ -182,7 +182,7 @@ every verb of every area rather than for the verbs a reader thought to type.
 |----------|--------|
 | What breaks if this is wrong? | Development commands for every session sharing the checkout. `commit` and `spec session` are on the path every session takes |
 | How is it reverted? | A single commit revert per area, if each area lands as its own commit |
-| Who else touches this path? | `plan/spec-le-publishes-its-command-surface.md` lands first and this spec depends on it |
+| Who else touches this path? | `spec-le-publishes-its-command-surface` lands first and this spec depends on it |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

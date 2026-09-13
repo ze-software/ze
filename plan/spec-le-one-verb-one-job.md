@@ -58,7 +58,7 @@ two-column layout collapses.
 
 ## Work this spec inherits
 
-`plan/spec-le-publishes-its-command-surface.md` names exit-code discipline, verb
+`spec-le-publishes-its-command-surface` names exit-code discipline, verb
 vocabulary and help wrapping as out of its scope. This is that spec.
 
 The rename depends on spec 2: the seven hand-rolled areas must declare their

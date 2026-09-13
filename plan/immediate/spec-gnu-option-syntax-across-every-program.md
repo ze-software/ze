@@ -52,12 +52,12 @@ and the day a real short-option cluster is declared, their habit breaks.
 nothing knows a value may not begin with a dash. This is the class that cost a
 shared development machine about 943% CPU for twenty minutes on 2026-09-11:
 `./le stress-repro run suite -help` read the cluster as the value of `suite` and
-started a load generator. `plan/spec-le-publishes-its-command-surface.md` closes
+started a load generator. `spec-le-publishes-its-command-surface` closes
 that one instance inside `le`. Every other program still carries it.
 
 ## Work this spec inherits
 
-`plan/spec-le-publishes-its-command-surface.md` applies the rule to `le`'s own
+`spec-le-publishes-its-command-surface` applies the rule to `le`'s own
 `leaction` grammar only: a dash-leading token is refused as a value, and a
 trailing one asks the question rather than starting work. It does not touch any
 `flag.FlagSet`, and `le` is one of nine programs.
@@ -136,7 +136,7 @@ trailing one asks the question rather than starting work. It does not touch any
 |----------|--------|
 | What breaks if this is wrong? | An operator's flag stops being accepted, or a value they meant is refused. `ze appliance` is on the image build path |
 | How is it reverted? | A single commit revert per area if the seam lands first |
-| Who else touches this path? | `plan/spec-le-publishes-its-command-surface.md` applies the same rule inside `le` |
+| Who else touches this path? | `spec-le-publishes-its-command-surface` applies the same rule inside `le` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

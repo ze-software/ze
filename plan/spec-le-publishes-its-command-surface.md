@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-12 |
+| Updated | 2026-09-13 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -567,6 +567,30 @@ user-facing behavior with no functional test, Linux-only code with no QEMU test,
 a removed guard, a newly added guard that fails open, and any RFC or interop
 non-conformance. Where a round's scope and that list disagree, the list wins.
 
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/le-publishes-its-command-surface-c8d98ba3-abf6-4759-8240-613fbd049bd1.md` |
+| `./le spec session review check` | clean: `review_gate: OK (0 code files, clean, hashes match)`, exit 0 |
+| Rounds | 8. Round 6: an area publishing a grammar it does not dispatch through, which answered success while checking nothing (`ste`). Round 7: `newSession`'s closures read a lazily filled `Toolchain`, handing `Prepare` an empty root. Round 8: the regression test the round-7 fix called unreachable, and the stale count that survived its own removal. Rounds 6, 7 and 8 each carry the owner's authorisation, given on the day |
+| Reviewer lenses used | Correctness of the guard on every dispatch path; zero values that read as answers; each AC's named test against a regression; the always-in-scope eight; the style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A trailing help word in a declared value slot was swallowed, answering 0 and running nothing | `leroot.Dispatch` (round 1) | `trailingIsValue` and `List.TrailingWordIsValue`, read by `asksForUsage` and by `Area.Answer` |
+| 2 | ISSUE | `Arguments.Values` and `Parameter.Repeat` had no non-test caller | `internal/le/leaction/leaction.go` (round 1) | `verify status check` migrated onto `leaction.New` and reads `path` with `Values` |
+| 3 | ISSUE | `trailingIsValue` absorbed `-h` and `--help` as a keyword's value | `internal/le/leaction/leaction.go` (round 2) | `IsHelpArg`, then the `IsOption` generalisation |
+| 4 | ISSUE | AC-5 claimed the handler is never called, which the round-2 fix deliberately changed | the spec (round 2) | AC-5 rewritten around the value slot |
+| 5 | ISSUE | A flag in a NON-trailing value slot was still data | `trailingIsValue` (round 3) | The dash refusal in `parseArguments`, which reaches every slot |
+| 6 | BLOCKER | The help rule of SHAPE swallowed a forwarded child option at exit 0 with nothing run, and was too narrow to catch `-xh` | `IsHelpArg` (round 4) | A closed four-spelling set |
+| 7 | ISSUE | `ste` published a table declaring `check` as zero-argument while its `Answer` hand-parsed `file`, so `ste check file -xh` answered OK over nothing checked | `internal/le/ste/` (round 5) | `check` dispatches through the table, proven by `TestCheckIsDispatchedThroughItsOwnTable` |
+| 8 | ISSUE | The Known Limitations claim that only spec 2 could close the burn was false | the spec (round 5) | `stressrepro.parseOptions` refuses a dash-leading value itself |
+| 9 | ISSUE | The reason written above the `parseOptions` refusal was false: the parser does forward to a child | `internal/le/stressrepro/run.go` (round 6) | The comment now states what the producer does, and the recipe in `docs/functional-tests.md` still works |
+| 10 | ISSUE | `List.TrailingWordIsValue`'s doc named two areas as the population and told the reader only a hand probe finds the next | `internal/le/leaction/leaction.go` (round 7) | The doc names the ratchet, which is the answer to "which areas are these" |
+| 11 | ISSUE | `newSession`'s `buildFn` and `warmFn` read `current.tc` at call time, so a zero `Toolchain` reached `Prepare` as an empty root | `internal/le/functional/` (round 7) | `toolchain()` is called at both entries |
+| 12 | ISSUE | The round-7 fix landed with no regression test, on a claim that none was reachable | `9071167df`'s parent (round 8) | `TestTheBuildClosureProbesTheToolchainBeforeItBuilds`, which reddens pre-fix in milliseconds |
+| 13 | ISSUE | `leroot.RegisterActions`'s doc still said "the seven areas that hand-roll their own dispatch" where the list holds 24 | `internal/le/leroot/leroot.go` (round 8) | The count is gone and the doc names the list |
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
@@ -608,3 +632,270 @@ non-conformance. Where a round's scope and that list disagree, the list wins.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/le/leaction/leaction.go`: `Requirement`, a typed enum whose zero is
+  `RequirementUnspecified` and whose `MarshalJSON` publishes the one bool a
+  consumer reads; `New` refuses that zero on any parameter carrying a value.
+  Also `Parameter.Repeat`, `Row.Parameters`, `Row.Alone`, `Arguments` as
+  `map[string][]string` read through `Has`, `One` and `Values`, `IsOption`,
+  `IsHelpArg` over a closed four-spelling set, `trailingIsValue`,
+  `List.TrailingWordIsValue`, `Area.Holds`, `Area.AnswerOrSweep`,
+  `Action.Alone` refused by `Sweep`, the dash refusal in `parseArguments`, and
+  `parameterForm`, which renders a required keyword without brackets.
+- `internal/le/leroot/manifest.go` (new): `Manifest`, `ManifestArea`,
+  `manifestOf`, `manifestFrom`, `Manifest.Text` and `Manifest.page`, so one
+  declaration of the root page serves stdout, stderr and the pipe operators.
+- `internal/le/leroot/dispatch.go`: `Dispatch` answers the manifest through
+  `Run` for a bare invocation, `asksForUsage` and `helpTrailing` answer a
+  trailing help word before the handler, and `Usage` renders the manifest's own
+  page.
+- `internal/le/leroot/leroot.go`: `RegisterActions` and `ActionsOf` record an
+  area's listing beside its group.
+- 63 `internal/le/*/register.go` files call `RegisterActions`. `verify status`
+  migrated onto `leaction.New` and reads `path` with `Values`.
+- Five areas were forced through the tables they publish: `ste`, `worktree`,
+  `doc wiring`, `functional` and `test-chaos`.
+- Two ratchets in `internal/le/actions_test.go`:
+  `TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList` and
+  `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable`.
+
+### Bugs Found/Fixed
+- A trailing help word in a declared value slot was swallowed, so
+  `le source-rewrite replace file <path> old beta new help` answered 0 and
+  replaced nothing (round 1). Fixed by `trailingIsValue`, covered by
+  `TestATrailingHelpWordInAValueSlotReachesTheHandler`.
+- A flag spelling in a value slot was read as data, so
+  `le verify status check path --help` checked a path named `--help` (rounds 2
+  and 3). Fixed by `IsOption` and the `parseArguments` refusal, covered by
+  `TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine` in both packages.
+- A help rule of SHAPE swallowed a forwarded child option, so
+  `le job run label x command echo -html=cover.out` answered 0 and ran no child
+  (round 4). Fixed by the closed four-spelling set in `IsHelpArg`, covered by
+  `TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea`.
+- `ste check file -xh` answered OK at exit 0 having checked nothing, because
+  `ste` published a table and hand-parsed the line (round 5). Fixed by
+  dispatching `check` through the table, covered by
+  `TestCheckIsDispatchedThroughItsOwnTable`.
+- `worktree update path -xh` read the option as a path, and
+  `le doc wiring changed-file -xh dry-run` answered success over nothing
+  checked (round 6). Both answer 2 now, and
+  `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` then found a fifth
+  area, `test-chaos`, that no hand probe had reached.
+- `le functional gating encode` swept 24 suites and then one more, and
+  `le test-chaos all lint` ran the linter twice (round 7). Fixed by
+  `Action.Alone`, covered by `TestSweepRefusesAnActionThatNamesTheWholeArea`,
+  `TestARunListVerbRefusesToRunBesideASuite`,
+  `TestTheAggregateVerbRefusesToRunBesideATool` and
+  `TestAllRefusesToRunBesideAGroup`.
+- `newSession`'s `buildFn` and `warmFn` read `current.tc` at call time, so a
+  zero `Toolchain` could reach `Prepare` as an empty root (round 7). Fixed by
+  calling `toolchain()` at both entries, covered by
+  `TestTheBuildClosureProbesTheToolchainBeforeItBuilds`, which round 8 showed
+  was reachable after the commit had called it unreachable.
+
+### Documentation Updates
+- `docs/contributing/running-commands.md`: `./le '\|' json` is named as the way
+  to discover a command, with the anchor
+  `<!-- source: internal/le/leroot/manifest.go -- Manifest -->`.
+- `ai/INDEX.md`: the native command inventory states that the manifest is the
+  authority and that a row disagreeing with it is stale.
+- `docs/architecture/core-design.md`: the bare root and `\| json` are described
+  as one payload, anchored on
+  `internal/le/leroot/manifest.go -- Manifest, Text`.
+- `docs/architecture/system-architecture.md` carries a
+  `<!-- source: internal/le/leroot/dispatch.go -- Dispatch -->` anchor. Its
+  claim is about the `ze_le` composition root rather than the bare-invocation
+  or help path, so this change does not make it wrong and it stands as it is.
+- `ai/rules/cli.md` gained the GNU option syntax point the owner ruled on
+  during round 4 (`gnu-option-syntax-binds-every-ze-program`).
+
+### Deviations from Plan
+- The guard is not a TRAILING-POSITION rule, which is what the spec planned. It
+  asks the area's published grammar whether the last word lands in a declared
+  keyword's value slot, and it treats a dash-leading word as an option in every
+  slot. A-3 is broken and this is its repair.
+- `Arguments` is `map[string][]string`, not the `map[string]string` the first
+  design wrote. The joined shape reached a silently wrong answer through a
+  direct index.
+- `verify status` migrated onto `leaction.New` inside this spec rather than in
+  spec 2, because `Repeat` and `Values` otherwise shipped with a test as their
+  only caller.
+- Five areas were rewritten to dispatch through their own tables. Publication
+  alone is what AC-9 asked for. Honoring the published table is what the second
+  ratchet added.
+- `le ste check <bad line>` moved from exit 1 to exit 2, and three more exit
+  codes moved. Each is named in Known Limitations against the commit that moved
+  it. The spec said every existing exit code stays what it is.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 read the trailing POSITION as the proxy for "this word is data" | The position answers "could a keyword have introduced this word", which is the right question for the bare word `help` and the wrong one for an option. Two facts decide it: the spelling and the slot | Review round 1 measured `le source-rewrite replace file <path> old beta new help` answering 0 and replacing nothing | `trailingIsValue` walks the published grammar, and `IsOption` refuses a dash-leading word in every slot |
+| assumption | A-4 assumed all 63 areas expose `Actions() leaction.List` | 62 of 63 did. `internal/le/doc/wiring` declared `zeroArgumentActions` and exposed `Subs()` alone | Compiling after the wiring step | The accessor was written by hand for that one area |
+| approach | `Arguments` was first written as `map[string]string` with NUL-joined repeat values | A direct index then answered `"first\x00second"`, which a caller cannot tell from a value an operator typed | Design review before the first commit, against `ai/rules/principles.md` | `map[string][]string` with `Has`, `One` and `Values`, and `One` panics on a keyword carrying two values |
+| escalation | Two commit messages of this series stated history nobody had read at the revision they named (`PruneLanded`, and `doc wiring` at `70a546d23^`) | Both descriptions were false. A report describes the tree its author was holding, which is not the parent commit | Review rounds 6 and 7 read the producers at those revisions | Two rows in `plan/journal/claim-outlives-the-evidence-it-cites.md`. The repair that generalises is `git show <rev>:<path>`, which costs one call |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| The manifest is one call | Done | `manifestOf` and `Dispatch`'s bare-invocation branch (`internal/le/leroot/`) | `./le '\|' json` answers 89 areas, 64 of them with their action tables |
+| The grammar is in the manifest | Done | `Area.Actions`, `Row.Parameters` (`internal/le/leaction/leaction.go`) | Each parameter publishes `keyword`, `value`, `required` and `repeat` |
+| No invocation carrying a help word can run work | Done | `asksForUsage` and `helpTrailing` (`internal/le/leroot/dispatch.go`), and the same predicate inside `Area.Answer` | One exception, decided by the dash and by the value slot, stated in AC-5 |
+| A reader sees an action's grammar without invoking it | Done | `List.UsageText`, `parameterForm` | `le <area> <verb> --help` renders from the registered listing and calls no handler |
+| The grammar is right about itself | Done | `parameterForm`, `Requirement` | A required keyword renders without brackets, and a repeatable one with an ellipsis |
+| The hand-written inventory stops being a second declaration | Done | `ai/INDEX.md` | The table states that `./le '\|' json` is the authority |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestBareRootAnswersTheManifestAsAPayload`, `TestManifestTextIsTheRootHelpAReaderSeesToday` | The page bytes are pinned, and `Usage` renders the same page on stderr |
+| AC-2 | Done | `TestRootManifestRendersThroughTheJSONOperator`, `TestManifestNamesEveryRegisteredAreaAndItsGroup` | Live 2026-09-13: `./le '\|' json` decodes as one document naming 89 areas |
+| AC-3 | Done | `TestRowCarriesTheParametersItsActionDeclares` | The marshalled row publishes all four keys for every parameter |
+| AC-4 | Done | `TestUsageDistinguishesARequiredKeywordFromAnOptionalOne` | Live: `le session seed-store --help` renders `binary <path>`, `le session scratch --help` renders `[ensure] [clean]` |
+| AC-5 | Done | `TestATrailingHelpWordNeverReachesTheHandler`, `TestATrailingHelpWordInAValueSlotReachesTheHandler`, `TestAFlagSpellingInAValueSlotNeverReachesTheHandler`, `TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine`, `TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea` | The four spellings ask the question in every area. `ste check`'s usage refusal moved from 1 to 2, recorded in Known Limitations against its commit |
+| AC-6 | Done | `TestATrailingHelpWordNeverReachesTheHandler`, whose probe counts its own calls, and `TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun` | Live: `./le stress-repro run suite --help` answered 0 in 0.098s of wall time |
+| AC-7 | Done | `TestARepeatableKeywordIsParsedTwiceAndANonRepeatableIsStillRefused`, `TestEveryNamedFileReachesTheRatchet`, `TestTheGrammarTakesEveryValueBehindAKeyword` | The refusal message and code for a non-repeat keyword are pinned |
+| AC-8 | Done | `TestARequiredKeywordIsPublishedRatherThanNewlyEnforced` | The action's body is reached once and answers its own 4. `TestCheckDeclaresTheFileKeywordItEnforces` asserts an OPTIONAL keyword's publication, so it does not hold this AC |
+| AC-9 | Done | `TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList`, `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` | Live: 89 areas, 64 publishing, 25 named in `areasWithoutAnActionTable` |
+| AC-10 | Done, with one wording correction | `TestARepeatKeywordCannotBeReadAsOneValue`, `Arguments.One` | Indexing `Arguments` compiles and yields `[]string`, so this AC's sentence "a direct index does not compile" is imprecise. What does not compile is reading that index AS a string, which is the property the AC asks for. `One` panics on a keyword carrying two values |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestRowCarriesTheParametersItsActionDeclares` | Done | `internal/le/leaction/leaction_test.go` | AC-3 |
+| `TestUsageDistinguishesARequiredKeywordFromAnOptionalOne` | Done | `internal/le/leaction/leaction_test.go` | AC-4 |
+| `TestARepeatableKeywordIsParsedTwiceAndANonRepeatableIsStillRefused` | Done | `internal/le/leaction/leaction_test.go` | AC-7 |
+| `TestARepeatKeywordCannotBeReadAsOneValue` | Done | `internal/le/leaction/leaction_test.go` | AC-10 |
+| `TestManifestNamesEveryRegisteredAreaAndItsGroup` | Done | `internal/le/leroot/manifest_test.go` | AC-2. It sits beside the payload it reads rather than in `dispatch_test.go` |
+| `TestManifestTextIsTheRootHelpAReaderSeesToday` | Done | `internal/le/leroot/manifest_test.go` | AC-1, same move |
+| `TestATrailingHelpWordNeverReachesTheHandler` | Done | `internal/le/leroot/dispatch_test.go` | AC-5, AC-6 |
+| `TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine` | Done | `internal/le/leaction/leaction_test.go`, `internal/le/leroot/dispatch_test.go` | AC-5 |
+| `TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea` | Done | `internal/le/leroot/dispatch_test.go` | AC-5 |
+| `TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList` | Done | `internal/le/actions_test.go` | AC-9 |
+| `TestBareRootAnswersTheManifestAsAPayload` | Done | `internal/le/leroot/dispatch_test.go` | Wiring |
+| `TestRootManifestRendersThroughTheJSONOperator` | Done | `internal/le/leroot/dispatch_test.go` | Wiring, AC-2 |
+| `TestEveryValueSlotRefusesAnOptionWithoutStartingTheRun` | Done | `internal/le/stressrepro/stressrepro_test.go` | AC-5 |
+| `TestARequiredKeywordIsPublishedRatherThanNewlyEnforced` | Done | `internal/le/leaction/leaction_test.go` | AC-8 |
+| `TestCheckDeclaresTheFileKeywordItEnforces` | Done | `internal/le/ste/ste_test.go` | Round 5. It asserts an OPTIONAL keyword's publication, so it does NOT hold AC-8 |
+| `TestCheckIsDispatchedThroughItsOwnTable` | Done | `internal/le/ste/ste_test.go` | AC-5 |
+| `TestEveryNamedFileReachesTheRatchet` | Done | `internal/le/ste/ste_test.go` | AC-7 |
+| `TestSweepRefusesAnActionThatNamesTheWholeArea` | Done | `internal/le/leaction/leaction_test.go` | AC-9, round 7 |
+| `TestARunListVerbRefusesToRunBesideASuite` | Done | `internal/le/functional/functional_test.go` | AC-9 at the entry point |
+| `TestTheAggregateVerbRefusesToRunBesideATool` | Done | `internal/le/testchaos/actions_test.go` | AC-9 at the entry point |
+| `TestAllRefusesToRunBesideAGroup` | Done | `internal/le/testunit/testunit_test.go` | AC-9, and `le test-unit all` on its own still runs |
+| `TestTheGrammarTakesEveryValueBehindAKeyword` | Done | `internal/le/doc/wiring/docwiring_test.go` | AC-7 |
+| `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` | Done, added after the plan | `internal/le/actions_test.go` | AC-9's second half, which the plan did not ask for |
+| `TestTheBuildClosureProbesTheToolchainBeforeItBuilds` | Done, added after the plan | `internal/le/functional/functional_test.go` | The round-7 defect's regression, written in `9071167df` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/leaction/leaction.go` | Done | `Requirement`, `Repeat`, `Row.Parameters`, `Row.Alone`, `Arguments`, `IsOption`, `IsHelpArg`, `trailingIsValue`, `Holds`, `AnswerOrSweep` |
+| `internal/le/leroot/leroot.go` | Done | `RegisterActions`, `ActionsOf` |
+| `internal/le/leroot/dispatch.go` | Done | The bare-root payload, `asksForUsage`, `helpTrailing` |
+| `internal/le/*/register.go` | Done | 63 files in the first commit, 69 call sites now, `verify status` among them |
+| `internal/le/leroot/manifest.go` | Done | Created |
+| `internal/le/leroot/manifest_test.go` | Done | Created |
+| `ai/INDEX.md` | Done | The inventory names the manifest as the authority |
+| `docs/contributing/running-commands.md` | Done | The manifest is the way to discover a command |
+| `internal/le/verify/status/` | Changed, wider than the plan | Migrated onto `leaction.New` so `Repeat` and `Values` have a production caller |
+| `internal/le/ste/`, `internal/le/worktree/`, `internal/le/doc/wiring/`, `internal/le/functional/`, `internal/le/testchaos/`, `internal/le/testunit/`, `internal/le/stressrepro/` | Changed, wider than the plan | Each was forced through the table it publishes, or given the dash refusal its own parser owed |
+
+### Audit Summary
+- **Total items:** 6 requirements, 10 acceptance criteria, 24 tests, 12 file rows
+- **Done:** 6 requirements, 10 acceptance criteria, 24 tests, 10 file rows
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 2 file rows, both wider than the plan and both recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The manifest is one call | Functional, at the real entry point | `./le '\|' json` decodes as one JSON document naming 89 areas, 64 of them carrying their action tables (run 2026-09-13). `TestRootManifestRendersThroughTheJSONOperator` drives the same path through `Dispatch` from argv |
+| The grammar is in the manifest | Functional | `TestManifestNamesEveryRegisteredAreaAndItsGroup` reads back `keyword`, `value`, `required` and `repeat` for a registered area's action, and `TestRowCarriesTheParametersItsActionDeclares` asserts the four keys on the marshalled row |
+| No invocation carrying a help word can run work | Functional, with the run function counted | `./le stress-repro run suite --help` answered usage at exit 0 in 0.098s of wall time, against the 943% CPU for twenty minutes the Task measured. `TestATrailingHelpWordNeverReachesTheHandler` registers a probe that counts its own calls and asserts the count stays 0 over seven invocations, four of them the help spellings |
+| A reader sees an action's grammar without invoking it | Functional | `le session seed-store --help` and `le session scratch --help` each render the action's own line and run nothing. The same test pins the rendered grammar byte for byte with the handler count at 0 |
+| The grammar is right about itself | Functional | `TestUsageDistinguishesARequiredKeywordFromAnOptionalOne` pins `command <command> [timeout <duration>] [share <path>]... [keep-alive]`, so the required keyword, the optional one and the repeatable one each render differently |
+| An area publishes nothing it does not answer to | Ratchet over the whole surface | `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` builds a reference area from each area's published rows and compares the real refusal, text and code, against it, for every published verb. It found `test-chaos` after the hand probe had stopped at four areas |
+| Every area is in the manifest or on a shrinking list | Two-way ratchet | `TestEveryRegisteredAreaProvidesActionsOrIsOnTheMigrationList` fails for an unlisted area with no table, and for a listed area that starts publishing one. 25 rows remain |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| 25 areas publish no action table, so the manifest carries their description and not their grammar. In those areas a legitimate value spelled `help` is unreachable when it is typed last, which is a limitation this spec introduced | The owner cut the work into two specs on 2026-09-12, to keep the first diff small against a checkout six sessions are editing | `plan/spec-le-every-area-dispatches-through-one-table.md` |
+| Verb vocabulary, exit-code discipline and help-text wrapping | Named out of scope by this spec's Known Limitations. Four exit codes moved here, and each is recorded against its commit | `plan/spec-le-one-verb-one-job.md` |
+| GNU option syntax in the other programs ze ships | This spec applies the rule inside `le` alone. The owner's ruling during round 4 is recorded in `ai/rules/cli.md` | `plan/immediate/spec-gnu-option-syntax-across-every-program.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/leroot/manifest.go` | Yes | `ls -l` 2026-09-13: 5546 bytes |
+| `internal/le/leroot/manifest_test.go` | Yes | `ls -l` 2026-09-13: 4803 bytes |
+| `internal/le/leroot/dispatch.go` | Yes | `ls -l` 2026-09-13: 12037 bytes |
+| `internal/le/leroot/leroot.go` | Yes | `ls -l` 2026-09-13: 12549 bytes |
+| `internal/le/leaction/leaction.go` | Yes | `ls -l` 2026-09-13: 31936 bytes |
+| `internal/le/actions_test.go` | Yes | `ls -l` 2026-09-13: 10693 bytes |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A bare `./le` prints today's help on stdout at exit 0 | `go test ./internal/le/leroot/` under `le job run`: ok 4.934s, carrying `TestBareRootAnswersTheManifestAsAPayload` and `TestManifestTextIsTheRootHelpAReaderSeesToday` |
+| AC-2 | `./le \| json` answers one document naming every area | Live run 2026-09-13: the document decodes, `areas` holds 89 entries and 64 carry `actions` |
+| AC-3 | Each action row carries its parameters | `go test ./internal/le/leaction/`: ok 5.170s, carrying `TestRowCarriesTheParametersItsActionDeclares` |
+| AC-4 | Required and optional keywords render differently | Live: `le session seed-store --help` prints `binary <path>`, `le session scratch --help` prints `[ensure] [clean]` |
+| AC-5 | A trailing help word never runs work, and an option in a value slot answers 2 | `go test` over `./internal/le/leroot/`, `./internal/le/leaction/`, `./internal/le/ste/` and `./internal/le/stressrepro/`: all ok |
+| AC-6 | The burn probe starts nothing | Live: `./le stress-repro run suite --help` answered 0 in 0.098s |
+| AC-7 | A repeatable keyword takes both values, and a plain one is still refused | `go test` over `./internal/le/leaction/`, `./internal/le/ste/` and `./internal/le/doc/wiring/`: all ok |
+| AC-8 | Requiredness is published, not newly enforced | `TestARequiredKeywordIsPublishedRatherThanNewlyEnforced` reaches the action's body once and reads its own exit 4 |
+| AC-9 | Every area publishes or is listed, and publishes nothing it does not answer to | `go test ./internal/le/`: ok 3.342s, carrying both ratchets over 89 areas |
+| AC-10 | A repeat keyword cannot be read as one string | `TestARepeatKeywordCannotBeReadAsOneValue`: `One` panics with a `BUG:` assertion over a keyword carrying two values |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le` with no arguments | none. `le` registers no daemon command, so the dispatcher test drives argv through the real `Dispatch` | Yes. `TestBareRootAnswersTheManifestAsAPayload` reads stdout and the exit code |
+| `./le \| json` | same | Yes. `TestRootManifestRendersThroughTheJSONOperator` sends the pipe words through `Dispatch` |
+| `./le <area> <verb> --help` where the area runs work | same | Yes. `TestATrailingHelpWordNeverReachesTheHandler` counts the handler's own calls |
+| `./le <area> \| json` | same | Yes. `TestRowCarriesTheParametersItsActionDeclares` reads the marshalled row |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Each of the seven hand-rolled parsers was read. What looks positional in `spec session state latest` is a fixed literal sub-verb |
+| A-2 | confirmed | `TestManifestNamesEveryRegisteredAreaAndItsGroup` marshals the live manifest and asserts every published key, and `./le '\|' json` decodes over 89 real areas |
+| A-3 | broken | The trailing position is not the whole test. `trailingIsValue` walks the published grammar and `IsOption` refuses a dash-leading word in every slot. Mistake Log row 1, Deviations row 1 |
+| A-4 | broken, bounded | 62 of 63 areas exposed `Actions()`. `internal/le/doc/wiring` needed the accessor written. Mistake Log row 2 |
+| A-5 | confirmed | `TestARequiredKeywordIsPublishedRatherThanNewlyEnforced`: the body is reached and answers its own code, so no invocation that worked before is refused earlier |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 3, CLI command changed | `docs/contributing/running-commands.md` names `./le '\|' json` and anchors on `internal/le/leroot/manifest.go -- Manifest`, which exists and is exported | Yes |
+| 6, user guide page | The same page and the same anchor | Yes |
+| 12, internal architecture | `docs/architecture/core-design.md` describes the bare root and `\| json` as one payload, anchored on `Manifest, Text`, both present | Yes |
+| 15, registered inventory | `ai/INDEX.md` states that the manifest is the authority and that a disagreeing row is stale | Yes |
+| 16, existing source anchors | `docs/architecture/system-architecture.md` anchors `internal/le/leroot/dispatch.go -- Dispatch`. Its claim is about the `ze_le` composition root, which this change does not touch, so no edit was owed | Yes |
+| 17, existing CLI examples | `./le stress-repro run suite --help`, `./le session seed-store --help` and `./le session scratch --help` were each run against the built binary on 2026-09-13, and each matches what the pages print | Yes |
+| 1, 2, 4, 5, 7, 8, 9, 10, 11, 13, 14 | `le` is in no shipped binary, and this change adds no config leaf, RPC, plugin, wire format, SDK surface, RFC behavior, test runner, daemon feature, route metadata key or metric | N-A |
+
+## Core Insight
+
+Publishing a declaration and HONORING it are two properties, and a gate that
+asks for the first reads green over an area that breaks the second. The first
+ratchet asked whether an area registers a table, and five areas registered one
+and then read the line with a parser of their own. The repair is to read the
+claim BACK: build a reference from the published rows alone, send the real
+handler and the reference the same line their shared grammar cannot accept, and
+require the same code and the same words from each. That shape found an area no
+hand probe had reached, because a hand probe tests the verbs a reader thinks to
+type, and the defect was in the verb the documentation names.
