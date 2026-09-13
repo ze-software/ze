@@ -158,11 +158,31 @@ func installFakeAgentBrowser(t *testing.T) string {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "agent-browser.log")
 	envLogPath := filepath.Join(dir, "agent-browser-env.log")
+	fillPath := filepath.Join(dir, "agent-browser-fills.tsv")
 	scriptPath := filepath.Join(dir, "agent-browser")
+	// The fake REMEMBERS a fill and answers `get value` from it, because that is
+	// the round trip Browser.fill performs: the real agent-browser fills a div
+	// as readily as an input and reports success either way, so the value is
+	// read back before the fill is believed. A fake that logged the command and
+	// answered nothing made every filled element look like a div.
+	//
+	// AGENT_BROWSER_TEST_UNFILLABLE names the one selector the fake refuses to
+	// store, which is how a test asks for that div.
 	script := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
 		"env | grep ^AGENT_BROWSER_ | sort >> \"" + envLogPath + "\"\n" +
-		"case \"$1\" in eval) echo true ;; esac\n"
+		"case \"$1\" in\n" +
+		"  eval) echo true ;;\n" +
+		"  fill)\n" +
+		"    if [ \"$2\" != \"$AGENT_BROWSER_TEST_UNFILLABLE\" ]; then\n" +
+		"      printf '%s\\t%s\\n' \"$2\" \"$3\" >> \"" + fillPath + "\"\n" +
+		"    fi ;;\n" +
+		"  get)\n" +
+		"    if [ \"$2\" = value ] && [ -f \"" + fillPath + "\" ]; then\n" +
+		"      awk -F'\\t' -v s=\"$3\" '$1==s{v=$2} END{printf \"%s\", v}' \"" + fillPath + "\"\n" +
+		"    fi ;;\n" +
+		"esac\n" +
+		"exit 0\n"
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake agent-browser: %v", err)
 	}

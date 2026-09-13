@@ -115,6 +115,44 @@ func TestLoginActionDrivesLoginForm(t *testing.T) {
 	}
 }
 
+// TestFillIsBelievedOnlyWhenTheElementHoldsTheValue verifies a fill that reached
+// no input is refused, and refused where it happened.
+//
+// VALIDATES: fillID returns an error naming the selector when the element does
+// not hold the value afterwards, and returns nil when it does.
+// PREVENTS: a .wb step that types into an element holding no value, reports
+// success, and posts nothing. agent-browser fills a div, a span and a label the
+// same way it fills an input. The run then fails wherever the missing value is
+// finally asserted, which reads as the product losing the edit:
+// test/web/interface-mac-override.wb spent months red that way on
+// `fill:id=field-address`, the leaf editor's wrapper DIV, while
+// test/web/scenario-interface-setup.wb PASSED on the same mistake because the
+// assertion after it was already true.
+func TestFillIsBelievedOnlyWhenTheElementHoldsTheValue(t *testing.T) {
+	t.Run("input", func(t *testing.T) {
+		installFakeAgentBrowser(t)
+		b := newBrowser("https://127.0.0.1:1234")
+		if err := b.fillID("field-address", "02:42:ac:11:00:02"); err != nil {
+			t.Fatalf("fill an element that took the value: %v", err)
+		}
+	})
+
+	t.Run("wrapper", func(t *testing.T) {
+		installFakeAgentBrowser(t)
+		t.Setenv("AGENT_BROWSER_TEST_UNFILLABLE", "#field-address")
+		b := newBrowser("https://127.0.0.1:1234")
+		err := b.fillID("field-address", "02:42:ac:11:00:02")
+		if err == nil {
+			t.Fatal("fill reported success on an element that holds no value")
+		}
+		// The selector, because the repair is to name a different element and
+		// the operator of this message is the test author reading a suite log.
+		if !strings.Contains(err.Error(), "#field-address") {
+			t.Errorf("the refusal does not name the selector: %v", err)
+		}
+	})
+}
+
 // TestParseWaitUntilDirective verifies the state-based wait parses into an action
 // carrying both of its keys.
 //
