@@ -1,7 +1,7 @@
 [
   {
-    "slug": "2026-08-17",
-    "intro": "The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.",
+    "slug": "2026-08-31",
+    "intro": "Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.",
     "is_draft": false,
     "topics": [
       {
@@ -10,24 +10,29 @@
         "key": "BGP"
       },
       {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
       },
       {
-        "label": "API",
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
+        "label": "Redistribution",
+        "category": "routing",
+        "key": "Redistribution"
+      },
+      {
+        "label": "ExaBGP Migration",
         "category": "automate",
-        "key": "API"
+        "key": "ExaBGP Migration"
       },
       {
-        "label": "Flow Export",
-        "category": "observe",
-        "key": "Flow Export"
-      },
-      {
-        "label": "DDoS",
+        "label": "Security",
         "category": "secure",
-        "key": "DDoS"
+        "key": "Security"
       },
       {
         "label": "IPsec",
@@ -35,14 +40,44 @@
         "key": "IPsec"
       },
       {
+        "label": "RADIUS",
+        "category": "services",
+        "key": "RADIUS"
+      },
+      {
+        "label": "AAA",
+        "category": "secure",
+        "key": "AAA"
+      },
+      {
+        "label": "L2TP",
+        "category": "services",
+        "key": "L2TP"
+      },
+      {
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
+      },
+      {
         "label": "Firewall",
         "category": "secure",
         "key": "Firewall"
       },
       {
-        "label": "Appliance",
-        "category": "platform",
-        "key": "Appliance"
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
       },
       {
         "label": "RFC Compliance",
@@ -57,24 +92,34 @@
     ]
   },
   {
-    "slug": "2026-08-10",
-    "intro": "Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.",
+    "slug": "2026-08-24",
+    "intro": "Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.",
     "is_draft": false,
     "topics": [
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
       {
         "label": "BGP",
         "category": "routing",
         "key": "BGP"
       },
       {
-        "label": "Route Server",
+        "label": "Flowspec",
         "category": "routing",
-        "key": "Route Server"
+        "key": "Flowspec"
       },
       {
-        "label": "RPKI",
+        "label": "RSVP-TE",
         "category": "routing",
-        "key": "RPKI"
+        "key": "RSVP-TE"
+      },
+      {
+        "label": "VRRP",
+        "category": "routing",
+        "key": "VRRP"
       },
       {
         "label": "PPPoE",
@@ -82,19 +127,19 @@
         "key": "PPPoE"
       },
       {
-        "label": "BNG",
-        "category": "services",
-        "key": "BNG"
-      },
-      {
         "label": "IPsec",
         "category": "secure",
         "key": "IPsec"
       },
       {
-        "label": "DNS",
-        "category": "services",
-        "key": "DNS"
+        "label": "TACACS+",
+        "category": "secure",
+        "key": "TACACS+"
+      },
+      {
+        "label": "AAA",
+        "category": "secure",
+        "key": "AAA"
       },
       {
         "label": "Config",
@@ -102,34 +147,19 @@
         "key": "Config"
       },
       {
-        "label": "Web UI",
-        "category": "operate",
-        "key": "Web UI"
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
       },
       {
-        "label": "Looking Glass",
-        "category": "observe",
-        "key": "Looking Glass"
-      },
-      {
-        "label": "Appliance",
+        "label": "Fleet",
         "category": "platform",
-        "key": "Appliance"
-      },
-      {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
+        "key": "Fleet"
       },
       {
         "label": "RFC Compliance",
         "category": "meta",
         "key": "RFC Compliance"
-      },
-      {
-        "label": "Interop",
-        "category": "meta",
-        "key": "Interop"
       },
       {
         "label": "Quality Improvement",

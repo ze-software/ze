@@ -278,7 +278,8 @@ func codeSpanList(values []string) string {
 func writeCommandPipeCell(out *textbuf.Buffer, command *catalogCommand) {
 	grouped := operatorsByAvailability(command)
 	if len(grouped) == 0 && len(command.Pipes) == 0 && len(command.Aliases) == 0 &&
-		command.AnswerShape == "" && len(command.AddressFields) == 0 {
+		command.AnswerShape == "" && len(command.AddressFields) == 0 &&
+		len(command.ColumnOrders) == 0 {
 		out.Str(`<span class="cli-pipe-none">None</span>`)
 		return
 	}
@@ -291,6 +292,10 @@ func writeCommandPipeCell(out *textbuf.Buffer, command *catalogCommand) {
 	if len(command.AddressFields) != 0 {
 		out.Str("<p><span>Address fields</span><code>").
 			Str(html.EscapeString(strings.Join(command.AddressFields, " · "))).Str("</code></p>")
+	}
+	if len(command.ColumnOrders) != 0 {
+		out.Str("<p><span>Column order</span><code>").
+			Str(html.EscapeString(columnOrdersLine(command))).Str("</code></p>")
 	}
 	if len(command.Pipes) != 0 {
 		out.Str(`<strong>Command pipes</strong><div class="cli-pipe-chips">`)
@@ -349,6 +354,9 @@ func commandPipeSummary(command *catalogCommand) string {
 	}
 	if count := len(command.AddressFields); count != 0 {
 		parts = append(parts, plural(count, "address field"))
+	}
+	if count := len(command.ColumnOrders); count != 0 {
+		parts = append(parts, plural(count, "column order"))
 	}
 	if len(parts) == 0 {
 		return nothingDeclared
@@ -458,6 +466,9 @@ func commandMirrorPipes(command *catalogCommand) string {
 	}
 	if len(command.AddressFields) != 0 {
 		parts = append(parts, "Address fields: "+markdownCodeList(command.AddressFields))
+	}
+	if len(command.ColumnOrders) != 0 {
+		parts = append(parts, "Column order: "+markdownCodeList([]string{columnOrdersLine(command)}))
 	}
 	// The two lists are the detail page's mirror renderers, so a command pipe
 	// and an alias read the same on either surface, description included.

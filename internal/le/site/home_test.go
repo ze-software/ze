@@ -141,6 +141,15 @@ func renderHomeFixture(t *testing.T) (page, mirror string) {
 //
 // The two demo asset URLs carry a digest of the recording, and this fixture's
 // recording is not the published one, so both sides normalise those two.
+//
+// Refreshed 2026-09-13: one paragraph, the summary on the article card. The
+// card is generated from the newest blog post's description, and 7dffbf36ea
+// rewrote that description. The refreshed text is what gh-pages HEAD 7a71f67208
+// (2026-09-12) publishes, cut by clipSummary at the same word.
+//
+// The rest of the fixture is deliberately NOT taken from that commit. This page
+// is built from a pinned facts snapshot and three pinned weeks. Its numbers and
+// its weekly card are older than the published ones on purpose.
 func TestTheHomepageReadsAsThePublishedHomepage(t *testing.T) {
 	page, _ := renderHomeFixture(t)
 	body, err := extractMain(page)

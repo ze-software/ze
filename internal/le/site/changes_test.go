@@ -219,6 +219,13 @@ func TestAListWrittenUnderItsParagraphGetsItsBlankLine(t *testing.T) {
 
 // VALIDATES: the index reads as the published index, and its mirror matches the
 // published mirror byte for byte.
+//
+// Refreshed 2026-09-13 from gh-pages HEAD 7a71f67208 (2026-09-12). The two
+// fixtures were frozen at gh-pages 2fa8fa2ad. 0a4f5df85c and 7b5532f685 then
+// added the 2026-08-24 and 2026-08-31 weekly updates.
+//
+// The refresh is purely additive. 153 words arrived and none left, and the
+// refreshed mirror is byte-identical to what gh-pages publishes.
 func TestTheChangesIndexReadsAsThePublishedIndex(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -273,8 +280,12 @@ func TestTheCategoryLegendKeepsItsDeclaredOrder(t *testing.T) {
 		}
 		previous = at
 	}
+	// The week named here is the newest one. Refreshed 2026-09-13 against
+	// gh-pages HEAD 7a71f67208. It said 2026-08-17, and the site had moved on to
+	// 2026-08-31. So this read a week in the middle of the list, and still
+	// called it the newest.
 	if !strings.Contains(page,
-		`<a class="ch-week" data-cats="operate routing automate observe secure platform meta" href="2026-08-17/"`) {
+		`<a class="ch-week" data-cats="operate routing services automate secure platform meta" href="2026-08-31/"`) {
 		t.Errorf("the newest week's category list is not in the legend's order")
 	}
 }
@@ -284,6 +295,9 @@ func TestTheCategoryLegendKeepsItsDeclaredOrder(t *testing.T) {
 //
 // The file is a contract another producer reads, so the two newest weeks are
 // compared against the published file field for field.
+//
+// Refreshed 2026-09-13 from data/changes.json at gh-pages HEAD 7a71f67208
+// (2026-09-12), where the two newest weeks are 2026-08-31 and 2026-08-24.
 func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -323,6 +337,12 @@ func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 // A feed client holds the URL it subscribed with and no redirect makes it
 // follow, so the address the changelog had before it moved out of blog/ is
 // still served.
+//
+// Refreshed 2026-09-13 against gh-pages HEAD 7a71f67208 (2026-09-12). The newest
+// week moved from 2026-08-17 to 2026-08-31, because 0a4f5df85c and 7b5532f685
+// added two weekly updates after the fixtures were frozen at gh-pages 2fa8fa2ad.
+// Nothing was removed from the feed: the oldest-first guard below still names
+// 2025-12-15.
 func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -337,16 +357,16 @@ func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 		`<rss version="2.0">`,
 		"<title>Ze weekly updates</title>",
 		"<link>https://ze-software.net/project/changes/</link>",
-		"<lastBuildDate>Mon, 17 Aug 2026 00:00:00 +0000</lastBuildDate>",
-		"<title>Week of 2026-08-17</title>",
-		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-08-17/</guid>`,
-		"<pubDate>Mon, 17 Aug 2026 00:00:00 +0000</pubDate>",
+		"<lastBuildDate>Mon, 31 Aug 2026 00:00:00 +0000</lastBuildDate>",
+		"<title>Week of 2026-08-31</title>",
+		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-08-31/</guid>`,
+		"<pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>",
 	} {
 		if !strings.Contains(feed, want) {
 			t.Errorf("the feed is missing %q", want)
 		}
 	}
-	if first, second := strings.Index(feed, "2026-08-17/"), strings.Index(feed, "2025-12-15/"); first > second {
+	if first, second := strings.Index(feed, "2026-08-31/"), strings.Index(feed, "2025-12-15/"); first > second {
 		t.Errorf("the feed is oldest first")
 	}
 }
@@ -378,10 +398,50 @@ func TestARetiredWeekLosesItsPage(t *testing.T) {
 	}
 }
 
+// changesRouteSource lays out one website tree carrying only the weeks the
+// published route list names, and answers the paths a render of it writes to.
+//
+// The route list is pinned at gh-pages 2fa8fa2ad and MUST stay there. Two other
+// tests pair it with inputs pinned at the same commit.
+//
+// A render of the LIVE sources cannot be compared against it. 0a4f5df85c and
+// 7b5532f685 added two weekly updates after that commit, so the live render
+// claims two routes the list has never carried.
+//
+// Narrowing the source is what homeFixture already does, for the same reason.
+// It holds for every week added from here on, not for one more of them.
+//
+// The weeks are read out of the route list rather than written here, so the two
+// sides cannot disagree about which site is being described.
+func changesRouteSource(t *testing.T) Paths {
+	t.Helper()
+	repository := repositoryRoot(t)
+	source := t.TempDir()
+	copyFixture(t, filepath.Join(repository, "website", topicsVocabularyFile),
+		filepath.Join(source, topicsVocabularyFile))
+	weeks := 0
+	for _, route := range publishedArtifactRoutes(t) {
+		slug := strings.TrimSuffix(strings.TrimPrefix(route, "/"+changesDirectory+"/"), "/")
+		if slug == "" || strings.Contains(slug, "/") || !strings.HasPrefix(route, "/"+changesDirectory+"/") {
+			continue
+		}
+		copyFixture(t, filepath.Join(repository, "website", changesSourceDirectory, slug+markdownExtension),
+			filepath.Join(source, changesSourceDirectory, slug+markdownExtension))
+		weeks++
+	}
+	if weeks == 0 {
+		t.Fatal("the published route list names no week under " + changesDirectory)
+	}
+	return Paths{Repository: repository, Source: source, Output: t.TempDir()}
+}
+
 // VALIDATES: every route the changelog claims is a route the site publishes,
-// and it claims all thirty-eight of them.
+// and it claims every one of them.
+//
+// The count is derived from the published route fixture rather than written
+// here, so the two sides move together.
 func TestTheChangesClaimOnlyPublishedRoutes(t *testing.T) {
-	paths := changesPaths(t)
+	paths := changesRouteSource(t)
 	routes, err := renderChanges(paths)
 	if err != nil {
 		t.Fatal(err)

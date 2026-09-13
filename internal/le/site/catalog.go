@@ -62,7 +62,16 @@ type catalogCommand struct {
 	Operators     []catalogOperator `json:"operators,omitempty"`
 	AnswerShape   string            `json:"answer-shape,omitempty"`
 	AddressFields []string          `json:"address-fields,omitempty"`
-	Aliases       []catalogAlias    `json:"pipe-aliases,omitempty"`
+	// ColumnOrders are the answer's JSON keys in the order a person reads
+	// them, one list per record shape the command renders. A command that
+	// answers an outer record and a list of rows declares two orders. A flat
+	// list states neither of them.
+	//
+	// `| table` prints this order and `| json` deliberately ignores it. So a
+	// reader comparing the two renderings is told the order rather than left
+	// to infer it (cmd/ze/help_command.go, catalogEntry.ColumnOrders).
+	ColumnOrders [][]string     `json:"column-orders,omitempty"`
+	Aliases      []catalogAlias `json:"pipe-aliases,omitempty"`
 	// Subcommands names the children an operator can type after this command.
 	Subcommands []string `json:"subcommands,omitempty"`
 }

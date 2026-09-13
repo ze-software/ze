@@ -94,6 +94,9 @@ func equivalentZeCard(command *catalogCommand) string {
 	if len(command.AddressFields) != 0 {
 		writeDetailRow(&card, "Address fields", html.EscapeString(strings.Join(command.AddressFields, ", ")))
 	}
+	if len(command.ColumnOrders) != 0 {
+		writeDetailRow(&card, "Column order", html.EscapeString(columnOrdersLine(command)))
+	}
 	card.Str("</dl>\n")
 	// The summary is the page's lede, so the card explains rather than repeats
 	// it. A command that declares no long form has nothing to explain, and an
@@ -183,6 +186,20 @@ func orNotListed(value string) string {
 		return "not listed"
 	}
 	return value
+}
+
+// columnOrdersLine answers the column orders one command declares, as one line.
+//
+// A command renders one record shape for each order. A semicolon keeps the
+// shapes apart, and the keys inside one shape stay in the order the command
+// declared them. One flat list of every key publishes an order no rendering
+// uses.
+func columnOrdersLine(command *catalogCommand) string {
+	shapes := make([]string, 0, len(command.ColumnOrders))
+	for _, order := range command.ColumnOrders {
+		shapes = append(shapes, strings.Join(order, ", "))
+	}
+	return strings.Join(shapes, "; ")
 }
 
 func orNotDeclared(value string) string {
@@ -332,6 +349,7 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	out.Str("- Subcommands: ").Str(subcommandsMirror(command)).Byte('\n')
 	out.Str("- Answer shape: ").Str(markdownCell(orNotDeclared(command.AnswerShape))).Byte('\n')
 	out.Str("- Address fields: ").Str(orNone(strings.Join(command.AddressFields, ", "))).Byte('\n')
+	out.Str("- Column order: ").Str(orNone(markdownCell(columnOrdersLine(command)))).Byte('\n')
 	for _, availability := range availabilityOrder {
 		out.Str("- ").Str(detailPipeLabel(availability, command.AnswerShape != "")).Str(": ").
 			Str(orNone(strings.Join(grouped[availability], ", "))).Byte('\n')

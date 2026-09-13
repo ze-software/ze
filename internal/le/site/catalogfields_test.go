@@ -46,6 +46,7 @@ const enrichedCommandCatalog = `[{
  }],
  "answer-shape": "tab",
  "address-fields": ["target"],
+ "column-orders": [["peer", "state"], ["prefix", "next-hop"]],
  "pipe-aliases": [{
   "name": "summary", "description": "The aggregate fields", "expansion": "display router-id"
  }],
@@ -205,6 +206,15 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 		Reason:    "the address fields are what `resolve` and `origin` act on.",
 		Reference: []string{"target"},
 		Detail:    []string{"target"},
+	},
+	"column-orders": {
+		Reason: "the column order is what `| table` prints and what `| json` deliberately " +
+			"ignores, so a reader comparing the two renderings has to be told it rather " +
+			"than left to infer it from one of them. One record shape per order is " +
+			"published, because a command answering an outer record and a list of rows " +
+			"declares two and a flattened list would state neither.",
+		Reference: []string{"peer, state; prefix, next-hop"},
+		Detail:    []string{"peer, state; prefix, next-hop"},
 	},
 	"pipe-aliases.name": {
 		Reason:    "an alias is a chain the command names.",

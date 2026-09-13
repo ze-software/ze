@@ -152,6 +152,19 @@ func repositoryRoot(t *testing.T) string {
 // would run a different test, and the parity target is that COMMIT rather than
 // whatever the worktree holds now. Its 712 entries are the count `./le site
 // check` reported when phase 1 armed the coverage arithmetic.
+//
+// It MUST stay at that commit. It is the OUTPUT half of a pair whose INPUT half
+// is pinned there too. published-plugin-registry.json and
+// published-command-paths.txt each describe the same site, and the two route
+// tests over them say so.
+//
+// Measured 2026-09-13. Refreshed to gh-pages HEAD 7a71f67208 it gains 291 routes
+// and LOSES 25. Those 25 redden both tests, because the pinned inputs still
+// claim pages the newer branch dropped.
+//
+// So a producer read from LIVE sources cannot be checked against this list once
+// the sources move past the commit. Narrow its source instead, the way
+// homeFixture and changesRouteSource do.
 func publishedArtifactRoutes(t *testing.T) []string {
 	t.Helper()
 	content := readTestdata(t, "published-routes.txt")

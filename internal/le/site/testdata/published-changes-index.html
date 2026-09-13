@@ -1,10 +1,10 @@
 
             <section aria-labelledby="changes-title">
-                <div class="section-head journey-hero reveal">
-                    <span class="journey-eyebrow">Weekly updates</span>
-                    <h1 id="changes-title">Changes.</h1>
-                    <p>What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's <code>ze-news</code>. Each week's chips are the areas it touched; click a category to show just the weeks that touched it, click again to show everything, or click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the <a href="../roadmap/">roadmap</a> tracks the path to a stable release. For the landmark features on a timeline, see <a href="../milestones/">Milestones</a>.</p>
-                </div>
+<div class="section-head journey-hero reveal">
+    <span class="journey-eyebrow">Weekly updates</span>
+    <h1 id="changes-title">Changes.</h1>
+    <p>What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's <code>ze-news</code>. Each week's chips are the areas it touched; click a category to show just the weeks that touched it, click again to show everything, or click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the <a href="../roadmap/">roadmap</a> tracks the path to a stable release. For the landmark features on a timeline, see <a href="../milestones/">Milestones</a>.</p>
+</div>
                 <div class="legend ch-filters reveal" role="group" aria-label="Filter weeks by category">
                     <button class="cat-operate" data-cat="operate" aria-pressed="false">Operate</button>
                     <button class="cat-routing" data-cat="routing" aria-pressed="false">Routing</button>
@@ -16,6 +16,53 @@
                     <button class="cat-meta" data-cat="meta" aria-pressed="false">Meta</button>
                 </div>
                 <div class="ch-list reveal">
+                    <a class="ch-week" data-cats="operate routing services automate secure platform meta" href="2026-08-31/" aria-label="Read Week of 2026-08-31">
+                        <div class="ch-head">
+                            <h2><span class="ch-week-title">Week of 2026-08-31</span></h2>
+                        </div>
+                        <p class="ch-intro">Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.</p>
+                        <div class="ch-chips">
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">OSPF</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-routing">Redistribution</span>
+                            <span class="ch-chip cat-automate">ExaBGP Migration</span>
+                            <span class="ch-chip cat-secure">Security</span>
+                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">RADIUS</span>
+                            <span class="ch-chip cat-secure">AAA</span>
+                            <span class="ch-chip cat-services">L2TP</span>
+                            <span class="ch-chip cat-services">PPPoE</span>
+                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-meta">RFC Compliance</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
+                        </div>
+                    </a>
+                    <a class="ch-week" data-cats="operate routing services secure platform meta" href="2026-08-24/" aria-label="Read Week of 2026-08-24">
+                        <div class="ch-head">
+                            <h2><span class="ch-week-title">Week of 2026-08-24</span></h2>
+                        </div>
+                        <p class="ch-intro">Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.</p>
+                        <div class="ch-chips">
+                            <span class="ch-chip cat-operate">CLI</span>
+                            <span class="ch-chip cat-routing">BGP</span>
+                            <span class="ch-chip cat-routing">Flowspec</span>
+                            <span class="ch-chip cat-routing">RSVP-TE</span>
+                            <span class="ch-chip cat-routing">VRRP</span>
+                            <span class="ch-chip cat-services">PPPoE</span>
+                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-secure">TACACS+</span>
+                            <span class="ch-chip cat-secure">AAA</span>
+                            <span class="ch-chip cat-operate">Config</span>
+                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-platform">Fleet</span>
+                            <span class="ch-chip cat-meta">RFC Compliance</span>
+                            <span class="ch-chip cat-platform">Quality Improvement</span>
+                        </div>
+                    </a>
                     <a class="ch-week" data-cats="operate routing automate observe secure platform meta" href="2026-08-17/" aria-label="Read Week of 2026-08-17">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-08-17</span></h2>
@@ -61,7 +108,7 @@
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-08-03</span></h2>
                         </div>
-                        <p class="ch-intro">Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week&#x27;s work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator&#x27;s own certificate.</p>
+                        <p class="ch-intro">Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week&#39;s work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator&#39;s own certificate.</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-routing">BGP</span>
                             <span class="ch-chip cat-routing">IS-IS</span>

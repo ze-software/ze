@@ -146,10 +146,18 @@ func TestAnArticleAPageCannotBeMadeFromIsRefused(t *testing.T) {
 // site shell, and its Markdown mirror matches the published mirror byte for
 // byte.
 //
-// The published pair is reference-from-the-system at gh-pages HEAD 2fa8fa2ad:
-// the one article carrying a deck, a themed illustration, key points, a
-// contents list and five prose number tokens, so it exercises every block the
-// page can hold.
+// The published pair is reference-from-the-system at gh-pages HEAD 7a71f67208
+// (2026-09-12). It is the one article carrying a deck, a themed illustration
+// and a contents list, so it exercises every block the page still holds.
+//
+// Refreshed 2026-09-13 from that commit. The pair was frozen at gh-pages
+// 2fa8fa2ad. 7dffbf36ea then rewrote the article's prose and dropped both its
+// key-points front matter and its five {{ze:}} number tokens, so the frozen
+// pair described a page the author had retired.
+//
+// Both refreshed files are byte-identical to what gh-pages publishes. That is
+// what makes this a fixture repair, rather than a render declared correct by
+// its own output.
 func TestABlogArticleReadsAsThePublishedArticle(t *testing.T) {
 	paths := blogPaths(t)
 
@@ -177,36 +185,30 @@ func TestABlogArticleReadsAsThePublishedArticle(t *testing.T) {
 	}
 
 	got := visibleText(mainContent(t, page))
-	want := visibleText(withCurrentRFCIndexCommand(readFixture(t, "published-blog-reference.html")))
+	want := visibleText(readFixture(t, "published-blog-reference.html"))
 	if got != want {
 		t.Errorf("the article reads as\n  %q\nthe published article reads as\n  %q", got, want)
 	}
 
 	mirror := readArtifact(t, paths.Output, "blog/reference-from-the-system/"+pageMirrorFile)
-	publishedMirror := withCurrentRFCIndexCommand(readFixture(t, "published-blog-reference.md"))
+	publishedMirror := readFixture(t, "published-blog-reference.md")
 	if mirror != publishedMirror {
 		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q", mirror, publishedMirror)
 	}
-}
-
-// withCurrentRFCIndexCommand corrects the one phrase where the published page
-// disagrees with the article's source today.
-//
-// The SOURCE changed after the last Python-era publish: eae282592 retired make,
-// so `make ze-rfc-index-update` became `./le rfc index-update`. The published
-// page is frozen at the older wording, which is the staleness this spec exists
-// to fix, so the comparison corrects the fixture rather than the render. Any
-// OTHER difference is a rendering difference and fails the test.
-func withCurrentRFCIndexCommand(published string) string {
-	return strings.ReplaceAll(published, "make ze-rfc-index-update", "./le rfc index-update")
 }
 
 // VALIDATES: the published article carries the blocks a reader sees around its
 // body, each with the class its stylesheet answers.
 //
 // visibleText above says the words are the same and says nothing about which
-// element carries them, so the themed illustration, the key points and the
-// contents list are asserted as markup here.
+// element carries them, so the themed illustration and the contents list are
+// asserted as markup here.
+//
+// Refreshed 2026-09-13 against gh-pages HEAD 7a71f67208 (2026-09-12). The key
+// points aside and the cli_commands number span left this list. 7dffbf36ea
+// deleted the article's key-points front matter and its five {{ze:}} tokens, so
+// the published page carries neither block. The test below proves both
+// producers.
 func TestAnArticlePageCarriesItsHeroIllustrationAndContents(t *testing.T) {
 	paths := blogPaths(t)
 	if _, err := renderBlog(paths); err != nil {
@@ -222,15 +224,63 @@ func TestAnArticlePageCarriesItsHeroIllustrationAndContents(t *testing.T) {
 		`<figure class="blog-theme-image has-dark blog-article-visual reveal" role="img"`,
 		`<img class="blog-theme-image-light" src="../../assets/blog/reference-from-the-system.svg"`,
 		`<img class="blog-theme-image-dark" src="../../assets/blog/reference-from-the-system-dark.svg"`,
-		`<aside class="blog-key-points reveal" aria-label="Key points">`,
-		"<li>Facts stay with the owner</li>",
 		`<nav class="blog-article-toc reveal" aria-label="Article sections">`,
 		`<section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the article page is missing %q", want)
+		}
+	}
+}
+
+// VALIDATES: an article asking for key points gets the aside, and a prose
+// number token is replaced by the span that lets a rebuild refresh the value.
+//
+// No article in website/blog/posts carries either input today, so the published
+// page above cannot prove these two producers. They are driven from a source
+// this test writes, which is the only way left to state that an author who asks
+// for them still gets them.
+func TestAnArticleRendersItsKeyPointsAndProseNumbers(t *testing.T) {
+	source := blogPostsFixture(t, map[string]string{"probe.md": strings.Join([]string{
+		"---",
+		"title: Counting the surface",
+		"date: 2026-09-13",
+		"author: Thomas Mangin",
+		"description: One article carrying both a key-points list and a prose number.",
+		"",
+		"key-points: Facts stay with the owner | Pages publish checked views",
+		"---",
+		"",
+		"Ze answers {{ze:cli-commands}} commands.",
+		"",
+	}, "\n")})
+
+	output := t.TempDir()
+	copyFixture(t, filepath.Join("testdata", "published-site-facts.json"),
+		filepath.Join(output, "data", "site-facts.json"))
+	paths := Paths{Repository: repositoryRoot(t), Source: source, Output: output}
+	if _, err := renderBlog(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	page := readArtifact(t, paths.Output, "blog/probe/"+pageIndexFile)
+	for _, want := range []string{
+		`<aside class="blog-key-points reveal" aria-label="Key points">`,
+		"<li>Facts stay with the owner</li>",
+		"<li>Pages publish checked views</li>",
 		`<span data-ze-stat="cli_commands">402</span>`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the article page is missing %q", want)
 		}
+	}
+
+	mirror := readArtifact(t, paths.Output, "blog/probe/"+pageMirrorFile)
+	if !strings.Contains(mirror, "## Key points\n\n- Facts stay with the owner\n") {
+		t.Errorf("the mirror carries no key points:\n%s", mirror)
+	}
+	if !strings.Contains(mirror, "Ze answers 402 commands.") {
+		t.Errorf("the mirror did not resolve the prose number:\n%s", mirror)
 	}
 }
 
@@ -274,6 +324,10 @@ func TestTheBlogIndexReadsAsThePublishedIndex(t *testing.T) {
 // The tones are asserted against the published page, where the two articles
 // sharing 2026-08-04 sit at positions five and six: an unstable sort would swap
 // them and swap their colors with them.
+//
+// Refreshed 2026-09-13 against gh-pages HEAD 7a71f67208 (2026-09-12). Only the
+// fifth card's title moved, because 7dffbf36ea retitled how-ze-manages-memory.
+// Its slug, its position and its tone are unchanged.
 func TestAnIndexCardTakesTheToneAtItsPosition(t *testing.T) {
 	paths := blogPaths(t)
 	if _, err := renderBlog(paths); err != nil {
@@ -284,7 +338,7 @@ func TestAnIndexCardTakesTheToneAtItsPosition(t *testing.T) {
 	for _, want := range []string{
 		`<article class="card card-post blog-card has-media tone-sky">`,
 		`<article class="card card-post blog-card has-media tone-pink">`,
-		`<h3><a href="how-ze-manages-memory/">How Ze keeps BGP traffic away from the garbage collector</a></h3>`,
+		`<h3><a href="how-ze-manages-memory/">How Ze reuses memory for BGP UPDATEs</a></h3>`,
 		`<div class="blog-theme-image has-dark blog-card-media" role="img"`,
 	} {
 		if !strings.Contains(page, want) {
