@@ -93,9 +93,9 @@ less than ExaBGP's own objects do.
 
 ## A line that names no neighbor goes to the peers that feed the script
 
-`TranslateLine` matches `neighbor <address> <rest>` with a regular expression. A
-line that does not match names no destination. ExaBGP sends such a line to the
-peers whose `api { processes [ ... ] }` list names the process that wrote it
+`splitNeighborSelector` reads a destination off the front of the line. A line
+that carries none names no destination. ExaBGP sends such a line to the peers
+whose `api { processes [ ... ] }` list names the process that wrote it
 (`Reactor.peers(service)`, `src/exabgp/reactor/loop.py`). The bridge reads it the
 same way. `Translator.Peers` carries those addresses, so `announce route
 <prefix>` becomes
@@ -105,6 +105,34 @@ A translator with no peers sends to every peer, `send bgp * ...`. That is what
 one script and one neighbor means, and it is what the bridge did for every
 script until 2026-09-06. Until then a two-process config put each script's
 routes on both sessions. `api-multiple-api` is the case for it.
+
+## The destination keyword is `neighbor` or `peer`
+
+ExaBGP spells the keyword twice. Its v4 API writes `neighbor <address>` and its
+v6 API writes `peer <address>`, its own selector parser takes either ("Accept
+both 'neighbor' (v4) and 'peer' (v6) prefixes", `extract_neighbors`,
+`src/exabgp/reactor/api/command/limit.py`), and the bridge reads both.
+
+v6 also holds every address in ONE bracket rather than repeating the keyword
+after each comma, so `peer [A router-id X, B] announce route ...` names the two
+sessions `neighbor A router-id X, neighbor B announce route ...` names. A list
+holding `*` is `*`, because ExaBGP unions the entries and ze's own selector
+parser reads a comma list as addresses alone.
+
+The bridge read `neighbor` alone until 2026-09-13, and ExaBGP's healthcheck
+application is what measured it. That application writes
+`peer * announce route <ip> next-hop <nh> med <n>`, so every line it wrote was
+refused by name, nothing was announced, and the script read the refusal as a
+failed check. `api-healthcheck-module` is the case.
+
+The REST of the v6 vocabulary is not read. v6 is target-first, so it writes
+`daemon shutdown`, `session ack disable`, `rib flush`, `peer create <ip>` and
+`peer delete <ip>` where v4 wrote `shutdown`, `disable-ack`, `flush adj-rib`,
+`create neighbor <ip>` and `delete neighbor <ip>`. The bridge translates the v4
+spelling of each and refuses the v6 one by name.
+
+<!-- source: internal/exabgp/bridge/bridge_selector.go -- bridgeSelectorKeyword, splitBracketSelector, selectorForAddresses -->
+<!-- source: internal/exabgp/bridge/bridge_neighbor.go -- ConvertNeighborControl -->
 
 ## A bare address is a host route
 

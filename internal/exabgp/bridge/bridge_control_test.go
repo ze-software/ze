@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -282,6 +283,147 @@ func TestFamilyAllowedInOpenReachesNoSession(t *testing.T) {
 			}
 			if translation.Commands[0].Text != tc.want {
 				t.Errorf("command = %q, want %q", translation.Commands[0].Text, tc.want)
+			}
+		})
+	}
+}
+
+// TestThePeerKeywordNamesTheSameSessionsAsNeighbor pins the SECOND spelling of
+// the selector. ExaBGP's v6 API writes `peer` where v4 wrote `neighbor`, its own
+// parser takes either ("Accept both 'neighbor' (v4) and 'peer' (v6) prefixes",
+// extract_neighbors, src/exabgp/reactor/api/command/limit.py), and its
+// healthcheck application writes the v6 one: `peer * announce route <ip>
+// next-hop <nh> med <n>`.
+//
+// VALIDATES: each `peer` spelling translates to the command its `neighbor`
+// spelling translates to, the bracket list names every address it holds, and a
+// `*` inside a list widens the selector to every peer.
+// PREVENTS: the refusal that stopped api-healthcheck-module. The bridge read
+// `neighbor` alone, so every line ExaBGP's healthcheck wrote was refused by name
+// and nothing was announced, while the script read the refusal as a failed
+// check.
+func TestThePeerKeywordNamesTheSameSessionsAsNeighbor(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		// same is the v4 spelling of the same line. The two MUST translate
+		// alike, which pins the whole command rather than its selector.
+		same      string
+		selector  string
+		want      string
+		unmatched bool
+		refused   bool
+	}{
+		{
+			name:     "the healthcheck announce",
+			line:     "peer * announce route 10.0.0.1/32 next-hop 101.101.101.101 med 100",
+			same:     "neighbor * announce route 10.0.0.1/32 next-hop 101.101.101.101 med 100",
+			selector: "*",
+		},
+		{
+			name:     "the healthcheck withdraw",
+			line:     "peer * withdraw route 10.0.0.1/32 next-hop 101.101.101.101",
+			same:     "neighbor * withdraw route 10.0.0.1/32 next-hop 101.101.101.101",
+			selector: "*",
+		},
+		{
+			name:     "one address",
+			line:     "peer 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8",
+			same:     "neighbor 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8",
+			selector: "127.0.0.1",
+			want:     "send bgp 127.0.0.1 update text nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32",
+		},
+		{
+			name:     "one qualified address",
+			line:     "peer 127.0.0.1 local-as 1 peer-as 1 announce route 1.3.0.0/24 next-hop 101.1.101.1",
+			same:     "neighbor 127.0.0.1 local-as 1 peer-as 1 announce route 1.3.0.0/24 next-hop 101.1.101.1",
+			selector: "127.0.0.1",
+		},
+		{
+			name:     "a comma list, in either spelling",
+			line:     "peer 127.0.0.1 router-id 1.2.3.4, peer 127.0.0.2 announce route 1.4.0.0/24 next-hop 101.1.101.1",
+			same:     "neighbor 127.0.0.1 router-id 1.2.3.4, neighbor 127.0.0.2 announce route 1.4.0.0/24 next-hop 101.1.101.1",
+			selector: "127.0.0.1,127.0.0.2",
+		},
+		{
+			name:     "a teardown",
+			line:     "peer 127.0.0.1 teardown 6",
+			same:     "neighbor 127.0.0.1 teardown 6",
+			selector: "127.0.0.1",
+			want:     "request peer 127.0.0.1 teardown 6",
+		},
+		{
+			name:     "a bracket list",
+			line:     "peer [10.0.0.1, 10.0.0.2] announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			same:     "neighbor 10.0.0.1, neighbor 10.0.0.2 announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			selector: "10.0.0.1,10.0.0.2",
+		},
+		{
+			name:     "a bracket list carrying a qualifier",
+			line:     "peer [10.0.0.1 router-id 1.2.3.4, 10.0.0.2] announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			same:     "neighbor 10.0.0.1 router-id 1.2.3.4, neighbor 10.0.0.2 announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			selector: "10.0.0.1,10.0.0.2",
+		},
+		{
+			name:     "a wildcard inside a list is every peer",
+			line:     "peer [10.0.0.1 local-as 65000, *] announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			selector: "*",
+		},
+		{
+			name:      "a bracket list every address is excluded from",
+			line:      "peer [10.0.0.1 family-allowed in-open] announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			unmatched: true,
+		},
+		{
+			name:    "an unclosed bracket is refused by name",
+			line:    "peer [10.0.0.1 announce route 1.0.0.0/8 next-hop 1.1.1.1",
+			refused: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			translation, err := TranslateLine(tc.line)
+			if tc.refused {
+				if !errors.Is(err, ErrLineNotTranslated) {
+					t.Fatalf("TranslateLine(%q) err = %v, want a refusal", tc.line, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("TranslateLine(%q): %v", tc.line, err)
+			}
+			if tc.unmatched {
+				if !translation.Unmatched {
+					t.Fatalf("commands = %v, want the line to reach no session", translation.Commands)
+				}
+				return
+			}
+			if translation.Unmatched {
+				t.Fatalf("the line reached no session, want selector %q", tc.selector)
+			}
+			if translation.Selector != tc.selector {
+				t.Errorf("selector = %q, want %q", translation.Selector, tc.selector)
+			}
+			if len(translation.Commands) != 1 {
+				t.Fatalf("commands = %v, want one", translation.Commands)
+			}
+			if tc.want != "" && translation.Commands[0].Text != tc.want {
+				t.Errorf("command = %q, want %q", translation.Commands[0].Text, tc.want)
+			}
+			if tc.same == "" {
+				return
+			}
+			v4, err := TranslateLine(tc.same)
+			if err != nil {
+				t.Fatalf("TranslateLine(%q): %v", tc.same, err)
+			}
+			if len(v4.Commands) != 1 {
+				t.Fatalf("the v4 spelling gave %v, want one command", v4.Commands)
+			}
+			if translation.Commands[0].Text != v4.Commands[0].Text {
+				t.Errorf("peer spelling gave %q, neighbor spelling gave %q",
+					translation.Commands[0].Text, v4.Commands[0].Text)
 			}
 		})
 	}
