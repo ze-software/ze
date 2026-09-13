@@ -17,6 +17,10 @@ func RegisterBuiltinCodes() {
 // Most codes list it as their example, so it is written once.
 const exampleDoctorJSON = "ze doctor --json"
 
+// exampleConfigValidate is the command every config-time code tells the
+// operator to run, so the three that name it name one string.
+const exampleConfigValidate = "ze config validate ze.conf"
+
 const (
 	codeConfigBGPPeer                 = "config-bgp-peer"
 	codeConfigBGPResolve              = "config-bgp-resolve"
@@ -92,7 +96,7 @@ var builtinCodes = []CodeMeta{
 		Code:        "config-kernel-capability",
 		Title:       "Kernel capability missing for a configured subsystem",
 		Description: "The configuration uses a subsystem this kernel cannot carry. Every failing subsystem is named, with the kernel feature it needs and the configuration that asked for it. `ze` refuses to start on the same verdict, so a config that fails here would produce a daemon that comes up and does not work. The verdict is about the host running the command: validating a config written for another machine answers about this one. Remedy: run the kernel feature the message names, or remove the configuration that needs it.",
-		Examples:    []string{"ze config validate ze.conf", "ze explain config-kernel-capability"},
+		Examples:    []string{exampleConfigValidate, "ze explain config-kernel-capability"},
 	},
 	{
 		Code:        "config-gnmi-invalid",
@@ -128,7 +132,7 @@ var builtinCodes = []CodeMeta{
 		Code:        "config-secret-masked",
 		Title:       "Secret holds the display placeholder",
 		Description: "A ze:sensitive or ze:bcrypt leaf holds the placeholder a display path writes over a secret. The value was masked for display and cannot be stored. Restore the real value, or set it through the plaintext-<name> sibling.",
-		Examples:    []string{"ze config validate ze.conf", "ze explain config-secret-masked"},
+		Examples:    []string{exampleConfigValidate, "ze explain config-secret-masked"},
 	},
 	{
 		Code:        "config-warning",
@@ -437,7 +441,7 @@ var builtinCodes = []CodeMeta{
 		Code:         "doctor-config-bgp-peer",
 		Title:        "BGP peer configuration rejected",
 		Description:  "The BGP engine's own peer resolution refuses this configuration, so the daemon will fail to start on it -- an unknown address family, a missing mandatory setting (prefix maximum, connection local ip), or an unresolvable cross-reference. Doctor runs the same gate `ze config validate` applies; before this check existed it reported such a config as ready and exited 0, which is the operator trap it closes. Severity is error: the report is not ready and `ze doctor` exits 1. Remedy: run `ze config validate <file>` for the full error list and correct the named peer.",
-		Examples:     []string{exampleDoctorJSON, "ze config validate ze.conf", "ze explain doctor-config-bgp-peer"},
+		Examples:     []string{exampleDoctorJSON, exampleConfigValidate, "ze explain doctor-config-bgp-peer"},
 		RelatedCodes: []string{codeConfigBGPPeer, codeConfigBGPResolve},
 	},
 	{

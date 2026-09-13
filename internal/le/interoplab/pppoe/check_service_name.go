@@ -52,16 +52,10 @@ func checkZeAccessConcentratorEmptyServiceName(
 		err = appendDiagnostics(ctx, check.Lab, err, zeImageName, clientImageName)
 	}()
 
-	if err := waitLogsContain(
-		ctx,
-		check.Lab,
-		zeImageName,
-		"PPPoE interface configured",
-		60*time.Second,
-	); err != nil {
+	if err := waitZePPPoEConfigured(ctx, check.Lab); err != nil {
 		return fmt.Errorf("ze PPPoE AC did not bind its access interface: %w", err)
 	}
-	if err := waitZeRESTReady(ctx, check.Lab, 60*time.Second); err != nil {
+	if err := waitZeRESTReady(ctx, check.Lab); err != nil {
 		return err
 	}
 
@@ -72,7 +66,7 @@ func checkZeAccessConcentratorEmptyServiceName(
 	// The client dials with no requested service (RFC 2516 Section 5.1's "any
 	// service is acceptable"), which is what an operator who configures no
 	// service-name on the AC must accept from every client.
-	if err := pppdDial(ctx, check.Lab, pppdUsername, pppdPassword, ""); err != nil {
+	if err := pppdDial(ctx, check.Lab, pppdPassword, ""); err != nil {
 		return err
 	}
 	sessions, err := waitZeSession(ctx, check.Lab, 45*time.Second)

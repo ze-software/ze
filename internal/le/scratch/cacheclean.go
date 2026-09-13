@@ -1,13 +1,18 @@
 // Design: docs/architecture/core-design.md -- native scratch-link gates
 // Overview: scratch.go -- filesystem policy and implementation
 //
-// This file empties the two Go build caches a Ze checkout fills, and reports
+// This file empties the three build caches a Ze checkout fills, and reports
 // the disk space each one returned.
 //
-// Two caches exist, on two filesystems, and a session that empties one keeps
-// filling the other. Every le action writes the checkout cache, because
+// Two of them are Go caches, on two filesystems, and a session that empties one
+// keeps filling the other. Every le action writes the checkout cache, because
 // gotoolchain.Overrides points GOCACHE at cache/go-cache. A bare `go` command
 // typed outside le writes the ambient cache, which is the machine default.
+//
+// The third is golangci-lint's, which no `go clean` reaches and which the
+// scratch relocation leaves on the checkout's own device. Emptying only the Go
+// pair left it growing unbounded: it was measured at 9.5G on 2026-09-13, larger
+// than both Go caches together, on a volume that had 1G left.
 //
 // The cost of not having this action is recorded in
 // plan/journal/full-disk-false-red.md, one row for each time a full cache disk
@@ -39,10 +44,11 @@ const cleanTimeout = time.Hour
 // goCacheKey is the variable that names the cache a `go` command uses.
 const goCacheKey = "GOCACHE"
 
-// The two caches, named as a person reads them in the report.
+// The three caches, named as a person reads them in the report.
 const (
 	checkoutCache = "checkout"
 	ambientCache  = "ambient"
+	lintCache     = "lint"
 )
 
 // bytesPerGiB converts a byte count to the unit the report prints.
@@ -86,7 +92,8 @@ func (r CleanReport) Text() string {
 	return text.String()
 }
 
-// CleanCaches empties both Go build caches and reports what each one returned.
+// CleanCaches empties every build cache this checkout fills and reports what
+// each one returned.
 //
 // The ambient cache is resolved by asking `go env GOCACHE` with the inherited
 // GOCACHE removed, so the answer is the machine default rather than whatever
@@ -96,22 +103,58 @@ func (m *Manager) CleanCaches() (CleanReport, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanTimeout)
 	defer cancel()
 
-	checkout := gotoolchain.GoCache(m.Root)
-	report := CleanReport{Caches: []CacheClean{cleanCache(ctx, checkoutCache, checkout)}}
-
+	// The ambient row is the only one whose path has to be resolved, so it is
+	// the only one that can fail before anything is emptied.
 	ambient, err := ambientGoCache(ctx)
-	switch {
-	case err != nil:
-		report.Caches = append(report.Caches, CacheClean{Name: ambientCache, Error: err.Error()})
-	case ambient == checkout:
-		report.Caches = append(report.Caches, CacheClean{
-			Name: ambientCache, Path: ambient,
-			Skipped: "the machine default is the checkout cache, which this run already emptied",
-		})
-	default:
-		report.Caches = append(report.Caches, cleanCache(ctx, ambientCache, ambient))
+
+	var report CleanReport
+	for _, target := range cleanTargets(ctx, m.Root, ambient) {
+		switch {
+		case target.name == ambientCache && err != nil:
+			report.Caches = append(report.Caches, CacheClean{Name: target.name, Error: err.Error()})
+		case target.skipped != "":
+			report.Caches = append(report.Caches, CacheClean{
+				Name: target.name, Path: target.path, Skipped: target.skipped,
+			})
+		default:
+			report.Caches = append(report.Caches, measureClean(target.name, target.path, target.empty))
+		}
 	}
 	return report, report.verdict()
+}
+
+// cleanTarget is one cache this action empties: how a person reads it in the
+// report, where it lives, and what emptying it takes.
+type cleanTarget struct {
+	name    string
+	path    string
+	empty   func() error
+	skipped string
+}
+
+// cleanTargets answers every cache a checkout at root fills, in report order.
+//
+// It takes the ambient path rather than resolving it, so the whole plan is
+// readable without running a command, and so a caller that failed to resolve it
+// still gets the other two rows.
+func cleanTargets(ctx context.Context, root, ambient string) []cleanTarget {
+	checkout := gotoolchain.GoCache(root)
+	lint := gotoolchain.LintCache(root)
+
+	targets := []cleanTarget{{
+		name: checkoutCache, path: checkout,
+		empty: func() error { return goCleanCache(ctx, checkout) },
+	}, {
+		name: ambientCache, path: ambient,
+		empty: func() error { return goCleanCache(ctx, ambient) },
+	}, {
+		name: lintCache, path: lint,
+		empty: func() error { return removeCache(lint) },
+	}}
+	if ambient == checkout {
+		targets[1].skipped = "the machine default is the checkout cache, which this run already emptied"
+	}
+	return targets
 }
 
 // verdict answers 1 when any cache refused, so a caller sees the failure.
@@ -124,10 +167,11 @@ func (r CleanReport) verdict() int {
 	return 0
 }
 
-// cleanCache empties one cache and measures the device it sits on before and
-// after. The two readings are taken on the cache path itself, never on the
-// checkout, because the checkout and the cache are on different filesystems.
-func cleanCache(ctx context.Context, name, path string) CacheClean {
+// measureClean empties one cache with the emptier that cache needs, and
+// measures the device it sits on before and after. The two readings are taken
+// on the cache path itself, never on the checkout, because a cache can sit on
+// a filesystem the checkout does not.
+func measureClean(name, path string, empty func() error) CacheClean {
 	cache := CacheClean{Name: name, Path: path}
 	before, err := diskspace.Free(path)
 	if err != nil {
@@ -136,7 +180,7 @@ func cleanCache(ctx context.Context, name, path string) CacheClean {
 	}
 	cache.FreeBefore = before
 
-	if err := goCleanCache(ctx, path); err != nil {
+	if err := empty(); err != nil {
 		cache.Error = err.Error()
 		return cache
 	}
@@ -160,6 +204,21 @@ func goCleanCache(ctx context.Context, cache string) error {
 	if err != nil {
 		return fmt.Errorf("go clean -cache under %s=%s: %w: %s",
 			goCacheKey, cache, err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// removeCache empties a cache the Go toolchain does not own by deleting it.
+//
+// `golangci-lint cache clean` exists and is not used: it empties whatever
+// GOLANGCI_LINT_CACHE names for the process that runs it, so it answers about
+// the caller's environment rather than about this checkout, and it refuses
+// altogether on a machine where the linter is not installed. The path is what
+// this action is emptying, and deleting it costs one slow lint run because the
+// next one recreates it.
+func removeCache(path string) error {
+	if err := os.RemoveAll(path); err != nil {
+		return fmt.Errorf("remove %s: %w", path, err)
 	}
 	return nil
 }

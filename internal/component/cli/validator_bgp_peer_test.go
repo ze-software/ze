@@ -26,7 +26,8 @@ func withPeerValidator(t *testing.T, fn func(*config.Tree) error) {
 }
 
 // editorOnConfig writes a config file and returns a model over it.
-func editorOnConfig(t *testing.T, content string) Model {
+func editorOnConfig(t *testing.T) Model {
+	content := testValidBGPConfigWithPeer
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.conf")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
@@ -54,7 +55,7 @@ func TestEditorCommitBlocksOnMissingLeakFilter(t *testing.T) {
 	refusal := "peer peer1: role peer requires a filter against a transit leak in the import and export filter chain"
 	withPeerValidator(t, func(*config.Tree) error { return errors.New(refusal) })
 
-	model := editorOnConfig(t, testValidBGPConfigWithPeer)
+	model := editorOnConfig(t)
 	reloaded := false
 	model.editor.SetReloadNotifier(func() error {
 		reloaded = true
@@ -86,7 +87,7 @@ func TestEditorCommitPassesWhenThePeerPipelineAccepts(t *testing.T) {
 		return nil
 	})
 
-	model := editorOnConfig(t, testValidBGPConfigWithPeer)
+	model := editorOnConfig(t)
 	result := model.validator.ValidateTransition(
 		model.editor.OriginalContent(), model.editor.WorkingContent())
 
@@ -130,7 +131,7 @@ func TestEditorCommitConfirmedBlocksOnMissingLeakFilter(t *testing.T) {
 	refusal := "peer peer1: role peer requires a filter against a transit leak in the import and export filter chains"
 	withPeerValidator(t, func(*config.Tree) error { return errors.New(refusal) })
 
-	model := editorOnConfig(t, testValidBGPConfigWithPeer)
+	model := editorOnConfig(t)
 	reloaded := false
 	model.editor.SetReloadNotifier(func() error {
 		reloaded = true
@@ -152,7 +153,7 @@ func TestEditorCommitConfirmedBlocksOnMissingLeakFilter(t *testing.T) {
 func TestEditorCommitConfirmedForcedStillBlocksOnAnError(t *testing.T) {
 	withPeerValidator(t, func(*config.Tree) error { return errors.New("peer peer1: refused") })
 
-	model := editorOnConfig(t, testValidBGPConfigWithPeer)
+	model := editorOnConfig(t)
 	_, err := model.cmdCommitConfirmed(60, true)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "peer1")

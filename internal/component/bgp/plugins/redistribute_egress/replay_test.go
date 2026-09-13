@@ -208,7 +208,7 @@ func TestLateConsumerReceivesProducerSet(t *testing.T) {
 	setReplayCoordinator(coord)
 	t.Cleanup(func() { setReplayCoordinator(nil) })
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	unsubs := subscribe(ctx, bus, nil)
 	defer func() {
@@ -261,7 +261,7 @@ func TestConsumerAlreadyRegisteredIsSweptAtStartup(t *testing.T) {
 	setReplayCoordinator(coord)
 	t.Cleanup(func() { setReplayCoordinator(nil) })
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	unsubs := subscribe(ctx, bus, nil)
 	defer func() {
@@ -348,7 +348,7 @@ func TestConsumerReplayRespectsLoopPrevention(t *testing.T) {
 	setReplayCoordinator(coord)
 	t.Cleanup(func() { setReplayCoordinator(nil) })
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	unsubs := subscribe(ctx, bus, nil)
 	defer func() {

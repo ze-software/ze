@@ -14,7 +14,8 @@ import (
 // helpEntry answers one declaration of a node: a container carrying its own
 // ze:help and one child, which is the shape a plugin module writes when it
 // attaches leaves to a node another module also declares.
-func helpEntry(name, help, child string) *gyang.Entry {
+func helpEntry(help, child string) *gyang.Entry {
+	const name = "interface"
 	return &gyang.Entry{
 		Name: name,
 		Exts: []*gyang.Statement{{
@@ -32,8 +33,8 @@ func helpEntry(name, help, child string) *gyang.Entry {
 // input, so the help of every later module was unreachable and the winner was
 // decided by the alphabetical order of the module names.
 func TestMergeKeepsEveryDeclarationsHelp(t *testing.T) {
-	first := helpEntry("interface", "What an interface is.", "backend")
-	second := helpEntry("interface", "What the QoS plugin attaches here.", "class-of-service")
+	first := helpEntry("What an interface is.", "backend")
+	second := helpEntry("What the QoS plugin attaches here.", "class-of-service")
 
 	merged := mergeAugmentedEntries([]*gyang.Entry{first, second})
 	help := entryLongHelp(merged)
@@ -61,8 +62,8 @@ func TestMergeKeepsEveryDeclarationsHelp(t *testing.T) {
 func TestMergeRepeatsNoHelpTwice(t *testing.T) {
 	same := "One sentence, written twice."
 	merged := mergeAugmentedEntries([]*gyang.Entry{
-		helpEntry("interface", same, "backend"),
-		helpEntry("interface", same, "class-of-service"),
+		helpEntry(same, "backend"),
+		helpEntry(same, "class-of-service"),
 	})
 
 	if got := entryLongHelp(merged); got != same {
@@ -73,7 +74,7 @@ func TestMergeRepeatsNoHelpTwice(t *testing.T) {
 // TestMergeLeavesASingleDeclarationAlone checks that a node only one module
 // declares keeps the entry the loader parsed, rather than a copy.
 func TestMergeLeavesASingleDeclarationAlone(t *testing.T) {
-	only := helpEntry("interface", "The only explanation.", "backend")
+	only := helpEntry("The only explanation.", "backend")
 
 	if merged := mergeAugmentedEntries([]*gyang.Entry{only}); merged != only {
 		t.Error("a single declaration was wrapped rather than returned unchanged")
@@ -86,7 +87,7 @@ func TestMergeLeavesASingleDeclarationAlone(t *testing.T) {
 // module names sort in.
 func TestMergeKeepsTheHelpOfTheDeclarationThatCarriesOne(t *testing.T) {
 	silent := &gyang.Entry{Name: "interface", Dir: map[string]*gyang.Entry{"class-of-service": {Name: "class-of-service"}}}
-	written := helpEntry("interface", "The explanation the operator needs.", "backend")
+	written := helpEntry("The explanation the operator needs.", "backend")
 
 	merged := mergeAugmentedEntries([]*gyang.Entry{silent, written})
 	if got := entryLongHelp(merged); got != "The explanation the operator needs." {

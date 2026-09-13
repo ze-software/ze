@@ -164,13 +164,16 @@ func waitRoute(
 	return route, err
 }
 
-func waitLogsContain(
-	ctx context.Context,
-	lab interoplab.CheckerLab,
-	peer string,
-	needle string,
-	timeout time.Duration,
-) error {
+// waitZePPPoEConfigured waits until the Ze container's log says its PPPoE
+// access interface is bound, which is the line every check waits for before it
+// dials.
+func waitZePPPoEConfigured(ctx context.Context, lab interoplab.CheckerLab) error {
+	const (
+		peer    = zeImageName
+		needle  = "PPPoE interface configured"
+		timeout = 60 * time.Second
+	)
+
 	var tb textbuf.Buffer
 	description := tb.Str(needle).Str(" in ").Str(peer).Str(" logs").String()
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{

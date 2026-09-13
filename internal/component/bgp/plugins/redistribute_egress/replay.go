@@ -170,6 +170,8 @@ func (c *replayCoordinator) onPeerUp(bus ze.EventBus, peer string) (uint64, bool
 // The evaluator gate is R-2. A consumer no rule imports into gains nothing from
 // a replay, and firing anyway would storm every producer once per consumer on
 // every startup.
+//
+//nolint:unparam // the replayID pairs with onPeerUp's, whose tests read both; this trigger has no test of its own yet.
 func (c *replayCoordinator) onConsumerRegistered(bus ze.EventBus, consumer string) (uint64, bool) {
 	if c == nil || bus == nil || consumer == "" {
 		return 0, false
@@ -290,12 +292,17 @@ func handleReplayBatch(ctx context.Context, b *redistevents.RouteChangeBatch) {
 		destination, peer = bgpDestination, target.name
 	case replayKindConsumer:
 		destination, peer = target.name, ""
-	default:
-		// replayKindUnspecified, and any kind a later change adds while this
-		// switch stays silent about what it targets. Dropping is the only safe
-		// answer. An empty destination matches a destination-agnostic rule, so
-		// falling through would deliver the batch to a consumer nobody named.
+	case replayKindUnspecified:
+		// An entry nobody filled in. Dropping is the only safe answer: an empty
+		// destination matches a destination-agnostic rule, so falling through
+		// would deliver the batch to a consumer nobody named.
 		logger().Warn("BUG: redistribute-orchestrator: replay entry with no target kind, dropping",
+			"replay-id", b.ReplayID, "source", name)
+		return
+	default:
+		// A kind a later change adds while this switch stays silent about what
+		// it targets. Dropping is the only safe answer, for the reason above.
+		logger().Warn("BUG: redistribute-orchestrator: replay entry with an unknown target kind, dropping",
 			"replay-id", b.ReplayID, "source", name, "kind", target.kind)
 		return
 	}

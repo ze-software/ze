@@ -74,16 +74,10 @@ func checkZeAccessConcentratorPADRReplayWith(
 		err = appendDiagnostics(ctx, check.Lab, err, zeImageName, clientImageName)
 	}()
 
-	if err := waitLogsContain(
-		ctx,
-		check.Lab,
-		zeImageName,
-		"PPPoE interface configured",
-		60*time.Second,
-	); err != nil {
+	if err := waitZePPPoEConfigured(ctx, check.Lab); err != nil {
 		return fmt.Errorf("ze PPPoE AC did not bind its access interface: %w", err)
 	}
-	if err := waitZeRESTReady(ctx, check.Lab, 60*time.Second); err != nil {
+	if err := waitZeRESTReady(ctx, check.Lab); err != nil {
 		return err
 	}
 
@@ -127,7 +121,7 @@ func dialFirstSessionAndCapturePADR(
 	if err := startDiscoveryCapture(ctx, lab); err != nil {
 		return 0, nil, err
 	}
-	if err := pppdDial(ctx, lab, pppdUsername, pppdPassword, pppoeService); err != nil {
+	if err := pppdDial(ctx, lab, pppdPassword, pppoeService); err != nil {
 		return 0, nil, err
 	}
 	sessions, err := waitZeSession(ctx, lab, 45*time.Second)
@@ -245,7 +239,7 @@ func checkSecondDialAtCapIsRefused(ctx context.Context, lab interoplab.CheckerLa
 	if err := startDiscoveryCapture(ctx, lab); err != nil {
 		return err
 	}
-	if err := pppdDial(ctx, lab, pppdUsername, pppdPassword, pppoeService); err != nil {
+	if err := pppdDial(ctx, lab, pppdPassword, pppoeService); err != nil {
 		return err
 	}
 	if err := waitFixed(ctx, replayRoundTripBound); err != nil {

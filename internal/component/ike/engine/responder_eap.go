@@ -7,6 +7,7 @@ package engine
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -344,7 +345,7 @@ func (ps *PeerSession) handleResponderEAP(sa *SA, msg *wire.Message, rawMsg []by
 	// otherwise leave a cause standing on the session for the rest of the
 	// exchange, and silence the report of the certificate refusal that follows it.
 	switch cause := sess.Err(); {
-	case cause != nil && cause != announced:
+	case cause != nil && !errors.Is(cause, announced):
 		log.Warn("ike: EAP authentication failed", "peer", sa.PeerName, "error", cause)
 	case cause == nil && next.Code == eap.CodeFailure:
 		log.Warn("ike: EAP authentication failed", "peer", sa.PeerName)

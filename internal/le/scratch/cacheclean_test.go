@@ -41,6 +41,73 @@ func TestCleanCachesUsesTheToolchainCachePath(t *testing.T) {
 	}
 }
 
+// VALIDATES: a clean run empties the golangci-lint cache as well as the two Go
+// caches, and takes its path from the toolchain producer.
+// PREVENTS: the cache no `go clean` reaches growing unbounded while cache-clean
+// reports success. It held 9.5G on 2026-09-13, more than both Go caches
+// together, on a volume with 1G left (plan/journal/full-disk-false-red.md).
+func TestCacheTargetsCoverTheLintCache(t *testing.T) {
+	root := t.TempDir()
+	targets := cleanTargets(t.Context(), root, "/machine/default")
+
+	want := []struct{ name, path string }{
+		{checkoutCache, gotoolchain.GoCache(root)},
+		{ambientCache, "/machine/default"},
+		{lintCache, gotoolchain.LintCache(root)},
+	}
+	if len(targets) != len(want) {
+		t.Fatalf("targets = %d, want %d", len(targets), len(want))
+	}
+	for index, expected := range want {
+		if targets[index].name != expected.name || targets[index].path != expected.path {
+			t.Errorf("target %d = %q at %q, want %q at %q",
+				index, targets[index].name, targets[index].path, expected.name, expected.path)
+		}
+		if targets[index].skipped != "" {
+			t.Errorf("target %d skipped: %s", index, targets[index].skipped)
+		}
+	}
+}
+
+// VALIDATES: an ambient cache that IS the checkout cache is emptied once.
+// PREVENTS: one cache reported twice, which reads as both caches being clean
+// while the other is still full.
+func TestCacheTargetsSkipAnAmbientThatIsTheCheckout(t *testing.T) {
+	root := t.TempDir()
+	targets := cleanTargets(t.Context(), root, gotoolchain.GoCache(root))
+
+	if targets[1].skipped == "" {
+		t.Error("the ambient row was not skipped when it names the checkout cache")
+	}
+	if targets[0].skipped != "" || targets[2].skipped != "" {
+		t.Error("a row other than the ambient one was skipped")
+	}
+}
+
+// VALIDATES: the lint cache is emptied by deleting it, and an absent one is not
+// an error.
+// PREVENTS: a fresh checkout, which has never run the linter, reporting a
+// refusal for a cache that was never created.
+func TestRemoveCacheEmptiesAndToleratesAbsence(t *testing.T) {
+	cache := filepath.Join(t.TempDir(), "golangci-lint-cache")
+	if err := os.MkdirAll(filepath.Join(cache, "aa"), 0o750); err != nil {
+		t.Fatalf("mkdir lint cache: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(cache, "aa", "facts"), []byte("stale"), 0o600); err != nil {
+		t.Fatalf("write lint cache entry: %v", err)
+	}
+
+	if err := removeCache(cache); err != nil {
+		t.Fatalf("remove lint cache: %v", err)
+	}
+	if _, err := os.Stat(cache); !os.IsNotExist(err) {
+		t.Errorf("lint cache survived the clean: %v", err)
+	}
+	if err := removeCache(cache); err != nil {
+		t.Errorf("remove of an absent cache: %v", err)
+	}
+}
+
 // VALIDATES: the ambient lookup runs with no inherited GOCACHE.
 // PREVENTS: le's own override being reported as the machine default, which
 // would empty one cache twice and leave the other full.

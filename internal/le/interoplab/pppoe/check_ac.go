@@ -58,20 +58,14 @@ func checkZeAccessConcentrator(
 		err = appendDiagnostics(ctx, check.Lab, err, zeImageName, clientImageName)
 	}()
 
-	if err := waitLogsContain(
-		ctx,
-		check.Lab,
-		zeImageName,
-		"PPPoE interface configured",
-		60*time.Second,
-	); err != nil {
+	if err := waitZePPPoEConfigured(ctx, check.Lab); err != nil {
 		return fmt.Errorf("ze PPPoE AC did not bind its access interface: %w", err)
 	}
-	if err := waitZeRESTReady(ctx, check.Lab, 60*time.Second); err != nil {
+	if err := waitZeRESTReady(ctx, check.Lab); err != nil {
 		return err
 	}
 
-	if err := pppdDial(ctx, check.Lab, pppdUsername, pppdPassword, pppoeService); err != nil {
+	if err := pppdDial(ctx, check.Lab, pppdPassword, pppoeService); err != nil {
 		return err
 	}
 	sessions, err := waitZeSession(ctx, check.Lab, 45*time.Second)
@@ -241,7 +235,6 @@ func checkRejectedCredential(ctx context.Context, lab interoplab.CheckerLab) err
 	if err := pppdDial(
 		ctx,
 		lab,
-		pppdUsername,
 		pppdBadPassword,
 		pppoeService,
 	); err != nil {
@@ -320,11 +313,10 @@ func zeSessions(
 	return sessions, nil
 }
 
-func waitZeRESTReady(
-	ctx context.Context,
-	lab interoplab.CheckerLab,
-	timeout time.Duration,
-) error {
+func waitZeRESTReady(ctx context.Context, lab interoplab.CheckerLab) error {
+	// Every check waits the same minute for the REST API to answer.
+	const timeout = 60 * time.Second
+
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    time.Second,
@@ -399,10 +391,11 @@ func waitZeSessionsGone(
 func pppdDial(
 	ctx context.Context,
 	lab interoplab.CheckerLab,
-	username string,
 	password string,
 	service string,
 ) error {
+	const username = pppdUsername
+
 	var tb textbuf.Buffer
 	clearLog := tb.Str("rm -f ").Str(pppdLogPath).String()
 	if _, err := exec(

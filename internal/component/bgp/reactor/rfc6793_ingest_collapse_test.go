@@ -27,11 +27,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/reactor/filter"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
@@ -912,7 +912,7 @@ func TestLoopIngressSeesReconstructedASPath(t *testing.T) {
 		src.ASN4 = ctx.ASN4()
 	}
 	assert.True(t, src.ASN4,
-		"the collapsed payload is labelled four-octet, which is the width the filter reads it at")
+		"the collapsed payload is labeled four-octet, which is the width the filter reads it at")
 	assert.NotEqual(t, recvCtxID, dispatched.SourceCtxID(),
 		"the relabel gave the collapsed payload a context of its own")
 

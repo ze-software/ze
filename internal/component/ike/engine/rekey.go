@@ -540,7 +540,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	// exchange is not keyed. RFC 7296 Section 3.10.1 gives the payload two octets of data.
 	// respondIKERekey answers an IKE SA rekey the same way.
 	if group != dhGroupNone && (reqKE == nil || reqKE.DHGroup != uint16(group)) {
-		got := uint16(wire.DHGroupNone)
+		got := wire.DHGroupNone
 		if reqKE != nil {
 			got = reqKE.DHGroup
 		}

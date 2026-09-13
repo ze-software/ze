@@ -86,14 +86,14 @@ func TestMPLSPlatformLabelsNotCreatedWhenTheTableIsAbsent(t *testing.T) {
 		"the capability must still read as absent after the repair declined to act")
 }
 
-// VALIDATES: the fib kernel plugin enrols the MPLS capability, so ze doctor
+// VALIDATES: the fib kernel plugin enrolls the MPLS capability, so ze doctor
 // reports it, the startup gate refuses on it and ze explain resolves its codes.
 // PREVENTS: the capability existing as dead code, which is what an unregistered
 // enrolment is (ai/rules/completion.md). It also pins the ownership: a VPP or P4
 // backend never links this package, so it never carries this requirement.
 func TestMPLSCapabilityEnrolled(t *testing.T) {
 	assert.Contains(t, kernelcap.Enrolled(), "mpls",
-		"the plugin that programs kernel labels must enrol the kernel requirement")
+		"the plugin that programs kernel labels must enroll the kernel requirement")
 
 	var found *diagnostic.DoctorCheck
 	for _, check := range diagnostic.DoctorChecksForPhase(diagnostic.DoctorPhasePostConfig) {

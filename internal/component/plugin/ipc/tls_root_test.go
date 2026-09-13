@@ -151,8 +151,7 @@ func TestTLSConfigWithRootRefusesAnotherIssuer(t *testing.T) {
 	}
 	// Naming the verification failure keeps this from passing on a dial error,
 	// a timeout, or a closed port.
-	var verification *tls.CertificateVerificationError
-	if !errors.As(err, &verification) {
+	if _, ok := errors.AsType[*tls.CertificateVerificationError](err); !ok {
 		t.Fatalf("error = %v, want a certificate verification failure", err)
 	}
 }

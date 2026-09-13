@@ -367,6 +367,18 @@ func GoCache(root string) string {
 	return filepath.Join(root, "cache", "go-cache")
 }
 
+// LintCache answers the golangci-lint cache every le-driven lint run writes for
+// one checkout. It takes the root for the same reason GoCache does: emptying
+// the cache needs no manifest read (internal/le/scratch, CleanCaches).
+//
+// This cache is NOT under cache/, so the scratch relocation leaves it on the
+// checkout's own device, and no Go cache clean touches it. It was measured at
+// 9.5G on 2026-09-13, larger than both Go caches together
+// (plan/journal/full-disk-false-red.md).
+func LintCache(root string) string {
+	return filepath.Join(root, "tmp", "golangci-lint-cache")
+}
+
 // LDFlags answers the linker flags every released binary carries.
 //
 // One string, because that is how `go build -ldflags` takes it. A binary built
@@ -436,8 +448,7 @@ func (t Toolchain) Overrides(opts EnvOptions) []string {
 
 	over = append(over, tb.Str("GOCACHE=").Str(GoCache(t.Root)).String())
 	tb.Reset()
-	over = append(over, tb.Str("GOLANGCI_LINT_CACHE=").
-		Str(filepath.Join(t.Root, "tmp", "golangci-lint-cache")).String())
+	over = append(over, tb.Str("GOLANGCI_LINT_CACHE=").Str(LintCache(t.Root)).String())
 
 	if opts.CGO {
 		over = append(over, "CGO_ENABLED=1")

@@ -25,6 +25,10 @@ import (
 // configRoot is the YANG container this plugin reads.
 const configRoot = "fib/kernel"
 
+// pluginName is the name this plugin registers under, reports as the source
+// of a sysctl default, and enrolls its kernel capability with.
+const pluginName = "fib-kernel"
+
 type fibConfig struct {
 	FlushOnStop bool
 	SweepDelay  time.Duration
@@ -100,7 +104,7 @@ func init() {
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{
-		Name:         "fib-kernel",
+		Name:         pluginName,
 		Description:  "FIB kernel: programs OS routes from system RIB via netlink/route socket",
 		Features:     "yang",
 		YANG:         fibyang.ZeFibConfYANG,
@@ -146,7 +150,7 @@ func verifyFIBConfig(sections []sdk.ConfigSection) error {
 func runFIBKernelPlugin(conn net.Conn) int {
 	logger().Debug("fib-kernel plugin starting (RPC)")
 
-	p := sdk.NewWithConn("fib-kernel", conn)
+	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
 	backend := newBackend()

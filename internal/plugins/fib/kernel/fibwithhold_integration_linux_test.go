@@ -296,7 +296,7 @@ func withholdProgrammed(t *testing.T, handle *netlink.Handle, prefix string) boo
 
 	// 100 attempts at 100ms. The whole chain is in-process, so this is margin
 	// for a loaded machine rather than a wait on a network event.
-	for attempt := 0; attempt < 100; attempt++ {
+	for range 100 {
 		if withholdKernelPrefixes(t, handle)[prefix] {
 			return true
 		}
@@ -311,11 +311,12 @@ func withholdKernelPrefixes(t *testing.T, handle *netlink.Handle) map[string]boo
 	t.Helper()
 
 	prefixes := map[string]bool{}
-	for _, route := range zeRoutes(t, handle) {
-		if route.Dst == nil {
+	routes := zeRoutes(t, handle)
+	for index := range routes {
+		if routes[index].Dst == nil {
 			continue
 		}
-		prefixes[route.Dst.String()] = true
+		prefixes[routes[index].Dst.String()] = true
 	}
 	return prefixes
 }

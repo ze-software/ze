@@ -6,19 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
-
-	"github.com/ze-software/ze/internal/core/diagnostic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
-	"github.com/ze-software/ze/internal/component/config/infra"
-	"github.com/ze-software/ze/internal/core/slogutil"
-
 	zeconfig "github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var errBgpCoordinatorMissingBgpStore = errors.New("bgp: coordinator missing bgp.store")

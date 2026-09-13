@@ -73,7 +73,11 @@ func pathsLimitPhaseUpdates(phase int, nextHop string) ([]string, error) {
 	if err != nil || !address.Is4() {
 		return nil, fmt.Errorf("invalid IPv4 next hop %q", nextHop)
 	}
-	id, metric, withdraw := 0, 0, false
+	var (
+		id       int
+		metric   int
+		withdraw bool
+	)
 	switch phase {
 	case 1:
 		id, metric = 1, 100
@@ -224,7 +228,7 @@ func requireZePathsLimit(output, address string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("Ze did not receive FRR limit 2 separately from its advertised receive request 10: %s", output)
+	return fmt.Errorf("the FRR limit 2 did not reach Ze separately from its advertised receive request 10: %s", output)
 }
 
 func requireFRRPathsLimitState(output, address string, want map[uint32]uint32) error {

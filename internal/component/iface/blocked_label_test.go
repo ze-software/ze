@@ -46,10 +46,10 @@ func TestBlockedLabelIsNeverEmpty(t *testing.T) {
 // sentinel rather than another interface's name.
 func TestBlockedLabelKeepsTheInterfaceNameWhenThereIsOne(t *testing.T) {
 	if got := blockedLabel(linkEventKey{class: linkEventCarrier, ifaceName: "zeflapv0"}); got != "zeflapv0" {
-		t.Errorf("a named carrier entry labelled %q, want zeflapv0", got)
+		t.Errorf("a named carrier entry labeled %q, want zeflapv0", got)
 	}
 	if got := blockedLabel(linkEventKey{class: linkEventResync}); got != resyncBlockedLabel {
-		t.Errorf("a resync entry labelled %q, want %q", got, resyncBlockedLabel)
+		t.Errorf("a resync entry labeled %q, want %q", got, resyncBlockedLabel)
 	}
 	// An unnamed entry of a class that is not the resync must still be
 	// readable rather than empty, which is the case a new class would hit.

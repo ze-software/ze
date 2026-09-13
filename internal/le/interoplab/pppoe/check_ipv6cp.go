@@ -288,10 +288,10 @@ func checkZeAccessConcentratorIPv6CPZeroIdentifier(
 		err = appendDiagnostics(ctx, check.Lab, err, zeImageName, clientImageName)
 	}()
 
-	if err := waitLogsContain(ctx, check.Lab, zeImageName, "PPPoE interface configured", 60*time.Second); err != nil {
+	if err := waitZePPPoEConfigured(ctx, check.Lab); err != nil {
 		return fmt.Errorf("ze PPPoE AC did not bind its access interface: %w", err)
 	}
-	if err := waitZeRESTReady(ctx, check.Lab, 60*time.Second); err != nil {
+	if err := waitZeRESTReady(ctx, check.Lab); err != nil {
 		return err
 	}
 	if err := startSessionCapture(ctx, check.Lab); err != nil {
@@ -385,10 +385,10 @@ func checkZeAccessConcentratorIPv6CPMissingOptionWith(
 		err = appendDiagnostics(ctx, check.Lab, err, zeImageName, clientImageName)
 	}()
 
-	if err := waitLogsContain(ctx, check.Lab, zeImageName, "PPPoE interface configured", 60*time.Second); err != nil {
+	if err := waitZePPPoEConfigured(ctx, check.Lab); err != nil {
 		return fmt.Errorf("ze PPPoE AC did not bind its access interface: %w", err)
 	}
-	if err := waitZeRESTReady(ctx, check.Lab, 60*time.Second); err != nil {
+	if err := waitZeRESTReady(ctx, check.Lab); err != nil {
 		return err
 	}
 	if err := startSessionCapture(ctx, check.Lab); err != nil {

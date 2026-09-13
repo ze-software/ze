@@ -18,8 +18,8 @@ var redistOnce sync.Once
 func registerIPsecRedistSources() {
 	redistOnce.Do(func() {
 		err := configredist.RegisterSource(configredist.RouteSource{
-			Name:        "ipsec",
-			Protocol:    "ipsec",
+			Name:        ipsecName,
+			Protocol:    ipsecName,
 			Description: "tunnel routes from IPsec Child SAs",
 		})
 		if err != nil {
@@ -28,9 +28,11 @@ func registerIPsecRedistSources() {
 	})
 }
 
-const redistSourceName = "ipsec"
+// ipsecName is the one name this engine registers under: the redistribute
+// source, its protocol, and the kernel capability subsystem.
+const ipsecName = "ipsec"
 
-var ipsecProtocolID = redistevents.RegisterProtocol(redistSourceName)
+var ipsecProtocolID = redistevents.RegisterProtocol(ipsecName)
 
 var _ = registerIPsecProducer()
 
@@ -39,7 +41,7 @@ func registerIPsecProducer() bool {
 	return true
 }
 
-var ipsecRouteChange = events.Register[*redistevents.RouteChangeBatch](redistSourceName, redistevents.EventType)
+var ipsecRouteChange = events.Register[*redistevents.RouteChangeBatch](ipsecName, redistevents.EventType)
 
 func emitRouteAdd(bus ze.EventBus, tsRemote *net.IPNet, log *slog.Logger) {
 	if bus == nil {

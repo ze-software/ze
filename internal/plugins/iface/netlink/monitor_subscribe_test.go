@@ -64,7 +64,7 @@ func TestTheReceiveBufferIsAskedForNotForced(t *testing.T) {
 	// every host this test runs on. Read the declaration rather than the
 	// symbol: a source-reading test that could only run on one platform would
 	// stop guarding the other.
-	declaration := regexp.MustCompile(`monitorReceiveBufferBytes\s*=\s*([0-9]+)\s*<<\s*([0-9]+)`)
+	declaration := regexp.MustCompile(`monitorReceiveBufferBytes\s*=\s*(\d+)\s*<<\s*(\d+)`)
 	match := declaration.FindStringSubmatch(string(data))
 	if len(match) != 3 {
 		t.Fatalf("could not read the monitorReceiveBufferBytes declaration; the shape this test reads has changed")

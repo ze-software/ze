@@ -17,6 +17,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"net"
 	"sync"
@@ -134,6 +135,15 @@ func (a *clockedAuthority) pool() *x509.CertPool {
 	return pool
 }
 
+// errNotTLS and errNoPeerCertificate name the two ways handshakeAt can end with
+// no certificate to judge. A nil certificate beside a nil error would read to
+// the caller as a handshake that served one, which is the answer the tests here
+// must never accept.
+var (
+	errNotTLS            = errors.New("the dialer returned a connection that is not TLS")
+	errNoPeerCertificate = errors.New("the handshake completed and the peer served no certificate")
+)
+
 // handshakeAt completes a real TLS handshake against addr, judging the served
 // certificate at the fake clock's instant. tls.Config.Time is what makes the
 // certificate's own expiry reachable in a test: crypto/x509 compares NotAfter
@@ -152,11 +162,11 @@ func handshakeAt(ctx context.Context, addr string, pool *x509.CertPool, clk *sim
 
 	conn, ok := raw.(*tls.Conn)
 	if !ok {
-		return nil, nil
+		return nil, errNotTLS
 	}
 	state := conn.ConnectionState()
 	if len(state.PeerCertificates) == 0 {
-		return nil, nil
+		return nil, errNoPeerCertificate
 	}
 	return state.PeerCertificates[0], nil
 }

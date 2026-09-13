@@ -159,8 +159,9 @@ action before acting on one.
 
 **Lint waves need distinguishing, not dismissing.** A `cache entry not found` wave
 across unrelated stdlib imports is shared-machine build contention: check
-`stat -f cache/go-cache`, never `df` on the checkout, since `cache/` symlinks onto
-another filesystem. But one wave this session was genuinely the agent's own code
+`df -h cache/go-cache`, naming the cache path rather than the checkout, since
+`cache/` symlinks onto another filesystem. (Corrected 2026-09-13: this said
+`stat -f`, which on macOS is a format flag and prints the path back.) But one wave this session was genuinely the agent's own code
 (cross-platform unused symbols, an unchecked type assertion, UK spellings), and
 treating it as noise would have shipped four defects.
 

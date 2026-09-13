@@ -202,7 +202,7 @@ type SA struct {
 	// this struct. atomic.Int64 carries noCopy, so go vet rejects that copy. A plain
 	// int64 gives the same atomicity and permits the copy. The twin then inherits the
 	// deadline by value, which is correct.
-	hardExpiry int64
+	hardExpiry int64 //nolint:modernize // atomic.Int64 carries noCopy, and the twin-SA test copies this struct.
 
 	// Remote peer hash algorithms announced via SIGNATURE_HASH_ALGORITHMS notify
 	RemoteHashAlgos []uint16

@@ -6,6 +6,7 @@ package bgpconfig
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
 	bgpredist "github.com/ze-software/ze/internal/component/bgp/redistribute"
@@ -118,10 +119,8 @@ func processNameFor(tree *config.Tree, registryName string) string {
 			if use == "" {
 				continue
 			}
-			for _, candidate := range plugin.RegistryNames(plugin.PluginConfig{Name: name, Run: use}) {
-				if candidate == registryName {
-					return name
-				}
+			if slices.Contains(plugin.RegistryNames(plugin.PluginConfig{Name: name, Run: use}), registryName) {
+				return name
 			}
 		}
 	}

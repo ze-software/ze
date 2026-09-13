@@ -20,13 +20,14 @@ var actions = leaction.New(area,
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: "quiet"}},
 		AnswerArgs: runEnsure},
-	leaction.Action{Verb: "cache-clean", Why: "empty BOTH Go build caches and report the disk space each one" +
-		" returned: the checkout cache at cache/go-cache that every le action" +
-		" writes, and the ambient cache a bare `go` command writes. Run it when" +
-		" unrelated packages fail to build, when a linker says `no space left on" +
-		" device`, or when a whole suite goes red at once. cache/ is a symlink" +
-		" onto another filesystem, so `df` on the checkout answers about the" +
-		" wrong device and a full cache disk reads as a code defect" +
+	leaction.Action{Verb: "cache-clean", Why: "empty EVERY build cache this checkout fills and report the disk space" +
+		" each one returned: the checkout Go cache at cache/go-cache that every le" +
+		" action writes, the ambient Go cache a bare `go` command writes, and the" +
+		" golangci-lint cache at tmp/golangci-lint-cache that no `go clean`" +
+		" reaches. Run it when unrelated packages fail to build, when a linker" +
+		" says `no space left on device`, or when a whole suite goes red at once." +
+		" Read free space with `df -h` on the cache path, never with `stat -f`," +
+		" which is a format flag on macOS and prints the path back" +
 		" (plan/journal/full-disk-false-red.md)",
 		Writes: true,
 		Answer: runCacheClean},

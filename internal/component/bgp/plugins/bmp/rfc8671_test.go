@@ -672,7 +672,7 @@ func startReloadEngine(t *testing.T, bp *BMPPlugin, startupBGP string) *reloadEn
 		startupSections = []sdk.ConfigSection{{Root: configRootBGP, Data: startupBGP}}
 	}
 
-	e.expectRequest(t, "ze-plugin-engine:declare-registration")
+	e.expectRequest(t, rpc.MethodDeclareRegistration)
 	e.call(t, "ze-plugin-callback:configure", struct {
 		Sections []sdk.ConfigSection `json:"sections"`
 	}{Sections: startupSections})

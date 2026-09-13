@@ -55,7 +55,8 @@ func testRoot(t *testing.T) *pki.Root {
 // installCA puts root into the pki store under name, which is what an operator
 // does by pasting the exported root into a pki ca block. The store is package
 // state, so the test restores it.
-func installCA(t *testing.T, name string, root *pki.Root) {
+func installCA(t *testing.T, root *pki.Root) {
+	const name = "fleet-hub"
 	t.Helper()
 	cert := root.Certificate()
 	if err := pki.Load(&pki.PKIConfig{
@@ -184,7 +185,7 @@ func runOnce(t *testing.T, cfg *ClientConfig) error {
 // system pool cannot verify a leaf a private root issued.
 func TestManagedClientValidatesAgainstConfiguredRoot(t *testing.T) {
 	root := testRoot(t)
-	installCA(t, "fleet-hub", root)
+	installCA(t, root)
 	hub := startIssuingHub(t, root)
 
 	cfg := &ClientConfig{
@@ -215,7 +216,7 @@ func TestManagedClientValidatesAgainstConfiguredRoot(t *testing.T) {
 func TestManagedClientRefusesAnotherIssuer(t *testing.T) {
 	trusted := testRoot(t)
 	stranger := testRoot(t)
-	installCA(t, "fleet-hub", trusted)
+	installCA(t, trusted)
 	hub := startIssuingHub(t, stranger)
 
 	cfg := &ClientConfig{
@@ -250,7 +251,7 @@ func TestManagedClientRefusesWithNoAnchor(t *testing.T) {
 	root := testRoot(t)
 
 	t.Run("named-entry-does-not-resolve", func(t *testing.T) {
-		installCA(t, "fleet-hub", root)
+		installCA(t, root)
 		hub := startIssuingHub(t, root)
 
 		cfg := &ClientConfig{
@@ -304,7 +305,7 @@ func TestManagedClientRefusesWithNoAnchor(t *testing.T) {
 // clientTLSConfig and the second connection fails: the leaf it pinned is gone.
 func TestManagedClientSurvivesAHubRestart(t *testing.T) {
 	root := testRoot(t)
-	installCA(t, "fleet-hub", root)
+	installCA(t, root)
 	hub := startIssuingHub(t, root)
 
 	cfg := &ClientConfig{

@@ -16,7 +16,7 @@ import (
 // authTree builds the system/authentication subtree a config declares. Each
 // remote backend named gets one server entry, and each user named gets one
 // entry, which is all this check reads.
-func authTree(t *testing.T, remote []string, users []string) *config.Tree {
+func authTree(t *testing.T, remote, users []string) *config.Tree {
 	t.Helper()
 	tree := config.NewTree()
 	auth := tree.GetOrCreateContainer("system").GetOrCreateContainer("authentication")

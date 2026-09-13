@@ -181,7 +181,7 @@ func Int(v any) (int64, bool) {
 		// comparison rounds it UP to 2^63, so a value of exactly 2^63 passes
 		// the test and int64() then converts a number no int64 holds. That
 		// conversion is implementation-defined, and it answers 2^63-1 on arm64
-		// and -2^63 on amd64: a wrong value labelled valid, differently on each
+		// and -2^63 on amd64: a wrong value labeled valid, differently on each
 		// machine. MinInt64 is -2^63 and IS exactly representable, so its
 		// negation is the first float64 above the range and >= refuses it.
 		if value < math.MinInt64 || value >= -float64(math.MinInt64) {
@@ -225,7 +225,7 @@ func Section(root string, delivered map[string]any) map[string]any {
 		return delivered
 	}
 	current := delivered
-	for _, segment := range strings.Split(root, "/") {
+	for segment := range strings.SplitSeq(root, "/") {
 		if segment == "" {
 			continue
 		}

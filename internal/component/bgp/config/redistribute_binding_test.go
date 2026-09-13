@@ -11,10 +11,11 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 )
 
-// bindingsFor runs the config path a running daemon runs and returns the named
-// peer's process bindings.
-func bindingsFor(t *testing.T, input, peerName string) []reactor.ProcessBinding {
+// bindingsFor runs the config path a running daemon runs and returns the
+// process bindings of the peer every case in this file declares.
+func bindingsFor(t *testing.T, input string) []reactor.ProcessBinding {
 	t.Helper()
+	const peerName = "upstream"
 	r, err := LoadReactor(input)
 	require.NoError(t, err)
 	for _, p := range r.Peers() {
@@ -79,7 +80,7 @@ redistribute {
 // graph from ProcessBindings alone and a peer with no attach block grants
 // nothing, so PeerScopedProcs answers empty and the UPDATE is discarded.
 func TestRedistributeBGPSourceWiresLocRIBBinding(t *testing.T) {
-	binding := bindingNamed(t, bindingsFor(t, redistOSPFImportsBGP, "upstream"), "bgp-rib")
+	binding := bindingNamed(t, bindingsFor(t, redistOSPFImportsBGP), "bgp-rib")
 
 	require.False(t, binding.ReceiveAll, "the derived grant names its types; the wildcard would grant a type a plugin registers later")
 	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventUpdate])
@@ -142,7 +143,7 @@ redistribute {
     }
 }
 `
-	bindings := bindingsFor(t, input, "upstream")
+	bindings := bindingsFor(t, input)
 	binding := bindingNamed(t, bindings, "rib")
 	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventState])
 	require.Equal(t, events.DirUnspecified, binding.Receive[bgpevents.EventUpdate], "the operator granted state alone")
@@ -194,7 +195,7 @@ redistribute {
     }
 }
 `
-	binding := bindingNamed(t, bindingsFor(t, input, "upstream"), "rib")
+	binding := bindingNamed(t, bindingsFor(t, input), "rib")
 	require.Equal(t, events.DirBoth, binding.Receive[bgpevents.EventUpdate])
 }
 
@@ -223,7 +224,7 @@ ospf {
     router-id 10.0.0.1
 }
 `
-	require.Empty(t, bindingsFor(t, input, "upstream"))
+	require.Empty(t, bindingsFor(t, input))
 }
 
 // TestNonBGPRedistributeSourceAddsNoBinding is the negative that separates the
@@ -267,7 +268,7 @@ redistribute {
     }
 }
 `
-	for _, b := range bindingsFor(t, input, "upstream") {
+	for _, b := range bindingsFor(t, input) {
 		require.NotEqual(t, "bgp-rib", b.PluginName,
 			"no rule names a BGP source, so no peer owes the Loc-RIB a delivery")
 	}
@@ -384,7 +385,7 @@ redistribute {
     }
 }
 `
-	binding := bindingNamed(t, bindingsFor(t, input, "upstream"), "redistribute-orchestrator")
+	binding := bindingNamed(t, bindingsFor(t, input), "redistribute-orchestrator")
 	require.True(t, binding.MaySend("update"), "the orchestrator must be permitted to put the route on this peer's wire")
 	require.True(t, binding.ReceivesPeerState(), "the peer-up edge is what fires the late-join replay")
 	require.False(t, binding.SendAll, "the derived grant names its type")
@@ -425,7 +426,7 @@ redistribute {
     }
 }
 `
-	binding := bindingNamed(t, bindingsFor(t, input, "upstream"), "redistribute-orchestrator")
+	binding := bindingNamed(t, bindingsFor(t, input), "redistribute-orchestrator")
 	require.False(t, binding.MaySend("update"),
 		"the operator granted no send, and a derived binding never widens what one says")
 }
@@ -437,7 +438,7 @@ redistribute {
 // PREVENTS: every peer of an IGP-only redistribution gaining a send permission
 // the config never asked for.
 func TestDestinationOSPFAddsNoOrchestratorBinding(t *testing.T) {
-	for _, b := range bindingsFor(t, redistOSPFImportsBGP, "upstream") {
+	for _, b := range bindingsFor(t, redistOSPFImportsBGP) {
 		require.NotEqual(t, "redistribute-orchestrator", b.PluginName,
 			"no rule feeds bgp, so no peer owes the orchestrator a send permission")
 	}
@@ -478,7 +479,7 @@ redistribute {
     }
 }
 `
-	bindings := bindingsFor(t, input, "upstream")
+	bindings := bindingsFor(t, input)
 	require.Len(t, bindings, 2)
 	require.True(t, bindingNamed(t, bindings, "redistribute-orchestrator").MaySend("update"))
 	require.Equal(t, events.DirBoth, bindingNamed(t, bindings, "bgp-rib").Receive[bgpevents.EventUpdate])

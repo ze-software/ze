@@ -1324,7 +1324,7 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 	// 2026-09-03, when {feature-declined} landed in the same number saying
 	// something different, and a card counting two populations while its words
 	// name one is a false statement about the one it leaves out.
-	for _, kind := range strings.Split(rfcNonBindingKinds(), " or ") {
+	for kind := range strings.SplitSeq(rfcNonBindingKinds(), " or ") {
 		if !strings.Contains(scope.Note, kind) {
 			t.Errorf("the out-of-scope card counts %s and never names it: %q", kind, scope.Note)
 		}

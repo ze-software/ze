@@ -29,7 +29,7 @@ const (
 func init() {
 	kernelcap.MustRegister(kernelcap.Capability{
 		Subsystem:   "mpls",
-		Component:   "fib-kernel",
+		Component:   pluginName,
 		Kernel:      "CONFIG_MPLS_ROUTING",
 		ConfigLeaf:  "a labeled BGP family, ldp, rsvp-te or an interface mpls block on the kernel FIB",
 		CodeAbsent:  diagnosticMPLSUnavailable,

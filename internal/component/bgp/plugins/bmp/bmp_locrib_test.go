@@ -118,7 +118,7 @@ func TestBuildLocRIBUpdateBody_IPv4Announce(t *testing.T) {
 		ASPath:  []uint32{65001, 65002},
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, e)
+	body := buildLocRIBUpdateBody(family.IPv4Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -169,7 +169,7 @@ func TestLocRIBRouteMonitoringUsesFourByteASNs(t *testing.T) {
 		ASPath:  []uint32{4200000001, 65002},
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, e)
+	body := buildLocRIBUpdateBody(family.IPv4Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -204,7 +204,7 @@ func TestBuildLocRIBUpdateBody_IPv4Withdraw(t *testing.T) {
 		Prefix: netip.MustParsePrefix("10.20.30.0/24"),
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, e)
+	body := buildLocRIBUpdateBody(family.IPv4Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -232,7 +232,7 @@ func TestBuildLocRIBUpdateBody_IPv6Announce(t *testing.T) {
 		ASPath:  []uint32{65010},
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv6Unicast, e)
+	body := buildLocRIBUpdateBody(family.IPv6Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -259,7 +259,7 @@ func TestBuildLocRIBUpdateBody_IPv6Withdraw(t *testing.T) {
 		Prefix: netip.MustParsePrefix("2001:db8::/32"),
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv6Unicast, e)
+	body := buildLocRIBUpdateBody(family.IPv6Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)

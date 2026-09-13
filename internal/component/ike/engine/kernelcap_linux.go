@@ -20,7 +20,7 @@ import (
 
 func init() {
 	kernelcap.MustRegister(kernelcap.Capability{
-		Subsystem:   "ipsec",
+		Subsystem:   ipsecName,
 		Component:   "ike",
 		Kernel:      "CONFIG_XFRM_USER",
 		ConfigLeaf:  "vpn ipsec",

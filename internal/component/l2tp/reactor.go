@@ -371,8 +371,7 @@ func (r *l2tpReactor) handle(pkt rxPacket) {
 			// *sccrqRejection; every other parse failure keeps its silent
 			// drop. The answer is emitted here, still before tunnelsMu, so it
 			// allocates no tunnel entry and consumes no local TID.
-			var rejection *sccrqRejection
-			if errors.As(perr, &rejection) {
+			if rejection, ok := errors.AsType[*sccrqRejection](perr); ok {
 				r.answerRefusedSCCRQ(pkt.from, hdr.Ns, rejection)
 			}
 			r.logger.Debug("l2tp: TunnelID=0 packet with malformed body dropped",

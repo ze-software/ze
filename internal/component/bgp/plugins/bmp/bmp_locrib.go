@@ -275,7 +275,7 @@ func assembleUpdateBody(withdrawn, attrs, nlri []byte) []byte {
 // RIB back-door for the full attribute set).
 //
 // Returns nil when the entry has no usable prefix.
-func buildLocRIBUpdateBody(fam family.Family, e ribevents.BestChangeEntry) []byte {
+func buildLocRIBUpdateBody(fam family.Family, e *ribevents.BestChangeEntry) []byte {
 	nlri := encodeNLRIPrefix(e.Prefix)
 	if nlri == nil {
 		return nil
@@ -623,7 +623,7 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	}
 	peer := locRIBPeerHeader(id, installed)
 	for i := range batch.Changes {
-		body := buildLocRIBUpdateBody(batch.Family, batch.Changes[i])
+		body := buildLocRIBUpdateBody(batch.Family, &batch.Changes[i])
 		if body == nil {
 			continue
 		}

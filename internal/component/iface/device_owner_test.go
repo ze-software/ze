@@ -177,7 +177,7 @@ func (r *capturingGaugeRegistry) Counter(name, _ string) metrics.Counter {
 	r.counters[name] = c
 	return c
 }
-func (r *capturingGaugeRegistry) Gauge(string, string) metrics.Gauge     { return nil }
+func (r *capturingGaugeRegistry) Gauge(string, string) metrics.Gauge { return nil }
 func (r *capturingGaugeRegistry) CounterVec(name, _ string, _ []string) metrics.CounterVec {
 	v := newCapturingCounterVec()
 	r.counterVecs[name] = v

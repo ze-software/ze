@@ -124,7 +124,7 @@ func emitForwardingDefaults() {
 		"net.ipv4.conf.all.forwarding",
 		"net.ipv6.conf.all.forwarding",
 	} {
-		payload, _ := json.Marshal(sysctlDefault{Key: key, Value: "1", Source: "fib-kernel"})
+		payload, _ := json.Marshal(sysctlDefault{Key: key, Value: "1", Source: pluginName})
 		if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
 			logger().Warn("fib-kernel: emit sysctl default failed", "key", key, "err", err)
 		}

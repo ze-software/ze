@@ -7,6 +7,7 @@ package docstocode
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -316,9 +317,7 @@ func TestTheCodeIndexRendersFullPathsInBothShapes(t *testing.T) {
 		bulleted.Refs[filePath(i)] = []Ref{{Doc: "docs/one.md", Line: 1}}
 	}
 	tabled := codeIndex{Refs: map[string][]Ref{}}
-	for path, refs := range bulleted.Refs {
-		tabled.Refs[path] = refs
-	}
+	maps.Copy(tabled.Refs, bulleted.Refs)
 	tabled.Refs[filePath(namedInline)] = []Ref{{Doc: "docs/one.md", Line: 1}}
 
 	for _, shape := range []struct {

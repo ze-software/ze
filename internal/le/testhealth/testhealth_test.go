@@ -756,7 +756,7 @@ func TestTheModelRollupIsReadFromItsAnnotatedAndNoTestCounts(t *testing.T) {
 			rows["rfc9001"].enrolled, rows["rfc9002"].enrolled)
 	}
 	if rows["rfc9003"].enrolled {
-		t.Error("rfc9003 reads as enrolled, and the model does not enrol it")
+		t.Error("rfc9003 reads as enrolled, and the model does not enroll it")
 	}
 }
 
