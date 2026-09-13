@@ -1,4 +1,4 @@
-# feature-tags.sh -- the feature-gate manifest, read by a shell.
+# feature-tags -- the feature-gate manifest, read by a shell.
 #
 # This is the SECOND reader of feature-gates.txt, and the only one that is not
 # Go. internal/le/featuretags is the first. Two exist because the bootstrap
@@ -10,7 +10,7 @@
 # (internal/le/featuretags/shellagreement_test.go) holds the two to one answer,
 # and TestOnlyOneShellFileParsesTheFeatureManifest refuses a third reader.
 #
-# Usage:  . "$root"/feature-tags.sh
+# Usage:  . "$root"/feature-tags
 #         tags=ze_core,ze_distro,$(feature_tags "$root"/feature-gates.txt ",")
 
 # feature_tags prints every gate tag $1 declares, deduplicated, sorted, and
@@ -40,3 +40,10 @@ feature_tags() {
 	fi
 	printf '%s\n' "$feature_tags_joined"
 }
+
+# Why this file carries no .sh extension: internal/le/contract_test.go refuses a
+# tracked first-party source ending .sh, .bash, .py or .mk, because every tool in
+# this repository is Go. The two launchers `le` and `ze` are the standing
+# exception and carry no extension either. This file is the same kind of thing:
+# bootstrap shell the launchers source, not tooling. The name follows theirs
+# rather than the gate being taught a new exemption.

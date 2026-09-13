@@ -26,11 +26,11 @@ ARG ZE_TAGS
 # as an unknown top-level keyword.
 #
 # The default-on tags are DERIVED from feature-gates.txt through the one shell
-# reader of it, feature-tags.sh, so this image can never drift from the shipped
+# reader of it, feature-tags, so this image can never drift from the shipped
 # binary's feature set. Deriving here rather than taking the whole list as a
 # build arg keeps `docker compose build` (docker/compose.yaml passes no build
 # args) and a bare `docker build` correct.
-RUN . ./feature-tags.sh && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
+RUN . ./feature-tags && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
     CGO_ENABLED=0 go build \
     -tags "ze_core $ZE_FEATURES $ZE_TAGS" \
     -ldflags "-X main.version=${ZE_VERSION:-dev} -X main.buildDate=${ZE_BUILD_DATE:-unknown}" \

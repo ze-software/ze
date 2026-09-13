@@ -10,9 +10,9 @@ build_le() {
 	out=$1
 
 	# One reader of the manifest for every shell caller, and one Go reader beside
-	# it (feature-tags.sh). An empty answer is an error there, so no branch here
+	# it (feature-tags). An empty answer is an error there, so no branch here
 	# tolerates a feature-less build.
-	. "$root/feature-tags.sh"
+	. "$root/feature-tags"
 	tags=ze_le,$(feature_tags "$root/feature-gates.txt" ",")
 
 	# cache/ is a SYMLINK onto another filesystem on the development hosts, so

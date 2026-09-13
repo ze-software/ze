@@ -27,11 +27,11 @@ ARG ZE_BUILD_DATE
 ARG ZE_TAGS
 
 # The default-on tags are DERIVED from feature-gates.txt through the one shell
-# reader of it, feature-tags.sh, which the deployment image calls as well. A
+# reader of it, feature-tags, which the deployment image calls as well. A
 # hand-written list here is what makes the two images drift, and `ze_bgp` is one
 # of the gates: without it ze rejects the `bgp` config root as an unknown
 # top-level keyword, so a lab node would start with no BGP at all.
-RUN . ./feature-tags.sh && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
+RUN . ./feature-tags && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
     CGO_ENABLED=0 go build \
     -tags "ze_core $ZE_FEATURES $ZE_TAGS" \
     -ldflags "-X main.version=${ZE_VERSION:-dev} -X main.buildDate=${ZE_BUILD_DATE:-unknown}" \

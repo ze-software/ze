@@ -3,7 +3,7 @@
 //
 // feature-gates.txt has exactly two readers, and the second one is necessary.
 // bin/le does not exist before the launcher builds it. The bootstrap therefore
-// cannot ask a Go helper which tags to compile itself with. feature-tags.sh is
+// cannot ask a Go helper which tags to compile itself with. feature-tags is
 // that shell reader. This file holds it to the same answer as readTags.
 
 package featuretags
@@ -19,12 +19,12 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// shellTags answers what feature-tags.sh reads out of the manifest under root,
+// shellTags answers what feature-tags reads out of the manifest under root,
 // joined with separator. The launchers call it exactly this way.
 func shellTags(t *testing.T, checkout, root, separator string) (string, error) {
 	t.Helper()
 
-	script := ". \"$1\"/feature-tags.sh && feature_tags \"$2\"/feature-gates.txt \"$3\""
+	script := ". \"$1\"/feature-tags && feature_tags \"$2\"/feature-gates.txt \"$3\""
 	// A shell is the SUBJECT here. This test runs the launchers' own reader, so
 	// the interpreter is the thing under test rather than a way to reach one.
 	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", script, "sh", checkout, root, separator)
@@ -46,7 +46,7 @@ func writeManifest(t *testing.T, body string) string {
 	return root
 }
 
-// VALIDATES: feature-tags.sh and readTags answer the same gate tags, in the same order.
+// VALIDATES: feature-tags and readTags answer the same gate tags, in the same order.
 // PREVENTS: a launcher that builds a binary with a feature set the Go tooling never selects.
 // TestTheShellWalkAndTheGoReaderAnswerTheSameTags holds the two readers to one
 // answer. It reads the checkout's real manifest, and one carrying every shape
@@ -81,7 +81,7 @@ func TestTheShellWalkAndTheGoReaderAnswerTheSameTags(t *testing.T) {
 
 			got, err := shellTags(t, checkout, root, ",")
 			if err != nil {
-				t.Fatalf("feature-tags.sh: %v", err)
+				t.Fatalf("feature-tags: %v", err)
 			}
 			if got != strings.Join(want, ",") {
 				t.Errorf("the two readers disagree\nshell: %s\ngo:    %s", got, strings.Join(want, ","))
@@ -89,7 +89,7 @@ func TestTheShellWalkAndTheGoReaderAnswerTheSameTags(t *testing.T) {
 
 			spaced, err := shellTags(t, checkout, root, " ")
 			if err != nil {
-				t.Fatalf("feature-tags.sh with a space separator: %v", err)
+				t.Fatalf("feature-tags with a space separator: %v", err)
 			}
 			if spaced != strings.Join(want, " ") {
 				t.Errorf("the separator is not the caller's\nshell: %s\ngo:    %s", spaced, strings.Join(want, " "))
@@ -116,7 +116,7 @@ func TestAManifestWithNoGateStopsBothReaders(t *testing.T) {
 		t.Error("DaemonTags accepted a manifest declaring no gate")
 	}
 	if out, err := shellTags(t, checkout, root, ","); err == nil {
-		t.Errorf("feature-tags.sh accepted a manifest declaring no gate, answering %q", out)
+		t.Errorf("feature-tags accepted a manifest declaring no gate, answering %q", out)
 	}
 }
 
@@ -134,10 +134,10 @@ func runsAShell(name string) bool {
 		strings.HasSuffix(name, ".ci")
 }
 
-// VALIDATES: feature-tags.sh is the only shell file that walks feature-gates.txt.
+// VALIDATES: feature-tags is the only shell file that walks feature-gates.txt.
 // PREVENTS: a second awk in a launcher or an image, which drifts from the Go reader.
 // TestOnlyOneShellFileParsesTheFeatureManifest walks the checkout for a second
-// shell walk over the manifest. Before feature-tags.sh, the launchers and the
+// shell walk over the manifest. Before feature-tags, the launchers and the
 // images each carried their own awk. A copy that nothing compares is what lets
 // one image ship a feature set another does not.
 func TestOnlyOneShellFileParsesTheFeatureManifest(t *testing.T) {
@@ -173,7 +173,7 @@ func TestOnlyOneShellFileParsesTheFeatureManifest(t *testing.T) {
 		if relErr != nil {
 			return relErr
 		}
-		if rel == "feature-tags.sh" {
+		if rel == "feature-tags" {
 			return nil
 		}
 
@@ -194,6 +194,6 @@ func TestOnlyOneShellFileParsesTheFeatureManifest(t *testing.T) {
 		t.Fatalf("walk the checkout: %v", err)
 	}
 	if len(offenders) != 0 {
-		t.Errorf("a second shell walk over feature-gates.txt lives in %v; call feature_tags from feature-tags.sh instead", offenders)
+		t.Errorf("a second shell walk over feature-gates.txt lives in %v; call feature_tags from feature-tags instead", offenders)
 	}
 }
