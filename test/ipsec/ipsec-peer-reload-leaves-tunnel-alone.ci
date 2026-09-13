@@ -219,6 +219,18 @@ EOF_PEER_A
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze -:stdin=peer-b:name=peer-b
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
 cmd=foreground:seq=3:exec=ze-test fixture ipsec/peer-reload-leaves-tunnel-alone:timeout=110s
+# Asserted under the fixture that PRINTS these markers. They used to sit
+# below the cmd=stop lines, where the runner checked them against the
+# whole test's output; a cmd=stop runs no program and writes nothing.
+expect=stdout:contains=INSTALLED:
+expect=stdout:contains=RELOADED:
+expect=stdout:contains=STABLE:
+expect=stdout:contains=POLICY-STABLE:
+expect=stderr:contains=peer-quiet
+reject=stderr:pattern=ike: stopping peer
+reject=stdout:pattern=BOUNCED
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci
@@ -227,15 +239,6 @@ cmd=stop:seq=4:name=peer-a:signal=term
 cmd=stop:seq=5:name=peer-b:signal=term
 
 expect=exit:code=0
-expect=stdout:contains=INSTALLED:
-expect=stdout:contains=RELOADED:
-expect=stdout:contains=STABLE:
-expect=stdout:contains=POLICY-STABLE:
 # The reload really happened: peer-quiet exists only in the second config file, and
 # reconcilePeers logs the peer name when it starts the session for it.
-expect=stderr:contains=peer-quiet
 # Nothing was restarted. reconcilePeers' removal loop is the only producer of this line.
-reject=stderr:pattern=ike: stopping peer
-reject=stdout:pattern=BOUNCED
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error

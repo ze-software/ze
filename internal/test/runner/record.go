@@ -162,6 +162,12 @@ type Record struct {
 	LastReceivedIdx int
 	PeerOutput      string
 	ClientOutput    string
+	// ClientStdout and ClientStderr are the two accumulators a command's span
+	// indexes into (RunCommand.stdoutFrom/To). ClientOutput stays their
+	// concatenation: it is what the report prints, and a reader asking what the
+	// test produced wants it whole.
+	ClientStdout string
+	ClientStderr string
 	// FailedPeers names the check-mode peers that did not report a clean
 	// exchange. PeerOutput joins every peer's output and so cannot say WHICH
 	// peer failed; in a multi-peer test that distinction is the whole diagnosis
@@ -177,9 +183,7 @@ type Record struct {
 	SyslogPort   int      // Dynamically assigned port for test-syslog
 
 	// Exit code validation
-	ExpectExitCode    *int     // expect:exit:code=N - expected exit code (nil = don't check)
-	ExpectStderrMatch []string // expect=stderr:contains=TEXT - substring match (not regex), multiple allowed
-	RejectStderrMatch []string // reject=stderr:contains=TEXT - the mirror of ExpectStderrMatch, over the same buffer
+	ExpectExitCode *int // expect:exit:code=N - expected exit code (nil = don't check)
 
 	// AwaitStderr, when non-empty, makes the runner BLOCK until the daemon's
 	// relayed stderr contains this substring before it tears the daemon down --
@@ -190,12 +194,8 @@ type Record struct {
 	// non-plugin signal is the relayed stderr line itself. Parsed from
 	// await=stderr:contains=TEXT[:timeout=DUR]. Empty = disabled (no behavior
 	// change).
-	AwaitStderr          string
-	AwaitStderrTimeout   string   // optional Go duration (e.g. "10s"); empty = default
-	ExpectStdoutMatch    []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
-	ExpectStdoutNotMatch []string // reject=stdout:contains=TEXT - stdout must NOT contain TEXT, multiple allowed
-	ExpectStdoutRegex    []string // expect=stdout:pattern=PATTERN (regex)
-	RejectStdoutRegex    []string // reject=stdout:pattern=PATTERN (regex)
+	AwaitStderr        string
+	AwaitStderrTimeout string // optional Go duration (e.g. "10s"); empty = default
 
 	// Tmpfs embedded files
 	// TmpfsFiles maps a path to the file the tmpfs= block declared, MODE
@@ -282,6 +282,13 @@ type Record struct {
 	ParseFailed bool
 }
 
+// spanOpen marks a command's output span as still being written. A background
+// process is still producing when the run ends, and a command the run never
+// reached produced nothing at all: closeOpenSpans tells the two apart, so an
+// unreached command answers empty rather than inheriting every later command's
+// output.
+const spanOpen = -1
+
 // RunCommand represents a process to run during test execution.
 type RunCommand struct {
 	Mode    string // "background", "foreground", or "stop"
@@ -302,6 +309,49 @@ type RunCommand struct {
 	// send protocol teardown). Empty on non-stop commands.
 	Signal string
 
+	// The stream assertions authored UNDER this command: every expect=stdout,
+	// reject=stdout and expect=stderr:contains / reject=stderr:contains line
+	// between this cmd= line and the next one in the file. Each is checked
+	// against this command's own output span and nothing else
+	// (checkOutputAssertions), which is what makes the line mean what its
+	// position says it means.
+	//
+	// They used to be six flat slices on Record, checked against the whole
+	// test's accumulated stdout AND stderr. A file could therefore satisfy an
+	// assertion with a DIFFERENT command's output, and two did:
+	// test/plugin/kernel-capability-unknown-starts.ci asserted the doctor
+	// printed doctor-ipsec-xfrm-unknown and then ran `ze explain
+	// doctor-ipsec-xfrm-unknown`, whose output satisfied the assertion on a
+	// host where the doctor check does not run at all.
+	//
+	// expect=stderr:pattern= and reject=stderr:pattern= are deliberately NOT
+	// here. Those are the daemon-logging mechanism validateLogging owns; they
+	// read the daemon's relayed stderr rather than a command's span, and they
+	// stay on Record.
+	ExpectStdout    []string // expect=stdout:contains=
+	RejectStdout    []string // reject=stdout:contains=
+	ExpectStdoutRe  []string // expect=stdout:pattern=
+	RejectStdoutRe  []string // reject=stdout:pattern=
+	ExpectStderrHas []string // expect=stderr:contains=
+	RejectStderrHas []string // reject=stderr:contains=
+
+	// The half-open byte span this command wrote into the run's two
+	// accumulators. A span is MARKED rather than captured into a buffer of its
+	// own: the accumulators already exist, already carry the truncation cap,
+	// and are already what the report prints, so a second copy of every byte
+	// would be a second declaration of the same output.
+	//
+	// stdoutTo and stderrTo are the accumulator lengths when the command
+	// FINISHED; for a background process, which is still writing when the test
+	// ends, they are the lengths at the end of the run. A background span can
+	// therefore contain bytes a later foreground command wrote, because the two
+	// share one accumulator and interleave in arrival order. That over-inclusion
+	// is the honest answer for a process whose output has no end: 18 stream
+	// assertions in the corpus sit under a background command, against 3339
+	// under a foreground one.
+	stdoutFrom, stdoutTo int
+	stderrFrom, stderrTo int
+
 	// ExitCode is the exit code asserted for THIS command (cmd=...:exit=N), as
 	// opposed to the file-level expect=exit:code=, which only ever reaches the
 	// last quick-exit ze command (Record.ExpectExitCode is a single value and
@@ -309,6 +359,31 @@ type RunCommand struct {
 	// several `ze config validate` commands therefore leaves every earlier one
 	// unasserted; use exit= per command to assert each. nil = not asserted.
 	ExitCode *int
+}
+
+// assertsAStream reports whether this command carries any scoped stream
+// assertion.
+func (c *RunCommand) assertsAStream() bool {
+	return len(c.ExpectStdout) != 0 || len(c.RejectStdout) != 0 ||
+		len(c.ExpectStdoutRe) != 0 || len(c.RejectStdoutRe) != 0 ||
+		len(c.ExpectStderrHas) != 0 || len(c.RejectStderrHas) != 0
+}
+
+// HasStreamAssertion reports whether any command in this test asserts on a
+// stream.
+//
+// DERIVED from the commands rather than kept beside them: a second field
+// counting the same lines is a future disagreement with nothing to arbitrate
+// it, and the callers that ask this question decide whether a test observes
+// anything at all (accept_only.go, peer_contract.go), so the answer must be the
+// same set checkOutputAssertions will check.
+func (r *Record) HasStreamAssertion() bool {
+	for i := range r.RunCommands {
+		if r.RunCommands[i].assertsAStream() {
+			return true
+		}
+	}
+	return false
 }
 
 // httpHeader is one request header set by a :header=Name: Value key.

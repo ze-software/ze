@@ -45,7 +45,7 @@ const zePeerBin = "ze-peer"
 // accept whatever arrives and loop until killed, so they never report completion
 // and cannot govern a test's result. Keying the peer-governs rule off ze-peer's
 // mere presence would fail every scaffolding test while asserting nothing.
-func hasCheckPeer(cmds []RunCommand) bool {
+func hasCheckPeer(cmds []*RunCommand) bool {
 	for _, cmd := range cmds {
 		if isCheckPeerExec(cmd.Exec) {
 			return true
@@ -62,7 +62,7 @@ func isCheckPeerExec(exec string) bool {
 
 // countCheckPeers is how many check-mode peers the .ci declares, which
 // failedCheckPeers compares against how many actually produced a capture.
-func countCheckPeers(cmds []RunCommand) int {
+func countCheckPeers(cmds []*RunCommand) int {
 	n := 0
 	for _, cmd := range cmds {
 		if isCheckPeerExec(cmd.Exec) {
@@ -88,7 +88,7 @@ const peerRejectionMarker = peer.RejectionMarker
 // peerLabel names a peer in a failure message, preferring whatever the .ci author
 // actually wrote: an explicit cmd name, else the stdin block the peer's
 // expectations came from, else the command's sequence number.
-func peerLabel(cmd RunCommand) string {
+func peerLabel(cmd *RunCommand) string {
 	if cmd.Name != "" {
 		return cmd.Name
 	}
@@ -159,13 +159,8 @@ func isSelfValidated(rec *Record, hasCheckPeer bool) bool {
 	if hasCheckPeer {
 		return false
 	}
-	hasOutputAssertion := len(rec.ExpectStderrMatch) > 0 ||
-		len(rec.ExpectStdoutMatch) > 0 ||
-		len(rec.ExpectStdoutNotMatch) > 0 ||
-		len(rec.ExpectStdoutRegex) > 0 ||
-		len(rec.RejectStdoutRegex) > 0 ||
+	hasOutputAssertion := rec.HasStreamAssertion() ||
 		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
-		len(rec.RejectStderrMatch) > 0 ||
 		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
 		len(rec.FileChecks) > 0 ||
 		len(rec.HTTPChecks) > 0
@@ -204,7 +199,8 @@ func peerBindFailure(timeout time.Duration, stderr, stdout string) error {
 // Only check mode is validated: sink/echo/inject peers legitimately carry no
 // expectations, and ze-peer's guard is likewise check-mode only.
 func validatePeerBlocks(r *Record) error {
-	for _, cmd := range r.RunCommands {
+	for i := range r.RunCommands {
+		cmd := &r.RunCommands[i]
 		if !isZePeerExec(cmd.Exec) || zePeerExecMode(cmd.Exec) != peer.ModeCheck {
 			continue
 		}
@@ -272,7 +268,8 @@ func peerBlockHasConsumedDirective(block string) bool {
 // on.
 func peerBlockNames(r *Record) []string {
 	seen := map[string]bool{"peer": true}
-	for _, cmd := range r.RunCommands {
+	for i := range r.RunCommands {
+		cmd := &r.RunCommands[i]
 		if isZePeerExec(cmd.Exec) && cmd.Stdin != "" {
 			seen[cmd.Stdin] = true
 		}
@@ -301,7 +298,8 @@ func peerBlockNames(r *Record) []string {
 // block at all is test/parse/config-secret-roundtrip.ci, whose block is named
 // `config`.
 func blockPeerMode(r *Record, name string) (mode peer.Mode, read bool) {
-	for _, cmd := range r.RunCommands {
+	for i := range r.RunCommands {
+		cmd := &r.RunCommands[i]
 		if isZePeerExec(cmd.Exec) && cmd.Stdin == name {
 			return zePeerExecMode(cmd.Exec), true
 		}

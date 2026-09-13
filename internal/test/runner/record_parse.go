@@ -655,7 +655,11 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			r.ExpectStderr = append(r.ExpectStderr, pattern)
 		}
 		if contains := kv["contains"]; contains != "" {
-			r.ExpectStderrMatch = append(r.ExpectStderrMatch, contains)
+			target, err := r.assertionTarget("expect=stderr:contains=")
+			if err != nil {
+				return err
+			}
+			target.ExpectStderrHas = append(target.ExpectStderrHas, contains)
 		}
 
 	case directiveTypeStdout:
@@ -671,10 +675,18 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			if _, err := regexp.Compile(pattern); err != nil {
 				return fmt.Errorf("invalid expect=stdout pattern %q: %w", pattern, err)
 			}
-			r.ExpectStdoutRegex = append(r.ExpectStdoutRegex, pattern)
+			target, err := r.assertionTarget("expect=stdout:pattern=")
+			if err != nil {
+				return err
+			}
+			target.ExpectStdoutRe = append(target.ExpectStdoutRe, pattern)
 		}
 		if contains := kv["contains"]; contains != "" {
-			r.ExpectStdoutMatch = append(r.ExpectStdoutMatch, contains)
+			target, err := r.assertionTarget("expect=stdout:contains=")
+			if err != nil {
+				return err
+			}
+			target.ExpectStdout = append(target.ExpectStdout, contains)
 		}
 
 	case directiveTypeSyslog:
@@ -765,7 +777,11 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 			return errors.New("reject=stderr needs pattern=<regex> or contains=<text>")
 		}
 		if contains := kv["contains"]; contains != "" {
-			r.RejectStderrMatch = append(r.RejectStderrMatch, contains)
+			target, err := r.assertionTarget("reject=stderr:contains=")
+			if err != nil {
+				return err
+			}
+			target.RejectStderrHas = append(target.RejectStderrHas, contains)
 		}
 		if pattern, ok := kv["pattern"]; ok {
 			if pattern == "" {
@@ -795,10 +811,18 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 			if _, err := regexp.Compile(pattern); err != nil {
 				return fmt.Errorf("invalid reject=stdout pattern %q: %w", pattern, err)
 			}
-			r.RejectStdoutRegex = append(r.RejectStdoutRegex, pattern)
+			target, err := r.assertionTarget("reject=stdout:pattern=")
+			if err != nil {
+				return err
+			}
+			target.RejectStdoutRe = append(target.RejectStdoutRe, pattern)
 		}
 		if contains := kv["contains"]; contains != "" {
-			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, contains)
+			target, err := r.assertionTarget("reject=stdout:contains=")
+			if err != nil {
+				return err
+			}
+			target.RejectStdout = append(target.RejectStdout, contains)
 		}
 
 	case directiveTypeBGP:
@@ -925,6 +949,30 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 		return errDirectiveUnlisted("cmd type", cmdType)
 	}
 	return nil
+}
+
+// assertionTarget answers the command a stream assertion belongs to: the cmd=
+// line above it in the file.
+//
+// Position is the whole grammar here, so a line with nothing above it, or with
+// a cmd=stop above it, names no output and is refused at parse time rather than
+// checked against something its author did not write. The parse suite has
+// always worked this way (parsing.go, ciCommand); the generic runner did not,
+// and an assertion it could not place was checked against the whole test's
+// accumulated output instead -- which is how test/plugin/kernel-capability-
+// unknown-starts.ci came to assert that `ze doctor` printed a diagnostic code
+// and then satisfy that assertion with its own `ze explain <that code>`.
+func (r *Record) assertionTarget(directive string) (*RunCommand, error) {
+	if len(r.RunCommands) == 0 {
+		return nil, fmt.Errorf("%s has no cmd= line above it, so it names no command's output: "+
+			"move it below the cmd= line whose output it describes", directive)
+	}
+	target := &r.RunCommands[len(r.RunCommands)-1]
+	if target.Mode == modeStop {
+		return nil, fmt.Errorf("%s sits under cmd=stop, which runs no program and writes nothing: "+
+			"move it below the cmd= line that produces the output it describes", directive)
+	}
+	return target, nil
 }
 
 // nextMarker returns the index of the earliest occurrence of any marker

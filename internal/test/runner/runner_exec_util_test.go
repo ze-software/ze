@@ -340,7 +340,7 @@ func TestResolveOrchestratedTimeout(t *testing.T) {
 		{"background commands do not set the budget", "", []RunCommand{{Mode: modeBackground, Timeout: "99s"}}, suggested},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := resolveOrchestratedTimeout(suggested, tc.record, tc.cmds); got != tc.want {
+			if got := resolveOrchestratedTimeout(suggested, tc.record, cmdPointers(tc.cmds)); got != tc.want {
 				t.Errorf("resolveOrchestratedTimeout(%v, %q, %v) = %v, want %v", suggested, tc.record, tc.cmds, got, tc.want)
 			}
 		})
@@ -719,4 +719,15 @@ func TestParallelFactorEnvPublishesTheRunnerFactor(t *testing.T) {
 	if want := ParallelFactorEnv + "=" + strconv.Itoa(ParallelTimeoutHeadroom); parallel != want {
 		t.Errorf("concurrent run published %q, want %q", parallel, want)
 	}
+}
+
+// cmdPointers adapts a table's []RunCommand to the []*RunCommand the runner
+// passes, which is one sorted slice aliasing Record.RunCommands so each command
+// can record its own output span.
+func cmdPointers(cmds []RunCommand) []*RunCommand {
+	out := make([]*RunCommand, len(cmds))
+	for i := range cmds {
+		out[i] = &cmds[i]
+	}
+	return out
 }

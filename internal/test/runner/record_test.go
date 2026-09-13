@@ -238,6 +238,7 @@ func TestParseCIStdoutPattern(t *testing.T) {
 	confFile := filepath.Join(tmpDir, "test.conf")
 
 	ciContent := `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze version
 expect=stdout:pattern=version=\d+\.\d+
 expect=stdout:contains=hello
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
@@ -252,8 +253,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
-	assert.Equal(t, []string{`version=\d+\.\d+`}, rec.ExpectStdoutRegex)
-	assert.Equal(t, []string{"hello"}, rec.ExpectStdoutMatch)
+	require.Len(t, rec.RunCommands, 1)
+	assert.Equal(t, []string{`version=\d+\.\d+`}, rec.RunCommands[0].ExpectStdoutRe)
+	assert.Equal(t, []string{"hello"}, rec.RunCommands[0].ExpectStdout)
 }
 
 func TestParseCIRejectStdoutPattern(t *testing.T) {
@@ -264,6 +266,7 @@ func TestParseCIRejectStdoutPattern(t *testing.T) {
 	confFile := filepath.Join(tmpDir, "test.conf")
 
 	ciContent := `option=file:path=test.conf
+cmd=foreground:seq=1:exec=ze version
 reject=stdout:pattern=error.*fatal
 reject=stdout:contains=forbidden
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
@@ -278,8 +281,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
-	assert.Equal(t, []string{`error.*fatal`}, rec.RejectStdoutRegex)
-	assert.Equal(t, []string{"forbidden"}, rec.ExpectStdoutNotMatch)
+	require.Len(t, rec.RunCommands, 1)
+	assert.Equal(t, []string{`error.*fatal`}, rec.RunCommands[0].RejectStdoutRe)
+	assert.Equal(t, []string{"forbidden"}, rec.RunCommands[0].RejectStdout)
 }
 
 func TestTestsSelectStartActivatesSuffix(t *testing.T) {

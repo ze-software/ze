@@ -84,6 +84,19 @@ bgp {
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+# Asserted under the command that WRITES it.
+expect=stdout:contains=ESTABLISHED
+# Asserted under the command that WRITES it.
+expect=stdout:contains=announce=[10.0.0.0/24]
+# Asserted under the command that WRITES it.
+expect=stdout:contains=UPDATE
+# Asserted under the command that WRITES it.
+expect=stdout:contains=OPEN
+# Asserted under the command that WRITES it.
+expect=stdout:contains=capture-closed
+# Asserted under the command that WRITES it. It used to sit under a later
+# command, where the runner checked it against the whole test's output.
+expect=stdout:contains=capture-has-messages
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp:name=daemon
 cmd=foreground:seq=3:exec=ze-test fixture plugin/bgp-capture-replay-wait-update:timeout=40s
 cmd=stop:seq=4:name=daemon:signal=term
@@ -91,10 +104,4 @@ cmd=foreground:seq=5:exec=ze-test fixture plugin/bgp-capture-replay-wait-closed:
 cmd=foreground:seq=6:exec=ze-test replay ./capture/bgp-127.0.0.1.jsonl:timeout=20s
 cmd=foreground:seq=7:exec=ze-test fixture plugin/bgp-capture-replay-stdin:timeout=20s
 expect=exit:code=0
-expect=stdout:contains=capture-has-messages
-expect=stdout:contains=capture-closed
-expect=stdout:contains=OPEN
-expect=stdout:contains=UPDATE
-expect=stdout:contains=announce=[10.0.0.0/24]
-expect=stdout:contains=ESTABLISHED
 expect=stdout:contains=stdin-replay-ok

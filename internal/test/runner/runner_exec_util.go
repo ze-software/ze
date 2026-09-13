@@ -369,6 +369,16 @@ func (b *lockedBuilder) WriteString(s string) (int, error) {
 }
 
 // String returns everything captured so far.
+// mark answers the accumulator's current length, which is where the next byte
+// written will land. It is how a command records the start and end of its own
+// span (RunCommand.stdoutFrom), and it takes the lock because a background
+// process's copy goroutine can be appending while the runner reads it.
+func (b *lockedBuilder) mark() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Len()
+}
+
 func (b *lockedBuilder) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -884,12 +894,19 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 // The client accumulators are *lockedBuilder, not *strings.Builder: this merge
 // runs on the runner's own goroutine while background processes' os/exec copy
 // goroutines are still appending to the same two buffers.
-func awaitQuickZe(proc *exec.Cmd, quickStdout, quickStderr *strings.Builder, clientStdout, clientStderr *lockedBuilder) error {
+//
+// cmd records the span the fold occupies. Marking it HERE rather than at launch
+// is what makes a quick command's span exact: its bytes arrive as one
+// contiguous block, so a background daemon writing throughout is charged to its
+// own span and not to this one.
+func awaitQuickZe(cmd *RunCommand, proc *exec.Cmd, quickStdout, quickStderr *strings.Builder, clientStdout, clientStderr *lockedBuilder) error {
 	waitErr := proc.Wait()
+	cmd.stdoutFrom, cmd.stderrFrom = clientStdout.mark(), clientStderr.mark()
 	//nolint:errcheck // lockedBuilder.WriteString never returns a non-nil error
 	clientStdout.WriteString(quickStdout.String())
 	//nolint:errcheck // lockedBuilder.WriteString never returns a non-nil error
 	clientStderr.WriteString(quickStderr.String())
+	cmd.stdoutTo, cmd.stderrTo = clientStdout.mark(), clientStderr.mark()
 	return waitErr
 }
 
@@ -996,7 +1013,7 @@ func terminateAfterSelfExit(cmd *exec.Cmd, grace time.Duration) {
 // and the pruned bgProcs slice. A name that matches no tracked background process
 // is a hard error (AC-2, fail-closed): the directive can only ever signal a
 // process the runner itself started, never an arbitrary PID.
-func stopNamedBackground(cmd RunCommand, bgProcs []*exec.Cmd, namedBg map[string]*exec.Cmd) (*exec.Cmd, []*exec.Cmd, error) {
+func stopNamedBackground(cmd *RunCommand, bgProcs []*exec.Cmd, namedBg map[string]*exec.Cmd) (*exec.Cmd, []*exec.Cmd, error) {
 	proc, ok := namedBg[cmd.Name]
 	if !ok {
 		return nil, bgProcs, fmt.Errorf("cmd seq=%d: stop names unknown background process %q "+
@@ -1050,7 +1067,7 @@ func stopBackgroundProcess(cmd *exec.Cmd, signal string) {
 // default with its declaration silently ignored -- a stated timeout that did
 // nothing. An option that is accepted and then discarded is worse than one that
 // is rejected, because the .ci file reads as if the budget were set.
-func resolveOrchestratedTimeout(suggested time.Duration, recordTimeout string, cmds []RunCommand) time.Duration {
+func resolveOrchestratedTimeout(suggested time.Duration, recordTimeout string, cmds []*RunCommand) time.Duration {
 	timeout := suggested
 	if d, err := time.ParseDuration(recordTimeout); recordTimeout != "" && err == nil {
 		timeout = d

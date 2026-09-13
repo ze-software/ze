@@ -101,19 +101,22 @@ EOF_CONF
 option=tcp_connections:value=0
 
 cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+# Asserted under the command that WRITES it.
+expect=stdout:pattern=(?s)completed.*task not found
+# Asserted under the command that WRITES it. It used to sit under a later
+# command, where the runner checked it against the whole test's output.
+expect=stdout:contains=completed
 cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks --token alice-token --timeout 20s:stdin=mcp1:timeout=25s
 cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks --token bob-token --timeout 20s:stdin=mcp2:timeout=25s
 expect=exit:code=0
 # Alice's task really existed and completed: the isolation below is about a live
 # task, not about an empty registry.
-expect=stdout:contains=completed
 # Bob's lookup is refused with the params-level code, and the message is the
 # uniform not-found -- the same answer a genuinely unknown id gets.
 expect=stdout:pattern=probe status=200 code=-32602
 expect=stdout:contains=task not found
 # In that ORDER: Alice's completion precedes Bob's refusal, so the refusal
 # happened while her task was live in the registry.
-expect=stdout:pattern=(?s)completed.*task not found
 # Both principals were really authenticated. An unauthenticated listener would
 # have served both as the same anonymous identity and the test would be vacuous.
 reject=stdout:contains=code=-32021

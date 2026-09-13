@@ -63,7 +63,7 @@ func TestStopBackgroundKillsNamedProcess(t *testing.T) {
 	var err error
 	var stopped *exec.Cmd
 	withinDeadline(t, "stopNamedBackground(kill)", func() {
-		stopped, bgProcs, err = stopNamedBackground(cmd, bgProcs, namedBg)
+		stopped, bgProcs, err = stopNamedBackground(&cmd, bgProcs, namedBg)
 	})
 	if err != nil {
 		t.Fatalf("stopNamedBackground returned error: %v", err)
@@ -98,7 +98,7 @@ func TestStopBackgroundTermSignal(t *testing.T) {
 	cmd := RunCommand{Mode: modeStop, Seq: 3, Name: "daemon", Signal: signalTerm}
 	var err error
 	withinDeadline(t, "stopNamedBackground(term)", func() {
-		_, bgProcs, err = stopNamedBackground(cmd, bgProcs, namedBg)
+		_, bgProcs, err = stopNamedBackground(&cmd, bgProcs, namedBg)
 	})
 	if err != nil {
 		t.Fatalf("stopNamedBackground returned error: %v", err)
@@ -121,7 +121,7 @@ func TestStopBackgroundUnknownNameFails(t *testing.T) {
 	namedBg := map[string]*exec.Cmd{"responder": proc}
 
 	cmd := RunCommand{Mode: modeStop, Seq: 2, Name: "ghost", Signal: signalKill}
-	stopped, got, err := stopNamedBackground(cmd, bgProcs, namedBg)
+	stopped, got, err := stopNamedBackground(&cmd, bgProcs, namedBg)
 	if err == nil {
 		t.Fatal("expected error for unknown process name, got nil (fail-open)")
 	}
@@ -147,7 +147,7 @@ func TestTeardownToleratesStoppedProcess(t *testing.T) {
 	namedBg := map[string]*exec.Cmd{"responder": proc}
 
 	cmd := RunCommand{Mode: modeStop, Seq: 2, Name: "responder", Signal: signalKill}
-	if _, _, err := stopNamedBackground(cmd, bgProcs, namedBg); err != nil {
+	if _, _, err := stopNamedBackground(&cmd, bgProcs, namedBg); err != nil {
 		t.Fatalf("stopNamedBackground returned error: %v", err)
 	}
 
@@ -182,13 +182,13 @@ func TestTeardownToleratesStoppedProcess(t *testing.T) {
 // "stop immediately".
 func TestBackgroundLifetimeStopsTheProcess(t *testing.T) {
 	stopped := startSleeper(t)
-	startBackgroundLifetime(t.Context(), RunCommand{Timeout: "150ms"}, stopped)
+	startBackgroundLifetime(t.Context(), &RunCommand{Timeout: "150ms"}, stopped)
 
 	survivor := startSleeper(t)
-	startBackgroundLifetime(t.Context(), RunCommand{}, survivor)
+	startBackgroundLifetime(t.Context(), &RunCommand{}, survivor)
 
 	unparseable := startSleeper(t)
-	startBackgroundLifetime(t.Context(), RunCommand{Timeout: "not-a-duration"}, unparseable)
+	startBackgroundLifetime(t.Context(), &RunCommand{Timeout: "not-a-duration"}, unparseable)
 
 	done := make(chan error, 1)
 	go func() { done <- stopped.Wait() }()
@@ -218,7 +218,7 @@ func TestBackgroundLifetimeStopsTheProcess(t *testing.T) {
 func TestBackgroundLifetimeEndsWithTheTest(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	proc := startSleeper(t)
-	startBackgroundLifetime(ctx, RunCommand{Timeout: "1h"}, proc)
+	startBackgroundLifetime(ctx, &RunCommand{Timeout: "1h"}, proc)
 	cancel()
 
 	// The process must outlive the canceled timer: cancellation stops the

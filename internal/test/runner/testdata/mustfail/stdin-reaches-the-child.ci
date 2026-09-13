@@ -1,4 +1,4 @@
-# must-fail: stdout unexpectedly contains "piped-marker"
+# must-fail: output unexpectedly contains "piped-marker"
 #
 # This one fails at RUN time, and it is the mirror of the defect this suite was
 # written for. The block IS piped, /bin/cat writes it back, and the reject= then

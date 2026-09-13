@@ -167,7 +167,10 @@ vpn {
 EOF_CONF2
 
 await=stderr:contains=eap-mschapv2 requires a ca-certificate to validate the remote certificate
-expect=stderr:contains=eap-mschapv2 requires a ca-certificate to validate the remote certificate
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+# Asserted under the daemon that writes it. These lines used to sit
+# above every cmd=, where the runner checked them against the whole
+# test's output and they could have been satisfied by any command.
+expect=stderr:contains=eap-mschapv2 requires a ca-certificate to validate the remote certificate

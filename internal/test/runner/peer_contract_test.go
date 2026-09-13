@@ -223,7 +223,11 @@ func TestHasCheckPeer(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, hasCheckPeer(tc.cmds))
+			cmds := make([]*RunCommand, len(tc.cmds))
+			for i := range tc.cmds {
+				cmds[i] = &tc.cmds[i]
+			}
+			assert.Equal(t, tc.want, hasCheckPeer(cmds))
 		})
 	}
 }
@@ -255,7 +259,7 @@ func TestIsSelfValidated(t *testing.T) {
 		},
 		{
 			name:    "peer plus stdout assertion is NOT self-validated",
-			rec:     &Record{ExpectStdoutMatch: []string{"ok"}},
+			rec:     &Record{RunCommands: []RunCommand{{ExpectStdout: []string{"ok"}}}},
 			hasPeer: true,
 			want:    false,
 		},
@@ -273,7 +277,7 @@ func TestIsSelfValidated(t *testing.T) {
 		},
 		{
 			name:    "peer-less stdout test is self-validated",
-			rec:     &Record{ExpectStdoutMatch: []string{"ok"}},
+			rec:     &Record{RunCommands: []RunCommand{{ExpectStdout: []string{"ok"}}}},
 			hasPeer: false,
 			want:    true,
 		},
@@ -406,7 +410,7 @@ func TestPeerVerdictRequiresAllCheckPeers(t *testing.T) {
 // only check-mode ze-peers count, so a sink peer cannot inflate the expectation
 // and turn a healthy test red.
 func TestCountCheckPeers(t *testing.T) {
-	cmds := []RunCommand{
+	cmds := []*RunCommand{
 		{Exec: "ze-peer --port $PORT"},
 		{Exec: "ze-peer --mode sink --port $PORT"},
 		{Exec: "ze-peer --mode=check --port $PORT"},
@@ -418,9 +422,9 @@ func TestCountCheckPeers(t *testing.T) {
 // TestPeerLabelPrefersAuthoredNames checks the failure message names the peer
 // the way the .ci author wrote it, falling back only when nothing was declared.
 func TestPeerLabelPrefersAuthoredNames(t *testing.T) {
-	assert.Equal(t, "collector", peerLabel(RunCommand{Name: "collector", Stdin: "peer1", Seq: 3}))
-	assert.Equal(t, "stdin=peer1", peerLabel(RunCommand{Stdin: "peer1", Seq: 3}))
-	assert.Equal(t, "cmd seq=3", peerLabel(RunCommand{Seq: 3}))
+	assert.Equal(t, "collector", peerLabel(&RunCommand{Name: "collector", Stdin: "peer1", Seq: 3}))
+	assert.Equal(t, "stdin=peer1", peerLabel(&RunCommand{Stdin: "peer1", Seq: 3}))
+	assert.Equal(t, "cmd seq=3", peerLabel(&RunCommand{Seq: 3}))
 }
 
 // TestPeerVerdictFailsOnRetractionAfterSuccess is the regression guard for the

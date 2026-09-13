@@ -62,7 +62,11 @@ cmd=foreground:seq=3:exec=ze config validate -:stdin=cfg:exit=0
 
 # dump - (was a loadConfigData caller, now the shared helper).
 cmd=foreground:seq=4:exec=ze config dump -:stdin=cfg:exit=0
-expect=stdout:contains=router-id 1.2.3.4
+# `dump` renders the resolved tree, so it spells the leaf `router-id: 1.2.3.4`
+# with a colon, where `show` and `fmt` spell it in config syntax. This line
+# asserted the config spelling until 2026-09-14 and was satisfied by the
+# `ze config show -` four commands above it, so `dump` was never asserted.
+expect=stdout:contains=router-id: 1.2.3.4
 
 # fmt - (was a loadConfigData caller, now the shared helper): reads the config and
 # prints the reformatted tree to stdout.

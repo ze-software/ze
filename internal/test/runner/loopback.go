@@ -68,7 +68,8 @@ func ensureBindAddresses(rec *Record) error {
 
 // ensurePeerBindAddresses makes every `ze-peer --bind <ip>` address usable.
 func ensurePeerBindAddresses(cmds []RunCommand) error {
-	for _, cmd := range cmds {
+	for i := range cmds {
+		cmd := &cmds[i]
 		if !strings.Contains(cmd.Exec, "ze-peer") {
 			continue
 		}

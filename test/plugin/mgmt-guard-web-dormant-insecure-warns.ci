@@ -68,14 +68,18 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
 cmd=foreground:seq=2:exec=ze start web-dormant-insecure.conf:timeout=60s
+# Asserted under the command that WRITES it.
+expect=stderr:contains=web server listening on https://127.0.0.1:18450/
+# Asserted under the command that WRITES it.
+expect=stderr:contains=environment.web.insecure
+# Asserted under the command that WRITES it. It used to sit under a later
+# command, where the runner checked it against the whole test's output.
+expect=stderr:contains=environment.web insecure not honored
 cmd=foreground:seq=3:exec=ze-test fixture plugin/mgmt-guard-web-dormant-insecure-warns-probe 18450:timeout=30s
 expect=exit:code=0
 # The WARN itself: the leaf that was dropped, named.
-expect=stderr:contains=environment.web insecure not honored
-expect=stderr:contains=environment.web.insecure
 # The daemon booted past checkMgmtListeners and served authenticated HTTPS, so
 # the WARN describes a running server rather than a refused one.
-expect=stderr:contains=web server listening on https://127.0.0.1:18450/
 # startWebServer prints this line whenever insecureWeb is true (service_web.go),
 # so its absence is what says the dropped leaf really was dropped. The banner at
 # the same function says https:// in both modes and cannot tell them apart.

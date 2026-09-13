@@ -97,11 +97,8 @@ func isAcceptOnly(r *Record) bool {
 	if len(r.Messages) != 0 ||
 		len(r.Expects) != 0 ||
 		len(r.ExpectStderr) != 0 ||
-		len(r.ExpectStderrMatch) != 0 ||
 		len(r.ExpectSyslog) != 0 ||
-		len(r.ExpectStdoutMatch) != 0 ||
-		len(r.ExpectStdoutNotMatch) != 0 ||
-		len(r.ExpectStdoutRegex) != 0 ||
+		r.HasStreamAssertion() ||
 		r.AwaitStderr != "" ||
 		len(r.FileChecks) != 0 ||
 		len(r.HTTPChecks) != 0 ||
@@ -110,8 +107,8 @@ func isAcceptOnly(r *Record) bool {
 		return false
 	}
 	// Any reject= disqualifies (a negative expectation observes output).
-	if len(r.RejectStderr) != 0 || len(r.RejectStderrMatch) != 0 ||
-		len(r.RejectSyslog) != 0 || len(r.RejectStdoutRegex) != 0 {
+	// The scoped reject= forms are covered by HasStreamAssertion above.
+	if len(r.RejectStderr) != 0 || len(r.RejectSyslog) != 0 {
 		return false
 	}
 	// An embedded errexit script does its own checking.

@@ -109,6 +109,9 @@ func TestParseCIUnknownKeyIsRefused(t *testing.T) {
 // whole suite is red.
 func TestParseCIKnownKeysStillParse(t *testing.T) {
 	rec, err := parseCILines(t,
+		// Every stream assertion names the command above it, so the file needs
+		// one before it may assert anything (Record.assertionTarget).
+		"cmd=foreground:seq=1:exec=ze version",
 		"expect=stdout:contains=hello",
 		`expect=stdout:pattern=version=\d+`,
 		"expect=stderr:contains=warning",
@@ -124,13 +127,17 @@ func TestParseCIKnownKeysStillParse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, rec)
 
-	assert.Equal(t, []string{"hello"}, rec.ExpectStdoutMatch)
-	assert.Equal(t, []string{`version=\d+`}, rec.ExpectStdoutRegex)
-	assert.Equal(t, []string{"warning"}, rec.ExpectStderrMatch)
+	require.Len(t, rec.RunCommands, 1)
+	cmd := rec.RunCommands[0]
+	assert.Equal(t, []string{"hello"}, cmd.ExpectStdout)
+	assert.Equal(t, []string{`version=\d+`}, cmd.ExpectStdoutRe)
+	assert.Equal(t, []string{"warning"}, cmd.ExpectStderrHas)
+	assert.Equal(t, []string{"forbidden"}, cmd.RejectStdout)
+	assert.Equal(t, []string{`error.*fatal`}, cmd.RejectStdoutRe)
+	assert.Equal(t, []string{"deprecated"}, cmd.RejectStderrHas)
+	// The pattern= forms stay file-level: they are the daemon-stderr mechanism
+	// validateLogging owns, over a buffer no command span indexes.
 	assert.Equal(t, []string{"subsystem=server"}, rec.ExpectStderr)
-	assert.Equal(t, []string{"forbidden"}, rec.ExpectStdoutNotMatch)
-	assert.Equal(t, []string{`error.*fatal`}, rec.RejectStdoutRegex)
-	assert.Equal(t, []string{"deprecated"}, rec.RejectStderrMatch)
 	assert.Equal(t, []string{"level=ERROR"}, rec.RejectStderr)
 	assert.Equal(t, []string{"daemon"}, rec.ExpectSyslog)
 	require.Len(t, rec.FileChecks, 1)
@@ -196,9 +203,13 @@ func TestNonContainmentBothPolarities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec, err := parseCILines(t, tt.line)
+			// A stream assertion names the command above it, so the file
+			// declares one and the output is that command's whole span.
+			rec, err := parseCILines(t, "cmd=foreground:seq=1:exec=ze version", tt.line)
 			require.NoError(t, err)
-			rec.ClientOutput = tt.output
+			setClientOutput(rec, tt.output, "")
+			require.Len(t, rec.RunCommands, 1)
+			rec.RunCommands[0].stdoutFrom, rec.RunCommands[0].stdoutTo = 0, len(tt.output)
 
 			assert.Equal(t, tt.wantPassed, checkOutputAssertions(rec))
 

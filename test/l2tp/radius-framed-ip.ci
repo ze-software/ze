@@ -57,12 +57,15 @@ option=env:var=RADIUS_KEY:value=testing123
 
 cmd=background:seq=1:exec=ze-test fixture l2tp/radius-framed-ip/radius
 cmd=background:seq=2:exec=ze -:stdin=config
+# The DAEMON writes these lines, so they are asserted under it. They used
+# to sit under the fixture command below, where the runner checked them
+# against the whole test's output and the fixture got the credit.
+expect=stderr:contains=l2tp-pool: configured
+expect=stderr:contains=named-pools=1
 cmd=foreground:seq=3:exec=ze-test fixture l2tp/radius-framed-ip $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: tunnel established with RADIUS framed-ip + named pool config
-expect=stderr:contains=l2tp-pool: configured
 # The count, not just the line. `named-pool gold` above is a YANG list, which
 # Tree.ToMap renders as a map of pool name to entry, so a parser that asserted
 # []any on it built an EMPTY named table while still logging "configured". This
 # assertion is what tells the two apart.
-expect=stderr:contains=named-pools=1

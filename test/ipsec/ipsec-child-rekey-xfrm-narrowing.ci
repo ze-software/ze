@@ -174,6 +174,17 @@ EOF_PEER_A
 cmd=background:seq=1:exec=env ze_test_ike_dataplane=noop ze_test_ike_rekey_ts_local=192.0.2.96/27 ze -:stdin=peer-b:name=peer-b
 cmd=background:seq=2:exec=ze -:stdin=peer-a:name=peer-a
 cmd=foreground:seq=3:exec=ze-test fixture ipsec/child-rekey-xfrm-narrowing:timeout=110s
+# Asserted under the fixture that PRINTS these markers. They used to sit
+# below the cmd=stop lines, where the runner checked them against the
+# whole test's output; a cmd=stop runs no program and writes nothing.
+expect=stdout:contains=INSTALLED:
+expect=stdout:contains=POLICY-STABLE:
+expect=stderr:contains=the rekey proposal narrows the scope in use
+expect=stderr:contains=hard lifetime expired
+reject=stdout:pattern=POLICY-MOVED
+reject=stdout:pattern=REKEY-ACCEPTED
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
 # signal=term, not the default kill: peer-a's policies are REAL and node-wide, and the
 # release that removes them runs on the way out of runEngine. A SIGKILLed peer-a leaves
 # them in the kernel for the rest of the suite, where ipsec-teardown-leaves-nothing.ci
@@ -186,17 +197,9 @@ cmd=stop:seq=5:name=peer-b:signal=term
 # daemon carrying it exits with it, while every assertion here is about a kernel peer-a
 # must still be running to hold.
 expect=exit:code=0
-expect=stdout:contains=INSTALLED:
-expect=stdout:contains=POLICY-STABLE:
 # peer-a refused, and named both selector sets so an operator can act (engine/inbound.go
 # logs the error respondChildRekey returned). Without the refusal peer-a answers the
 # intersection and this line never appears.
-expect=stderr:contains=the rekey proposal narrows the scope in use
 # peer-b's Child SA reached its hard lifetime with no replacement. A rekey peer-a had
 # answered would have reset that lifetime, so this line is the peer's own statement that
 # the exchange never completed.
-expect=stderr:contains=hard lifetime expired
-reject=stdout:pattern=POLICY-MOVED
-reject=stdout:pattern=REKEY-ACCEPTED
-reject=stderr:pattern=panic recovered
-reject=stderr:pattern=fatal error

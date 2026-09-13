@@ -1,0 +1,23 @@
+# must-fail: cmd seq=2 (/bin/echo second-command-only): output does not contain "first-command-marker"
+#
+# The anti-vacuity proof for per-command scoping. The FIRST command prints the
+# needle; the assertion sits under the SECOND. It must fail, because an
+# assertion names the output of the command above it and nothing else.
+#
+# Under the file-level check this replaced, both commands wrote into one buffer
+# and this file PASSED: the assertion was satisfied by a command its author
+# never named. That is not a hypothetical. It is what
+# test/plugin/kernel-capability-unknown-starts.ci did, asserting that `ze
+# doctor` printed a diagnostic code and then running `ze explain <that code>`
+# in the same file, on a host where the doctor check does not run at all.
+#
+# A runner that goes back to one buffer makes this file PASS, which is what the
+# gate around it watches for.
+
+option=timeout:value=20s
+
+cmd=foreground:seq=1:exec=/bin/echo first-command-marker
+expect=stdout:contains=first-command-marker
+
+cmd=foreground:seq=2:exec=/bin/echo second-command-only
+expect=stdout:contains=first-command-marker

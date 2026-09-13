@@ -11,6 +11,19 @@
 # There is NO operator override, by owner decision (2026-08-14): a NOS that
 # half-works on a kernel missing a required feature is the hazard this removes,
 # and an override is what an operator reaches for under pressure.
+# The XFRM kernel capability enrols on Linux ONLY: internal/component/ike/engine/kernelcap_linux.go
+# carries the registration behind //go:build linux, because XFRM is a Linux
+# dataplane and off Linux ze installs none. So `ze doctor` on darwin emits no
+# xfrm diagnostic at all and nothing here can be reached, whatever
+# ze.test.kernelcap.xfrm is forced to.
+#
+# This file passed on darwin until 2026-09-14 only because every stream
+# assertion was checked against the whole test's output: its own
+# `ze explain <code>` step printed the code its `ze doctor` step was supposed
+# to produce. Per-command scoping ended that, and the honest answer is that the
+# behaviour is Linux-only.
+option=needs-linux
+
 option=env:var=ze.test.kernelcap.xfrm:value=absent
 
 stdin=ze-bgp:terminator=EOF_CONF

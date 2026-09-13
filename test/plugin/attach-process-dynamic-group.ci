@@ -68,7 +68,6 @@ expect=stderr:pattern=DYN-GROUP: no peer was fed outside its list
 # The dynamic peer really was built from the group rather than matched to a
 # configured address. Without this the three lines above would hold for any
 # peer ze accepted. "dynamic peer created" is Info on the reactor subsystem.
-expect=stderr:contains=dynamic peer created
 
 option=env:var=ze.log.bgp.reactor:value=info
 
@@ -177,6 +176,10 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=inherits
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.4 --port $PORT:stdin=restates
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=45s
+# Asserted under the daemon that writes it. These lines used to sit
+# above every cmd=, where the runner checked them against the whole
+# test's output and they could have been satisfied by any command.
+expect=stderr:contains=dynamic peer created
 cmd=foreground:seq=4:exec=ze-test fixture plugin/attach-process-dynamic-group-wait /tmp/ze-dynamic-group-$PORT.ready:timeout=25s
 cmd=background:seq=5:exec=ze-peer --dial 127.0.0.2:$PORT:stdin=dynamic
 expect=exit:code=0

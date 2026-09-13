@@ -39,8 +39,11 @@ option=env:var=ze.l2tp.skip-kernel-probe:value=true
 option=env:var=TEST_SECRET:value=s3cr3t
 
 cmd=background:seq=1:exec=ze -:stdin=config
+# The DAEMON writes these lines, so they are asserted under it. They used
+# to sit under the fixture command below, where the runner checked them
+# against the whole test's output and the fixture got the credit.
+expect=stderr:contains=l2tp-shaper: configured
+expect=stderr:contains=upload-rate=2000000
 cmd=foreground:seq=2:exec=ze-test fixture l2tp/shaper-upload-rate $PORT:timeout=10s
 expect=exit:code=0
 expect=stdout:contains=OK: tunnel established with shaper upload-rate config
-expect=stderr:contains=l2tp-shaper: configured
-expect=stderr:contains=upload-rate=2000000

@@ -59,9 +59,11 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
 cmd=foreground:seq=2:exec=ze start web-dormant-address.conf:timeout=60s
+# Asserted under the command that WRITES it. It used to sit under a later
+# command, where the runner checked it against the whole test's output.
+expect=stderr:contains=web server listening on https://127.0.0.1:18449/
 cmd=foreground:seq=3:exec=ze-test fixture plugin/mgmt-guard-web-env-started-address-binds-probe 18449:timeout=30s
 expect=exit:code=0
-expect=stderr:contains=web server listening on https://127.0.0.1:18449/
 # The wildcard default the address falls back to when the dormant block's
 # server entry is discarded. Reading it through the enable gate produced exactly
 # this line, on every interface.

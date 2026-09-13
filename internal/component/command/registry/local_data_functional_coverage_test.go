@@ -253,12 +253,21 @@ func validateCompiledScenarioRecord(record *runner.Record, wantMarkers []string)
 	if record.ExpectExitCode == nil || *record.ExpectExitCode != 0 {
 		return fmt.Errorf("compiled scenario has no exact file-level successful exit assertion")
 	}
-	if !slices.Equal(record.ExpectStdoutMatch, wantMarkers) {
-		return fmt.Errorf("production runner stdout evidence = %q, want %q", record.ExpectStdoutMatch, wantMarkers)
+	// A stream assertion belongs to the command it was written under, so the
+	// evidence is read off the commands rather than off the record
+	// (runner.RunCommand.ExpectStdout). A compiled scenario declares ONE
+	// command, and these markers are its whole output contract.
+	if len(record.RunCommands) != 1 {
+		return fmt.Errorf("compiled scenario declares %d commands, want exactly 1", len(record.RunCommands))
 	}
-	if len(record.ExpectStdoutNotMatch) != 0 ||
-		len(record.ExpectStdoutRegex) != 0 || len(record.RejectStdoutRegex) != 0 ||
-		len(record.ExpectStderrMatch) != 0 || len(record.ExpectStderr) != 0 ||
+	cmd := record.RunCommands[0]
+	if !slices.Equal(cmd.ExpectStdout, wantMarkers) {
+		return fmt.Errorf("production runner stdout evidence = %q, want %q", cmd.ExpectStdout, wantMarkers)
+	}
+	if len(cmd.RejectStdout) != 0 ||
+		len(cmd.ExpectStdoutRe) != 0 || len(cmd.RejectStdoutRe) != 0 ||
+		len(cmd.ExpectStderrHas) != 0 || len(cmd.RejectStderrHas) != 0 ||
+		len(record.ExpectStderr) != 0 ||
 		len(record.RejectStderr) != 0 || len(record.ExpectSyslog) != 0 ||
 		len(record.RejectSyslog) != 0 || record.AwaitStderr != "" ||
 		record.AwaitStderrTimeout != "" {

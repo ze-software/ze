@@ -50,12 +50,17 @@ EOF_CONF
 # The offline command remains a declarative runner command, so the exact ze doctor
 # entry point is exercised without an embedded helper program.
 cmd=foreground:seq=1:exec=ze doctor --json unreachable.conf:exit=0:timeout=60s
+# Asserted under the command that WRITES it.
+expect=stdout:contains=doctor-bmp-unreachable
+# Asserted under the command that WRITES it.
+expect=stdout:contains=doctor-rpki-unreachable
+# Asserted under the command that WRITES it.
+expect=stdout:contains=doctor-ntp-server-unreachable
+# Asserted under the command that WRITES it. It used to sit under a later
+# command, where the runner checked it against the whole test's output.
+expect=stdout:contains=doctor-hub-unreachable
 cmd=foreground:seq=2:exec=ze start unreachable.conf:timeout=60s
 expect=exit:code=0
-expect=stdout:contains=doctor-hub-unreachable
-expect=stdout:contains=doctor-ntp-server-unreachable
-expect=stdout:contains=doctor-rpki-unreachable
-expect=stdout:contains=doctor-bmp-unreachable
 expect=file:path=daemon.ready:exists=true
 expect=stderr:pattern=OK: daemon reached ready with all external services blackholed
 expect=stderr:pattern=OK: environment/ntp reload applied within budget while servers blackholed

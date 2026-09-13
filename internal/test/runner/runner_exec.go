@@ -34,7 +34,7 @@ import (
 // reaped. Kill rather than a signal: the point is a peer that STOPS ANSWERING,
 // which is what a liveness check exists to detect, and a graceful stop would
 // let the daemon say goodbye on the wire and prove nothing.
-func startBackgroundLifetime(ctx context.Context, cmd RunCommand, proc *exec.Cmd) {
+func startBackgroundLifetime(ctx context.Context, cmd *RunCommand, proc *exec.Cmd) {
 	if cmd.Timeout == "" || proc == nil || proc.Process == nil {
 		return
 	}
@@ -379,7 +379,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	terminateGracefully(clientCmd)
 
 	rec.PeerOutput = peerStdout.String() + peerStderr.String()
-	rec.ClientOutput = clientStdout.String() + clientStderr.String()
+	setClientOutput(rec, clientStdout.String(), clientStderr.String())
 	rec.Duration = time.Since(rec.StartTime)
 
 	// Parse received messages from peer output
@@ -485,9 +485,20 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 // runOrchestrated executes a test using the new stdin/cmd orchestration format.
 func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOptions) bool {
-	// Sort RunCommands by seq
-	cmds := make([]RunCommand, len(rec.RunCommands))
-	copy(cmds, rec.RunCommands)
+	// Sort RunCommands by seq.
+	//
+	// Pointers INTO rec.RunCommands rather than a copy of it: each command
+	// records the span of the run's output it produced (RunCommand.stdoutFrom
+	// and friends), and checkOutputAssertions reads those marks back off the
+	// record afterwards. A sorted copy would carry the marks and be discarded.
+	// rec.RunCommands itself stays in FILE order, which is the order the
+	// assertions were attached in.
+	cmds := make([]*RunCommand, len(rec.RunCommands))
+	for i := range rec.RunCommands {
+		cmds[i] = &rec.RunCommands[i]
+		cmds[i].stdoutFrom, cmds[i].stderrFrom = spanOpen, spanOpen
+		cmds[i].stdoutTo, cmds[i].stderrTo = spanOpen, spanOpen
+	}
 	sort.Slice(cmds, func(i, j int) bool {
 		return cmds[i].Seq < cmds[j].Seq
 	})
@@ -964,6 +975,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
+		// Open this command's output span. A quick-exit ze re-marks both ends
+		// around its own fold in awaitQuickZe, which is exact; everything else
+		// writes to the shared accumulators as it runs, so its span opens here
+		// and closes with closeOpenSpans at the end of the run.
+		cmd.stdoutFrom, cmd.stderrFrom = clientStdout.mark(), clientStderr.mark()
+
 		// Start the process, retrying on ETXTBSY (see startWithETXTBSYRetry).
 		var startErr error
 		if proc, startErr = startWithETXTBSYRetry(testCtx, binPath, args, proc); startErr != nil {
@@ -1082,7 +1099,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// rather than a sleep. The await=stderr arm below carries the
 				// same repair.
 				// ai/rules/evidence.md: the guard must speak.
-				rec.ClientOutput = clientStdout.String() + clientStderr.String()
+				setClientOutput(rec, clientStdout.String(), clientStderr.String())
 				rec.PeerOutput = collectPeerOutput(peerOutputs)
 				rec.Duration = time.Since(rec.StartTime)
 				rec.Error = fmt.Errorf("setup script %s: %w", binName, err)
@@ -1092,7 +1109,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case quickZe:
 			// Foreground quick-exit ze: await completion so the next command does
 			// not start (and race on the client buffers) before this one finishes.
-			lastQuickZeErr = awaitQuickZe(proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
+			lastQuickZeErr = awaitQuickZe(cmd, proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
 			quickZeRan = true
 			// Assert this command's own exit code when the test declared one.
 			// The file-level expect=exit:code= below can only ever check the
@@ -1207,7 +1224,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// that explains why the needle never arrived (a daemon that died in
 			// startup looks identical to one that is merely slow).
 			// ai/rules/evidence.md: the guard must speak.
-			rec.ClientOutput = clientStdout.String() + clientStderr.String()
+			setClientOutput(rec, clientStdout.String(), clientStderr.String())
 			rec.PeerOutput = collectPeerOutput(peerOutputs)
 			rec.Duration = time.Since(rec.StartTime)
 			return false
@@ -1267,7 +1284,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	allPeerStdout, allPeerStderr := collectPeerStreams(peerOutputs)
 	rec.PeerOutput = allPeerStdout + allPeerStderr
-	rec.ClientOutput = clientStdout.String() + clientStderr.String()
+	setClientOutput(rec, clientStdout.String(), clientStderr.String())
 	rec.Duration = time.Since(rec.StartTime)
 	logger().Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
 
