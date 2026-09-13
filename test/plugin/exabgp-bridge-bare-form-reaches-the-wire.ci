@@ -21,7 +21,9 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 exabgp {
 	bridge {
-		run "ze-test fixture plugin/exabgp-bridge-bare-helper"
+		process helper {
+			run "ze-test fixture plugin/exabgp-bridge-bare-helper"
+		}
 		family ipv4/unicast
 	}
 }
