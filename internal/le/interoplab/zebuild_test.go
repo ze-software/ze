@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -109,6 +108,22 @@ func TestPreflightBuildsEveryDeclaredBinary(t *testing.T) {
 	}
 }
 
+// effectiveEnvironment answers the value a command really runs under for key.
+//
+// os/exec keeps the LAST entry for a duplicate key (exec.dedupEnv), and a lab
+// build environment is the machine's with the toolchain's overrides appended,
+// so the last entry is the only one that decides anything.
+func effectiveEnvironment(environment []string, key string) (string, bool) {
+	prefix := key + "="
+	value, held := "", false
+	for _, entry := range environment {
+		if strings.HasPrefix(entry, prefix) {
+			value, held = strings.TrimPrefix(entry, prefix), true
+		}
+	}
+	return value, held
+}
+
 // VALIDATES: the staged binary is a static Linux binary at the DAEMON's architecture, never the host's.
 // PREVENTS: `exec format error` on a remote Docker context, and a dynamically linked binary that cannot run on the musl alpine base.
 func TestLabCrossBuildIsStaticLinuxAtTheDaemonArch(t *testing.T) {
@@ -129,13 +144,25 @@ func TestLabCrossBuildIsStaticLinuxAtTheDaemonArch(t *testing.T) {
 	if len(builds) != 1 {
 		t.Fatalf("the preflight ran %d builds, want 1", len(builds))
 	}
-	for _, want := range []string{"GOOS=linux", "GOARCH=" + daemonArchitecture, "CGO_ENABLED=0"} {
-		if !slices.Contains(builds[0].Environment, want) {
-			t.Errorf("the cross-compile environment does not carry %s", want)
+	// The assertion is the EFFECTIVE value of each variable, never the presence
+	// of an entry. Toolchain.Environment is os.Environ() with the overrides
+	// appended, and os/exec keeps the LAST entry for a duplicate key, so a host
+	// that exports CGO_ENABLED=1 puts both entries in the slice while only the
+	// appended CGO_ENABLED=0 reaches the compiler. Reading presence made this
+	// test answer about the machine it ran on rather than about the build.
+	for key, want := range map[string]string{
+		"GOOS":        labBuildGOOS,
+		"GOARCH":      daemonArchitecture,
+		"CGO_ENABLED": "0",
+	} {
+		got, held := effectiveEnvironment(builds[0].Environment, key)
+		if !held {
+			t.Errorf("the cross-compile environment names no %s, want %s", key, want)
+			continue
 		}
-	}
-	if slices.Contains(builds[0].Environment, "CGO_ENABLED=1") {
-		t.Error("the cross-compile environment turns CGO on, which links the binary against the host libc")
+		if got != want {
+			t.Errorf("the cross-compile environment resolves %s to %q, want %q", key, got, want)
+		}
 	}
 }
 

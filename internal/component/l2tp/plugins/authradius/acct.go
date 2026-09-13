@@ -430,6 +430,18 @@ func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *ac
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// Cancellation wins over a pending tick. A send that outlasts the
+			// interval leaves the ticker ready as well as ctx.Done, and select
+			// picks between two ready cases at random, so a loop whose session
+			// has ended starts another generation every second time it wakes.
+			// onSessionDown cancels this context and then sends the session's
+			// Accounting-Stop, so that generation is an interim record landing
+			// after the Stop. RFC 2869 Section 2.1: "Note that all information
+			// in an interim message is cumulative". The server then records
+			// counters for a session it has already closed.
+			if ctx.Err() != nil {
+				return
+			}
 			// Read current client/nasID/sourceAddr on each iteration so reload
 			// takes effect without restarting the loop.
 			a.mu.Lock()

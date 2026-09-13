@@ -2,6 +2,8 @@ package rfc
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -781,6 +783,15 @@ func TestDiscriminationRealRecordsSurviveAMechanicalRename(t *testing.T) {
 				continue
 			}
 			raw, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+			if errors.Is(readErr, fs.ErrNotExist) {
+				// A record naming a file the checkout no longer holds is the state
+				// verifyOneDiscrimination answers ProofUnitGone or ProofProducerGone,
+				// and discriminationRemovable reports those for removal rather than
+				// refusing them. Both replays then read the same absence, so the record
+				// lands in the already-stale arm below, which is where a verdict the
+				// header did not move belongs.
+				continue
+			}
 			if readErr != nil {
 				t.Fatalf("read %s out of the checkout: %v", rel, readErr)
 			}

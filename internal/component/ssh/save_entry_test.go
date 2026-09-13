@@ -24,21 +24,29 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// synchronizedBuffer collects the stdout and the stderr of one SSH session,
+// which x/crypto/ssh copies from two goroutines, and lets the test read the
+// screen from a third. Safe for concurrent use.
+//
+// The buffer is a named field rather than an embedded type. Embedding promotes
+// bytes.Buffer.ReadFrom, io.Copy prefers a ReaderFrom over Write, and the
+// promoted method takes no lock, so both copier goroutines would grow the same
+// buffer unsynchronized.
 type synchronizedBuffer struct {
-	mu sync.Mutex
-	bytes.Buffer
+	mu     sync.Mutex
+	buffer bytes.Buffer
 }
 
 func (b *synchronizedBuffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.Buffer.Write(p)
+	return b.buffer.Write(p)
 }
 
 func (b *synchronizedBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.Buffer.String()
+	return b.buffer.String()
 }
 
 // TestSSHExecRefusesSaveAtTheEntryPoint drives a real authenticated SSH exec
