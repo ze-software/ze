@@ -632,8 +632,11 @@ func TestTheGrowthRowsAreOrderedByHabitNumber(t *testing.T) {
 // TestCheckDeclaresTheFileKeywordItEnforces holds the published table to the
 // grammar the action really takes.
 //
-// VALIDATES: AC-8 -- requiredness and the keyword set are PUBLISHED, so a
-// reader learns what `check` takes without an invocation of it.
+// VALIDATES: the keyword set `check` takes is PUBLISHED, so a reader learns it
+// without an invocation. NOT AC-8, which is about REQUIREDNESS: `file` here is
+// Optional, so this body would not redden if requiredness started being
+// enforced. AC-8 is held by TestARequiredKeywordIsPublishedRatherThanNewlyEnforced
+// (internal/le/leaction/leaction_test.go), and the spec's TDD table says so.
 // PREVENTS: `check` published as a zero-argument action while Answer read
 // `file <path>` behind the dispatcher, which made `le ste check --help` print
 // a usage line naming no keyword at all (review round 5).

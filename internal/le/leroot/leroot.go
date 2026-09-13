@@ -114,10 +114,15 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 // handler. `le stress-repro run suite --help` started a multi-hour burn because
 // the only surface holding the grammar was the handler itself.
 //
-// It is a second call beside Register rather than a fifth argument to it: the
-// seven areas that hand-roll their own dispatch hold no action table yet, and
+// It is a second call beside Register rather than a fifth argument to it: an
+// area that hand-rolls its own dispatch holds no action table yet, and
 // plan/spec-le-every-area-dispatches-through-one-table.md migrates them, after
 // which the table stops being optional.
+//
+// How MANY such areas there are is not stated here. It was, as a count of seven,
+// and the count was wrong long before anyone noticed: areasWithoutAnActionTable
+// (internal/le/actions_test.go) holds the set, and the ratchet beside it refuses
+// a new one.
 func RegisterActions(name string, actions func() leaction.List) {
 	if actions == nil {
 		panic("BUG: leroot.RegisterActions: nil actions; see the init frame above for the tool")

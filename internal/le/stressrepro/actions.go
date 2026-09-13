@@ -110,7 +110,7 @@ func parseOptions(args []string) (Options, error) {
 			// The refusal is on the keyword's own word and MUST stay there.
 			// This parser does forward to a child: realProcessRunner.Invoke
 			// (process.go) shell-splits `suite` and `test` into the child's
-			// argv, and docs/functional-tests.md:280 ships
+			// argv, and docs/functional-tests.md ships
 			// `suite "bgp plugin --draft"`. A refusal widened to the split
 			// words would refuse the documented recipe.
 			// `run suite -help` set suite to the cluster, and the load

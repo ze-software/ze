@@ -427,6 +427,31 @@ func TestWebSessionBuildsChaosForBareAndAliasVerbs(t *testing.T) {
 	}
 }
 
+// VALIDATES: newSession's build closure ASKS for the toolchain rather than
+// reading the field, so the binary set lands under the checkout root.
+// PREVENTS: the zero Toolchain this defect handed Prepare. s.tc is filled
+// lazily behind s.probed, so a closure reading current.tc directly gave Prepare
+// an empty Root whenever binaries() ran before toolchain() -- a value Prepare
+// cannot tell from a real answer, and one only the statement order inside
+// suiteRunner kept out of its way.
+//
+// ze.test.canonical makes this cost milliseconds: Prepare returns
+// canonicalBinDir(tc.Root) before it builds anything (binaries.go), so the
+// answer is the root and nothing compiles. Against the closure that read
+// current.tc, the root is "" and the path is not under the checkout.
+func TestTheBuildClosureProbesTheToolchainBeforeItBuilds(t *testing.T) {
+	nameForTest(t, "ze.test.canonical", "1")
+
+	set, err := newSession([]string{"parse"}).binaries()
+	if err != nil {
+		t.Fatalf("binaries with no prior toolchain probe: %v", err)
+	}
+	root := repoRootForTest(t)
+	if !strings.HasPrefix(set.Dir, root) {
+		t.Errorf("binary set at %q, want it under the checkout %q: the closure read a zero Toolchain", set.Dir, root)
+	}
+}
+
 // repoRootForTest answers the checkout these tests run in.
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
