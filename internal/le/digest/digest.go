@@ -33,6 +33,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/textrepr"
 )
 
@@ -514,7 +515,19 @@ func checkLineAnchor(tree, relDigest, named string, item anchor, bases, hits []s
 }
 
 // Check validates every digest of the tree.
+//
+// It renders every derived artifact the tree does not hold before it resolves
+// an anchor. A digest cites `ai/PACKAGE-MAP.md`, which is DERIVED: a write to
+// any file it surveys removes it, and only a shell command that spells its path
+// rebuilds it. This check names no command, so an absent artifact reached the
+// resolver as a dead link and told the reader to edit a digest that was right.
+// A worktree that Git has just materialized holds no derived artifact at all,
+// which is where the verification gate met it (internal/le/derived, EnsureAll).
 func Check(tree string) (Report, error) {
+	if err := derived.EnsureAll(tree); err != nil {
+		return Report{}, err
+	}
+
 	names, err := digestFiles(tree)
 	if err != nil {
 		return Report{}, err

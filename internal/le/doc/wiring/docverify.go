@@ -79,7 +79,7 @@ var docVerifyStages = [...]docVerifyStage{
 	{"Rules index (ai/rules/INDEX.md fresh, every rule has a summary)...", rulesIndexStage},
 	{"Rule format (every ai/rules/*.md has the When/Severity block)...", rulesLintStage},
 	{"Rules digest (ai/rules/TRIGGERS.md + CORE.md fresh)...", rulesDigestStage},
-	{"Discovery indexes (package map, docs-to-code fresh)...", discoveryIndexesStage},
+	{"Discovery index (ai/DOCS-TO-CODE.md fresh)...", discoveryIndexesStage},
 	{"Problem journal (classes with 2+ rows)...", journalStage},
 	{"Digest anchors (ai/digests/*.md file:line references resolve)...", digestStage},
 }

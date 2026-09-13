@@ -8,8 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
+
+// derivedFixtureRel is the artifact TestAnAnchorOnADerivedFileResolves declares
+// and the digest of that case cites. It is named once, so the registration and
+// the anchor cannot spell it differently.
+const derivedFixtureRel = "ai/derived-fixture.md"
 
 // tree builds a fixture checkout from a path -> content map and answers its
 // root. Every path is written relative to the root, so a case reads as the tree
@@ -188,6 +194,46 @@ func TestADeclaredBaseThatDoesNotExistIsReportedWithItsPythonRendering(t *testin
 	}
 	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("problems %q, want %q", got, want)
+	}
+}
+
+// VALIDATES: an anchor naming a DERIVED file resolves, because Check renders
+// every registered artifact the tree does not hold before it resolves anything.
+// PREVENTS: the gate calling a producible file a dead link. A derived artifact
+// is absent for most of a session and absent from every fresh worktree, and the
+// reader told to "fix the anchor" would delete a citation that is right.
+func TestAnAnchorOnADerivedFileResolves(t *testing.T) {
+	// The registry is a process-wide one a generator fills from its own init(),
+	// and this test binary links no generator, so it declares the artifact it
+	// wants to see rendered. Registration lasts for the rest of the binary: the
+	// rebuild writes one file no other fixture cites, so a case that runs after
+	// this one sees one more file and the same verdict.
+	derived.Register(derived.Artifact{
+		Path:  derivedFixtureRel,
+		Feeds: func(_, _ string) bool { return false },
+		Rebuild: func(root string) error {
+			out := filepath.Join(root, filepath.FromSlash(derivedFixtureRel))
+			if err := os.MkdirAll(filepath.Dir(out), 0o750); err != nil {
+				return err
+			}
+			return os.WriteFile(out, []byte("one\ntwo\n"), 0o600)
+		},
+		SessionStart: derived.SessionStartDefer,
+	})
+
+	root := tree(t, map[string]string{
+		"ai/digests/derived.md": "<!-- digest-base: internal/a -->\n`ai/derived-fixture.md:2`\n", // <!-- doc-links: ignore (the fixture artifact this test registers; it exists only inside the temporary tree) -->
+		"internal/a/x.go":       "package a\n",
+	})
+	report, err := Check(root)
+	if err != nil {
+		t.Fatalf("checking: %v", err)
+	}
+	if len(report.Errors) != 0 {
+		t.Fatalf("a derived target was reported dead: %+v", report.Errors)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(derivedFixtureRel))); err != nil {
+		t.Fatalf("the check resolved the anchor without rendering the artifact: %v", err)
 	}
 }
 

@@ -117,8 +117,8 @@ func effectiveEnvironment(environment []string, key string) (string, bool) {
 	prefix := key + "="
 	value, held := "", false
 	for _, entry := range environment {
-		if strings.HasPrefix(entry, prefix) {
-			value, held = strings.TrimPrefix(entry, prefix), true
+		if after, cut := strings.CutPrefix(entry, prefix); cut {
+			value, held = after, true
 		}
 	}
 	return value, held

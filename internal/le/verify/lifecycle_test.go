@@ -644,6 +644,44 @@ func TestADefeatedRunIsUnjudgedRatherThanFailed(t *testing.T) {
 	}
 }
 
+// TestTheConsoleNamesTheStageThatEarnedTheExitCode proves the cause reaches the
+// console beside the verdict, for every red stage.
+//
+// The run prints one exit code, and before this the stage behind it was a line
+// inside a log of tens of thousands: a debt sweep printed
+// `full-part-5-of-6 exit=1` and the reader opened a 49K log to reach
+// `doc check/verify exit=1` (plan/journal/failing-gate-prints-no-cause.md).
+func TestTheConsoleNamesTheStageThatEarnedTheExitCode(t *testing.T) {
+	repo := newFixtureRepo(t)
+
+	report := run(context.Background(), repo.root, Options{}, failingRunner(), realDeps())
+	if report.Verify == nil || len(report.Verify.Stages) == 0 {
+		t.Fatalf("the run judged no stage: %#v", report)
+	}
+	red := report.Verify.Stages[0]
+	if red.Code == 0 {
+		t.Fatalf("stage %q exited 0, so this test measures nothing", red.Identity.Name)
+	}
+
+	named := false
+	for _, line := range report.Diagnostics {
+		if strings.Contains(line, red.Identity.Name) && strings.Contains(line, "red at") {
+			named = true
+		}
+	}
+	if !named {
+		t.Fatalf("no diagnostic names the red stage %q: %q", red.Identity.Name, report.Diagnostics)
+	}
+
+	// A green run has no cause to name, so the line is absent rather than empty.
+	green := run(context.Background(), repo.root, Options{}, passingRunner, realDeps())
+	for _, line := range green.Diagnostics {
+		if strings.Contains(line, "red at") {
+			t.Fatalf("a green run named a red stage: %q", line)
+		}
+	}
+}
+
 // TestARealFailureStaysAFailure proves the classifier reads the typed error and
 // nothing else: a red keeps exit 1, and so does a log save that failed for any
 // reason other than a full device.

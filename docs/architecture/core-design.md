@@ -166,7 +166,12 @@ the last write left, which is usually nothing. `derived.EnsureAll` is the
 rebuild for it: one pass over the registry that renders each artifact the tree
 does not hold whole. `site.Build` calls it, because the site publishes
 `docs/features/rfc-status.md` as a page of the documentation and the RFC prose
-links the shards beside it.
+links the shards beside it. `digest.Check` calls it for the other reason a Go
+reader has: an anchor in `ai/digests/*.md` cites `ai/PACKAGE-MAP.md`, and a tree
+that does not hold the map reads that citation as a dead link and tells the
+author to delete a line that is correct. The gate met it in the worktree
+`./le verify worktree` materializes from a commit, which holds no derived
+artifact at all.
 Nothing compares a re-render against a committed copy, because there is no
 committed copy. Which files are registered is the registry's
 own answer rather than a list here: `derived.All` enumerates them, and
@@ -192,6 +197,7 @@ writes LAST for this reason. A member deleted by hand under a finished run is
 outside that answer, because an exact member set costs the render it would be
 deciding whether to run.
 
+<!-- source: internal/le/digest/digest.go -- Check -->
 <!-- source: internal/le/derived/derived.go -- Artifact.Complete -->
 <!-- source: internal/le/derived/derived.go -- Artifact.Whole -->
 

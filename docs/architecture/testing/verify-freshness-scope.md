@@ -167,6 +167,8 @@ A run can be CUT. `internal/le/verify/engine.RunPart` runs one piece of the mode
 
 The lifecycle prints its verdict from the first deferred call, which makes it the last line of the run. Every branch that can still move `Report.Code`, the deferred cleanup included, has run by then. `verify worktree` also links the extracted worktree's `cache/` to the shared per-user target before any stage starts, so GOCACHE resolves out of tree and the run does not build a private Go build cache it will delete unread.
 
+Above that verdict the lifecycle names every stage that exited non-zero, one line each, with the stage's own log file. The verdict states an exit code, and the stage behind it is otherwise a line inside a log of tens of thousands: a debt sweep printed `full-part-5-of-6 exit=1` and the reader opened a 49K log to reach `doc check/verify exit=1` (`plan/journal/failing-gate-prints-no-cause.md`). `./le commit debt-clear` prints those lines too, because it carries the lifecycle's diagnostics into its own answer.
+
 <!-- source: internal/le/verify/engine/run.go -- ActionResult, RunMode, RunPart, Slot, nameJobParent, Unjudged, Defeated -->
 <!-- source: internal/le/verify/current.go -- runCurrent, jobLabel, slotFor -->
 <!-- source: internal/le/verify/lifecycle.go -- run, sharedCacheLink, worktreeArgv -->
