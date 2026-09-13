@@ -5,7 +5,14 @@
 stdin=peer:terminator=EOF_PEER
 # Route sent by plugin script
 cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064800E100001850401020304000602200A000002C010080800000000000001
+# RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
+# Next-Hop Network Address MUST be set to 0.  The Network Address of the
+# Next-Hop field MUST be ignored." The expectation below therefore carries
+# `85 00 00` where it used to carry `85 04 <address> 00`, and is four octets
+# shorter. The `nhop` on the command line is still parsed and still reaches the
+# encoder; the family is what refuses to put it on the wire
+# (family.NeedsNextHop, internal/core/family/family.go).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003F02000000284001010040020040050400000064800E0C00018500000602200A000002C010080800000000000001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flow":[{"action":"add","nlri":{"source-ipv4":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
 # // the End-of-RIB rule that stood here asserted an ordering the
 # product does not define, and named a producer that never ran. Nothing in this

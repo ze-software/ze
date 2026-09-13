@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // PluginParams contains parameters for building a generic plugin route UPDATE.
@@ -119,12 +120,26 @@ func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams) *rawAttribute {
 		}
 	}
 
+	// RFC 8955 Section 4: "When advertising Flow Specifications, the Length of
+	// the Next-Hop Network Address MUST be set to 0.  The Network Address of the
+	// Next-Hop field MUST be ignored."
+	//
+	// The family answers it, so no SAFI is spelled here (family.NeedsNextHop,
+	// internal/core/family/family.go). This is the third rail that encodes an
+	// MP_REACH: the API batch asks the same question at
+	// reactor_api_batch.buildBatchAnnounceUpdate and the queued rail at
+	// peer_rib_routes.go, and this one did not, so a FlowSpec route that reached
+	// the wire through a plugin or a config `update` block carried a four-octet
+	// next-hop an RFC 8955 speaker MUST NOT send.
 	var nhBytes []byte
-	if p.MapV4NextHop && p.IsIPv6 && p.NextHop.Is4() {
-		mapped := p.NextHop.As16()
-		nhBytes = mapped[:]
-	} else {
-		nhBytes = p.NextHop.AsSlice()
+	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(p.SAFI)}
+	if fam.NeedsNextHop() {
+		if p.MapV4NextHop && p.IsIPv6 && p.NextHop.Is4() {
+			mapped := p.NextHop.As16()
+			nhBytes = mapped[:]
+		} else {
+			nhBytes = p.NextHop.AsSlice()
+		}
 	}
 	nhLen := len(nhBytes)
 

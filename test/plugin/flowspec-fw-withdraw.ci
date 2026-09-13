@@ -21,10 +21,22 @@
 stdin=peer:terminator=EOF_PEER
 # Route announced by the plugin script
 cmd=api:conn=1:seq=1:text=send bgp * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add destination-ipv4 10.1.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064800E0F0001850401020304000501180A0100C010080800000000000001
-# Same route withdrawn by the plugin script
+# RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
+# Next-Hop Network Address MUST be set to 0.  The Network Address of the
+# Next-Hop field MUST be ignored." The expectation below therefore carries
+# `85 00 00` where it used to carry `85 04 <address> 00`, and is four octets
+# shorter. The `nhop` on the command line is still parsed and still reaches the
+# encoder; the family is what refuses to put it on the wire
+# (family.NeedsNextHop, internal/core/family/family.go).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020040050400000064800E0B00018500000501180A0100C010080800000000000001
+# Same route withdrawn by the plugin script. The MP_UNREACH bytes
+# (800F090001850501180A0100) are what this file is named for and they are
+# unchanged; ORIGIN, AS_PATH and LOCAL_PREF ride beside them because a
+# multiprotocol withdrawal packs its attributes (5def98e623, 2026-09-06, the
+# ExaBGP contract api-flow records). This line asserted the pre-2026-09-06
+# shape and was never reached: the announce above failed first.
 cmd=api:conn=1:seq=2:text=send bgp * update text nlri ipv4/flow del destination-ipv4 10.1.0.0/24
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0023020000000C800F090001850501180A0100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001A4001010040020040050400000064800F090001850501180A0100
 EOF_PEER
 
 

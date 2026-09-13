@@ -136,8 +136,14 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 		safi = 134 // FlowSpec VPN
 	}
 
-	nhBytes := p.NextHop.AsSlice()
-	nhLen := len(nhBytes)
+	// RFC 8955 Section 4: "When advertising Flow Specifications, the Length of
+	// the Next-Hop Network Address MUST be set to 0.  The Network Address of the
+	// Next-Hop field MUST be ignored."
+	//
+	// This builder writes SAFI 133 and 134 and nothing else, so the length is a
+	// constant rather than a question: p.NextHop is deliberately not read. The
+	// two rails that CAN carry another family ask family.NeedsNextHop instead
+	// (buildMPReachPlugin, reactor_api_batch.buildBatchAnnounceUpdate).
 
 	// Build NLRI bytes - for VPN, wrap with length prefix and RD per RFC 8955 Section 8
 	var nlriBytes []byte
@@ -164,15 +170,14 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 		nlriBytes = p.NLRI
 	}
 
-	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlriBytes)
+	valueLen := 2 + 1 + 1 + 1 + len(nlriBytes)
 	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
-	value[3] = byte(nhLen)
-	copy(value[4:4+nhLen], nhBytes)
-	value[4+nhLen] = 0 // reserved
-	copy(value[5+nhLen:], nlriBytes)
+	value[3] = 0 // next-hop length, RFC 8955 Section 4
+	value[4] = 0 // reserved
+	copy(value[5:], nlriBytes)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,

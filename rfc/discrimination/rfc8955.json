@@ -1,0 +1,17 @@
+{
+  "rfc": "rfc8955",
+  "records": [
+    {
+      "rid": "RFC8955-4-3",
+      "polarity": "positive",
+      "unit": "test/encode/flow-encode.ci",
+      "unit-sha": "ea66c2f04f59bf69",
+      "claim-sha": "50a1b4d264e7337a",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/update_build_plugin.go::buildMPReachPlugin",
+      "producer-sha": "2caeeeab51b10bd9",
+      "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "RFC 8955 Section 4"
+    }
+  ]
+}

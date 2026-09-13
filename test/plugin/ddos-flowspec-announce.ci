@@ -10,7 +10,14 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # FlowSpec UPDATE: MP_REACH (nexthop 127.0.0.2 = nhop self, ze's own address on
 # this session), destination 192.0.2.0/24 + protocol tcp + destination-port 80,
 # with the traffic-rate (rate-limit:9600) extended community.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E15000185047F000002000B0118C00002038106058150C010088006000046160000
+# RFC 8955 Section 4: "When advertising Flow Specifications, the Length of the
+# Next-Hop Network Address MUST be set to 0.  The Network Address of the
+# Next-Hop field MUST be ignored." The expectation below therefore carries
+# `85 00 00` where it used to carry `85 04 <address> 00`, and is four octets
+# shorter. The `nhop` on the command line is still parsed and still reaches the
+# encoder; the family is what refuses to put it on the wire
+# (family.NeedsNextHop, internal/core/family/family.go).
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0044020000002D4001010040020040050400000064800E1100018500000B0118C00002038106058150C010088006000046160000
 EOF_PEER
 
 # Plugin script sends the responder's rendered announce command.
