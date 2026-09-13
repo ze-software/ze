@@ -228,10 +228,11 @@ func TestScaledSuitesCarryTheDerivedConcurrency(t *testing.T) {
 //
 // VALIDATES: AC-6 of spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant.
 // PREVENTS: the derived -p reaching a suite that shares one routing table, which
-// is two daemons writing the same table. This restores the property
-// scripts/le/functional_test.py held as test_serial_suites_stay_serial; the port
-// to Go dropped it, and TestScaledSuitesCarryTheDerivedConcurrency does not cover
-// it, because that test reads Suite.Scaled rather than the recorded serial value.
+// is two daemons writing the same table. This restores a property the retired
+// Python functional suite held and the port to Go dropped, which is why it is
+// asserted here rather than assumed. TestScaledSuitesCarryTheDerivedConcurrency
+// does not cover it, because that test reads Suite.Scaled rather than the
+// recorded serial value.
 func TestSerialSuitesStaySerial(t *testing.T) {
 	t.Setenv("ZE_SUITE_CORES", "32")
 	env.ResetCache()
@@ -546,6 +547,72 @@ func TestPreparePropagatesSessionResolutionFailure(t *testing.T) {
 	}
 	if set != (BinarySet{}) {
 		t.Errorf("Prepare returned a binary set after resolver failure: %#v", set)
+	}
+}
+
+// TestARunListVerbRefusesToRunBesideASuite is the entry point half of
+// leaction's TestSweepRefusesAnActionThatNamesTheWholeArea.
+// VALIDATES: AC-9 -- `le functional gating encode` is refused with code 2 and
+// starts nothing, while `le functional gating` and `le functional list` each
+// still answer on their own.
+// PREVENTS: the regression that made `list`, `gating` and `select` rows of the
+// sweep table without saying they name a population. `gating encode` then swept
+// the 24 gating suites and one more, where the same line answered 2 and started
+// nothing before. A two-word typo starts hours of work on a shared machine.
+func TestARunListVerbRefusesToRunBesideASuite(t *testing.T) {
+	// The fixture tree is what a sweep would reach if the refusal were absent,
+	// so a regression fails in a temporary directory rather than running the
+	// repository's own suites.
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"),
+		[]byte("module example.test/functional\n\ngo 1.26\ntoolchain go1.26.6\n"), 0o600); err != nil {
+		t.Fatalf("write fixture go.mod: %v", err)
+	}
+	t.Setenv("ZE_REPO_ROOT", root)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	// A run list naming no suite, so the gating action starts nothing even
+	// while this test is red.
+	saved := Gating
+	Gating = []string{"no-such-suite"}
+	defer func() { Gating = saved }()
+
+	for _, line := range [][]string{
+		{gatingVerb, "encode"},
+		{"encode", gatingVerb},
+		{listVerb, selectVerb},
+	} {
+		payload, code := Answer(line)
+		if code != 2 {
+			t.Errorf("`le functional %s` answered %d, want 2: it ran a population instead of refusing the line",
+				strings.Join(line, " "), code)
+		}
+		if payload != nil {
+			t.Errorf("`le functional %s` answered %v, want no payload at all",
+				strings.Join(line, " "), payload)
+		}
+	}
+
+	// A line naming two SUITES is still a sweep. The refusal is about a verb
+	// that names the whole area, never about the number of words. In the
+	// fixture tree the first suite fails on its missing feature manifest, which
+	// is a sweep that ran rather than a line that was refused.
+	swept, code := Answer([]string{"encode", "plugin"})
+	if code == 2 {
+		t.Error("`le functional encode plugin` was refused; a multi-suite line is what a sweep is for")
+	}
+	if _, isSweep := swept.(leaction.Sweep); !isSweep {
+		t.Errorf("`le functional encode plugin` answered %T, want the sweep envelope", swept)
+	}
+
+	// Each of the three still answers as the whole line, which is the only
+	// shape it was ever for.
+	if listed, code := Answer([]string{listVerb}); code != 0 || !reflect.DeepEqual(listed, Catalog()) {
+		t.Errorf("`%s` on its own answered (%d, %T), want the suite catalog", listVerb, code, listed)
+	}
+	if _, code := Answer([]string{gatingVerb}); code == 0 {
+		t.Error("`gating` on its own accepted a run list naming no suite, so it reached no run")
 	}
 }
 

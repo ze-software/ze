@@ -70,6 +70,16 @@ coverage.html
 # Mutation testing incremental cache (gomu hardcodes this cwd path)
 .gomu_history.json
 
+# Run artifacts that land at the checkout root rather than under tmp/.
+# The mutation report belongs at tmp/mutation-report.json (internal/le/mutation
+# combine.go, combinedReportRel); a copy here is a run that wrote to the wrong
+# place. daemon.ready is written by the plugin fixtures through a RELATIVE path
+# (internal/test/fixture/plugin_shell_extra_2.go), so it lands in whatever
+# directory the test ran from, which is this one when the fixture runs outside
+# its scratch directory.
+/mutation-report.json
+/daemon.ready
+
 
 # macOS
 .DS_Store
