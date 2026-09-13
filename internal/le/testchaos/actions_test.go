@@ -151,6 +151,33 @@ func TestAggregateRunUsesTableOrderAndFirstFailureCode(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-9 -- `all` names the whole table, so a line naming it beside a
+// tool is refused and no tool runs.
+// PREVENTS: `le test-chaos all lint` running the linter twice, once inside the
+// sweep `all` performs and once beside it. The same shape in `functional` runs
+// 24 suites and then one more.
+func TestTheAggregateVerbRefusesToRunBesideATool(t *testing.T) {
+	tc := chaosFixtureToolchain(t)
+	var ran []string
+	run := func(action string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		ran = append(ran, action)
+		return gaterun.ActionReport{Action: action, Command: slices.Clone(argv)}, 0
+	}
+
+	for _, line := range [][]string{{allVerb, "lint"}, {"lint", allVerb}} {
+		answer, code := answerWith(tc, run, line)
+		if code != 2 {
+			t.Errorf("%q answered %d, want 2", line, code)
+		}
+		if answer != nil {
+			t.Errorf("%q answered a payload: %v", line, answer)
+		}
+	}
+	if len(ran) != 0 {
+		t.Errorf("the refused line ran %q", ran)
+	}
+}
+
 func TestUnitActionsRunSimulatorThenCLI(t *testing.T) {
 	tc := chaosFixtureToolchain(t)
 	var ran []string

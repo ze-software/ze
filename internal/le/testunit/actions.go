@@ -32,8 +32,13 @@ type toolchainLoader func(string) (gotoolchain.Toolchain, error)
 func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	actions := actionsFor(tc, Table(), run)
 	actions = append(actions, leaction.Action{
-		Verb:   allVerb,
-		Why:    allWhy,
+		Verb: allVerb,
+		Why:  allWhy,
+		// `all` runs the population the groups are subsets of, so naming it
+		// beside a group runs that group twice: once inside the sweep `all`
+		// performs and once beside it. `le test-unit all` on its own is
+		// unaffected, because Alone is about SHARING a line.
+		Alone:  true,
 		Answer: allRunner(tc, run),
 	})
 	return leaction.New(Area, actions...)

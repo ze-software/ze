@@ -127,6 +127,16 @@ type Action struct {
 	Why string
 	// Writes says this action changes the tree.
 	Writes bool
+	// Alone says this action names the whole area rather than one member of
+	// it, so it MUST be the only verb on the line and a sweep refuses it beside
+	// another. `le functional gating` names a run list of 24 suites and `le
+	// test-chaos all` names three tools, so a line naming one of them beside a
+	// second verb is a typo that starts hours of work rather than a selection
+	// an operator made. A line that names it alone runs it, whether the area
+	// dispatched that line through Answer or through Sweep. An argument-aware
+	// action needs no such declaration: the rest of the line is its grammar, so
+	// a sweep already refuses it.
+	Alone bool
 	// Parameters declares the closed keyword grammar for an argument-aware
 	// action. Existing actions leave it empty and use Answer.
 	Parameters []Parameter
@@ -244,6 +254,11 @@ type Row struct {
 	Verb   string `json:"verb"`
 	Writes bool   `json:"writes"`
 	Why    string `json:"why"`
+	// Alone publishes that this verb cannot share a line with another, so a
+	// reader planning a multi-verb line learns it from the manifest rather than
+	// by typing the mistake. It is also what lets a test read the claim back:
+	// the refusal is the published table's own, so the table has to carry it.
+	Alone bool `json:"alone,omitempty"`
 	// Parameters is the action's whole keyword grammar, so a reader learns what
 	// an action takes without invoking it. A zero-argument action declares
 	// none, and the key is then absent rather than empty.
@@ -263,7 +278,7 @@ func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
-			Verb: act.Verb, Writes: act.Writes, Why: act.Why,
+			Verb: act.Verb, Writes: act.Writes, Why: act.Why, Alone: act.Alone,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			Parameters: slices.Clone(act.Parameters),
@@ -741,6 +756,22 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 				ReportError(errors.New(tb.Str(a.name).Byte(' ').Str(name).
 					Str(" takes arguments, so it runs on its own: le ").
 					Str(a.name).Byte(' ').Str(name).Str(" <keyword> <value>").String()))
+				return nil, 2
+			}
+			// An action that names the whole area is not one member of a
+			// selection. `le functional gating encode` reads as a typo and
+			// would run 24 suites and then one more, so the two words that used
+			// to answer a refusal must answer one still (Action.Alone).
+			//
+			// The test is what the line NAMES, never how it was dispatched. An
+			// area whose Answer sweeps a one-word line as well (`le test-unit
+			// all`) reaches this loop with one name, and that line is the one
+			// shape the verb is for.
+			if len(args) > 1 && act.Alone {
+				var tb textbuf.Buffer
+				ReportError(errors.New(tb.Str(a.name).Byte(' ').Str(name).
+					Str(" names the whole area, so it runs on its own: le ").
+					Str(a.name).Byte(' ').Str(name).String()))
 				return nil, 2
 			}
 			chosen = append(chosen, act)

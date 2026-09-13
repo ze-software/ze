@@ -391,6 +391,49 @@ func TestSweepRefusesAnArgumentAwareAction(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-9 -- an action that names the whole area runs on its own, so a
+// line naming it beside another verb is refused and nothing runs.
+// PREVENTS: `le functional gating encode` running the 24 gating suites and then
+// one more, where the same two words refused before the three run-list verbs
+// became rows of the table. Two words of typing are not an instruction to start
+// hours of work on a shared machine.
+func TestSweepRefusesAnActionThatNamesTheWholeArea(t *testing.T) {
+	ran := 0
+	area := New("probe",
+		Action{Verb: "one", Why: "a probe", Answer: func() (any, int) { ran++; return nil, 0 }},
+		Action{
+			Verb: "every", Why: "a probe naming the whole area", Alone: true,
+			Answer: func() (any, int) { ran++; return nil, 0 },
+		},
+	)
+
+	// Both orders, because a sweep resolves every name before it runs the
+	// first: the position of the word on the line cannot decide the answer.
+	for _, line := range [][]string{{"every", "one"}, {"one", "every"}} {
+		answer, code := area.Sweep(line, RunEveryAction)
+		if code != 2 {
+			t.Errorf("%v answered %d, want 2", line, code)
+		}
+		if answer != nil {
+			t.Errorf("%v answered a payload: %v", line, answer)
+		}
+	}
+	if ran != 0 {
+		t.Errorf("the sweep ran %d action(s) before it refused the selection", ran)
+	}
+
+	// The verb still runs when it is the whole line, which is the only shape it
+	// was ever for. Both dispatch routes answer it: an area that sends a
+	// one-word line to Sweep (internal/le/testunit) reaches the same refusal
+	// site with one name, and that line is not a selection.
+	if _, code := area.AnswerOrSweep([]string{"every"}, RunEveryAction); code != 0 || ran != 1 {
+		t.Errorf("`every` through AnswerOrSweep answered %d after %d run(s), want 0 after one", code, ran)
+	}
+	if _, code := area.Sweep([]string{"every"}, RunEveryAction); code != 0 || ran != 2 {
+		t.Errorf("`every` through Sweep answered %d after %d run(s), want 0 after two", code, ran)
+	}
+}
+
 // VALIDATES: a help word answers usage instead of running or refusing.
 // PREVENTS: `le <area> <verb> --help` reading the help word as a bad keyword.
 func TestAHelpWordAnswersUsageAndRunsNothing(t *testing.T) {

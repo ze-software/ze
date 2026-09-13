@@ -191,6 +191,11 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 | `TestCheckDeclaresTheFileKeywordItEnforces` | `internal/le/ste/ste_test.go` | AC-8. Review round 5: `check` published zero parameters while it read `file <path>` behind the dispatcher | |
 | `TestCheckIsDispatchedThroughItsOwnTable` | `internal/le/ste/ste_test.go` | AC-5. Review round 5: `ste check file -xh` answered 0 over nothing checked | |
 | `TestEveryNamedFileReachesTheRatchet` | `internal/le/ste/ste_test.go` | AC-7. The repeated keyword carries every path the commit named | |
+| `TestSweepRefusesAnActionThatNamesTheWholeArea` | `internal/le/leaction/leaction_test.go` | AC-9. Review round 7: a verb declared `Alone` is refused beside another verb, in either order, and still runs as the whole line through `Answer` and through `Sweep` | |
+| `TestARunListVerbRefusesToRunBesideASuite` | `internal/le/functional/functional_test.go` | AC-9 at the entry point: `le functional gating encode` answers 2 and starts nothing, `le functional encode plugin` still sweeps | |
+| `TestTheAggregateVerbRefusesToRunBesideATool` | `internal/le/testchaos/actions_test.go` | AC-9 at the entry point, with the process runner substituted so a regression runs no tool | |
+| `TestAllRefusesToRunBesideAGroup` | `internal/le/testunit/testunit_test.go` | AC-9 for the third area with the shape, and the proof that `le test-unit all` on its own still runs | |
+| `TestTheGrammarTakesEveryValueBehindAKeyword` | `internal/le/doc/wiring/docwiring_test.go` | AC-7. Review round 7 gave it back a body that drives the real line, so dropping `Repeat` turns it red | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -407,9 +412,22 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
   probe. The published table is the claim; the reference area is the claim read
   back; a divergence is a parser the area did not publish.
   → Constraint: the probes are refusals only, so nothing runs. That is what
-  makes the test affordable over 276 verbs, and it is also why it is complete:
-  an area's own parser cannot answer a refusal in `leaction`'s exact words
-  without being `leaction`.
+  makes the test affordable over 276 verbs, and it is what BOUNDS what the test
+  can see. Review round 7 corrected an earlier sentence here calling it
+  complete. An area that dispatches its REFUSALS through the table and
+  intercepts an ACCEPTED shape is invisible to it, because the probe never
+  reaches the shape the area answers itself. That is exactly what `functional`
+  did with `if len(args) == 1 && args[0] == listVerb`, and the ratchet caught it
+  only because the same interception also kept the verb out of the refusal text.
+  → Constraint: a refusal shape the probes do not send is a shape an area may
+  hand-answer and stay green, so the set is a ratchet of its own. Round 7 found
+  two missing and `probesFor` (`internal/le/actions_test.go`) now sends five: an
+  undeclared keyword, two of them, an option in each declared value slot, a
+  keyword with nothing behind it, and a keyword given twice that never declared
+  `Repeat`. Each was proven to discriminate by hand-answering that exact line in
+  `doc wiring` and watching the ratchet go red. A `Repeat` keyword is left out
+  of the last shape, because a second occurrence is what it declares it takes
+  and the probe would RUN the action.
 - The hand probe found four areas and stopped; the ratchet found a fifth,
   `test-chaos`, on its first run. The difference is not effort. A probe tests
   the verbs a reader thought to type, and `test-chaos all` reads as the verb
@@ -423,11 +441,63 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
   of the table its sweep reads, and `test-chaos` makes `all` a row whose body
   sweeps the three. Each deletes a hand-parser rather than adding a case beside
   it (`ai/rules/no-layering.md`).
-  → Constraint: `doc wiring` shows the cost of the half-fix. The dash refusal
-  landed with the `check` action, and `Answer` still prepended `check` to every
-  line, so the published verb arrived at the keyword parser as an unknown
-  keyword and `./le doc wiring check` was unreachable for any developer who
-  read the manifest and typed what it said.
+  → Constraint: the message of `70a546d23` says `Holds` and `AnswerOrSweep` each
+  have two non-test callers. `AnswerOrSweep` has two, `functional` and
+  `test-chaos`. `Holds` has ONE, `docwiring.Answer`, and review round 7 counted
+  it. It stays at one: inlining it would make its only consumer rebuild the
+  published `List`, cloning every parameter slice, to ask a membership question
+  the area answers directly, and a membership walk written in the consumer is
+  the second parser this spec exists to remove. `ai/rules/completion.md` asks
+  for a non-test caller, which it has; `ai/rules/simplicity.md` asks what the
+  next reader holds in their head, and one predicate on the type that owns the
+  table is less than a loop in each consumer that needs it.
+
+- A verb that names the WHOLE area is not a member of a selection, and making
+  the three run-list verbs rows of `functional`'s table made them sweepable
+  beside a suite. `le functional gating encode` answered 2 and started nothing
+  at `70a546d23^`, where `gating` was intercepted before `Sweep` and was absent
+  from the table; after `70a546d23` the same two words swept the 24 gating
+  suites and then `encode`. This spec exists to stop a mistyped line from
+  starting work, so the commit that removed a hand parser reintroduced the
+  hazard in the shape the parser had covered. Review round 7 measured it, and
+  the Known Limitations bullet calling those verbs "byte-identical to what they
+  answered before" was true of the one-word line only.
+  → Decision: `Action.Alone` declares it, `Sweep` refuses it, and `Row.Alone`
+  publishes it. The refusal is the table's own voice, beside the one `Sweep`
+  already writes for an argument-aware action ("takes arguments, so it runs on
+  its own"), and it reads `functional gating names the whole area, so it runs on
+  its own: le functional gating`. A hand intercept in `Answer` would restore the
+  second parser the commit removed.
+  → Decision: the field is PUBLISHED rather than private to the area, because
+  `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` builds its reference
+  area from the published rows alone. A refusal an area makes on a property its
+  table does not carry is a refusal the reference cannot reproduce, which is the
+  ratchet's own definition of a second parser. The TEXT rendering of a listing
+  is unchanged, because this spec preserves it, so `alone` reaches a reader
+  through `| json`, `| yaml` and `| table` and through the refusal itself.
+  → Decision: `test-chaos all` carries it too. It has the same shape and its own
+  cost: `le test-chaos all lint` ran the linter twice, once inside the sweep
+  `all` performs and once beside it, and `70a546d23^` ran it twice as well by
+  expanding `all` in place. Neither shape is what the line meant. `test-unit
+  all` is the third instance, found by asking which other areas sweep, and it is
+  fixed here with a row in `plan/journal/test-gate-repeats-expensive-work.md`.
+  → Constraint: the refusal reads what the line NAMES, never how the area
+  dispatched it. `testunit.Answer` sends even a one-word line to `Sweep`, so a
+  refusal that fired on any `Alone` action would have broken `le test-unit all`,
+  which is the command every skill runs. `Sweep` refuses only where the
+  selection holds more than one name.
+  → Constraint: `doc wiring` published no verb to type. `Actions()` answered
+  `zeroArgumentActions`, which held `templ-orphans` ALONE, so `check` was in no
+  manifest a reader could read. `Answer` prepended nothing: it sent every line
+  that did not open with `templ-orphans` to `parseOptions`, whose default arm
+  refused `check` as "no such keyword" at exit 1. Both this bullet and the
+  message of `70a546d23` said instead that `Answer` prepended `check` to every
+  line, so typing the published verb built `[check check ...]`, and that the
+  verb was unreachable for anyone who read the manifest. Review round 7 read
+  `70a546d23^` and found that false: it describes a development state that was
+  never committed, and the manifest named no `check` to type. The commit message
+  cannot be amended, so the correction lives here and as a row in
+  `plan/journal/claim-outlives-the-evidence-it-cites.md`.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -444,8 +514,9 @@ call, the grammar is in it, and no invocation carrying a help word can run work.
 - A value that begins with a dash is unreachable in the line of an area that DECLARES a table. That is not a limitation of the guard, it is `ai/rules/cli.md`: le follows GNU option syntax, the four options it declares are the whole set, and no flag is grammar or a value. No migration changes it.
 - An option that is not one of the four spellings reaches an area that declares no table, because the dispatcher has no grammar to read it against and the area's own parser owns the line. That is what `command <argv...>` means: `./le job run label encode-list command bin/ze-test bgp encode --list` hands `--list` to the child, which `docs/contributing/testing.md` prints as a recipe, and `./le job run label x command echo -html=cover.out` prints the option. Guarding every option there would refuse both.
 - An area that publishes a table now dispatches through it, and nothing but a test says so. `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable` (`internal/le/actions_test.go`) is that test, and its cost is one probe per published verb: three lines per action, run against a reference area built from the published rows. It runs no work, because every probe is refused before an action body, and an area where a probe DOES run work is the defect it exists to find.
-- `le functional <suite>` and `le test-chaos <tool>` answer the action's OWN payload rather than a one-row sweep envelope. Both areas dispatch one named action through `Area.Answer` and several through `Area.Sweep`, which is what `AnswerOrSweep` states. The exit code is the action's own in both shapes and did not move. What changed is the rendering with no pipe operator: `le functional encode` answered `functional: 1 action(s) passed.` and now answers the `SuiteRun` row, `le test-chaos lint` answered the same summary and now answers the `gaterun.ActionReport`, and `le functional exabgp-test` now prints the ExaBGP report that `Sweep.Text` suppressed on a pass. `le functional list`, `select`, `gating` and `le test-chaos all` are byte-identical to what they answered before, which is why the split was drawn at the action count rather than at the verb.
-- `le test-chaos all <tool>` nests rather than flattens. `all` was expanded in place into the three tool verbs before the sweep ran, so a line naming both ran four actions in one sweep; `all` is now a row whose body sweeps the three, so the same line runs two actions and one of them answers a sweep. The exit code is unchanged, and `le test-chaos all` on its own is unchanged.
+- `le functional <suite>` and `le test-chaos <tool>` answer the action's OWN payload rather than a one-row sweep envelope. Both areas dispatch one named action through `Area.Answer` and several through `Area.Sweep`, which is what `AnswerOrSweep` states. The exit code is the action's own in both shapes and did not move. What changed is the rendering with no pipe operator: `le functional encode` answered `functional: 1 action(s) passed.` and now answers the `SuiteRun` row, `le test-chaos lint` answered the same summary and now answers the `gaterun.ActionReport`, and `le functional exabgp-test` now prints the ExaBGP report that `Sweep.Text` suppressed on a pass. `le functional list`, `select`, `gating` and `le test-chaos all` are byte-identical to what they answered before AS THE WHOLE LINE, which is why the split was drawn at the action count rather than at the verb. Round 7 corrected this sentence: it said so without that qualifier, and the qualifier is the whole of it. Named beside a second verb, those four swept where they used to refuse, and they refuse again through `Action.Alone`.
+- Every exit code this series moved, against the commit that moved it. The message of `70a546d23` says "No exit code moved", which review round 7 found false, and this bullet is the record the spec owed. `le ste check <bad line>` moved 1 to 2 when `ste` started dispatching through its table (round 5, already recorded in AC-5). `le doc wiring <unknown keyword>` moved 1 to 2 in `70a546d23`: `parseOptions` refused an unknown keyword at 1 and `leaction.parseArguments` refuses it at 2. `le doc wiring check <anything>` moved 1 to 0 in the same commit, because `check` was published for the first time and the line it names now runs. `le functional <unknown verb>` moves 1 to 2 only where the Go toolchain probe fails, because `70a546d23^` probed the toolchain before it dispatched and answered 1 for every line; this one is read at `70a546d23^`'s `Answer` rather than measured, since running that binary needs a checkout this session must not create. Round 7's own fix moves two more: `le functional <run-list verb> <verb>` and `le test-chaos all <tool>` each answered whatever the actions they ran answered, and each answers 2 now, which is what `70a546d23^` answered for the first of them.
+- `le test-chaos all <tool>` is refused with code 2 and runs nothing. `all` was expanded in place into the three tool verbs before the sweep ran, so a line naming both ran four actions and the named tool twice; `70a546d23` made `all` a row whose body sweeps the three, which ran the named tool twice again, once inside that sweep and once beside it. Neither is what the line meant, so `all` declares `Alone` (review round 7). `le test-chaos all` on its own is unchanged.
 - Twenty-five areas are guarded but publish no grammar, because they declare no `leaction` table. Six of them hand-roll a multi-verb dispatcher and are the subject of `plan/spec-le-every-area-dispatches-through-one-table.md`, which named seven until `verify status` migrated here (review round 1, to give `Repeat` and `Values` a production caller). The other nineteen are single-verb tools that refuse every argument by hand, declare their own `ActionList` type, or build a `leaction.List` inline from an unexported function. That spec empties the six remaining rows; deciding what the nineteen owe is its to settle, and the list ratchets so neither group can grow.
 - Requiredness is PUBLISHED and not newly ENFORCED (AC-8). The table therefore states a fact each action's own body also enforces, which is a second declaration of one fact. It stays that way deliberately: `commit create` requires `subject` only sometimes and `commit debt-discharge` requires `owner` only when `kind` is `owner`, and a flat keyword table cannot express a cross-field rule. Central enforcement needs conditionality in the grammar, which is its own spec.
 - Verb vocabulary, exit-code discipline and help-text wrapping are untouched here. They are spec 3 of this series.
@@ -467,6 +538,12 @@ produces a clean result (`ai/rules/planning.md`).
 | 4 | ONLY the generalisation the owner's GNU ruling produced: `IsOption`, `IsHelpArg` reading a short cluster, the dash-leading refusal in `parseArguments`, `trailingIsValue`'s argv-forwarding carve-out, and the nine corrected sentences. NOT `verify status`, which round 2 reviewed and this commit does not touch. Plus the eight always-in-scope classes anywhere | `468394d76d` | 1 BLOCKER, 2 ISSUE. The cluster rule made every `-h...` option the question, so a forwarded child option was swallowed at exit 0 with nothing run. It was also too narrow: `-xh` still reached the burn. A corrected comment still over-claimed. Attack 1 came back clean: `job` forwards argv verbatim, so no test recipe in the repository broke |
 | 5 | ONLY the round-4 fix: `IsHelpArg` as a closed four-spelling set, the two comments it corrects, and the Known Limitations and AC-5 wording. `IsOption`, `parseArguments` and `trailingIsValue` are unchanged by it and were cleared in round 4. Plus the eight always-in-scope classes anywhere | `3202ec9aa` | 0 BLOCKER, 3 ISSUE. `ste` registers a table declaring `check` as zero-argument while its `Answer` intercepts and hand-parses `file`, so `./le ste check file -xh` answered OK at exit 0 having checked nothing. The Known Limitations claim that only spec 2 could close the burn was FALSE: `stressrepro.parseOptions` forwards nothing to a child, so a dash refusal closes it today. `IsOption`'s doc still justified `-help` by the removed cluster rule |
 | 6 | ONLY the round-5 fixes and the two areas they touch: the dash refusal in `internal/le/stressrepro` `parseOptions`, `internal/le/ste` now dispatching through the table it declares, and the reworded `List.TrailingWordIsValue` doc, AC-5 and Known Limitations. Plus the eight always-in-scope classes anywhere | pending | |
+
+| 7 | ONLY commit `70a546d23`: the ratchet `TestEveryPublishedVerbIsDispatchedThroughItsOwnTable`, the five areas it forced through their tables (`ste`, `worktree`, `doc wiring`, `functional`, `test-chaos`), `leaction.Holds` and `AnswerOrSweep`, the payload-shape change on a one-verb line, and the three weakening ledger rows. Plus the eight always-in-scope classes anywhere | `70a546d23` | |
+
+**Round 7 also runs on the owner's authorisation (2026-09-13): "run a seventh
+review".** It reviews the largest single change of the series, which touches
+five areas and changes a payload shape.
 
 **Round 6 is past the five-round cap and runs on the owner's authorisation
 (2026-09-12).** Asked whether it should run, given that each round had found a

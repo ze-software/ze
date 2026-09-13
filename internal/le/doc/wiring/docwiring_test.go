@@ -378,19 +378,36 @@ func TestReportIsStructuredDataWithKebabCaseKeys(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-7 -- the published grammar carries every value behind
+// `changed-file`, and a file NAMED like a keyword is that keyword's value
+// rather than a flag.
+// PREVENTS: changed-file losing Repeat, which refuses the second keyword and
+// leaves a commit's later files unexamined; and dry-run gaining a value, which
+// would read the next path as its argument.
+//
+// It drives the command line rather than a hand-built Arguments, because the
+// property is the GRAMMAR's and a hand-built map asserts nothing about what
+// leaction made of the words an operator typed. `dry-run` selects the gates and
+// runs none of them, so the line reaches the action and starts no check.
 func TestTheGrammarTakesEveryValueBehindAKeyword(t *testing.T) {
-	// The first `changed-file` consumes exactly one word, so a file NAMED like a
-	// keyword is still a legal value. leaction parses the line, and this reads
-	// what the action makes of the keywords it was handed.
-	opts := optionsFrom(leaction.Arguments{changedFileKeyword: {"dry-run", "b.go"}})
-	if len(opts.Changed) != 2 || opts.Changed[0] != "dry-run" || opts.Changed[1] != "b.go" {
-		t.Errorf("the changed files are %v", opts.Changed)
+	payload, code := Answer([]string{
+		checkVerb,
+		changedFileKeyword, dryRunKeyword,
+		changedFileKeyword, "b.go",
+		dryRunKeyword,
+	})
+	if code != 0 {
+		t.Fatalf("the line answered %d, want 0: the grammar refused a line it declares", code)
 	}
-	if opts.DryRun {
-		t.Error("a value read as a flag")
+	report, ok := payload.(Report)
+	if !ok {
+		t.Fatalf("the line answered %T, want the router's report", payload)
 	}
-	if !optionsFrom(leaction.Arguments{dryRunKeyword: {""}}).DryRun {
-		t.Error("the dry-run switch was not read")
+	if !report.DryRun {
+		t.Error("the dry-run switch was not read, so the line would have run the gates")
+	}
+	if len(report.Changed) != 2 || report.Changed[0] != dryRunKeyword || report.Changed[1] != "b.go" {
+		t.Errorf("the changed files are %v, want the two the line named in order", report.Changed)
 	}
 }
 
@@ -624,9 +641,9 @@ func TestEveryDelegatedTargetIsAnsweredHereOrDeclaredAFork(t *testing.T) {
 	}
 }
 
-// TestCheckDeclaresTheKeywordsItEnforces holds the grammar `check` publishes,
-// which is what the deleted TestTheGrammarTakesEveryValueBehindAKeyword held
-// about the hand parser it drove.
+// TestCheckDeclaresTheKeywordsItEnforces holds the grammar `check` publishes.
+// TestTheGrammarTakesEveryValueBehindAKeyword above holds the other half, which
+// is what a line the published grammar accepts reaches the action as.
 //
 // VALIDATES: changed-file repeats and takes a value, so a caller names every
 // file of a commit one keyword each, and a path spelled like a keyword is that

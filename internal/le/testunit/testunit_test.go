@@ -208,6 +208,44 @@ func covered(patterns []string, directory string) bool {
 	return false
 }
 
+// TestAllRefusesToRunBesideAGroup holds the other half of what `all` means.
+// VALIDATES: `le test-unit all core` is refused with code 2 and runs nothing,
+// while `le test-unit all` on its own still runs.
+// PREVENTS: the group named beside `all` running twice, once inside the sweep
+// `all` performs and once beside it. The same shape in `functional` runs the 24
+// gating suites and then one more (leaction.Action.Alone).
+func TestAllRefusesToRunBesideAGroup(t *testing.T) {
+	tc := fixtureToolchain()
+	var issued []string
+	run := func(verb string, argv []string, _ string, _ []string) (gaterun.ActionReport, int) {
+		issued = append(issued, verb)
+		return gaterun.ActionReport{Action: verb, Command: argv}, 0
+	}
+	root := func() (string, error) { return tc.Root, nil }
+	load := func(string) (gotoolchain.Toolchain, error) { return tc, nil }
+
+	group := Table()[0].Verb
+	for _, line := range [][]string{{allVerb, group}, {group, allVerb}} {
+		answer, code := answer(line, root, load, run)
+		if code != 2 {
+			t.Errorf("%q answered %d, want 2", line, code)
+		}
+		if answer != nil {
+			t.Errorf("%q answered a payload: %v", line, answer)
+		}
+	}
+	if len(issued) != 0 {
+		t.Errorf("the refused line ran %q", issued)
+	}
+
+	if _, code := answer([]string{allVerb}, root, load, run); code != 0 {
+		t.Errorf("`le test-unit all` on its own answered %d, want 0", code)
+	}
+	if len(issued) == 0 {
+		t.Error("`le test-unit all` on its own ran nothing")
+	}
+}
+
 // TestAllRunsTheCheckoutThenTheTagGuardedGroups drives the word a session types
 // down to the process runner and reads the argv that arrives there.
 // VALIDATES: `le test-unit all` issues one whole-checkout race command, then one

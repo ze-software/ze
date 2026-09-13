@@ -164,20 +164,39 @@ func TestEveryPublishedVerbIsDispatchedThroughItsOwnTable(t *testing.T) {
 	}
 }
 
-// probesFor builds the lines one published action must refuse: an undeclared
-// keyword, two of them, and an option standing where each declared keyword's
-// value goes. A value never begins with a dash (ai/rules/cli.md), so the third
-// shape is refused wherever the keyword stands on the line.
+// probesFor builds the lines one published action must refuse. Each shape is a
+// refusal the published grammar itself produces (leaction.parseArguments), so
+// an area that reads the line with a parser of its own answers one of them in
+// its own words.
+//
+// The shapes are: an undeclared keyword, two of them, an option standing where
+// each declared keyword's value goes, a keyword with nothing behind it, and a
+// keyword given twice that never declared Repeat. A value never begins with a
+// dash (ai/rules/cli.md), so the option shape is refused wherever the keyword
+// stands on the line.
+//
+// A Repeat keyword is left out of the last shape because a second occurrence is
+// what it declares it takes: probing it would RUN the action, and every probe
+// here is refused before an action body.
 func probesFor(row leaction.Row) [][]string {
 	probes := [][]string{
 		{row.Verb, probeWord},
 		{row.Verb, probeWord, probeWord + "-second"},
 	}
 	for _, parameter := range row.Parameters {
-		if parameter.Value == "" {
+		if parameter.Value != "" {
+			probes = append(probes,
+				[]string{row.Verb, parameter.Keyword, "-" + probeWord},
+				[]string{row.Verb, parameter.Keyword})
+		}
+		if parameter.Repeat {
 			continue
 		}
-		probes = append(probes, []string{row.Verb, parameter.Keyword, "-" + probeWord})
+		twice := []string{row.Verb, parameter.Keyword, parameter.Keyword}
+		if parameter.Value != "" {
+			twice = []string{row.Verb, parameter.Keyword, probeWord, parameter.Keyword, probeWord}
+		}
+		probes = append(probes, twice)
 	}
 	return probes
 }
@@ -247,7 +266,7 @@ func referenceArea(t *testing.T, list leaction.List) leaction.Area {
 	rows := make([]leaction.Action, 0, len(list.Actions))
 	for _, row := range list.Actions {
 		action := leaction.Action{
-			Verb: row.Verb, Why: row.Why, Writes: row.Writes,
+			Verb: row.Verb, Why: row.Why, Writes: row.Writes, Alone: row.Alone,
 			Parameters: row.Parameters,
 		}
 		if len(row.Parameters) == 0 {

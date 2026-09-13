@@ -153,6 +153,10 @@ func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	actions = append(actions, leaction.Action{
 		Verb: allVerb,
 		Why:  "all three actions above, in table order, whatever any of them answers",
+		// `all` names the whole table, so it runs on its own. Naming it beside
+		// a tool ran that tool twice, once inside the sweep `all` performs and
+		// once beside it, which is never what the line meant.
+		Alone: true,
 		Answer: func() (any, int) {
 			return area.Sweep(tools, leaction.RunEveryAction)
 		},

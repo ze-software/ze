@@ -137,12 +137,19 @@ func (s *session) release() {
 // the area publish three verbs its dispatch did not hold. `le functional list
 // zzprobe` answered "no such action in functional: list", and the help every
 // refusal prints named the 32 suites and left these three out.
+//
+// Each names the whole area, so each is declared Alone: `gating` is 24 suites
+// and `list` and `select` are the catalog and the run list. A line naming one
+// of them beside a suite is refused, which is what the area answered before
+// they were rows.
 func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
-		{Verb: listVerb, Why: "every suite and its budget", Answer: s.runList},
-		{Verb: gatingVerb, Why: "every gating suite, under its own budget", Answer: s.runGating},
+		{Verb: listVerb, Why: "every suite and its budget", Alone: true, Answer: s.runList},
+		{Verb: gatingVerb, Why: "every gating suite, under its own budget", Alone: true,
+			Answer: s.runGating},
 		{Verb: selectVerb,
 			Why:    "the suites a gating run would start for this checkout, and why the rest are absent",
+			Alone:  true,
 			Answer: s.runSelect},
 	}
 }
