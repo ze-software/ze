@@ -13,5 +13,7 @@ module ze-bgp-cmd-update-api {
 b64 and cursor. A BGP reactor must be running, and any other first word is refused as an
 unknown encoding.";
   }
-  rpc peer-update-hex { description "Parse and send hex/b64-format UPDATE to peer."; }
+  // The hex and b64 forms are encodings of peer-update above, and handleUpdate
+  // reads the encoding from the first word after update. They are not a command
+  // of their own, so peer-update-hex published a method no handler answered.
 }

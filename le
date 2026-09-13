@@ -78,9 +78,32 @@ le_build_config='go.mod go.sum feature-gates.txt'
 # True when $1 is older than any build input. `-print -quit` stops at the first
 # newer file, so the answer costs about 40 ms when nothing changed and less when
 # something did.
+# The extensions a build input can carry. Go is not the whole set: the binary
+# embeds 221 .yang files and a handful of .json, .txt, .md, .js, .css and
+# .version assets, and go:embed bakes each one INTO the binary. A walk that
+# looks only at *.go therefore reports a current binary after a schema edit.
+#
+# That is not theoretical. On 2026-09-13 four .yang edits left `le docvalid
+# help-shape` answering the PRE-edit result, because it reads the embedded
+# copy, while `le cli-grammar` went green at once because it greps the disk.
+# Two gates disagreed about one edit and neither was wrong: they were reading
+# different copies of the same file (plan/journal/stale-artifact-reused.md).
+# The predicate is written out at each call site rather than held in a variable.
+# An unquoted `$names` expansion lets the shell glob `*.go` against the current
+# directory before find ever sees it, which silently empties the predicate: the
+# first version of this fix matched 0 files where the old walk matched 3.
+le_find_sources() {
+	# $1 is the reference file; every later argument goes to find unchanged.
+	reference=$1
+	shift
+	find $le_sources \( -name '*.go' -o -name '*.yang' -o -name '*.json' \
+		-o -name '*.txt' -o -name '*.md' -o -name '*.js' -o -name '*.css' \
+		-o -name '*.version' \) -newer "$reference" "$@" 2>/dev/null
+}
+
 le_is_stale() {
 	[ -n "$(
-		cd "$root" && find $le_sources -name '*.go' -newer "$1" -print -quit 2>/dev/null
+		cd "$root" && le_find_sources "$1" -print -quit
 		find $le_build_config -newer "$1" -print -quit 2>/dev/null
 	)" ]
 }
@@ -96,7 +119,7 @@ committed_change_is_newer() {
 			git -C "$root" status --porcelain -- $le_sources $le_build_config 2>/dev/null |
 				sed -e 's/^...//' -e 's/.* -> //'
 			echo '--'
-			(cd "$root" && find $le_sources -name '*.go' -newer "$1" 2>/dev/null
+			(cd "$root" && le_find_sources "$1"
 			find $le_build_config -newer "$1" 2>/dev/null)
 		} | awk '
 			$0 == "--"     { landed = 1; next }

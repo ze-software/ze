@@ -5,6 +5,8 @@ module ze-cli-set-api {
   description
     "Ze set verb RPCs -- create or modify configuration.";
 
-  rpc bgp-peer-with { description "Set peer with configuration (asn, local-as, timer, etc.)."; }
-  rpc bgp-peer-save { description "Save peer(s) to config file."; }
+  // 'set bgp peer with' and 'set bgp peer save' were removed on 2026-06-03,
+  // which ze-cli-set-cmd.yang records in its revision of that date. The two
+  // rpcs outlived the commands and published methods no handler answered. Peer
+  // config goes through the editor, and the module now declares no rpc.
 }

@@ -117,7 +117,8 @@ module ze-hub-conf {
             ze:help "Ze starts the Go pprof handlers on this address at startup. The host must be
                 127.0.0.1, ::1 or localhost, and Ze stops with an error for any other host. An address
                 that carries no host, such as :6060, binds every interface, so Ze stops on it too. Ze
-                starts no pprof server while the leaf is absent, and the --pprof flag wins over it.";
+                starts no pprof server while the leaf is absent. When the ze command line gives a
+                pprof address, Ze uses that address and ignores this leaf.";
         }
 
         // Management hardening: the X-Ze-Version banner both HTTP servers send.
@@ -145,8 +146,8 @@ module ze-hub-conf {
                 description "PRNG seed (0 = disabled)";
                 ze:help "Ze builds the fault injector only while the seed is not 0. The same seed replays
                     the same sequence of faults, so a failed run can be repeated. A seed of -1 takes the
-                    seed from the clock, and Ze logs the value it took. The --chaos-seed flag wins over
-                    this leaf, because it applies after the config load.";
+                    seed from the clock, and Ze logs the value it took. Ze applies the ze command line
+                    after the config load, so a seed given there replaces the seed in this leaf.";
             }
 
             leaf rate {

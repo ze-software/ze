@@ -10,6 +10,13 @@ module ze-rib-api {
          RPCs for querying and clearing RIB state.
          Notifications for RIB changes.";
 
+    // Neither rpc reached a RIB command: the table in rib_commands.go holds
+    // help, commands and events, and no entry answers either name. The live
+    // pair is declared in ze-plugin-api.yang and ze-system-api.yang.
+    revision 2026-09-13 {
+        description "Removed command-help and command-complete.";
+    }
+
     revision 2026-02-01 {
         description "Initial revision";
     }
@@ -35,26 +42,6 @@ after the built-in table are in it.";
                 leaf name { type string; description "Command name"; }
                 leaf description { type string; description "Command description"; }
             }
-        }
-    }
-
-    rpc command-help {
-        description "Show RIB command details.";
-        input {
-            leaf name { type string; mandatory true; description "Command name"; }
-        }
-        output {
-            leaf help { type string; description "Detailed help text"; }
-        }
-    }
-
-    rpc command-complete {
-        description "Complete RIB command/args.";
-        input {
-            leaf partial { type string; mandatory true; description "Partial command string"; }
-        }
-        output {
-            leaf-list completions { type string; description "Completion candidates"; }
         }
     }
 

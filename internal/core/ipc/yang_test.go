@@ -219,7 +219,7 @@ func TestYANGRibAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"help", "command list", "command-help", "command-complete", "event-list",
+		"help", "command list", "event-list",
 		"show", "best", "best-status", "clear-in", "clear-out", "status",
 	}
 
@@ -329,7 +329,7 @@ func TestExtractRPCs(t *testing.T) {
 			name:   "rib-api",
 			module: "ze-rib-api",
 			wantRPCs: []string{
-				"help", "command list", "command-help", "command-complete", "event-list",
+				"help", "command list", "event-list",
 				"show", "best", "best-status", "clear-in", "clear-out", "status",
 				"inject", "withdraw",
 			},

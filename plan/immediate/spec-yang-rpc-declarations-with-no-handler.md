@@ -212,6 +212,21 @@ name is present, and `TestExtractRPCs` matches the whole set with
 class are already written in `plan/journal/unwired-feature.md`, dated 2026-09-03
 and 2026-09-05, so this spec adds none.
 
+**Six of the seven were deleted on 2026-09-13, on the owner's ruling.** The
+declarations went, and no handler was written for any of them:
+`ze-bgp-cmd-peer-api:peer-add`, `ze-bgp-cmd-update-api:peer-update-hex`,
+`ze-cli-set-api:bgp-peer-with`, `ze-cli-set-api:bgp-peer-save`,
+`ze-rib-api:command-help` and `ze-rib-api:command-complete`. Each one was a
+duplicate of a live declaration or the residue of a removal, so deleting it
+removed a published method and no capability. `ze-cli-set-api.yang` now declares
+no rpc at all, and whether the module file goes is still open.
+
+**So this spec owns exactly one node: `ze-bgp-cmd-peer-api:peer-save`.** That
+declaration is kept because this spec is designing the capability behind it, and
+it is the one refusal `./le docvalid help-shape` reports. The gate stays red on
+it until the handler exists, which is this spec's to close. Its help text is not
+written ahead of the handler, and it is not allowlisted.
+
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.

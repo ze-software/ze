@@ -26,7 +26,9 @@ timers are reported in seconds.";
 subcode are joined into an RFC 8203 shutdown communication message. The
 selector is a peer address or a peer name, and the wildcard is refused.";
   }
-  rpc peer-add { description "Add a peer dynamically."; }
+  // peer-add is declared in ze-bgp-api.yang, which is the declaration
+  // 'ze:command "ze-bgp:peer-add"' names and handleBgpPeerAdd serves. The copy
+  // here published a second method that no handler answered.
   rpc peer-remove {
     description "Remove a peer dynamically.";
     ze:help "Ze stops the TCP session and removes the peer from the running
