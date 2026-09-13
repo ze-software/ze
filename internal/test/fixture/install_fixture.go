@@ -834,7 +834,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 
 		req.Builder = builderDocker
 		req.OutputDir = filepath.Join(root, "isolated-output")
-		if err := kernelbuilder.Build(ctx, req); err != nil {
+		if err := buildKernel(ctx, req); err != nil {
 			return fmt.Errorf("successful ownership build: %w", err)
 		}
 		calls, err := readDockerCalls(logPath)
@@ -861,7 +861,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 		}
 		req.OutputDir = filepath.Join(root, "failed-output")
 		restoreFailure := setFixtureEnv("ZE_INSTALL_DOCKER_FAIL_BUILD", "1")
-		buildErr := kernelbuilder.Build(ctx, req)
+		buildErr := buildKernel(ctx, req)
 		restoreFailure()
 		if buildErr == nil {
 			return errors.New("failed container was reported as successful")
@@ -881,7 +881,7 @@ func kernelBuildOwnershipFixture(ctx context.Context, args []string) error {
 	if len(args) != 2 {
 		return errors.New("kernel-build-output-ownership requires REPOSITORY OUTPUT")
 	}
-	return kernelbuilder.Build(ctx, kernelbuilder.Request{
+	return buildKernel(ctx, kernelbuilder.Request{
 		Root: args[0], Version: versionKernel711, Arch: archAMD64, Profile: targetRuntime, Builder: builderDocker,
 		Target: targetRuntime, SourceDir: pathGokrazyKernel, OutputDir: args[1],
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
@@ -979,7 +979,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		req.Builder = builderDocker
 		req.Target, req.Profile, req.Modules = targetInstaller, profileQEMU, "no"
 		req.OutputDir = filepath.Join(root, "provenance")
-		if err := kernelbuilder.Build(ctx, req); err != nil {
+		if err := buildKernel(ctx, req); err != nil {
 			return err
 		}
 		data, err := os.ReadFile(filepath.Join(req.OutputDir, "kernel.version"))
@@ -995,7 +995,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 		}
 		for _, badVersion := range []string{"not-a-version", "6.12.9"} {
 			req.Version = badVersion
-			if err := kernelbuilder.Build(ctx, req); err == nil {
+			if err := buildKernel(ctx, req); err == nil {
 				return fmt.Errorf("invalid kernel version %q was accepted", badVersion)
 			}
 		}
@@ -1011,7 +1011,7 @@ func kernelVersionProvenanceFixture(ctx context.Context, args []string) error {
 	if len(args) != 3 {
 		return errors.New("kernel-version-provenance requires REPOSITORY OUTPUT VERSION")
 	}
-	return kernelbuilder.Build(ctx, kernelbuilder.Request{
+	return buildKernel(ctx, kernelbuilder.Request{
 		Root: args[0], Version: args[2], Arch: archAMD64, Profile: profileQEMU, Builder: builderDocker,
 		Target: targetInstaller, SourceDir: pathInstallerKernel, OutputDir: args[1],
 		BuilderDir: pathKernelBuilder, CommonDir: pathKernelBuilderCommon,
@@ -1288,7 +1288,7 @@ func kernelQEMUArchAliasFixture(_ context.Context, _ []string) error {
 		return err
 	}
 	defer os.RemoveAll(root) //nolint:errcheck // fixture cleanup
-	err = kernelbuilder.Build(context.Background(), kernelbuilder.Request{
+	err = buildKernel(context.Background(), kernelbuilder.Request{
 		Root: root, Version: versionKernel711, Arch: "aarch64", Profile: targetRuntime, Builder: builderQEMU,
 		Target: targetRuntime, SourceDir: "../bad", OutputDir: "out", BuilderDir: dirBuilder,
 		CommonDir: dirCommon, Modules: valueYes, Fragments: []string{"fragment.config"},
@@ -1664,10 +1664,26 @@ func runBuildCapture(ctx context.Context, req *kernelbuilder.Request) (string, e
 	path := file.Name()
 	defer os.Remove(path) //nolint:errcheck // fixture cleanup
 	req.Stdout, req.Stderr = file, file
-	buildErr := kernelbuilder.Build(ctx, *req)
+	buildErr := buildKernel(ctx, *req)
 	closeErr := file.Close()
 	data, readErr := os.ReadFile(path) //nolint:gosec // the path is the fixture's own scratch file
 	return string(data), errors.Join(buildErr, closeErr, readErr)
+}
+
+// buildKernel runs one kernel build for a fixture, with the container store
+// guard pinned off for its duration.
+//
+// Every build these fixtures run reaches a `docker` that is a symlink to a
+// no-op on their own PATH, so it writes no image layer and needs none of the
+// 40G a real build needs. Left live, that guard read the free space of whatever
+// machine ran the fixture and decided the verdict from it
+// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-09-07). The guard
+// itself is proven at both polarities by its own unit tests in
+// internal/appliance/kernelbuilder/space_test.go.
+func buildKernel(ctx context.Context, req kernelbuilder.Request) error {
+	restore := kernelbuilder.PinNoContainerStore()
+	defer restore()
+	return kernelbuilder.Build(ctx, req)
 }
 
 // noopBinary resolves the no-op command these fixtures symlink their stub

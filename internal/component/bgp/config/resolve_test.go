@@ -1590,8 +1590,14 @@ func TestValidatePeerName(t *testing.T) {
 		{"at_limit", strings.Repeat("a", 255), false},
 		{"reserved_list", "list", true},
 		{"reserved_detail", "detail", true},
+		// A formerly_reserved row names a word a bgp `peer` container once
+		// declared and no longer does, so the loader must accept it again.
+		// `update` and `raw` left the grammar on 2026-09-05 for `send bgp
+		// <selector> <form>`, and reservedPeerNames kept refusing both until
+		// 2026-09-13.
 		{"formerly_reserved_add", "add", false},
-		{"reserved_update", "update", true},
+		{"formerly_reserved_update", "update", false},
+		{"formerly_reserved_raw", "raw", false},
 		{"reserved_teardown", "teardown", true},
 		{"reserved_prefix_ok", "list-east", false},
 		{"reserved_suffix_ok", "my-list", false},

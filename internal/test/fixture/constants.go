@@ -48,6 +48,7 @@ const (
 	asnLabel64502              = "AS64502"
 	configPathRouterID         = "bgp.router-id"
 	familyIPv4Unicast          = "ipv4/unicast"
+	familyIPv6Unicast          = "ipv6/unicast"
 	hostnamePyPeer             = "py-peer"
 	metricPeerStateTransitions = "ze_peer_state_transitions_total"
 	metricPoolUsedRatio        = "ze_bgp_pool_used_ratio"

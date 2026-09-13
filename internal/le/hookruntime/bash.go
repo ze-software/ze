@@ -2,7 +2,6 @@
 package hookruntime
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -678,7 +677,7 @@ func scratchMessage(path string) string {
 // mutate the tree on every grep, and its content is already correct: the write
 // hook removed it the moment it stopped being correct. Whole is not the same
 // question as present for a directory artifact, which answers it itself
-// (artifactWhole, derived.Artifact.Complete).
+// (derived.Artifact.Whole, derived.Artifact.Complete).
 //
 // A rebuild that fails BLOCKS the command. The alternative is a grep reading a
 // file nobody built, which answers "no match" for a tree the author cannot see,
@@ -702,7 +701,7 @@ func preMaterializeDerived(ctx context) *verdict {
 		if _, err := os.Stat(filepath.Join(ctx.root, filepath.FromSlash(pathDirectory(artifact.Path)))); err != nil {
 			continue
 		}
-		whole, err := artifactWhole(ctx.root, artifact)
+		whole, err := artifact.Whole(ctx.root)
 		if err != nil {
 			return &verdict{2, "❌ Blocked: " + artifact.Path + " cannot be read: " + err.Error() +
 				"\nIt is derived, so the command would judge a tree nobody rendered."}
@@ -716,28 +715,6 @@ func preMaterializeDerived(ctx context) *verdict {
 		}
 	}
 	return nil
-}
-
-// artifactWhole reports whether the tree at root holds the artifact WHOLE, and
-// raises when the path cannot be read at all.
-//
-// Two questions, in this order, because the second one presumes the first. The
-// stat answers whether anything is there. The artifact's own Complete then
-// answers whether what is there is the whole of it, which is a question a stat
-// cannot settle for a DIRECTORY: its files are written one at a time, so a run
-// that stopped half way leaves a present, short directory that a reader takes
-// for the whole answer (derived.Artifact.Complete).
-func artifactWhole(root string, artifact derived.Artifact) (bool, error) {
-	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(artifact.Path))); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		}
-		return false, err
-	}
-	if artifact.Complete == nil {
-		return true, nil
-	}
-	return artifact.Complete(root), nil
 }
 
 // commandNamesArtifact reports whether the command text reaches the artifact,

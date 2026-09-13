@@ -1,10 +1,16 @@
 # must-fail: expected exit code 0, got 1
 #
 # The anchor of the suite: it asserts nothing about a directive, only that the
-# runner still judges what it declared. /bin/false exits 1 against a declared 0.
-# A runner that stops evaluating expect=exit:code= turns this file green, and
-# every .ci that rests on an exit code with it.
+# runner still judges what it declared. cat on an absent operand exits 1 against
+# a declared 0. A runner that stops evaluating expect=exit:code= turns this file
+# green, and every .ci that rests on an exit code with it.
+#
+# The child is /bin/cat rather than /bin/false, which recent macOS releases ship
+# at /usr/bin/false only (the same portability trap noopBinary records in
+# internal/test/fixture/install_fixture.go). The absent operand is a path no
+# checkout holds, and POSIX gives cat exit 1 for an operand it cannot open, so
+# the stimulus is the same non-zero exit on every host the suite runs on.
 
 option=timeout:value=20s
-cmd=foreground:seq=1:exec=/bin/false
+cmd=foreground:seq=1:exec=/bin/cat /nonexistent-path-this-fixture-needs-absent
 expect=exit:code=0

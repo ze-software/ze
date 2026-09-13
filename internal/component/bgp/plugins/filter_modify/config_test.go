@@ -6,11 +6,13 @@ package filter_modify
 
 import (
 	"maps"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -114,7 +116,12 @@ func TestAttributeDefaultsRefusedConfigInstallsNothing(t *testing.T) {
 // AIGP administrative domain.
 //
 // The reason is asserted at the container, because that is where somebody about
-// to add the leaf would read it.
+// to add the leaf would read it. It is read out of the container's ze:help,
+// which is the long text the ? box prints.
+//
+// It is not read out of the description. A description is the one-line summary
+// a completion row renders, and command.MaxSummaryChars bounds it at 96
+// characters. Two RFC citations do not fit in that.
 //
 // The spec's TDD plan named internal/component/config/yang/validator_test.go
 // for this test. That package cannot host it: the schema lookup needs the bgp
@@ -134,9 +141,10 @@ func TestAigpDefaultLeafDoesNotExist(t *testing.T) {
 	require.True(t, ok)
 	require.ElementsMatch(t, []string{medAttr, localPreferenceAttr}, container.Children(),
 		"the container declares the two attributes that have a base, and no third")
-	require.Contains(t, container.Description, "RFC 7311",
+	help := containerHelp(t, attributeDefaultsPath)
+	require.Contains(t, help, "RFC 7311",
 		"the reason for the absence belongs where somebody would add the leaf")
-	require.Contains(t, container.Description, aigpAttr)
+	require.Contains(t, help, aigpAttr)
 
 	// A tree that names it anyway is refused rather than obeyed. YANG
 	// validation refuses the key at config load, and this is the plugin's own
@@ -209,4 +217,34 @@ func TestAttributeDefaultLeafRangeHoldsAtTheBoundaries(t *testing.T) {
 			require.Error(t, config.ValidateLeafValue(leaf, "-1"), "below the range")
 		})
 	}
+}
+
+// containerHelp answers the long explanation the YANG container at path
+// declares in its ze:help extension.
+//
+// config.ContainerNode carries a node's description and not its ze:help, so the
+// schema cannot answer this. Nothing reads the long text through the schema.
+// The ? box the operator opens reads it straight off the YANG entry
+// (entryLongHelp, internal/component/cli/completer.go). A copy on the schema
+// node would be a second declaration of one sentence, with no reader of its
+// own.
+//
+// A module the binary never registered would turn the walk into an empty string,
+// and the caller would read that as an absent explanation. So each step of the
+// walk is required rather than skipped.
+func containerHelp(t *testing.T, path string) string {
+	t.Helper()
+
+	loader, err := configyang.DefaultLoader()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("ze-bgp-conf")
+	require.NotNil(t, entry, "ze-bgp-conf is not registered in this test binary, so the walk below would read a schema no build has")
+
+	for name := range strings.SplitSeq(path, "/") {
+		require.NotNil(t, entry.Dir, "%s has no children, so %q cannot be reached", entry.Name, name)
+		entry = entry.Dir[name]
+		require.NotNil(t, entry, "the YANG tree declares no %q under %s", name, path)
+	}
+	return configyang.GetHelpExtension(entry.Exts)
 }

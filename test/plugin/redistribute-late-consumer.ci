@@ -65,3 +65,10 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0
+# The verdict is the observer's, not the exit code's. redistChainLateConsumer
+# (internal/test/fixture/plugin_fixture_12_redistribute_chain.go) returns an
+# error naming the prefix the late consumer never received, and fixture.Run
+# turns that into the ZE-OBSERVER-FAIL line. The daemon can still shut down
+# cleanly around a failed observer, so the sentinel is asserted here rather than
+# left to `expect=exit:code=0` alone (ai/rules/testing.md, compiled observers).
+reject=stderr:pattern=ZE-OBSERVER-FAIL

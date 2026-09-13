@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/docvalid"
 	"github.com/ze-software/ze/internal/le/inventory"
 )
@@ -49,15 +50,28 @@ type BuildReport struct {
 	Coverage     Coverage `json:"coverage"`
 }
 
-// Build stages the website source tree, preserves the last complete artifact as
-// an incremental seed, refreshes native generated surfaces, runs every
-// registered page producer, removes every source-only input from deployment,
-// and stamps the publication time into the footer of every published page.
+// Build renders every derived artifact the checkout does not hold, stages the
+// website source tree, preserves the last complete artifact as an incremental
+// seed, refreshes native generated surfaces, runs every registered page
+// producer, removes every source-only input from deployment, and stamps the
+// publication time into the footer of every published page.
 func Build(options BuildOptions) (BuildReport, error) {
 	paths, err := resolvePaths(options.Repository, options.Output)
 	if err != nil {
 		return BuildReport{}, err
 	}
+
+	// A derived artifact is absent for most of a session: a write to one of its
+	// inputs removes it, and only a shell command that spells its path rebuilds
+	// it. This build reads two from inside its own process, so it names no
+	// command and rebuilds nothing -- docs/features/rfc-status.md is a page of
+	// the published site, and the RFC prose links the shards beside it. Without
+	// this, a build that follows any write to an RFC summary, an audit verdict
+	// or a tagged test publishes a site missing that page.
+	if err := derived.EnsureAll(paths.Repository); err != nil {
+		return BuildReport{}, err
+	}
+
 	files, err := trackedAndUntrackedSourceFiles(paths)
 	if err != nil {
 		return BuildReport{}, err

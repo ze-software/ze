@@ -51,7 +51,12 @@ func TestNativeScenarioPopulationIsExact(t *testing.T) {
 // PREVENTS: A config, PPP option, secret, or FRR fixture drifting during runner removal.
 func TestNativeConfigBytesArePinned(t *testing.T) {
 	files := map[string]string{
-		"Dockerfile.ze":                                      "8058d120cac7b2c33313ff7ea6150fd07bdd92c28182fd7cc82b16d22fc08a84",
+		// Repinned for 5837fd3247, which removed the Go toolchain from this
+		// image: the LNS image is now an alpine:3.21 base plus one apk add plus
+		// a COPY of the binary StageBinaries cross-compiles
+		// (internal/le/interoplab/zebuild.go). The change was reviewed with that
+		// commit and the pin was not carried with it.
+		"Dockerfile.ze":                                      "189e167682ac09a7b6874bc4e3bdf942fcf448dee6cc4974af9a933c8b29dd7c",
 		"Dockerfile.lac":                                     "de2f22de8c1815e8d0d6a37b96d7518d8157b26cd5598fb95c8e4f624909a180",
 		"daemons":                                            "6c0f1be1b722ff89041b5bea87ed1212dd0595019b44730616de9e338cb08cd0",
 		"vtysh.conf":                                         "dc8aa539965a4cebabbe1a75a53b48ae8471bafe77ce59af22d5352d28da4df6",

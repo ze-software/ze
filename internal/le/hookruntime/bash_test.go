@@ -338,12 +338,12 @@ func TestArtifactWholeAsksADirectoryArtifactRatherThanStattingIt(t *testing.T) {
 		{"a directory no run finished", unfinished, false},
 	} {
 		t.Run(row.name, func(t *testing.T) {
-			whole, err := artifactWhole(root, row.artifact)
+			whole, err := row.artifact.Whole(root)
 			if err != nil {
-				t.Fatalf("artifactWhole(%s): %v", row.artifact.Path, err)
+				t.Fatalf("Whole(%s): %v", row.artifact.Path, err)
 			}
 			if whole != row.want {
-				t.Errorf("artifactWhole(%s) = %v, want %v", row.artifact.Path, whole, row.want)
+				t.Errorf("Whole(%s) = %v, want %v", row.artifact.Path, whole, row.want)
 			}
 		})
 	}

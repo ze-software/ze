@@ -701,24 +701,39 @@ func TestDeclaredNumericBoundsHold(t *testing.T) {
 	}
 }
 
-// TestDeclaredASNLeafTakesTheFullWidth pins the one numeric leaf that states no
-// range.
+// TestDeclaredASNLeafTakesTheFullWidth pins the width and the notations of the
+// one AS number leaf a lookup command takes.
 //
-// VALIDATES: `asn` accepts every 32-bit AS number and refuses one past it,
-// which is exactly what requireASN's ParseUint(s, 10, 32) does
-// (internal/component/resolve/cmd/resolve.go).
+// VALIDATES: the leaf takes every AS number a four-octet speaker can hold, in
+// asplain and in the asdot form of RFC 5396 Section 2, and refuses one past the
+// 32-bit width. That is what requireASN reaches: it calls asn.Parse
+// (internal/core/bgp/asn/asn.go), the one function in Ze that turns AS number
+// text into a number.
 // PREVENTS: a range narrowed to the private or the 16-bit space, which would
-// refuse an AS number the resolver looks up today.
+// refuse an AS number the resolver looks up today, and a leaf that takes the
+// decimal spelling alone, which would refuse the notation an operator reads the
+// number in.
+//
+// Two of these assertions used to say the opposite, because the leaf was a bare
+// uint32 before it took zt:asn-notated. Both moved with a deliberate change:
+// asdot arrived with RFC 5396, and AS 0 left because zt:asn is ranged 1.. for
+// the reserved value of RFC 7607. The comment above them cited requireASN's
+// ParseUint(s, 10, 32), a producer that no longer exists.
+//
+// asn.Parse itself still accepts 0, so the leaf is the stricter of the two. One
+// reserved value, refused at the surface an operator types and accepted by the
+// function under it.
 func TestDeclaredASNLeafTakesTheFullWidth(t *testing.T) {
 	loader, err := yang.DefaultLoader()
 	require.NoError(t, err)
 	defs := yang.PathToArgDefs(loader)["resolve cymru asn-name"]
 	require.Len(t, defs, 1)
 
-	assert.NoError(t, command.ValidateArgString("0", &defs[0]))
+	assert.NoError(t, command.ValidateArgString("1", &defs[0]))
 	assert.NoError(t, command.ValidateArgString("4294967295", &defs[0]))
+	assert.NoError(t, command.ValidateArgString("64512.1", &defs[0]))
 	assert.Error(t, command.ValidateArgString("4294967296", &defs[0]))
-	assert.Error(t, command.ValidateArgString("64512.1", &defs[0]))
+	assert.Error(t, command.ValidateArgString("0", &defs[0]))
 }
 
 // TestCommandsThatTakeNoInheritedValueKeepTheirBareForm dispatches the two

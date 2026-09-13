@@ -880,8 +880,8 @@ func counts(in imports) Counts {
 // Check reports the FIRST generated file that disagrees with what the tree
 // registers. It writes nothing.
 //
-// It stops at the first because the script does, and the answer is `make
-// generate` whichever file it names.
+// It stops at the first because the script does, and the answer is
+// `./le plugin imports write` whichever file it names.
 func Check(root string) (CheckReport, error) {
 	in, err := derive(root)
 	if err != nil {

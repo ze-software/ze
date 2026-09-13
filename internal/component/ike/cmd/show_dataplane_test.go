@@ -101,7 +101,11 @@ func noDataplane(t *testing.T) {
 // usePeerInfo scripts the engine-belief half of the drift comparison.
 func usePeerInfo(t *testing.T, peers map[string]engine.PeerInfo) {
 	t.Helper()
-	for name, info := range peers {
+	// A map value is not addressable, so the identity fields are filled in on a
+	// copy and written back. The range is over the keys alone, which keeps the
+	// 248-byte copy of PeerInfo inside the body where the write-back needs it.
+	for name := range peers {
+		info := peers[name]
 		if info.ChildInID.SPI == 0 {
 			info.ChildInID = dataplane.IdentityOf(info.ChildInSPI, nil, 0, info.ChildIfID)
 		}
@@ -662,7 +666,8 @@ func TestShowIPsecSameSPIKeepsCountersAndDriftSeparate(t *testing.T) {
 	useDataplane(t, fake)
 	resp, err := handleShowVPNIPsecSA(nil, nil)
 	require.NoError(t, err)
-	child := rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
+	child, ok := rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
+	require.True(t, ok, "no child-sa object")
 	require.Equal(t, uint64(4096), child["bytes-out"])
 	require.Equal(t, uint64(12), child["packets-out"])
 	require.Equal(t, uint64(0), child["bytes-in"], "a measured zero remains numeric")
@@ -671,7 +676,8 @@ func TestShowIPsecSameSPIKeepsCountersAndDriftSeparate(t *testing.T) {
 	fake.sas = append(fake.sas[:1], fake.sas[2])
 	resp, err = handleShowVPNIPsecSA(nil, nil)
 	require.NoError(t, err)
-	child = rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
+	child, ok = rowsOf(t, resp, "peers")[0]["child-sa"].(map[string]any)
+	require.True(t, ok, "no child-sa object")
 	require.Nil(t, child["bytes-out"])
 	require.Nil(t, child["packets-out"])
 	require.Equal(t, true, child["counters-known"], "the missing SA was observed")

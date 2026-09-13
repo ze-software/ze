@@ -78,8 +78,10 @@ var (
 // -h/--help flags to the help verb and when registering the handler.
 const cmdHelp = "help"
 
+// ze.storage.blob is NOT registered here. It is declared and registered beside
+// its only reader, as resolve.EnvKeyStorageBlob, which this binary links through
+// ze_core_start.go. A copy here would be a second declaration of one fact.
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: booleanTextTrue, Description: "Use blob storage (false = filesystem)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: typeNameString, Description: "Override hub address (host:port) for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: typeNameString, Description: "Override client name for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: typeNameString, Description: "Override auth token for managed mode"})

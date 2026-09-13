@@ -452,15 +452,28 @@ func checkDuplicateRemoteIPs(peerMap map[string]any) error {
 // maxPeerNameLen is the maximum length for peer names.
 const maxPeerNameLen = 255
 
-// reservedPeerNames contains names that collide with "peer <subcommand>"
-// keywords. A peer named "list" would cause dispatch ambiguity: the dispatcher
-// cannot tell if "peer list detail" means "show detail for peer named list"
-// or a syntax error. Reject these at config validation time.
+// reservedPeerNames contains the names a peer must not take. A bgp `peer`
+// container declares each one as a keyword.
+//
+// A peer named "list" is the case that forces the guard. `show bgp peer list`
+// declares ze:inherit "none", so the operator types that keyword straight after
+// `peer`. The dispatcher cannot then tell the name from the verb.
+//
+// The rest are reserved more widely than the ambiguity. A peer named after a
+// peer subcommand reads as one, even where the mandatory selector keeps the
+// parse unambiguous.
+//
+// This map is a copy of what the merged command tree declares, so it names its
+// source. TestReservedPeerNamesSyncWithRPCs (loader_test.go) reads that tree and
+// refuses the map in both directions. It refused this map on 2026-09-13, when
+// "update" and "raw" were still listed here. Both commands had moved to `send
+// bgp` (ze-raw-cmd.yang, ze-update-cmd.yang) and the root `peer` container was
+// deleted.
 var reservedPeerNames = map[string]bool{
 	"list": true, "detail": true, "capabilities": true, "statistics": true,
 	"history": true, "rib": true,
 	"pause": true, "resume": true, "flush": true, "teardown": true,
-	"update": true, "raw": true, "refresh": true, "borr": true, "eorr": true,
+	"refresh": true, "borr": true, "eorr": true,
 	"clear": true, "plugin": true, "prefix": true,
 }
 

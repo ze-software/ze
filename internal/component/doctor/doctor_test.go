@@ -1967,7 +1967,16 @@ func goExtractorListenerTree() *config.Tree {
 	bgpC.AddListEntry("peer", "p1", peer)
 
 	tree.GetOrCreateContainer("bfd").Set("enabled", "true")
-	tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec").Set("enabled", "true")
+
+	// extractIPsecListeners asks kernelcap.IPsecInUse, which reads a TUNNEL and
+	// not an `enabled` leaf (owner decision 6, 2026-08-14: one predicate, three
+	// readers). An empty `vpn { ipsec { } }` describes no tunnel, so ze binds
+	// neither UDP port and doctor probes neither. One site-to-site peer is the
+	// smallest config that makes the daemon bind 500 and 4500.
+	ipsec := tree.GetOrCreateContainer("vpn").GetOrCreateContainer("ipsec")
+	ipsecPeer := config.NewTree()
+	ipsecPeer.Set("remote-address", "198.51.100.1")
+	ipsec.GetOrCreateContainer("site-to-site").AddListEntry("peer", "s1", ipsecPeer)
 
 	svc := tree.GetOrCreateContainer("service")
 	svc.GetOrCreateContainer("tftp-server").Set("enabled", "true")

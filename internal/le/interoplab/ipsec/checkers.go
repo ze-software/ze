@@ -1104,7 +1104,7 @@ func checkIPsecBGPRedistributeFRR(ctx context.Context, lab *scenarioLab) error {
 	}
 	var tb textbuf.Buffer
 	description := tb.Str("Ze XFRM policy for ").Str(remoteSite).String()
-	if _, err := lab.waitOutput(ctx, zePeer, []string{"ip", "xfrm", "policy"}, 30*time.Second, description, func(output string) bool {
+	if _, err := lab.waitOutput(ctx, zePeer, []string{"ip", xfrmCommand, "policy"}, 30*time.Second, description, func(output string) bool {
 		return strings.Contains(output, "10.200.0.0")
 	}); err != nil {
 		return err
@@ -1647,7 +1647,7 @@ func requireZeCountersAdvanced(ctx context.Context, lab *scenarioLab) error {
 
 func requireCounterAdvancement(before, after zeChildCounters) error {
 	if before.InboundSPI != after.InboundSPI || before.OutboundSPI != after.OutboundSPI || before.IfID != after.IfID {
-		return errors.New("Child SA changed during the counter measurement")
+		return errors.New("the Child SA changed during the counter measurement")
 	}
 	for _, counter := range []struct {
 		name   string
@@ -1698,7 +1698,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 	if err != nil {
 		return err
 	}
-	clean := dataplaneGauges{count: make(map[string]float64), drift: map[string]float64{"swan": 0}}
+	clean := dataplaneGauges{count: make(map[string]float64), drift: map[string]float64{swanConfigPeer: 0}}
 	for key := range kernel {
 		clean.count[strconv.FormatUint(uint64(key.ifID), 10)]++
 	}
@@ -1709,7 +1709,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	deleted := readbackSAKey{zeIP, swanIP, child.OutboundSPI, child.IfID}
-	command := []string{"ip", "xfrm", "state", "delete", "src", deleted.source, "dst", deleted.target,
+	command := []string{"ip", xfrmCommand, "state", "delete", "src", deleted.source, "dst", deleted.target,
 		"proto", "esp", "spi", strconv.FormatUint(uint64(deleted.spi), 10)}
 	if deleted.ifID != 0 {
 		command = append(command, "if_id", strconv.FormatUint(uint64(deleted.ifID), 10))
@@ -1717,7 +1717,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 	if _, err := lab.exec(ctx, zePeer, command...); err != nil {
 		return err
 	}
-	remaining, err := lab.exec(ctx, zePeer, "ip", "-s", "xfrm", "state")
+	remaining, err := lab.exec(ctx, zePeer, "ip", "-s", xfrmCommand, "state")
 	if err != nil {
 		return err
 	}
@@ -1731,7 +1731,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 	if err := requireLiveDataplaneHealth(ctx, lab, true); err != nil {
 		return err
 	}
-	drifted := dataplaneGauges{count: make(map[string]float64), drift: map[string]float64{"swan": 1}}
+	drifted := dataplaneGauges{count: make(map[string]float64), drift: map[string]float64{swanConfigPeer: 1}}
 	for key := range remainingSAs {
 		drifted.count[strconv.FormatUint(uint64(key.ifID), 10)]++
 	}
@@ -1793,7 +1793,7 @@ func requireLiveDataplaneHealth(ctx context.Context, lab *scenarioLab, drifting 
 		if commandErr != nil {
 			detail += commandErr.Error()
 		}
-		if commandErr == nil || !strings.Contains(detail, "dataplane drift") || !strings.Contains(detail, "swan") {
+		if commandErr == nil || !strings.Contains(detail, "dataplane drift") || !strings.Contains(detail, swanConfigPeer) {
 			return fmt.Errorf("CLI failed to report swan dataplane drift: %s", detail)
 		}
 	} else {
@@ -1825,7 +1825,7 @@ func requireLiveDataplaneHealth(ctx context.Context, lab *scenarioLab, drifting 
 		}
 		if drifting {
 			if component.Status != "degraded" || !strings.Contains(component.Reason, "dataplane drift") ||
-				!strings.Contains(component.Reason, "swan") {
+				!strings.Contains(component.Reason, swanConfigPeer) {
 				return fmt.Errorf("live IPsec health did not report swan drift: %s", answer)
 			}
 		} else if component.Status != "healthy" {

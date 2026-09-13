@@ -24,13 +24,23 @@ import (
 // leaf names and the container nesting are half of what these tests assert: a
 // tree built with GetOrCreateContainer would pass with a schema that has no
 // crash-dump container at all.
+//
+// It parses rather than LOADS, and the architecture is why. LoadConfig runs the
+// registered ze:validate validators after the parse, and crashMemoryImageValidator
+// (internal/component/config/validators.go) refuses `memory-image enabled true`
+// on every architecture but amd64, because only amd64 stages a capture kernel.
+// The subject here is extractCrashDump reading a parsed tree, so a refusal that
+// depends on the machine the test runs on reports nothing about it: the file
+// was green on amd64 and red on every arm64 checkout. The refusal itself is
+// held by TestMemoryImageRefusedOnNonAmd64 (validators_crashdump_test.go),
+// which sets the architecture both ways.
 func treeFrom(t *testing.T, text string) *config.Tree {
 	t.Helper()
-	result, err := config.LoadConfig(text, "test.conf", nil)
+	tree, err := config.ParseTreeWithYANG(text, nil)
 	if err != nil {
-		t.Fatalf("load config: %v", err)
+		t.Fatalf("parse config: %v", err)
 	}
-	return result.Tree
+	return tree
 }
 
 func TestExtractCrashDumpReadsTheSubtree(t *testing.T) {

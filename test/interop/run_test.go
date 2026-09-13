@@ -38,6 +38,20 @@ func TestInteropTreeUsesOnlyCompiledHelpers(t *testing.T) {
 		t.Fatal(err)
 	}
 	interopRoot := filepath.Join(root, "test", "interop")
+	// The lab's own cross-compiled binaries live in this tree because it is the
+	// Docker build context (interoplab.LabBinary.Output), and a 84 MB Go binary
+	// carries every one of the tokens below as an ordinary string constant. The
+	// set is READ from the lab rather than spelled here, so a lab that stages a
+	// third personality needs no edit and a file that is NOT declared as a build
+	// product is still scanned.
+	staged := map[string]bool{}
+	for _, binary := range interopbgp.LabBinaries() {
+		within, relErr := filepath.Rel(interopRoot, filepath.Join(root, filepath.FromSlash(binary.Output)))
+		if relErr != nil {
+			t.Fatal(relErr)
+		}
+		staged[within] = true
+	}
 	err = filepath.WalkDir(interopRoot, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -48,6 +62,9 @@ func TestInteropTreeUsesOnlyCompiledHelpers(t *testing.T) {
 		relative, err := filepath.Rel(interopRoot, path)
 		if err != nil {
 			return err
+		}
+		if staged[relative] {
+			return nil
 		}
 		lowerName := strings.ToLower(entry.Name())
 		for _, suffix := range []string{"." + "py", "." + "pyc", "." + "sh", "." + "bash", "." + "pl"} {

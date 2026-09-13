@@ -501,8 +501,12 @@ func TestCmdMethods(t *testing.T) {
 	if modules["ze-plugin-api"] != 8 {
 		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
 	}
-	if modules["ze-rib-api"] != 13 {
-		t.Errorf("expected 13 RIB RPCs, got %d", modules["ze-rib-api"])
+	// 11 since command-help and command-complete were deleted. Neither reached
+	// a RIB command: the table in rib_commands.go answers neither name, so both
+	// declared a command Ze cannot run, and the owner ruled on 2026-09-13 that
+	// they go. The live pair is in ze-plugin-api and ze-system-api.
+	if modules["ze-rib-api"] != 11 {
+		t.Errorf("expected 11 RIB RPCs, got %d", modules["ze-rib-api"])
 	}
 }
 

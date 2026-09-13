@@ -1,37 +1,29 @@
 package all
 
 import (
-	"bytes"
-	"context"
-	"os"
-	"os/exec"
-	"regexp"
-	"strconv"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/lepath"
+	yangglue "github.com/ze-software/ze/internal/le/yang/glue"
 )
 
-// TestYANGGlueCurrent runs the YANG glue generator in --check mode.
+// TestYANGGlueCurrent checks every generated yang/*/register.go and embed.go
+// against the .yang files beside it.
 //
-// This is the feeder that makes `ze-yang-glue-check` reachable. The Makefile
-// target existed but had no caller: not in `generate`'s check twin, not in
-// stagesForMode (internal/le/verify/engine/run.go), not in .github/workflows. A `.yang`
-// file added or edited without `make generate` therefore left a stale
-// yang/*/register.go, and the module was silently never wired -- the failure
-// mode is invisible, because nothing errors, the schema simply is not there.
+// It calls yangglue.Check, which is the producer `./le yang glue check` answers
+// from (internal/le/yang/glue/actions.go), so the check is the generator that
+// writes the file rather than a reimplementation that can drift. The uncached
+// backstop is `./le repository generated-check`, which runs that same action
+// (generationChecks, internal/le/repository/generate.go).
 //
 // It mirrors TestGeneratedPluginImportsCurrent in all_test.go deliberately:
-// same package (already covered by the unit stage), same shell-out-to-the-real
-// -generator shape, so the check is exercised by the generator that writes the
-// file rather than by a reimplementation that can drift.
+// same package, same call into the generator's own library.
 //
-// CAVEAT -- not a sufficient guard on its own. A .yang file is not an input of
-// THIS package, so `go test` may serve a cached PASS after one is edited (the
-// full-verify stage is ze-unit-test-cached). Measured: adding a stray .yang and
-// re-running without -count=1 returned a cached ok. The uncached backstop is
-// the `ze-generated-files-check` make stage, which runs the same
-// `yang_glue.go --check` from a recipe and is wired into both stagesForMode
-// branches. This feeder's value is the fast local signal; do not remove the
-// make stage on the strength of it.
+// A .yang file is not a build input of this package, but Check opens it, and
+// `go help test` says "Tests that open files within the package's module ...
+// only match future runs in which the files ... are unchanged." So editing one
+// invalidates the cached PASS. That was not true while the generator ran as a
+// `go run` subprocess, whose opens the test binary never saw.
 //
 // VALIDATES: every yang/*/register.go is current with respect to its .yang
 // sources, checked by the generator itself (internal/le/yang/glue/yangglue.go).
@@ -39,43 +31,30 @@ import (
 // not regenerated -- config for that module would parse as unknown, with no
 // build or test failure to point at the cause.
 func TestYANGGlueCurrent(t *testing.T) {
-	ctx := context.Background()
-	if deadline, ok := t.Deadline(); ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, deadline)
-		defer cancel()
-	}
-	cmd := exec.CommandContext(ctx, "go", "run", "../../../../internal/le/yang/glue/yangglue.go", "--check")
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	out, err := cmd.CombinedOutput()
+	root, err := lepath.Root()
 	if err != nil {
-		t.Fatalf("yang glue generated files are stale: %v\n%s\nRun `make generate` and commit the result.", err, out)
+		t.Fatalf("find the checkout root: %v", err)
+	}
+	report, err := yangglue.Check(root)
+	if err != nil {
+		t.Fatalf("read the tree: %v", err)
+	}
+	if len(report.Stale) > 0 {
+		t.Fatalf("yang glue generated files are stale: %v\nRun `./le yang glue write` and commit the result.", report.Stale)
 	}
 
-	// Non-vacuity. yang_glue.go exits 0 with "no yang/ directories with .yang
-	// files found" when discoverYangDirs matches nothing, so a layout change or
-	// a broken walk turns this test (and the ze-generated-files-check line) green
-	// while guarding zero files. Assert it actually looked at a plausible number
-	// of directories, the same way TestPythonUnitTests fails on an empty glob.
+	// Non-vacuity. Check answers an empty report with no error when derive
+	// matches nothing, so a layout change or a broken walk turns this test (and
+	// the `./le repository generated-check` step) green while guarding zero
+	// files. Assert it actually read a plausible number of directories, the
+	// same way TestPythonUnitTests fails on an empty glob.
 	const minYangDirs = 100 // 149 at the time of writing; a floor, not a count
-	m := yangDirCountRE.FindSubmatch(out)
-	if m == nil {
-		// Name the likely cause rather than a generic "shape changed": the
-		// early return in yang_glue.go's main() is the failure this assertion
-		// exists to catch, and it has its own distinctive message.
-		if bytes.Contains(out, []byte("no yang/ directories with .yang files found")) {
-			t.Fatalf("yang_glue --check found NO yang/ directories and exited 0, so it guarded nothing: discoverYangDirs no longer matches the tree layout.\n%s", out)
-		}
-		t.Fatalf("yang_glue --check did not report a directory count; its output shape changed, so this test can no longer prove it checked anything:\n%s", out)
+	if report.Dirs == 0 {
+		// Name the likely cause rather than a generic "it found nothing":
+		// derive's own walk is what this assertion exists to catch.
+		t.Fatal("yang glue check read NO yang/ directories, so it guarded nothing: derive no longer matches the tree layout")
 	}
-	n, err := strconv.Atoi(string(m[1]))
-	if err != nil {
-		t.Fatalf("unparsable yang directory count %q: %v", m[1], err)
-	}
-	if n < minYangDirs {
-		t.Fatalf("yang_glue --check reported only %d yang/ directories (floor %d): discovery is broken and this check is guarding almost nothing\n%s", n, minYangDirs, out)
+	if report.Dirs < minYangDirs {
+		t.Fatalf("yang glue check read only %d yang/ directories (floor %d): discovery is broken and this check is guarding almost nothing", report.Dirs, minYangDirs)
 	}
 }
-
-// yangDirCountRE extracts N from "yang_glue: N yang/ directories are current".
-var yangDirCountRE = regexp.MustCompile(`yang_glue: (\d+) yang/ directories are current`)

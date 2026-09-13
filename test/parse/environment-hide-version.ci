@@ -3,11 +3,33 @@
 # X-Ze-Version build banner off the web interface and the looking glass.
 # PREVENTS: the YANG leaf being rejected by the parser, which would make every
 # configuration that hardens the box fail to load.
+#
+# `ze config validate -` only proves the leaf is ACCEPTED. The readback below
+# dumps the parsed tree and asserts the STORED value, so a parser that accepts
+# `hide-version true` and stores false (or drops the leaf) fails here, which is
+# the whole point of the leaf: a stored false leaves the build banner on.
 stdin=config:terminator=EOF_CONF
 environment {
     hide-version true
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+# `show config dump - | json` resolves the full BGP tree and refuses a config
+# with no bgp { } block, so the readback runs against an augmented copy that
+# prepends a minimal one. The validate step above still proves the
+# environment-ONLY config is accepted.
+stdin=config-dump:terminator=EOF_DUMP
+bgp {
+    router-id 10.0.0.1
+}
+environment {
+    hide-version true
+}
+EOF_DUMP
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config-dump:exit=0
 expect=exit:code=0
+# The needle carries a ':' so it MUST use pattern=, and the dump renders every
+# leaf value as a JSON string, so the needle is "hide-version": "true".
+expect=stdout:pattern="hide-version": "true"

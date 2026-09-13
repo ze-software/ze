@@ -158,6 +158,15 @@ WHOLE, so a write that reaches an input with no hook in its path leaves the
 artifact present and stale until the next hooked write removes it. A native
 action writing from Go is such a write: `./le rfc reseal` edits an input of the
 five RFC outputs and no hook sees it, so `./le rfc index-update` follows it.
+
+A READER inside Go is the same gap on the other side. The write hook watches an
+editing tool and the Bash hook reads a command line, so neither one sees a Go
+caller that opens the artifact from its own process. That caller meets whatever
+the last write left, which is usually nothing. `derived.EnsureAll` is the
+rebuild for it: one pass over the registry that renders each artifact the tree
+does not hold whole. `site.Build` calls it, because the site publishes
+`docs/features/rfc-status.md` as a page of the documentation and the RFC prose
+links the shards beside it.
 Nothing compares a re-render against a committed copy, because there is no
 committed copy. Which files are registered is the registry's
 own answer rather than a list here: `derived.All` enumerates them, and
@@ -184,7 +193,7 @@ outside that answer, because an exact member set costs the render it would be
 deciding whether to run.
 
 <!-- source: internal/le/derived/derived.go -- Artifact.Complete -->
-<!-- source: internal/le/hookruntime/bash.go -- artifactWhole -->
+<!-- source: internal/le/derived/derived.go -- Artifact.Whole -->
 
 **A gate reads recorded evidence. A separate verb produces it.** `./le rfc
 check` re-reads a stored proof and compares its fingerprints against the tree;
@@ -234,7 +243,7 @@ under the `testdata/` directory of the Go package that owns them.
 <!-- source: internal/le/leaction/leaction.go -- IsHelpArg, actionUsage -->
 <!-- source: internal/le/leroot/leroot.go -- Register, RegisterActions -->
 <!-- source: internal/le/leroot/group.go -- Group, GroupTitle -->
-<!-- source: internal/le/derived/derived.go -- Artifact, Register, All -->
+<!-- source: internal/le/derived/derived.go -- Artifact, Register, All, EnsureAll -->
 <!-- source: cmd/ze/ze_le_register.go -->
 
 ---

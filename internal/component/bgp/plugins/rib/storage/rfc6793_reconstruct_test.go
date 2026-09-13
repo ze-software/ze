@@ -30,60 +30,7 @@ var (
 		0xC0, 0x11, 0x06,
 		0x02, 0x01, 0x00, 0x03, 0x0B, 0x64,
 	}
-
-	// AS_PATH from an OLD speaker: AS_SEQUENCE [64500, AS_TRANS]. Two AS numbers.
-	wireASPathTwoHops = []byte{
-		0x40, 0x02, 0x06,
-		0x02, 0x02, 0xFB, 0xF4, 0x5B, 0xA0,
-	}
-
-	// AS4_PATH: AS_SEQUENCE [65001, 199524, 199525]. Three AS numbers, one more
-	// than the AS_PATH beside it carries.
-	wireAS4PathThreeHops = []byte{
-		0xC0, 0x11, 0x0E,
-		0x02, 0x03, 0x00, 0x00, 0xFD, 0xE9, 0x00, 0x03, 0x0B, 0x64, 0x00, 0x03, 0x0B, 0x65,
-	}
-
-	// AS_PATH from an OLD speaker inside a confederation: AS_CONFED_SEQUENCE
-	// [65001, 65002] leading, then AS_SEQUENCE [64500, AS_TRANS]. RFC 5065
-	// leaves the confederation segment out of the AS number count, so this path
-	// counts two AS numbers.
-	wireASPathConfedLeading = []byte{
-		0x40, 0x02, 0x0C,
-		0x03, 0x02, 0xFD, 0xE9, 0xFD, 0xEA,
-		0x02, 0x02, 0xFB, 0xF4, 0x5B, 0xA0,
-	}
-
-	// AS_PATH whose confederation segment TRAILS the sequence: AS_SEQUENCE
-	// [64500, AS_TRANS] then AS_CONFED_SEQUENCE [65001]. Two AS numbers.
-	wireASPathConfedTrailing = []byte{
-		0x40, 0x02, 0x0A,
-		0x02, 0x02, 0xFB, 0xF4, 0x5B, 0xA0,
-		0x03, 0x01, 0xFD, 0xE9,
-	}
-
-	// AS4_PATH: AS_SEQUENCE [199524, 199525]. Two AS numbers.
-	wireAS4PathTwoHops = []byte{
-		0xC0, 0x11, 0x0A,
-		0x02, 0x02, 0x00, 0x03, 0x0B, 0x64, 0x00, 0x03, 0x0B, 0x65,
-	}
-
-	// AGGREGATOR from an OLD speaker carrying a real two-octet AS (64500), not
-	// AS_TRANS, with aggregator address 10.0.0.1.
-	wireAggregatorRealAS = []byte{
-		0xC0, 0x07, 0x06,
-		0xFB, 0xF4, 0x0A, 0x00, 0x00, 0x01,
-	}
 )
-
-// entryASPath returns the AS path bytes ParseAttributes interned for entry.
-func entryASPath(t *testing.T, entry RouteEntry) []byte {
-	t.Helper()
-	require.True(t, entry.HasASPath(), "the route must carry an AS path")
-	got, err := pool.ASPath.Get(entry.ASPath)
-	require.NoError(t, err)
-	return got
-}
 
 // TestParseAttributesCostsNothingExtraWithoutAS4Path pins the same cost at the
 // ingest entry point rather than at the AS path producer alone. An UPDATE from
@@ -138,30 +85,4 @@ func TestParseAttributesReconciliesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, wireASPathThreeHops[3:], stored,
 		"the AS_PATH is interned as it arrived, with no leading part taken from it")
-}
-
-// AS_PATH from an OLD speaker carrying an AS_SET in its leading part:
-// AS_SEQUENCE [64500], AS_SET [65001, 65002], AS_SEQUENCE [AS_TRANS].
-// RFC 4271 Section 9.1.2.2 counts the set as one, so this path counts three.
-var wireASPathWithLeadingSet = []byte{
-	0x40, 0x02, 0x0E,
-	0x02, 0x01, 0xFB, 0xF4,
-	0x01, 0x02, 0xFD, 0xE9, 0xFD, 0xEA,
-	0x02, 0x01, 0x5B, 0xA0,
-}
-
-// AS4_PATH whose segment claims three AS numbers and carries one. The attribute
-// length is honest, so the iterator hands the value over and the AS4_PATH parse
-// is what refuses it.
-var wireAS4PathMalformed = []byte{
-	0xC0, 0x11, 0x06,
-	0x02, 0x03, 0x00, 0x03, 0x0B, 0x64,
-}
-
-// AGGREGATOR in the four-octet form, which is the wrong width for a session
-// that did not negotiate the four-octet AS capability. RFC 7606 Section 7.7
-// rejects every length but the negotiated one.
-var wireAggregatorWrongWidth = []byte{
-	0xC0, 0x07, 0x08,
-	0x00, 0x00, 0xFB, 0xF4, 0x0A, 0x00, 0x00, 0x01,
 }

@@ -25,14 +25,16 @@ import (
 // container come from several modules, and the selector one module declares
 // binds every command another module hangs there.
 //
-// It REFUSES a partial registry, because a derivation over a subset of the
-// modules answers about a grammar no build has. Measured on 2026-09-04, a run
-// without the ze_bgp tag reaches here holding 18 of the 20 keywords and both
-// missing words come from ONE module: ze-cli-announce-cmd declares the
-// top-level `peer` container's mandatory selector, so its absence is exactly
-// the case that would report a verb as colliding when it does not. A count
-// floor cannot see a gap that small, so the modules are named from the source
-// and each one is required.
+// It REFUSES a partial registry. A derivation over a subset of the modules
+// answers about a grammar no build has. The gap is too small for a count floor
+// to see.
+//
+// ze-peer-cmd.yang declares the mandatory selector of `show bgp peer` and of
+// `request peer`. ze-refresh-cmd.yang hangs borr, eorr, refresh and clear under
+// that second container, and re-declares no selector. A binary holding the
+// refresh module and not the peer module reads four guarded verbs as bare ones.
+// That is the exact shape which reports a verb as colliding when it does not.
+// So the modules are named from the source and each one is required.
 func livePeerKeywords(t *testing.T) pluginserver.PeerKeywords {
 	t.Helper()
 
@@ -54,8 +56,8 @@ func livePeerKeywords(t *testing.T) pluginserver.PeerKeywords {
 	keywords := pluginserver.PeerSubcommandKeywords(yang.BuildCommandTree(loader))
 
 	// The registry is whole, so a short vocabulary is the tree walk failing
-	// rather than the modules missing. A floor is not a count: 20 keywords were
-	// declared on 2026-09-04, and the floor only has to sit above what a broken
+	// rather than the modules missing. A floor is not a count: 16 keywords were
+	// declared on 2026-09-13, and the floor only has to sit above what a broken
 	// enumeration returns.
 	const declaredFloor = 15
 	if len(keywords.Declared) < declaredFloor {
@@ -144,13 +146,12 @@ func peerContainerModuleName(source string) string {
 func TestPeerSubcommandKeywordsReadTheSelector(t *testing.T) {
 	keywords := livePeerKeywords(t)
 
-	// Guarded verbs. `container peer` declares `leaf selector { mandatory
-	// true; }` and these verbs are its siblings, in ze-cli-announce-cmd.yang
-	// (announce, withdraw), ze-peer-cmd.yang (detail, teardown) alike. The
-	// operator types `peer <selector> withdraw all` and `show bgp peer
-	// <selector> detail`, so a peer named `withdraw` is read in the selector
-	// slot with the verb still to come.
-	for _, keyword := range []string{"announce", "withdraw", "detail", "teardown"} {
+	// Guarded verbs. `show bgp peer` and `request peer` each declare a
+	// mandatory `selector` leaf, and these verbs are their siblings in
+	// ze-peer-cmd.yang. The operator types `show bgp peer <selector> detail`.
+	// A peer named `detail` is read in the selector slot, with the verb still
+	// to come.
+	for _, keyword := range []string{"detail", "teardown"} {
 		assert.True(t, keywords.Declared[keyword],
 			"%q is declared under a bgp peer container, so the derivation must see it", keyword)
 		assert.False(t, keywords.Colliding[keyword],
@@ -158,14 +159,16 @@ func TestPeerSubcommandKeywordsReadTheSelector(t *testing.T) {
 	}
 
 	// Bare verbs. `show bgp peer list` declares ze:inherit "none" and reads
-	// every peer, so it takes no selector (ze-peer-cmd.yang). `peer raw` and
-	// `peer update` declare a selector of their own, which the model places
-	// after the verb (ze-raw-cmd.yang, ze-update-cmd.yang). Each of the three
-	// is typed immediately after `peer`.
-	for _, keyword := range []string{"list", "raw", "update"} {
-		assert.True(t, keywords.Colliding[keyword],
-			"%q is typed immediately after `peer`, so a peer of that name collides with it", keyword)
-	}
+	// every peer, so it takes no selector (ze-peer-cmd.yang). The operator
+	// types it immediately after `peer`.
+	//
+	// `peer raw` and `peer update` stood beside it until 2026-09-05, when both
+	// moved to `send bgp <selector> <form>`. No count of the set is pinned
+	// here. TestReservedPeerNamesSyncWithRPCs (loader_test.go) reads the whole
+	// of Colliding, so a bare verb that arrives later is caught there, against
+	// reservedPeerNames rather than against a number.
+	assert.True(t, keywords.Colliding["list"],
+		"`show bgp peer list` takes no selector, so a peer named `list` stands in its slot and the derivation must report the collision")
 }
 
 // TestResolveRefusesCollidingPeerNames drives the guard from the entry point an
@@ -189,12 +192,23 @@ func TestResolveRefusesCollidingPeerNames(t *testing.T) {
 			"a peer named %q stands in the slot of a keyword typed immediately after `peer`, so the loader must refuse the config", keyword)
 	}
 
-	// `withdraw` is the counter-case this test exists for. The operator types
-	// `peer <selector> withdraw all`, so the name sits in the selector slot and
-	// the verb still follows it. A config that names a peer `withdraw` must
-	// load.
-	assert.NoError(t, resolveWithPeerNamed("withdraw"),
-		"`peer <selector> withdraw all` puts the selector before the verb, so a peer named `withdraw` is unambiguous and the loader must accept it")
+	// The counter-cases this test exists for. `announce`, `withdraw`, `raw` and
+	// `update` were keywords under a `peer` container until 2026-09-05. All
+	// four then moved to `send bgp <selector> <form>`, and the root `peer`
+	// container was deleted (ze-raw-cmd.yang, ze-cli-announce-cmd.yang,
+	// ze-update-cmd.yang). No peer container declares any of them now. No
+	// dispatch can read a peer of that name as a verb, so the loader must
+	// accept every one.
+	//
+	// The premise is asserted before the acceptance. A word the tree declares
+	// again is a collision candidate rather than a counter-case. This loop
+	// would then assert the opposite of what it says.
+	for _, name := range []string{"announce", "withdraw", "raw", "update"} {
+		require.False(t, keywords.Declared[name],
+			"a bgp peer container declares %q again, so this counter-case is stale: judge the name with the collision loop above", name)
+		assert.NoError(t, resolveWithPeerNamed(name),
+			"no bgp peer container declares %q, so a peer of that name stands in nobody's slot and the loader must accept it", name)
+	}
 }
 
 // resolveWithPeerNamed resolves the smallest BGP config that names one peer,

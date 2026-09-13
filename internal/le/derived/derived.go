@@ -15,6 +15,7 @@
 package derived
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -168,6 +169,64 @@ func All() []Artifact {
 	registry.mutex.RLock()
 	defer registry.mutex.RUnlock()
 	return slices.Clone(registry.artifacts)
+}
+
+// Whole reports whether the tree at root holds this artifact entire, and
+// raises when the path cannot be read at all.
+//
+// Two questions, in this order, because the second presumes the first. The stat
+// answers whether anything is there. Complete then answers whether what is
+// there is the whole of it, which is a question a stat cannot settle for a
+// DIRECTORY: its files are written one at a time, so a run that stopped half
+// way leaves a present, short directory that a reader takes for the whole
+// answer (Artifact.Complete).
+func (a Artifact) Whole(root string) (bool, error) {
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(a.Path))); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	if a.Complete == nil {
+		return true, nil
+	}
+	return a.Complete(root), nil
+}
+
+// EnsureAll renders every registered artifact the tree at root does not hold
+// whole, and answers the first failure.
+//
+// This is the IN-PROCESS half of the read side. The materialize hook covers a
+// reader that SPELLS an artifact's path in a shell command, and its own comment
+// names what it cannot reach: a Go caller that opens the file from inside its
+// own process names no command, so an artifact a concurrent write removed a
+// second ago is simply absent to it. The site build is that reader. It
+// publishes docs/features/rfc-status.md as a page of the documentation site, so
+// without this a build run after any write to an RFC summary, an audit verdict
+// or a tagged test publishes a site with that page missing.
+//
+// Every artifact is ensured rather than a named few, because the site reads the
+// checkout as a corpus and a list here would be a second declaration of the
+// registry (ai/rules/principles.md). An artifact the tree already holds costs
+// one stat.
+//
+// A Rebuild decides for itself what an unfamiliar tree means: rebuildLedger
+// answers nothing for a checkout that holds no rfc/short/, rather than refusing
+// it. So nothing here judges whether the artifact belongs to this root.
+func EnsureAll(root string) error {
+	for _, artifact := range All() {
+		whole, err := artifact.Whole(root)
+		if err != nil {
+			return fmt.Errorf("read the derived artifact %s: %w", artifact.Path, err)
+		}
+		if whole {
+			continue
+		}
+		if err := artifact.Rebuild(root); err != nil {
+			return fmt.Errorf("build the derived artifact %s: %w", artifact.Path, err)
+		}
+	}
+	return nil
 }
 
 // WriteAtomic publishes a derived artifact with one rename, so a reader sees

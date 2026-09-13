@@ -71,6 +71,29 @@ func kernelBuildSpaceError(free uint64, store string) error {
 		diskspace.GiB(kernelBuildFreeBytesMin), store, diskspace.GiB(free))
 }
 
+// PinNoContainerStore makes this package answer "no known container store on
+// this host" for the rest of the process, and returns the function that puts
+// the real readings back.
+//
+// It exists for the compiled install fixtures
+// (internal/test/fixture/install_fixture.go), which drive Build against a
+// `docker` that is a symlink to a no-op on their own PATH. That build writes
+// nothing and reads no image layer, so the 40G floor a REAL build needs decided
+// their verdict from the free space of whichever machine ran them: green on a
+// workstation whose container store had room, red on one that did not, with
+// nothing about the product different between the two
+// (plan/journal/gate-verdict-depends-on-the-machine.md, 2026-09-07).
+//
+// Every other caller keeps the guard, which is what an operator's build needs:
+// the refusal costs a message and passing into a full disk costs twenty minutes
+// and the container runtime's image store.
+func PinNoContainerStore() (restore func()) {
+	oldExists, oldFree := pathExists, freeSpace
+	pathExists = func(string) bool { return false }
+	freeSpace = func(string) (uint64, error) { return 0, nil }
+	return func() { pathExists, freeSpace = oldExists, oldFree }
+}
+
 // checkKernelBuildSpace refuses a Docker kernel build that cannot finish.
 //
 // When the layout is one this guard does not know, it SAYS the check did not

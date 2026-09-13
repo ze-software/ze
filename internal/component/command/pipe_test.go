@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -329,7 +330,7 @@ func TestStandalonePipesIntegerMetadata(t *testing.T) {
 			if err := json.Unmarshal([]byte(got), &answer); err != nil {
 				t.Fatalf("counters must remain numeric uint64 values: %v: %s", err, got)
 			}
-			rows := append(answer.Rows, answer.Data...)
+			rows := slices.Concat(answer.Rows, answer.Data)
 			if len(rows) != 1 || rows[0].Bytes != 18446744073709551615 || rows[0].Packets != 9007199254740993 {
 				t.Fatalf("counter values changed: %s", got)
 			}

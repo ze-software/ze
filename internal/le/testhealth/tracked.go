@@ -151,15 +151,6 @@ func exists(path string) bool {
 	return err == nil
 }
 
-// readText answers one repository-relative file's content, and refuses when it
-// is not there.
-func (t *tree) readText(rel string) (string, error) {
-	if !exists(filepath.Join(t.root, filepath.FromSlash(rel))) {
-		return "", collectErrorf("%s does not exist", rel)
-	}
-	return t.readBody(rel)
-}
-
 // readBody answers a file the tree listed, dropping the bytes that are not
 // valid UTF-8 the way Python's `errors="ignore"` drops them.
 //

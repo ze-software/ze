@@ -7,6 +7,11 @@
 #
 # The path: ? -> revealCandidateExplanation -> revealExplanationOf ->
 # CommandCompleter.Explain -> revealDeclared (internal/component/cli/model_keys.go).
+#
+# accept-only: the value assertions are the expect=explanation:contains= and
+# expect=hint:contains= lines of the embedded command-help-explanation-box.et
+# below. `ze-test editor --dir . --all` runs that file and exits non-zero when
+# either text is missing, so the exit code carries them.
 
 option=timeout:value=30s
 

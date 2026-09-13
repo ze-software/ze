@@ -94,8 +94,8 @@ type pathsLimitPeerOutput struct {
 // and both renderers. Different remote/local values expose swapped directions;
 // different remote family values expose a lost per-family limit.
 func checkPathsLimitPeerOutput(ctx context.Context, session *cliWireSession) error {
-	wantSend := map[string]uint16{familyIPv4Unicast: 1, "ipv6/unicast": 2}
-	wantReceive := map[string]uint16{familyIPv4Unicast: 9, "ipv6/unicast": 9}
+	wantSend := map[string]uint16{familyIPv4Unicast: 1, familyIPv6Unicast: 2}
+	wantReceive := map[string]uint16{familyIPv4Unicast: 9, familyIPv6Unicast: 9}
 	for _, surface := range []string{"capabilities", "detail"} {
 		args := []string{"show", namespaceBGP, "peer", "127.0.0.1", surface, "|", "json"}
 		result := session.run(ctx, args...)
@@ -150,9 +150,9 @@ func checkPathsLimitPeerOutput(ctx context.Context, session *cliWireSession) err
 		for _, cells := range [][]string{
 			{"paths-limit"},
 			{columnReceive, familyIPv4Unicast, "9"},
-			{"ipv6/unicast", "9"},
+			{familyIPv6Unicast, "9"},
 			{columnSend, familyIPv4Unicast, "1"},
-			{"ipv6/unicast", "2"},
+			{familyIPv6Unicast, "2"},
 		} {
 			found := false
 			for line := range strings.SplitSeq(result.out, "\n") {

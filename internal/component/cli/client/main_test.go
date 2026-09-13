@@ -306,8 +306,12 @@ func TestTheTranscriptRecordsWhatTheOperatorSaw(t *testing.T) {
 func TestCommandTree(t *testing.T) {
 	tree := BuildCommandTree(false)
 
-	// Check top-level commands exist
-	topLevel := []string{"peer", "show", "clear", "request", "system"}
+	// Check top-level commands exist. `send` joined them on 2026-09-05.
+	// announce, withdraw, raw and update left the root `peer` container for
+	// `send bgp <selector> <form>`, and that container was deleted. The client
+	// builds this tree from the registered RPC paths. So the root an operator
+	// reaches the four forms at is the root that must be here.
+	topLevel := []string{"show", "clear", "request", "send", "system"}
 	for _, c := range topLevel {
 		if _, ok := tree.Children[c]; !ok {
 			t.Errorf("missing top-level command: %s", c)
@@ -338,12 +342,8 @@ func TestCommandTree(t *testing.T) {
 		return
 	}
 
-	// Check peer command families
-	peer := tree.Children["peer"]
-	if peer == nil {
-		t.Fatal("peer command missing")
-		return
-	}
+	// Check peer command families. There is no root `peer` node to check: the
+	// peer commands hang under the verb that acts on them.
 	reqPeer := reqNode.Children["peer"]
 	if reqPeer == nil {
 		t.Fatal("request peer command missing")
@@ -544,9 +544,11 @@ func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
 		return
 	}
 
-	// Should fall back to static tree which has standard commands
-	if _, ok := tree.Children["peer"]; !ok {
-		t.Error("expected 'peer' in fallback tree")
+	// Should fall back to static tree which has standard commands. `show` and
+	// `request` are verbs the fallback must carry. The root `peer` node this
+	// checked until 2026-09-05 is gone. Its commands sit under those verbs.
+	if _, ok := tree.Children["show"]; !ok {
+		t.Error("expected 'show' in fallback tree")
 	}
 	if _, ok := tree.Children["request"]; !ok {
 		t.Error("expected 'request' in fallback tree")

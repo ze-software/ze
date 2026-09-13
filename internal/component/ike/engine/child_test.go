@@ -90,7 +90,7 @@ func testSA() *SA {
 // pfs would enable Perfect Forward Secrecy, and a Child SA rekey with it enabled runs a
 // Diffie-Hellman exchange (childRekeyDHGroup, rekey.go). Every test that shares this
 // fixture judges the non-PFS rekey, so the fixture states that premise.
-// testESPGroupPFS is the same group with the other setting.
+// pfsESPGroup (child_rekey_pfs_test.go) is the fixture for the other setting.
 func testESPGroup() ipsec.ESPGroup {
 	return ipsec.ESPGroup{
 		Name:     "esp-default",
@@ -102,14 +102,6 @@ func testESPGroup() ipsec.ESPGroup {
 			Hash:       ipsec.HashSHA256,
 		}},
 	}
-}
-
-// testESPGroupPFS is testESPGroup with Perfect Forward Secrecy enabled, which is what an
-// operator gets from the esp-group pfs leaf's own default (parseESPGroup, ipsec/config.go).
-func testESPGroupPFS() ipsec.ESPGroup {
-	g := testESPGroup()
-	g.PFS = ipsec.PFSEnable
-	return g
 }
 
 func TestChildSAKeyDerivation(t *testing.T) {

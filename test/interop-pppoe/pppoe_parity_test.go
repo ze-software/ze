@@ -18,13 +18,24 @@ import (
 var _ func(context.Context, pppoeleaf.Options) interoplab.SuiteReport = pppoeleaf.Run
 var _ func(context.Context, string, pppoeleaf.Options) interoplab.SuiteReport = pppoeleaf.RunAt
 
+// pppoeScenarios is the whole reviewed population, in the lexical order
+// ScenarioNames answers and os.ReadDir walks. The four named scenarios arrived
+// after the two numbered ones and each carries its own RFC claim:
+// pppoe-empty-service-name (0e1543cc9a, the mandatory Service-Name tag on every
+// PADO and PADS), pppoe-padr-replay (4efaa4fd8d, the per-MAC allocation bound),
+// and the two ipv6cp cases (fd7cd7b44e, whether the peer's identifier was ever
+// negotiated).
 var pppoeScenarios = []string{
 	"01-pppoe-chap-ipv4",
 	"02-ze-ac-pppd-client",
+	"ipv6cp-missing-option",
+	"ipv6cp-zero-identifier",
+	"pppoe-empty-service-name",
+	"pppoe-padr-replay",
 }
 
-// VALIDATES: The native selector exposes both reviewed PPPoE roles under their
-// exact names and lexical order.
+// VALIDATES: The native selector exposes every reviewed PPPoE role under its
+// exact name and lexical order.
 // PREVENTS: A Go-only gate dropping either the Ze client or access-concentrator role.
 func TestNativeScenarioPopulationIsExact(t *testing.T) {
 	if got := pppoeleaf.ScenarioNames(); !reflect.DeepEqual(got, pppoeScenarios) {
@@ -69,15 +80,33 @@ func TestNativeScenarioPopulationIsExact(t *testing.T) {
 // PREVENTS: Peer substitution or copied fixture drift after runner removal.
 func TestNativeConfigBytesArePinned(t *testing.T) {
 	files := map[string]string{
-		"Dockerfile.ze":                               "73cb9f9e42bdefdd491ae76b8673ebec6f5066e10618ce0c6c8d70584aa71963",
-		"Dockerfile.accel":                            "9d64c266c9481adc00df37b70a83aa8c7bddbab8dfc75f4c7c05ddabe1bbcc6a",
-		"Dockerfile.client":                           "5482e6e0f678503e95c1ff10977ca91ff70211942a3cb449ec3f830582346e28",
+		// Repinned for 5837fd3247, which removed the Go toolchain from this
+		// image: it is now an alpine:3.21 base plus one apk add plus a COPY of
+		// the binary StageBinaries cross-compiles
+		// (internal/le/interoplab/zebuild.go).
+		"Dockerfile.ze":    "dc2acc4e0ae9699f068d01e4b8392edf55fbf2a68a1a24d5478b950b7152f55f",
+		"Dockerfile.accel": "9d64c266c9481adc00df37b70a83aa8c7bddbab8dfc75f4c7c05ddabe1bbcc6a",
+		// Repinned for 0e1543cc9a, which added tcpdump to the client image: the
+		// pppoe-empty-service-name checker captures the discovery exchange to
+		// read the Service-Name tags Ze puts on the wire.
+		"Dockerfile.client":                           "eeac1673a6a64276d24806a863f3718c7c58c98644ba4c2688603014343a706d",
 		"scenarios/01-pppoe-chap-ipv4/ze.conf":        "1b1427eb24d3cc599f02d7e285606a99d91ca64a7d9df1f222bb757e26d8f54b",
 		"scenarios/01-pppoe-chap-ipv4/accel-ppp.conf": "c7b096b09feb5492123e4f32fff09a167abc30b798f5a6b22ae6e007f3d5fa05",
 		"scenarios/01-pppoe-chap-ipv4/chap-secrets":   "04525c6958851189a53ea92d539f1dd5970eceff8e95d626eb7033438b912067",
 		"scenarios/01-pppoe-chap-ipv4/role":           "a15ed3e38a6f9a28ca3acbe40026602dfff0c833b992f2937e4722520480f6fc",
 		"scenarios/02-ze-ac-pppd-client/ze.conf":      "86018076f6fa758abb91a5108f39fda38ca78ddd6d0c15325f77ca630daa89e5",
 		"scenarios/02-ze-ac-pppd-client/role":         "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+		// The four scenarios added after the numbered pair. Their bytes were
+		// unpinned, so this test's claim covered two scenarios while the suite
+		// mounted six.
+		"scenarios/ipv6cp-missing-option/ze.conf":    "47eaeb37cef6bae4b41710514e18c577e94bf684a827c0346b7569f5cfcd6fe4",
+		"scenarios/ipv6cp-missing-option/role":       "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+		"scenarios/ipv6cp-zero-identifier/ze.conf":   "cdd26c75e0a8a41bfe041e4cffea01134b0a16b105c939300c3b43f2123736d8",
+		"scenarios/ipv6cp-zero-identifier/role":      "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+		"scenarios/pppoe-empty-service-name/ze.conf": "45df553e263889bd953585a55638c05b8844b9ef7ac14456f8f873db26e5eddf",
+		"scenarios/pppoe-empty-service-name/role":    "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
+		"scenarios/pppoe-padr-replay/ze.conf":        "a8cf774fccc14bac46919f33ab03db40cb05950d0bd0762ec169ea8c877a5887",
+		"scenarios/pppoe-padr-replay/role":           "9390bb877bffd73137ca2201fb106d5b6096755e34a44c52946c8b658fd6100e",
 	}
 	for name, want := range files {
 		data, err := os.ReadFile(filepath.Clean(name))

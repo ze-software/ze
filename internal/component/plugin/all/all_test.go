@@ -1,10 +1,8 @@
 package all
 
 import (
-	"context"
 	"flag"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -14,6 +12,8 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/le/lepath"
+	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
 func assertSnapshot(t *testing.T, label string, got, expected []string) {
@@ -173,29 +173,33 @@ func TestYANGSchemaProviders(t *testing.T) {
 // TestGeneratedPluginImportsCurrent verifies that the generated blank-import
 // file matches register.go discovery.
 //
-// CAVEAT -- shares the caching hole documented on TestYANGGlueCurrent
-// (yang_glue_check_test.go): a register.go in a package this one does not yet
-// import is not a build input here, so `go test` can serve a cached PASS after
-// one appears, and the full-verify stage is ze-unit-test-cached. The uncached
-// backstop is the ze-generated-files-check make stage, whose
-// ze-plugin-imports-check prerequisite runs the same --check from a recipe in
-// both stagesForMode branches. This test is the fast local signal, not the
-// whole guard.
+// It calls pluginimports.Check, which is the producer `./le plugin imports
+// check` answers from (internal/le/plugin/imports/actions.go), so this test and
+// the gate cannot disagree about what "current" means. The uncached backstop is
+// `./le repository generated-check`, whose first step is that same action
+// (generationChecks, internal/le/repository/generate.go).
+//
+// Reading the tree in-process is what keeps the test honest about its own
+// cache. `go help test`: "Tests that open files within the package's module ...
+// only match future runs in which the files ... are unchanged." A register.go
+// in a package this one does not import is such a file, and Check opens it, so
+// adding one invalidates the cached PASS. The generator used to be run as a `go
+// run` subprocess, whose opens the test binary never saw, which is the caching
+// hole this comment used to record.
 //
 // VALIDATES: plugin/all generation is checked by the same generator that writes it.
 // PREVENTS: Missing plugin registration when a register.go package is not imported.
 func TestGeneratedPluginImportsCurrent(t *testing.T) {
-	ctx := context.Background()
-	if deadline, ok := t.Deadline(); ok {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, deadline)
-		defer cancel()
-	}
-	cmd := exec.CommandContext(ctx, "go", "run", "../../../../internal/le/plugin/imports/pluginimports.go", "--check")
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	out, err := cmd.CombinedOutput()
+	root, err := lepath.Root()
 	if err != nil {
-		t.Fatalf("plugin/all generated imports are stale: %v\n%s", err, out)
+		t.Fatalf("find the checkout root: %v", err)
+	}
+	report, err := pluginimports.Check(root)
+	if err != nil {
+		t.Fatalf("read the tree: %v", err)
+	}
+	if report.Stale != "" {
+		t.Fatalf("plugin/all generated imports are stale: %s %s; run `./le plugin imports write`", report.Stale, report.Reason)
 	}
 }
 

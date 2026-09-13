@@ -28,6 +28,15 @@ const (
 	frrPeer  = "frr"
 	natPeer  = "nat"
 
+	// swanConfigPeer is the name every scenario's ze.conf gives the strongswan
+	// peer, so it is what ze's own output and metrics call that peer. swanPeer
+	// above names the lab container, which is a different string.
+	swanConfigPeer = "swan"
+
+	// xfrmCommand is the ip(8) subcommand that reads and writes the kernel's
+	// XFRM state and policy databases.
+	xfrmCommand = "xfrm"
+
 	zeIP   = "172.28.0.2"
 	swanIP = "172.28.0.3"
 	frrIP  = "172.28.0.4"
@@ -178,7 +187,7 @@ func (l *scenarioLab) waitChildSelectors(ctx context.Context, local, remote stri
 }
 
 func (l *scenarioLab) waitXFRM(ctx context.Context, peer string) (string, error) {
-	return l.waitOutput(ctx, peer, []string{"ip", "xfrm", "state"}, xfrmWaitTimeout, "XFRM ESP state", func(output string) bool {
+	return l.waitOutput(ctx, peer, []string{"ip", xfrmCommand, "state"}, xfrmWaitTimeout, "XFRM ESP state", func(output string) bool {
 		return strings.Contains(output, "proto esp")
 	})
 }
@@ -193,7 +202,7 @@ func (l *scenarioLab) waitOutput(ctx context.Context, peer string, command []str
 }
 
 func (l *scenarioLab) xfrmState(ctx context.Context, peer string) (string, error) {
-	return l.exec(ctx, peer, "ip", "xfrm", "state")
+	return l.exec(ctx, peer, "ip", xfrmCommand, "state")
 }
 
 // inboundXFRMState answers the ONE state that decapsulates what source sends to target.
@@ -203,7 +212,7 @@ func (l *scenarioLab) xfrmState(ctx context.Context, peer string) (string, error
 // while the receive path carries nothing. Reception is what RFC 3948 Section 3.1.2
 // governs, so the assertions that cite it read this state and no other.
 func (l *scenarioLab) inboundXFRMState(ctx context.Context, peer, source, target string) (string, error) {
-	output, err := l.exec(ctx, peer, "ip", "xfrm", "state", "list", "src", source, "dst", target)
+	output, err := l.exec(ctx, peer, "ip", xfrmCommand, "state", "list", "src", source, "dst", target)
 	if err != nil {
 		return "", err
 	}
@@ -214,7 +223,7 @@ func (l *scenarioLab) inboundXFRMState(ctx context.Context, peer, source, target
 }
 
 func (l *scenarioLab) xfrmPolicy(ctx context.Context, peer string) (string, error) {
-	output, err := l.exec(ctx, peer, "ip", "xfrm", "policy")
+	output, err := l.exec(ctx, peer, "ip", xfrmCommand, "policy")
 	if err != nil {
 		return "", err
 	}
@@ -240,7 +249,7 @@ type saKey struct {
 }
 
 func (l *scenarioLab) xfrmCounters(ctx context.Context, peer string) (map[saKey]uint64, error) {
-	output, err := l.exec(ctx, peer, "ip", "-s", "xfrm", "state")
+	output, err := l.exec(ctx, peer, "ip", "-s", xfrmCommand, "state")
 	if err != nil {
 		return nil, err
 	}
@@ -1255,7 +1264,7 @@ func (l *scenarioLab) readbackCounters(ctx context.Context) (zeChildCounters, ma
 	}
 	var child *zeChildCounters
 	for i := range records {
-		if records[i].Peer == "swan" && records[i].Child != nil {
+		if records[i].Peer == swanConfigPeer && records[i].Child != nil {
 			if child != nil {
 				return zeChildCounters{}, nil, fmt.Errorf("multiple Child SA records for swan: %s", answer)
 			}
@@ -1265,7 +1274,7 @@ func (l *scenarioLab) readbackCounters(ctx context.Context) (zeChildCounters, ma
 	if child == nil {
 		return zeChildCounters{}, nil, fmt.Errorf("no Child SA counters for swan: %s", answer)
 	}
-	output, err := l.exec(ctx, zePeer, "ip", "-s", "xfrm", "state")
+	output, err := l.exec(ctx, zePeer, "ip", "-s", xfrmCommand, "state")
 	if err != nil {
 		return zeChildCounters{}, nil, err
 	}
@@ -1281,7 +1290,7 @@ func (l *scenarioLab) readbackCounters(ctx context.Context) (zeChildCounters, ma
 
 func requireDirectedCounters(child zeChildCounters, kernel map[readbackSAKey]espLifetime) error {
 	if !child.CountersKnown {
-		return errors.New("Child SA reports unknown counters over a readable kernel")
+		return errors.New("the Child SA reports unknown counters over a readable kernel")
 	}
 	for _, direction := range []struct {
 		key     readbackSAKey

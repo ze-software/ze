@@ -4,6 +4,11 @@
 #   in the box above the prompt.
 # PREVENTS: the defect an operator reported, the RFC 6286 paragraph of
 #   bgp router-id landing on the one-line message row, with the box repeating it.
+#
+# accept-only: the value assertions are the expect=hint:contains= and
+# expect=explanation:contains= lines of the embedded config-help-both-texts.et
+# below. `ze-test editor --dir . --all` runs that file and exits non-zero when
+# either text is missing, so the exit code carries them.
 
 option=timeout:value=30s
 
