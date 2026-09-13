@@ -452,11 +452,14 @@ Each peer keeps a table of what the API rails have sent it. A second announce of
 | What is never suppressed | A withdrawal, and a batch carrying `NLRIBatch.Replay` |
 | What an operator sees | A debug line on `subsystem=bgp.routes` naming the peer, the family and the count, and a per-peer counter beside it |
 
-`Replay` is what keeps `clear bgp rib out` and the RFC 2918 route refresh behind it reaching the wire. That rail resends routes the peer already holds, over a session that is still up, so without the marker it would answer a request to re-send with silence. The RIB plugin's `resendRoutesWithCursor` sets it; the peer-up replay does not need it, because the teardown already emptied the table.
+`Replay` is what keeps a re-send reaching the wire. Such a rail resends routes the peer already holds, over a session that is still up, so without the marker it would answer a request to re-send with silence. Two RIB producers set it, and both had to: `resendRoutesWithCursor` carries `clear bgp rib out`, and `sendRoutes` carries the re-advertisement a ROUTE-REFRESH from the peer asks for. The peer-up replay needs no marker, because the teardown already emptied the table.
+
+RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." That "shall" is why the refresh rail outranks Section 9.2 here. Until 2026-09-14 `sendRoutes` set no marker, so a refresh on an up session sent the RFC 7313 BoRR and EoRR with no UPDATE between them, and RFC 7313 Section 4 has the receiver purge on the EoRR every route the BoRR marked stale: the refresh withdrew the family instead of restoring it. `test/plugin/plugin-refresh.ci` is the recording.
 
 Two origination paths do NOT record: the config-driven initial sync (`peer_initial_sync.go`) and the `SendRoutes` transaction rail. Neither can cause a wrong suppression, because a route that was never recorded is always sent; a route one of them sent and the API rail then announces is sent twice, exactly as before.
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut, announceSignature, announceUnit -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- resendRoutesWithCursor -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- sendRoutes -->
 
 ### A Withdrawal Names a Route This Connection Advertised
 

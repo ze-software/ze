@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc2918",
+  "records": [
+    {
+      "rid": "RFC2918-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_test.go::TestHandleRefresh_InternalState",
+      "unit-sha": "dc7158d6e752ab97",
+      "claim-sha": "365dcdddfa2cf2a0",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_commands.go::sendRoutes",
+      "producer-sha": "61de16c2a7d6e3ff",
+      "break": "body of sendRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

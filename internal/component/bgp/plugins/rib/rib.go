@@ -273,6 +273,18 @@ type RIBManager struct {
 	// it nil.
 	dispatchHook func(command string)
 
+	// updateHook, when non-nil, intercepts updateRoute and updateRouteWithMeta
+	// for test inspection instead of issuing the update-route RPC. Production
+	// leaves it nil.
+	//
+	// It is the second half of dispatchHook: the markers of a route refresh
+	// travel the dispatch rail and the routes between them travel this one, so
+	// a test holding only the first sees BoRR and EoRR with nothing in between
+	// and cannot tell that from a refresh that re-advertised nothing. The meta
+	// is passed because it decides whether the route reaches the wire at all
+	// (meta["replay"], sendRoutes).
+	updateHook func(command string, meta map[string]any)
+
 	// ribInPool stores routes received FROM non-BGP protocols (e.g. BMP),
 	// keyed by source protocol then protocol-defined peer key. BMP keys are
 	// composite "router:peerIP" strings (see bmpCompositeKey and
@@ -756,6 +768,10 @@ func runRIBPlugin(conn net.Conn) int {
 
 // updateRoute sends a route update command to matching peers via the engine.
 func (r *RIBManager) updateRoute(peerSelector, command string) {
+	if r.updateHook != nil {
+		r.updateHook(command, nil)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_, _, err := r.plugin.UpdateRoute(ctx, peerSelector, command)
@@ -767,6 +783,10 @@ func (r *RIBManager) updateRoute(peerSelector, command string) {
 // updateRouteWithMeta sends a route update command with metadata to matching peers.
 // Used by sendRoutes and resendRoutesWithCursor to carry stale level through to egress filters.
 func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[string]any) {
+	if r.updateHook != nil {
+		r.updateHook(command, meta)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_, _, err := r.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)

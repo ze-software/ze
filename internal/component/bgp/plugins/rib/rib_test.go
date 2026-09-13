@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
@@ -983,10 +984,20 @@ func TestRIBPluginHandleCommandRejectsOldNames(t *testing.T) {
 // VALIDATES: Refresh handler filters routes by family correctly.
 // PREVENTS: Wrong family routes being included in refresh response.
 //
+// It reads the route commands as well as the peer state, because the two say
+// different things. Until 2026-09-14 this test asserted only that the peer was
+// still up and that ribOut was unchanged, and both stayed true while the refresh
+// re-advertised NOTHING: the commands went into a closed pipe, and the rail that
+// sends them omitted meta["replay"], so the destination peer's Adj-RIB-Out
+// suppressed every route under RFC 4271 Section 9.2. plugin-refresh.ci caught it
+// on the wire; this test, tagged for the requirement, could not have.
+//
 // RFC requirement: RFC2918-4-3 positive -- on a valid ROUTE-REFRESH from an up peer,
 // the speaker re-advertises the Adj-RIB-Out of the requested <AFI, SAFI>:
 // handleRefresh (rib.go) collects the peer's ribOut routes for that family and
-// dispatches them (BoRR, routes, EoRR) while leaving stored state intact.
+// dispatches them (BoRR, routes, EoRR) while leaving stored state intact. Each
+// route command carries meta["replay"], which is what makes the re-advertisement
+// reach the wire over a session the peer never dropped.
 func TestHandleRefresh_InternalState(t *testing.T) {
 	r := newTestRIBManager(t)
 
@@ -1002,8 +1013,18 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	})
 	r.peerUp[netip.MustParseAddr("10.0.0.1")] = true
 
+	var markers []string
+	type sentRoute struct {
+		command string
+		meta    map[string]any
+	}
+	var sent []sentRoute
+	r.dispatchHook = func(cmd string) { markers = append(markers, cmd) }
+	r.updateHook = func(cmd string, meta map[string]any) {
+		sent = append(sent, sentRoute{command: cmd, meta: meta})
+	}
+
 	// Simulate refresh request for IPv4 unicast
-	// Output goes through SDK RPC (updateRoute), so we verify internal state is correct
 	event := &Event{
 		Message: &MessageInfo{Type: rpc.EventKindRefresh},
 		Peer:    mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
@@ -1011,9 +1032,28 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 		SAFI:    family.SAFIUnicast,
 	}
 
-	// handleRefresh sends via updateRoute (SDK RPC), which will fail silently on closed pipes.
-	// Verify it doesn't panic and peer state is maintained.
 	r.handleRefresh(event)
+
+	// The two IPv4 routes are re-advertised, the IPv6 one is not.
+	require.Len(t, sent, 2, "the refresh must re-advertise both IPv4 unicast routes and nothing else")
+	var commands strings.Builder
+	for _, route := range sent {
+		commands.WriteString(route.command)
+		commands.WriteByte('\n')
+		replay, marked := route.meta["replay"].(bool)
+		assert.True(t, marked && replay,
+			"every route of a refresh carries meta[\"replay\"], or the peer's Adj-RIB-Out suppresses it: %q", route.command)
+	}
+	assert.Contains(t, commands.String(), "10.0.0.0/24")
+	assert.Contains(t, commands.String(), "10.0.1.0/24")
+	assert.NotContains(t, commands.String(), "2001:db8::/32",
+		"a refresh for ipv4/unicast must not re-advertise another family")
+
+	// RFC 7313 Section 4: the re-advertisement is bracketed by the two markers.
+	assert.Equal(t, []string{
+		"request peer 10.0.0.1 borr " + family.IPv4Unicast.String(),
+		"request peer 10.0.0.1 eorr " + family.IPv4Unicast.String(),
+	}, markers)
 
 	// Peer should still be up after refresh
 	assert.True(t, r.peerUp[netip.MustParseAddr("10.0.0.1")], "peer should still be up after refresh")

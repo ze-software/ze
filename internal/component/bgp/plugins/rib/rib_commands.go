@@ -671,6 +671,22 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
 // Used by RFC 7313 route refresh (BoRR/EoRR). Includes full path attributes.
 // RFC 9494: stale routes carry meta["stale"] so egress filters can suppress or modify.
+//
+// Every command carries meta["replay"], for the reason resendRoutesWithCursor
+// states: the session is UP, so the destination peer's Adj-RIB-Out holds every
+// route being re-sent and withholds each one under RFC 4271 Section 9.2
+// (reactor/adj_rib_out.go). The peer asked for them back, so the request says so.
+//
+// RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that
+// peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its
+// outbound route filtering policy." That "shall" outranks the Section 9.2
+// "SHOULD NOT advertise ... the same BGP route as was previously advertised",
+// because a refresh exists to send exactly what the peer already holds.
+//
+// Silence here is worse than a missing UPDATE. RFC 7313 Section 4 has the peer
+// mark every route of the <AFI, SAFI> stale on the BoRR and "MUST immediately
+// remove any routes from the peer that are still marked as stale" on the EoRR,
+// so a refresh answered by the two markers alone withdraws the whole family.
 func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	sort.Slice(routes, func(i, j int) bool {
 		return routes[i].MsgID < routes[j].MsgID
@@ -678,11 +694,11 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 
 	for _, route := range routes {
 		cmd := formatRouteCommand(route)
+		meta := map[string]any{"replay": true}
 		if route.StaleLevel > 0 {
-			r.updateRouteWithMeta(peerAddr, cmd, map[string]any{"stale": route.StaleLevel})
-		} else {
-			r.updateRoute(peerAddr, cmd)
+			meta["stale"] = route.StaleLevel
 		}
+		r.updateRouteWithMeta(peerAddr, cmd, meta)
 	}
 }
 
