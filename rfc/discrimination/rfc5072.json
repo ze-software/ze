@@ -42,7 +42,7 @@
       "claim-sha": "9c1bc0863b78cebf",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
-      "producer-sha": "92791b85db6c64dd",
+      "producer-sha": "9e1dec809fbb215c",
       "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "cf8e15e33c2616a7",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
-      "producer-sha": "92791b85db6c64dd",
+      "producer-sha": "9e1dec809fbb215c",
       "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

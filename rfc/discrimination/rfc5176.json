@@ -119,7 +119,7 @@
       "claim-sha": "027876badb2fcdbf",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "cf23062a7da84eaa",
+      "producer-sha": "25f21c3d571409ff",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "ea1c14f218f5f894",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "cf23062a7da84eaa",
+      "producer-sha": "25f21c3d571409ff",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "7ed554a2820b0fb3",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "cf23062a7da84eaa",
+      "producer-sha": "25f21c3d571409ff",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "377f7e287ff3b5a3",
       "route": "revert",
       "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
-      "producer-sha": "cf23062a7da84eaa",
+      "producer-sha": "25f21c3d571409ff",
       "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -86,7 +86,7 @@
       "claim-sha": "db113d75803a0da3",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "49ece049916cab2d",
+      "producer-sha": "e19ea247f6009a55",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "e080f3ade9e6e7c7",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "49ece049916cab2d",
+      "producer-sha": "e19ea247f6009a55",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "f77b57f6a99a5106",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "49ece049916cab2d",
+      "producer-sha": "e19ea247f6009a55",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "4617da015c0ee495",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "49ece049916cab2d",
+      "producer-sha": "e19ea247f6009a55",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "e88d0120cb319115",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "49ece049916cab2d",
+      "producer-sha": "e19ea247f6009a55",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "99469acd7a748e44",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::Process",
-      "producer-sha": "49ece049916cab2d",
+      "producer-sha": "e19ea247f6009a55",
       "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

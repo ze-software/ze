@@ -71,11 +71,11 @@
       "rid": "RFC2385-2.0-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning",
-      "unit-sha": "f24df675f05a8200",
+      "unit-sha": "2172faccea925ab3",
       "claim-sha": "c8c703fb7f032997",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session.go::NewSession",
-      "producer-sha": "c2a463916661e47e",
+      "producer-sha": "89bc94d2ca014352",
       "break": "body of NewSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
