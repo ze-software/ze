@@ -121,7 +121,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 29788,
+        "denominator": 29796,
         "numerator": 132,
         "percent": 0.4
       },
@@ -129,7 +129,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "132 / 29788 (floor 132)",
+      "value": "132 / 29796 (floor 132)",
       "worst": [
         {
           "file": "internal/chaos/chaos_test.go",
@@ -192,14 +192,14 @@
         "et_files": 170,
         "fuzz_funcs": 83,
         "test_files": 4065,
-        "test_funcs": 29822
+        "test_funcs": 29830
       },
       "detail": "4065 Go test files, 83 fuzz targets, 133 benchmarks, 2029 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "29822 test functions"
+      "value": "29830 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",

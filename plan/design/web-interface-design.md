@@ -6,36 +6,58 @@ A comprehensive UI design for the Ze web interface, inspired by RouterOS 7 WebFi
 but adapted to Ze's capabilities. This is the blueprint that must be reviewed and
 approved before any further implementation work.
 
+The design has three web modes: CLI over HTTPS, the current YANG editor, and the
+new operator workbench. This document primarily defines the operator workbench,
+while preserving the CLI and YANG editor as peer modes.
+
 Every section below describes what a page shows, what actions are available, and
 what happens when the page is empty. Nothing here is a vague category label pointing
 at a YANG tree path.
+
+For the product-level definition of what a good operator workbench must feel like
+and enable, read [web-operator-workbench-definition-of-good.md](web-operator-workbench-definition-of-good.md) first.
 
 ---
 
 ## Design Principles
 
-1. **Every page must be useful.** If a page has no data, it shows the empty table with
+1. **Modes are explicit.** The web UI presents CLI, YANG editor, and Workbench as
+   peer modes. The workbench is not allowed to hide or absorb the other two.
+
+2. **Every page must be useful.** If a page has no data, it shows the empty table with
    column headers and an "Add" button. A blank page with no action is never acceptable.
 
-2. **Configuration follows the network stack.** Interfaces first (L2), then addresses
+3. **Configuration follows the network stack.** Interfaces first (L2), then addresses
    (L3), then routing protocols, then policy. The navigation order matches the order
    an operator builds a working router.
 
-3. **Tables are the primary view.** Lists of objects (peers, interfaces, addresses,
+4. **Tables are the primary view.** Lists of objects (peers, interfaces, addresses,
    rules) render as tables with sortable columns, not as YANG tree browsers.
 
-4. **Every table row has actions.** View details, edit, enable/disable, delete. Where
+5. **Every table row has actions.** View details, edit, enable/disable, delete. Where
    operational commands exist (peer detail, interface counters), they appear as row
    actions.
 
-5. **Status is visible inline.** BGP peer state, interface link status, session uptime
+6. **Status is visible inline.** BGP peer state, interface link status, session uptime
    are shown as table columns, not hidden behind clicks.
 
-6. **Monitor and configure in the same place.** An interface page shows both its
+7. **Monitor and configure in the same place.** An interface page shows both its
    configuration AND its traffic counters. A BGP peer page shows both its config AND
    its session state.
 
 ---
+
+## Web Modes
+
+| Mode | Route | Purpose |
+|------|-------|---------|
+| CLI over HTTPS | `/cli` | Browser-hosted CLI for operators who need exact CLI flow over the authenticated web session |
+| YANG editor | `/show/` with YANG/Finder mode | Complete schema-backed editor and recovery surface, visually the current interface |
+| Operator workbench | `/show/` with Workbench mode | Task-oriented table/detail/tool interface for common operational workflows |
+
+The mode selector belongs in the top navigation. The workbench left navigation is
+only for workbench sections; it must not be the only way to reach CLI or the YANG
+editor.
 
 ## Navigation Structure
 
@@ -48,12 +70,14 @@ at a YANG tree path.
 | Pending changes indicator | Badge showing count of uncommitted changes; click opens diff/commit panel |
 | Search | Global search across config objects (interfaces, peers, addresses, rules) |
 | Username | Current user identity |
-| CLI toggle | Opens/closes the CLI bar at the bottom |
+| Mode switch | Switches between CLI, YANG editor, and Workbench |
 
-### Left Navigation (Sidebar)
+### Left Navigation (Workbench Sidebar)
 
-The sidebar has two levels: sections and sub-pages. Sections expand to show their
-pages. The order follows the network stack bottom-up, then system, then tools.
+The workbench sidebar has two levels: sections and sub-pages. Sections expand to
+show their pages. The order follows the network stack bottom-up, then system,
+then tools. Feature-owned web modules register these sections and pages; the
+central shell composes them.
 
 ```
 Dashboard

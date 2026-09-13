@@ -238,7 +238,7 @@ neighbours for no visible reason is the same cause.
 
 The tell that separates a stall from a defect is REPRODUCIBILITY, and it costs
 one re-run to read. A stall does not survive one: the same command, unchanged,
-comes back green. The full-disk case does survive, and `stat -f cache/go-cache`
+comes back green. The full-disk case does survive, and `df -h cache/go-cache`
 answers it. A real defect survives every run.
 
 Two things follow. A timeout red measured while another session held a lint run
@@ -272,39 +272,59 @@ next row. It arrives as a wave of unrelated failures:
 - A verification stage reports `cache entry not found`.
 - A whole functional suite goes red at once.
 
-`df` on the checkout answers about the wrong device. `cache/` is a symlink to
-`$XDG_CACHE_HOME/ze`, or to `~/.cache/ze` (`internal/le/scratch/scratch.go`,
-`cacheTarget`), and that target is frequently its own filesystem. Read the device
-that holds the cache:
+Read the device that holds the CACHE, by naming the cache path itself:
 
 ```
-stat -f cache/go-cache        # blocks available on the cache device
+df -h cache/go-cache          # follows the symlink to the device that fills
+df -h tmp/golangci-lint-cache # the lint cache, which is NOT under cache/
 findmnt -T cache/go-cache     # Linux: which device that path is on
 ```
 
-Two Go build caches fill, on two filesystems, and emptying one leaves the other
-full. `./le scratch cache-clean` empties both and prints what each one returned:
+`df` on the checkout ROOT answers about the wrong device. `cache/` is a symlink
+to `$XDG_CACHE_HOME/ze`, or to `~/.cache/ze` (`internal/le/scratch/scratch.go`,
+`cacheTarget`), and that target is frequently its own filesystem. Naming the
+cache path rather than the checkout is what makes `df` answer correctly.
+
+`stat -f` is NOT the command to reach for, and the 2026-09-12 and 2026-09-13
+rows in the class file are both that mistake. On macOS `stat -f` takes a FORMAT
+string, so `stat -f cache/go-cache` prints `cache/go-cache` back and diagnoses
+nothing. The GNU filesystem mode exists only on Linux, and even there APFS-style
+purgeable accounting is what made one reading report terabytes free on a volume
+at 98 percent.
+
+Three caches fill, and emptying one leaves the others full. Two are Go caches on
+two filesystems. The third is golangci-lint's, which no `go clean` reaches and
+which the scratch relocation leaves on the checkout's own device; it held 9.5G
+on 2026-09-13, more than both Go caches together. `./le scratch cache-clean`
+empties all three and prints what each one returned:
+
+One row for each cache, in this shape:
 
 ```
 $ ./le scratch cache-clean
 checkout /Users/thomas/Unix/cache/ze/go-cache    freed 256.0G, free 34.2G
 ambient  /Users/thomas/Library/Caches/go-build   freed 1.2G, free 34.2G
+lint     /path/to/checkout/tmp/golangci-lint-cache  freed 9.5G, free 43.7G
 ```
 
 The CHECKOUT cache is `cache/go-cache`. Every le action writes it, because
 `Overrides` (`internal/le/gotoolchain/gotoolchain.go`) points GOCACHE there, and
 `gotoolchain.GoCache` names it. The AMBIENT cache is the one a bare `go build`
 writes outside le. The action asks `go env GOCACHE` for that path with the
-inherited override removed. The two rows are therefore the two real caches,
-never one cache twice. The equivalent by hand is:
+inherited override removed, so a checkout whose default already IS the checkout
+cache gets a SKIP row rather than one cache emptied twice. The LINT cache is
+`tmp/golangci-lint-cache`, which `Overrides` names through
+`gotoolchain.LintCache`, and it is emptied by deleting the directory because no
+`go clean` owns it. The equivalent by hand is:
 
 ```
-go clean -cache                                   # the ambient cache
-env GOCACHE="$PWD/cache/go-cache" go clean -cache  # the checkout cache
+go clean -cache                                    # the ambient cache
+env GOCACHE="$PWD/cache/go-cache" go clean -cache   # the checkout cache
+rm -rf tmp/golangci-lint-cache                     # the lint cache
 ```
 
-Nothing caps either cache, so both grow until the disk fills. The clean costs
-recompilation, which makes the next run slow once.
+Nothing caps any of the three, so all of them grow until the disk fills. The
+clean costs recompilation, which makes the next run slow once.
 
 ### A verify worktree shares that cache
 

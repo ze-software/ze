@@ -6,13 +6,13 @@
 
 ## The one thing to read first
 
-Three findings, each with a journal row, none fixed. They are one story and they want one spec.
+The 2026-09-08 audit recorded three findings, each with a journal row. Finding 3 is implemented in the working tree on 2026-09-09: six affected Go package suites and the live IPv4/IPv6 CLI-to-wire scenario passed. The changes are deliberately uncommitted for operator review. Findings 1 and 2 retain their recorded status.
 
 | # | Finding | Producer | Row |
 |---|---|---|---|
 | 1 | Ze advertises Graceful Restart for **no address family** | `parseGRCapValue` (`internal/component/bgp/plugins/gr/gr.go`) returns `fmt.Sprintf("%04x", restartTime&0x0FFF)` and nothing else: four flag bits, twelve-bit restart time, two octets. RFC 4724 Section 3 puts zero or more `<AFI, SAFI, Flags>` tuples after that pair. Wire confirms: `40 02 00 78`. The sibling is correct — `parseLLGRCapValue` (`gr_llgr.go`) takes a `families` argument and emits tuples with the F-bit | `plan/journal/unwired-feature.md`, 2026-09-08 |
 | 2 | **RFC 4724 retention does not happen** | `RIBManager.handleState` (`internal/component/bgp/plugins/rib/rib.go`) releases the peer's Adj-RIB-In on peer-down unless `retainedPeers` is ALREADY set, and the only writer is `rib_commands.go` acting on the `bgp-gr` plugin's `retain-routes`, which reacts to the same event from another process. The retention loses the race by construction. Measured twice: a gr-state row naming the peer's restart time beside `routes-in: 0` | `plan/journal/unwired-feature.md` |
-| 3 | **PATHS-LIMIT is enforced by nothing** | `CommitService.enforcePathsLimit` (`internal/component/bgp/rib/commit.go`) can never drop a path: `Transaction.nlriIndex` (`internal/component/bgp/transaction/commit_manager.go`) keys by AFI+SAFI+`NLRI.WriteTo`, and `INET.Bytes` documents that as excluding the Path ID, so a second path replaces the first before the commit ends. `update text` reaches `AnnounceNLRIBatch`, not `CommitService` | `plan/journal/unwired-feature.md` |
+| 3 | **PATHS-LIMIT had no effective enforcement. Addressed in the working tree on 2026-09-09** | Historical evidence: `CommitService.enforcePathsLimit` (`internal/component/bgp/rib/commit.go`) could never drop a path. `Transaction.nlriIndex` (`internal/component/bgp/transaction/commit_manager.go`) keyed by AFI+SAFI+`NLRI.WriteTo`, which excluded the Path ID, so a second path replaced the first. `update text` reached `AnnounceNLRIBatch`, not `CommitService`. The working tree moves enforcement to session writers and retains transaction path IDs. Package tests and live wire checks passed; changes are deliberately uncommitted for operator review | `plan/journal/unwired-feature.md` |
 
 Finding 1 explains why 2 was invisible: with no families on the wire, nothing downstream ever asked for retention, so the dead path had no witness.
 
@@ -44,7 +44,8 @@ Breaking `handleStateEvent`, the JSON dispatch, moved no verdict at all. **That 
 **In progress:** closure of the spec (`/ze-close`), which writes its Review Gate and the two closure commits.
 
 **Remaining, and none of it is in that spec:**
-- Findings 1, 2 and 3 each need a fix. They are journal rows, and a row is a step toward a fix, never a substitute (`ai/rules/principles.md`).
+- Findings 1 and 2 each need a fix. They are journal rows, and a row is a step toward a fix, never a substitute (`ai/rules/principles.md`).
+- Finding 3 is addressed in the working tree. Session writers enforce the negotiated remote limit across batches, including route-server fast-path forwarding. Named transactions retain path IDs and order them deterministically. `test/plugin/paths-limit-live.ci` passed in three load repetitions. Changes remain uncommitted at the operator's request.
 - The 32 GR `.ci` and 5 LLGR `.ci` still assert nothing about Graceful Restart. The four new `.ci` are fenced by a recorded break; the old ones are not.
 
 **Deliberately not done, and why:**
