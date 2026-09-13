@@ -1,7 +1,6 @@
 package fixture
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -50,10 +49,13 @@ func leDocvalidAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
-	tags, err := uiLeDocvalidAnswersFeatureTags(filepath.Join(root, "feature-gates.txt"))
+	// The fixture's own tag rides beside the personality's gates: the checkout
+	// under test builds a le that carries every feature the real one does.
+	declared, err := uiLEFeatureTags(root, "ze_docvalid_fixture")
 	if err != nil {
 		return err
 	}
+	tags := strings.Join(declared, ",")
 	goTool, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf("find go: %w", err)
@@ -308,33 +310,6 @@ func leDocvalidAnswers(ctx context.Context) error {
 
 	fmt.Println("OK")
 	return nil
-}
-
-func uiLeDocvalidAnswersFeatureTags(path string) (string, error) {
-	file, err := os.Open(path) //nolint:gosec // the path is the fixture's own scratch file
-	if err != nil {
-		return "", fmt.Errorf("open feature gates: %w", err)
-	}
-	defer file.Close() //nolint:errcheck // fixture teardown
-
-	found := make(map[string]struct{})
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) != 0 && strings.HasPrefix(fields[0], "ze_") {
-			found[fields[0]] = struct{}{}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("read feature gates: %w", err)
-	}
-
-	declared := make([]string, 0, len(found))
-	for tag := range found {
-		declared = append(declared, tag)
-	}
-	slices.Sort(declared)
-	return strings.Join(append([]string{buildTagLE, "ze_docvalid_fixture"}, declared...), ","), nil
 }
 
 func uiLeDocvalidAnswersRunCommand(ctx context.Context, dir string, overrides map[string]string, name string, args ...string) (uiLeDocvalidAnswersCommandResult, error) {

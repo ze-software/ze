@@ -31,7 +31,7 @@ func VRRPParitySnapshot() VRRPParityValues {
 // VRRPParityConfigs answers the exact generated files for fixed peer paths.
 func VRRPParityConfigs(zeVeth, kaVeth, notify, marker string) ([]byte, []byte) {
 	names := vrrpNames{zeVeth: zeVeth, kaVeth: kaVeth}
-	return vrrpZeConfig(names), vrrpKeepalivedConfig(names, notify, marker, vrrpKAPriority)
+	return vrrpZeConfig(names), vrrpKeepalivedConfig(names, notify, marker)
 }
 
 // PPPoEParityConfigs answers the exact generated files for one scratch path.

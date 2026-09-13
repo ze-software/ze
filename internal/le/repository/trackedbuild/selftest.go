@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
@@ -117,8 +118,8 @@ var selftestCases = []selftestCase{
 		check: func(env selftestEnv) string {
 			// A tree with no manifest must be refused rather than answered with
 			// an empty tag set, which would build every flavor feature-free.
-			if _, err := featureTags(env.bare); err == nil {
-				return "FeatureTags accepted a tree with no feature-gates.txt"
+			if _, err := featuretags.DaemonTags(env.bare); err == nil {
+				return "DaemonTags accepted a tree with no feature-gates.txt"
 			}
 			return ""
 		},

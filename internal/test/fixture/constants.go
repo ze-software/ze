@@ -53,6 +53,7 @@ const (
 	metricPoolUsedRatio        = "ze_bgp_pool_used_ratio"
 	peerNameOne                = "peer1"
 	portL2TP                   = "1701"
+	prefixTenNinetyNine        = "10.99.0.0/24"
 	prefixTenOne               = "10.1.0.0/24"
 	prefixTenTwenty            = "10.20.0.0/24"
 )
@@ -107,6 +108,7 @@ const (
 	fieldReady              = "ready"
 	fieldRelated            = "related"
 	fieldRerun              = "rerun"
+	fieldResult             = "result" // The field in a dispatch answer.
 	fieldRouterID           = "router-id"
 	fieldRows               = "rows"
 	fieldStage              = "stage"
@@ -157,7 +159,9 @@ const (
 	columnOrigin             = "origin" // The BGP origin column of a route row.
 	columnPrefix             = "prefix"
 	columnRemoteAS           = "remote-as"
-	columnState              = "state" // The column in a rendered table.
+	columnReceive            = "receive" // The direction column of a paths-limit table.
+	columnSend               = "send"    // The direction column of a paths-limit table.
+	columnState              = "state"   // The column in a rendered table.
 	columnUptime             = "uptime"
 	headerContentType        = "Content-Type"
 	mediaTypeJSON            = "application/json"
@@ -168,6 +172,7 @@ const (
 	renderJSON               = "json"
 	renderRaw                = "raw"
 	renderTable              = "table" // The pipe operator and the answer shape.
+	renderText               = "text"
 	renderYAML               = "yaml"
 	shapeDoc                 = "doc"
 	shapeIPAddress           = "IP address"

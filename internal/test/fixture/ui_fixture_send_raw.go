@@ -68,10 +68,10 @@ func sendRawReachesOnePeer(ctx context.Context, args []string) error {
 	}{
 		// The wildcard. This is the whole arity property: raw acts on one
 		// session, and "every peer" is the selector that must never reach it.
-		{[]string{"send", "bgp", "*", sendRawForm, sendRawHexEncoding, sendRawPacketHex}, "one specific peer"},
+		{[]string{argSend, argBGP, "*", sendRawForm, sendRawHexEncoding, sendRawPacketHex}, "one specific peer"},
 		// An exclusion names a set, and which peer it lands on depends on how
 		// many are configured.
-		{[]string{"send", "bgp", "!peer1", sendRawForm, sendRawHexEncoding, sendRawPacketHex}, "exclusion selector"},
+		{[]string{argSend, argBGP, "!peer1", sendRawForm, sendRawHexEncoding, sendRawPacketHex}, "exclusion selector"},
 		// The path this grammar left. It matches nothing, so no alias survives.
 		{[]string{"peer", sendRawPeer, sendRawForm, sendRawHexEncoding, sendRawPacketHex}, ""},
 	}
@@ -89,7 +89,7 @@ func sendRawReachesOnePeer(ctx context.Context, args []string) error {
 		}
 	}
 
-	injected := session.run(ctx, "send", "bgp", sendRawPeer, sendRawForm, sendRawHexEncoding, sendRawPacketHex)
+	injected := session.run(ctx, argSend, argBGP, sendRawPeer, sendRawForm, sendRawHexEncoding, sendRawPacketHex)
 	if injected.code != 0 {
 		return fmt.Errorf("ze send bgp %s raw hex exit=%d, want 0: %s", sendRawPeer, injected.code, injected.out)
 	}

@@ -102,11 +102,11 @@ func kernelHasRoute08(ctx context.Context, prefix string) bool {
 }
 
 func routeEntry08(protocol string) rpc.RouteInstallEntry {
-	return rpc.RouteInstallEntry{Protocol: protocol, AFI: 1, SAFI: 1, Prefix: "10.99.0.0/24", NextHop: addrTestNet1First, AdminDistance: 110, Metric: 10}
+	return rpc.RouteInstallEntry{Protocol: protocol, AFI: 1, SAFI: 1, Prefix: prefixTenNinetyNine, NextHop: addrTestNet1First, AdminDistance: 110, Metric: 10}
 }
 
 func routeRemove08() rpc.RouteRemoveEntry {
-	return rpc.RouteRemoveEntry{Protocol: namespaceBGP, AFI: 1, SAFI: 1, Prefix: "10.99.0.0/24", Instance: 0}
+	return rpc.RouteRemoveEntry{Protocol: namespaceBGP, AFI: 1, SAFI: 1, Prefix: prefixTenNinetyNine, Instance: 0}
 }
 
 func forkedRouteKernel08(ctx context.Context, p *sdk.Plugin) error {
@@ -125,8 +125,8 @@ func forkedRouteKernel08(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil || installed != 1 {
 		return fmt.Errorf("route-install: expected installed=1, got %d: %w", installed, err)
 	}
-	if !Poll(ctx, 40, 250*time.Millisecond, func() bool { return kernelHasRoute08(ctx, "10.99.0.0/24") }) {
-		got, _, _ := runCommand08(ctx, false, "ip", "route", "show", "10.99.0.0/24")
+	if !Poll(ctx, 40, 250*time.Millisecond, func() bool { return kernelHasRoute08(ctx, prefixTenNinetyNine) }) {
+		got, _, _ := runCommand08(ctx, false, "ip", "route", "show", prefixTenNinetyNine)
 		return fmt.Errorf("route-install: 10.99.0.0/24 not in kernel as RTPROT_ZE; ip route showed: %q", strings.TrimSpace(got))
 	}
 	fmt.Fprintln(os.Stderr, "OK: forked route-install produced an RTPROT_ZE kernel route")
@@ -134,7 +134,7 @@ func forkedRouteKernel08(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil || removed != 1 {
 		return fmt.Errorf("route-remove: expected removed=1, got %d: %w", removed, err)
 	}
-	if !Poll(ctx, 40, 250*time.Millisecond, func() bool { return !kernelHasRoute08(ctx, "10.99.0.0/24") }) {
+	if !Poll(ctx, 40, 250*time.Millisecond, func() bool { return !kernelHasRoute08(ctx, prefixTenNinetyNine) }) {
 		return fmt.Errorf("route-remove: 10.99.0.0/24 still in kernel after withdrawal")
 	}
 	fmt.Fprintln(os.Stderr, "OK: route-remove swept the forked route from the kernel")
@@ -163,14 +163,14 @@ func forkedRoute08(ctx context.Context, p *sdk.Plugin) error {
 	if err != nil || installed != 1 {
 		return fmt.Errorf("route-install: expected installed=1, got %d: %w", installed, err)
 	}
-	if !Poll(ctx, 20, 250*time.Millisecond, func() bool { return ribHas08(ctx, p, "10.99.0.0/24") }) {
+	if !Poll(ctx, 20, 250*time.Millisecond, func() bool { return ribHas08(ctx, p, prefixTenNinetyNine) }) {
 		return fmt.Errorf("route-install: 10.99.0.0/24 never reached sysrib (`show rib`)")
 	}
 	removed, err := p.RouteRemove(ctx, []rpc.RouteRemoveEntry{routeRemove08()})
 	if err != nil || removed != 1 {
 		return fmt.Errorf("route-remove: expected removed=1, got %d: %w", removed, err)
 	}
-	if !Poll(ctx, 20, 250*time.Millisecond, func() bool { return !ribHas08(ctx, p, "10.99.0.0/24") }) {
+	if !Poll(ctx, 20, 250*time.Millisecond, func() bool { return !ribHas08(ctx, p, prefixTenNinetyNine) }) {
 		return fmt.Errorf("route-remove: 10.99.0.0/24 still in sysrib after withdrawal")
 	}
 	bad := routeEntry08("")

@@ -20,7 +20,6 @@
 package featuretags
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"os"
@@ -88,42 +87,31 @@ func derivedFiles() string {
 	return tb.String()
 }
 
-// readTags parses feature-gates.txt ("<tag> <pkg>" per line, with '#' comments
-// and blank lines ignored) into the unique tags in first-appearance order and,
-// separately, sorted.
+// readTags answers the unique tags the manifest declares, in first-appearance
+// order and, separately, sorted. Gates does the reading. This holds the two
+// orders the derived files need.
 //
 // A manifest declaring no gate is an ERROR rather than an empty list. Writing
 // the empty answer would strip every gate tag out of four files at once, and a
 // check would then report that the emptied files are current.
 func readTags(root string) (declared, sorted []string, err error) {
-	path := filepath.Join(root, manifestFile)
-
-	f, err := os.Open(path) //nolint:gosec // a build tool reads the checkout it was pointed at
+	gates, err := Gates(root)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer f.Close() //nolint:errcheck // read-only
 
 	seen := map[string]bool{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+	for _, gate := range gates {
+		if seen[gate.Tag] {
 			continue
 		}
-		tag := strings.Fields(line)[0]
-		if seen[tag] {
-			continue
-		}
-		seen[tag] = true
-		declared = append(declared, tag)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, nil, err
+		seen[gate.Tag] = true
+		declared = append(declared, gate.Tag)
 	}
 	if len(declared) == 0 {
 		var tb textbuf.Buffer
-		return nil, nil, errors.New(tb.Str(path).Str(": no feature-gate tags found").String())
+		return nil, nil, errors.New(tb.Str(filepath.Join(root, manifestFile)).
+			Str(": no feature-gate tags found").String())
 	}
 
 	sorted = slices.Clone(declared)

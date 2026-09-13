@@ -280,7 +280,6 @@ func TestThePartGrammarNeedsBothKeywords(t *testing.T) {
 // PREVENTS: a malformed manifest shrinking the matrix silently, which is the
 // same false green as a matrix nobody ran.
 func TestAMalformedManifestIsAnError(t *testing.T) {
-	dir := t.TempDir()
 	cases := map[string]string{
 		"one field":           "ze_alpha\n",
 		"invalid tag":         "alpha internal/plugins/alpha\n",
@@ -289,17 +288,17 @@ func TestAMalformedManifestIsAnError(t *testing.T) {
 		"no tags at all":      "# nothing here\n",
 	}
 	for name, body := range cases {
-		path := filepath.Join(dir, "manifest")
-		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		tree := t.TempDir()
+		if err := os.WriteFile(filepath.Join(tree, featureManifest), []byte(body), 0o600); err != nil {
 			t.Fatalf("write the manifest: %v", err)
 		}
-		if _, err := readFeatureTags(path); err == nil {
+		if _, err := readFeatureTags(tree); err == nil {
 			t.Errorf("a manifest with %s was accepted", name)
 		}
 	}
 
-	if _, err := readFeatureTags(filepath.Join(dir, "absent")); err == nil {
-		t.Error("a manifest that does not exist was accepted")
+	if _, err := readFeatureTags(t.TempDir()); err == nil {
+		t.Error("a tree with no manifest was accepted")
 	}
 }
 

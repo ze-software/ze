@@ -9,11 +9,11 @@ root=$(CDPATH= cd "$(dirname "$0")" && pwd)
 build_le() {
 	out=$1
 
-	feature_tags=$(awk 'NF && $1 !~ /^#/ && !seen[$1]++ { printf "%s%s", sep, $1; sep="," }' "$root/feature-gates.txt")
-	tags=ze_le
-	if [ -n "$feature_tags" ]; then
-		tags=$tags,$feature_tags
-	fi
+	# One reader of the manifest for every shell caller, and one Go reader beside
+	# it (feature-tags.sh). An empty answer is an error there, so no branch here
+	# tolerates a feature-less build.
+	. "$root/feature-tags.sh"
+	tags=ze_le,$(feature_tags "$root/feature-gates.txt" ",")
 
 	# cache/ is a SYMLINK onto another filesystem on the development hosts, so
 	# it resolves for them and dangles anywhere the checkout is shared without

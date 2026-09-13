@@ -25,12 +25,12 @@ ARG ZE_TAGS
 # an unknown command, and a `-tags ze_core` build rejects the `bgp` config root
 # as an unknown top-level keyword.
 #
-# The default-on tags are DERIVED from feature-gates.txt, the single source of
-# truth Makefile ZE_FEATURES and test/interop/Dockerfile.ze read the same way, so
-# this image can never drift from the shipped binary's feature set. Deriving here
-# rather than taking the whole list as a build arg keeps `docker compose build`
-# (docker/compose.yaml passes no build args) and a bare `docker build` correct.
-RUN ZE_FEATURES="$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" && \
+# The default-on tags are DERIVED from feature-gates.txt through the one shell
+# reader of it, feature-tags.sh, so this image can never drift from the shipped
+# binary's feature set. Deriving here rather than taking the whole list as a
+# build arg keeps `docker compose build` (docker/compose.yaml passes no build
+# args) and a bare `docker build` correct.
+RUN . ./feature-tags.sh && ZE_FEATURES="$(feature_tags feature-gates.txt ' ')" && \
     CGO_ENABLED=0 go build \
     -tags "ze_core $ZE_FEATURES $ZE_TAGS" \
     -ldflags "-X main.version=${ZE_VERSION:-dev} -X main.buildDate=${ZE_BUILD_DATE:-unknown}" \

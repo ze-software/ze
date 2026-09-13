@@ -84,12 +84,7 @@ func redistChainHolds(ctx context.Context, plugin *sdk.Plugin, name, prefix stri
 	if err != nil {
 		return false, err
 	}
-	for _, entry := range held {
-		if entry == prefix {
-			return true, nil
-		}
-	}
-	return false, nil
+	return slices.Contains(held, prefix), nil
 }
 
 // redistChainWait polls until one consumer holds prefix, and names what it held
@@ -207,7 +202,7 @@ func redistChainLateConsumer(ctx context.Context, plugin *sdk.Plugin) error {
 		return err
 	}
 
-	if err := redistChainEmit(ctx, plugin, "10.99.0.0/24"); err != nil {
+	if err := redistChainEmit(ctx, plugin, prefixTenNinetyNine); err != nil {
 		return err
 	}
 	if err := redistChainConsume(ctx, plugin, redistChainSink); err != nil {
@@ -221,15 +216,8 @@ func redistChainLateConsumer(ctx context.Context, plugin *sdk.Plugin) error {
 	if err != nil {
 		return err
 	}
-	for _, want := range []string{"10.98.0.0/24", "10.99.0.0/24"} {
-		found := false
-		for _, entry := range held {
-			if entry == want {
-				found = true
-				break
-			}
-		}
-		if !found {
+	for _, want := range []string{"10.98.0.0/24", prefixTenNinetyNine} {
+		if !slices.Contains(held, want) {
 			return redistChainMissing(redistChainSink, want, held)
 		}
 	}

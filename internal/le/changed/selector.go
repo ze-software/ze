@@ -79,6 +79,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 const (
@@ -209,12 +210,6 @@ type selectorOptions struct {
 	depth     int
 	pathsFrom string
 	dropLog   string
-}
-
-// featureGate is one manifest row: a build tag, and the package it gates.
-type featureGate struct {
-	tag string
-	pkg string
 }
 
 // packageGraph is the first-party import graph, built with every feature tag on.
@@ -372,33 +367,16 @@ func knownPrintMode(mode printMode) bool {
 	return false
 }
 
-// loadFeatureGates reads featureManifestPath into its "<tag> <pkg>" rows. Every
-// feature consumer reads this one manifest, so no consumer can hold a stale
-// copy of it.
-func loadFeatureGates(root string) ([]featureGate, error) {
-	file, err := os.Open(filepath.Join(root, featureManifestPath)) //nolint:gosec // the feature manifest is a tracked path under the repository root
+// loadFeatureGates answers the manifest's "<tag> <pkg>" rows, through
+// featuretags. Every feature consumer reads that one parser, so no consumer can
+// hold a stale copy of the manifest.
+//
+// A manifest declaring no gate is an error here. The selector decides which
+// gated packages a change reaches, and an empty row set answers "none" for
+// every one of them.
+func loadFeatureGates(root string) ([]featuretags.Gate, error) {
+	gates, err := featuretags.Gates(root)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", featureManifestPath, err)
-	}
-	defer func() { _ = file.Close() }()
-
-	var gates []featureGate
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			return nil, fmt.Errorf("%s: malformed line %q (want \"<tag> <pkg>\")", featureManifestPath, line)
-		}
-		gates = append(gates, featureGate{tag: fields[0], pkg: path.Clean(fields[1])})
-	}
-	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("read %s: %w", featureManifestPath, err)
 	}
 	if len(gates) == 0 {
@@ -408,15 +386,15 @@ func loadFeatureGates(root string) ([]featureGate, error) {
 }
 
 // manifestTags returns every tag the manifest declares, sorted and unique.
-func manifestTags(gates []featureGate) []string {
+func manifestTags(gates []featuretags.Gate) []string {
 	seen := map[string]bool{}
 	tags := make([]string, 0, len(gates))
 	for _, gate := range gates {
-		if seen[gate.tag] {
+		if seen[gate.Tag] {
 			continue
 		}
-		seen[gate.tag] = true
-		tags = append(tags, gate.tag)
+		seen[gate.Tag] = true
+		tags = append(tags, gate.Tag)
 	}
 	slices.Sort(tags)
 	return tags
@@ -426,18 +404,18 @@ func manifestTags(gates []featureGate) []string {
 // empty string when the directory is always-on. The longest matching manifest
 // prefix wins, so a gated sub-package under an always-on parent resolves to its
 // own tag. A package beneath a gated package is dropped with that package.
-func tagForPackage(dir string, gates []featureGate) string {
+func tagForPackage(dir string, gates []featuretags.Gate) string {
 	tag := ""
 	longest := 0
 	for _, gate := range gates {
-		if !underPackage(dir, gate.pkg) {
+		if !underPackage(dir, gate.Package) {
 			continue
 		}
-		if len(gate.pkg) <= longest {
+		if len(gate.Package) <= longest {
 			continue
 		}
-		longest = len(gate.pkg)
-		tag = gate.tag
+		longest = len(gate.Package)
+		tag = gate.Tag
 	}
 	return tag
 }
@@ -993,7 +971,7 @@ func writeDropSection(body *textbuf.Buffer, importPaths []string) {
 // refuse, widens to every feature. Its negations are exactly what cannot be
 // known, and a guard that cannot read its input must not return a valid-looking
 // narrow answer (ai/rules/evidence.md).
-func reachedTags(root string, paths, seeds []string, gates []featureGate, everyTag []string) []string {
+func reachedTags(root string, paths, seeds []string, gates []featuretags.Gate, everyTag []string) []string {
 	seen := map[string]bool{}
 	for _, dir := range seeds {
 		tag := tagForPackage(dir, gates)

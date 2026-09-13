@@ -12,7 +12,8 @@ import (
 // hand-maintained list, so declaring a gate there is enough for the test ze
 // binary to exercise it. See ai/rules/plugins.md.
 func TestFeatureGateTagsFromManifest(t *testing.T) {
-	tags := featureGateTags()
+	tags, err := featureGateTags()
+	assert.NoError(t, err, "feature-gates.txt should be readable from the test binary's checkout")
 	assert.NotEmpty(t, tags, "feature-gates.txt should yield at least one gate tag")
 
 	// The currently-declared gates must all appear (Contains, not equality, so
@@ -28,7 +29,9 @@ func TestFeatureGateTagsFromManifest(t *testing.T) {
 	}
 
 	// TestBuildTags must fold the manifest tags into the functional-test build.
-	built := strings.Split(TestBuildTags(), ",")
+	testTags, err := TestBuildTags()
+	assert.NoError(t, err, "TestBuildTags should derive its tags")
+	built := strings.Split(testTags, ",")
 	for _, want := range []string{"ze_core", "ze_lg", "ze_ssh", "ze_web"} {
 		assert.Contains(t, built, want, "TestBuildTags missing %q", want)
 	}
@@ -44,7 +47,9 @@ func TestFeatureGateTagsFromManifest(t *testing.T) {
 // as112-external-refuses / flowexport-external-refuses wait out their
 // await=stderr fence against a process that already died.
 func TestHelperBuildTagsCarryFeatureGates(t *testing.T) {
-	built := strings.Split(testHelperBuildTags(), ",")
+	helperTags, err := testHelperBuildTags()
+	assert.NoError(t, err, "testHelperBuildTags should derive its tags")
+	built := strings.Split(helperTags, ",")
 
 	// ze_test selects the helper's own CLI surface (the peer / plugin-external
 	// subcommands); without it there is no helper at all.
@@ -52,7 +57,9 @@ func TestHelperBuildTagsCarryFeatureGates(t *testing.T) {
 
 	// Every gate the daemon gets, the helper gets: plugin-external hands the
 	// connection to the registry entry the DAEMON expects to be there.
-	for _, want := range featureGateTags() {
+	gates, err := featureGateTags()
+	assert.NoError(t, err, "featureGateTags should read the manifest")
+	for _, want := range gates {
 		assert.Contains(t, built, want, "testHelperBuildTags missing gate %q", want)
 	}
 }

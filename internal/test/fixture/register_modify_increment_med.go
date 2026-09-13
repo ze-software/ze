@@ -8,5 +8,5 @@ package fixture
 // is asked to stop. The metric itself is asserted on the wire by the .ci.
 func init() {
 	Register("plugin/modify-increment-med-from-route-value",
-		rsObserver09("modify-increment-med-from-route-value", 2, "10.0.0.0/24"))
+		rsObserver09("modify-increment-med-from-route-value", 2))
 }

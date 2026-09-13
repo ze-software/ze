@@ -4,7 +4,6 @@
 package stressrepro
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -21,6 +19,7 @@ import (
 	"github.com/anmitsu/go-shlex"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 var crashSignatures = []string{
@@ -309,35 +308,23 @@ func binaryFromEnvironment(root, key, name string) string {
 	return filepath.Join(root, "bin", name)
 }
 
+// raceBase is the personality a race repro compiles, before the gates
+// featuretags adds to it: the daemon, plus the setup surface the repro drives.
+const raceBase = "ze_core ze_distro ze_setup"
+
+// raceTags answers the `-tags` value for the race build, with the caller's
+// extra tag last.
 func raceTags(root, extra string) (string, error) {
-	file, err := os.Open(filepath.Join(root, "feature-gates.txt")) //nolint:gosec // the tracked feature-gate manifest under the checkout root
+	tags, err := featuretags.DaemonBuildTags(root, raceBase)
 	if err != nil {
 		return "", fmt.Errorf("read feature gates: %w", err)
 	}
-	defer func() { _ = file.Close() }()
-	tagSet := map[string]struct{}{}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		tagSet[strings.Fields(line)[0]] = struct{}{}
+	if extra == "" {
+		return tags, nil
 	}
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("read feature gates: %w", err)
-	}
-	tags := []string{"ze_core", "ze_distro", "ze_setup"}
-	features := make([]string, 0, len(tagSet))
-	for tag := range tagSet {
-		features = append(features, tag)
-	}
-	slices.Sort(features)
-	tags = append(tags, features...)
-	if extra != "" {
-		tags = append(tags, extra)
-	}
-	return strings.Join(tags, " "), nil
+
+	var tb textbuf.Buffer
+	return tb.Str(tags).Byte(' ').Str(extra).String(), nil
 }
 
 func runSlug(suite, test string) (string, error) {

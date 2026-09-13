@@ -255,7 +255,8 @@ func medRawDrop09(ctx context.Context, _ []string) error {
 	return runErr
 }
 
-func rsObserver09(_ string, expectedPeers int, prefix string) Driver {
+func rsObserver09(_ string, expectedPeers int) Driver {
+	const prefix = "10.0.0.0/24"
 	return func(ctx context.Context, _ []string) error {
 		plugin, err := newObserver("shutdown-after-up")
 		if err != nil {

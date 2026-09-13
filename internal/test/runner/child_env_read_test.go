@@ -75,7 +75,7 @@ func readSomewhereInTree(t *testing.T, name string) bool {
 	// the variable comes back as a bare "runner_exec.go", the exclusion below
 	// never matches it, and the setter vouches for itself. The second version
 	// of this test passed a mutant for exactly that reason.
-	cmd := exec.Command("git", "grep", "-l", "--full-name", "--", name,
+	cmd := exec.CommandContext(t.Context(), "git", "grep", "-l", "--full-name", "--", name,
 		":/*.go", ":/*.sh", ":/*.py", ":/*.yaml", ":/*.yml", ":/*.ci", ":/*.conf")
 	cmd.Dir = "."
 	out, err := cmd.Output()

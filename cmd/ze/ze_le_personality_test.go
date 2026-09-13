@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"debug/buildinfo"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/registry"
 	_ "github.com/ze-software/ze/internal/le"
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 const internalLeImport = "github.com/ze-software/ze/internal/le"
@@ -236,25 +236,15 @@ func normalZeTags(t *testing.T, root string) []string {
 	return append([]string{"ze_core", "ze_distro"}, personalityFeatureTags(t, root)...)
 }
 
+// personalityFeatureTags answers the gates a normal ze carries, through
+// featuretags, the one reader of feature-gates.txt. ze_le is a PERSONALITY and
+// never a gate: a manifest that declared it would put le's own commands in
+// every shipped binary.
 func personalityFeatureTags(t *testing.T, root string) []string {
 	t.Helper()
-	file, err := os.Open(filepath.Join(root, "feature-gates.txt"))
+	tags, err := featuretags.DaemonTags(root)
 	if err != nil {
-		t.Fatalf("open feature-gates.txt: %v", err)
-	}
-	defer file.Close() //nolint:errcheck // read-only test input
-
-	var tags []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		tags = append(tags, strings.Fields(line)[0])
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("read feature-gates.txt: %v", err)
+		t.Fatalf("read the feature manifest: %v", err)
 	}
 	if slices.Contains(tags, "ze_le") {
 		t.Fatal("feature-gates.txt includes non-default ze_le")

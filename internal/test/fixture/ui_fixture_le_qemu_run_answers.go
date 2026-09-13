@@ -194,7 +194,7 @@ func leQEMURunAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: guest failure report changed: %q", failed.stdout)
 	}
 
-	for _, operator := range []string{renderJSON, "ndjson", renderTable, "text", renderYAML, renderRaw, "no-more"} {
+	for _, operator := range []string{renderJSON, "ndjson", renderTable, renderText, renderYAML, renderRaw, "no-more"} {
 		args := append(append([]string{}, base...), "|", operator)
 		rendered := runLE("0", operator+".ndjson", args...)
 		if rendered.code != 0 {

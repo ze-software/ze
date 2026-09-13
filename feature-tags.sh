@@ -1,0 +1,42 @@
+# feature-tags.sh -- the feature-gate manifest, read by a shell.
+#
+# This is the SECOND reader of feature-gates.txt, and the only one that is not
+# Go. internal/le/featuretags is the first. Two exist because the bootstrap
+# needs one: bin/le is not there before the launcher builds it, so nothing can
+# ask a Go helper which tags to compile le itself with. Every other caller uses
+# featuretags.DaemonTags.
+#
+# TestTheShellWalkAndTheGoReaderAnswerTheSameTags
+# (internal/le/featuretags/shellagreement_test.go) holds the two to one answer,
+# and TestOnlyOneShellFileParsesTheFeatureManifest refuses a third reader.
+#
+# Usage:  . "$root"/feature-tags.sh
+#         tags=ze_core,ze_distro,$(feature_tags "$root"/feature-gates.txt ",")
+
+# feature_tags prints every gate tag $1 declares, deduplicated, sorted, and
+# joined with the one-character separator $2.
+#
+# Sorted, like the Go reader: a build-tag list is a set, and one spelling across
+# the tree is one fewer thing to check when a binary comes out missing a
+# feature.
+#
+# A manifest that declares no gate is an ERROR rather than an empty answer. The
+# empty answer builds a daemon with every feature compiled out, which then dies
+# on "unknown top-level keyword" for the feature the caller was about to use.
+#
+# A MALFORMED line is refused by featuretags.Gates rather than here. Every Go
+# consumer and every gate stops on it, so the two readers agree over every
+# manifest the Go one accepts, and this one stays a walk a reader can check.
+feature_tags() {
+	if [ ! -r "$1" ]; then
+		echo "feature-tags: $1 is not readable, so this build would carry no feature at all" >&2
+		return 1
+	fi
+
+	feature_tags_joined=$(awk '$1 ~ /^ze_/ { print $1 }' "$1" | sort -u | tr '\n' "$2" | sed 's/.$//')
+	if [ -z "$feature_tags_joined" ]; then
+		echo "feature-tags: $1 declares no ze_ feature gate, so this build would compile every feature out" >&2
+		return 1
+	fi
+	printf '%s\n' "$feature_tags_joined"
+}

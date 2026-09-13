@@ -12,6 +12,7 @@ import (
 	schemacli "github.com/ze-software/ze/internal/component/config/schema/cli"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 // liveInventory resolves the config-schema tree and the claim union exactly as
@@ -234,24 +235,14 @@ func repoRoot(t *testing.T) string {
 func gatedYANGModules(t *testing.T, root string) map[string]string {
 	t.Helper()
 
-	f, err := os.Open(filepath.Join(root, "feature-gates.txt"))
+	rows, err := featuretags.Gates(root)
 	if err != nil {
-		t.Fatalf("open feature-gates.txt: %v", err)
+		t.Fatalf("read the feature manifest: %v", err)
 	}
-	defer f.Close() //nolint:errcheck // read-only
 
 	out := make(map[string]string)
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		tag, pkg := fields[0], fields[1]
+	for _, row := range rows {
+		tag, pkg := row.Tag, row.Package
 		yangDir := filepath.Join(root, filepath.FromSlash(pkg), "yang")
 		entries, err := os.ReadDir(yangDir)
 		if err != nil {
@@ -266,9 +257,6 @@ func gatedYANGModules(t *testing.T, root string) map[string]string {
 				out[module] = tag
 			}
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatalf("read feature-gates.txt: %v", err)
 	}
 	return out
 }

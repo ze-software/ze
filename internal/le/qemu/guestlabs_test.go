@@ -109,7 +109,7 @@ func TestVRRPConstantsAndConfigBytes(t *testing.T) {
 			t.Errorf("ze config lost %q\n%s", exact, config)
 		}
 	}
-	keepalived := string(vrrpKeepalivedConfig(names, "/root/notify.sh", "/root/ka-state.log", vrrpKAPriority))
+	keepalived := string(vrrpKeepalivedConfig(names, "/root/notify.sh", "/root/ka-state.log"))
 	for _, exact := range []string{"vrrp_version 3", "script_user root", "interface zvk123", "advert_int 1", `notify_master "/root/notify.sh MASTER /root/ka-state.log"`} {
 		if !strings.Contains(keepalived, exact) {
 			t.Errorf("keepalived config lost %q\n%s", exact, keepalived)

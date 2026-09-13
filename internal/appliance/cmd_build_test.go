@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 // fakeLoopbackMount models what a real `mount -o loop,ro` makes VISIBLE, not just
@@ -227,32 +229,14 @@ func TestGokrazyConfigMatchesApplianceBuildTags(t *testing.T) {
 	}
 }
 
-// readFeatureGateTags returns the unique build-tag column from feature-gates.txt
-// (the single source of truth; native feature-tag derivation derives from the same file).
-// Blank lines and '#' comments are ignored. Mirrors the reader in
-// internal/test/runner so both stay in sync with the manifest format.
+// readFeatureGateTags returns the build-tag column of feature-gates.txt, through
+// featuretags, the one reader of that manifest. A copy of the walk here would
+// judge the gokrazy config against its own idea of the manifest.
 func readFeatureGateTags(t *testing.T) []string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("..", "..", "feature-gates.txt")) //nolint:gosec // repo fixture
+	tags, err := featuretags.DaemonTags(filepath.Join("..", ".."))
 	if err != nil {
-		t.Fatalf("read feature-gates.txt: %v", err)
-	}
-	var tags []string
-	seen := make(map[string]bool)
-	for line := range strings.SplitSeq(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) == 0 || seen[fields[0]] {
-			continue
-		}
-		seen[fields[0]] = true
-		tags = append(tags, fields[0])
-	}
-	if len(tags) == 0 {
-		t.Fatal("feature-gates.txt yielded no tags")
+		t.Fatalf("read the feature manifest: %v", err)
 	}
 	return tags
 }

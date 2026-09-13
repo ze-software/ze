@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -84,15 +85,15 @@ func TestThePackageFloorRefusesAShrunkTree(t *testing.T) {
 func TestTheSanityGuardsRefuseAnUnbuildableTree(t *testing.T) {
 	env := fixture(t)
 
-	if _, err := featureTags(env.bare); err == nil {
-		t.Error("FeatureTags accepted a tree with no feature manifest")
+	if _, err := featuretags.DaemonTags(env.bare); err == nil {
+		t.Error("DaemonTags accepted a tree with no feature manifest")
 	}
-	tags, err := featureTags(env.dir)
+	tags, err := featuretags.DaemonTags(env.dir)
 	if err != nil {
-		t.Fatalf("FeatureTags refused the fixture: %v", err)
+		t.Fatalf("DaemonTags refused the fixture: %v", err)
 	}
 	if len(tags) != 1 || tags[0] != "ze_probe" {
-		t.Errorf("FeatureTags answered %v, want the fixture's one tag", tags)
+		t.Errorf("DaemonTags answered %v, want the fixture's one tag", tags)
 	}
 
 	if err := sanityCheck(env.ctx, env.dir, "HEAD", env.bare); err == nil {

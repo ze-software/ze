@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/textrepr"
 )
 
@@ -654,30 +655,21 @@ func sortPairs(pairs []corePair) {
 // Disableable-feature direct imports
 // ---------------------------------------------------------------------------
 
-// loadFeatureGates parses the manifest into a gated-package -> build-tag map.
+// loadFeatureGates answers the gated-package -> build-tag map.
 //
 // The manifest is the DISABLEABLE map: the package each //go:build ze_<tag>
-// guards. A manifest that cannot be read stops the gate, because a gate map
-// that came back empty would find no violation anywhere.
+// guards. featuretags does the reading. A manifest that cannot be read stops
+// the gate, because a gate map that came back empty would find no violation
+// anywhere.
 func loadFeatureGates(tree string) (map[string]string, error) {
-	raw, err := os.ReadFile(filepath.Join(tree, FeatureGatesManifest)) //nolint:gosec // a manifest of the tree the caller named
+	rows, err := featuretags.Gates(tree)
 	if err != nil {
 		return nil, err
 	}
 
-	gates := make(map[string]string)
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Fields(line)
-		if len(parts) < 2 {
-			var tb textbuf.Buffer
-			return nil, errors.New(tb.Str(FeatureGatesManifest).Str(": malformed line ").
-				Str(textrepr.Quote(line)).Str(" (want '<tag> <pkg>')").String())
-		}
-		gates[parts[1]] = parts[0]
+	gates := make(map[string]string, len(rows))
+	for _, row := range rows {
+		gates[row.Package] = row.Tag
 	}
 	return gates, nil
 }

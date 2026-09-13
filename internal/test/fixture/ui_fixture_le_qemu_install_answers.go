@@ -133,7 +133,7 @@ func leQEMUInstallAnswers(ctx context.Context) error {
 		}
 	}
 
-	for _, operator := range []string{renderJSON, "ndjson", renderTable, "text", renderYAML, renderRaw, "no-more"} {
+	for _, operator := range []string{renderJSON, "ndjson", renderTable, renderText, renderYAML, renderRaw, "no-more"} {
 		rendered := invokeLE("install-test", "|", operator)
 		if rendered.startErr != nil {
 			return fmt.Errorf("FAIL: global pipe %s failed to start: %w", operator, rendered.startErr)

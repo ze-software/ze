@@ -7,11 +7,11 @@ binary=$root/bin/ze
 # This is an existence cache, not a freshness check. An existing binary is
 # deliberately executed without asking the toolchain whether sources changed.
 if [ ! -x "$binary" ]; then
-	feature_tags=$(awk 'NF && $1 !~ /^#/ && !seen[$1]++ { printf "%s%s", sep, $1; sep="," }' "$root/feature-gates.txt")
-	tags=ze_core,ze_distro
-	if [ -n "$feature_tags" ]; then
-		tags=$tags,$feature_tags
-	fi
+	# One reader of the manifest for every shell caller, and one Go reader beside
+	# it (feature-tags.sh). An empty answer is an error there, so no branch here
+	# tolerates a feature-less build.
+	. "$root/feature-tags.sh"
+	tags=ze_core,ze_distro,$(feature_tags "$root/feature-gates.txt" ",")
 
 	GOCACHE=$root/cache/go-cache
 	GOLANGCI_LINT_CACHE=$root/tmp/golangci-lint-cache

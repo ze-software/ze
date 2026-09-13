@@ -31,6 +31,7 @@ import (
 	xhtml "golang.org/x/net/html"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/wikicatalog"
 )
 
@@ -362,6 +363,11 @@ func commandSurfaceReadIssue(surface string, err error) Issue {
 	}
 }
 
+// shippedCommandCatalogBase is the personality the published catalog is
+// generated from. Every gate feature-gates.txt declares is added to it, so a
+// gated command reaches the documentation.
+const shippedCommandCatalogBase = "ze_core"
+
 func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishedCommand, error) {
 	if commandCatalogPath != "" {
 		data, err := os.ReadFile(commandCatalogPath) //nolint:gosec // caller-selected fixture or repository artifact
@@ -372,15 +378,15 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 		return data, commands, err
 	}
 
-	tags, err := shippedCommandCatalogTags(root)
+	tags, err := featuretags.DaemonBuildTags(root, shippedCommandCatalogBase)
 	if err != nil {
 		return nil, nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), commandCatalogGenerationTimeout)
 	defer cancel()
-	args := []string{"run", "-tags", strings.Join(tags, ","), "./cmd/ze", "help", "command", "--json"}
-	// #nosec G204 -- the argv is fixed apart from the build tags, which are read
-	// from the checkout's own feature-gates.txt.
+	args := []string{"run", "-tags", tags, "./cmd/ze", "help", "command", "--json"}
+	// #nosec G204 -- the argv is fixed apart from the build tags, which
+	// featuretags reads from the checkout's own feature-gates.txt.
 	cmd := osexec.CommandContext(ctx, "go", args...)
 	cmd.Dir = root
 	var stderr bytes.Buffer
@@ -392,29 +398,6 @@ func loadLiveCommandCatalog(root, commandCatalogPath string) ([]byte, []publishe
 	}
 	commands, err := parseCommandCatalog("ze help command --json", data)
 	return data, commands, err
-}
-
-func shippedCommandCatalogTags(root string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt")) // #nosec G304 -- the feature manifest under the checkout root
-	if err != nil {
-		return nil, fmt.Errorf("read feature-gates.txt for command generation: %w", err)
-	}
-	tags := []string{"ze_core"}
-	seen := map[string]bool{"ze_core": true}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if strings.HasPrefix(fields[0], "#") {
-			continue
-		}
-		if !seen[fields[0]] {
-			seen[fields[0]] = true
-			tags = append(tags, fields[0])
-		}
-	}
-	return tags, nil
 }
 
 func parseCommandCatalog(source string, data []byte) ([]publishedCommand, error) {

@@ -7,6 +7,7 @@ package fixture
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -142,9 +143,7 @@ func filterOriginCheck(ctx context.Context, plugin *sdk.Plugin, state *filterOri
 
 	state.mu.Lock()
 	verdicts := make(map[string]filterOriginVerdict, len(state.verdicts))
-	for prefix, verdict := range state.verdicts {
-		verdicts[prefix] = verdict
-	}
+	maps.Copy(verdicts, state.verdicts)
 	state.mu.Unlock()
 
 	wanted := map[string]filterOriginVerdict{

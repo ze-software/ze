@@ -8,6 +8,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 )
 
@@ -56,11 +58,16 @@ const featureGatesFile = "feature-gates.txt"
 // (ze_lg, ze_ssh, ze_web, ...) are read from feature-gates.txt so the
 // functional-test ze binary exercises the same feature set as the native Go
 // builders without a hand-maintained list. See plan/spec-feature-gate-0-umbrella.md.
-func TestBuildTags() string {
+func TestBuildTags() (string, error) {
+	gates, err := featureGateTags()
+	if err != nil {
+		return "", err
+	}
+
 	tags := zeTagsFromEnv()
 	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
-	tags = append(tags, featureGateTags()...)
-	return textbuf.Join(tags, ",")
+	tags = append(tags, gates...)
+	return textbuf.Join(tags, ","), nil
 }
 
 // testHelperBuildTags returns the tags for the ze-test helper binary, using the
@@ -78,10 +85,15 @@ func TestBuildTags() string {
 // flowexport-external-refuses waited out their await=stderr fence for a refusal
 // that no process was ever alive to emit. Two build recipes for one binary is
 // what drifted; both now derive their feature set from feature-gates.txt.
-func testHelperBuildTags() string {
-	tags := append([]string{"ze_test"}, featureGateTags()...)
+func testHelperBuildTags() (string, error) {
+	gates, err := featureGateTags()
+	if err != nil {
+		return "", err
+	}
+
+	tags := append([]string{"ze_test"}, gates...)
 	tags = append(tags, zeTagsFromEnv()...)
-	return textbuf.Join(tags, ",")
+	return textbuf.Join(tags, ","), nil
 }
 
 // zeTagsFromEnv splits the ze.tags knob (comma or whitespace separated) into
@@ -92,36 +104,21 @@ func zeTagsFromEnv() []string {
 	})
 }
 
-// featureGateTags reads the default-on feature tags from feature-gates.txt (the
-// first column of each non-comment line), deduplicated. Returns nil if the
-// manifest cannot be read (the build then fails loudly on the first missing
-// feature schema).
-func featureGateTags() []string {
+// featureGateTags answers the default-on feature tags, through the one reader of
+// feature-gates.txt.
+//
+// An unreadable manifest is an ERROR rather than an empty list. The empty list
+// builds a DUT with every gated feature compiled out. That binary answers a
+// test about ze_web or ze_bgp with "unknown top-level keyword", which reads as
+// a defect in the feature rather than in the build.
+func featureGateTags() ([]string, error) {
 	root, ok := findRepoRoot()
 	if !ok {
-		logger().Warn("feature-gate manifest not found; functional-test ze may lack feature tags", "file", featureGatesFile)
-		return nil
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("no checkout found above the working directory, so ").
+			Str(featureGatesFile).Str(" cannot be read").String())
 	}
-	data, err := os.ReadFile(filepath.Join(root, featureGatesFile)) //nolint:gosec // fixed manifest filename under the discovered repo root
-	if err != nil {
-		logger().Warn("feature-gate manifest unreadable; functional-test ze may lack feature tags", "file", featureGatesFile, "error", err)
-		return nil
-	}
-	var tags []string
-	seen := make(map[string]bool)
-	for line := range strings.SplitSeq(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) == 0 || seen[fields[0]] {
-			continue
-		}
-		seen[fields[0]] = true
-		tags = append(tags, fields[0])
-	}
-	return tags
+	return featuretags.DaemonTags(root)
 }
 
 // findRepoRoot walks up from the working directory to the module root (the dir
@@ -367,7 +364,12 @@ func (r *Runner) Build(ctx context.Context) error {
 	now := time.Now()
 	var tb textbuf.Buffer
 	ldflags := tb.Str("-X main.version=").Str(now.Format("06.01.02")).Str(" -X main.buildDate=").Str(now.UTC().Format("2006-01-02T15:04:05Z")).String()
-	cmd := exec.CommandContext(ctx, "go", "build", "-tags", TestBuildTags(), "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	zeTags, err := TestBuildTags()
+	if err != nil {
+		r.display.buildStatus(false, err)
+		return fmt.Errorf("build ze: %w", err)
+	}
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", zeTags, "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = childEnv("CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -376,7 +378,12 @@ func (r *Runner) Build(ctx context.Context) error {
 	}
 
 	// Build ze-test (provides peer subcommand, and plugin-external's registry)
-	cmd = exec.CommandContext(ctx, "go", "build", "-tags", testHelperBuildTags(), "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	helperTags, err := testHelperBuildTags()
+	if err != nil {
+		r.display.buildStatus(false, err)
+		return fmt.Errorf("build ze-test: %w", err)
+	}
+	cmd = exec.CommandContext(ctx, "go", "build", "-tags", helperTags, "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = childEnv("CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

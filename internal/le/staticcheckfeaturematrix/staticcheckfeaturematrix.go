@@ -30,8 +30,6 @@ package staticcheckfeaturematrix
 import (
 	"fmt"
 	"os"
-	pathpkg "path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -39,6 +37,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/changed"
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 // featureManifest is the single source of truth for the compile-out-able
@@ -58,9 +57,8 @@ const (
 const minMatrixRows = 2
 
 var (
-	featureTagPattern  = regexp.MustCompile(`^ze_[A-Za-z0-9_]+$`)
-	matrixNamePattern  = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
-	packagePathPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]*$`)
+	featureTagPattern = regexp.MustCompile(`^ze_[A-Za-z0-9_]+$`)
+	matrixNamePattern = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 )
 
 // Row is one feature-tag combination the tree is type-checked in, and it is one
@@ -137,7 +135,7 @@ func Derive(tree string) (Matrix, Notice, error) {
 // longer there. A test and a parity comparison therefore name the answer, and
 // the environment is read at the command boundary alone.
 func DeriveScoped(tree, answerPath string) (Matrix, Notice, error) {
-	tags, err := readFeatureTags(filepath.Join(tree, featureManifest))
+	tags, err := readFeatureTags(tree)
 	if err != nil {
 		return nil, Notice{}, err
 	}
@@ -292,61 +290,43 @@ func (m Matrix) Part(index, count int) (Matrix, error) {
 	return part, nil
 }
 
-// readFeatureTags answers the feature tags the manifest declares, sorted and
-// deduplicated. Every malformed line is an error: a manifest this reader could
-// not understand would otherwise shrink the matrix silently.
-func readFeatureTags(manifestPath string) ([]string, error) {
-	raw, err := os.ReadFile(manifestPath) //nolint:gosec // caller supplies the explicit manifest path
+// readFeatureTags answers the feature tags the manifest under tree declares,
+// sorted and deduplicated.
+//
+// featuretags reads the rows and refuses a line it cannot parse. The two rules
+// here are the MATRIX's own, not the manifest format's. A tag this generator
+// cannot render as a row name is refused. So is a personality tag, which every
+// row already supplies.
+func readFeatureTags(tree string) ([]string, error) {
+	rows, err := featuretags.Gates(tree)
 	if err != nil {
 		return nil, fmt.Errorf("read feature manifest %s: %w", featureManifest, err)
 	}
 
 	seen := make(map[string]bool)
 	var tags []string
-	for index, rawLine := range strings.Split(string(raw), "\n") {
-		line := strings.TrimSpace(rawLine)
-		if line == "" || strings.HasPrefix(line, "#") {
+	for _, row := range rows {
+		if !featureTagPattern.MatchString(row.Tag) {
+			return nil, fmt.Errorf(
+				"%s: invalid feature tag %q; want ze_ followed by letters, numbers, or underscores",
+				featureManifest, row.Tag)
+		}
+		if row.Tag == coreTag || row.Tag == distroTag {
+			return nil, fmt.Errorf(
+				"%s: reserved feature tag %q is supplied by every matrix row and must not be in the manifest",
+				featureManifest, row.Tag)
+		}
+		if seen[row.Tag] {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			return nil, fmt.Errorf("%s:%d: expected <tag> <package>, got %d fields", featureManifest, index+1, len(fields))
-		}
-		tag, packagePath := fields[0], fields[1]
-		if !featureTagPattern.MatchString(tag) {
-			return nil, fmt.Errorf(
-				"%s:%d: invalid feature tag %q; want ze_ followed by letters, numbers, or underscores",
-				featureManifest, index+1, tag)
-		}
-		if tag == coreTag || tag == distroTag {
-			return nil, fmt.Errorf(
-				"%s:%d: reserved feature tag %q is supplied by every matrix row and must not be in the manifest",
-				featureManifest, index+1, tag)
-		}
-		if !validPackagePath(packagePath) {
-			return nil, fmt.Errorf(
-				"%s:%d: invalid package path %q; want a clean relative Go import path",
-				featureManifest, index+1, packagePath)
-		}
-		if seen[tag] {
-			continue
-		}
-		seen[tag] = true
-		tags = append(tags, tag)
+		seen[row.Tag] = true
+		tags = append(tags, row.Tag)
 	}
 	if len(tags) == 0 {
 		return nil, fmt.Errorf("%s: no feature tags found", featureManifest)
 	}
 	slices.Sort(tags)
 	return tags, nil
-}
-
-// validPackagePath reports whether a manifest's second field is a clean
-// relative Go import path.
-func validPackagePath(packagePath string) bool {
-	return packagePathPattern.MatchString(packagePath) &&
-		pathpkg.Clean(packagePath) == packagePath &&
-		!strings.Contains(packagePath, "//")
 }
 
 // buildMatrix derives the rows for a tag set and checks the derivation against

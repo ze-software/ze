@@ -29,13 +29,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -216,7 +216,9 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 	if err := sanityCheck(ctx, absRepo, commit, dir); err != nil {
 		return Report{}, 2, err
 	}
-	features, err := featureTags(dir)
+	// The manifest is read FROM THE EXTRACTED TREE, so the tag set is the one
+	// that commit declared rather than the working tree's.
+	features, err := featuretags.DaemonTags(dir)
 	if err != nil {
 		return Report{}, 2, err
 	}
@@ -409,27 +411,6 @@ func commitHasPath(ctx context.Context, repo, commit, path string) (bool, error)
 		return false, fmt.Errorf("git ls-tree %s -- %s: %w: %s", commit, path, err, strings.TrimSpace(stderr.String()))
 	}
 	return strings.TrimSpace(string(out)) != "", nil
-}
-
-// featureTags reads the feature manifest FROM THE EXTRACTED TREE, so the native
-// toolchain expands the tag set that commit declared.
-func featureTags(dest string) ([]string, error) {
-	raw, err := os.ReadFile(filepath.Join(dest, "feature-gates.txt")) //nolint:gosec // fixed in-repo path
-	if err != nil {
-		return nil, fmt.Errorf("read feature-gates.txt from the extracted tree: %w", err)
-	}
-	seen := map[string]bool{}
-	var out []string
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 || !strings.HasPrefix(fields[0], "ze_") || seen[fields[0]] {
-			continue
-		}
-		seen[fields[0]] = true
-		out = append(out, fields[0])
-	}
-	slices.Sort(out)
-	return out, nil
 }
 
 // setBuildCache points the extracted tree's builds at the repository's own

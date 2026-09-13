@@ -7,7 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
 func uiDriver(driver any) Driver {
@@ -41,22 +42,21 @@ func uiLEBinary(root string) (string, error) {
 	return path, nil
 }
 
+// uiLEFeatureTags answers the le personality's build tags for the checkout at
+// root: ze_le, every gate the feature manifest declares, then the caller's
+// extras. The gates come from featuretags, the one Go reader of the manifest.
+// A fixture therefore cannot build a binary with a feature set the tooling
+// never selects.
 func uiLEFeatureTags(root string, extra ...string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "feature-gates.txt")) //nolint:gosec // the path is the fixture's own scratch file
+	gates, err := featuretags.DaemonTags(root)
 	if err != nil {
-		return nil, fmt.Errorf("read feature-gates.txt: %w", err)
+		return nil, fmt.Errorf("read the feature manifest: %w", err)
 	}
-	tags := []string{buildTagLE}
+
+	tags := append([]string{buildTagLE}, gates...)
 	seen := map[string]struct{}{buildTagLE: {}}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
-			continue
-		}
-		if _, exists := seen[fields[0]]; !exists {
-			seen[fields[0]] = struct{}{}
-			tags = append(tags, fields[0])
-		}
+	for _, tag := range gates {
+		seen[tag] = struct{}{}
 	}
 	for _, tag := range extra {
 		if _, exists := seen[tag]; !exists {

@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
@@ -135,33 +136,16 @@ func pluginSearchRoots() []string {
 // schema. A feature without one of those packages never matches the
 // corresponding discovery list, so deriving both for every entry is safe.
 func loadFeatureTags(root string) (map[string]string, error) {
-	pathname := filepath.Join(root, featureGatesManifest)
-
-	f, err := os.Open(pathname) //nolint:gosec // a build tool reads the checkout it was pointed at
+	rows, err := featuretags.Gates(root)
 	if err != nil {
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("read ").Str(featureGatesManifest).Str(": ").Err(err).String())
 	}
-	defer f.Close() //nolint:errcheck // read-only
 
-	tags := map[string]string{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			var tb textbuf.Buffer
-			return nil, errors.New(tb.Str(featureGatesManifest).Str(": malformed line ").
-				Quoted(line).Str(" (want \"<tag> <pkg>\")").String())
-		}
-		tags[fields[1]] = fields[0]
-		tags[path.Join(fields[1], "yang")] = fields[0]
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+	tags := make(map[string]string, 2*len(rows))
+	for _, row := range rows {
+		tags[row.Package] = row.Tag
+		tags[path.Join(row.Package, "yang")] = row.Tag
 	}
 
 	return tags, nil

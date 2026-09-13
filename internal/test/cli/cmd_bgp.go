@@ -522,7 +522,11 @@ func buildZe(ctx context.Context, baseDir string) (string, error) {
 		}
 		return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
 	}
-	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, packageZe) //nolint:gosec // paths from internal runner
+	tags, err := runner.TestBuildTags()
+	if err != nil {
+		return "", fmt.Errorf("derive the ze build tags: %w", err)
+	}
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", tags, "-o", zePath, packageZe) //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

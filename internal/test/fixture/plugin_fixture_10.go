@@ -910,9 +910,9 @@ func fixture10CompletionSetup(plugin *sdk.Plugin) {
 	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
 		switch command {
 		case cmdShowTestCompletionVisible:
-			return statusDone, map[string]any{"result": "visible-ok"}, nil
+			return statusDone, map[string]any{fieldResult: "visible-ok"}, nil
 		case cmdShowTestCompletionHidden:
-			return statusDone, map[string]any{"result": "hidden-ok"}, nil
+			return statusDone, map[string]any{fieldResult: "hidden-ok"}, nil
 		default:
 			return statusError, nil, fmt.Errorf("unknown command %q", command)
 		}
@@ -970,9 +970,9 @@ func fixture10TwoTextsSetup(plugin *sdk.Plugin) {
 	plugin.OnExecuteCommand(func(_ string, command string, _ []string, _ string) (string, any, error) {
 		switch command {
 		case cmdShowTestTwoTextsBoth:
-			return statusDone, map[string]any{"result": "both-ok"}, nil
+			return statusDone, map[string]any{fieldResult: "both-ok"}, nil
 		case cmdShowTestTwoTextsSummary:
-			return statusDone, map[string]any{"result": "summary-ok"}, nil
+			return statusDone, map[string]any{fieldResult: "summary-ok"}, nil
 		default:
 			return statusError, nil, fmt.Errorf("unknown command %q", command)
 		}

@@ -42,7 +42,8 @@ func pluginShellExtra4Observe(ctx context.Context, name string, args []string, w
 	})
 }
 
-func pluginShellExtra4Command(host, port, user, password, command string) (string, error) {
+func pluginShellExtra4Command(port, user, password, command string) (string, error) {
+	const host = "127.0.0.1"
 	return sshclient.ExecCommand(sshclient.Credentials{
 		Host:     host,
 		Port:     port,
@@ -52,7 +53,7 @@ func pluginShellExtra4Command(host, port, user, password, command string) (strin
 }
 
 func pluginShellExtra4RequireCommand(port, user, password, command, label string) (string, error) {
-	output, err := pluginShellExtra4Command("127.0.0.1", port, user, password, command)
+	output, err := pluginShellExtra4Command(port, user, password, command)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", label, err)
 	}
@@ -350,7 +351,7 @@ func pluginShellExtra4TacacsAuthor(ctx context.Context, args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: 'show bgp' authorized")
-		_, err := pluginShellExtra4Command("127.0.0.1", port, "admin", "testpass", "clear interface counters")
+		_, err := pluginShellExtra4Command(port, "admin", "testpass", "clear interface counters")
 		if err == nil {
 			return errors.New("clear interface counters should have been blocked by TACACS+ authorization")
 		}
@@ -394,7 +395,7 @@ func pluginShellExtra4AAALocalFailover(_ context.Context, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("aaa-local-failover: got %d arguments, want 1", len(args))
 	}
-	output, err := pluginShellExtra4Command("127.0.0.1", args[0], "admin", "testpass", "show bgp")
+	output, err := pluginShellExtra4Command(args[0], "admin", "testpass", "show bgp")
 	if err != nil {
 		if strings.Contains(err.Error(), "command restricted by access control") {
 			return fmt.Errorf("the local account logged in and the command was REFUSED, so the local backend contributed no authorizer: %w", err)
@@ -425,7 +426,7 @@ func pluginShellExtra4TacacsReadonly(ctx context.Context, args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr, "OK: noc allowed summary (priv-lvl 1 -> read-only)")
-		_, err := pluginShellExtra4Command("127.0.0.1", port, "noc", "nocpass", "request quiesce")
+		_, err := pluginShellExtra4Command(port, "noc", "nocpass", "request quiesce")
 		if err == nil {
 			return errors.New("noc (priv-lvl 1 -> read-only) must not be allowed a write command")
 		}

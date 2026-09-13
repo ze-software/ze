@@ -317,7 +317,7 @@ func ifaceLinkFlap08(ctx context.Context, _ *sdk.Plugin, port string) error {
 	// with the parent means every SIGHUP below went somewhere else, and the
 	// commits this test is named for never happened. Cheap to print, and the
 	// alternative is inferring it from a truncated log.
-	fmt.Fprintf(os.Stderr, "FLAP: signalling daemon.pid=%d, parent=%d\n", pid, os.Getppid())
+	fmt.Fprintf(os.Stderr, "FLAP: signaling daemon.pid=%d, parent=%d\n", pid, os.Getppid())
 	dropsBefore := netlinkDrops08()
 	resyncsBefore, err := flapCounter08(ctx, port, "ze_iface_carrier_resyncs_total")
 	if err != nil {

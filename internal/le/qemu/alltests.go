@@ -39,6 +39,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/functional"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/leaction"
@@ -932,40 +933,26 @@ func (a *allTestsRun) hasPackage(pkg string) bool {
 	return err == nil && info.IsDir()
 }
 
+// integrationBase is the personality the integration pass compiles, before the
+// gates featuretags adds to it.
+const integrationBase = "ze_core integration"
+
 // integrationTags answers the build tags the integration pass compiles with.
 //
 // `-tags integration` ADDS the integration files to a package. It does not
 // replace the package's ordinary unit tests, which also compile and run.
 //
 // Without ze_core and the feature set, feature-gated surfaces silently vanish.
-// The set is derived from feature-gates.txt, so a missing manifest is an error,
-// not a smaller tag set.
+// featuretags derives the set from feature-gates.txt, so a missing manifest is
+// an error, not a smaller tag set.
 func (a *allTestsRun) integrationTags() (string, error) {
-	body, err := os.ReadFile(filepath.Join(a.Workspace, "feature-gates.txt")) //nolint:gosec // a fixed path of the checkout
+	tags, err := featuretags.DaemonBuildTags(a.Workspace, integrationBase)
 	if err != nil {
 		var tb textbuf.Buffer
-		return "", errors.New(tb.Str("qemu: feature-gates.txt could not be read, and without it every").
+		return "", errors.New(tb.Str("qemu: the feature manifest could not be read, and without it every").
 			Str(" feature-gated surface vanishes from the integration build: ").Err(err).String())
 	}
-
-	seen := make(map[string]bool)
-	var gates []string
-	for line := range strings.SplitSeq(string(body), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 || !strings.HasPrefix(fields[0], "ze_") || seen[fields[0]] {
-			continue
-		}
-		seen[fields[0]] = true
-		gates = append(gates, fields[0])
-	}
-	slices.Sort(gates)
-
-	var tb textbuf.Buffer
-	tb.Str("ze_core integration")
-	for _, gate := range gates {
-		tb.Byte(' ').Str(gate)
-	}
-	return tb.String(), nil
+	return tags, nil
 }
 
 // banner is the heading one phase prints before it runs.

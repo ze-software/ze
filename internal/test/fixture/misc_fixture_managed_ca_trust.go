@@ -27,9 +27,9 @@ import (
 const (
 	caTrustHubName        = "fleet-hub"
 	caTrustClientName     = "edge-01"
-	caTrustClientSecret   = "edge-ca-trust-secret-that-is-at-least-32"
-	caTrustHubSecret      = "hub-ca-trust-secret-that-is-at-least-32c"
-	caTrustPluginSecret   = "hub-plugin-secret-that-is-at-least-32ch"
+	caTrustClientSecret   = "edge-ca-trust-secret-that-is-at-least-32" // #nosec G101 -- a fixture secret two test daemons agree on, reachable only inside this scenario.
+	caTrustHubSecret      = "hub-ca-trust-secret-that-is-at-least-32c" // #nosec G101 -- a fixture secret two test daemons agree on, reachable only inside this scenario.
+	caTrustPluginSecret   = "hub-plugin-secret-that-is-at-least-32ch"  // #nosec G101 -- a fixture secret two test daemons agree on, reachable only inside this scenario.
 	caTrustAnchorName     = "fleet-hub-root"
 	caTrustBootRouterID   = "1.1.1.1"
 	caTrustServedRouterID = "2.2.2.2"

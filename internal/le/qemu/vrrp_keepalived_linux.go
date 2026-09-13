@@ -188,7 +188,8 @@ func vrrpZeTrackConfig(names vrrpNames) []byte {
 		Bytes()
 }
 
-func vrrpKeepalivedConfig(names vrrpNames, notify, marker string, priority int) []byte {
+func vrrpKeepalivedConfig(names vrrpNames, notify, marker string) []byte {
+	const priority = vrrpKAPriority
 	var tb textbuf.Buffer
 	return tb.Str("global_defs {\n").
 		Str("    vrrp_version 3\n").
@@ -738,7 +739,7 @@ func (l *vrrpLab) establishMaster(ctx context.Context) error {
 	if err := l.waitZeState(ctx, "master"); err != nil {
 		return err
 	}
-	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker, vrrpKAPriority)); err != nil {
+	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker)); err != nil {
 		return err
 	}
 	return l.waitKAState(ctx, "BACKUP")
@@ -1140,7 +1141,7 @@ func (l *vrrpLab) runTrackedUplink(ctx context.Context) error {
 	if err := l.waitZeState(ctx, "master"); err != nil {
 		return err
 	}
-	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker, vrrpKAPriority)); err != nil {
+	if err := l.startKeepalived(ctx, vrrpKeepalivedConfig(l.names, l.notify, l.marker)); err != nil {
 		return err
 	}
 	if err := l.waitKAState(ctx, "BACKUP"); err != nil {
