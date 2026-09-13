@@ -127,6 +127,38 @@ func text07(value any) string {
 	return string(encoded)
 }
 
+// metricsText07 returns the Prometheus exposition text an answer to "show
+// metrics values" carries in its "metrics" field. The field has to be read
+// out: text07 JSON-encodes the whole answer, so every quote inside the
+// exposition comes back escaped and a selector written as ze_x{y="z"} matches
+// nothing.
+func metricsText07(value any) string {
+	text, _ := object07(value)["metrics"].(string)
+	return text
+}
+
+// counter07 returns the value of one series in Prometheus exposition text. The
+// selector is the series name with its label set, exactly as the exposition
+// prints it. The second result is false when the text carries no such series,
+// so an absent series never reads as a count of zero.
+func counter07(text, selector string) (float64, bool) {
+	for line := range strings.SplitSeq(text, "\n") {
+		series, value, split := strings.Cut(strings.TrimSpace(line), " ")
+		if !split {
+			continue
+		}
+		if series != selector {
+			continue
+		}
+		count, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return 0, false
+		}
+		return count, true
+	}
+	return 0, false
+}
+
 func waitEOR07(ctx context.Context, p *sdk.Plugin, expected int) error {
 	result := until07(ctx, p, "show bgp peer * detail", 40, 250*time.Millisecond, func(r commandResult07) bool {
 		peers := object07(object07(r.data)["peers"])

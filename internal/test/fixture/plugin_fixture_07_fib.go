@@ -85,19 +85,27 @@ func fibTable07(ctx context.Context, p *sdk.Plugin) error {
 		return fmt.Errorf("fakefib table-id emit: status=%s error=%w", result.status, result.err)
 	}
 	result = until07(ctx, p, "show metrics values", 40, 250*time.Millisecond, func(result commandResult07) bool {
-		text := text07(result.data)
-		return result.status == statusDone &&
-			(strings.Contains(text, "ze_fibkernel_route_installs_total 1") ||
-				strings.Contains(text, `ze_fibkernel_errors_total{operation="add"} 1`))
+		return result.status == statusDone && fibTableProcessed07(metricsText07(result.data))
 	})
-	text := text07(result.data)
-	if result.status != statusDone ||
-		(!strings.Contains(text, "ze_fibkernel_route_installs_total 1") &&
-			!strings.Contains(text, `ze_fibkernel_errors_total{operation="add"} 1`)) {
-		return fmt.Errorf("fib-kernel did not report table-id route processing: status=%s error=%w data=%s", result.status, result.err, text)
+	if result.status != statusDone || !fibTableProcessed07(metricsText07(result.data)) {
+		return fmt.Errorf("fib-kernel did not report table-id route processing: status=%s error=%w data=%s", result.status, result.err, text07(result.data))
 	}
 	fmt.Fprintln(os.Stderr, "OK: fib-kernel processed the table-id route")
 	return waitEOR07(ctx, p, 1)
+}
+
+// fibTableProcessed07 reports whether fib-kernel accounted for the table-id
+// route the scenario emitted. A backend that programs rich routes counts an
+// install, and a backend that refuses them counts an add error, so the two
+// counters are the same fact on two platforms: the sysrib best-change reached
+// processEvent. The counters are read as values because a retry can take
+// either above one.
+func fibTableProcessed07(metrics string) bool {
+	if installs, ok := counter07(metrics, "ze_fibkernel_route_installs_total"); ok && installs >= 1 {
+		return true
+	}
+	failures, ok := counter07(metrics, `ze_fibkernel_errors_total{operation="add"}`)
+	return ok && failures >= 1
 }
 
 const fibVPPConfig07 = `environment {
