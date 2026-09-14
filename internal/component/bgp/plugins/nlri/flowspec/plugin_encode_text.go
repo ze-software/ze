@@ -49,18 +49,12 @@ const (
 	kwRD              = "rd"               // Route Distinguisher (VPN)
 )
 
-// The address families this plugin registers and decodes. The name is what the
-// engine matches a codec on, so a misspelling leaves the family unhandled
-// rather than refused.
-const (
-	familyIPv4Flow    = "ipv4/flow"     // AFI 1, SAFI 133
-	familyIPv6Flow    = "ipv6/flow"     // AFI 2, SAFI 133
-	familyIPv4FlowVPN = "ipv4/flow-vpn" // AFI 1, SAFI 134
-	familyIPv6FlowVPN = "ipv6/flow-vpn" // AFI 2, SAFI 134
-
-	// familyModeBoth declares a family this plugin both sends and receives.
-	familyModeBoth = "both"
-)
+// familyModeBoth declares a family this plugin both sends and receives.
+//
+// The family names themselves are not declared here. family.MustRegister in
+// types.go joins each one from its AFI and SAFI parts, so flowSpecFamilySet in
+// plugin.go reads them back from the registry rather than spelling them again.
+const familyModeBoth = "both"
 
 // protocolNameToNumber maps protocol names to numbers. It is the ONLY protocol
 // vocabulary in this package: the config parser, the text encoder and the

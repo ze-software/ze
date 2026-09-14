@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -19,7 +20,7 @@ func init() {
 		RFCs:         []string{"8955", "8956"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{familyIPv4Flow, familyIPv6Flow, familyIPv4FlowVPN, familyIPv6FlowVPN},
+		Families:     flowSpecFamilies(),
 		RunEngine:    runFlowSpecPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setFlowSpecLogger(slogutil.Logger(loggerName))
@@ -40,7 +41,8 @@ func init() {
 			setFlowSpecLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", familyIPv4Flow, "Address family (ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn)")
+			names := flowSpecFamilies()
+			family = fs.String("family", names[0], "Address family ("+strings.Join(names, ", ")+")")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

@@ -20,14 +20,15 @@ import (
 
 var errNoValidComponentsInJson = errors.New("no valid components in JSON")
 
-// isValidFlowSpecFamily checks if family is a FlowSpec family.
-func isValidFlowSpecFamily(family string) bool {
-	switch family {
-	case familyIPv4Flow, familyIPv6Flow, familyIPv4FlowVPN, familyIPv6FlowVPN:
-		return true
-	default: // not a FlowSpec family
+// isValidFlowSpecFamily reports whether name is one of this plugin's families.
+// The name is resolved through the registry first, so only the registry's own
+// spelling is accepted and an unregistered name is refused rather than guessed.
+func isValidFlowSpecFamily(name string) bool {
+	fam, ok := family.LookupFamily(name)
+	if !ok {
 		return false
 	}
+	return slices.Contains(flowSpecFamilySet, fam)
 }
 
 // decodeFlowSpecNLRI decodes FlowSpec NLRI wire bytes to JSON map.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -23,7 +24,7 @@ func init() {
 		RFCs:         []string{"7752", "9085", "9514"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{familyBGPLS, familyBGPLSVPN},
+		Families:     bgpLSFamilies(),
 		RunEngine:    runBGPLSPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setBGPLSLogger(slogutil.Logger(loggerName))
@@ -40,7 +41,8 @@ func init() {
 			setBGPLSLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", familyBGPLS, "Address family (bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn)")
+			names := bgpLSFamilies()
+			family = fs.String("family", names[0], "Address family ("+strings.Join(names, ", ")+")")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return runBGPLSCLIDecode(hex, *family, text, out, errOut)

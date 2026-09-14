@@ -304,7 +304,9 @@ func (v *VPN) WriteTo(buf []byte, off int) int {
 	return pos - off
 }
 
-// vPNFamilies returns the address families this plugin can decode.
+// vPNFamilies returns the registry's own name for each family this plugin can
+// decode. family.MustRegister in this file joined each one from its AFI and
+// SAFI parts, so no second spelling exists to drift from.
 func vPNFamilies() []string {
-	return []string{familyIPv4VPN, familyIPv6VPN}
+	return []string{IPv4VPN.String(), IPv6VPN.String()}
 }

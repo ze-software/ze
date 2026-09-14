@@ -30,7 +30,7 @@ func init() {
 		Description:                "SR-Policy family plugin (RFC 9830, SAFI 73)",
 		SupportsNLRI:               true,
 		Features:                   "nlri",
-		Families:                   []string{"ipv4/sr-policy", "ipv6/sr-policy"},
+		Families:                   []string{IPv4SRPolicy.String(), IPv6SRPolicy.String()},
 		InProcessNLRIDecoder:       DecodeNLRIHex,
 		InProcessNLRIEncoder:       EncodeNLRIHex,
 		InProcessRouteEncoder:      EncodeRoute,

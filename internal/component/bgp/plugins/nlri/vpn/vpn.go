@@ -60,8 +60,8 @@ func runVPNPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: familyIPv4VPN, Mode: familyModeDecode, AFI: 1, SAFI: 128},
-			{Name: familyIPv6VPN, Mode: familyModeDecode, AFI: 2, SAFI: 128},
+			familyDecl(IPv4VPN),
+			familyDecl(IPv6VPN),
 		},
 	})
 	if err != nil {
@@ -177,16 +177,12 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	return textbuf.StringHexUpper(nlriBytes), nil
 }
 
-// Address family names this plugin registers and decodes. The plugin registry,
-// the CLI and the reactor all match a family by exact string.
-const (
-	familyIPv4VPN = "ipv4/mpls-vpn" // AFI 1, SAFI 128
-	familyIPv6VPN = "ipv6/mpls-vpn" // AFI 2, SAFI 128
-
-	// familyModeDecode declares a family this plugin decodes but never encodes.
-	// The plugin server reads it as sdk.FamilyDecl.Mode.
-	familyModeDecode = "decode"
-)
+// familyModeDecode declares a family this plugin decodes but never encodes.
+// The plugin server reads it as sdk.FamilyDecl.Mode.
+//
+// The family names are not declared here. family.MustRegister in types.go joins
+// each one from its AFI and SAFI parts, and vPNFamilies reads them back.
+const familyModeDecode = "decode"
 
 // Protocol constants.
 const (
@@ -370,9 +366,25 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 	}
 }
 
-// isValidVPNFamily checks if family is a VPN family.
-func isValidVPNFamily(family string) bool {
-	return family == familyIPv4VPN || family == familyIPv6VPN
+// familyDecl declares fam to the plugin server, taking its name and its AFI and
+// SAFI numbers from the registration in types.go. Nothing here repeats them.
+func familyDecl(fam Family) sdk.FamilyDecl {
+	return sdk.FamilyDecl{
+		Name: fam.String(),
+		Mode: familyModeDecode,
+		AFI:  uint16(fam.AFI),
+		SAFI: uint8(fam.SAFI),
+	}
+}
+
+// isValidVPNFamily reports whether name is one of this plugin's families. The
+// registry resolves the name first, so only its own spelling is accepted.
+func isValidVPNFamily(name string) bool {
+	fam, ok := family.LookupFamily(name)
+	if !ok {
+		return false
+	}
+	return fam == IPv4VPN || fam == IPv6VPN
 }
 
 // decodeVPNNLRI decodes VPN NLRI wire bytes to array of JSON maps.

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -32,7 +33,7 @@ func init() {
 		Description:  "Mobile User Plane family plugin (draft-ietf-bess-mup-safi)",
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{familyIPv4MUP, familyIPv6MUP},
+		Families:     mupFamilies(),
 		RunEngine:    runMUPPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
@@ -52,7 +53,8 @@ func init() {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", familyIPv4MUP, "Address family (ipv4/mup or ipv6/mup)")
+			names := mupFamilies()
+			family = fs.String("family", names[0], "Address family ("+strings.Join(names, " or ")+")")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, _ *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

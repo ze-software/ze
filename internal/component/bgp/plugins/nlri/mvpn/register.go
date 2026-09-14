@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -46,7 +47,7 @@ func init() {
 		RFCs:         []string{"6514"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{familyIPv4MVPN, familyIPv6MVPN},
+		Families:     mvpnFamilies(),
 		RunEngine:    runMVPNPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
@@ -65,7 +66,8 @@ func init() {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", familyIPv4MVPN, "Address family (ipv4/mvpn or ipv6/mvpn)")
+			names := mvpnFamilies()
+			family = fs.String("family", names[0], "Address family ("+strings.Join(names, " or ")+")")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, _ *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

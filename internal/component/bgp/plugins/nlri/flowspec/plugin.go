@@ -53,12 +53,7 @@ func runFlowSpecPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		Families: []sdk.FamilyDecl{
-			{Name: familyIPv4Flow, Mode: familyModeBoth, AFI: 1, SAFI: 133},
-			{Name: familyIPv6Flow, Mode: familyModeBoth, AFI: 2, SAFI: 133},
-			{Name: familyIPv4FlowVPN, Mode: familyModeBoth, AFI: 1, SAFI: 134},
-			{Name: familyIPv6FlowVPN, Mode: familyModeBoth, AFI: 2, SAFI: 134},
-		},
+		Families: familyDecls(),
 	})
 	if err != nil {
 		flowLogger.Error("flowspec plugin failed", "error", err)
@@ -154,12 +149,33 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	return 0
 }
 
-// flowSpecFamilies returns the address families this plugin can decode.
-func flowSpecFamilies() []string {
-	return []string{
-		familyIPv4Flow,
-		familyIPv6Flow,
-		familyIPv4FlowVPN,
-		familyIPv6FlowVPN,
+// flowSpecFamilySet is every family this plugin encodes and decodes, as the
+// values family.MustRegister returned in types.go. The registry joins each name
+// from its AFI and SAFI parts, so this package never spells one itself: a
+// renamed SAFI reaches every reader below through the registry.
+var flowSpecFamilySet = []Family{IPv4FlowSpec, IPv6FlowSpec, IPv4FlowSpecVPN, IPv6FlowSpecVPN}
+
+// familyDecls declares this plugin's families to the plugin server, taking each
+// name and each AFI and SAFI number from the registration in types.go.
+func familyDecls() []sdk.FamilyDecl {
+	decls := make([]sdk.FamilyDecl, len(flowSpecFamilySet))
+	for i, fam := range flowSpecFamilySet {
+		decls[i] = sdk.FamilyDecl{
+			Name: fam.String(),
+			Mode: familyModeBoth,
+			AFI:  uint16(fam.AFI),
+			SAFI: uint8(fam.SAFI),
+		}
 	}
+	return decls
+}
+
+// flowSpecFamilies returns the registry's own name for each family this plugin
+// can decode. The plugin registration and the CLI help both read it.
+func flowSpecFamilies() []string {
+	names := make([]string, len(flowSpecFamilySet))
+	for i, fam := range flowSpecFamilySet {
+		names[i] = fam.String()
+	}
+	return names
 }

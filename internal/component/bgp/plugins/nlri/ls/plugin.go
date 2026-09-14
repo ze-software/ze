@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -67,8 +68,8 @@ func runBGPLSPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: familyBGPLS, Mode: familyModeDecode, AFI: 16388, SAFI: 71},
-			{Name: familyBGPLSVPN, Mode: familyModeDecode, AFI: 16388, SAFI: 72},
+			familyDecl(BGPLSFamily),
+			familyDecl(BGPLSVPNFamily),
 		},
 	})
 	if err != nil {
@@ -79,17 +80,29 @@ func runBGPLSPlugin(conn net.Conn) int {
 	return 0
 }
 
-// Address family names this plugin registers and decodes. The plugin registry,
-// the CLI and the reactor all match a family by exact string. TestBGPLSFamily
-// holds them against BGPLSFamily.String() and BGPLSVPNFamily.String().
-const (
-	familyBGPLS    = "bgp-ls/bgp-ls"     // AFI 16388, SAFI 71
-	familyBGPLSVPN = "bgp-ls/bgp-ls-vpn" // AFI 16388, SAFI 72
+// familyModeDecode declares a family this plugin decodes but never encodes.
+// The plugin server reads it as sdk.FamilyDecl.Mode.
+//
+// The family names are not declared here. family.MustRegister in types.go joins
+// each one from its AFI and SAFI parts, and bgpLSFamilies reads them back.
+const familyModeDecode = "decode"
 
-	// familyModeDecode declares a family this plugin decodes but never encodes.
-	// The plugin server reads it as sdk.FamilyDecl.Mode.
-	familyModeDecode = "decode"
-)
+// bgpLSFamilies returns the registry's own name for each family this plugin
+// decodes. The plugin registration and the CLI help both read it.
+func bgpLSFamilies() []string {
+	return []string{BGPLSFamily.String(), BGPLSVPNFamily.String()}
+}
+
+// familyDecl declares fam to the plugin server, taking its name and its AFI and
+// SAFI numbers from the registration in types.go. Nothing here repeats them.
+func familyDecl(fam family.Family) sdk.FamilyDecl {
+	return sdk.FamilyDecl{
+		Name: fam.String(),
+		Mode: familyModeDecode,
+		AFI:  uint16(fam.AFI),
+		SAFI: uint8(fam.SAFI),
+	}
+}
 
 // JSON keys of the decoded NLRI objects this plugin emits.
 const (
@@ -272,9 +285,14 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 	}
 }
 
-// isValidBGPLSFamily checks if family is a BGP-LS family.
-func isValidBGPLSFamily(family string) bool {
-	return family == familyBGPLS || family == familyBGPLSVPN
+// isValidBGPLSFamily reports whether name is one of this plugin's families. The
+// registry resolves the name first, so only its own spelling is accepted.
+func isValidBGPLSFamily(name string) bool {
+	fam, ok := family.LookupFamily(name)
+	if !ok {
+		return false
+	}
+	return fam == BGPLSFamily || fam == BGPLSVPNFamily
 }
 
 // decodeBGPLSNLRI decodes BGP-LS NLRI wire bytes to array of JSON maps.

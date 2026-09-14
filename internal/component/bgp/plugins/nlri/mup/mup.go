@@ -15,17 +15,33 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// Address family names this plugin registers and decodes. The plugin registry,
-// the CLI and the reactor all match a family by exact string.
-const (
-	familyIPv4MUP = "ipv4/mup" // AFI 1, SAFI 85
-	familyIPv6MUP = "ipv6/mup" // AFI 2, SAFI 85
+// mupFamilies returns the registry's own name for each family this plugin
+// decodes. The plugin registration, the CLI help and config.go all read it.
+//
+// The names are not declared here. family.MustRegister in types.go joins each
+// one from its AFI and SAFI parts, so no second spelling exists to drift from.
+func mupFamilies() []string {
+	return []string{IPv4MUP.String(), IPv6MUP.String()}
+}
 
+// familyDecl declares fam to the plugin server, taking its name and its AFI and
+// SAFI numbers from the registration in types.go. Nothing here repeats them.
+func familyDecl(fam family.Family) sdk.FamilyDecl {
+	return sdk.FamilyDecl{
+		Name: fam.String(),
+		Mode: familyModeDecode,
+		AFI:  uint16(fam.AFI),
+		SAFI: uint8(fam.SAFI),
+	}
+}
+
+const (
 	// familyModeDecode declares a family this plugin decodes but never encodes.
 	// The plugin server reads it as sdk.FamilyDecl.Mode.
 	familyModeDecode = "decode"
@@ -61,8 +77,8 @@ func runMUPPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: familyIPv4MUP, Mode: familyModeDecode, AFI: 1, SAFI: 85},
-			{Name: familyIPv6MUP, Mode: familyModeDecode, AFI: 2, SAFI: 85},
+			familyDecl(IPv4MUP),
+			familyDecl(IPv6MUP),
 		},
 	})
 	if err != nil {
@@ -188,14 +204,16 @@ func mupToJSON(m *MUP) map[string]any {
 	}
 }
 
-// familyToAFI maps family string to AFI constant.
-func familyToAFI(family string) (AFI, error) {
-	lower := strings.ToLower(family)
-	if lower == familyIPv4MUP {
-		return AFIIPv4, nil
+// familyToAFI resolves a family name to the AFI of the MUP family it names. The
+// registry resolves the name, so only its own spelling is accepted and a family
+// that is not MUP is refused rather than given an AFI.
+func familyToAFI(name string) (AFI, error) {
+	fam, ok := family.LookupFamily(strings.ToLower(name))
+	if !ok {
+		return 0, fmt.Errorf("unsupported family: %s", name)
 	}
-	if lower == familyIPv6MUP {
-		return AFIIPv6, nil
+	if fam != IPv4MUP && fam != IPv6MUP {
+		return 0, fmt.Errorf("unsupported family: %s", name)
 	}
-	return 0, fmt.Errorf("unsupported family: %s", family)
+	return fam.AFI, nil
 }

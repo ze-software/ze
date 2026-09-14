@@ -14,17 +14,33 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// Address family names this plugin registers and decodes. The plugin registry,
-// the CLI and the reactor all match a family by exact string.
-const (
-	familyIPv4MVPN = "ipv4/mvpn" // AFI 1, SAFI 5
-	familyIPv6MVPN = "ipv6/mvpn" // AFI 2, SAFI 5
+// mvpnFamilies returns the registry's own name for each family this plugin
+// decodes. The plugin registration and the CLI help both read it.
+//
+// The names are not declared here. family.MustRegister in types.go joins each
+// one from its AFI and SAFI parts, so no second spelling exists to drift from.
+func mvpnFamilies() []string {
+	return []string{IPv4MVPN.String(), IPv6MVPN.String()}
+}
 
+// familyDecl declares fam to the plugin server, taking its name and its AFI and
+// SAFI numbers from the registration in types.go. Nothing here repeats them.
+func familyDecl(fam family.Family) sdk.FamilyDecl {
+	return sdk.FamilyDecl{
+		Name: fam.String(),
+		Mode: familyModeDecode,
+		AFI:  uint16(fam.AFI),
+		SAFI: uint8(fam.SAFI),
+	}
+}
+
+const (
 	// familyModeDecode declares a family this plugin decodes but never encodes.
 	// The plugin server reads it as sdk.FamilyDecl.Mode.
 	familyModeDecode = "decode"
@@ -56,8 +72,8 @@ func runMVPNPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: familyIPv4MVPN, Mode: familyModeDecode, AFI: 1, SAFI: 5},
-			{Name: familyIPv6MVPN, Mode: familyModeDecode, AFI: 2, SAFI: 5},
+			familyDecl(IPv4MVPN),
+			familyDecl(IPv6MVPN),
 		},
 	})
 	if err != nil {
@@ -182,14 +198,16 @@ func mvpnToJSON(m *MVPN) map[string]any {
 	}
 }
 
-// familyToAFI maps family string to AFI constant.
-func familyToAFI(family string) (AFI, error) {
-	lower := strings.ToLower(family)
-	if lower == familyIPv4MVPN {
-		return AFIIPv4, nil
+// familyToAFI resolves a family name to the AFI of the MVPN family it names.
+// The registry resolves the name, so only its own spelling is accepted and a
+// family that is not MVPN is refused rather than given an AFI.
+func familyToAFI(name string) (AFI, error) {
+	fam, ok := family.LookupFamily(strings.ToLower(name))
+	if !ok {
+		return 0, fmt.Errorf("unsupported family: %s", name)
 	}
-	if lower == familyIPv6MVPN {
-		return AFIIPv6, nil
+	if fam != IPv4MVPN && fam != IPv6MVPN {
+		return 0, fmt.Errorf("unsupported family: %s", name)
 	}
-	return 0, fmt.Errorf("unsupported family: %s", family)
+	return fam.AFI, nil
 }

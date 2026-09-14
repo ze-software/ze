@@ -37,13 +37,17 @@ func DecodeNLRIHex(familyStr, hexStr string) (any, error) {
 	}, nil
 }
 
+// familyToAFI resolves a family name to the AFI of the SR-Policy family it
+// names. The name is looked up in the registry, which composed it from the AFI
+// and SAFI parts register.go passed to family.MustRegister, so an unregistered
+// name and a family that is not SR-Policy are both refused here.
 func familyToAFI(familyStr string) (family.AFI, error) {
-	switch familyStr {
-	case "ipv4/sr-policy":
-		return family.AFIIPv4, nil
-	case "ipv6/sr-policy":
-		return family.AFIIPv6, nil
-	default:
+	fam, ok := family.LookupFamily(familyStr)
+	if !ok {
 		return 0, fmt.Errorf("unsupported sr-policy family: %s", familyStr)
 	}
+	if fam != IPv4SRPolicy && fam != IPv6SRPolicy {
+		return 0, fmt.Errorf("unsupported sr-policy family: %s", familyStr)
+	}
+	return fam.AFI, nil
 }
