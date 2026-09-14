@@ -48,12 +48,15 @@ phase itself.
   literals included -- and that is a reason to name the operation in the agent's
   prompt, not a reason to keep the phase inline. Sizing an agent is a cost
   decision, and tool availability does not constrain it.
-- **Why one agent per phase.** Cost per API call is the context size at that
-  call, and context grows with turns. A long agent therefore pays more for every
-  later call it makes. Measured over this machine's session transcripts
-  (`./le token-economy`), implementation agents ran 144 API calls each
-  at 294k mean context, more of both than any other phase. Splitting
-  the spec across phase agents cuts the turns each one carries. It does not cut
+- **Why one agent per phase, and why a phase is about 60 tool calls.** Cost per
+  API call is the context size at that call, and context grows by about 1.9k
+  tokens a call from a 45k floor. A long agent therefore pays more for every
+  later call it makes: measured over this machine's session transcripts
+  (`./le token-economy`, `ai/rationale/context-economy.md`), the eleven
+  longest implementation agents ran 200-400 calls to 400-750k of context and
+  were 41% of everything eight sessions spent. Cut each phase so one agent
+  finishes it in about 60 calls, and cut a phase the spec wrote too large into
+  two packages. Splitting cuts the turns each agent carries. It does not cut
   the work: every phase still runs the full steps below.
 - **If you are a phase agent:** run the steps below for YOUR phase. When an
   earlier phase already did steps 1-3, take what it FOUND from the state file
@@ -97,7 +100,7 @@ A handoff carries four things:
 |------|---------|
 | Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
 | Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
-| Verified green | the exact targets run and their result (`./le test-unit all`, the wiring test name, the phase's Verify line from the spec) |
+| Verified green | the exact targets run and their result (the scoped package test, the wiring test name, the phase's Verify line from the spec), then the gates OWED and not run: `./le verify lint run`, `./le test-unit all`, `./le functional gating`, which the main thread runs after this phase returns (`ai/rules/commands.md`) |
 | Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
 
 ### Work-package size (BLOCKING)
@@ -109,9 +112,9 @@ edge of your context is not reaching the edge of your package.
 | Situation | Do |
 |-----------|-----|
 | Your package is finished | Write the handoff, report, stop |
-| Your package is bigger than you can finish | Write the handoff for what IS finished, then REPORT to the main thread that the package needs a continuation. The main thread spawns it |
+| You reach 100 tool calls and the package is not finished | Write the handoff for what IS finished, then REPORT to the main thread that the package needs a continuation. The main thread spawns it into a fresh context, carrying the same package (`ai/rules/context-economy.md`) |
 | An acceptance criterion inside your package looks too expensive | It stays in the package. You do not trim it, and you do not narrow it |
-| You are running long | Finish the package. "I was near a budget" is not a reason to leave a stub, a TODO, or an item parked in a row |
+| You are near the budget | Stop at a clean edge and hand off. "I was near a budget" is not a reason to leave a stub, a TODO, or an item parked in a row: the continuation finishes what you hand it |
 
 `ai/rules/completion.md` is untouched by this decomposition. No partial work, no
 parking, no stub, no weakened test. Every one of those bans applies
@@ -153,7 +156,11 @@ half lives in `plan/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
 first needed.
 
 **Verification: inner loop vs gate.** Steps 6 and 9 use the native focused
-actions. `./le verify worktree` is the pre-commit GATE
+actions, and WHO runs them depends on the context. A phase agent's prompt cache
+lives five minutes, so a phase agent runs only the scoped package test and
+names the rest as owed in its handoff; the main thread runs the full chain once
+after the phase agents return, itself or through a fresh `/ze-verify` agent,
+and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify worktree` is the pre-commit GATE
 (`ai/rules/precommit-verify.md`) and is the only command the spec's Goal Gates name.
 
 ## Steps
@@ -193,7 +200,10 @@ actions. `./le verify worktree` is the pre-commit GATE
 5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
    - Write the tests listed for that phase (TDD — test must fail before implementation)
    - Implement minimal code to pass
-   - Run `./le test-unit all` until green
+   - Run the scoped package test until green: the `go test -race` recipe under
+     `./le job run` in `docs/contributing/running-commands.md`, over the packages
+     this phase changed. `./le test-unit all` is the main thread's, after the
+     phase returns (`ai/rules/commands.md`)
    - Confirm the wiring test from step 4 now passes (or progresses) after each phase
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
@@ -209,7 +219,11 @@ actions. `./le verify worktree` is the pre-commit GATE
      `/ze-close` step 4 CHECKS these pages. It is not where they get written, and a phase that
      changed behavior and touched no page has to say why in its report.
    - Move to next phase
-6. **Run full verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`
+6. **Run full verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`.
+   In a phase agent this step is the scoped package test only; the three
+   commands are OWED, named in the handoff, and the main thread runs them once
+   after the phase agents return, itself or through a fresh `/ze-verify` agent
+   (`ai/rules/commands.md`).
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
@@ -226,7 +240,9 @@ actions. `./le verify worktree` is the pre-commit GATE
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 8. **Fix every issue found** in the review. For each fix apply `ai/rules/completion.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
-9. **Re-run verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`
+9. **Re-run verification:** `./le verify lint run && ./le test-unit all && ./le functional gating`,
+   under the same split as step 6: scoped in a phase agent, the full chain from
+   the main thread.
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole

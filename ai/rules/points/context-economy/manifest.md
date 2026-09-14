@@ -7,3 +7,5 @@ directives ## Directives
   go-symbols-resolve-through-gopls
   agent-startup-floor-is-set-by-the-tools-field
   an-agent-carries-no-repository-rules-unless-its-prompt-does
+  an-editing-agent-hands-off-at-one-hundred-tool-calls
+  a-subagent-reads-once-and-reads-only-the-lines-it-needs
