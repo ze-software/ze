@@ -25,6 +25,7 @@ var ipsecScenarios = []string{
 	"esn-both-offered",
 	"esn-extended-only-refused",
 	"esp-form-change",
+	"ike-aes-ccm16",
 	"initiator-rekey-answer-narrows",
 	"invalid-ke-retry",
 	"ipsec-bgp-redistribute-frr",

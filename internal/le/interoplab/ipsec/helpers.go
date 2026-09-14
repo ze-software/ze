@@ -616,6 +616,13 @@ func (l *scenarioLab) waitPolicyPair(ctx context.Context, peer, first, second st
 }
 
 func (l *scenarioLab) zeCLI(ctx context.Context, command string) (string, error) {
+	return l.query(ctx, zePeer, zeCLICommand(command)...)
+}
+
+// zeCLICommand builds the argv that asks the ze daemon one question. It is separate
+// from the query so a test scripting a lab answers the same argv the checker sends,
+// rather than a second spelling of it that can drift (ai/rules/principles.md).
+func zeCLICommand(command string) []string {
 	var tb textbuf.Buffer
 	seed := tb.Str("printf '%s\\n%s\\n127.0.0.1\\n%s\\n' ").Str(zeCLIUser).Byte(' ').
 		Str(zeCLIPassword).Byte(' ').Str(zeCLIPort).Str(" | ZE_CONFIG_DIR=").
@@ -624,7 +631,7 @@ func (l *scenarioLab) zeCLI(ctx context.Context, command string) (string, error)
 		Str(zeCLIPassword).Str(" ze cli -c ").Str(shellQuote(command)).String()
 	shell := tb.Reset().Str("[ -d ").Str(zeCLIStore).Str(" ] || ").Str(seed).
 		Str(" >/dev/null; ").Str(run).String()
-	return l.query(ctx, zePeer, "sh", "-c", shell)
+	return []string{"sh", "-c", shell}
 }
 
 func shellQuote(value string) string {
@@ -663,6 +670,57 @@ func (l *scenarioLab) assertZeSelectors(ctx context.Context, local, remote strin
 	}
 	return fmt.Errorf("show vpn ipsec sa reports no child sa with ts-local %s and ts-remote %s; answer: %s",
 		local, remote, answer)
+}
+
+// zeIKEEncryption returns the encryption transform ze negotiated for its IKE SA with
+// one peer, read out of the structured answer of `show vpn ipsec sa`.
+func (l *scenarioLab) zeIKEEncryption(ctx context.Context, peer string) (string, error) {
+	records, answer, err := l.zeIKESAs(ctx)
+	if err != nil {
+		return "", err
+	}
+	encryption, err := ikeEncryptionOf(records, peer)
+	if err != nil {
+		return "", fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	return encryption, nil
+}
+
+// ikeEncryptionOf reads one peer's negotiated IKE encryption transform out of the
+// records `show vpn ipsec sa | json` answered. The value is what
+// crypto.EncryptionID.String renders for the Transform ID the peers agreed on, so it
+// names the wire identity rather than the config keyword that asked for it.
+//
+// It is a pure predicate so a test drives both polarities with no lab, and it refuses
+// four answers rather than returning a string for them: no record for the peer, a
+// record whose `encryption` key is absent, one whose value is not a string, and two
+// records for the peer that disagree. Each of those would otherwise answer "" or an
+// arbitrary half, and an empty transform name compares unequal to every transform, so
+// a failure to READ the daemon would read as a verdict ABOUT it
+// (ai/rules/principles.md).
+func ikeEncryptionOf(records []map[string]any, peer string) (string, error) {
+	found := ""
+	for _, record := range records {
+		if record["peer-name"] != peer {
+			continue
+		}
+		encryption, ok := record["encryption"].(string)
+		if !ok {
+			return "", fmt.Errorf("the IKE SA for %s carries no encryption transform", peer)
+		}
+		if encryption == "" {
+			return "", fmt.Errorf("the IKE SA for %s reports an empty encryption transform", peer)
+		}
+		if found != "" && found != encryption {
+			return "", fmt.Errorf("the IKE SAs for %s disagree on the encryption transform: %s and %s",
+				peer, found, encryption)
+		}
+		found = encryption
+	}
+	if found == "" {
+		return "", fmt.Errorf("show vpn ipsec sa reports no IKE SA for %s", peer)
+	}
+	return found, nil
 }
 
 // zeIKESAs returns the IKE SAs `show vpn ipsec sa` reports, and the answer they were

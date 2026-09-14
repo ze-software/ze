@@ -6,6 +6,15 @@
 # protected by the negotiated Child SA. Its --badsum flag writes a deliberately
 # wrong TCP/UDP checksum, which is what a NAT produces on a transport-mode flow
 # and what RFC 3948 Section 3.1.2 tells the decapsulator to deal with.
+#
+# AES CCM needs no plugin build here, although the file that usually carries it is
+# absent. Alpine 3.21 builds strongSwan 5.9.14 with no --enable-ccm, so
+# /usr/lib/ipsec/plugins holds no libstrongswan-ccm.so, and charon's openssl plugin
+# registers the algorithm anyway: `swanctl --list-algs` in this image answers
+# AES_CCM_16[openssl], AES_CCM_12[openssl] and AES_CCM_8[openssl] (measured
+# 2026-09-14). That is what lets ike-aes-ccm16 negotiate the transform of RFC 5282
+# Section 7.2 against this peer. Read the absent file as one provider missing, never
+# as the capability missing, and check `swanctl --list-algs` before building one.
 
 FROM alpine:3.21
 

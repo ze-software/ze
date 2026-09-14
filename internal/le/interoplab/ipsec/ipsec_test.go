@@ -137,6 +137,117 @@ func TestPSKCheckerRejectsPeerThatAcceptedNoESP(t *testing.T) {
 	}
 }
 
+// VALIDATES: The AES CCM scenario passes only after charon logs the IKE proposal it
+// selected, ze reports the same transform, and both peers move ESP in both directions.
+// PREVENTS: an IKE SA established under another transform passing as an RFC 5282 proof.
+func TestCCMCheckerRequiresBothViewsOfTheTransform(t *testing.T) {
+	fake := ccmScriptedLab(swanCCM16Proposal+"PRF_HMAC_SHA2_256/MODP_2048\n", zeCCM16Transform)
+
+	if err := checkIKEAESCCM16(context.Background(), checkerFixture(fake)); err != nil {
+		t.Fatalf("an AES CCM handshake both peers agree on was rejected: %v", err)
+	}
+}
+
+// VALIDATES: The same fixture fails when charon selected AES GCM, which is the
+// transform a build with no AES CCM support falls back to.
+// PREVENTS: the scenario reading "an IKE SA came up" as "AES CCM came up".
+func TestCCMCheckerRejectsAnotherTransformAtThePeer(t *testing.T) {
+	fake := ccmScriptedLab("selected proposal: IKE:AES_GCM_16_256/PRF_HMAC_SHA2_256/MODP_2048\n", zeCCM16Transform)
+
+	err := checkIKEAESCCM16(context.Background(), checkerFixture(fake))
+	if err == nil || !strings.Contains(err.Error(), swanCCM16Proposal) {
+		t.Fatalf("the checker accepted a peer that selected another transform: %v", err)
+	}
+}
+
+// VALIDATES: charon's line alone does not carry the verdict, so ze naming another
+// transform than the one the peer selected fails.
+// PREVENTS: a one-sided proof passing while the two implementations disagree.
+func TestCCMCheckerRejectsZeReportingAnotherTransform(t *testing.T) {
+	fake := ccmScriptedLab(swanCCM16Proposal+"PRF_HMAC_SHA2_256/MODP_2048\n", "aes-gcm")
+
+	err := checkIKEAESCCM16(context.Background(), checkerFixture(fake))
+	if err == nil || !strings.Contains(err.Error(), "aes-gcm") {
+		t.Fatalf("the checker accepted ze reporting another transform: %v", err)
+	}
+}
+
+// ccmScriptedLab scripts one successful AES CCM run, with charon's log line and ze's
+// reported transform as the two variables a test moves.
+func ccmScriptedLab(swanLog, zeEncryption string) *fakeCheckerLab {
+	fake := scriptedLab()
+	fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
+	fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: swanLog}
+	fake.answer(zePeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\n")
+	fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\nproto esp spi 0x2\n")
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
+	fake.answer(zePeer, zeCLICommand("show vpn ipsec sa | json"),
+		`[{"peer-name":"swan","encryption":"`+zeEncryption+`"}]`)
+	return fake
+}
+
+// VALIDATES: ikeEncryptionOf answers only when exactly one readable transform is there
+// for the peer, and returns an error for every answer that is not one.
+// PREVENTS: an unreadable answer producing "" , which compares unequal to every
+// transform name and so reads as a verdict about the daemon.
+func TestIKEEncryptionOfRefusesEveryUnreadableAnswer(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		records []map[string]any
+		want    string
+		failure string
+	}{
+		{
+			name:    "the peer's own record",
+			records: []map[string]any{{"peer-name": "other", "encryption": "aes-gcm"}, {"peer-name": "swan", "encryption": "aes-ccm-16"}},
+			want:    "aes-ccm-16",
+		},
+		{
+			name:    "no record for the peer",
+			records: []map[string]any{{"peer-name": "other", "encryption": "aes-ccm-16"}},
+			failure: "no IKE SA for swan",
+		},
+		{
+			name:    "no encryption key",
+			records: []map[string]any{{"peer-name": "swan", "state": "established"}},
+			failure: "carries no encryption transform",
+		},
+		{
+			name:    "an encryption value that is not a string",
+			records: []map[string]any{{"peer-name": "swan", "encryption": 16}},
+			failure: "carries no encryption transform",
+		},
+		{
+			name:    "an empty encryption value",
+			records: []map[string]any{{"peer-name": "swan", "encryption": ""}},
+			failure: "empty encryption transform",
+		},
+		{
+			name:    "two records that disagree",
+			records: []map[string]any{{"peer-name": "swan", "encryption": "aes-ccm-16"}, {"peer-name": "swan", "encryption": "aes-gcm"}},
+			failure: "disagree on the encryption transform",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			encryption, err := ikeEncryptionOf(testCase.records, swanConfigPeer)
+			if testCase.failure == "" {
+				if err != nil || encryption != testCase.want {
+					t.Fatalf("ikeEncryptionOf = %q, %v; want %q", encryption, err, testCase.want)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), testCase.failure) {
+				t.Fatalf("ikeEncryptionOf = %q, %v; want an error naming %q", encryption, err, testCase.failure)
+			}
+			if encryption != "" {
+				t.Errorf("the refused answer still yielded %q", encryption)
+			}
+		})
+	}
+}
+
 // VALIDATES: The negative TLS 1.2 handshake passes only after strongSwan proves
 // EAP ran and Ze reports every attributed refusal fact with no XFRM SA installed.
 // PREVENTS: an absence-only authentication test passing because no exchange ran.

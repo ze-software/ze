@@ -295,6 +295,27 @@ setting one value is a disagreement with nothing to arbitrate it.
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario mounts the lab drop-in -->
 <!-- source: test/interop-ipsec/strongswan-lab.conf -- the lab-wide charon settings -->
 
+### AES CCM on the strongSwan peer
+
+`ike-aes-ccm16` gives the IKE SA's Encrypted payload the transform RFC 5282
+Section 7.2 numbers 16, AES CCM with a 16-octet ICV, and takes the Child SA to
+AES GCM because Ze refuses AES CCM for ESP at config parse
+(`ipsec.EncryptionImplementedESP`). The checker reads charon's own
+`selected proposal: IKE:AES_CCM_16_256/` line, then Ze's `encryption` field, then
+ESP in both directions, so the agreement on the Transform ID and the verification
+of the encrypted ICV are separate observations.
+
+The lab image carries that transform although `/usr/lib/ipsec/plugins` holds no
+`libstrongswan-ccm.so`. Alpine 3.21 builds strongSwan 5.9.14 with no
+`--enable-ccm`, so the standalone ccm plugin is absent, and charon's openssl
+plugin registers the algorithm instead: `swanctl --list-algs` in
+`ze-ipsec-strongswan` answers `AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and
+`AES_CCM_8[openssl]` (measured 2026-09-14). The absent FILE is not an absent
+capability, and a source build of the ccm plugin would add a second provider of
+one algorithm and nothing else.
+<!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkIKEAESCCM16 -->
+
 ### The FreeRADIUS admin-login suite
 
 `internal/le/interoplab/radius/` runs ze's operator login against a real

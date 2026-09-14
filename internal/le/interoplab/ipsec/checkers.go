@@ -34,6 +34,7 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"esn-both-offered":                   checkESNBothOffered,
 	"esn-extended-only-refused":          checkESNExtendedOnlyRefused,
 	"esp-form-change":                    checkESPFormChange,
+	"ike-aes-ccm16":                      checkIKEAESCCM16,
 	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":                   checkInvalidKERetry,
 	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
@@ -99,6 +100,74 @@ func checkPSKSiteToSite(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the XFRM tunnel")
+}
+
+// zeCCM16Transform is what ze answers for the transform of RFC 5282 Section 7.2 whose
+// Transform ID is "16 for AES CCM with a 16-octet ICV". The string is produced by
+// crypto.EncryptionID.String (internal/component/ike/crypto/transform.go) and reported
+// by `show vpn ipsec sa` as the SA's encryption field.
+const zeCCM16Transform = "aes-ccm-16"
+
+// swanCCM16Proposal is charon's own record of the IKE proposal it selected, written by
+// ike_init.c through proposal_t's %P printer, which renders the transform type, the
+// algorithm name and the key length it read off the wire. The "IKE:" prefix is
+// load-bearing: charon logs the Child SA's proposal in the same words behind an "ESP:"
+// prefix, and that one is AES GCM in this scenario.
+//
+// It is charon DECODING ze's Transform Substructure, so it is a fact about the octets
+// ze sent rather than about ze's intent.
+const swanCCM16Proposal = "selected proposal: IKE:AES_CCM_16_256/"
+
+// checkIKEAESCCM16 proves that ze and strongSwan protect an IKE SA's Encrypted payload
+// with AES CCM, and that the Child SA the exchange creates then carries traffic.
+//
+// RFC 5282 Section 7.2 assigns the transform "16 for AES CCM with a 16-octet ICV", and
+// Section 3.2 says "AES CCM provides an encrypted ICV", so the transform carries its own
+// integrity and the proposal offers INTEG NONE beside it. Section 4 fixes what the two
+// implementations have to agree on for any of it to verify: "For the use of AES CCM with
+// the IKEv2 Encrypted Payload, this default nonce format MUST be used and an 11 octet
+// nonce MUST be used", the nonce being the three-octet salt from KEYMAT concatenated
+// with the eight-octet IV on the wire.
+//
+// Three observations, and they are three events rather than one:
+//
+// 1. charon's selected-proposal line comes out of IKE_SA_INIT, which is not encrypted.
+// It proves the two implementations agreed on Transform ID 16 at a 256-bit key, and it
+// proves nothing about the CCM construction.
+//
+// 2. The IKE SA reaching ESTABLISHED and the Child SA INSTALLED is charon having
+// DECRYPTED ze's IKE_AUTH request and verified its encrypted ICV, and ze having done the
+// same to charon's response. A salt of the wrong width, an IV that is not eight octets,
+// or an ICV of the wrong length breaks this one while leaving the first intact.
+//
+// 3. ze's own view of the SA names the transform it keyed. It is necessary and not
+// sufficient, which is why it is asserted after the peer's line rather than instead of
+// it: ze reporting AES CCM is ze's own claim about ze.
+//
+// The traffic check closes the path: an installed Child SA that carries no ESP in both
+// directions is a control-plane result, and this lab has measured a lossless ping that
+// no tunnel protected (helpers.go, verifyESPDirections).
+func checkIKEAESCCM16(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.waitLog(ctx, swanPeer, swanCCM16Proposal, lab.timeout); err != nil {
+		return err
+	}
+	encryption, err := lab.zeIKEEncryption(ctx, swanConfigPeer)
+	if err != nil {
+		return err
+	}
+	if encryption != zeCCM16Transform {
+		return fmt.Errorf("ze reports the IKE SA encryption as %q, want %q", encryption, zeCCM16Transform)
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the AES CCM tunnel")
 }
 
 func checkEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
