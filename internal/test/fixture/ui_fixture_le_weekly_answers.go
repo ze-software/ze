@@ -37,7 +37,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(checkout)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}

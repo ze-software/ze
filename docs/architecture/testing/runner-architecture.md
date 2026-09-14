@@ -283,8 +283,18 @@ developer machine that happens to hold a build, and then reports on a binary
 the run never made. `ZE_REPO_ROOT` names the source tree, and it is for reading
 TRACKED repository content: a golden config, a fixture input.
 
+The native `le` binary follows that rule too, and `nativeLEBinary` is the one
+helper that answers it. A suite whose fixtures drive `le` sets `LE: true` in the
+suite table, the run builds `le` into the set beside `ze`, and the fixture finds
+it by bare name on the same PATH. The `ui` and `runner` suites set it. Reading
+`$ZE_REPO_ROOT/bin/le` instead is what made 20 `ui` cases fail in every fresh
+worktree and pass in a checkout where a developer had built one
+(`plan/journal/gate-verdict-depends-on-the-machine.md`).
+
 <!-- source: internal/test/runner/runner.go -- setupBinShims, childPathEnv -->
 <!-- source: internal/test/fixture/ui_fixture_common.go -- uiZEBinary -->
+<!-- source: internal/test/fixture/fixture.go -- nativeLEBinary -->
+<!-- source: internal/le/functional/binaries.go -- Extras, buildCommands -->
 <!-- source: internal/test/runner/runner_exec_util.go -- zeRepoRootEnv -->
 
 ## Scratch roots

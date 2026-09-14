@@ -61,7 +61,7 @@ func lePlacementAnswers(ctx context.Context) error {
 		return fmt.Errorf("FAIL: fixture directory %s is inside the checkout", work)
 	}
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}

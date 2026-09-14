@@ -359,7 +359,7 @@ func runGating(tc gotoolchain.Toolchain) (any, int) {
 		gaterun.Note(reportLine(err))
 		return nil, 1
 	}
-	set, err := Prepare(tc, "functional", true)
+	set, err := Prepare(tc, "functional", ExtrasFor(plan.Running...))
 	if err != nil {
 		gaterun.Note(reportLine(err))
 		return nil, 1

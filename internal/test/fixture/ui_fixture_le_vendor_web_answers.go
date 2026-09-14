@@ -53,7 +53,7 @@ func leVendorWebAnswers(parent context.Context) error {
 		return fmt.Errorf("FAIL: create work directory: %w", err)
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}

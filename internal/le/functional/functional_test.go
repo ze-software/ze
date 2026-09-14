@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -390,12 +391,12 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the toolchain: %v", err)
 	}
-	commands := buildCommands(tc, filepath.Join("out", "bin"), true)
+	commands := buildCommands(tc, filepath.Join("out", "bin"), Extras{Chaos: true})
 	if len(commands) != 4 {
 		t.Fatalf("a chaos build needs 4 commands, got %d", len(commands))
 	}
-	if len(buildCommands(tc, filepath.Join("out", "bin"), false)) != 3 {
-		t.Error("a build with no chaos dashboard still compiled four binaries")
+	if len(buildCommands(tc, filepath.Join("out", "bin"), Extras{})) != 3 {
+		t.Error("a build with no extra binaries still compiled more than three")
 	}
 
 	dut := strings.Join(commands[0], " ")
@@ -415,10 +416,59 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	}
 }
 
+// TestTheUISetCarriesTheLEPersonality holds the fix for the defect that made
+// the ui suite's verdict depend on the machine: 20 ui fixtures read
+// $ZE_REPO_ROOT/bin/le, which .gitignore excludes and no verification job
+// writes, so they passed only where a developer had built one and failed in
+// every fresh worktree (plan/journal/gate-verdict-depends-on-the-machine.md).
+// The run now builds that binary itself.
+//
+// The tags are read off the manifest through tc.Features rather than written
+// out here: a hand-written list is a second record of which features the le
+// binary a fixture drives was compiled with (ai/rules/principles.md).
+func TestTheUISetCarriesTheLEPersonality(t *testing.T) {
+	env.ResetCache()
+	root := repoRootForTest(t)
+	tc, err := gotoolchain.New(root)
+	if err != nil {
+		t.Fatalf("load the toolchain: %v", err)
+	}
+
+	current := newSession([]string{suiteUi})
+	if !current.extras.LE {
+		t.Fatal("the ui suite did not ask for the le personality binary")
+	}
+
+	commands := buildCommands(tc, filepath.Join("out", "bin"), current.extras)
+	var build string
+	for _, argv := range commands {
+		if strings.HasSuffix(strings.Join(argv, " "), filepath.Join("out", "bin", LE)+" ./cmd/ze") {
+			build = strings.Join(argv, " ")
+		}
+	}
+	if build == "" {
+		t.Fatalf("no command builds %s: %v", LE, commands)
+	}
+
+	gates, err := featuretags.DaemonTags(root)
+	if err != nil {
+		t.Fatalf("read the feature manifest: %v", err)
+	}
+	for _, want := range append([]string{featuretags.LEBase}, gates...) {
+		if !strings.Contains(build, want) {
+			t.Errorf("the le build carries no %s tag: %s", want, build)
+		}
+	}
+
+	if plain := buildCommands(tc, filepath.Join("out", "bin"), Extras{}); len(plain) != 3 {
+		t.Errorf("a suite that drives no le binary still paid for the compile: %v", plain)
+	}
+}
+
 func TestWebSessionBuildsChaosForBareAndAliasVerbs(t *testing.T) {
 	for _, verb := range []string{"web", "web-test"} {
 		current := newSession([]string{verb})
-		if !current.chaos {
+		if !current.extras.Chaos {
 			t.Errorf("%q did not request the chaos dashboard binary", verb)
 		}
 		if current.label != suiteWeb {
@@ -566,7 +616,7 @@ func TestPreparePropagatesSessionResolutionFailure(t *testing.T) {
 		t.Fatalf("create malformed session root: %v", err)
 	}
 
-	set, err := Prepare(gotoolchain.Toolchain{Root: root}, "fixture", false)
+	set, err := Prepare(gotoolchain.Toolchain{Root: root}, "fixture", Extras{})
 	if err == nil {
 		t.Fatal("Prepare accepted a session resolver failure")
 	}

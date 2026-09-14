@@ -38,7 +38,7 @@ func runLEInventoryAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}

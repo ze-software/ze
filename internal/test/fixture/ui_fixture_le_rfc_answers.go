@@ -58,7 +58,7 @@ func leRFCAnswers(ctx context.Context) (err error) {
 	leRFCAnswersRequireNoError(err, "create fixture directory")
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	leRFCAnswersRequireNoError(err, "locate native le binary")
 
 	runLE := func(tree string, args ...string) leRFCAnswersResult {

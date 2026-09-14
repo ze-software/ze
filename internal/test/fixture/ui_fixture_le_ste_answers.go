@@ -56,7 +56,7 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("creating the export directory: %v", err)
 	}
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return leSTEFailf("%v", err)
 	}

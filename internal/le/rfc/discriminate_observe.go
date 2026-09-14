@@ -407,7 +407,7 @@ func (o *observationRunner) exec(deadline time.Duration, argv, environ []string,
 // starts no goroutine of its own, so the window belongs to nobody else.
 func (o *observationRunner) runFunctional(overlay string) (bool, string, error) {
 	var tb textbuf.Buffer
-	suite, held := functionalSuite(strings.TrimPrefix(o.carrier.Name, "functional-"))
+	suite, selector, held := functionalSuite(strings.TrimPrefix(o.carrier.Name, "functional-"))
 	if !held {
 		return false, "", parseErr(tb.Str(o.carrier.Name).
 			Str(" names no suite `./le functional` runs, so this .ci has no runner"))
@@ -421,21 +421,27 @@ func (o *observationRunner) runFunctional(overlay string) (bool, string, error) 
 		}
 		defer restore()
 	}
-	set, err := functional.Prepare(o.toolchain, label, false)
+	// The carrier's own suite decides the set: a ui or runner .ci drives the
+	// native le binary, and a set built without it fails the observation on a
+	// missing binary rather than on the break under test.
+	set, err := functional.Prepare(o.toolchain, label, functional.ExtrasFor(suite))
 	if err != nil {
 		return false, "", parseErr(tb.Str("cannot build the isolated binaries one .ci runs ").
 			Str("against: ").Err(err))
 	}
 	defer functional.Release(set)
 
-	argv := append([]string{filepath.Join(set.Dir, functional.ZeTest)}, suite...)
+	argv := append([]string{filepath.Join(set.Dir, functional.ZeTest)}, selector...)
 	argv = append(argv, o.names)
 	return o.exec(carrierRunDeadline, argv, set.Environment(o.toolchain), o.tree)
 }
 
-// functionalSuite answers one suite's ze-test arguments with the all-tests
-// selector removed, so a single named .ci takes its place.
-func functionalSuite(name string) ([]string, bool) {
+// functionalSuite answers the named suite and the arguments its runner takes,
+// with the all-tests selector removed so a single named .ci takes its place.
+//
+// The suite itself comes back beside them because it also says which binaries
+// the isolated set needs (functional.ExtrasFor).
+func functionalSuite(name string) (functional.Suite, []string, bool) {
 	for _, suite := range functional.Suites {
 		if suite.Name != name {
 			continue
@@ -447,9 +453,9 @@ func functionalSuite(name string) ([]string, bool) {
 			}
 			argv = append(argv, arg)
 		}
-		return argv, true
+		return suite, argv, true
 	}
-	return nil, false
+	return functional.Suite{}, nil, false
 }
 
 // setGoFlagsOverlay puts the overlay where every Go compile this process starts

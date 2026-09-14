@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/featuretags"
 )
@@ -28,18 +26,6 @@ func uiDriver(driver any) Driver {
 
 func registerFixture(name string, driver any) {
 	Register(name, uiDriver(driver))
-}
-
-func uiLEBinary(root string) (string, error) {
-	path := filepath.Join(root, "bin", "le")
-	info, err := os.Stat(path)
-	if err != nil {
-		return "", fmt.Errorf("locate native le binary: %w", err)
-	}
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
-		return "", fmt.Errorf("native le binary is not executable: %s", path)
-	}
-	return path, nil
 }
 
 // uiLEFeatureTags answers the le personality's build tags for the checkout at

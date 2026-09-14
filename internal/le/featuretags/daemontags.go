@@ -38,6 +38,15 @@ const gatePrefix = "ze_"
 // tags, because feature gates select daemon features and do not affect setup.
 const DaemonBase = "ze_core ze_distro"
 
+// LEBase is the tag a build of the le personality carries before its gates.
+//
+// It is declared here, beside the manifest reader, because three Go callers
+// build that personality and a per-caller literal is a second record of one
+// fact: `internal/le/tracked` builds it from a git archive, the functional
+// binary set builds the one the ui fixtures drive, and a ui fixture builds its
+// own variant with an extra tag.
+const LEBase = "ze_le"
+
 // ErrNoGateTags says the manifest declares no gate tag.
 //
 // It is an ERROR rather than an empty list, and that is the whole reason to

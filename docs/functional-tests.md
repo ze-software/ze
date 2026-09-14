@@ -856,12 +856,19 @@ session-owned temporary `bin/` directory. It sets the binary paths before the
 suite starts, freezes that set for the run, and removes it afterward. Editing
 or rebuilding `bin/ze` cannot change a suite already in flight.
 
+Two suites name a fourth binary in the suite table, and the run then compiles
+it into the same directory: the `web` suite starts the chaos dashboard
+(`ze-chaos`), and the `ui` and `runner` suites drive the native `le` binary
+(`le`, built with `ze_le` and every gate `feature-gates.txt` declares). A suite
+that names no extra binary pays for no extra compile.
+
 The binaries must live below a directory named `bin` or `sbin`, because Ze
 derives its config and database directory from its executable path. The runner
 prepends the isolated directory to `PATH`, so `.ci` fixtures continue to invoke
 the canonical bare names.
 
-<!-- source: internal/le/functional/binaries.go -- Prepare, Release -->
+<!-- source: internal/le/functional/binaries.go -- Prepare, Release, buildCommands -->
+<!-- source: internal/le/functional/suites.go -- Suite.Chaos, Suite.LE -->
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 

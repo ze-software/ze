@@ -19,19 +19,6 @@ func init() {
 	Register("runner/verify-scope-suite-map", verifyScopeSuiteMapDriver)
 }
 
-func nativeLEBinary() (string, error) {
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
-		return "", errors.New("ZE_REPO_ROOT is not set")
-	}
-	path := filepath.Join(root, "bin", "le")
-	info, err := os.Stat(path)
-	if err != nil || info.Mode()&0o111 == 0 {
-		return "", fmt.Errorf("native le binary is not executable: %s", path)
-	}
-	return path, nil
-}
-
 func verifyScopeFreshnessDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("freshness fixture takes no arguments")

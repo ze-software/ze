@@ -108,7 +108,7 @@ func runLECodegenAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return uiLeCodegenAnswersFailf("%v", err)
 	}

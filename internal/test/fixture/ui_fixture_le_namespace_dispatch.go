@@ -39,7 +39,7 @@ func leNamespaceDispatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("le-namespace-dispatch: make ZE_REPO_ROOT absolute: %w", err)
 	}
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("le-namespace-dispatch: %w", err)
 	}

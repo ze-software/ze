@@ -145,7 +145,7 @@ func runLEEvidenceAnswers(ctx context.Context) error {
 	uiLeEvidenceAnswersRequire(err == nil, "creating fixture work directory failed: %v", err)
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	uiLeEvidenceAnswersRequire(err == nil, "%v", err)
 
 	checkout := filepath.Join(work, "fixture")

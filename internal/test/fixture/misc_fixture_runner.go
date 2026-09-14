@@ -250,13 +250,9 @@ func verifyScopeWiringDriver(ctx context.Context, args []string) error {
 	if err := os.MkdirAll(filepath.Join(repo, "tmp"), 0o750); err != nil {
 		return err
 	}
-	repoRoot := os.Getenv("ZE_REPO_ROOT")
-	if repoRoot == "" {
-		return errors.New("ZE_REPO_ROOT is not set")
-	}
-	leBinary := filepath.Join(repoRoot, "bin", "le")
-	if info, statErr := os.Stat(leBinary); statErr != nil || info.Mode()&0o111 == 0 {
-		return fmt.Errorf("native le binary is not executable: %s", leBinary)
+	leBinary, err := nativeLEBinary()
+	if err != nil {
+		return err
 	}
 	env := envRootedAt(repo)
 	if output, code, err := rawCommand(ctx, repo, env, leBinary, "verify status", "write", "exit-code", "1", "mode", "full"); err != nil || code != 0 {

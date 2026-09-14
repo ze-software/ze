@@ -9,7 +9,7 @@
 // gating suites.
 //
 // One isolated binary set serves an invocation and is built lazily. The label
-// and chaos decision are derived before the first suite runs.
+// and extra-binary decision are derived before the first suite runs.
 
 package functional
 
@@ -58,7 +58,7 @@ type session struct {
 	built   bool
 	warmed  bool
 	label   string
-	chaos   bool
+	extras  Extras
 	buildFn func() (BinarySet, error)
 	warmFn  func() error
 }
@@ -291,7 +291,8 @@ func Answer(args []string) (any, int) {
 }
 
 // newSession reads the whole command line before anything runs.
-// The binary set therefore carries the label and chaos dashboard for the named suites.
+// The binary set therefore carries the label and the extra binaries the named
+// suites drive.
 func newSession(args []string) *session {
 	named := make([]Suite, 0, len(args))
 	for _, verb := range args {
@@ -304,11 +305,7 @@ func newSession(args []string) *session {
 	if len(named) == 1 {
 		current.label = named[0].Name
 	}
-	for _, suite := range named {
-		if suite.Chaos {
-			current.chaos = true
-		}
-	}
+	current.extras = ExtrasFor(named...)
 	// Both closures ask for the toolchain rather than reading current.tc.
 	// The field is filled lazily, behind s.probed, so reading it directly
 	// hands Prepare and warmCITestPackages a zero Toolchain with an empty
@@ -321,7 +318,7 @@ func newSession(args []string) *session {
 		if err != nil {
 			return BinarySet{}, err
 		}
-		return Prepare(tc, current.label, current.chaos)
+		return Prepare(tc, current.label, current.extras)
 	}
 	current.warmFn = func() error {
 		tc, err := current.toolchain()

@@ -56,7 +56,7 @@ func runLEConsistencyAnswers(parent context.Context) error {
 	}
 	defer os.RemoveAll(work) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}

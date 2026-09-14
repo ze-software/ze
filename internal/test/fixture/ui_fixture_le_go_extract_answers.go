@@ -71,7 +71,7 @@ func leGoExtractAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
-	le, err := uiLEBinary(checkout)
+	le, err := nativeLEBinary()
 	if err != nil {
 		return fmt.Errorf("FAIL: %w", err)
 	}

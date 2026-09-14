@@ -42,6 +42,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/featuretags"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
@@ -169,6 +170,41 @@ func coverRoot(root string) (string, error) {
 // covering reports whether this run records coverage.
 func covering() bool { return env.Get("ze.cover") != "" }
 
+// Extras names the builds a set carries BESIDE the three every run needs.
+//
+// Each field is one suite's declaration of what its tests execute, read off
+// the suite table by ExtrasFor. A suite that drives neither binary pays for
+// neither compile.
+type Extras struct {
+	// Chaos says a suite starts the chaos dashboard, so the set needs
+	// ze-chaos beside ze.
+	Chaos bool
+	// LE says a suite drives the native le binary, so the set needs le
+	// beside ze. Its fixtures execute it by bare name off the child PATH
+	// (nativeLEBinary, internal/test/fixture/fixture.go).
+	LE bool
+}
+
+// ExtrasFor answers what these suites need beside ze, ze-test and ze-stripped.
+//
+// One producer for every caller: the command line names its suites
+// (newSession), a gating run names the suites its run list holds (runGating),
+// and a discrimination observation names the one suite its carrier belongs to
+// (internal/le/rfc). A hardcoded answer at any of them is a second decision
+// about what a suite drives, and the suite table is where that fact lives.
+func ExtrasFor(suites ...Suite) Extras {
+	var extras Extras
+	for _, suite := range suites {
+		if suite.Chaos {
+			extras.Chaos = true
+		}
+		if suite.LE {
+			extras.LE = true
+		}
+	}
+	return extras
+}
+
 // buildCommands answers the builds one isolated set needs, in order.
 //
 // The DUT build mirrors runner.TestBuildTags (internal/test/runner/runner.go).
@@ -177,7 +213,11 @@ func covering() bool { return env.Get("ze.cover") != "" }
 // (test/parse/cli-version-show.ci). The stripped and chaos builds use the native
 // tag sets declared here. The chaos dashboard sits beside the ze binary where
 // cmd_web.go expects it.
-func buildCommands(tc gotoolchain.Toolchain, binaries string, chaos bool) [][]string {
+//
+// The le build carries the personality tag and tc.Features, which is every
+// gate featuretags.DaemonTags read out of the manifest, so the binary a
+// fixture drives holds the same feature set as the one ./le builds.
+func buildCommands(tc gotoolchain.Toolchain, binaries string, extras Extras) [][]string {
 	cover := []string{}
 	if covering() {
 		cover = []string{"-cover"}
@@ -196,8 +236,12 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string, chaos bool) [][]st
 		// NOT instrumented: ze-test is the harness, not the subject.
 		build(nil, tagString(tc, append([]string{"ze_test"}, tc.Features...)...), ZeTest),
 	}
-	if chaos {
+	if extras.Chaos {
 		commands = append(commands, build(nil, tagString(tc, "ze_chaos", "ze_bgp"), "ze-chaos"))
+	}
+	if extras.LE {
+		commands = append(commands, build(nil,
+			tagString(tc, append([]string{featuretags.LEBase}, tc.Features...)...), LE))
 	}
 	return commands
 }
@@ -251,7 +295,7 @@ var ErrBuildFailed = errors.New("functional: the isolated test binaries could no
 // Thus, concurrent invocations and suites on one command line cannot delete each other's binaries.
 // The directory is inside the session directory.
 // A set therefore survives a missed cleanup but leaves with its session.
-func Prepare(tc gotoolchain.Toolchain, label string, chaos bool) (BinarySet, error) {
+func Prepare(tc gotoolchain.Toolchain, label string, extras Extras) (BinarySet, error) {
 	if env.Get("ze.test.canonical") != "" {
 		dir, err := canonicalBinDir(tc.Root)
 		if err != nil {
@@ -270,11 +314,14 @@ func Prepare(tc gotoolchain.Toolchain, label string, chaos bool) (BinarySet, err
 	}
 
 	var tb textbuf.Buffer
-	gaterun.Note(tb.Str("Building isolated test binaries in ").Str(binaries).
-		Str("/ (ze, ze-test, ze-stripped)...").String())
+	// The names are not written out here. The list said ze, ze-test and
+	// ze-stripped while a chaos run compiled a fourth binary, and each command
+	// prints itself as it starts (gaterun.Stream).
+	gaterun.Note(tb.Str("Building the isolated test binaries in ").Str(binaries).
+		Str("/...").String())
 
 	environ := tc.Environment(gotoolchain.EnvOptions{})
-	for _, argv := range buildCommands(tc, binaries, chaos) {
+	for _, argv := range buildCommands(tc, binaries, extras) {
 		if gaterun.Stream(argv, tc.Root, environ) != 0 {
 			if remove {
 				removeTree(root)

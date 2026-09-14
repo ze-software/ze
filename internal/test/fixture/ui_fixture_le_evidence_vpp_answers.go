@@ -31,13 +31,11 @@ type leOptions struct {
 }
 
 func leEvidenceVPPAnswers(ctx context.Context) error {
-	root := os.Getenv("ZE_REPO_ROOT")
-	if root == "" {
+	// The le child reads the checkout out of its own environment, so this
+	// fixture only holds it to the variable being set: an unset one sends the
+	// evidence run at whatever tree the temporary directory sits under.
+	if os.Getenv("ZE_REPO_ROOT") == "" {
 		return errors.New("ZE_REPO_ROOT is not set")
-	}
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return fmt.Errorf("resolve ZE_REPO_ROOT: %w", err)
 	}
 	work, _, err := temporaryLEFixtureWorkspace("le-evidence-vpp-answers-")
 	if err != nil {
@@ -50,7 +48,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		return fmt.Errorf("find go tool: %w", err)
 	}
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return err
 	}

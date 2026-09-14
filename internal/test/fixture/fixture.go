@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"slices"
 	"strings"
@@ -23,6 +24,33 @@ import (
 )
 
 const observerFailure = "ZE-OBSERVER-FAIL"
+
+// nativeLEBinary answers the native le binary THIS run built, by the same route
+// as uiZEBinary: a bare name on the child PATH, which the functional runner
+// points at the binary set the run compiled. A suite whose fixtures drive le
+// says so in the suite table (Suite.LE, internal/le/functional/suites.go), and
+// the one build then serves every fixture of that suite.
+//
+// $ZE_REPO_ROOT/bin/le, which the ui and runner fixtures used to stat, is not
+// that binary. .gitignore excludes bin/ and the ./le launcher writes one only
+// for the tree a developer types it in, so a fresh worktree holds none:
+// `./le verify worktree` failed 20 ui cases on this refusal every time it ran,
+// while the same suite passed in a checkout where a developer happened to hold
+// a build (plan/journal/gate-verdict-depends-on-the-machine.md).
+//
+// One producer, because there were two: this and a stat of the same path in
+// the runner fixtures, which is how the second one kept the defect after the
+// first was fixed.
+//
+// The refusal stays. A binary the run could not produce is reported, never
+// skipped over and never replaced by a path that might hold anything.
+func nativeLEBinary() (string, error) {
+	path, err := exec.LookPath(binaryLE)
+	if err != nil {
+		return "", fmt.Errorf("locate native le binary, on PATH: %w", err)
+	}
+	return path, nil
+}
 
 // Driver runs one named fixture helper.
 type Driver func(context.Context, []string) error

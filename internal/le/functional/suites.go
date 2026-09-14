@@ -25,6 +25,11 @@ const Area = "functional"
 // command opens with it, and commandLine swaps in the binary this run built.
 const ZeTest = "ze-test"
 
+// LE is the name the le personality carries in the isolated set. A fixture
+// executes it by that bare name off the child PATH, which the runner points at
+// the set this run built (nativeLEBinary, internal/test/fixture/fixture.go).
+const LE = "le"
+
 // Suite defines what one functional suite runs and why it is separate.
 //
 // Args is the ze-test command line without the binary.
@@ -41,6 +46,11 @@ type Suite struct {
 	// Chaos says this suite starts the chaos dashboard, so the isolated set it
 	// runs against needs a second compile of cmd/ze beside the ze binary.
 	Chaos bool
+	// LE says this suite drives the native le binary, so the isolated set it
+	// runs against needs a compile of the le personality beside the ze binary.
+	// A checkout holds no bin/le of its own: .gitignore excludes bin/, and the
+	// ./le launcher writes one only for the tree a developer types it in.
+	LE bool
 }
 
 // Rerun is the command a failure report tells the reader to type.
@@ -174,7 +184,7 @@ var Suites = []Suite{
 		Why: "config reload; serial, because it shares the kernel routing table with managed",
 	},
 	{
-		Name: suiteUi, Args: []string{"ui", allTests, "-p", "8"},
+		Name: suiteUi, Args: []string{"ui", allTests, "-p", "8"}, LE: true,
 		Why: "CLI and completion, bounded because native le fixtures compile Go tools during their deadlines",
 	},
 	{Name: suiteEditor, Args: []string{"editor", allTests}, Why: "the TUI editor (.et files)"},
@@ -209,7 +219,7 @@ var Suites = []Suite{
 	{Name: suiteIsisWire, Args: []string{"isis-wire", allTests}, Why: "IS-IS wire-level decode"},
 	{Name: suiteOspfWire, Args: []string{"ospf-wire", allTests}, Why: "OSPFv2 wire-level decode"},
 	{
-		Name: suiteRunner, Args: []string{"runner", allTests},
+		Name: suiteRunner, Args: []string{"runner", allTests}, LE: true,
 		Why: "the test-runner primitives (test/runner/*.ci). Host-safe: it spawns only" +
 			" sh and tail helpers, no ze daemon and no privileged tooling, which is why" +
 			" it stays in the gating run",

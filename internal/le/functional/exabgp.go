@@ -295,7 +295,7 @@ func exaBGPCommands(
 	zeFound := false
 	zeTestFound := false
 
-	for _, arguments := range buildCommands(toolchain, set.Dir, false) {
+	for _, arguments := range buildCommands(toolchain, set.Dir, Extras{}) {
 		artifact, ok := exaBGPBuildArtifact(arguments)
 		if !ok {
 			return nil, errors.New("functional artifact owner declared a build without an output")

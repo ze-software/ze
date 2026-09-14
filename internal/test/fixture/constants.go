@@ -8,9 +8,12 @@
 
 package fixture
 
+import "github.com/ze-software/ze/internal/le/featuretags"
+
 // Environment variables and build tags.
 const (
-	buildTagLE          = "ze_le"
+	binaryLE            = "le"
+	buildTagLE          = featuretags.LEBase
 	envCGOEnabled       = "CGO_ENABLED"
 	envCLIFormat        = "ze.cli.format"
 	envConfigDir        = "ZE_CONFIG_DIR"

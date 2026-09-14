@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -25,13 +24,11 @@ type uiLeDevGatesAnswersCommandAnswer struct {
 }
 
 func runLEDevAnswers(ctx context.Context) error {
-	root, ok := os.LookupEnv("ZE_REPO_ROOT")
-	if !ok || root == "" {
+	// The le child reads the checkout out of its own environment, so this
+	// fixture only holds it to the variable being set: an unset one sends the
+	// gates at whatever tree the fixture's temporary directory sits under.
+	if root, ok := os.LookupEnv("ZE_REPO_ROOT"); !ok || root == "" {
 		return uiLeDevGatesAnswersFailf("ZE_REPO_ROOT is not set")
-	}
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return uiLeDevGatesAnswersFailf("resolving ZE_REPO_ROOT: %v", err)
 	}
 	here, _, err := temporaryLEFixtureWorkspace("le-dev-answers-")
 	if err != nil {
@@ -39,7 +36,7 @@ func runLEDevAnswers(ctx context.Context) error {
 	}
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
 
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return uiLeDevGatesAnswersFailf("%v", err)
 	}

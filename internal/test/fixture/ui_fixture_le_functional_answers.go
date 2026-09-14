@@ -34,7 +34,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return uiLeFunctionalAnswersFailf("creating the fixture directory: %v", err)
 	}
 	defer os.RemoveAll(here) //nolint:errcheck // fixture cleanup
-	binary, err := uiLEBinary(root)
+	binary, err := nativeLEBinary()
 	if err != nil {
 		return uiLeFunctionalAnswersFailf("%v", err)
 	}
