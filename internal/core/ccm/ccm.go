@@ -24,7 +24,8 @@ import (
 )
 
 // blockOctets is the block size CCM is defined for. RFC 3610 Section 1: "CCM is only
-// defined for use with 128-bit block ciphers, such as AES."
+// defined for use with 128-bit block ciphers, such as AES." So this is a constant
+// rather than a parameter: a cipher with another block size is out of scope.
 const blockOctets = 16
 
 var (
@@ -39,7 +40,8 @@ var (
 	ErrNonceOctets = errors.New("ccm: the nonce must be 7 to 13 octets")
 	// ErrOpen is the only thing Open answers for a message that does not authenticate.
 	// RFC 3610 Section 2.5: "If the T value is not correct, the receiver MUST NOT
-	// reveal any information except for the fact that T is incorrect."
+	// reveal any information except for the fact that T is incorrect." One error for
+	// every failure is what keeps that promise.
 	ErrOpen = errors.New("ccm: message authentication failed")
 )
 
@@ -83,7 +85,8 @@ func (m *mode) lengthOctets() int { return blockOctets - 1 - m.nonceOctets }
 
 // messageFits reports whether a message of octets can be encoded in the length field.
 // RFC 3610 Section 2.1: "The message m, consisting of a string of l(m) octets where 0
-// <= l(m) < 2^(8L)."
+// <= l(m) < 2^(8L)." A longer message has no encoding, so it is refused here rather
+// than truncated into the length field.
 func (m *mode) messageFits(octets int) bool {
 	if m.lengthOctets() >= 8 {
 		return true
@@ -173,7 +176,8 @@ func (m *mode) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, erro
 //
 // The flags octet of an A block is L' alone. RFC 3610 Section 2.3: "Bits 3, 4, and 5
 // are also set to zero, ensuring that all the A blocks are distinct from B_0, which has
-// the non-zero encoding of M in this position."
+// the non-zero encoding of M in this position." That distinctness is what stops a
+// counter block colliding with the authentication block.
 func (m *mode) counterBlock(out *[blockOctets]byte, nonce []byte, counter uint64) {
 	clear(out[:])
 	out[0] = byte(m.lengthOctets() - 1)

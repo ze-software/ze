@@ -653,7 +653,8 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 // is inside the ciphertext rather than in a field of its own, because Section 3.2 says
 // of both AES GCM and AES CCM that "the Ciphertext field consists of the output of the
 // authenticated encryption algorithm. (Note that this field incorporates integrity
-// check data.)"
+// check data.)" So this builder writes the IV and hands the rest to the AEAD, which
+// returns the ciphertext with the ICV already inside it.
 func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	const ivLen = 8
 

@@ -24,7 +24,8 @@ type EncryptionID uint16
 // RFC 5282 Section 7.2 reuses the ESP identifiers for the IKEv2 Encrypted payload and
 // gives each AES CCM ICV size one of its own: "14 for AES CCM with an 8-octet ICV; 15
 // for AES CCM with a 12-octet ICV; 16 for AES CCM with a 16-octet ICV; ... and 20 for
-// AES GCM with a 16-octet ICV."
+// AES GCM with a 16-octet ICV." So the ICV length is carried by the identity of the
+// transform rather than negotiated beside it.
 const (
 	ENCR_AES_CCM_8  EncryptionID = 14
 	ENCR_AES_CCM_12 EncryptionID = 15

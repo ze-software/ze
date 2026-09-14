@@ -11,6 +11,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
+	"errors"
 	"testing"
 )
 
@@ -230,7 +231,7 @@ func TestNewRefusesAParameterRFC3610DoesNotAllow(t *testing.T) {
 		{"a fourteen octet nonce", 16, 14, ErrNonceOctets},
 	} {
 		aead, err := New(block, tc.tagOctets, tc.nonceOctets)
-		if err != tc.want {
+		if !errors.Is(err, tc.want) {
 			t.Errorf("New with %s = %v, want %v", tc.name, err, tc.want)
 		}
 		if aead != nil {
@@ -251,7 +252,7 @@ func TestOpenRefusesDataShorterThanItsTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if _, err := aead.Open(nil, nonce, bytes.Repeat([]byte{0x00}, 15), nil); err != ErrOpen {
+	if _, err := aead.Open(nil, nonce, bytes.Repeat([]byte{0x00}, 15), nil); !errors.Is(err, ErrOpen) {
 		t.Errorf("Open over fifteen octets under a sixteen octet tag = %v, want ErrOpen", err)
 	}
 }
