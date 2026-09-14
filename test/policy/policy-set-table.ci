@@ -4,6 +4,13 @@
 #            routing table 100.
 # PREVENTS: fwmark or ip rule not created for table action.
 #
+# THE DISCRIMINATING ASSERTION is ROUTE_GET_MARKED. A rule read back out of
+# `ip rule show` proves the rule exists, and a rule the kernel never consults
+# reads back exactly the same, so the fixture asks the KERNEL where a packet
+# carrying the mark would go. The probe prefix is staged in table 100 and
+# nowhere else, and the fixture fails the run when the same lookup without the
+# mark resolves too, which is what makes the marked answer mean anything.
+#
 # Requires CAP_NET_ADMIN.
 
 option=needs-linux:caps=net-admin
@@ -39,3 +46,5 @@ expect=stdout:contains=table inet ze_pr
 expect=stdout:contains=meta mark set
 expect=stdout:contains=IP_RULE:
 expect=stdout:contains=lookup 100
+expect=stdout:pattern=ROUTE_GET_MARKED: .*table 100
+expect=stdout:contains=ROUTE_GET_CONTROL: unmarked lookup

@@ -4,6 +4,14 @@
 #            via the next-hop, and creates fwmark + ip rule.
 # PREVENTS: next-hop parsed but kernel table/route/rule not created.
 #
+# THE DISCRIMINATING ASSERTION is ROUTE_GET_MARKED. Listing the rule and the
+# route back proves both objects exist, and a route sitting in a table no lookup
+# reaches reads back exactly like a route that carries traffic. So the fixture
+# asks the KERNEL to route a packet carrying the mark: the answer has to be the
+# auto route, which puts applyIPRules and applyAutoRoutes both on one result.
+# The control is the same lookup without the mark, and the fixture fails the run
+# when it resolves.
+#
 # Requires CAP_NET_ADMIN.
 
 option=needs-linux:caps=net-admin
@@ -45,3 +53,6 @@ expect=stderr:contains=policy routes applied
 expect=stdout:contains=table inet ze_pr
 expect=stdout:contains=meta mark set
 expect=stdout:contains=IP_RULE_AUTO:
+expect=stdout:contains=AUTO_ROUTE:
+expect=stdout:pattern=ROUTE_GET_MARKED: .*via 10.0.0.1
+expect=stdout:contains=ROUTE_GET_CONTROL: unmarked lookup
