@@ -47,6 +47,7 @@ type Payload struct {
 	ToolInput      map[string]any `json:"tool_input"`
 	TranscriptPath string         `json:"transcript_path"`
 	AgentID        string         `json:"agent_id"`
+	AgentType      string         `json:"agent_type"`
 	StopHookActive bool           `json:"stop_hook_active"`
 	Prompt         string         `json:"prompt"`
 	LastMessage    string         `json:"last_assistant_message"`
@@ -86,6 +87,7 @@ var nativeHookActions = map[string]hookAction{
 			bashWorktreeCopy, bashDestructiveGit, bashBranchMove, bashRootBuild, bashLossyPipe,
 			bashRawHeavy, bashPollLoop, bashSystemTmp, bashScratch,
 			bashTestDeletion, bashGovernedWrite, preMaterializeDerived,
+			bashCallBudget,
 		},
 	},
 	"pretool-writeedit": {
@@ -94,6 +96,7 @@ var nativeHookActions = map[string]hookAction{
 			writeLineCitation, writeGenerated, writeRenderedRule, writePointOverwrite,
 			writePointLanguage, writeDesignEvidence, writeSpecStatus, writeGoPatterns,
 			writeFilePatterns, writeWeakening, writeCISleep, writeYangDescription,
+			writeCallBudget,
 		},
 	},
 	"posttool-writeedit": {

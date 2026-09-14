@@ -107,6 +107,20 @@ check's row cannot survive it.
 `strconv.FormatUint` in production Go. The broader allocation audit stays with
 its native verification action.
 
+## PreToolUse: Bash and Write/Edit, the editing agent's budget (`internal/le/hookruntime/budget.go`)
+
+<!-- source: internal/le/hookruntime/budget.go -- bashCallBudget, writeCallBudget, agentCallBudgetCheck -->
+
+| Check | Enforces | What it does |
+|---|---|---|
+| `bashCallBudget` | `context-economy.md` | Counts a `ze-work` agent's Bash calls in `tmp/session/<parent>/agents/<agent_id>.calls` and refuses the call past 100, except one that names the per-spec state file or asks for its path. The refusal tells the agent to append its handoff and report that the package needs a continuation. |
+| `writeCallBudget` | `context-economy.md` | The same counter over Write, Edit, MultiEdit and NotebookEdit. |
+
+The budget binds the editing agent only: `agent_type` in the hook payload names
+it, a read-only agent cut mid-review would lose coverage, and the main thread
+carries no `agent_id`. Read and ToolSearch pass unhooked, so the count is of
+the calls the hook sees, under a tenth short of the agent's total.
+
 ## PreToolUse: Task/Agent (`internal/le/hookruntime/agent.go`)
 
 <!-- source: internal/le/hookruntime/agent.go -- agentReviewModel, agentSkill, agentStyleGuide -->
