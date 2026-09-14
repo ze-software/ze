@@ -58,17 +58,23 @@ six more test groups of the same shape, ranked below.
 The owner ruled: fix it as **multicast now, unicast per adjacency**, and fix all
 six audit rows. Both were in flight when the budget ran out.
 
-## What is uncommitted, and the one thing that is broken
+## What is uncommitted
 
-An agent changed the signature of `buildIPsecSA` to take a destination and a
-direction, and was stopped before updating its callers. `internal/plugins/ospf`
-therefore does NOT compile: `ipsec_install_test.go` and `ipsec_rfc4302_test.go`
-call it with the old two-argument form. That is half-finished work, not a defect
-to diagnose.
+The checkout held 355 modified files when this stopped and nearly all of them
+belong to other sessions. Modification time does not separate them, because those
+sessions were editing at the same moment. **Exactly four files are this session's
+unfinished work.** Anything else uncommitted belongs to somebody else and must not
+be adopted, committed or repaired.
 
-Two other agents were stopped mid-edit in `internal/plugins/fib/kernel/`,
-`internal/plugins/policyroute/`, `internal/plugins/firewall/` and
-`internal/core/network/ttl_integration_linux_test.go`.
+| File | State |
+|---|---|
+| `internal/plugins/ospf/ipsec_install.go` | `buildIPsecSA` now takes `(ifindex int, dst netip.Addr, dir dataplane.SADir, c ipsecInterfaceConfig)`. The callers were never updated, so **the package does not compile**: `go vet ./internal/plugins/ospf/` fails at `ipsec_install_test.go` with "not enough arguments in call to buildIPsecSA", and `ipsec_rfc4302_test.go` has the same. Finish the per-destination SA work or restore the old signature; do not diagnose it as a defect |
+| `internal/core/network/ttl_integration_linux_test.go` | +126 lines, the IPv6 minimum-hop-count proof from audit row 6. Unreviewed and unrun |
+| `test/policy/policy-next-hop.ci` | +11 lines, audit row 3. Unreviewed and unrun |
+| `test/policy/policy-set-table.ci` | +9 lines, audit row 3. Unreviewed and unrun |
+
+The agent briefed on audit rows 1 and 2, the FIB and MPLS, was stopped while still
+reading and changed nothing.
 
 `internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go` is committed and RED
 for the product reason above. It carries the `RFC4302-3.3.4-1` tag, and the owner
@@ -120,6 +126,38 @@ match (`plan/journal/counter-counts-the-wrong-packets.md`).
 - **`fd00::2` is missing from lo0**, which reddens two reactor tests correctly.
   The scratch directory of this session holds `loopback-setup.sh`, which adds it;
   it needs a password and does not survive a reboot.
+
+## Decisions waiting on the owner
+
+Two, and both are ready now. Do not write either annotation without his answer:
+writing any of the five is his call.
+
+- **`RFC4302-5-1`** is a conformance rollup: "Implementations that claim conformance
+  or compliance with this specification MUST fully implement the AH syntax and
+  processing described here for unicast traffic". No single test can prove it, and
+  it is false today by the ledger's own rows: `RFC4302-2.5-5` and `RFC4302-4-1` are
+  `{gap}` and `rfc/short/rfc4301.md` publishes `Support status: Partial`. It is met
+  by the other 33 gated rows, of which 8 are proven in both polarities, 23 are
+  annotated, 1 is newly tagged and failing, and 1 is 5-2.
+- **`RFC4302-5-2`** is conditional on claiming multicast support, and ze does claim
+  it: one AH SA covers ff02::5 and ff02::6. Its "additional requirements" are
+  already separate rows, `RFC4302-2.4-2`, `-3` and `-4`, all `{lower-layer}`. So it
+  is met by those rows and a test on it would claim more than its body checks.
+
+## Work this session opened and did not close
+
+- **`plan/immediate/spec-gtsm-related-icmp-ttl.md`** is written and its code is
+  committed, but the spec names three items as outstanding rather than as
+  limitations: the `.ci` functional test, the FRR interop scenario (the behaviour is
+  wire-visible, so one is owed), and a doctor check reporting a GTSM peer whose
+  kernel state is missing. It also records that the drop policy for a Dangerous
+  related message is not operator-configurable, which RFC 5082 Section 3 expects.
+- **The session's spec claim is on `spec-gtsm-related-icmp-ttl.md`**, not on the
+  RFC 7705 spec it started with. An agent re-claimed it after finding the original
+  claim pointed at a path that does not exist, which made the write hooks refuse
+  source edits. Check `./le spec session current` before assuming.
+- **Audit rows 1 to 4 and 6** are unstarted or barely started, as the table above
+  says. Row 5 is the OSPF fix, half-done.
 
 ## Cautions for whoever picks this up
 
