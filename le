@@ -284,6 +284,21 @@ if [ -z "$name" ] && le_sampled; then
 	status=0
 	"$binary" "$@" || status=$?
 	warn_when_stale "$binary"
+
+	# This branch gave up `exec`, so the binary ran as a CHILD and a signal that
+	# killed it arrives here as 128+signal. Exiting with that NUMBER would tell
+	# the caller the binary chose it: a `timeout` that sends SIGTERM, a CI runner
+	# that kills a hung gate, and a shell reporting `Terminated` all read a
+	# terminating signal differently from an exit code, and every other call to
+	# this launcher execs and so reports the signal. One call in sixteen must not
+	# answer differently from the other fifteen.
+	#
+	# Re-raise it on this shell instead. The `exit` below stays as the fallback
+	# for a signal the shell will not take, so this can only ever restore the
+	# exec'd behavior, never lose the status.
+	if [ "$status" -gt 128 ] && [ "$status" -lt 160 ]; then
+		kill -"$((status - 128))" $$ 2>/dev/null
+	fi
 	exit $status
 fi
 

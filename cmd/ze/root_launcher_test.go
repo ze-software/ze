@@ -140,6 +140,34 @@ func TestRootLaunchersExecExistingBinaryWithoutRebuild(t *testing.T) {
 			if !errors.As(err, &exitErr) || exitErr.ExitCode() != -1 {
 				t.Fatalf("launcher hid existing binary's terminating signal: %v", err)
 			}
+
+			// The same assertion over the one path that does NOT exec.
+			//
+			// le_sampled sends one call in sixteen through a branch that runs the
+			// binary as a CHILD, so it can print the staleness warning after the
+			// answer. That branch is chosen by `$$ % 16`, so the run above reaches
+			// it on one pid in sixteen and the case this test is named for was
+			// covered by luck: it went red in a full verification run and passed
+			// on the next fifteen. Forcing the sample is what makes the coverage
+			// a fact rather than a coin toss.
+			//
+			// Only `le` carries the branch: `ze` execs on every call. That is
+			// asserted rather than assumed, so a `ze` that grows one, or an `le`
+			// that loses it, is not silently left uncovered.
+			sampled, samples := forcedSampleLauncher(t, fixture, launcher)
+			if samples != (launcher == "le") {
+				t.Fatalf("%s samples = %v; the sampling branch belongs to le alone", launcher, samples)
+			}
+			if !samples {
+				return
+			}
+			signalSampled := exec.CommandContext(t.Context(), sampled, "signal")
+			signalSampled.Dir = fixture
+			signalSampled.Env = append(launcherEnv(), "ZE_EXEC_RECORD="+execRecord)
+			err = signalSampled.Run()
+			if !errors.As(err, &exitErr) || exitErr.ExitCode() != -1 {
+				t.Fatalf("the sampled launcher branch hid the binary's terminating signal: %v", err)
+			}
 		})
 	}
 }
@@ -353,6 +381,32 @@ func unquotedArgvExpansions(source string) []string {
 			splits = append(splits, "$@")
 		}
 	}
+}
+
+// forcedSampleLauncher writes a copy of the fixture's launcher whose le_sampled
+// always answers yes, and returns its path. samples is false for a launcher that
+// carries no sampling predicate at all, which `ze` does not.
+//
+// The sample is `$$ % 16` on purpose: a counter would be state several sessions
+// write at once, and the only thing the sample has to be is roughly one in
+// sixteen (le). That makes the branch unreachable on demand, so the test
+// rewrites the predicate in its own copy rather than asking the launcher for a
+// seam it should not carry. Only the predicate's body moves; every other line,
+// including the branch under test, is the tracked file's.
+func forcedSampleLauncher(t *testing.T, fixture, launcher string) (path string, samples bool) {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(fixture, launcher))
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", launcher, err)
+	}
+	const predicate = "\t[ $(($$ % 16)) -eq 0 ]\n"
+	text := string(body)
+	if !strings.Contains(text, predicate) {
+		return "", false
+	}
+	path = filepath.Join(fixture, launcher+".sampled")
+	writeExecutable(t, path, strings.Replace(text, predicate, "\treturn 0\n", 1))
+	return path, true
 }
 
 func launcherFixture(t *testing.T, root, launcher string) string {
