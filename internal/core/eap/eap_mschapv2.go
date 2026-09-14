@@ -33,6 +33,13 @@ type mschapv2Method struct {
 	msID          uint8
 	state         mschapv2State
 	msk           [64]byte
+
+	// emsk is the Extended Master Session Key RFC 3748 Section 7.10 requires
+	// beside the MSK (deriveEMSK, mschapv2.go). It is unexported, travels to the
+	// Session in the unexported MethodResult.emsk, and is cleared beside the MSK
+	// in handleSuccessAck, because Section 7.10 confines it to the two ends that
+	// derived it.
+	emsk [64]byte
 }
 
 func newMSCHAPv2Method(config MethodConfig) *mschapv2Method {
@@ -164,6 +171,7 @@ func (m *mschapv2Method) handleResponse(td []byte) MethodResult {
 	}
 
 	m.msk = DeriveMSK(m.password, ntResponse)
+	m.emsk = deriveEMSK(m.password, ntResponse)
 
 	authResp := GenerateAuthenticatorResponse(m.password, ntResponse, peerChallenge, m.authChallenge, userName)
 	m.state = mschapv2StateResponse
@@ -280,10 +288,13 @@ func (m *mschapv2Method) sendFailure() MethodResult {
 func (m *mschapv2Method) handleSuccessAck() MethodResult {
 	m.state = mschapv2StateDone
 	msk := m.msk
+	emsk := m.emsk
 	clear(m.msk[:])
+	clear(m.emsk[:])
 	m.password = ""
 	return MethodResult{
 		MSK:  msk,
+		emsk: emsk,
 		Done: true,
 	}
 }

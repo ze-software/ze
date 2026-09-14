@@ -191,8 +191,25 @@ type MethodResult struct {
 	Response     *Packet
 	FinalRequest *Packet
 	MSK          [64]byte
-	Done         bool
-	Err          error
+
+	// emsk is the Extended Master Session Key the method derived beside the MSK,
+	// valid only when Done is set. RFC 3748 Section 7.10: "an EAP method
+	// supporting key derivation MUST export a Master Session Key (MSK) of at
+	// least 64 octets, and an Extended Master Session Key (EMSK) of at least 64
+	// octets."
+	//
+	// It is unexported, and that is the confinement rather than an accident of
+	// style. RFC 3748 Section 7.10: "The EMSK is reserved for future use and MUST
+	// remain on the EAP peer and EAP server where it is derived; it MUST NOT be
+	// transported to, or shared with, additional parties, or used to derive any
+	// other keys." The carrier that reads MSK to build its IKEv2 AUTH payload
+	// lives in another package, so Go's own visibility rule is what stops the
+	// EMSK following the MSK out of this one. Publishing it needs an edit here,
+	// which is where this sentence is.
+	emsk [64]byte
+
+	Done bool
+	Err  error
 }
 
 // Method is the interface for an EAP authentication method (server/authenticator side).
@@ -230,7 +247,18 @@ type Session struct {
 	identifier uint8
 	identity   string
 	msk        [64]byte
-	state      sessionState
+
+	// emsk is where the EMSK the method exported STAYS. RFC 3748 Section 7.10:
+	// "The EMSK is reserved for future use and MUST remain on the EAP peer and
+	// EAP server where it is derived; it MUST NOT be transported to, or shared
+	// with, additional parties, or used to derive any other keys."
+	//
+	// So there is no EMSK accessor beside MSK, and there is not meant to be one:
+	// this field is written by handleMethod, cleared by Close, and read by
+	// nothing else. "Reserved for future use" is why it has no consumer, and
+	// holding it is what the MUST above asks of a method that derives keys.
+	emsk  [64]byte
+	state sessionState
 
 	// methodAnswered records that the peer has answered a Request of the method's
 	// own Type with a non-Nak Response. It is the authenticator's mirror of
@@ -253,7 +281,7 @@ type Session struct {
 	// RFC3748-4.2-2 records. Without this the authenticator half of every method
 	// discards its own diagnosis and the operator reads "authentication failed"
 	// with nothing to act on. The EAP-TLS MSK export refusal is the case that
-	// forced it (exportEAPTLSMSK, eap_tls.go), because the whole point of that
+	// forced it (exportEAPTLSKeys, eap_tls.go), because the whole point of that
 	// message is telling an operator what to change on the peer.
 	err error
 }
@@ -418,8 +446,18 @@ func (s *Session) Process(response *Packet) *Packet {
 // does so, which is what makes the omission reachable from the network.
 //
 // Close is idempotent and safe on a session whose method never started.
+//
+// It also erases the EMSK. RFC 3748 Section 7.10 confines that key to the peer
+// and the server that derived it, so the exchange that derived it is as long as
+// it lives. The MSK is NOT erased here: the carrier reads it after the exchange
+// ends to build the IKEv2 AUTH payload (RFC 7296 Section 2.16), and erases its
+// own copy when the SA goes down (SA.zeroize, internal/component/ike/engine).
 func (s *Session) Close() {
-	if s == nil || s.method == nil {
+	if s == nil {
+		return
+	}
+	clear(s.emsk[:])
+	if s.method == nil {
 		return
 	}
 	s.method.Close()
@@ -550,6 +588,10 @@ func (s *Session) handleMethod(response *Packet) *Packet {
 	if result.Done {
 		s.state = stateSuccess
 		s.msk = result.MSK
+		// The EMSK goes no further than this field. RFC 3748 Section 7.10 requires
+		// a key-deriving method to export one and requires it to stay where it was
+		// derived, and this assignment is both halves.
+		s.emsk = result.emsk
 		// RFC 3748 Section 4.2: "The Identifier field MUST match the Identifier
 		// field of the Response packet that it is sent in response to." Success
 		// ends the exchange rather than opening one, so it answers the Response's

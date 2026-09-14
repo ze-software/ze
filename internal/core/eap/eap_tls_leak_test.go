@@ -252,12 +252,19 @@ func TestEAPTLSCloseAfterCompletedHandshakeIsHarmless(t *testing.T) {
 	peer.Close()
 	res.server.Close()
 
-	msk, err := peer.deriveTLSMSK()
+	msk, emsk, err := peer.deriveTLSKeys()
 	if err != nil {
-		t.Fatalf("MSK export after Close: %v", err)
+		t.Fatalf("key material export after Close: %v", err)
 	}
 	if msk != res.peerMSK {
 		t.Fatal("the MSK changed after Close")
+	}
+	// Close erases the peer's stored EMSK (RFC 3748 Section 7.10), and the TLS
+	// connection it was derived from outlives that erase, so a fresh export still
+	// answers the same octets. The erase is about what ze KEEPS, not about what
+	// the TLS session can still compute.
+	if emsk == ([64]byte{}) {
+		t.Fatal("the EMSK export after Close answered 64 zero octets, which is not a key")
 	}
 	if got := waitEAPTLSEngines(t, 0); got != 0 {
 		t.Fatalf("after a completed handshake and Close: %d engine goroutines, want 0", got)

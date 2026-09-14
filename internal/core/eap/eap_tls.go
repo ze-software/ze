@@ -214,60 +214,96 @@ func (f *tlsFragmenter) nextFragment() []byte {
 }
 
 // EAP-TLS key derivation labels. The label and the exporter inputs depend on the
-// negotiated TLS version, so a single label is wrong for one of them.
+// negotiated TLS version, so a single label is wrong for one of them. Both
+// versions export ONE 128-octet block and cut it in the same two places.
 //
 // RFC 5216 Section 2.3 (TLS 1.2 and below):
 //
-//	MSK = TLS-PRF(master_secret, "client EAP encryption",
-//	              client.random || server.random)[0..63]
+//	Key_Material = TLS-PRF-128(master_secret, "client EAP encryption",
+//	                           client.random || server.random)
+//	MSK          = Key_Material(0,63)
+//	EMSK         = Key_Material(64,127)
 //
 // RFC 9190 Section 2.3 (TLS 1.3) replaces it, because TLS 1.3 has no
 // master_secret to run the old PRF over:
 //
 //	Key_Material = TLS-Exporter("EXPORTER_EAP_TLS_Key_Material", Type-Code, 128)
-//	MSK          = Key_Material[0..63]
+//	MSK          = Key_Material(0, 63)
+//	EMSK         = Key_Material(64, 127)
 const (
 	eapTLSLabelRFC5216 = "client EAP encryption"
 	eapTLSLabelRFC9190 = "EXPORTER_EAP_TLS_Key_Material"
 
-	// eapTLSKeyMaterialLen is the RFC 9190 export length: 64 octets of MSK
-	// followed by 64 of EMSK. Ze uses the MSK half.
+	// eapTLSKeyMaterialLen is the export length both derivations name: 64 octets
+	// of MSK followed by 64 of EMSK.
 	eapTLSKeyMaterialLen = 128
+
+	// eapTLSKeyLen is the length of each half, and the floor RFC 3748 Section
+	// 7.10 states: "an EAP method supporting key derivation MUST export a Master
+	// Session Key (MSK) of at least 64 octets, and an Extended Master Session Key
+	// (EMSK) of at least 64 octets".
+	eapTLSKeyLen = 64
 )
 
 // eapTLSTypeCode is the EAP-TLS method type, used verbatim as the RFC 9190
 // exporter context.
 var eapTLSTypeCode = []byte{TypeTLS}
 
-// exportEAPTLSMSK derives the EAP-TLS MSK from a completed TLS connection,
-// choosing the derivation the negotiated TLS version defines.
+// exportEAPTLSKeys derives the EAP-TLS MSK and EMSK from a completed TLS
+// connection, choosing the derivation the negotiated TLS version defines.
 //
-// It returns an error rather than a zero MSK when the key cannot be exported. An
-// all-zero MSK is a valid-looking answer the caller cannot tell from a real key:
-// ze would compute its IKEv2 AUTH payload (RFC 7296 Section 2.16) over 64 zero
-// octets, and two ends that both failed this way would agree on zeros and
-// authenticate nothing (ai/rules/evidence.md).
-func exportEAPTLSMSK(cs tls.ConnectionState) ([64]byte, error) {
-	var msk [64]byte
+// RFC 3748 Section 7.10: "an EAP method supporting key derivation MUST export a
+// Master Session Key (MSK) of at least 64 octets, and an Extended Master Session
+// Key (EMSK) of at least 64 octets." Both come from one exporter call, because
+// RFC 5216 Section 2.3 and RFC 9190 Section 2.3 each define them as the two
+// halves of one 128-octet Key_Material block. RFC 9190 Section 2.3 also forbids
+// asking for less: "If an implementation intends to use only a part of the output
+// of the TLS-Exporter function, then it MUST ask for the full output and then
+// only use the desired part."
+//
+// The EMSK stops here. It is returned to this package and to nothing else: no
+// field of MethodResult or PeerResult that another package can read carries it,
+// and no accessor publishes it. RFC 3748 Section 7.10: "The EMSK is reserved for
+// future use and MUST remain on the EAP peer and EAP server where it is derived;
+// it MUST NOT be transported to, or shared with, additional parties, or used to
+// derive any other keys."
+//
+// It returns an error rather than a zero key when the material cannot be
+// exported. An all-zero MSK is a valid-looking answer the caller cannot tell from
+// a real key: ze would compute its IKEv2 AUTH payload (RFC 7296 Section 2.16)
+// over 64 zero octets, and two ends that both failed this way would agree on
+// zeros and authenticate nothing (ai/rules/evidence.md).
+func exportEAPTLSKeys(cs tls.ConnectionState) (msk, emsk [64]byte, err error) {
 	if !cs.HandshakeComplete {
-		return msk, errors.New("eap-tls: TLS handshake did not complete, so no MSK exists")
+		return msk, emsk, errors.New("eap-tls: TLS handshake did not complete, so no key material exists")
 	}
 
+	var material []byte
 	if cs.Version >= tls.VersionTLS13 {
-		material, err := cs.ExportKeyingMaterial(eapTLSLabelRFC9190, eapTLSTypeCode, eapTLSKeyMaterialLen)
+		material, err = cs.ExportKeyingMaterial(eapTLSLabelRFC9190, eapTLSTypeCode, eapTLSKeyMaterialLen)
 		if err != nil {
-			return msk, fmt.Errorf("eap-tls: export key material (RFC 9190 Section 2.3): %w", err)
+			return msk, emsk, fmt.Errorf("eap-tls: export key material (RFC 9190 Section 2.3): %w", err)
 		}
-		copy(msk[:], material[:64])
-		return msk, nil
+	} else {
+		material, err = cs.ExportKeyingMaterial(eapTLSLabelRFC5216, nil, eapTLSKeyMaterialLen)
+		if err != nil {
+			return msk, emsk, eapTLS12ExportRefused(cs, err)
+		}
 	}
 
-	exported, err := cs.ExportKeyingMaterial(eapTLSLabelRFC5216, nil, 64)
-	if err != nil {
-		return msk, eapTLS12ExportRefused(cs, err)
+	// A short block would leave one or both keys part zero, and a partly zero key
+	// reads at the call site exactly like a real one. Refuse instead
+	// (ai/rules/evidence.md). crypto/tls answers the requested length or an error,
+	// so this states the invariant the two branches above rely on.
+	if len(material) != eapTLSKeyMaterialLen {
+		return msk, emsk, fmt.Errorf(
+			"eap-tls: the TLS exporter yielded %d octets, and RFC 5216 Section 2.3 needs %d: %d of MSK and %d of EMSK",
+			len(material), eapTLSKeyMaterialLen, eapTLSKeyLen, eapTLSKeyLen)
 	}
-	copy(msk[:], exported)
-	return msk, nil
+
+	copy(msk[:], material[:eapTLSKeyLen])
+	copy(emsk[:], material[eapTLSKeyLen:])
+	return msk, emsk, nil
 }
 
 // eapTLS12ExportRefused explains a refused TLS 1.2 key material export to the
@@ -481,8 +517,8 @@ func (m *tlsMethod) resumed() bool {
 	return m.conn.ConnectionState().DidResume
 }
 
-// DerivesKey answers true: deriveMSK exports the key RFC 5216 Section 2.3
-// defines from the TLS master secret. TypeDerivesKey holds the single
+// DerivesKey answers true: deriveKeys exports the MSK and the EMSK RFC 5216
+// Section 2.3 defines from the TLS master secret. TypeDerivesKey holds the single
 // declaration.
 func (m *tlsMethod) DerivesKey() bool { return TypeDerivesKey(TypeTLS) }
 
@@ -650,11 +686,11 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 			}
 		}
 		m.state = tlsStateDone
-		msk, err := m.deriveMSK()
+		msk, emsk, err := m.deriveKeys()
 		if err != nil {
 			return MethodResult{Err: err}
 		}
-		return MethodResult{MSK: msk, Done: true}
+		return MethodResult{MSK: msk, emsk: emsk, Done: true}
 	}
 
 	// The peer half reports a stall here instead of an ACK (readAndSendTLS,
@@ -768,7 +804,8 @@ func (m *tlsMethod) runTLSServer() {
 	m.transport.handshakeFinished()
 }
 
-// deriveMSK derives the authenticator's MSK from the completed TLS connection.
+// deriveKeys derives the authenticator's MSK and EMSK from the completed TLS
+// connection.
 //
 // A failed export is an error, never a substitute key. This used to fall back to
 // sha256(TLSUnique), which no other implementation computes: the peer derives the
@@ -776,11 +813,11 @@ func (m *tlsMethod) runTLSServer() {
 // (RFC 7296 Section 2.16) fails to verify with no usable reason. A locally
 // invented key is indistinguishable from a real one at the call site, which is
 // what makes it dangerous (ai/rules/evidence.md).
-func (m *tlsMethod) deriveMSK() ([64]byte, error) {
+func (m *tlsMethod) deriveKeys() (msk, emsk [64]byte, err error) {
 	if m.conn == nil {
-		return [64]byte{}, errors.New("eap-tls: no TLS connection to derive the MSK from")
+		return msk, emsk, errors.New("eap-tls: no TLS connection to derive the key material from")
 	}
-	return exportEAPTLSMSK(m.conn.ConnectionState())
+	return exportEAPTLSKeys(m.conn.ConnectionState())
 }
 
 // notifyCh sends a non-blocking signal on a buffered channel.
@@ -875,7 +912,7 @@ func (t *eapTLSTransport) feedPeerData(data []byte) error {
 // rejected" as "the engine produced nothing this round" and answers with a bare
 // fragment ACK forever (ai/rules/evidence.md). This mirrors the peer
 // side, which keeps the same error in PeerSession.tlsErr and reports it from
-// deriveTLSMSK.
+// deriveTLSKeys.
 func (t *eapTLSTransport) handshakeError() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()

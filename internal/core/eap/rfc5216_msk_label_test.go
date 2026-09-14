@@ -6,7 +6,7 @@
 // label the RFC spells, on both the TLS 1.2 and the TLS 1.3 branch.
 // PREVENTS: the failure this file was written for. The tagged assertions in
 // eap_tls_handshake_test.go check that the two MSKs are non-zero, 64 octets and
-// EQUAL. Both sides call one producer, exportEAPTLSMSK, so replacing either label
+// EQUAL. Both sides call one producer, exportEAPTLSKeys, so replacing either label
 // constant with a made-up string leaves all three true and every test green,
 // while every real supplicant derives a different key and authentication fails.
 // The TLS 1.2 branch was not reached at all: crypto/tls negotiates TLS 1.3 by
@@ -112,7 +112,7 @@ func mskLabelHandshake(t *testing.T, version uint16) (*tlsMethod, *PeerSession, 
 // RFC requirement: RFC5216-2.3-1 positive -- over a TLS 1.2 session both sides'
 // MSK is the first 64 octets the TLS exporter yields for the label "client EAP
 // encryption" with no context, so the derivation uses that label and no other
-// (eap_tls.go exportEAPTLSMSK).
+// (eap_tls.go exportEAPTLSKeys).
 func TestRFC5216MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 	method, peer, serverMSK, peerMSK := mskLabelHandshake(t, tls.VersionTLS12)
 
@@ -158,7 +158,7 @@ func TestRFC5216MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 // RFC requirement: RFC9190-2.3-1 positive -- over a TLS 1.3 session both sides'
 // MSK is the first 64 octets of the 128-octet TLS export for the label
 // "EXPORTER_EAP_TLS_Key_Material" with the EAP Type octet as context
-// (eap_tls.go exportEAPTLSMSK).
+// (eap_tls.go exportEAPTLSKeys).
 func TestRFC9190MSKIsTheExportUnderTheRFCLabel(t *testing.T) {
 	method, peer, serverMSK, peerMSK := mskLabelHandshake(t, tls.VersionTLS13)
 

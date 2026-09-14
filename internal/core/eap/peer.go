@@ -141,6 +141,17 @@ type PeerSession struct {
 	state    peerState
 	msk      [64]byte
 
+	// emsk is where the EMSK the method exported STAYS. RFC 3748 Section 7.10:
+	// "The EMSK is reserved for future use and MUST remain on the EAP peer and
+	// EAP server where it is derived; it MUST NOT be transported to, or shared
+	// with, additional parties, or used to derive any other keys."
+	//
+	// So PeerResult carries no EMSK beside its MSK, and there is no accessor for
+	// one: this field is written by handleTLSRequest, cleared by Close, and read
+	// by nothing else. "Reserved for future use" is why it has no consumer, and
+	// holding it is what the MUST above asks of a method that derives keys.
+	emsk [64]byte
+
 	// methodCommitted records that the peer has answered an authentication
 	// METHOD Request with a Response of that method's own Type. It is the
 	// boundary RFC 3748 Section 2.1 draws: "A peer MUST NOT send a Nak (legacy or
@@ -473,7 +484,20 @@ func (ps *PeerSession) DerivesKey() bool { return TypeDerivesKey(ps.method) }
 // Idempotent, and safe on an MS-CHAPv2 session or on one whose TLS client never
 // started.
 func (ps *PeerSession) Close() {
-	if ps == nil || !ps.tlsStarted.Load() {
+	if ps == nil {
+		return
+	}
+	// Erase the EMSK. RFC 3748 Section 7.10 confines that key to the peer and the
+	// server that derived it, so the exchange that derived it is as long as it
+	// lives. The MSK is NOT erased here: the carrier reads it after the exchange
+	// ends to build the IKEv2 AUTH payload (RFC 7296 Section 2.16), and erases its
+	// own copy when the SA goes down (SA.zeroize, internal/component/ike/engine).
+	//
+	// It runs before the tlsStarted guard below, because an MS-CHAPv2 session and
+	// an abandoned one reach Close too and the erase is owed on every path.
+	clear(ps.emsk[:])
+
+	if !ps.tlsStarted.Load() {
 		return
 	}
 	ps.tlsTransport.shutdown()
@@ -812,6 +836,10 @@ func (ps *PeerSession) handleMSCHAPv2Challenge(identifier uint8, td []byte) Peer
 	ps.authChallenge = authChallenge
 	ps.ntResponse = ntResponse
 	ps.msk = DeriveMSK(ps.password, ntResponse)
+	// The EMSK RFC 3748 Section 7.10 requires beside the MSK. It goes no further
+	// than this field: PeerResult carries none, there is no accessor, and Close
+	// erases it (deriveEMSK, mschapv2.go).
+	ps.emsk = deriveEMSK(ps.password, ntResponse)
 
 	// MS-CHAPv2 Response: OpCode(1) + MS-ID(1) + MS-Length(2) + ValueSize(1) + Response(49) + Name.
 	msID := td[1]
@@ -1164,7 +1192,7 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 	// CodeSuccess). Returning Done here would drop the unsent flight and stall
 	// the authenticator forever.
 	if ps.tlsDone.Load() {
-		msk, err := ps.deriveTLSMSK()
+		msk, emsk, err := ps.deriveTLSKeys()
 		if err != nil {
 			// REPLY FIRST, REPORT ON THE NEXT ROUND. readAndSendTLS has already
 			// built the EAP-Response for this round, and RFC 5216 Section 2.1.3
@@ -1185,6 +1213,10 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 			return PeerResult{Err: err}
 		}
 		ps.msk = msk
+		// The EMSK goes no further than this field. RFC 3748 Section 7.10 requires
+		// a key-deriving method to export one and requires it to stay where it was
+		// derived, and this assignment is both halves.
+		ps.emsk = emsk
 
 		// The method conversation has concluded successfully. Both ends have shown
 		// the other a Finished the other verified, and readAndSendTLS above has
@@ -1407,20 +1439,21 @@ func (ps *PeerSession) Resumed() bool {
 	return ps.tlsConn.ConnectionState().DidResume
 }
 
-// deriveTLSMSK derives the peer's EAP-TLS MSK from the completed TLS connection.
+// deriveTLSKeys derives the peer's EAP-TLS MSK and EMSK from the completed TLS
+// connection.
 //
 // tlsDone is also set when the TLS handshake FAILED (e.g. the authenticator's
 // certificate was rejected), and ExportKeyingMaterial panics on a connection
-// whose handshake did not complete, so exportEAPTLSMSK guards on it and reports
+// whose handshake did not complete, so exportEAPTLSKeys guards on it and reports
 // an error rather than returning a zero MSK that reads as a real key.
-func (ps *PeerSession) deriveTLSMSK() ([64]byte, error) {
+func (ps *PeerSession) deriveTLSKeys() (msk, emsk [64]byte, err error) {
 	if ps.tlsConn == nil {
-		return [64]byte{}, errors.New("eap-tls: no TLS connection to derive the MSK from")
+		return msk, emsk, errors.New("eap-tls: no TLS connection to derive the key material from")
 	}
 	// Report the handshake's own error when it has one. It names the cause; the
-	// missing MSK is only the consequence.
-	if err := ps.tlsErr.Load(); err != nil {
-		return [64]byte{}, fmt.Errorf("eap-tls: TLS handshake failed: %w", *err)
+	// missing key material is only the consequence.
+	if tlsErr := ps.tlsErr.Load(); tlsErr != nil {
+		return msk, emsk, fmt.Errorf("eap-tls: TLS handshake failed: %w", *tlsErr)
 	}
-	return exportEAPTLSMSK(ps.tlsConn.ConnectionState())
+	return exportEAPTLSKeys(ps.tlsConn.ConnectionState())
 }

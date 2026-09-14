@@ -557,7 +557,7 @@ func TestRFC9190MitigationRefusesTLS11(t *testing.T) {
 //
 // The negative is already proven and is not copied here: a TLS 1.2 session that
 // did NOT negotiate the extended master secret exports no EAP-TLS MSK at all
-// (exportEAPTLSMSK and eapTLS12ExportRefused, eap_tls.go), which
+// (exportEAPTLSKeys and eapTLS12ExportRefused, eap_tls.go), which
 // TestEAPTLSExportRefusalNamesTheCause asserts in eap_tls_export_refusal_test.go.
 func TestRFC9190MitigationOffersExtendedMasterSecret(t *testing.T) {
 	pki := newEAPTLSPKI(t)

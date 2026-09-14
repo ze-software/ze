@@ -402,7 +402,7 @@ func TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication(t *testing.T) {
 // ends.
 //
 // A resumed TLS 1.3 handshake assigns Conn.ekm exactly as a full one does, so
-// exportEAPTLSMSK needed no change. This is what proves that: the two MSKs are
+// exportEAPTLSKeys needed no change. This is what proves that: the two MSKs are
 // the same 64 octets, they are not zero, and they are not the previous
 // exchange's, which they would be if either end had cached the key instead of
 // re-exporting it.

@@ -11,7 +11,8 @@
 //   2. feedPeerData must wake a Read that is blocked on an empty buffer.
 //   3. serverChainCheck validates the authenticator chain against the trust
 //      anchor with no hostname check (EAP-TLS has no server name).
-//   4. deriveTLSMSK fail-closes (all-zero MSK, no panic) on an incomplete handshake.
+//   4. deriveTLSKeys fail-closes (all-zero MSK and EMSK, no panic) on an
+//      incomplete handshake.
 //
 // This file is deliberately SELF-CONTAINED: it builds its own tiny PKI rather
 // than reusing the handshake harness's helpers, so the fixes and their tests
@@ -20,7 +21,7 @@
 // VALIDATES: the wakeup path delivers every signal when the buffer is empty and
 // never blocks when it is full; a blocked Read is woken by feedPeerData; the
 // peer's server-chain verification accepts a trusted chain and rejects an
-// untrusted one and an empty presentation; deriveTLSMSK never panics on an
+// untrusted one and an empty presentation; deriveTLSKeys never panics on an
 // incomplete handshake and yields an unusable all-zero MSK.
 // PREVENTS: regressing notifyCh back to a lossy select (handshake deadlock),
 // weakening the peer's RFC 5216 Section 5.3 server-certificate validation, or
@@ -195,16 +196,17 @@ func TestVerifyServerChain(t *testing.T) {
 	}
 }
 
-// TestDeriveTLSMSKFailsClosedOnIncompleteHandshake pins the fail-closed guard: on
+// TestDeriveTLSKeysFailsClosedOnIncompleteHandshake pins the fail-closed guard: on
 // a tlsConn whose handshake did not complete (e.g. the authenticator's cert was
-// rejected, which still sets tlsDone), deriveTLSMSK must report an error and must
+// rejected, which still sets tlsDone), deriveTLSKeys must report an error and must
 // NOT panic. crypto/tls' ExportKeyingMaterial panics on an incomplete handshake,
 // so without the cs.HandshakeComplete guard this test panics.
 //
 // The error is the load-bearing half. A zero MSK returned with no error is a
 // valid-looking answer the caller cannot tell from a real key, so the caller
-// authenticates over 64 zero octets instead of refusing.
-func TestDeriveTLSMSKFailsClosedOnIncompleteHandshake(t *testing.T) {
+// authenticates over 64 zero octets instead of refusing. The same holds for the
+// EMSK RFC 3748 Section 7.10 requires beside it.
+func TestDeriveTLSKeysFailsClosedOnIncompleteHandshake(t *testing.T) {
 	// A freshly wrapped tls.Client has HandshakeComplete == false (no handshake
 	// was ever driven), the same observable state as a failed handshake. The
 	// config is never used because no handshake is performed.
@@ -212,11 +214,14 @@ func TestDeriveTLSMSKFailsClosedOnIncompleteHandshake(t *testing.T) {
 		tlsConn: tls.Client(newEAPTLSTransport(), &tls.Config{MinVersion: tls.VersionTLS12}),
 	}
 
-	msk, err := ps.deriveTLSMSK() // must not panic (the fail-closed guard)
+	msk, emsk, err := ps.deriveTLSKeys() // must not panic (the fail-closed guard)
 	if err == nil {
 		t.Fatal("incomplete handshake must report an error, not a usable MSK")
 	}
 	if msk != ([64]byte{}) {
 		t.Fatalf("incomplete handshake must yield an all-zero MSK, got %x", msk)
+	}
+	if emsk != ([64]byte{}) {
+		t.Fatalf("incomplete handshake must yield an all-zero EMSK, got %x", emsk)
 	}
 }

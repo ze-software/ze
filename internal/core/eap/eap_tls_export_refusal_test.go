@@ -1,7 +1,7 @@
 // Design: docs/architecture/ike/ipsec-11-interop-eap.md -- EAP-TLS MSK export
 // RFC: rfc/short/rfc5216.md -- Section 2.3 derives the MSK from ExportKeyingMaterial
 //
-// This file drives exportEAPTLSMSK over a real TLS 1.2 connection whose key
+// This file drives exportEAPTLSKeys over a real TLS 1.2 connection whose key
 // material export crypto/tls refuses, and asserts that what ze logs tells the
 // operator what to do next.
 //
@@ -37,7 +37,7 @@ const (
 // It works by enabling renegotiation, which is the only refusal two Go endpoints
 // can produce: Go's client always offers the RFC 7627 extended master secret, so
 // the strongSwan 5.9.14 case (TLS 1.2, no RFC 7627) has no Go-side reproduction.
-// Both refusals arrive at exportEAPTLSMSK as an error from the same call on the
+// Both refusals arrive at exportEAPTLSKeys as an error from the same call on the
 // same TLS 1.2 branch, which is the code under test.
 //
 // So the two refusals differ in one way this test cannot see, and a reader who
@@ -151,12 +151,15 @@ func tls12ClientState(t *testing.T, refuseExport bool) tls.ConnectionState {
 func TestEAPTLSExportRefusalNamesTheCause(t *testing.T) {
 	state := tls12ClientState(t, exportRefused)
 
-	msk, err := exportEAPTLSMSK(state)
+	msk, emsk, err := exportEAPTLSKeys(state)
 	if err == nil {
 		t.Fatal("export succeeded on a connection crypto/tls refuses to export from")
 	}
 	if msk != [64]byte{} {
 		t.Fatal("a refused export answered a non-zero MSK")
+	}
+	if emsk != [64]byte{} {
+		t.Fatal("a refused export answered a non-zero EMSK")
 	}
 
 	got := err.Error()
@@ -188,19 +191,23 @@ func TestEAPTLSExportRefusalNamesTheCause(t *testing.T) {
 // TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret keeps the refusal above
 // from reading as "TLS 1.2 never works".
 //
-// VALIDATES: the TLS 1.2 branch of exportEAPTLSMSK still derives a real MSK when
+// VALIDATES: the TLS 1.2 branch of exportEAPTLSKeys still derives a real MSK and
+// a real EMSK when
 // the session carries the RFC 7627 extended master secret, which Go's own client
 // always offers.
 // PREVENTS: a fix that turns every TLS 1.2 session into the refusal.
 func TestEAPTLSExportSucceedsOnTLS12WithExtendedMasterSecret(t *testing.T) {
 	state := tls12ClientState(t, exportAllowed)
 
-	msk, err := exportEAPTLSMSK(state)
+	msk, emsk, err := exportEAPTLSKeys(state)
 	if err != nil {
 		t.Fatalf("export refused on a TLS 1.2 session that carries RFC 7627: %v", err)
 	}
 	if msk == [64]byte{} {
 		t.Fatal("export answered 64 zero octets, which is not a key")
+	}
+	if emsk == [64]byte{} {
+		t.Fatal("export answered 64 zero octets for the EMSK, which is not a key")
 	}
 }
 

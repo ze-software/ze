@@ -8,7 +8,7 @@ fails whenever either peer sits behind a NAT device.
 <!-- source: internal/core/eap/eap.go -- Session, Method, MethodResult, Packet -->
 <!-- source: internal/core/eap/eap_mschapv2.go -- EAP-MSCHAPv2 method -->
 <!-- source: internal/core/eap/eap_md5challenge.go -- EAP MD5-Challenge method -->
-<!-- source: internal/core/eap/eap_tls.go -- tlsMethod, tlsFragmenter, exportEAPTLSMSK -->
+<!-- source: internal/core/eap/eap_tls.go -- tlsMethod, tlsFragmenter, exportEAPTLSKeys -->
 <!-- source: internal/component/ike/transport/nat.go -- NATDetectionHash, DetectNAT, AddNonESPMarker, StripNonESPMarker -->
 <!-- source: internal/component/ike/transport/keepalive.go -- Keepalive -->
 <!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret, computeAuthFromSharedSecret, verifyAuthFromSharedSecret, newEAPSession -->
@@ -59,6 +59,38 @@ fails whenever either peer sits behind a NAT device.
   using SK_pi and SK_pr, respectively." `eapAuthSecret` (`eap_auth.go`) asks the
   method through `eap.TypeDerivesKey` rather than reading the MSK array, because
   an all-zero MSK is also what a failed derivation leaves behind.
+- RFC 3748 Section 7.10 asks a key-deriving method for two keys: "an EAP method
+  supporting key derivation MUST export a Master Session Key (MSK) of at least 64
+  octets, and an Extended Master Session Key (EMSK) of at least 64 octets."
+  `exportEAPTLSKeys` (`internal/core/eap/eap_tls.go`) exports both for EAP-TLS. It
+  asks the TLS exporter for the whole 128-octet Key_Material and cuts it where RFC
+  5216 Section 2.3 cuts it, `MSK = Key_Material(0,63)` and `EMSK =
+  Key_Material(64,127)`; RFC 9190 Section 2.3 keeps that split for TLS 1.3 and
+  changes only the label and the context.
+- Section 7.10 then confines the second key: "The EMSK is reserved for future use
+  and MUST remain on the EAP peer and EAP server where it is derived; it MUST NOT
+  be transported to, or shared with, additional parties, or used to derive any
+  other keys." So the EMSK is an unexported field of `Session` and of
+  `PeerSession`, `MethodResult` carries it in an unexported field and `PeerResult`
+  carries it not at all, there is no accessor beside `Session.MSK`, and `Close`
+  erases it. Go's visibility rule is the confinement: the IKEv2 carrier is in
+  another package, so publishing the EMSK takes an edit inside
+  `internal/core/eap`.
+- EAP-MSCHAPv2 exports an EMSK too, and ze defines the derivation because no
+  document does: draft-kamath-pppext-eap-mschapv2-02 Section 1 routes key
+  derivation to RFC 3079, and neither writes the word EMSK. Nothing compares the
+  value, because Section 7.10 says "The EMSK is not shared with the authenticator
+  or any other third party" and Section 7.2.1 says "Use of the EMSK is reserved",
+  so the key never reaches the wire and no interop rests on it.
+- What DOES constrain it is Section 7.10's separation rule: "an attacker
+  recovering the MSK or EMSK MUST NOT be able to recover the other quantity with
+  a level of effort less than brute force." So `deriveEMSK`
+  (`internal/core/eap/mschapv2.go`) does NOT derive the EMSK from the MSK. Both
+  descend from the RFC 3079 Section 3 MPPE master key as siblings: the MSK by the
+  two truncated SHA-1 MPPE keys, the EMSK by `HKDF-Expand(SHA-256, MasterKey,
+  label, 64)`. Reaching either key from the other means inverting a one-way
+  function to get back to the master key. Splitting the existing 64-octet MSK in
+  two was not an option: Section 7.10 needs 64 octets on each side.
 - RFC 3748 Section 5.2 makes the peer answer a Notification Request with a
   Notification Response, and forbids a Nak in answer to one. A Notification is
   not an error indication, so the peer state and every method field stay
