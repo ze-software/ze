@@ -403,7 +403,7 @@ func TestParsePeerCapabilities(t *testing.T) {
 				"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 			},
 			"capability": map[string]any{
-				"asn4":             "true",
+				"asn4":             "enable",
 				"extended-message": "true",
 				"route-refresh":    "enable",
 			},
@@ -434,12 +434,12 @@ func TestParsePeerCapabilities(t *testing.T) {
 
 // TestParsePeerCapabilityASN4Disabled verifies ASN4 can be disabled.
 //
-// VALIDATES: asn4 = false sets DisableASN4 = true.
+// VALIDATES: asn4 disable sets DisableASN4 = true.
 // PREVENTS: Ignoring explicit ASN4 disable in config.
 func TestParsePeerCapabilityASN4Disabled(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
-		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "capability": map[string]any{"asn4": "false"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "capability": map[string]any{"asn4": "disable"}},
 	}
 
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
@@ -1326,7 +1326,7 @@ func TestReceiveMapInit(t *testing.T) {
 func TestParsePeerCapabilityConfigJSON(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
-		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "capability": map[string]any{"asn4": "true", "route-refresh": "enable"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}, "capability": map[string]any{"asn4": "enable", "route-refresh": "enable"}},
 	}
 
 	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)

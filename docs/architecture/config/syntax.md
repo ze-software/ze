@@ -691,7 +691,8 @@ The `direction` and `limit` on the container are inherited by all negotiated fam
 containers, so a bare name (`route-refresh;`) means `enable`, and the value form
 also takes `true` as `enable` and `false` as `disable`. `asn4` is a
 `capability-mode` leaf and takes the four modes only: `asn4 true` is refused as
-an invalid enum.
+an invalid enum. A mode word outside that vocabulary, on any capability, is a
+config error that names the word; the reactor never defaults it to `enable`.
 <!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseCapMode -->
 
 ### Family Section

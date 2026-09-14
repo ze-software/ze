@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -26,20 +27,23 @@ const (
 // parseCapMode parses a capability mode string.
 // Accepts the four modes of the capability-mode enumeration (ze-bgp-conf.yang),
 // plus true/false: a presence capability written bare (route-refresh;) reaches
-// here as "true" because the parser stores presence as that word.
-// Empty string or unrecognized values default to enable (lenient parsing).
-func parseCapMode(s string) capMode {
+// here as "true" because the parser stores presence as that word, and an empty
+// value is that same bare presence. Any other word is an error: the schema
+// refuses one before the tree reaches here, so a word this switch does not name
+// is a builder that bypassed the schema, and answering enable for it would
+// advertise a capability the operator never asked for (ai/rules/principles.md).
+func parseCapMode(s string) (capMode, error) {
 	switch strings.ToLower(s) {
 	case "", valTrue, valEnable:
-		return capModeEnable
+		return capModeEnable, nil
 	case valFalse, valDisable:
-		return capModeDisable
+		return capModeDisable, nil
 	case valRequire:
-		return capModeRequire
+		return capModeRequire, nil
 	case valRefuse:
-		return capModeRefuse
+		return capModeRefuse, nil
 	}
-	return capModeEnable
+	return capModeEnable, fmt.Errorf("capability mode %q: expected one of enable, disable, require, refuse", s)
 }
 
 // capModeAdvertise reports whether the mode means the capability should be advertised.
@@ -58,24 +62,33 @@ func applyCapMode(mode capMode, code capability.Code, ps *PeerSettings) {
 }
 
 // parseCapabilitiesFromTree parses capability configuration from the tree.
-func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
+// It returns an error naming the capability whose mode word is not one the
+// four-mode vocabulary names.
+func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) error {
 	capMap, ok := mapMap(tree, "capability")
 	if !ok {
 		// ASN4 is enabled by default (RFC 6793).
-		return
+		return nil
 	}
 
 	// ASN4 — enabled by default (RFC 6793), supports all four modes.
 	asn4Mode := capModeEnable
 	if v, ok := mapString(capMap, "asn4"); ok {
-		asn4Mode = parseCapMode(v)
+		mode, err := parseCapMode(v)
+		if err != nil {
+			return fmt.Errorf("asn4: %w", err)
+		}
+		asn4Mode = mode
 	}
 	ps.DisableASN4 = !asn4Mode.advertise()
 	applyCapMode(asn4Mode, capability.CodeASN4, ps)
 
 	// RFC 8654: Extended Message Support (opt-in, absent = disabled).
 	if v := flexString(capMap, "extended-message"); v != "" {
-		extMsgMode := parseCapMode(v)
+		extMsgMode, err := parseCapMode(v)
+		if err != nil {
+			return fmt.Errorf("extended-message: %w", err)
+		}
 		if extMsgMode.advertise() {
 			ps.Capabilities = append(ps.Capabilities, &capability.ExtendedMessage{})
 		}
@@ -86,7 +99,10 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 	// Enforcement targets basic route-refresh (code 2) only.
 	// Enhanced route-refresh (code 70) is a separate capability not independently configurable.
 	if v := flexString(capMap, "route-refresh"); v != "" {
-		rrMode := parseCapMode(v)
+		rrMode, err := parseCapMode(v)
+		if err != nil {
+			return fmt.Errorf("route-refresh: %w", err)
+		}
 		if rrMode.advertise() {
 			ps.Capabilities = append(ps.Capabilities, &capability.RouteRefresh{}, &capability.EnhancedRouteRefresh{})
 		}
@@ -97,7 +113,11 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 	if grMap, ok := mapMap(capMap, "graceful-restart"); ok {
 		grMode := capModeEnable
 		if v, ok := mapString(grMap, "mode"); ok {
-			grMode = parseCapMode(v)
+			mode, err := parseCapMode(v)
+			if err != nil {
+				return fmt.Errorf("graceful-restart: %w", err)
+			}
+			grMode = mode
 		}
 		applyCapMode(grMode, capability.CodeGracefulRestart, ps)
 
@@ -113,12 +133,17 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 	// RFC 8950: Extended Next Hop — mode is inline on each family line.
 	// e.g., "ipv4/unicast ipv6 require;" — last token is a mode if it matches a mode keyword.
 	if nhMap, ok := mapMap(capMap, "nexthop"); ok {
-		nhMode := parseExtendedNextHopFromTree(nhMap, ps)
+		nhMode, err := parseExtendedNextHopFromTree(nhMap, ps)
+		if err != nil {
+			return fmt.Errorf("nexthop: %w", err)
+		}
 		applyCapMode(nhMode, capability.CodeExtendedNextHop, ps)
 	}
 
 	// ADD-PATH — global and per-family.
-	parseAddPathFromTree(capMap, tree, ps)
+	if err := parseAddPathFromTree(capMap, tree, ps); err != nil {
+		return fmt.Errorf("add-path: %w", err)
+	}
 
 	// Hostname — populate RawCapabilityConfig for plugin delivery.
 	if hnMap, ok := mapMap(capMap, "hostname"); ok {
@@ -158,34 +183,38 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 
 	// Capability config JSON for plugin delivery.
 	ps.CapabilityConfigJSON = mapToJSON(capMap)
+	return nil
 }
 
 // extractNextHopEntry extracts nhAFI name and mode from a nexthop entry value.
 // Handles both string format ("ipv6 require") and list entry map ({"nhafi": "ipv6", "mode": "require"}).
-func extractNextHopEntry(rawVal any) (string, capMode) {
+// An entry with no next-hop AFI answers an empty name; a mode word outside the
+// vocabulary is an error.
+func extractNextHopEntry(rawVal any) (string, capMode, error) {
 	if vs, ok := rawVal.(string); ok {
 		tokens := strings.Fields(vs)
 		if len(tokens) == 0 {
-			return "", capModeEnable
+			return "", capModeEnable, nil
 		}
-		mode := capModeEnable
-		if len(tokens) > 1 {
-			mode = parseCapMode(tokens[1])
+		if len(tokens) == 1 {
+			return tokens[0], capModeEnable, nil
 		}
-		return tokens[0], mode
+		mode, err := parseCapMode(tokens[1])
+		return tokens[0], mode, err
 	}
 	if m, ok := rawVal.(map[string]any); ok {
 		nh, nhOK := mapString(m, "nhafi")
 		if !nhOK {
-			return "", capModeEnable
+			return "", capModeEnable, nil
 		}
-		mode := capModeEnable
-		if modeStr, ok := mapString(m, "mode"); ok {
-			mode = parseCapMode(modeStr)
+		modeStr, ok := mapString(m, "mode")
+		if !ok {
+			return nh, capModeEnable, nil
 		}
-		return nh, mode
+		mode, err := parseCapMode(modeStr)
+		return nh, mode, err
 	}
-	return "", capModeEnable
+	return "", capModeEnable, nil
 }
 
 // parseExtendedNextHopFromTree parses RFC 8950 extended next-hop families.
@@ -194,8 +223,9 @@ func extractNextHopEntry(rawVal any) (string, capMode) {
 //	"ipv4/unicast" → "ipv6"          (enable, default)
 //	"ipv4/unicast" → "ipv6 require"  (require mode)
 //
-// Returns the most restrictive mode seen across all entries (require > refuse > enable).
-func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMode {
+// Returns the most restrictive mode seen across all entries (require > refuse > enable),
+// or an error naming the family whose mode word is outside the vocabulary.
+func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) (capMode, error) {
 	afiMap := map[string]uint16{"ipv4": 1, "ipv6": 2}
 	safiMap := map[string]uint8{
 		"unicast": 1, "multicast": 2, "mpls-vpn": 128, "mpls-label": 4,
@@ -217,7 +247,10 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMod
 		}
 
 		// Parse value: string "ipv6 [require]" or list entry map {nhafi, mode}.
-		nhAFIName, entryMode := extractNextHopEntry(rawVal)
+		nhAFIName, entryMode, err := extractNextHopEntry(rawVal)
+		if err != nil {
+			return capModeEnable, fmt.Errorf("%s: %w", familyKey, err)
+		}
 		if nhAFIName == "" {
 			continue
 		}
@@ -248,16 +281,16 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMod
 			Families: families,
 		})
 	}
-	return mode
+	return mode, nil
 }
 
 // parseAddPathFromTree parses ADD-PATH + PATHS-LIMIT from the unified capability add-path block.
 // RFC 7911 + draft-abraitis-idr-addpath-paths-limit.
 // Unified config: add-path { direction send; family ipv4/unicast { direction send/receive; limit 10; } }.
-func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
+func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) error {
 	apBlock, ok := mapMap(capMap, "add-path")
 	if !ok {
-		return
+		return nil
 	}
 
 	// Default direction and limit from container level.
@@ -291,7 +324,11 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 					entry.dir = parseAddPathDirection(dirStr)
 				}
 				if modeStr, ok := mapString(m, "mode"); ok {
-					entry.mode = parseCapMode(modeStr)
+					mode, err := parseCapMode(modeStr)
+					if err != nil {
+						return fmt.Errorf("family %s: %w", key, err)
+					}
+					entry.mode = mode
 					if entry.mode == capModeRequire {
 						addPathMode = capModeRequire
 					} else if entry.mode == capModeRefuse && addPathMode != capModeRequire {
@@ -325,11 +362,11 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 	}
 
 	if !hasDefault && len(perFamily) == 0 {
-		return
+		return nil
 	}
 
 	if !addPathMode.advertise() {
-		return
+		return nil
 	}
 
 	addPath := &capability.AddPath{
@@ -397,6 +434,7 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 	if len(pathsLimitEntries) > 0 {
 		ps.Capabilities = append(ps.Capabilities, &capability.PathsLimit{Entries: pathsLimitEntries})
 	}
+	return nil
 }
 
 // parseAddPathDirection converts a direction string to AddPathMode.

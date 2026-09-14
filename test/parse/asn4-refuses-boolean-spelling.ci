@@ -1,0 +1,67 @@
+# asn4 is a capability-mode leaf (ze-bgp-conf.yang, typedef capability-mode):
+# enable, disable, require, refuse. Until 2026-09-14 it was a boolean and the
+# schema validator accepted require/refuse on EVERY boolean leaf to carry it.
+# This proves the boolean spelling is refused through the daemon's own config
+# load, and that the refusal names the four modes an operator may write.
+#
+# The accepted counterpart (asn4 require) is validated second, so this test
+# fails if the refusal ever widens into "asn4 rejected".
+stdin=boolean:terminator=EOF_BOOL
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				asn4 true
+			}
+		}
+	}
+}
+EOF_BOOL
+
+stdin=mode:terminator=EOF_MODE
+bgp {
+	peer test-peer {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+			local {
+				ip auto
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			capability {
+				asn4 require
+			}
+		}
+	}
+}
+EOF_MODE
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=boolean
+expect=exit:code=1
+# The exit code alone does not say WHY: any parse error produces it. The
+# message is the discriminator, and it comes from ValidateLeafValue's enum arm
+# (internal/component/config/schema.go), which lists the enumeration. The
+# needle carries no ':' because the directive splits on it.
+expect=stdout:contains=invalid value for asn4
+expect=stdout:contains=expected one of
+expect=stdout:contains=enable, disable, require, refuse
+cmd=foreground:seq=2:exec=ze config validate -:stdin=mode
+expect=exit:code=0

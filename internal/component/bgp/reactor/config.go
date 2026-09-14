@@ -739,7 +739,9 @@ func ApplyNegotiationConfig(peerName string, sessionMap map[string]any, ps *Peer
 	if err := parseFamiliesFromTree(sessionMap, ps); err != nil {
 		return fmt.Errorf("peer %s: %w", peerName, err)
 	}
-	parseCapabilitiesFromTree(sessionMap, ps)
+	if err := parseCapabilitiesFromTree(sessionMap, ps); err != nil {
+		return fmt.Errorf("peer %s: capability %w", peerName, err)
+	}
 	return nil
 }
 
