@@ -14,7 +14,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -168,38 +167,20 @@ func rawArguments(args []string) (uint8, string, string, error) {
 // parseMessageType converts string to BGP message type.
 // Returns (type, true) if valid, (0, false) if not a type.
 func parseMessageType(s string) (uint8, bool) {
-	switch strings.ToLower(s) {
-	case "open":
-		return uint8(msgtype.TypeOPEN), true
-	case bgpevents.EventUpdate:
-		return uint8(msgtype.TypeUPDATE), true
-	case "notification":
-		return uint8(msgtype.TypeNOTIFICATION), true
-	case "keepalive":
-		return uint8(msgtype.TypeKEEPALIVE), true
-	case "route-refresh":
-		return uint8(msgtype.TypeROUTEREFRESH), true
-	default: // not a recognized message type name
-		return 0, false
+	code, ok := msgtype.FromText(strings.ToLower(s))
+	if !ok {
+		return 0, false // not a recognized message type name
 	}
+	return uint8(code), true
 }
 
-// msgTypeName returns human-readable name for message type.
+// msgTypeName returns human-readable name for message type. The names come from
+// the msgtype package, which holds the one spelling of them.
 func msgTypeName(t uint8) string {
-	switch msgtype.MessageType(t) {
-	case msgtype.TypeOPEN:
-		return "open"
-	case msgtype.TypeUPDATE:
-		return "update"
-	case msgtype.TypeNOTIFICATION:
-		return "notification"
-	case msgtype.TypeKEEPALIVE:
-		return "keepalive"
-	case msgtype.TypeROUTEREFRESH:
-		return "route-refresh"
-	default: // numeric fallback for unknown types
-		return textbuf.StrInt("type-", int64(t))
+	if name := msgtype.MessageType(t).LowerString(); name != "" {
+		return name
 	}
+	return textbuf.StrInt("type-", int64(t)) // numeric fallback for unknown types
 }
 
 // decodePayload decodes wire bytes from the specified encoding.

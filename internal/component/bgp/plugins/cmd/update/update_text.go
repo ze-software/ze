@@ -561,18 +561,14 @@ func parseRouterIDText(s string) (netip.Addr, error) {
 	return addr.Unmap(), nil
 }
 
-// parseOriginText parses origin string to value.
+// parseOriginText parses origin string to value. The names and their wire
+// values come from the attribute package, which holds the one spelling of them.
 func parseOriginText(s string) (uint8, error) {
-	switch strings.ToLower(s) {
-	case "igp":
-		return 0, nil
-	case "egp":
-		return 1, nil
-	case "incomplete":
-		return 2, nil
-	default:
-		return 0, fmt.Errorf("invalid origin: %s (valid: igp, egp, incomplete)", s)
+	origin, ok := attribute.OriginFromText(strings.ToLower(s))
+	if !ok {
+		return 0, fmt.Errorf("invalid origin: %s (valid: %s)", s, strings.Join(attribute.OriginTextNames(), ", "))
 	}
+	return uint8(origin), nil
 }
 
 // parseBracketedListText parses [ v1 v2 ] or v1,v2 or [ v1, v2 ] style lists.
@@ -972,18 +968,26 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	}
 
 	encoding := strings.ToLower(args[0])
-	switch encoding {
-	case "text":
-		return handleUpdateText(ctx, args[1:])
-	case "hex":
-		return handleUpdateHex(ctx, args[1:])
-	case "b64":
-		return handleUpdateB64(ctx, args[1:])
-	case "cursor":
-		return handleUpdateCursor(ctx, args[1:])
-	default:
+	handler, ok := updateEncodings[encoding]
+	if !ok {
 		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}
+	return handler(ctx, args[1:])
+}
+
+// updateEncodings dispatches `send bgp <selector> update <encoding>` to the
+// handler that reads that encoding.
+//
+// It is the ONLY place in Ze that spells the four encoding words, which are the
+// `encoding` enumeration of ze-update-cmd.yang. The map carries what the model
+// does not, a handler for each word, so the model stays the grammar and this
+// table stays the dispatch; TestUpdateEncodingsMatchTheYANGModel holds the two
+// together.
+var updateEncodings = map[string]func(*pluginserver.CommandContext, []string) (*plugin.Response, error){
+	"text":   handleUpdateText,
+	"hex":    handleUpdateHex,
+	"b64":    handleUpdateB64,
+	"cursor": handleUpdateCursor,
 }
 
 // handleUpdateText handles: send bgp <selector> update text ...

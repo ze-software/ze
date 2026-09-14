@@ -358,17 +358,32 @@ func precomputeNextHop(s *PeerSettings, f *peerForwardFacts) {
 }
 
 func precomputeSendCommunity(s *PeerSettings, f *peerForwardFacts) {
-	if len(s.SendCommunity) == 0 {
-		return
+	f.scMask |= sendCommunitySuppression(s.SendCommunity)
+}
+
+// sendCommunitySuppression reads a peer's send-community list into the mask of
+// community attributes that MUST NOT be forwarded to it.
+//
+// It is the ONLY reader of the five keywords in Ze. They are the
+// `session/community/send` enumeration of ze-bgp-conf.yang, and
+// TestSendCommunityKeywordsMatchTheYANGModel holds the two together. The
+// precomputed per-peer path and the API forward path both call this, so the
+// keyword an operator writes cannot mean one thing on one path and another on
+// the other.
+//
+// An empty list and "all" both mean send every type, so both answer a zero
+// mask. "none" answers all three suppression bits whatever else the list holds.
+func sendCommunitySuppression(list []string) sendCommunityMask {
+	if len(list) == 0 {
+		return 0
 	}
 	sendStandard, sendLarge, sendExtended := false, false, false
-	for _, v := range s.SendCommunity {
+	for _, v := range list {
 		switch v {
 		case "all":
-			return
+			return 0
 		case "none":
-			f.scMask = scSuppressStandard | scSuppressExtended | scSuppressLarge
-			return
+			return scSuppressStandard | scSuppressExtended | scSuppressLarge
 		case "standard":
 			sendStandard = true
 		case "large":
@@ -377,15 +392,17 @@ func precomputeSendCommunity(s *PeerSettings, f *peerForwardFacts) {
 			sendExtended = true
 		}
 	}
+	var mask sendCommunityMask
 	if !sendStandard {
-		f.scMask |= scSuppressStandard
+		mask |= scSuppressStandard
 	}
 	if !sendExtended {
-		f.scMask |= scSuppressExtended
+		mask |= scSuppressExtended
 	}
 	if !sendLarge {
-		f.scMask |= scSuppressLarge
+		mask |= scSuppressLarge
 	}
+	return mask
 }
 
 func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
@@ -407,16 +424,23 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
 }
 
 func applyFactsSendCommunity(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
-	if f.scMask == 0 {
+	applySendCommunityMask(f.scMask, mods)
+}
+
+// applySendCommunityMask writes one suppress op for each community attribute
+// the mask names: COMMUNITIES (8), EXTENDED_COMMUNITIES (16), LARGE_COMMUNITIES
+// (32).
+func applySendCommunityMask(mask sendCommunityMask, mods *filterapi.ModAccumulator) {
+	if mask == 0 {
 		return
 	}
-	if f.scMask&scSuppressStandard != 0 {
+	if mask&scSuppressStandard != 0 {
 		mods.Op(8, filterapi.AttrModSuppress, nil)
 	}
-	if f.scMask&scSuppressExtended != 0 {
+	if mask&scSuppressExtended != 0 {
 		mods.Op(16, filterapi.AttrModSuppress, nil)
 	}
-	if f.scMask&scSuppressLarge != 0 {
+	if mask&scSuppressLarge != 0 {
 		mods.Op(32, filterapi.AttrModSuppress, nil)
 	}
 }

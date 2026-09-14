@@ -100,10 +100,10 @@ func appendClusterID(buf []byte, id uint32) []byte {
 // "incomplete" token to match legacy FormatOrigin behavior.
 func (o Origin) AppendText(buf []byte) []byte {
 	buf = append(buf, "origin "...)
-	if name, ok := originTextNames[o]; ok {
-		return append(buf, name...)
+	if int(o) >= len(originTextNames) {
+		return append(buf, originTextNames[OriginIncomplete]...)
 	}
-	return append(buf, "incomplete"...)
+	return append(buf, originTextNames[o]...)
 }
 
 // AppendText appends "as-path <asns>" where asns is either a single ASN or

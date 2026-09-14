@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errBgpCoordinatorMissingBgpStore = errors.New("bgp: coordinator missing bgp.store")
@@ -41,9 +42,26 @@ func init() {
 		_ = diagnostic.Register(meta)
 	}
 	if err := diagnostic.RegisterDoctorCheck(bfdStrictDoctorCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "bgp: bfd strict doctor check registration failed: %v\n", err)
-		os.Exit(1)
+		doctorRegistrationFailed("bfd strict", err)
 	}
+
+	// A filter chain naming a policy nothing defines leaves the peer with a
+	// shorter chain than the operator wrote. filter_reference_doctor.go reports
+	// it from the tree, against the one filterInstanceName this package holds.
+	if err := diagnostic.RegisterDoctorCheck(filterReferenceDoctorCheck); err != nil {
+		doctorRegistrationFailed("filter reference", err)
+	}
+}
+
+// doctorRegistrationFailed stops the process on a refused registration. Every
+// refusal is a programmer error in the table beside the call -- a duplicate
+// name, an unknown phase, a code without the doctor prefix -- so the daemon
+// must not start one readiness check short of what it declares.
+func doctorRegistrationFailed(check string, err error) {
+	var tb textbuf.Buffer
+	tb.Str("bgp: ").Str(check).Str(" doctor check registration failed: ").Err(err).Byte('\n')
+	tb.StdErr() //nolint:errcheck // the process is exiting on the next line
+	os.Exit(1)
 }
 
 // validatePeersFromTree adapts PeersFromConfigTree to the infra.BGPPeerValidator

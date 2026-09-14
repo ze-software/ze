@@ -845,35 +845,46 @@ const (
 	PrefixReconnectTimer
 )
 
+// prefixReconnectNames maps a mode to the word that names it, indexed by the
+// mode.
+//
+// It is the ONLY place in Ze that spells them, so the word the config takes and
+// the word the log line prints cannot drift. Index 1 upward are the values of
+// the `session/family/prefix/reconnect` enumeration in ze-bgp-conf.yang, held
+// to the model by TestPrefixReconnectNamesMatchTheYANGModel. Index 0 is
+// PrefixReconnectUnset, which the model has no value for: it says the family
+// stated no `reconnect` at all, so it is a word String prints and never a word
+// parsePrefixReconnectMode accepts.
+var prefixReconnectNames = [...]string{
+	PrefixReconnectUnset:   "unset",
+	PrefixReconnectNever:   "never",
+	PrefixReconnectBackoff: "backoff",
+	PrefixReconnectTimer:   "timer",
+}
+
 // String returns the YANG enum spelling, which is also what the log line and
 // the report bus show the operator.
 func (m PrefixReconnectMode) String() string {
-	switch m {
-	case PrefixReconnectNever:
-		return "never"
-	case PrefixReconnectBackoff:
-		return "backoff"
-	case PrefixReconnectTimer:
-		return "timer"
-	case PrefixReconnectUnset:
-		return "unset"
+	if int(m) >= len(prefixReconnectNames) {
+		// The value itself, not a bare "unknown": a mode that reaches here is a
+		// bug, and the number is what identifies which one. Also keeps `goconst`
+		// quiet about a third "unknown" literal in this package.
+		return textbuf.StrUintStr("unknown(", uint64(m), ")")
 	}
-	// The value itself, not a bare "unknown": a mode that reaches here is a bug,
-	// and the number is what identifies which one. Also keeps `goconst` quiet
-	// about a third "unknown" literal in this package.
-	return textbuf.StrUintStr("unknown(", uint64(m), ")")
+	return prefixReconnectNames[m]
 }
 
 // parsePrefixReconnectMode maps a YANG enum value to its mode. ok is false for
 // any other string, which the config parser rejects rather than approximates.
+//
+// The walk starts at PrefixReconnectNever because the name of
+// PrefixReconnectUnset is not a value of the YANG enumeration, so a config that
+// writes it is refused like any other word the model does not declare.
 func parsePrefixReconnectMode(s string) (mode PrefixReconnectMode, ok bool) {
-	switch s {
-	case "never":
-		return PrefixReconnectNever, true
-	case "backoff":
-		return PrefixReconnectBackoff, true
-	case "timer":
-		return PrefixReconnectTimer, true
+	for candidate := PrefixReconnectNever; int(candidate) < len(prefixReconnectNames); candidate++ {
+		if prefixReconnectNames[candidate] == s {
+			return candidate, true
+		}
 	}
 	return PrefixReconnectUnset, false
 }

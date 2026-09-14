@@ -284,11 +284,13 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 		val := attrArgs[i+1]
 
 		if key == kwOrigin {
-			code, ok := injectOriginValues[val]
+			// The names and their wire values come from the attribute package,
+			// which holds the one spelling of them.
+			origin, ok := attribute.OriginFromText(val)
 			if !ok {
-				return statusError, "", fmt.Errorf("unknown origin: %s (use igp, egp, incomplete)", val)
+				return statusError, "", fmt.Errorf("unknown origin: %s (use %s)", val, strings.Join(attribute.OriginTextNames(), ", "))
 			}
-			ab.SetOrigin(code)
+			ab.SetOrigin(uint8(origin))
 			continue
 		}
 		if key == kwNextHop || key == kwNextHopLong {
@@ -543,13 +545,6 @@ const (
 	kwLocalPref   = "localpref"
 	kwMED         = "med"
 )
-
-// injectOriginValues maps origin text to wire code for rib inject.
-var injectOriginValues = map[string]uint8{
-	"igp":        uint8(attribute.OriginIGP),
-	"egp":        uint8(attribute.OriginEGP),
-	"incomplete": uint8(attribute.OriginIncomplete),
-}
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Dispatches to registered handlers from the command table.
@@ -961,9 +956,19 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 	if err != nil {
 		return statusError, "", fmt.Errorf("purge-stale: invalid peer address %q: %w (expected an IP address)", args[0], err)
 	}
+	// An absent second argument purges every family the peer holds. A present
+	// one is resolved here, before the lock: a name no family carries used to
+	// fall through the loop below and report success over nothing purged, so
+	// the operator was told the stale routes were gone.
 	familyFilter := ""
+	var filtered family.Family
 	if len(args) >= 2 {
 		familyFilter = args[1]
+		fam, ok := parseFamily(familyFilter)
+		if !ok {
+			return statusError, "", fmt.Errorf("purge-stale: unknown family %q", familyFilter)
+		}
+		filtered = fam
 	}
 
 	// Collect stale NLRIs under peerMu so no concurrent INSERT can change
@@ -983,19 +988,16 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 
 	if peerRIB != nil {
 		if familyFilter != "" {
-			fam, ok := parseFamily(familyFilter)
-			if ok {
-				ap := peerRIB.IsAddPath(fam)
-				peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
-					if entry.StaleLevel > storage.StaleLevelFresh {
-						cp := make([]byte, len(nlriBytes))
-						copy(cp, nlriBytes)
-						affected = append(affected, staleNLRI{fam: fam, nlri: cp, addPath: ap})
-					}
-					return true
-				})
-				purged = peerRIB.PurgeFamilyStale(fam)
-			}
+			ap := peerRIB.IsAddPath(filtered)
+			peerRIB.IterateFamily(filtered, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+				if entry.StaleLevel > storage.StaleLevelFresh {
+					cp := make([]byte, len(nlriBytes))
+					copy(cp, nlriBytes)
+					affected = append(affected, staleNLRI{fam: filtered, nlri: cp, addPath: ap})
+				}
+				return true
+			})
+			purged = peerRIB.PurgeFamilyStale(filtered)
 		} else {
 			for _, fam := range peerRIB.Families() {
 				ap := peerRIB.IsAddPath(fam)

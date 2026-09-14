@@ -1319,42 +1319,12 @@ func applyNextHopMod(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 // applySendCommunityFilter suppresses community attributes not in the peer's send list.
 // nil/empty SendCommunity means send all (default). "none" suppresses all.
 // Individual types: "standard" (type 8), "large" (type 32), "extended" (type 16).
+//
+// The keywords are read by sendCommunitySuppression, which the precomputed
+// per-peer path reads too, so this path and that one cannot disagree about what
+// a keyword means.
 func applySendCommunityFilter(dest *PeerSettings, mods *filterapi.ModAccumulator) {
-	if len(dest.SendCommunity) == 0 {
-		return // Default: send all community types.
-	}
-
-	// Build a set of allowed types.
-	sendStandard, sendLarge, sendExtended := false, false, false
-	for _, v := range dest.SendCommunity {
-		switch v {
-		case "all":
-			return // Explicit "all" means send everything.
-		case "none":
-			// Suppress all three community types.
-			mods.Op(8, filterapi.AttrModSuppress, nil)  // COMMUNITIES
-			mods.Op(16, filterapi.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
-			mods.Op(32, filterapi.AttrModSuppress, nil) // LARGE_COMMUNITIES
-			return
-		case "standard":
-			sendStandard = true
-		case "large":
-			sendLarge = true
-		case "extended":
-			sendExtended = true
-		}
-	}
-
-	// Suppress types not in the allowed set.
-	if !sendStandard {
-		mods.Op(8, filterapi.AttrModSuppress, nil) // COMMUNITIES
-	}
-	if !sendExtended {
-		mods.Op(16, filterapi.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
-	}
-	if !sendLarge {
-		mods.Op(32, filterapi.AttrModSuppress, nil) // LARGE_COMMUNITIES
-	}
+	applySendCommunityMask(sendCommunitySuppression(dest.SendCommunity), mods)
 }
 
 // applyASOverride replaces occurrences of the peer's ASN with local ASN in AS_PATH.

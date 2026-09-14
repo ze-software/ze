@@ -13,12 +13,10 @@ import (
 
 var errEmptyOriginValue = errors.New("empty origin value")
 
-// Origin string constants for parsing.
-const (
-	originIGP        = "igp"
-	originEGP        = "egp"
-	originIncomplete = "incomplete"
-)
+// originExaBGPIncomplete is ExaBGP's spelling of the INCOMPLETE origin. It is
+// not an RFC 4271 name and not a value of the `origin` YANG enumeration, so it
+// is handled here rather than in the name table.
+const originExaBGPIncomplete = "?"
 
 // ParseOrigin parses an origin string: "igp", "egp", "incomplete", or "?".
 // Replaces any previously set origin value.
@@ -26,16 +24,16 @@ func (b *Builder) ParseOrigin(s string) error {
 	if s == "" {
 		return errEmptyOriginValue
 	}
-	switch strings.ToLower(s) {
-	case originIGP:
-		b.SetOrigin(0)
-	case originEGP:
-		b.SetOrigin(1)
-	case originIncomplete, "?":
-		b.SetOrigin(2)
-	default:
-		return fmt.Errorf("invalid origin: %s (expected %s, %s, or %s)", s, originIGP, originEGP, originIncomplete)
+	lower := strings.ToLower(s)
+	if lower == originExaBGPIncomplete {
+		b.SetOrigin(uint8(OriginIncomplete))
+		return nil
 	}
+	origin, ok := OriginFromText(lower)
+	if !ok {
+		return fmt.Errorf("invalid origin: %s (expected %s)", s, strings.Join(OriginTextNames(), ", "))
+	}
+	b.SetOrigin(uint8(origin))
 	return nil
 }
 

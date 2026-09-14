@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"strings"
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -22,45 +21,20 @@ var (
 	errTruncatedNlriPrefix  = errors.New("truncated NLRI prefix")
 )
 
-// parseFamily converts a family string like "ipv4/unicast" to family.Family.
-// Returns false if the format is invalid.
+// parseFamily converts a family name like "ipv4/unicast" to family.Family, and
+// returns false when no family is registered under that name.
+//
+// It delegates to family.LookupFamily, the single source of truth, and is the
+// inverse of formatFamily below. A hardcoded AFI and SAFI switch stood here and
+// duplicated the registry's table. It had drifted in both directions: it
+// spelled the FlowSpec SAFI "flowspec" where the registrar
+// (internal/component/bgp/plugins/nlri/flowspec/types.go) names it "flow", so
+// the name an operator types was refused and a name no family carries was
+// accepted; and it knew none of the families a plugin registers, so MVPN, MUP,
+// SR-Policy, RTC, VPLS, BGP-LS and FlowSpec VPN were all unreachable through
+// every command below. TestParseFamilyMatchesRegistry holds the two together.
 func parseFamily(familyStr string) (family.Family, bool) {
-	parts := strings.Split(familyStr, "/")
-	if len(parts) != 2 {
-		return family.Family{}, false
-	}
-
-	var afi family.AFI
-	switch parts[0] {
-	case "ipv4":
-		afi = family.AFIIPv4
-	case "ipv6":
-		afi = family.AFIIPv6
-	case "l2vpn":
-		afi = family.AFIL2VPN
-	default: // unknown AFI
-		return family.Family{}, false
-	}
-
-	var safi family.SAFI
-	switch parts[1] {
-	case "unicast":
-		safi = family.SAFIUnicast
-	case "multicast":
-		safi = family.SAFIMulticast
-	case "mpls-vpn":
-		safi = family.SAFIVPN
-	case "mpls-label":
-		safi = family.SAFIMPLSLabel
-	case "evpn":
-		safi = family.SAFIEVPN
-	case "flowspec":
-		safi = family.SAFIFlowSpec
-	default: // unknown SAFI
-		return family.Family{}, false
-	}
-
-	return family.Family{AFI: afi, SAFI: safi}, true
+	return family.LookupFamily(familyStr)
 }
 
 // isSimplePrefixFamily returns true for families with simple NLRI format.

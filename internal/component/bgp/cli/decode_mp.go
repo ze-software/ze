@@ -142,88 +142,49 @@ func formatFamily(afi family.AFI, safi family.SAFI) string {
 	return family.Family{AFI: afi, SAFI: safi}.String()
 }
 
-// parseNLRIByFamily parses NLRI based on address family.
+// parseNLRIByFamily decodes NLRI through the plugin the registry names for the
+// family. No plugin name is spelled here: a plugin reaches this path the moment
+// it registers its families, so a family the tree gains needs no edit. A family
+// no plugin claims carries a plain prefix list, which parseGenericNLRI reads.
+//
+// decodeNLRIOnly (below) takes the same two routes in the same order, and the
+// order matters: the registered in-process decoder and the plugin's decode
+// command run the same producer, so the fast path answers identically without
+// a subprocess.
 func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []any {
-	var routes []any
-
-	switch {
-	case afi == family.AFIL2VPN && safi == family.SAFIEVPN:
-		// EVPN decoding delegated to plugin
-		famStr := family.Family{AFI: afi, SAFI: safi}.String()
-		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-evpn", famStr, hexData)
-		if result != nil {
-			// Result can be array (multiple NLRIs) or map (single NLRI)
-			if arr, ok := result.([]any); ok {
-				routes = arr
-			} else {
-				routes = []any{result}
-			}
-		} else {
-			// Plugin failed or unavailable - return raw bytes
-			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
-		}
-	case safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN:
-		// FlowSpec decoding delegated to plugin
-		famStr := family.Family{AFI: afi, SAFI: safi}.String()
-		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-flowspec", famStr, hexData)
-		if result != nil {
-			// Result can be array (multiple NLRIs) or map (single NLRI)
-			if arr, ok := result.([]any); ok {
-				routes = arr
-			} else {
-				routes = []any{result}
-			}
-		} else {
-			// Plugin failed or unavailable - return raw bytes
-			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
-		}
-	case afi == family.AFIBGPLS:
-		// BGP-LS decoding delegated to plugin
-		famStr := family.Family{AFI: afi, SAFI: safi}.String()
-		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-ls", famStr, hexData)
-		if result != nil {
-			if arr, ok := result.([]any); ok {
-				routes = arr
-			} else {
-				routes = []any{result}
-			}
-		} else {
-			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
-		}
-	case safi == family.SAFIVPN:
-		// VPN decoding delegated to plugin (RFC 4364, 4659)
-		famStr := family.Family{AFI: afi, SAFI: safi}.String()
-		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-vpn", famStr, hexData)
-		if result != nil {
-			if arr, ok := result.([]any); ok {
-				routes = arr
-			} else {
-				routes = []any{result}
-			}
-		} else {
-			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
-		}
-	case safi == family.SAFISRPolicy:
-		famStr := family.Family{AFI: afi, SAFI: safi}.String()
-		hexData := textbuf.StringHexUpper(data)
-		if raw, err := registry.DecodeNLRIByFamily(famStr, hexData); err == nil {
-			var decoded any
-			if json.Unmarshal(raw, &decoded) == nil {
-				routes = []any{decoded}
-			}
-		}
-		if routes == nil {
-			routes = []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
-		}
-	default: // IPv4/IPv6 unicast/multicast - simple prefix format
-		routes = parseGenericNLRI(data, afi)
+	famStr := family.Family{AFI: afi, SAFI: safi}.String()
+	pluginName := lookupFamilyPlugin(famStr)
+	if pluginName == "" {
+		return parseGenericNLRI(data, afi)
 	}
 
-	return routes
+	hexData := textbuf.StringHexUpper(data)
+	unparsed := []any{map[string]any{jsonKeyParsed: false, jsonKeyRaw: hexData}}
+
+	if raw, err := registry.DecodeNLRIByFamily(famStr, hexData); err == nil {
+		var decoded any
+		if err := json.Unmarshal(raw, &decoded); err != nil {
+			return unparsed
+		}
+		return nlriRoutes(decoded)
+	}
+
+	// The plugin registered no in-process NLRI decoder, so reach its decode
+	// command instead. bgp-nlri-ls is the one plugin on this route today.
+	result := invokePluginNLRIDecode(pluginName, famStr, hexData)
+	if result == nil {
+		return unparsed
+	}
+	return nlriRoutes(result)
+}
+
+// nlriRoutes normalizes a plugin's decode answer. A packed MP_REACH holding
+// several NLRIs decodes to an array, and a single NLRI decodes to one object.
+func nlriRoutes(decoded any) []any {
+	if routes, ok := decoded.([]any); ok {
+		return routes
+	}
+	return []any{decoded}
 }
 
 // parseGenericNLRI parses generic NLRI (IPv4/IPv6 prefixes).

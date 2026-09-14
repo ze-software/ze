@@ -5,6 +5,7 @@ package attribute
 
 import (
 	"fmt"
+	"slices"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -45,8 +46,16 @@ var originNames = map[Origin]string{
 	OriginIncomplete: "INCOMPLETE",
 }
 
-// originTextNames maps Origin values to lowercase wire/JSON names.
-var originTextNames = map[Origin]string{
+// originTextNames maps Origin values to lowercase wire/JSON names, indexed by
+// the RFC 4271 wire value so a lookup is an array index rather than a hash.
+//
+// It is the ONLY place in Ze that spells the three names. Every surface that
+// names an origin reads it through OriginFromText, OriginTextNames or
+// LowerString, because a second spelling of a set is a future disagreement with
+// nothing to arbitrate it (ai/rules/principles.md). The set is also the
+// `origin` enumeration of ze-bgp-conf.yang, and the two are held together by
+// TestOriginTextNamesMatchTheYANGModel in internal/component/bgp/config.
+var originTextNames = [...]string{
 	OriginIGP:        "igp",
 	OriginEGP:        "egp",
 	OriginIncomplete: "incomplete",
@@ -57,10 +66,28 @@ var originTextNames = map[Origin]string{
 var originFromText = func() map[string]Origin {
 	m := make(map[string]Origin, len(originTextNames))
 	for value, name := range originTextNames {
-		m[name] = value
+		m[name] = Origin(value)
 	}
 	return m
 }()
+
+// OriginFromText answers the Origin a lowercase wire name spells, and whether
+// the name is one of them. A caller that maps an operator's word to a wire
+// value calls this rather than writing the names again.
+//
+// The match is exact: a caller that accepts a mixed-case word lowercases it
+// first, and a caller that accepts a spelling the RFC does not give, such as
+// ExaBGP's "?", handles that word before it asks.
+func OriginFromText(name string) (Origin, bool) {
+	value, ok := originFromText[name]
+	return value, ok
+}
+
+// OriginTextNames answers every lowercase wire name, in wire-value order, for
+// an error message or a help line that must offer the whole set.
+func OriginTextNames() []string {
+	return slices.Clone(originTextNames[:])
+}
 
 // String returns the human-readable origin name ("IGP", "EGP", or "INCOMPLETE").
 func (o Origin) String() string {
@@ -74,10 +101,10 @@ func (o Origin) String() string {
 // MarshalText returns the lowercase wire/JSON name ("igp", "egp", "incomplete").
 // Implements encoding.TextMarshaler for JSON wire compatibility.
 func (o Origin) MarshalText() ([]byte, error) {
-	if name, ok := originTextNames[o]; ok {
-		return []byte(name), nil
+	if int(o) >= len(originTextNames) {
+		return nil, fmt.Errorf("unknown origin value %d", o)
 	}
-	return nil, fmt.Errorf("unknown origin value %d", o)
+	return []byte(originTextNames[o]), nil
 }
 
 // UnmarshalText parses a lowercase wire/JSON name ("igp", "egp", "incomplete").
@@ -95,10 +122,10 @@ func (o *Origin) UnmarshalText(text []byte) error {
 // Returns "" for unknown values. This is a non-allocating accessor for hot paths
 // that need the wire name without the MarshalText allocation.
 func (o Origin) LowerString() string {
-	if name, ok := originTextNames[o]; ok {
-		return name
+	if int(o) >= len(originTextNames) {
+		return ""
 	}
-	return ""
+	return originTextNames[o]
 }
 
 // Code returns AttrOrigin (Type Code 1 per RFC 4271 Section 4.3).

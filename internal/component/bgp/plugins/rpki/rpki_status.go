@@ -8,16 +8,18 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// actionString maps an action constant back to its config keyword.
+// actionString maps an action constant back to its config keyword, read from
+// aspaPolicyNames so the status answer spells the keyword the config takes.
+//
+// A value outside the three is not reachable: every caller passes an atomic
+// this package writes, and it writes only a constant aspaActionFromString
+// returned. The out-of-range arm keeps the answer accept, which is what this
+// function has always answered for one.
 func actionString(a uint8) string {
-	switch a {
-	case ASPAPolicyReject:
-		return "reject"
-	case ASPAPolicyLogOnly:
-		return "log-only"
-	default:
-		return "accept"
+	if int(a) >= len(aspaPolicyNames) {
+		return aspaPolicyNames[ASPAPolicyAccept]
 	}
+	return aspaPolicyNames[a]
 }
 
 // appendGlobalActions writes the effective global actions object to b, read from the same

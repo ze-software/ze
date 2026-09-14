@@ -6,7 +6,10 @@ package monitor
 
 import (
 	"encoding/json"
+	"slices"
+	"sync"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -64,7 +67,7 @@ func formatDirection(dir string) string {
 func formatUpdate(dir, peer, asn string, ev monitorEvent) string {
 	var parts []string
 
-	for _, fam := range knownFamilies {
+	for _, fam := range knownFamilies() {
 		entries, ok := ev.BGP.Update.NLRI[fam]
 		if !ok {
 			continue
@@ -123,13 +126,23 @@ func formatNotification(dir, peer, asn string, ev monitorEvent) string {
 	return b.Reset().Str(dir).Str(" NOTIF  ").Str(peer).Byte(' ').Str(asn).Byte(' ').Int(int64(code)).Byte('/').Int(int64(subcode)).String()
 }
 
-// knownFamilies lists address families to scan in JSON events.
-var knownFamilies = []string{
-	"ipv4/unicast", "ipv6/unicast",
-	"ipv4/mpls-vpn", "ipv6/mpls-vpn",
-	"ipv4/flow", "ipv6/flow",
-	"l2vpn/evpn", "bgp-ls/bgp-ls",
-}
+// knownFamilies answers the family names to scan for in a JSON event's NLRI
+// map. It reads the family registry, so a family a plugin registers is
+// displayed without an edit here: the eight names written out before this
+// omitted MVPN, MUP, SR-Policy, RTC, VPLS, labeled unicast and both VPN
+// variants, and an UPDATE carrying one of those printed no prefix at all.
+//
+// The names are sorted because the scan order is the order the prefixes appear
+// on the monitor line, and the registry answers in map order.
+//
+// Resolved once on first use rather than at package init. The NLRI plugins
+// register their families in their own init(), and nothing orders those
+// against this package's.
+var knownFamilies = sync.OnceValue(func() []string {
+	names := family.RegisteredFamilyNames()
+	slices.Sort(names)
+	return names
+})
 
 // monitorEvent is the minimal structure for parsing ze-bgp JSON events.
 // Only fields needed for text rendering are included.

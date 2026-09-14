@@ -398,21 +398,22 @@ func encodeAttrValue(scratch *valueScratch, name, value string) ([]byte, error) 
 }
 
 // encodeOriginValue encodes "igp"/"egp"/"incomplete" to a 1-byte wire value.
+// The names and their wire values come from the attribute package, which holds
+// the one spelling of them. "?" is ExaBGP's word for incomplete and is not one
+// of the RFC 4271 names, so it is answered before the table is asked.
 func encodeOriginValue(scratch *valueScratch, s string) ([]byte, error) {
-	var origin byte
-	switch strings.ToLower(s) {
-	case "igp":
-		origin = 0
-	case "egp":
-		origin = 1
-	case "incomplete", "?":
-		origin = 2
-	default:
-		return nil, fmt.Errorf("invalid origin: %s", s)
+	lower := strings.ToLower(s)
+	origin := attribute.OriginIncomplete
+	if lower != "?" {
+		named, ok := attribute.OriginFromText(lower)
+		if !ok {
+			return nil, fmt.Errorf("invalid origin: %s", s)
+		}
+		origin = named
 	}
 
 	buf := scratch.carveBytes(1)
-	buf[0] = origin
+	buf[0] = byte(origin)
 	return buf, nil
 }
 

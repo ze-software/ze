@@ -745,6 +745,11 @@ func (r *Reactor) StartPeers() error {
 	// this startup's convergence either (updateDelayHold.arm).
 	r.updateDelay.arm(r.ctx, r.clock, r.config.UpdateDelay, peerSlice(peersToStart))
 
+	// Before the first session opens, so a GTSM peer's related ICMP messages
+	// are protected from the first packet rather than from the first reload
+	// (gtsm.go).
+	r.publishGTSMKernelState()
+
 	for _, peer := range peersToStart {
 		peer.StartWithContext(r.ctx)
 	}
@@ -1853,16 +1858,20 @@ func (r *Reactor) stopAllListeners() {
 	}
 }
 
-// nativeFamilies are families decoded natively by the engine without plugins.
-// Only INET-format families (same prefix encoding as ipv4/unicast) are native.
-// All other families are handled by their respective plugins via the registry.
+// nativeFamilies are the families decoded natively by the engine without
+// plugins. Only INET-format families (the same prefix encoding as ipv4/unicast)
+// are native, and every other family is handled by its plugin through the
+// registry. Which four they are is a decision of this engine, so the list is
+// written here; what each one is CALLED is not, so each name is read back from
+// the family registry that composed it.
+//
+// RFC 4271 gives the first (BGP-4, IPv4 unicast). RFC 4760 gives the other
+// three, which share its prefix format.
 var nativeFamilies = map[string]bool{
-	// RFC 4271 - BGP-4 (IPv4 unicast) - truly native
-	"ipv4/unicast": true,
-	// RFC 4760 - Multiprotocol Extensions (same INET prefix format)
-	"ipv6/unicast":   true,
-	"ipv4/multicast": true,
-	"ipv6/multicast": true,
+	family.IPv4Unicast.String():   true,
+	family.IPv6Unicast.String():   true,
+	family.IPv4Multicast.String(): true,
+	family.IPv6Multicast.String(): true,
 }
 
 // validatePeerFamilies checks that all explicitly configured peer families have decoders.

@@ -410,26 +410,26 @@ func rejectFamily(wanted string, seen map[string]struct{}) (*plugin.Response, er
 	return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 }
 
-// expandFamilyShorthand accepts three operator-friendly short forms:
+// expandFamilyShorthand accepts three operator-friendly short forms, expanding
+// "ipv4" and "ipv6" to their unicast family and "l2vpn" to EVPN.
 //
-//	"ipv4"  -> "ipv4/unicast"
-//	"ipv6"  -> "ipv6/unicast"
-//	"l2vpn" -> "l2vpn/evpn"
+// WHICH three is a decision of this command and is written here. A family a
+// plugin registers gets no shorthand: the table is deliberately small so a typo
+// like `bgplb` cannot be mis-expanded to a valid-looking family, and any other
+// family (bgp-ls, flowspec, labeled unicast, the per-VRF SAFIs) requires the
+// full afi/safi form. What each one is CALLED is not decided here, so the name
+// comes from the family registry that composed it.
 //
-// The shorthand table is intentionally small; any other family
-// (bgp-ls, flowspec, labeled-unicast, per-VRF SAFIs, etc.) requires
-// the full afi/safi form so a typo like `bgplb` cannot be mis-expanded
-// to a valid-looking family. Input is compared case-insensitive; the
-// caller validates the returned string against actually-negotiated
-// families.
+// Input is compared case-insensitive, and the caller validates the returned
+// name against the families actually negotiated.
 func expandFamilyShorthand(in string) string {
 	switch strings.ToLower(in) {
 	case "ipv4":
-		return "ipv4/unicast"
+		return family.IPv4Unicast.String()
 	case "ipv6":
-		return "ipv6/unicast"
+		return family.IPv6Unicast.String()
 	case "l2vpn":
-		return "l2vpn/evpn"
+		return family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}.String()
 	}
 	return in
 }

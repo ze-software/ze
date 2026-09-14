@@ -243,20 +243,14 @@ func attrWithFlags(value any, flags attribute.AttributeFlags) map[string]any {
 	}
 }
 
-// originNames maps ORIGIN values to RFC 4271 names.
-var originNames = map[byte]string{
-	0: "igp",
-	1: "egp",
-	2: "incomplete",
-}
-
 // formatOrigin converts raw ORIGIN pool bytes to RFC 4271 name.
-// ORIGIN is 1 byte: 0=IGP, 1=EGP, 2=INCOMPLETE.
+// ORIGIN is 1 byte: 0=IGP, 1=EGP, 2=INCOMPLETE. The names come from the
+// attribute package, which holds the one spelling of them.
 func formatOrigin(data []byte) string {
 	if len(data) == 0 {
 		return ""
 	}
-	if name, ok := originNames[data[0]]; ok {
+	if name := attribute.Origin(data[0]).LowerString(); name != "" {
 		return name
 	}
 	var b textbuf.Buffer

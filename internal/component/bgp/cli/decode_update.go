@@ -200,9 +200,13 @@ func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreac
 func renderAttributeZe(code byte, value []byte) (key string, rendered any, understood bool) {
 	switch code {
 	case 1: // ORIGIN
-		origins := []string{"igp", "egp", "incomplete"}
-		if len(value) >= 1 && int(value[0]) < len(origins) {
-			return "origin", origins[value[0]], true
+		// The name comes from the attribute package, which holds the one
+		// spelling of the three RFC 4271 values. LowerString answers "" for an
+		// octet the RFC does not define, and such an octet stays unrendered.
+		if len(value) >= 1 {
+			if name := attribute.Origin(value[0]).LowerString(); name != "" {
+				return "origin", name, true
+			}
 		}
 	case 2: // AS_PATH - Ze format uses simple array
 		if asPath := parseASPathZe(value); len(asPath) > 0 {

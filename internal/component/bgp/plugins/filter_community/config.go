@@ -18,21 +18,29 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
-// Community type constants.
+// Community type constants. They ARE filtertext.CommunityKind values.
+//
+// The filter-text reader and this plugin name one set of three community
+// attributes, and the keyword each carries in configuration is that type's
+// String(). So this package never spells standard, large or extended: it asks
+// the kind. The three keywords are also the `community-match/entry/type`
+// enumeration of ze-bgp-conf.yang, and filtertext holds the one Go spelling
+// of them.
 const (
-	communityTypeStandard = iota
-	communityTypeLarge
-	communityTypeExtended
+	communityTypeStandard = filtertext.CommunityStandard
+	communityTypeLarge    = filtertext.CommunityLarge
+	communityTypeExtended = filtertext.CommunityExtended
 )
 
 // communityDef holds a named community definition with pre-parsed wire
 // bytes.
 type communityDef struct {
-	typ        int      // communityTypeStandard/Large/Extended
-	wireValues [][]byte // Pre-built wire bytes per value (4/12/8 bytes each)
+	typ        filtertext.CommunityKind // communityTypeStandard/Large/Extended
+	wireValues [][]byte                 // Pre-built wire bytes per value (4/12/8 bytes each)
 }
 
 // communityDefs maps community names to their definitions.
@@ -145,17 +153,17 @@ func parseCommunityDefinitions(bgpCfg map[string]any) (communityDefs, error) {
 		return defs, nil
 	}
 
-	// Parse each community type.
+	// Parse each community type. The config keyword each one carries is the
+	// kind's own String(), so the three words are spelled in filtertext alone.
 	for _, entry := range []struct {
-		key     string
-		typ     int
+		typ     filtertext.CommunityKind
 		parseFn func(string) ([]byte, error)
 	}{
-		{"standard", communityTypeStandard, parseStandardWire},
-		{"large", communityTypeLarge, parseLargeWire},
-		{"extended", communityTypeExtended, parseExtendedWire},
+		{communityTypeStandard, parseStandardWire},
+		{communityTypeLarge, parseLargeWire},
+		{communityTypeExtended, parseExtendedWire},
 	} {
-		typeBlock, ok := communityBlock[entry.key].(map[string]any)
+		typeBlock, ok := communityBlock[entry.typ.String()].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -166,13 +174,13 @@ func parseCommunityDefinitions(bgpCfg map[string]any) (communityDefs, error) {
 			}
 			valueStrs := configvalue.LeafList(namedBlock["value"])
 			if len(valueStrs) == 0 {
-				return nil, fmt.Errorf("community %s %q: no values defined", entry.key, name)
+				return nil, fmt.Errorf("community %s %q: no values defined", entry.typ, name)
 			}
 			def := &communityDef{typ: entry.typ}
 			for _, s := range valueStrs {
 				wire, err := entry.parseFn(s)
 				if err != nil {
-					return nil, fmt.Errorf("community %s %q value %q: %w", entry.key, name, s, err)
+					return nil, fmt.Errorf("community %s %q value %q: %w", entry.typ, name, s, err)
 				}
 				def.wireValues = append(def.wireValues, wire)
 			}

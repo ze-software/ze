@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/ze-software/ze/internal/component/bgp/filtertext"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -153,7 +154,7 @@ func applyIngressOps(payload []byte, defs communityDefs, names []string, isTag b
 }
 
 // communityAttrCode returns the BGP attribute code for a community type.
-func communityAttrCode(typ int) attribute.AttributeCode {
+func communityAttrCode(typ filtertext.CommunityKind) attribute.AttributeCode {
 	switch typ {
 	case communityTypeStandard:
 		return attribute.AttrCommunity
@@ -167,7 +168,7 @@ func communityAttrCode(typ int) attribute.AttributeCode {
 
 // communityValueSize returns the wire size of one community value for the
 // type.
-func communityValueSize(typ int) int {
+func communityValueSize(typ filtertext.CommunityKind) int {
 	switch typ {
 	case communityTypeStandard:
 		return 4

@@ -31,18 +31,29 @@ const (
 	ASPAPolicyAccept  uint8 = 2
 )
 
+// aspaPolicyNames maps a policy action to the config keyword that names it,
+// indexed by the action constant.
+//
+// It is the ONLY place in Ze that spells the three keywords. actionString reads
+// it to render `show bgp rpki status`, and aspaActionFromString reads it to
+// parse the config, so the word an operator writes and the word the status
+// answers cannot drift. The same three words are the `action/invalid`
+// enumeration of ze-bgp-conf.yang, and
+// TestASPAPolicyNamesMatchTheYANGModel holds the two together.
+var aspaPolicyNames = [...]string{
+	ASPAPolicyReject:  "reject",
+	ASPAPolicyLogOnly: "log-only",
+	ASPAPolicyAccept:  "accept",
+}
+
 // aspaActionFromString converts a config string to a policy action constant.
 func aspaActionFromString(s string) (uint8, bool) {
-	switch s {
-	case "reject":
-		return ASPAPolicyReject, true
-	case "log-only":
-		return ASPAPolicyLogOnly, true
-	case "accept":
-		return ASPAPolicyAccept, true
-	default:
-		return 0, false
+	for action, name := range aspaPolicyNames {
+		if name == s {
+			return uint8(action), true //nolint:gosec // G115: the index is bounded by a three-entry array
+		}
 	}
+	return 0, false
 }
 
 // actionSource identifies the config level a resolved per-peer action came from.

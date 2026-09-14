@@ -21,20 +21,19 @@ type SAFI = family.SAFI
 var _ = registerBuiltinFamilies()
 
 func registerBuiltinFamilies() bool {
-	registry.RegisterBuiltinFamilies("builtin", []string{
-		FamilyIPv4Unicast,
-		FamilyIPv6Unicast,
-		FamilyIPv4Multicast,
-		FamilyIPv6Multicast,
-	})
+	registry.RegisterBuiltinFamilies("builtin", builtinFamilies())
 	return true
 }
 
-// Canonical family strings (used in output).
-// Format: <afi>/<safi> (e.g., "ipv4/unicast").
-const (
-	FamilyIPv4Unicast   = "ipv4/unicast"
-	FamilyIPv6Unicast   = "ipv6/unicast"
-	FamilyIPv4Multicast = "ipv4/multicast"
-	FamilyIPv6Multicast = "ipv6/multicast"
-)
+// builtinFamilies returns the registry's own name for each of the four RFC 4760
+// base families. The family package registers them itself
+// (internal/core/family/registry.go), joining each name from its AFI and SAFI
+// parts, so nothing here spells one a second time.
+func builtinFamilies() []string {
+	return []string{
+		family.IPv4Unicast.String(),
+		family.IPv6Unicast.String(),
+		family.IPv4Multicast.String(),
+		family.IPv6Multicast.String(),
+	}
+}
