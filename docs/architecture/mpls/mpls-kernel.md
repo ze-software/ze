@@ -61,3 +61,21 @@ feature is not proven until a test enters at the user or wire entry point. The
 QEMU integration test is that evidence for the push path; it drives a labeled
 change through `processEvent` to a live kernel and asserts push, relabel,
 withdraw, and non-clobber of a foreign route.
+
+## Trap: an AF_MPLS entry that reads back proves nothing about forwarding
+
+The kernel accepts a labeled frame only on an interface whose
+`net.mpls.conf.<iface>.input` sysctl is set. A table of correct swap and pop
+entries therefore forwards nothing on a router that never set it, and a
+read-back of the table looks the same either way. So the swap and pop
+integration tests inject a labeled frame on the peer end of a veth pair and
+read what the kernel sends back: the swapped label stack and the next hop's
+hardware address for a swap, the bare inner packet for a pop with a next hop,
+and the datagram a local socket receives for an egress pop through loopback.
+Each carries a control that injects the same frame with `input` unset and
+asserts the kernel forwards nothing. The tests write the sysctl themselves,
+because the product writes it through the iface component and the sysctl
+plugin, which the FIB package cannot reach.
+
+<!-- source: internal/plugins/fib/kernel/mplsframe_integration_linux_test.go -- the veth harness and the labeled frame -->
+<!-- source: internal/plugins/fib/kernel/mplsentry_integration_linux_test.go -- the swap and pop forwarding proofs -->
