@@ -125,7 +125,13 @@ func TestEncryptWrongSecret(t *testing.T) {
 // VALIDATES: full packet marshal/unmarshal round-trip.
 // PREVENTS: header/body misalignment or corruption.
 //
-// RFC requirement: RFC8907-10-1 positive -- with a key configured the body is encrypted (no Unencrypted flag set) and round-trips (packet.go:183-185).
+// RFC requirement: RFC8907-10-1 positive -- a packet marshaled with a key
+// configured is recovered by an unmarshal that de-obfuscates only while
+// TAC_PLUS_UNENCRYPTED_FLAG is clear (packet.go UnmarshalPacket), so a marshal
+// that announced the flag on this path would return a body that does not match
+// the one encoded. The claim stops there: this test reads no wire octet, so the
+// flag on an emitted request is judged by
+// TestRFC8907UnencryptedModeIsNotReachableFromConfiguration.
 func TestPacketMarshalRoundTrip(t *testing.T) {
 	original := &Packet{
 		Header: PacketHeader{

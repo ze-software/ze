@@ -134,10 +134,14 @@ func papPlaintext(t *testing.T, username, password, port, remAddr string) []byte
 // unmarshal side reads the flag and skips de-obfuscation to match. Only the wire
 // bytes tell the two apart, so this test reads them.
 //
-// RFC requirement: RFC8907-10-1 positive -- the request header's flag octet has
-// TAC_PLUS_UNENCRYPTED_FLAG (0x01) clear, and the request body on the wire is not
-// the plaintext the client encoded: it is the MD5 pseudo-pad XOR of it, and it
-// recovers to the plaintext only with the shared secret (packet.go MarshalInto).
+// RFC requirement: RFC8907-10-1 positive -- a client built from the only
+// configuration ze offers, a server address and a shared secret, puts a request
+// on the wire whose flag octet has TAC_PLUS_UNENCRYPTED_FLAG (0x01) clear and
+// whose body is the MD5 pseudo-pad XOR of the plaintext: that configuration
+// enabled unencrypted mode nowhere (packet.go MarshalInto).
+// RFC requirement: RFC8907-10-2 positive -- the flag octet the client wrote to the
+// connection has TAC_PLUS_UNENCRYPTED_FLAG (0x01) clear, read off the request
+// datagram the probe captured rather than off the packet the client encoded.
 func TestRFC8907ClientNeverSendsUnobfuscatedBody(t *testing.T) {
 	key := []byte("obfuscation-key")
 	probe := newObfuscationProbe(t, key, 0x00, true)

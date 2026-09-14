@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8907",
+  "records": [
+    {
+      "rid": "RFC8907-10-1",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration",
+      "unit-sha": "924a386311f15b1a",
+      "claim-sha": "ea72bbf27c125959",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::trySend",
+      "producer-sha": "1b59821d9aa2486b",
+      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8907-10-2",
+      "polarity": "positive",
+      "unit": "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody",
+      "unit-sha": "fe91dc1ea281bdae",
+      "claim-sha": "91841bb7608bbf3e",
+      "route": "revert",
+      "producer": "internal/component/tacacs/client.go::trySend",
+      "producer-sha": "1b59821d9aa2486b",
+      "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
