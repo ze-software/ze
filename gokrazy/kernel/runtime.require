@@ -14,6 +14,8 @@ CONFIG_MACVLAN
 CONFIG_HUGETLBFS
 CONFIG_INET_ESP
 CONFIG_INET6_ESP
+CONFIG_INET_AH
+CONFIG_INET6_AH
 CONFIG_XFRM_STATISTICS
 
 # The interface kinds, policy routing and traffic control ze programs. Each has
