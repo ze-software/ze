@@ -11,14 +11,36 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**RESUME HERE (session stopped 2026-09-14 at the weekly usage cap).** The state,
-the resume kit, the gate's judgement rules, the wave-2 scope split and the traps
-that cost agents real time are in
-`plan/handover/restated-registry-fix-pass-2026-09-14.md`.
-Read it BEFORE touching anything: eight agents were stopped mid-edit, the tree
-does not compile, and `./le` does not rebuild itself so every measurement needs
-`./le --update` first. Derive the uncommitted file list from `git status`; do not
-trust any list written down, which is the defect this spec exists to remove.
+**RESUME HERE (second session, 2026-09-14 evening).** Wave 1 and wave 2 are
+done in the working tree: the doctor-check and plugin-name corpora answer 0 and
+10 rows, the YANG corpus 72, the family corpus 7, and every remaining row has a
+disposition in Known Limitations below. What is left is the ONE decision in
+"Open decision" and the closure route. The history, the gate's judgement rules
+and the traps are in `plan/handover/restated-registry-fix-pass-2026-09-14.md`.
+
+## Open decision: what silences an outcome-2 row
+
+The gate's closed corpus (YANG enumerations) flags a Go literal that holds
+every value of an enumeration and says "the two must agree". It cannot tell
+which side is the declaration. This pass judged every row and found the Go side
+is the declaration far more often than not: the table carries an IANA number,
+a wire constant, a kernel name or a handler, and the model is the copy. The
+repair for that shape is an agreement test in the owning package, which loads
+the module, reads the enum at the leaf path the row names, compares both ways
+and fails on a path holding no enumeration. 64 rows now carry one. The gate
+cannot see a test, so those 64 rows stay in `report` and `check` blocks a
+change set that touches any of their files.
+
+Two readings, which is the owner's call:
+
+| Reading | What the gate learns | Cost |
+|---------|----------------------|------|
+| A. A gated row is done | the closed corpus reads the `_test.go` files of the package (and, for a bottom-tier package, of the package its test lives in) for the leaf path string beside a model-loader call, and reports the row as `gated by TestX` rather than as a finding; a test that names a path no leaf holds is itself a finding | one reader in `internal/le/enumeration/corpus.go`; the 64 rows leave `report` and `check` |
+| B. A gated row stays a finding | nothing; AC-1 is reworded so a row with a named agreement test counts as "named in this spec" | the report stops being a work list for the closed corpus, and `check` keeps blocking the 64 files |
+
+Reading A is recommended: it is what the gate's own row text asks for ("the two
+must agree") made checkable. Until the owner answers, the 64 rows are listed in
+Known Limitations by test name.
 
 ## Task
 
@@ -230,6 +252,74 @@ the bucket's own test (`plan/README.md`).
   protocol names, ExaBGP API control words, iproute2 subcommands, and RFC 7752
   BGP-LS protocol-ID names. Each needs a registry to exist first, and each is its
   own spec.
+
+### The rows that remain after the pass (AC-1), measured 2026-09-14 evening: 89
+
+**Plugin names, 10 rows, none a copy.** Each is keyed on a namespace that shares
+spellings with plugin names because a plugin is named after what it owns: YANG
+top-level section names (`config/graph.go:sectionBGP`,
+`config/validate_sections.go:validatedSections` and
+`knownUnwalkedValidatorSections`, the last two with a recorded reason per
+section), historical nftables table names an upgrade must keep spelling
+(`firewall/legacy_tables.go`), IANA protocol names (`firewall/protocol.go`),
+`ze support` module names, which are that command's own registry
+(`support/modules.go`), prose and identifier capitalisation tables
+(`le/site/plugins.go`, `le/yang/glue/yangglue.go`), and the command-YANG
+migration's directory plan (`le/yang/migration/commands.go`, two rows). No
+marker was added: the owner decided the backlog stays visible.
+
+**Family names, 7 rows, blocked on one design decision.** `chaos/peer`,
+`chaos/scenario`, `kernelcap`, `test/fixture` and `test/runner` each need a
+non-base family name (flow, mpls-vpn, mpls-label, evpn, flow-vpn). Only four
+families register unconditionally (`internal/core/family/registry.go`); every
+other registration lives in an NLRI plugin behind the `ze_bgp` build tag, and
+none of those five packages links one. Deriving there renders `afi-1/safi-128`.
+`kernelcap.labeledFamilies` is the one that matters: it decides whether the
+kernel is asked for an AF_MPLS table, so a registry miss would answer "no MPLS
+needed", a fail-open guard. Named in Work Not Done as its own spec.
+
+**YANG enumerations, 72 rows: 64 gated, 8 another namespace.** A gated row is
+one where the Go table is the declaration (it carries the wire value, the IANA
+number, the kernel name or the handler) and an agreement test in the owning
+package reads the enum at the leaf path the row names and fails if either side
+moves. The test is what closes the drift; whether the gate should then stop
+reporting the row is the Open decision above.
+
+| Package | Gated rows | Agreement test(s) |
+|---------|-----------|-------------------|
+| `bgp/config` | 1 (+ tests for `core/bgp/attribute`, `core/bgp/asn`) | `TestLeakFilterRolesMatchTheYANGModel`, `TestOriginTextNamesMatchTheYANGModel`, `TestASNotationTokensMatchTheYANGModel` |
+| `bgp/filtertext`, `bgp/plugins/{bmp,cmd/update,filter_community,rib,role,rpki}`, `bgp/reactor` | 12 | `Test*MatchTheYANGModel` in each package; `core/bgp/msgtype` by `TestMessageTypeNamesMatchTheYANGModel` in `bgp/plugins/cmd/raw` |
+| `cmd/show`, `mcp` (2), `pki`, `resolve/cmd`, `resolve/dns`, `resolve/irr`, `support`, `slogutil` (test in `config`), `as112`, `diag/cmd`, `geodns`, `host-cmd/cmd` | 14 | `*_yang_test.go` in each package, `TestLogBackendLeafMatchesSlogutil` in `config` |
+| `ike/dataplane` (3), `ike/ipsec` (7), `l2tp/plugins/authradius`, `l2tp/ppp`, `radius`, `isis` (2), `ospf` (2), `ospf/packet`, `ospf/types` (2) | 20 | `TestVocabularyMatchesModel` and siblings in `*_vocabulary_test.go` |
+| `config/archive`, `config/loader_extract`, `config/system`, `firewall` (7), `iface` (3), `traffic` (2), `ddos/detect` | 17 | `Test*MatchTheModel` in each package; `TestLimitUnitsMatchTheModel` in `anomaly/shape` for `firewall.rateUnitSeconds` |
+
+The 8 another-namespace rows share a spelling with an enum by coincidence and
+no code reads across: IKEv2 transform words matched to the certificate
+fingerprint digest leaf (`ike/crypto/transform.go`); the interface list-name
+namespace matched to the `migrate create type` leaf (`config/graph.go`,
+`plugins/iface/ra/doctor.go`, `plugins/flowexport/register.go`,
+`le/qemu/guest_linux.go`); the event-subscription direction vocabulary and the
+plugin RPC wire vocabulary matched to the MRT `direction` leaf
+(`core/events/events.go`, `pkg/plugin/rpc/enums.go`); and the `.ci` directive
+types matched to the log backend leaf (`test/runner/record_parse_vocabulary.go`).
+
+### Drift found and corrected on the way (R-1)
+- `asn4` was declared `type boolean` while the product read four modes, and to
+  admit `asn4 require` the boolean validator accepted `require`/`refuse` for
+  EVERY boolean leaf. The model now carries one `capability-mode` typedef used
+  by all four capability leaves, and a boolean leaf refuses `require`.
+- The XFRM algorithm mapper installed `cbc(aes)` / `hmac(sha256)` for a name it
+  did not know, so the kernel could carry a transform the peer never
+  negotiated. It now refuses (`ErrNotSupported`), proven at the state builder.
+- The doctor runner printed every PKI finding twice: the owner's registration
+  had landed while the runner's own copy still ran.
+
+## Work Not Done
+| Item | Home |
+|------|------|
+| Where the standard family registrations live, so the 7 family rows can derive and `kernelcap.labeledFamilies` stops being a fail-open guard | `plan/next/spec-standard-families-register-outside-the-bgp-tag.md` (to write) |
+| The 121 feature-owned `doctor-*` codes still declared in `internal/core/diagnostic/codes.go`; moving them breaks `ze explain` on a build without the feature's tag | `plan/next/spec-doctor-codes-move-to-their-owners.md` (to write) |
+| The gate learning to see an agreement test (Open decision, reading A) | this spec, once the owner answers |
 
 ## Checklist
 

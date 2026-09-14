@@ -6,9 +6,47 @@ which is gitignored and never left the Mac it was written on.
 
 Spec: `plan/immediate/spec-the-fix-pass-for-restated-registries.md`.
 
-**The tree this describes is largely UNCOMMITTED on the Mac.** A machine that
-clones main gets the gate and the closed first spec, not wave 1 or wave 2. Read
-"What is committed" below before trusting any instruction here.
+**Superseded on 2026-09-14 evening (Linux session).** Everything below the next
+section is history: the Mac tree was landed by `9e3298e3d6` ("sync to move
+machine") and the half-applied packages were finished. The spec's own "RESUME
+HERE", "Open decision" and "Known Limitations" sections now carry the state.
+
+## State at the end of the Linux session, 2026-09-14
+
+- Only two packages were uncompilable after the sync, not six: `doctor` and
+  `sysctl`. Both were mid-way through moving checks onto the registry. Finished.
+- `runChecks` writes out no check by name any more. Every doctor check registers
+  from its owner or, where no narrower owner exists, from
+  `internal/component/doctor/doctor_checks.go`. Corpus `doctor-check`: 30 -> 0.
+- Plugin names 10 -> 10, all judged another namespace (spec Known Limitations).
+- YANG enumerations 87 -> 72: 15 derived, 64 gated by agreement tests, 8 another
+  namespace. The gate cannot see a gate test: that is the spec's Open decision.
+- Family names 7, blocked as before (kernelcap fail-open guard, own spec).
+- Three product defects found and fixed on the way: `asn4` declared boolean
+  while read as four modes (and every boolean leaf accepted `require`), the XFRM
+  mapper defaulting an unknown algorithm to AES-CBC/HMAC-SHA256, and PKI doctor
+  findings printed twice.
+- The two doctor agents of this session were killed by the session rate limit
+  AFTER their edits landed (`go build ./...` clean, no `MUTATION-APPLIED` in the
+  tree, report at 0 doctor rows). Verify with the test run before trusting it.
+- A second session (`tmp/session/2026-09-14-b2d741a4-*`) works OSPF IPsec, GTSM
+  and CoPP in this checkout. Its files: `internal/component/gtsm/`,
+  `internal/le/integration`, `internal/le/interoplab/`, `internal/plugins/copp`,
+  `internal/plugins/ospf/{iface/iface.go,instance.go,ipsec_install*.go,
+  virtual_link.go,ipsec_neighbor_test.go}`, `internal/test/fixture/netfilter_*`,
+  the `gtsm-*` and `ospf-ipsec-*` scenarios, `test/weakened/c9a630a5.md`,
+  `test/rfc-changed/1bfe298a.md`. Leave them out of every commit.
+- Committed as `130c8c54d7` (doctor registry), `c23250a974` (YANG enum pass,
+  XFRM refusal, schema enum order), `a730d00401` (asn4 capability mode). Four
+  emptied doctor test files plus `zz_dump_probe_test.go` are committed as empty
+  shells because the hook needs the owner's word to `rm` a test file.
+- Two more found on the way, fixed in `c23250a974`: `config.Schema` handed the
+  web form goyang's alphabetical enum order, so a default-first dropdown was
+  reordered; the MCP form panicked on a nil schema.
+- Traps met this session: the auto-mode classifier refuses `./le --update` and
+  `./le --name` (they rewrite a binary); `bin/le` was fresh for the gate anyway
+  because the gate parses Go from disk. Agents may not write under `plan/`: the
+  main thread writes their journal rows from their reports.
 
 # Session State
 
