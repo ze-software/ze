@@ -652,6 +652,10 @@ func testSpecV6() GroupSpec {
 // RFC requirement: RFC5798-6.4.3-2 positive -- the Master installs the IPv6 virtual address on the vMAC macvlan, which is what makes the kernel join that address's Solicited-Node multicast group on that device (instance.go:369; createMacvlan register.go:329)
 // RFC requirement: RFC9568-8.2.2-1 positive -- the virtual address is installed on the Virtual Router MAC device (dev == in.dev) and never on the parent, so a Neighbor Advertisement for it can only carry the virtual MAC (instance.go:369).
 // RFC requirement: RFC5798-8.2.2-1 positive -- the virtual address is installed on the virtual router MAC device (dev == in.dev) and never on the parent, so a Neighbor Advertisement for it can only carry the virtual MAC (instance.go:369).
+// RFC requirement: RFC5798-8.2.2-1 negative -- contrast: a Master DOES hold the virtual address, on the virtual router MAC macvlan, so the prohibition this requirement states is on the physical MAC rather than on answering at all (instance.go:369).
+// RFC requirement: RFC5798-6.4.3-2 negative -- contrast: a Backup installs no IPv6 virtual address, so it joins no Solicited-Node multicast group for it, which makes the Master membership state-specific rather than unconditional (instance.go:369).
+// RFC requirement: RFC5798-6.4.3-3 positive -- the Master installs the IPv6 virtual address on the vMAC macvlan, which is what makes this router answer ND Neighbor Solicitations for that address (instance.go:369; createMacvlan register.go:329).
+// RFC requirement: RFC5798-6.4.3-3 negative -- contrast: a Backup installs the address on nothing, so it answers no Neighbor Solicitation for it and the Master response is state-specific (instance.go:369).
 func TestInstanceIPv6VIPLivesOnVirtualMACDevice(t *testing.T) {
 	// Backup: nothing installed.
 	in, f, _ := newTestInstance(t, testSpecV6())
@@ -1026,5 +1030,55 @@ func TestReconfigureWatchesANewlyTrackedInterface(t *testing.T) {
 	}
 	if got := watchCount(); got != count {
 		t.Errorf("watch calls = %d, want %d: only a changed device set re-subscribes", got, count)
+	}
+}
+
+// TestInstanceBackupSendsNoRouterAdvertisement proves what a Backup puts on the
+// LAN, and what the one message a Master puts there actually is. A Backup emits
+// no announcement at all, and the announcer is the plugin's only ND emitter: its
+// IPv6 frame is the unsolicited Neighbor Advertisement transport.BuildNA writes,
+// ICMPv6 type 136, and no code under internal/plugins/vrrp builds a type-134
+// Router Advertisement.
+//
+// RFC requirement: RFC5798-6.4.2-3 positive -- a Backup emits no announcement (announceMaster runs only on the Master transition, execute instance.go), and the only ND message the announcer can build is the Neighbor Advertisement transport.BuildNA writes with ICMPv6 type 136, so a Backup sends no ND Router Advertisement for the virtual router.
+// RFC requirement: RFC5798-6.4.2-3 negative -- contrast: a Master DOES emit one announcement, so the Backup silence is state-specific rather than a plugin that never announces, and that announcement is still a Neighbor Advertisement (type 136) rather than a Router Advertisement (type 134).
+func TestInstanceBackupSendsNoRouterAdvertisement(t *testing.T) {
+	const (
+		icmpv6RouterAdvert   = 134
+		icmpv6NeighborAdvert = 136
+	)
+
+	// Backup: no announcement of any kind leaves this router.
+	in, f, _ := newTestInstance(t, testSpecV6())
+	in.dispatch(fsm.Startup{Config: in.fsmConfig()})
+	if in.machine.State() != fsm.StateBackup {
+		t.Fatalf("state = %v, want Backup", in.machine.State())
+	}
+	if got := f.snapshot().announces; got != 0 {
+		t.Fatalf("a Backup must announce nothing, got %d announcement(s)", got)
+	}
+
+	// Master: one announcement, and it is a Neighbor Advertisement.
+	spec := testSpecV6()
+	spec.IsOwner = true
+	inM, fM, _ := newTestInstance(t, spec)
+	inM.dispatch(fsm.Startup{Config: inM.fsmConfig()})
+	if inM.machine.State() != fsm.StateMaster {
+		t.Fatalf("owner state = %v, want Master", inM.machine.State())
+	}
+	if got := fM.snapshot().announces; got != 1 {
+		t.Fatalf("a Master must announce once on promotion, got %d", got)
+	}
+
+	buf := make([]byte, transport.NAMessageLen)
+	n := transport.BuildNA(buf, packet.VirtualMAC(packet.V6, spec.VRID), spec.VIPs[0].As16())
+	if n != transport.NAMessageLen {
+		t.Fatalf("BuildNA wrote %d bytes, want %d", n, transport.NAMessageLen)
+	}
+	if buf[0] != icmpv6NeighborAdvert {
+		t.Fatalf("announcement ICMPv6 type = %d, want %d (Neighbor Advertisement)", buf[0], icmpv6NeighborAdvert)
+	}
+	if buf[0] == icmpv6RouterAdvert {
+		t.Fatalf("the announcer built a Router Advertisement (type %d), which no VRRP state may send here", icmpv6RouterAdvert)
 	}
 }

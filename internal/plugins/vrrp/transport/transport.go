@@ -57,6 +57,7 @@ const (
 	reasonGARPSendError = "garp-send-error"
 	reasonNASendError   = "na-send-error"
 	reasonNoLinkLocal   = "no-link-local"
+	reasonNoPrimaryV4   = "no-primary-v4"
 )
 
 var (
@@ -341,6 +342,10 @@ func (inst *instance) shutdown() error {
 // UpdateAdvert re-encodes the advertisement into the per-instance tx buffer so a
 // later SendAdvert never uses stale parameters (holo bug 8). The IPv4 source is
 // re-resolved here (staleness point without per-send cost).
+//
+// A parent with no primary IPv4 is counted {reason=no-primary-v4} and returns no
+// upward error, mirroring the v6 no-link-local skip: the tx buffer keeps whatever
+// it held, the next UpdateAdvert re-resolves, and nothing non-conformant goes out.
 func (t *Transport) UpdateAdvert(key InstanceKey, params AdvertParams) error {
 	inst := t.lookup(key)
 	if inst == nil {
@@ -351,7 +356,12 @@ func (t *Transport) UpdateAdvert(key InstanceKey, params AdvertParams) error {
 	if inst.spec.Family == packet.V4 {
 		inst.resolveV4SrcLocked()
 	}
-	return inst.encodeLocked(params)
+	err := inst.encodeLocked(params)
+	if errors.Is(err, errNoParentV4) {
+		inst.counters.packetError(reasonNoPrimaryV4)
+		return nil
+	}
+	return err
 }
 
 // SendAdvert transmits the prepared advertisement (Adver_Timer fire / prio-0
@@ -495,11 +505,15 @@ func (inst *instance) encodeLocked(p AdvertParams) error {
 		return err
 	}
 	if inst.spec.Family == packet.V4 {
-		var src4 [4]byte
-		if inst.v4Src.Is4() {
-			src4 = inst.v4Src.As4()
+		// RFC 5798 Section 7.2 / RFC 9568 Section 7.2: "Set the source IPv4
+		// address to interface primary IPv4 address". With no primary resolved
+		// there is no conformant source, so no advertisement is built: writing
+		// the zero address would put a source on the wire the RFC does not allow
+		// and would lose every sender-address tie-break in the peers' election.
+		if !inst.v4Src.Is4() {
+			return errNoParentV4
 		}
-		hdr := buildIPv4Header(inst.txBuf, src4, packet.MulticastV4.As4())
+		hdr := buildIPv4Header(inst.txBuf, inst.v4Src.As4(), packet.MulticastV4.As4())
 		n := adv.WriteTo(inst.txBuf, hdr)
 		// RFC 9568 Section 5.2.8: v3/IPv4 checksum is message-only (no pseudo-header);
 		// a v4 src makes FillChecksum select the message-only path.

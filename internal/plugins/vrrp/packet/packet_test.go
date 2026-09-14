@@ -287,6 +287,7 @@ func TestBoundaryCount(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC5798-7.2-1 negative -- an advertisement interval outside the wire range of the configured version is refused by Validate with ErrIntervalRange rather than filled into a packet, for the v2 seconds range and for the v3 centisecond range alike (packet.go:201).
 // VALIDATES: encode-side interval boundaries for both wire ranges (AC-9).
 // v3: 10..40950 (multiples of 10); v2: 1000..255000 (multiples of 1000).
 // PREVENTS: cs/s/ms confusion and 12-bit/8-bit wire overflow (R-2, N10).

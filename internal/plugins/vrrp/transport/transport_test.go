@@ -65,6 +65,12 @@ func (h *fakeHandle) lastAdvert() []byte {
 	return h.adverts[len(h.adverts)-1]
 }
 
+func (h *fakeHandle) sentAdverts() [][]byte {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([][]byte(nil), h.adverts...)
+}
+
 func (h *fakeHandle) announceCount() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -339,10 +345,60 @@ func TestSendAdvertV3IPv4HeaderTTLProtoDst(t *testing.T) {
 	}
 }
 
+// TestSendAdvertNoPrimaryV4SkipsAndCounts proves a v4 advertisement is never
+// sourced from an address the RFC does not allow: with no primary IPv4 on the
+// parent there is no conformant source, so nothing leaves the socket.
+//
+// RFC requirement: RFC5798-7.2-3 negative -- with the parent carrying no IPv4 address, resolveParentPrimaryV4 (transport.go) resolves no primary and SendAdvert transmits nothing, counting {reason=no-primary-v4} instead of sending an advertisement sourced from 0.0.0.0.
+// RFC requirement: RFC9568-7.2-3 negative -- with the parent carrying no IPv4 address, resolveParentPrimaryV4 (transport.go) resolves no primary and SendAdvert transmits nothing, counting {reason=no-primary-v4} instead of sending an advertisement sourced from 0.0.0.0.
+func TestSendAdvertNoPrimaryV4SkipsAndCounts(t *testing.T) {
+	// The parent holds an IPv6 address only, so no primary IPv4 resolves.
+	withParentAddrs(t, []iface.AddrInfo{{Address: "2001:db8::1", Family: "ipv6"}})
+	fb := &fakeBackend{}
+	tr := New(fb)
+	key, err := tr.OpenInstance(v4Spec())
+	if err != nil {
+		t.Fatalf("OpenInstance: %v", err)
+	}
+	h := fb.last()
+	if err := tr.UpdateAdvert(key, v4Params()); err != nil {
+		t.Fatalf("UpdateAdvert: %v", err)
+	}
+	if err := tr.SendAdvert(key); err != nil {
+		t.Fatalf("SendAdvert returned upward error: %v", err)
+	}
+	if got := len(h.sentAdverts()); got != 0 {
+		t.Fatalf("an advert with no primary IPv4 source must not be sent, got %d", got)
+	}
+	snap, _ := tr.CounterSnapshot(key)
+	if snap.PacketErrors[reasonNoPrimaryV4] != 1 || snap.AdvertsSent != 0 {
+		t.Fatalf("no-primary-v4 not counted: %+v", snap)
+	}
+
+	// The primary appears; the next re-encode resolves it and the advert goes out.
+	withParentAddrs(t, []iface.AddrInfo{{Address: "192.0.2.10", Family: "ipv4"}})
+	if err := tr.UpdateAdvert(key, v4Params()); err != nil {
+		t.Fatalf("UpdateAdvert after address: %v", err)
+	}
+	if err := tr.SendAdvert(key); err != nil {
+		t.Fatalf("SendAdvert after address: %v", err)
+	}
+	frame := h.lastAdvert()
+	if len(frame) < ipv4HeaderLen {
+		t.Fatalf("frame too short: %d bytes", len(frame))
+	}
+	if src := netip.AddrFrom4([4]byte(frame[12:16])); src != netip.MustParseAddr("192.0.2.10") {
+		t.Fatalf("source = %v, want the parent primary 192.0.2.10", src)
+	}
+}
+
 func TestSendAdvertNoLinkLocalSkipsAndCounts(t *testing.T) {
 	// VALIDATES: AC-10 -- a v6 send with no macvlan link-local yet is skipped and
 	// counted {reason=no-link-local}, returns no upward error, and a retry
 	// succeeds once the link-local appears.
+	//
+	// RFC requirement: RFC5798-7.2-3 negative -- with the macvlan carrying no link-local yet, SendAdvert transmits nothing and counts {reason=no-link-local} rather than sending an advertisement from a substitute IPv6 source.
+	// RFC requirement: RFC9568-7.2-3 negative -- with the macvlan carrying no link-local yet, SendAdvert transmits nothing and counts {reason=no-link-local} rather than sending an advertisement from a substitute IPv6 source.
 	fb := &fakeBackend{noLinkLocal: true}
 	tr := New(fb)
 	key, err := tr.OpenInstance(v6Spec())

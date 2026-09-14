@@ -327,6 +327,14 @@ state; a tracked route and a health-check script are not implemented.
   window, fails `sendmsg` with EINVAL. Resolve the source through the iface seam
   and skip tentative and non-link-local addresses. A residual EINVAL is counted as
   `{reason=no-link-local}` and retries naturally.
+- The IPv4 source has the same rule and the same shape. RFC 5798 Section 7.2 and
+  RFC 9568 Section 7.2 make the advertisement source the sending interface's
+  primary IPv4 address, so a parent carrying no IPv4 address has no conformant
+  source. `encodeLocked` builds no advertisement in that state, `UpdateAdvert`
+  counts `{reason=no-primary-v4}` and returns no upward error, and the next
+  `UpdateAdvert` re-resolves. Writing the zero address instead put a source on the
+  wire the RFC does not allow, and it panicked in `pseudoSumV4Legacy`, which calls
+  `As4` on the address.
 - A netlink query binds to the CALLING thread's netns. Resolving the link-local
   lazily on the announcer goroutine made the device invisible in a netns test.
   Warm the source cache on the engine's goroutine and leave the worker socket I/O
