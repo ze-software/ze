@@ -174,12 +174,23 @@ func FamilyLess(a, b Family) bool {
 //
 // The set is the one Ze's config rail already sends, family by family: VPN
 // (message.(*UpdateBuilder).BuildVPN), MCAST-VPN (nlri/mvpn), MUP (nlri/mup),
-// labeled unicast and unicast. FlowSpec, VPLS, EVPN, SR Policy, RTC and BGP-LS
-// send none, because none of them names a forwarding hop an IPv4 NEXT_HOP could
-// restate. A family with no answer of its own takes the RFC's SHOULD NOT.
+// labeled unicast (message.(*UpdateBuilder).BuildLabeledUnicast) and unicast
+// (message.(*UpdateBuilder).BuildUnicast). FlowSpec, VPLS, EVPN, SR Policy, RTC
+// and BGP-LS send none, because none of them names a forwarding hop an IPv4
+// NEXT_HOP could restate. A family with no answer of its own takes the RFC's
+// SHOULD NOT.
+//
+// MULTICAST takes the SHOULD NOT, and it is the one family whose answer is easy
+// to get wrong, because it shares UnicastParams with unicast. BuildUnicast
+// guards the attribute with `isUnicast := p.SAFI == 0 || p.SAFI ==
+// attribute.SAFIUnicast`, so a configured ipv4/multicast route carries
+// MP_REACH_NLRI alone, and no ported ExaBGP contract fixture pins the other
+// answer for it. Saying true here made the API rail add seven octets the config
+// rail does not, which is the drift this function exists to remove
+// (test/plugin/forward-mpreach-nexthop-self-two-peer.ci).
 func (f Family) LegacyNextHop() bool {
 	switch f.SAFI {
-	case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP, SAFIVPN:
+	case SAFIUnicast, SAFIMPLSLabel, SAFIMVPN, SAFIMUP, SAFIVPN:
 		return true
 	default:
 		return false

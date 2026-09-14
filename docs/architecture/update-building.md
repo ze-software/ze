@@ -503,7 +503,9 @@ Until 2026-09-06 every withdrawal took the bare shape, so `send bgp <selector> u
 
 ### The Legacy NEXT_HOP Beside MP_REACH_NLRI
 
-RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." It is a SHOULD NOT, so carrying it is conformant, and `family.Family.LegacyNextHop` is the single declaration of which families Ze carries it for: unicast, multicast, labeled unicast, MCAST-VPN, MUP and MPLS-VPN. FlowSpec, VPLS, EVPN, SR Policy, RTC and BGP-LS carry none.
+RFC 4760 Section 3: "An UPDATE message that carries no NLRI, other than the one encoded in the MP_REACH_NLRI attribute, SHOULD NOT carry the NEXT_HOP attribute." It is a SHOULD NOT, so carrying it is conformant, and `family.Family.LegacyNextHop` is the single declaration of which families Ze carries it for: unicast, labeled unicast, MCAST-VPN, MUP and MPLS-VPN. Multicast, FlowSpec, VPLS, EVPN, SR Policy, RTC and BGP-LS carry none.
+
+Multicast is the family whose answer reads as an exception and is not one. It shares `UnicastParams` with unicast, and `BuildUnicast` writes the attribute only under `isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast`, so the config rail sends MP_REACH_NLRI alone for `ipv4/multicast`. No ported ExaBGP contract fixture pins the other answer, so the RFC's SHOULD NOT stands.
 
 The address must also be an IPv4 address that RFC 4271 Section 6.3 calls syntactically correct, so an IPv6 next hop and `0.0.0.0` each contribute nothing (`legacyNextHopApplies`).
 

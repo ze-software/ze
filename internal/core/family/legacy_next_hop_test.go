@@ -26,6 +26,11 @@ func TestLegacyNextHop(t *testing.T) {
 	}{
 		{"ipv4 unicast", IPv4Unicast, true},
 		{"ipv6 unicast", IPv6Unicast, true},
+		// BuildUnicast's isUnicast guard keeps the attribute off a configured
+		// ipv4/multicast route, so RFC 4760 Section 3's SHOULD NOT stands and the
+		// API rail must not add one either.
+		{"ipv4 multicast", IPv4Multicast, false},
+		{"ipv6 multicast", IPv6Multicast, false},
 		{"ipv4 labeled unicast", Family{AFI: AFIIPv4, SAFI: SAFIMPLSLabel}, true},
 		{"ipv4 mpls-vpn", Family{AFI: AFIIPv4, SAFI: SAFIVPN}, true},
 		{"ipv6 mpls-vpn", Family{AFI: AFIIPv6, SAFI: SAFIVPN}, true},
