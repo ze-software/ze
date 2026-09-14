@@ -162,6 +162,33 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return fmt.Errorf("table %q chain %q term %q: dscp match is IPv4-only; move to a table with family ip or inet (got %s)",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
 		}
+	case MatchIPv4TTLBelow:
+		// The TTL byte is at IPv4 network-header offset 8, so the read is
+		// IPv4-only for the same reason the DSCP read above is, and inet is
+		// accepted for the same reason: lowerIPv4TTLBelowMatch
+		// (internal/plugins/firewall/nft/lower_linux.go) emits the
+		// `meta nfproto ipv4` guard ahead of it.
+		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: ttl-below match is IPv4-only; move to a table with family ip or inet (got %s)",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		if v.Floor == 0 {
+			return fmt.Errorf("table %q chain %q term %q: ttl-below floor is 0, which no TTL can be below",
+				tbl.Name, ch.Name, term.Name)
+		}
+	case MatchICMPErrorQuotedTCPPort:
+		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-tcp-port match is IPv4-only; move to a table with family ip or inet (got %s)",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		if v.Side != QuotedPortSource && v.Side != QuotedPortDestination {
+			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-tcp-port names no side",
+				tbl.Name, ch.Name, term.Name)
+		}
+		if v.Port == 0 {
+			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-tcp-port is 0, which no TCP session carries",
+				tbl.Name, ch.Name, term.Name)
+		}
 	}
 	return nil
 }

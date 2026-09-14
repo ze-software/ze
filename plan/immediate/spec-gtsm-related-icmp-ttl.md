@@ -1,0 +1,397 @@
+# Spec: GTSM related ICMP messages carry and verify TTL 255
+
+| Field | Value |
+|-------|-------|
+| Status | in-progress |
+| Scope | protocol |
+| Depends | - |
+| Phase | implementation |
+| Handoff | - |
+| Updated | 2026-09-14 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+`./le rfc check` reports RFC5082-3-2 [MUST] with no test and no annotation. RFC
+5082 Section 3 says: "The TTL field in all IP packets used for transmission of
+messages associated with GTSM-enabled protocol sessions MUST be set to 255.
+This also applies to the related ICMP error handling messages." Section 6.1
+restates it as an obligation in both directions: "This specification mandates
+setting and verifying TTL=255 of those as well as the main protocol packets."
+
+The requirement has four cells, a transmit half and a receive half in each
+family. Three of the four are produced by no layer today, so a GTSM peer of ze
+receives ICMP errors from ze at the system default TTL, and ze accepts an
+off-link ICMP error that claims to be about an IPv4 GTSM session. The second is
+the attack RFC 5082 Section 6.1 names: "related messages provide a significant
+attack vector to e.g., reset protocol sessions".
+
+| Cell | Kernel behavior, read in Linux 7.2 | Status before this spec |
+|------|-----------------------------------|-------------------------|
+| Receive IPv6 | `tcp_v6_err` (`net/ipv6/tcp_ipv6.c`) compares the ICMPv6 error's OWN hop limit against the socket's `min_hopcount` | MET on state ze installs: `setIPMinTTL` sets IPV6_MINHOPCOUNT. Owes a tagged test |
+| Receive IPv4 | `tcp_v4_err` (`net/ipv4/tcp_ipv4.c`) compares IP_MINTTL against the TTL of the header `skb->data` points at, which `icmp_rcv` (`net/ipv4/icmp.c`) has pulled to the QUOTED header of ze's own earlier packet | NOT met: the gated field sits inside the ICMP payload, so the sender of the error chooses it. Needs a filter ze installs |
+| Transmit IPv4 | A locally generated ICMP error takes its TTL from `ip_select_ttl` (`net/ipv4/ip_output.c`), which reads the RTAX_HOPLIMIT route metric through `ip4_dst_hoplimit` before `net.ipv4.ip_default_ttl` | NOT met: ze installs no such metric |
+| Transmit IPv6 | The same through `ip6_dst_hoplimit` | NOT met: ze installs no such metric |
+
+The goal is all four cells produced by state ze installs, and each one proven in
+both polarities by a tagged test with a discrimination record.
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - component boundaries and the registration pattern
+  → Decision: the GTSM kernel state is published by a component the BGP reactor calls, not by new code inside the reactor
+  → Constraint: a component reaches the kernel firewall through `firewall.RegisterTables`, never through its own nftables writer
+- [ ] `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - who owns a `ze_` table and when it is withdrawn
+  → Constraint: a daemon-owned table carries the `ze_` prefix, and shutdown teardown is owned centrally by the firewall engine
+- [ ] `docs/guide/firewall.md` - the operator-visible firewall surface
+  → Constraint: the new match types are daemon-only, so no YANG leaf and no config syntax changes
+
+### RFC Summaries (Scope: protocol)
+- [ ] `rfc/short/rfc5082.md` - GTSM, the four-cell fact and the kernel citations
+  → Constraint: RFC5082-3-4 forbids dropping a packet no GTSM session claims, so the ICMP filter must associate the error with a BGP session of that peer before it drops anything
+  → Constraint: the inbound floor is the peer's own `MinTTL` (255-N+1 for `ttl max N`), never a hard-wired 255, so the multi-hop form keeps working
+
+**Key insights:**
+- Ze meets GTSM through the kernel. Conformance is judged on the whole stack, and the proof asserts the state ze installs.
+- The vendored `vishvananda/netlink` carries `Route.Hoplimit` (`route.go`) and encodes it as RTAX_HOPLIMIT in `routeHandle` (`route_linux.go`), which also decodes it, so the transmit half is a field on a route rather than a new netlink capability.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/core/network/ttl_linux.go` - sets IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on a peer socket
+- [ ] `internal/component/bgp/reactor/session_connection.go` - `tuneTCPConnectionForSettings` installs those options per connection
+- [ ] `internal/component/bgp/reactor/config.go` - `parseTTLSettings` derives OutTTL 255 and MinTTL 255-N+1 from `ttl max N`
+- [ ] `internal/component/bgp/reactor/reactor.go` - `listenTTLForListener` and `md5PeersForListener` iterate `r.peers` for kernel state that is not per connection
+- [ ] `internal/plugins/vrrp/acceptfilter.go` - a protocol feature publishing a daemon-owned nftables table through `firewall.RegisterTables` plus `firewall.ApplyAll`
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` - `lowerMatch`, `lowerDSCPMatch` and `nfprotoGuard`: a raw network-header read is guarded by nfproto so it cannot reach the other family
+- [ ] `internal/component/firewall/model.go` - the Match interface and its implementations
+- [ ] `internal/component/firewall/validate.go` - `validateMatch` refuses a match in a family whose header the lowering cannot read
+
+**Behavior to preserve:**
+- The socket options and the listen-socket TTL are unchanged: RFC5082-3-1, RFC5082-3-3 and RFC5082-3-4 keep the producers and the tests they have.
+- A peer with no `ttl` block installs nothing, so a deployment that does not use GTSM gets no route, no firewall table and no nftables backend load.
+- `firewall.ApplyAll` keeps its current owners; this spec adds one more owner and no new writer of the kernel.
+
+**Behavior to change:**
+- A GTSM-enabled BGP peer gains a host route carrying hop limit 255, and an nftables input table that drops an ICMP error which claims to be about that peer's BGP session and arrives below the peer's TTL floor.
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- Operator config: `bgp { peer <name> { connection { ttl { max N } } } }`, parsed by `parseTTLSettings` into `PeerSettings.OutTTL` and `PeerSettings.MinTTL`.
+
+### Transformation Path
+1. Config apply reconciles the peer set in the reactor (`ReconcilePeersWithJournal`, `StartPeers`).
+2. The reactor derives the GTSM peer set from `r.peers`: address, BGP port, outbound hop limit, inbound floor.
+3. `gtsm.SetPeers` in the new component reconciles two kinds of kernel state from that set.
+4. The route half installs, for each peer, a host route to the peer address carrying the hop limit as RTAX_HOPLIMIT, with the nexthop the kernel already resolves for that address.
+5. The filter half publishes one `ze_gtsm` table through `firewall.RegisterTables` and `firewall.ApplyAll`.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Reactor ↔ GTSM component | A value-typed peer slice passed to one exported function | No |
+| GTSM component ↔ firewall component | `firewall.RegisterTables` under owner `gtsm`, then `firewall.ApplyAll` | No |
+| GTSM component ↔ kernel | netlink route replace and delete; the firewall backend owns the nftables writes | No |
+
+### Integration Points
+- `firewall.RegisterTables` / `firewall.ApplyAll` - the same publication path copp, vrrp, policyroute and flowspec-firewall already use.
+- `network.SetIPMinTTL` - the socket option that already meets the IPv6 receive cell; this spec adds its test, not its code.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | A locally generated ICMP error reads RTAX_HOPLIMIT from the route to its destination | `ip_select_ttl` reading `ip4_dst_hoplimit` before the sysctl, recorded in `rfc/short/rfc5082.md` | The transmit half needs another mechanism, and the owner's per-peer decision has to be put to him again | The transmit tagged tests observe the TTL of a captured ICMP error | confirmed: `TestGTSMTransmittedICMPErrorCarriesTTL255` reads 255 off the wire with the metric installed and the system default with it withdrawn, in both families |
+| A-2 | The quoted IPv4 header inside an ICMP error about a ze packet is 20 bytes, so the quoted TCP ports sit at fixed offsets | Ze sets no IP options on a BGP socket, and a transit router adds none to a packet that carries none | The port offsets read the wrong bytes | The lowering compares the quoted version and header-length byte against 0x45 first, so a longer quoted header matches nothing | confirmed: the rules the kernel holds carry the 0x45 compare ahead of the port read, and `TestGTSMDeliversAnICMPErrorNoSessionClaims` shows a quoted port of another flow matching nothing |
+| A-3 | The netlink library encodes RTAX_HOPLIMIT from `Route.Hoplimit` | `routeHandle` in `vendor/github.com/vishvananda/netlink/route_linux.go`, read directly | The route half cannot be expressed with the vendored library | The transmit tagged tests, which read the metric back off the kernel | confirmed: `routeHopLimit` reads the metric back off the kernel route in every transmit proof |
+| A-4 | One BGP session of a GTSM peer always carries the configured BGP port as one of its two TCP ports | `peerListenPort` decides the port for the dial and the listen direction alike | The filter fails to claim a session, and a Dangerous error is delivered | The receive tagged tests inject both port polarities | confirmed for the derivation: `TestReactorPublishesAPeersOwnListenPort` shows the published port following `LocalPort`. The filter carries a term for each side, so either direction's quoted header is claimed |
+| A-5 | An IPv4 route delete is matched on the destination alone | assumed while writing `withdrawHopLimitRoute`, and never checked | A withdrawn peer keeps a metric its configuration no longer asks for | `TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255`, which reads the route back after the withdraw | BROKEN: the delete is matched on the scope as well, so a link-scoped route survived a delete naming the default scope. The withdraw now deletes the route the kernel holds. IPv6 did not show it, so only the IPv4 proof failed |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | A host route installed for a peer takes over the forwarding decision for that address and breaks the session | The session fails to establish after a config apply | The route copies the nexthop the kernel already resolves for the address, and carries a ze route protocol so it is identifiable and removable |
+| R-2 | The ICMP filter drops an Unknown packet and breaks RFC5082-3-4, which is already proven | Ze's own ping or traceroute to the peer loses replies | Every drop term requires the ICMP error to quote a TCP header on that peer's BGP port, so an error about another flow is never claimed |
+| R-3 | The filter's rule count grows with the peer count on the input path | A slow input path on a router with many GTSM peers | The rule count is ten per GTSM peer, bounded by operator config, and every term starts with the cheap ICMP type test |
+| R-4 | The firewall backend is loaded on a box that configured no firewall | The nftables backend appears where the operator asked for nothing | The component publishes nothing and skips `ApplyAll` when the GTSM peer set is empty |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | A wrong host route drops a GTSM peer's session; a wrong filter term drops ICMP the operator needs. Both are limited to peers that configured a `ttl` block |
+| How is it reverted? | Single commit revert. The route and the table are both withdrawn by the reconcile that no longer names the peer |
+| Who else touches this path? | The firewall backend owners (copp, vrrp, policyroute, flowspec-firewall, ddos) share `firewall.ApplyAll`; the reactor peer reconcile is shared with the MD5 and listen-TTL kernel state |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| A peer config carrying `connection ttl max N` reaches the reactor peer reconcile | → | `Reactor.gtsmPeers` feeding `gtsm.SetPeers` | `TestReactorPublishesGTSMPeersFromConfig` |
+| `gtsm.SetPeers` with one peer | → | `icmpFilterTables` publishing the `ze_gtsm` table | `TestGTSMPublishesTheICMPFilterTableForAPeer` |
+| `gtsm.SetPeers` with no peer | → | the withdraw path | `TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | A BGP peer configured with `connection ttl max N` | Ze installs a host route to the peer address carrying hop limit 255 as its RTAX_HOPLIMIT metric |
+| AC-2 | An ICMP error the kernel generates toward that peer | It leaves with TTL 255 for IPv4, or hop limit 255 for IPv6 |
+| AC-3 | An ICMPv4 error arriving from that peer, quoting a TCP header on the peer's BGP port, with an outer TTL below the peer's floor | It is dropped before the TCP stack processes it |
+| AC-4 | The same ICMPv4 error arriving with outer TTL 255 | It is delivered |
+| AC-5 | An ICMPv4 error arriving from that peer quoting a TCP header on any other port, with an outer TTL below the floor | It is delivered, because no GTSM session claims it (RFC5082-3-4) |
+| AC-6 | An ICMPv6 error arriving with its own hop limit below the floor, about a socket ze gave IPV6_MINHOPCOUNT | The kernel drops it and counts it in TCPMinTTLDrop |
+| AC-7 | A peer whose `ttl` block is removed, or a peer deleted from the config | The host route and that peer's filter terms are withdrawn |
+| AC-8 | A configuration with no GTSM peer | No route, no `ze_gtsm` table, and no firewall apply |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Configures `connection ttl max 1` on a peer and expects ze's ICMP errors to that peer to pass the peer's own GTSM check | config → parseTTLSettings → reactor peer reconcile → gtsm.SetPeers → netlink route with RTAX_HOPLIMIT | `TestGTSMTransmittedICMPErrorCarriesTTL255` |
+| 2 | Configures the same peer and expects a spoofed off-link ICMP error not to disturb the session | config → gtsm.SetPeers → firewall.RegisterTables → nftables input drop | `TestGTSMDropsADangerousQuotedICMPError` |
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestGTSMPublishesTheICMPFilterTableForAPeer` | `internal/component/gtsm/gtsm_test.go` | the table, chain and term shape built for one peer | |
+| `TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt` | `internal/component/gtsm/gtsm_test.go` | an empty peer set publishes no table | |
+| `TestReactorPublishesGTSMPeersFromConfig` | `internal/component/bgp/reactor/gtsm_test.go` | the reactor derives the peer set from the config it parsed | |
+| `TestLowerIPv4TTLBelowReadsTheTTLByteUnderAnNfprotoGuard` | `internal/plugins/firewall/nft/lower_linux_test.go` | the TTL match lowering | |
+| `TestLowerICMPErrorQuotedTCPPortChecksTheQuotedHeader` | `internal/plugins/firewall/nft/lower_linux_test.go` | the quoted-header match lowering | |
+| `TestGTSMTransmittedICMPErrorCarriesTTL255` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | RFC5082-3-2 transmit IPv4, positive | |
+| `TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | RFC5082-3-2 transmit IPv4, negative | |
+| `TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | RFC5082-3-2 transmit IPv6, positive | |
+| `TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | RFC5082-3-2 transmit IPv6, negative | |
+| `TestGTSMDropsADangerousQuotedICMPError` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | RFC5082-3-2 receive IPv4, positive | |
+| `TestGTSMDeliversAQuotedICMPErrorAtTTL255` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | RFC5082-3-2 receive IPv4, negative | |
+| `TestGTSMDeliversAnICMPErrorNoSessionClaims` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | the RFC5082-3-4 guard on the new filter | |
+| `TestGTSMMinHopCountDropsALowHopLimitICMPv6Error` | `internal/core/network/ttl_gtsm_linux_test.go` | RFC5082-3-2 receive IPv6, positive | |
+| `TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error` | `internal/core/network/ttl_gtsm_linux_test.go` | RFC5082-3-2 receive IPv6, negative | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| Route hop limit | 1-255 | 255 | 0 means "no metric", so it is refused as a GTSM value | N/A, the field is a uint8 |
+| Inbound floor | 1-255 | 255 | 0 means "no GTSM", so no term is built | N/A, the field is a uint8 |
+| Quoted TCP port | 1-65535 | 65535 | 0 is refused: no BGP session carries it | N/A, the field is a uint16 |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `gtsm-related-icmp` | `test/firewall/*.ci` | An operator configures a GTSM peer and sees the `ze_gtsm` table in `show firewall ruleset` | NOT WRITTEN. The path from config to kernel is proven by the wiring tests and by the tagged proofs, which drive `SetPeers` and read the kernel, but no `.ci` drives a daemon from an operator's document |
+
+### Interop Tests (Scope: protocol)
+| Scenario | Directory | Peer Daemon | What It Proves | Status |
+|----------|-----------|-------------|----------------|--------|
+| `gtsm-related-icmp-ttl` | `test/interop/scenarios/` | FRR | An FRR peer with GTSM enabled accepts the ICMP errors ze sends it | NOT WRITTEN. The behavior is wire-visible, so this is owed. The tagged proofs observe the TTL ze puts on the wire, which is the value the peer's own check reads, but no second implementation has read it |
+
+## Files to Modify
+- `internal/component/firewall/model.go` - two daemon-only match types
+- `internal/component/firewall/validate.go` - validation for the two new matches
+- `internal/plugins/firewall/nft/lower_linux.go` - their lowering
+- `internal/component/bgp/reactor/reactor.go` - derive the GTSM peer set and publish it
+- `internal/core/rtproto/rtproto.go` - the route protocol that marks ze's GTSM host routes
+- `internal/le/tier/testdata/tier_non_engine_categories.txt` - the new component's tier category
+- `rfc/short/rfc5082.md` - the requirement's producers and tests
+- `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - the `ze_gtsm` owner row
+- `docs/DESIGN.md` - what GTSM now covers for a session's related ICMP messages
+- `docs/architecture/testing/qemu-integration.md` - the one case where a kernel test carries bare `linux`: a unit an `RFC requirement:` tag makes the discrimination recorder run with no tags at all
+- `plan/journal/counter-counts-the-wrong-packets.md` - the counter placement met again
+
+## Files to Create
+- `internal/component/gtsm/gtsm.go` - the peer set, the filter table builder and the reconcile entry point
+- `internal/component/gtsm/route_linux.go` - the RTAX_HOPLIMIT host route
+- `internal/component/gtsm/route_other.go` - the unsupported stub
+- `internal/component/gtsm/gtsm_test.go` - the portable unit tests
+- `internal/component/gtsm/gtsm_rfc5082_linux_test.go` - the tagged Linux proofs
+- `internal/component/gtsm/netns_linux_test.go` - the namespace and veth harness those proofs run in
+- `internal/component/gtsm/packet_linux_test.go` - the frames they inject
+- `internal/component/bgp/reactor/gtsm_test.go` - the wiring test
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | No | The feature is derived from the existing `connection ttl` leaves; it adds no leaf |
+| YANG validation constraints | No | No new leaf |
+| YANG custom validators | No | No new leaf |
+| CLI commands/flags | No | The table is visible through the existing `show firewall ruleset` |
+| CLI grammar (keyword before value) | N-A | No command added |
+| Editor autocomplete | No | No new leaf |
+| Functional test for new RPC/API | No | No RPC added |
+| Pipe completeness | N-A | No command added |
+| Env var registration | No | No environment leaf |
+| Doctor check for runtime dependencies | Yes | The route and the table are runtime kernel state, so a GTSM peer whose kernel state is missing owes a doctor check. NOT WRITTEN: the daemon reports the missing route on the log line `applyHopLimitRoutes` writes, and nothing asks `ze doctor` about it yet |
+| Prometheus counters/metrics | No | The firewall component already counts rule hits |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No family change |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | Yes | `docs/features.md` |
+| 2 | Config syntax changed? | No | The existing `connection ttl` block drives it |
+| 3 | CLI command added/changed? | No | No command added |
+| 4 | API/RPC added/changed? | No | No RPC added |
+| 5 | Plugin added/changed? | No | No plugin added |
+| 6 | Has a user guide page? | Yes | `docs/guide/firewall.md` |
+| 7 | Wire format changed? | No | No ze-encoded message changes |
+| 8 | Plugin SDK/protocol changed? | No | No SDK change |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc5082.md`. `docs/features/rfc-status.md` is generated on demand and gitignored, so it carries no edit |
+| 10 | Test infrastructure changed? | No | No runner change |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` GTSM row |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` where the component list is enumerated |
+| 13 | Route metadata keys added/changed? | No | No route metadata |
+| 14 | Prometheus counters added/changed? | No | No new counter |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | No registration surface changes |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED from `./le spec citation anchors` |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | The GTSM examples in `docs/guide/` are re-read against the parser |
+
+## Implementation Steps
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- the reactor derives the GTSM peer set and calls the new component
+   - Tests: `TestReactorPublishesGTSMPeersFromConfig`, `TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt`
+   - Files: `internal/component/gtsm/gtsm.go`, `internal/component/bgp/reactor/reactor.go`
+   - Verify: the entry point exists and is reachable, and the wiring test fails while the component is a stub
+2. **Phase: the two firewall matches** -- model, validation and lowering
+   - Tests: `TestLowerIPv4TTLBelowReadsTheTTLByteUnderAnNfprotoGuard`, `TestLowerICMPErrorQuotedTCPPortChecksTheQuotedHeader`
+   - Files: `internal/component/firewall/model.go`, `internal/component/firewall/validate.go`, `internal/plugins/firewall/nft/lower_linux.go`
+   - Verify: the lowering emits the guard before the raw read, and an unreadable family refuses
+3. **Phase: the filter table** -- build the terms for a peer and publish them
+   - Tests: `TestGTSMPublishesTheICMPFilterTableForAPeer`
+   - Files: `internal/component/gtsm/gtsm.go`
+   - Verify: eight terms per peer, each requiring the quoted BGP port
+4. **Phase: the route metric** -- install and withdraw the host route
+   - Tests: the four transmit tagged tests
+   - Files: `internal/component/gtsm/route_linux.go`, `internal/component/gtsm/route_other.go`
+   - Verify: the metric is read back off the kernel, and the captured ICMP error carries 255
+5. **Phase: the proofs** -- the eight tagged tests and their discrimination records
+   - Tests: every row of the TDD plan
+   - Files: `internal/component/gtsm/gtsm_rfc5082_linux_test.go`, `internal/core/network/ttl_gtsm_linux_test.go`
+   - Verify: `./le rfc check` no longer names RFC5082-3-2
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | Every user story has a working path, no broken links |
+| Correctness | The floor comes from the peer's MinTTL, not a constant; the quoted-header offsets are guarded by the version and header-length test |
+| Naming | The match type names say which family's header byte they read |
+| Data flow | The reactor holds no nftables or netlink knowledge, and the GTSM component holds no BGP knowledge beyond a port number |
+| Rule: `ai/rules/rfc-compliance.md` | Each tagged claim states what the test body checks and no more |
+
+### Deliverables Checklist
+| Deliverable | Verification method |
+|-------------|---------------------|
+| RFC5082-3-2 proven in both polarities | `./le rfc check` no longer names it |
+| Every new tag carries a discrimination record | `./le rfc discriminate stem rfc5082` lists none unproven |
+| The kernel state is reachable from config | The wiring tests named above |
+
+### Security Review Checklist
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | The filter reads attacker-chosen bytes inside the ICMP payload; the quoted version and header-length test is what keeps the port offsets meaningful |
+| Fail closed | A peer whose route or table cannot be installed is reported, and no partial state is left claiming to be a GTSM peer |
+| Denial of service | The drop happens in the kernel before the TCP stack, so a flood of Dangerous errors never reaches the daemon |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- The two halves of RFC5082-3-2 need two different kernel mechanisms, because the kernel reads a different TTL in each direction: a route metric on transmit, and either a socket option (IPv6) or a packet filter (IPv4) on receive.
+- The IPv4 receive cell is the one Linux cannot answer with a socket option, because `IP_MINTTL` is compared against the TTL inside the quoted header, which the sender of the error chooses. That is why a filter is the only mechanism, and why the filter has to read the quoted header itself to associate the error with a session.
+- A firewall rule's counter is NOT a match count in ze. `applyChain` puts the counter at the front of the expression list, so it counts the packets that REACHED the rule. The first draft of the receive proofs read one term's counter as "this rule matched" and passed on a value every rule reported, matching or not. The proofs now read the kernel's own `IcmpMsg InType3` for delivery, and use the counters only for what they truthfully say: the last rule with a non-zero count is the rule that matched, because a verdict ends the evaluation. Recorded in `plan/journal/counter-counts-the-wrong-packets.md`, which already held the same finding from another feature.
+- An IPv4 route delete is matched on the scope as well as the destination. A rebuilt route deleted nothing, and the peer kept its metric. The withdraw now deletes the route the kernel holds, and the IPv6 proof would never have shown it.
+- `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` are generated on demand and gitignored, so the RFC row of the documentation checklist is satisfied by `rfc/short/rfc5082.md` alone.
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| A per-peer route metric for the transmit half | A global `net.ipv4.ip_default_ttl` sysctl | The owner decided per-peer. A global sysctl would change the TTL of every locally generated packet on the box, including the non-GTSM ones |
+| Ten filter terms per peer: five related ICMP types, each for both sides of the quoted TCP header | One term per peer, dropping every low-TTL ICMP error from the peer address | One term would drop errors about ze's other flows to that peer, which no GTSM session claims, and RFC5082-3-4 forbids dropping them. The five types are the four the TCP stack acts on plus the redirect, because acting on a spoofed redirect diverts the session's packets, which is the attack the TTL check exists to stop |
+| The floor is the peer's MinTTL | A hard-wired 255 | The main packet path already uses the derived floor, so a multi-hop `ttl max N` keeps both paths consistent |
+| A new component the reactor calls | A plugin subscribing to a BGP event | The state is derived from peer config the reactor already holds, and an event hop would add a second declaration of the peer set |
+
+## Known Limitations
+
+Three items of this spec are NOT done and are not limitations. They are
+outstanding work, named here so the next session cuts them into their own spec
+rather than losing them: the `.ci` functional test, the FRR interop scenario,
+and the doctor check that reports a GTSM peer whose kernel state is missing.
+The Integration and Test Plan rows above carry the same statement.
+
+- The drop policy for a Dangerous related message is not operator-configurable. RFC 5082 Section 3 expects the policy to be configurable; ze applies the same answer it already applies to a Dangerous main packet, which is to drop. A configurable policy is separate work and is not part of this spec.
+- The filter covers BGP GTSM sessions. BFD and VRRP GTSM sessions carry no TCP quoted header, so their related messages are not claimed by these terms.
+
+## RFC Documentation (Scope: protocol)
+
+Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
+MUST document: validation rules, error conditions, state transitions, timer
+constraints, message ordering, and every MUST/MUST NOT.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-N all demonstrated
+- [ ] Every user story has a working path and a passing test
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] `./le verify worktree` passes
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
+- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
+- [ ] **Commit A:** code + tests + docs + spec + learned summary
+- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

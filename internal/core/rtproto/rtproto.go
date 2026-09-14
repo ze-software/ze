@@ -17,6 +17,10 @@ const (
 	// remove kernel-installed routes uses it, such as the RA default-route
 	// cleanup in internal/component/iface.
 	Any Proto = 0
+	// GTSM marks the per-peer host routes the GTSM component installs to carry
+	// the RTAX_HOPLIMIT metric a locally generated ICMP error reads
+	// (internal/component/gtsm, RFC 5082 Section 3).
+	GTSM Proto = 249
 	// FIBKernel marks routes installed by the BGP/sysrib FIB kernel plugin.
 	FIBKernel = 250
 	// Static marks routes installed by the static route plugin.
@@ -37,7 +41,7 @@ const (
 // subscriber.
 func IsZe(protocol int) bool {
 	switch Proto(protocol) {
-	case FIBKernel, Static, PolicyRoute:
+	case GTSM, FIBKernel, Static, PolicyRoute:
 		return true
 	case Any, Iface:
 		return false
@@ -54,6 +58,7 @@ func Name(protocol int) (string, bool) {
 }
 
 var names = map[Proto]string{
+	GTSM:        "ze-gtsm",
 	FIBKernel:   "ze-fib",
 	Static:      "ze-static",
 	PolicyRoute: "ze-policy-route",

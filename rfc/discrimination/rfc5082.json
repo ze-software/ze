@@ -24,6 +24,94 @@
       "break": "body of DialContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC5082-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255",
+      "unit-sha": "3657ab37975989c7",
+      "claim-sha": "b2a86dca299dc984",
+      "route": "revert",
+      "producer": "internal/component/gtsm/gtsm.go::peerTerms",
+      "producer-sha": "9db15d76cc46bc57",
+      "break": "body of peerTerms replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDropsADangerousQuotedICMPError",
+      "unit-sha": "c2a5c796e3f272bd",
+      "claim-sha": "5e07e9046706dc36",
+      "route": "revert",
+      "producer": "internal/plugins/firewall/nft/lower_linux.go::lowerIPv4TTLBelowMatch",
+      "producer-sha": "80ea7dd1c4d5c4f7",
+      "break": "body of lowerIPv4TTLBelowMatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMMinHopCountDropsALowHopLimitICMPv6Error",
+      "unit-sha": "635e58a91a6a6c7e",
+      "claim-sha": "085ca86194889f42",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPMinTTL",
+      "producer-sha": "eb0c54d8b4ca66c2",
+      "break": "body of setIPMinTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorCarriesTTL255",
+      "unit-sha": "d01ab2dd6e6bc3f7",
+      "claim-sha": "e7ee536e1ff7d50a",
+      "route": "revert",
+      "producer": "internal/component/gtsm/route_linux.go::installHopLimitRoute",
+      "producer-sha": "413242d3af60dde8",
+      "break": "body of installHopLimitRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255",
+      "unit-sha": "bb664788c135c55b",
+      "claim-sha": "1f5b5374f2e1afba",
+      "route": "revert",
+      "producer": "internal/component/gtsm/route_linux.go::withdrawHopLimitRoute",
+      "producer-sha": "ee51e46132b31e5b",
+      "break": "body of withdrawHopLimitRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255",
+      "unit-sha": "678b8b388aeb0282",
+      "claim-sha": "6f4a46597bc1c308",
+      "route": "revert",
+      "producer": "internal/component/gtsm/route_linux.go::installHopLimitRoute",
+      "producer-sha": "413242d3af60dde8",
+      "break": "body of installHopLimitRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255",
+      "unit-sha": "e877bb5d20f955bf",
+      "claim-sha": "5fe2a4609c3896a1",
+      "route": "revert",
+      "producer": "internal/component/gtsm/route_linux.go::withdrawHopLimitRoute",
+      "producer-sha": "ee51e46132b31e5b",
+      "break": "body of withdrawHopLimitRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error",
+      "unit-sha": "7f2e795d2efed7e7",
+      "claim-sha": "d83e46d97336ed73",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPMinTTL",
+      "producer-sha": "eb0c54d8b4ca66c2",
+      "break": "body of setIPMinTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5082-3-3",
       "polarity": "positive",
       "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented",

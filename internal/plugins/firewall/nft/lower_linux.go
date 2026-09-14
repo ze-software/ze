@@ -54,6 +54,9 @@ var (
 	errNatPortRangeRequiresALower                   = errors.New("NAT port range requires a lower bound")
 	errInvalidNatAddress                            = errors.New("invalid NAT address")
 	errUnsupportedSetTypeForElementEncoding         = errors.New("unsupported set type for element encoding")
+	errTtlBelowFloorIsZero                          = errors.New("ttl-below floor is 0, which no TTL can be below")
+	errIcmpQuotedTcpPortNamesNoSide                 = errors.New("icmp-quoted-tcp-port names no side")
+	errIcmpQuotedTcpPortIsZero                      = errors.New("icmp-quoted-tcp-port is 0, which no TCP session carries")
 )
 
 // lowerFamily converts a ze TableFamily to nftables.TableFamily.
@@ -417,6 +420,10 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return lowerMatchInSet(ctx, v)
 	case firewall.MatchTCPFlags:
 		return lowerTCPFlagsMatch(v.Flags, v.Mask)
+	case firewall.MatchIPv4TTLBelow:
+		return lowerIPv4TTLBelowMatch(ctx.tableFamily(), v.Floor)
+	case firewall.MatchICMPErrorQuotedTCPPort:
+		return lowerICMPErrorQuotedTCPPortMatch(ctx.tableFamily(), v.Port, v.Side)
 	}
 	return nil, fmt.Errorf("unsupported match type %T", m)
 }
@@ -806,6 +813,94 @@ func lowerDSCPMatch(family nftables.TableFamily, value uint8) ([]expr.Any, error
 		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 1, Len: 1},
 		&expr.Bitwise{SourceRegister: 1, DestRegister: 1, Len: 1, Mask: []byte{0xFC}, Xor: []byte{0x00}},
 		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{value << 2}},
+	), nil
+}
+
+// lowerIPv4TTLBelowMatch matches an IPv4 packet whose TTL is strictly below
+// floor. The TTL byte is at offset 8 of the IPv4 header:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|Version|  IHL  |Type of Service|          Total Length         |  0
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|         Identification        |Flags|      Fragment Offset    |  4
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Time to Live |    Protocol   |         Header Checksum       |  8
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// RFC 791 Section 3.1 fixes that offset, so it holds for every IPv4 packet.
+// In an inet table the same offset is inside the IPv6 flow label, so the read
+// carries an nfproto guard; nfprotoGuard carries why, and validateMatch
+// (internal/component/firewall/validate.go) refuses the match in a family
+// where no guard is emitted and the offset means something else.
+func lowerIPv4TTLBelowMatch(family nftables.TableFamily, floor uint8) ([]expr.Any, error) {
+	if floor == 0 {
+		return nil, errTtlBelowFloorIsZero
+	}
+	return append(nfprotoGuard(family, unix.NFPROTO_IPV4),
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 8, Len: 1},
+		&expr.Cmp{Op: expr.CmpOpLt, Register: 1, Data: []byte{floor}},
+	), nil
+}
+
+// lowerICMPErrorQuotedTCPPortMatch matches an ICMPv4 error that quotes a TCP
+// header carrying port on the named side.
+//
+// RFC 792 gives every ICMPv4 error message the same shape: four bytes of
+// header, four bytes the type defines, then "Internet Header + 64 bits of
+// Original Data Datagram". Read from the transport header, which for ICMP is
+// the ICMP header itself:
+//
+//	offset  0: type
+//	offset  1: code
+//	offset  2: checksum
+//	offset  4: rest of header (unused, gateway address, pointer, or MTU)
+//	offset  8: quoted IPv4 header, version and IHL byte first
+//	offset 17: quoted IPv4 protocol   (8 + 9)
+//	offset 28: quoted TCP source port (8 + 20 + 0)
+//	offset 30: quoted TCP destination port (8 + 20 + 2)
+//
+// The two port offsets assume a 20-byte quoted header, so the first compare is
+// the quoted version and IHL byte against 0x45. A quoted header carrying IP
+// options fails that compare and the rule stops, rather than reading an option
+// byte as a port. Ze sets no IP option on a BGP socket, so its own quoted
+// headers are always 20 bytes.
+//
+// The ICMP type is NOT restricted here. The bytes above are the sender's own
+// payload in an echo request or reply, so a term MUST carry a MatchICMPType
+// naming an error type beside this match. The model type says so too.
+func lowerICMPErrorQuotedTCPPortMatch(family nftables.TableFamily, port uint16, side firewall.QuotedPortSide) ([]expr.Any, error) {
+	var portOffset uint32
+	switch side {
+	case firewall.QuotedPortSource:
+		portOffset = 28
+	case firewall.QuotedPortDestination:
+		portOffset = 30
+	case firewall.QuotedPortUnspecified:
+		return nil, errIcmpQuotedTcpPortNamesNoSide
+	default:
+		return nil, errIcmpQuotedTcpPortNamesNoSide
+	}
+	if port == 0 {
+		return nil, errIcmpQuotedTcpPortIsZero
+	}
+
+	portBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(portBytes, port)
+
+	return append(nfprotoGuard(family, unix.NFPROTO_IPV4),
+		&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_ICMP}},
+		// The quoted header is a 20-byte IPv4 header, or this rule stops here.
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 8, Len: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{0x45}},
+		// The quoted packet is TCP.
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 17, Len: 1},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_TCP}},
+		// The quoted TCP header carries the port on the named side.
+		&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: portOffset, Len: 2},
+		&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: portBytes},
 	), nil
 }
 

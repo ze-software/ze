@@ -63,6 +63,27 @@ const (
 	FamilyNetdev              // netdev
 )
 
+// nameIndex answers the name-to-value index of a value-to-name table.
+//
+// The table it reads is the one declaration of the pair. An index built from it
+// cannot disagree with it, where a second literal listing the same names could,
+// and did: a name added to one map and not the other gave String and the parser
+// two different answers about the same value.
+//
+// A name written against two values is a Ze defect rather than an operating
+// error: the index would lose one of them in silence, and the parser would then
+// answer a constant the author never wrote.
+func nameIndex[T comparable](names map[T]string) map[string]T {
+	index := make(map[string]T, len(names))
+	for value, name := range names {
+		if _, clash := index[name]; clash {
+			panic("BUG: firewall: two values share the name " + name)
+		}
+		index[name] = value
+	}
+	return index
+}
+
 var familyNames = map[TableFamily]string{
 	FamilyInet:   "inet",
 	FamilyIP:     "ip",
@@ -72,14 +93,7 @@ var familyNames = map[TableFamily]string{
 	FamilyNetdev: "netdev",
 }
 
-var familyByName = map[string]TableFamily{
-	"inet":   FamilyInet,
-	"ip":     FamilyIP,
-	"ip6":    FamilyIP6,
-	"arp":    FamilyARP,
-	"bridge": FamilyBridge,
-	"netdev": FamilyNetdev,
-}
+var familyByName = nameIndex(familyNames)
 
 func (f TableFamily) String() string {
 	if name, ok := familyNames[f]; ok {
@@ -287,7 +301,7 @@ type Action interface {
 	actionMarker()
 }
 
-// --- Match types (18) ---
+// --- Match types (20) ---
 
 // MatchSourceAddress matches packets by source IP prefix.
 type MatchSourceAddress struct{ Prefix netip.Prefix }
@@ -386,6 +400,59 @@ type MatchInSet struct {
 	ProvidedType SetType
 }
 
+// MatchIPv4TTLBelow matches an IPv4 packet whose TTL byte is strictly below
+// Floor. It reads the TTL of the packet in front of the kernel, never a TTL
+// quoted inside a payload.
+//
+// IPv4 only, because the byte it reads is at IPv4 network-header offset 8. An
+// IPv6 hop limit sits at offset 7, and no caller needs it: the IPv6 half of
+// GTSM's related-message check is performed by the kernel against
+// IPV6_MINHOPCOUNT (rfc/short/rfc5082.md).
+//
+// Floor 0 matches nothing, and validateMatch refuses it: a TTL cannot be below
+// zero, so a term built from an unset floor would be a rule that never fires.
+//
+// Daemon-only. No config leaf produces it, so an operator cannot write it.
+type MatchIPv4TTLBelow struct{ Floor uint8 }
+
+// QuotedPortSide names which port of the TCP header quoted inside an ICMPv4
+// error a MatchICMPErrorQuotedTCPPort compares. Zero is Unspecified so the Go
+// zero value is never a valid side, and validateMatch refuses it.
+type QuotedPortSide uint8
+
+const (
+	// QuotedPortUnspecified is the zero value and is never a valid side.
+	QuotedPortUnspecified QuotedPortSide = iota
+	// QuotedPortSource compares the source port of the quoted TCP header.
+	QuotedPortSource
+	// QuotedPortDestination compares the destination port of the quoted TCP
+	// header.
+	QuotedPortDestination
+)
+
+// MatchICMPErrorQuotedTCPPort matches an ICMPv4 error message that quotes a
+// TCP header carrying Port on the named side.
+//
+// An ICMPv4 error carries the IP header of the packet that caused it, plus the
+// first octets of that packet's transport header, after the 8-byte ICMP
+// header. The lowering reads that quoted header at fixed offsets, so it first
+// compares the quoted version and header-length byte against 0x45: a quoted
+// header carrying IP options is a different layout and matches nothing rather
+// than matching the wrong bytes.
+//
+// The match does NOT restrict the ICMP type. A term MUST carry a
+// MatchICMPType beside it, naming one of the error types that carry a quoted
+// header, because the bytes this match reads are the sender's payload in an
+// echo request or reply.
+//
+// IPv4 only, for the same reason as MatchIPv4TTLBelow.
+//
+// Daemon-only. No config leaf produces it, so an operator cannot write it.
+type MatchICMPErrorQuotedTCPPort struct {
+	Port uint16
+	Side QuotedPortSide
+}
+
 // MatchTCPFlags matches packets by TCP header flags. Flags is the
 // bitmask of flags that must be set; Mask selects which flags to check.
 // If Mask is zero it defaults to Flags (exact match on those flags).
@@ -412,6 +479,9 @@ func (MatchInSet) matchMarker()              {}
 func (MatchICMPType) matchMarker()           {}
 func (MatchICMPv6Type) matchMarker()         {}
 func (MatchTCPFlags) matchMarker()           {}
+
+func (MatchIPv4TTLBelow) matchMarker()           {}
+func (MatchICMPErrorQuotedTCPPort) matchMarker() {}
 
 // --- Action types (16) ---
 
