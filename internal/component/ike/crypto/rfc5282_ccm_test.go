@@ -56,7 +56,7 @@ func TestRFC5282CCMRefusesEveryOtherICVLength(t *testing.T) {
 			if _, err := SealIKEAEAD(id, ccmKeyWithSalt(), []byte("payloads"), nil); err == nil {
 				t.Errorf("SealIKEAEAD(%d) sealed a message under a transform with no ICV length", id)
 			}
-			if _, err := OpenIKEAEAD(id, ccmKeyWithSalt(), bytes.Repeat([]byte{0}, 40), nil); err == nil {
+			if _, err := OpenIKEAEAD(id, ccmKeyWithSalt(), make([]byte, 40), nil); err == nil {
 				t.Errorf("OpenIKEAEAD(%d) opened a message under a transform with no ICV length", id)
 			}
 			continue
