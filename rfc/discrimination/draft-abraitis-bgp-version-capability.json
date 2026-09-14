@@ -196,7 +196,7 @@
       "claim-sha": "9c92badce562e940",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "3301956a410f3cfb",
+      "producer-sha": "07a54848b1cdfefe",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -207,7 +207,7 @@
       "claim-sha": "6bbfaf8b2937b399",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "3301956a410f3cfb",
+      "producer-sha": "07a54848b1cdfefe",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

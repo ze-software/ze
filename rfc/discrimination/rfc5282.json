@@ -137,7 +137,7 @@
       "rid": "RFC5282-3.2-4",
       "polarity": "positive",
       "unit": "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength",
-      "unit-sha": "af7adca01cdca87c",
+      "unit-sha": "d601da582c08b65d",
       "claim-sha": "35e383f4469baff6",
       "route": "revert",
       "producer": "internal/component/ike/crypto/aead.go::AEADICVOctets",
