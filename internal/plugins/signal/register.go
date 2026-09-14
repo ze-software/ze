@@ -1,7 +1,5 @@
 // Register the signal + status root commands with the command registry.
 
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
-
 package signal
 
 import (

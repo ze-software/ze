@@ -1,7 +1,5 @@
 // Register the passwd root command with the command registry.
 
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
-
 package passwd
 
 import (

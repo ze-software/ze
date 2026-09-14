@@ -1,9 +1,9 @@
 // Register the diag entry points (ping, generate wireguard keypair)
-// with the cmd/ze dispatcher. Imported by cmd/ze/main.go for its side
-// effects. Traceroute is handled by the daemon path (show traceroute)
+// with the cmd/ze dispatcher. Blank-imported by
+// internal/component/plugin/all for its side effects: the generated
+// composition root names every package that registers a command.
+// Traceroute is handled by the daemon path (show traceroute)
 // as a pure Go ICMP implementation; no offline wrapper needed.
-
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
 
 package diag
 

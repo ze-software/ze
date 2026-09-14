@@ -1,7 +1,5 @@
 // Design: docs/features/ai-first.md — explain command registration
 
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
-
 package explain
 
 import (

@@ -1,7 +1,5 @@
 // Design: docs/architecture/core-design.md -- support command registration
 
-// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
-
 package support
 
 import (

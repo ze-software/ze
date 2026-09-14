@@ -1,7 +1,5 @@
 // Design: docs/architecture/diagnostics/crash-capture.md -- offline crash file CLI
 
-// codegen:skip -- offline fallback wired via the command registry, not a runtime plugin.
-
 package crashes
 
 import (

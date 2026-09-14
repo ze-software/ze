@@ -2,9 +2,8 @@
 // `show host [section]` is a daemon command (host-cmd plugin); this fallback
 // serves the same hardware inventory in-process (host.DetectSection) when no
 // daemon is reachable, so an operator can read it before the daemon is up.
-// Imported by cmd/ze for its side effects.
-
-// codegen:skip -- offline fallback wired via the command registry, not a runtime plugin.
+// Blank-imported by internal/component/plugin/all for its side effects: the
+// generated composition root names every package that registers a command.
 
 package host
 
