@@ -10,9 +10,15 @@
 //
 // The judgement is syntactic and it is deliberately narrow. One syntactic unit
 // is one composite literal, one const block, or one switch statement. A unit
-// whose string constants include TWO OR MORE distinct keys of one registry, in
-// a package that does not own that registry, is a copy. ONE key is never a
+// whose string constants include TWO OR MORE distinct keys of one registry is a
+// copy, unless the unit is where the registry gets them. ONE key is never a
 // finding, because every mention of a plugin name would be one.
+//
+// The exclusion attaches to the DECLARING SYMBOL, never to its package. A
+// registry's own package holds one symbol that writes the set down, and a
+// second list beside it is the copy nothing else in the tree can catch: it is
+// the one place both sides of a drift can sit
+// (plan/journal/gate-excludes-part-of-its-population.md).
 //
 // The distinction the gate turns on is not syntactic, so it is not automated: a
 // list that states what is ALLOWED is policy and is legitimately written out,
@@ -242,39 +248,62 @@ func (s *scan) judgePackage(tree, pkgDir string, rels []string) error {
 		s.readMarkers(fset, file, rel)
 	}
 
-	judged := s.judgeable(pkgDir)
-	if len(judged) == 0 {
-		return nil
-	}
-	registered := registeredConstants(parsed)
+	declaring := s.declaringSymbols(pkgDir)
+	registered := registeredConstants(parsed, declaring)
 	for i, file := range parsed {
 		for _, decl := range file.Decls {
-			against := judged
+			symbol := declSymbol(decl)
+			against := s.judgeable(pkgDir, symbol)
 			if isRegisteredConstBlock(registered, decl) {
-				against = composedKeys(judged)
+				against = composedKeys(against)
 			}
 			if len(against) == 0 {
 				continue
 			}
-			s.scanDecl(fset, rels[i], declSymbol(decl), decl, against)
+			s.scanDecl(fset, rels[i], symbol, decl, against)
 		}
 	}
 	return nil
 }
 
+// declaringSymbols answers the top-level symbols of pkgDir that WRITE a
+// corpus's set down, so registeredConstants can read the const names those
+// symbols use.
+func (s *scan) declaringSymbols(pkgDir string) map[string]bool {
+	symbols := map[string]bool{}
+	for _, corpus := range s.corpora {
+		for _, site := range corpus.Declarations {
+			if site.Package != pkgDir {
+				continue
+			}
+			symbols[site.Symbol] = true
+		}
+	}
+	return symbols
+}
+
 // registeredConstants answers every identifier a package hands to a registrar,
-// anywhere: inside a registration literal, or as an argument of a Register
-// call.
+// anywhere: inside a registration literal, as an argument of a Register call,
+// or inside a symbol this package declares a corpus at.
 //
 // This is the const form of the declaration rule. `const
 // codeOSPFRouterIDMissing = "doctor-ospf-router-id-missing"` is where that
 // diagnostic code comes from, because `CodeMeta{Code: codeOSPFRouterIDMissing}`
 // carries the const itself into the registry. Asking the author to derive it
 // from the registry asks them to derive it from itself.
-func registeredConstants(files []*ast.File) map[string]bool {
+//
+// A declaring symbol reaches its const block the same way. `command.Verbs`
+// takes no registrar call, and the thirteen `VerbShow`-style constants it keys
+// on are the spellings it is built from, so the map that uses them is what says
+// the const block is their declaration.
+func registeredConstants(files []*ast.File, declaring map[string]bool) map[string]bool {
 	used := map[string]bool{}
 	for _, file := range files {
 		for _, decl := range file.Decls {
+			if declaring[declSymbol(decl)] {
+				collectIdents(decl, posRange{start: decl.Pos(), end: decl.End()}, used)
+				continue
+			}
 			for _, area := range declarationRanges(decl) {
 				collectIdents(decl, area, used)
 			}
@@ -344,12 +373,15 @@ func isRegisteredConstBlock(registered map[string]bool, decl ast.Decl) bool {
 	return named > 0
 }
 
-// judgeable answers the corpora a package does not own. A registry's own
-// package writing its own keys out is the declaration, not a copy of one.
-func (s *scan) judgeable(pkgDir string) []Corpus {
+// judgeable answers the corpora this symbol does not declare. The symbol that
+// BUILDS a registry writes its keys out once, and that once is the declaration;
+// every other symbol of the same package is judged, because a second
+// declaration beside the first is a copy wherever it stands
+// (plan/journal/gate-excludes-part-of-its-population.md).
+func (s *scan) judgeable(pkgDir, symbol string) []Corpus {
 	judged := make([]Corpus, 0, len(s.corpora))
 	for _, corpus := range s.corpora {
-		if corpus.owns(pkgDir) {
+		if corpus.declares(pkgDir, symbol) {
 			continue
 		}
 		judged = append(judged, corpus)
@@ -573,8 +605,7 @@ func assignedToRegistered(registered map[string]bool, names, values []ast.Expr) 
 	}
 	var declared []posRange
 	for i, name := range names {
-		ident, ok := name.(*ast.Ident)
-		if !ok || !registered[ident.Name] {
+		if !writesRegistered(registered, name) {
 			continue
 		}
 		value := values[i]
@@ -586,6 +617,29 @@ func assignedToRegistered(registered map[string]bool, names, values []ast.Expr) 
 		}
 	}
 	return declared
+}
+
+// writesRegistered reports whether this assignment target writes into a value
+// decl then registers: the variable itself for `checks = ...`, a field of it
+// for `reg.DoctorChecks = ...`, an element for `regs[0] = ...`.
+//
+// A field is as much a declaration as the variable is. `reg.DoctorChecks =
+// []registry.DoctorCheckDef{{Codes: []string{"doctor-as112-port-unavailable"}}}`
+// at internal/plugins/as112/register.go:143 is how that code enters the
+// registry, and reading only an identifier here reported as112 and geodns for
+// restating the codes their own checks emit.
+func writesRegistered(registered map[string]bool, name ast.Expr) bool {
+	switch typed := name.(type) {
+	case *ast.Ident:
+		return registered[typed.Name]
+	case *ast.SelectorExpr:
+		return writesRegistered(registered, typed.X)
+	case *ast.IndexExpr:
+		return writesRegistered(registered, typed.X)
+	case *ast.StarExpr:
+		return writesRegistered(registered, typed.X)
+	}
+	return false
 }
 
 // calleeName answers the name an expression is written as, without its package

@@ -11,6 +11,7 @@ package enumeration
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -93,6 +94,61 @@ func TestDiagnosticCodeCopyIsReported(t *testing.T) {
 	wantOneCopy(t, fixtureFindings(t, "diagnostic-codes"), "diagnostic codes", "interesting")
 }
 
+// yangCorpus answers the live YANG enumeration corpus.
+func yangCorpus(t *testing.T) Corpus {
+	t.Helper()
+	for _, corpus := range liveCorpora(t) {
+		if corpus.Name == "YANG enumerations" {
+			return corpus
+		}
+	}
+	t.Fatal("the corpora hold no YANG enumerations")
+	return Corpus{}
+}
+
+// TestAValueSetNamesEveryLeafThatDeclaresIt is the row's whole value: "the two
+// must agree" is actionable only when the reader is told WHICH two. Seven
+// leaves carry sha1/sha256/sha384/sha512, two in the IPsec module and five in
+// the OSPF one, and naming one of them sent a fixer to the wrong module.
+func TestAValueSetNamesEveryLeafThatDeclaresIt(t *testing.T) {
+	hashes := []string{"sha1", "sha256", "sha384", "sha512"}
+	for _, group := range yangCorpus(t).Groups {
+		if !slices.Equal(group.Keys, hashes) {
+			continue
+		}
+		for _, module := range []string{"ze-ipsec-conf", "ze-ospf-conf"} {
+			if !strings.Contains(group.Name, module) {
+				t.Errorf("the group is named %q, want %s named too", group.Name, module)
+			}
+		}
+		return
+	}
+	t.Fatalf("no group holds %v, and the model declares it in the IPsec and OSPF modules", hashes)
+}
+
+// TestTheEnumerationCorpusIsDeterministic drives the second half of the same
+// defect. ModuleNames answers in map order, so the leaf a row cited changed
+// between two runs over one tree: a gate that disagrees with itself cannot be
+// acted on, and two agents comparing reports would read one row as two.
+func TestTheEnumerationCorpusIsDeterministic(t *testing.T) {
+	first, err := yangEnumerations()
+	if err != nil {
+		t.Fatalf("read the model: %v", err)
+	}
+	second, err := yangEnumerations()
+	if err != nil {
+		t.Fatalf("read the model again: %v", err)
+	}
+	if len(first.Groups) != len(second.Groups) {
+		t.Fatalf("two reads answered %d and %d groups", len(first.Groups), len(second.Groups))
+	}
+	for i, group := range first.Groups {
+		if group.Name != second.Groups[i].Name {
+			t.Fatalf("group %d is named %q on the first read and %q on the second", i, group.Name, second.Groups[i].Name)
+		}
+	}
+}
+
 // TestSingleKeyIsNotAFinding proves the two-key threshold: one key of two
 // different registries in one literal is two mentions, not a copy.
 func TestSingleKeyIsNotAFinding(t *testing.T) {
@@ -101,12 +157,56 @@ func TestSingleKeyIsNotAFinding(t *testing.T) {
 	}
 }
 
-// TestOwningPackageIsNotAFinding proves the registry's own package may write
-// its own key set out, because that is the declaration.
-func TestOwningPackageIsNotAFinding(t *testing.T) {
-	if found := fixtureFindings(t, "owner"); len(found) != 0 {
-		t.Fatalf("want no finding, got:\n%s", found.Text())
+// TestTheDeclarationIsNotAFinding is the first claim of the declaring-symbol
+// rule: the symbol that BUILDS the registry writes its keys out once, and that
+// once is never reported. The fixture holds the map and the const block that
+// spells its keys, which reaches the const block through the map that uses
+// every one of them.
+func TestTheDeclarationIsNotAFinding(t *testing.T) {
+	for _, finding := range fixtureFindings(t, "declaring-package") {
+		if finding.Symbol == "Verbs" || finding.Symbol == "VerbShow" {
+			t.Errorf("the gate reports its own declaration %q: %s", finding.Symbol, finding.Detail)
+		}
 	}
+}
+
+// TestASecondDeclarationInTheDeclaringPackageIsReported is the other claim, and
+// it is the defect this rule replaced: readOnlyVerbs restated three of thirteen
+// verbs three doors from Verbs, omitted resolve, and answered `ze help ai`
+// wrongly for its whole life while the gate excused the package around it
+// (plan/journal/gate-excludes-part-of-its-population.md).
+func TestASecondDeclarationInTheDeclaringPackageIsReported(t *testing.T) {
+	wantOneCopy(t, fixtureFindings(t, "declaring-package"), "CLI verbs", "readOnlyVerbs")
+}
+
+// TestALiteralInTheRegistrysPackageIsReported holds the same line for a corpus
+// no Go symbol declares. A family name is composed by the registrar, so a
+// literal holding two joined names inside internal/core/family took them from
+// the registry exactly as a literal next door would.
+func TestALiteralInTheRegistrysPackageIsReported(t *testing.T) {
+	wantOneCopy(t, fixtureFindings(t, "owner"), "family names", "seeded")
+}
+
+// TestTheLiveDeclarationsAreNotFindings drives the two declaring symbols this
+// checkout really holds, because a fixture proves the rule and only the
+// checkout proves the two Declaration rows point at the right symbols.
+func TestTheLiveDeclarationsAreNotFindings(t *testing.T) {
+	roots := []string{"internal/component/command", "internal/core/diagnostic"}
+	// The floor is what makes an empty answer mean something. Both packages
+	// held 32 non-test files on 2026-09-14, and a walk that read almost none
+	// would report no finding for the wrong reason.
+	found, err := Check(checkoutRoot(t), roots, liveCorpora(t), 20)
+	if err != nil {
+		t.Fatalf("walk the declaring packages: %v", err)
+	}
+	for _, finding := range found {
+		if finding.Symbol == "Verbs" || finding.Symbol == "builtinCodes" {
+			t.Errorf("the gate reports its own declaration %s: %s: %s", finding.Symbol, finding.File, finding.Detail)
+		}
+	}
+	// Anything else these packages hold is a real row, and the report is where
+	// it is answered.
+	t.Logf("%d finding(s) in the declaring packages:\n%s", len(found), found.Text())
 }
 
 // TestRegistrationLiteralIsNotAFinding proves a literal that FEEDS a registry
@@ -115,6 +215,17 @@ func TestOwningPackageIsNotAFinding(t *testing.T) {
 // where the registrar is called.
 func TestRegistrationLiteralIsNotAFinding(t *testing.T) {
 	if found := fixtureFindings(t, "declaration"); len(found) != 0 {
+		t.Fatalf("want no finding, got:\n%s", found.Text())
+	}
+}
+
+// TestAFieldOfARegisteredValueIsNotAFinding proves the declaration rule follows
+// the value rather than the shape of the assignment. A registration built in a
+// local, filled one FIELD at a time and then registered declares its codes in
+// that field, and reading only an identifier on the left reported as112 and
+// geodns for restating the codes their own checks emit.
+func TestAFieldOfARegisteredValueIsNotAFinding(t *testing.T) {
+	if found := fixtureFindings(t, "field-declaration"); len(found) != 0 {
 		t.Fatalf("want no finding, got:\n%s", found.Text())
 	}
 }

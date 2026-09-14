@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -48,7 +49,7 @@ type Group struct {
 }
 
 // Corpus is one registry's key sets, with the floor that says the registry
-// answered and the packages that own it.
+// answered and the symbols that declare it.
 type Corpus struct {
 	// Name is the registry a finding names, in the words a reader greps for.
 	Name string
@@ -58,10 +59,17 @@ type Corpus struct {
 	// Floor is the least distinct keys the registry must answer, across every
 	// group, before the gate believes it read the registry at all.
 	Floor int
-	// Owners are the repository-relative package directories that declare the
-	// registry. Code inside one of them is writing the set down for the first
-	// time rather than copying it.
-	Owners []string
+	// Declarations are the Go symbols that WRITE this registry's set down: the
+	// package directory and the top-level symbol whose literal builds it. Only
+	// those symbols are excused, because the rest of the declaring package is
+	// as much a copy as the package next door.
+	//
+	// A corpus whose keys never appear as a Go literal declares none. Every
+	// plugin name and every family name enters its registry through a
+	// registrar call, which declarationRanges already excuses wherever it
+	// stands, and a YANG enumeration is declared in the model rather than in
+	// Go.
+	Declarations []Declaration
 	// Closed says each group of this corpus is a closed enumeration, so a copy
 	// restates ALL of it. A literal sharing two words with a twelve-value
 	// enumeration shares two words; it does not hold a copy of the set.
@@ -91,11 +99,28 @@ func (c Corpus) keyCount() int {
 	return len(seen)
 }
 
-// owns reports whether the package directory rel declares this corpus's
-// registry, in which case its literals are the declaration and not a copy.
-func (c Corpus) owns(rel string) bool {
-	for _, owner := range c.Owners {
-		if rel == owner || strings.HasPrefix(rel, owner+"/") {
+// Declaration is one place a corpus's own set is written in Go: the package
+// directory, and the top-level symbol whose literal builds the registry.
+//
+// The exclusion attaches to the symbol rather than to the package because a
+// SECOND declaration inside the declaring package is the copy nothing else can
+// catch. readOnlyVerbs stood three doors from command.Verbs, restated three of
+// its thirteen keys, omitted resolve, and answered `ze help ai` wrongly for its
+// whole life while the gate excused the package around it
+// (plan/journal/gate-excludes-part-of-its-population.md).
+type Declaration struct {
+	// Package is the repository-relative package directory.
+	Package string
+	// Symbol is the top-level declaration, as declSymbol names it.
+	Symbol string
+}
+
+// declares reports whether symbol in pkgDir is where this corpus's set is
+// written down, in which case that one symbol is the declaration and not a copy
+// of one.
+func (c Corpus) declares(pkgDir, symbol string) bool {
+	for _, site := range c.Declarations {
+		if site.Package == pkgDir && site.Symbol == symbol {
 			return true
 		}
 	}
@@ -173,9 +198,10 @@ func pluginNames() Corpus {
 		Name:     "plugin names",
 		Producer: "registry.All()",
 		Floor:    floorPlugins,
-		// The registry package declares the set; each plugin's own package
-		// declares one member of it, which one key never reports anyway.
-		Owners:       []string{"internal/component/plugin/registry"},
+		// No Go literal declares this set. Each plugin's own package registers
+		// one member, through a registrar call declarationRanges already
+		// excuses, and the registry package holds the map rather than the
+		// names.
 		WrittenWhole: true,
 		Groups:       []Group{{Name: "plugin names", Keys: names}},
 	}
@@ -187,7 +213,10 @@ func familyNames() Corpus {
 		Name:     "family names",
 		Producer: "family.RegisteredFamilyNames()",
 		Floor:    floorFamilies,
-		Owners:   []string{"internal/core/family"},
+		// No Go literal declares this set either, and for the reason below: a
+		// key of it is composed by the registrar, so no symbol in the family
+		// package holds one.
+		//
 		// Not WrittenWhole: the registrar joins the AFI and SAFI names, so the
 		// joined string a Go const holds was never the declaration.
 		Groups: []Group{{Name: "family names", Keys: family.RegisteredFamilyNames()}},
@@ -201,10 +230,13 @@ func commandVerbs() Corpus {
 		verbs = append(verbs, verb)
 	}
 	return Corpus{
-		Name:         "CLI verbs",
-		Producer:     "command.Verbs",
-		Floor:        floorVerbs,
-		Owners:       []string{"internal/component/command"},
+		Name:     "CLI verbs",
+		Producer: "command.Verbs",
+		Floor:    floorVerbs,
+		// The map literal IS the vocabulary: nothing else in the tree decides
+		// which words are verbs. The const block beside it spells each key, and
+		// judgePackage reaches it through the map that uses every one of them.
+		Declarations: []Declaration{{Package: "internal/component/command", Symbol: "Verbs"}},
 		WrittenWhole: true,
 		Groups:       []Group{{Name: "CLI verbs", Keys: verbs}},
 	}
@@ -219,10 +251,14 @@ func commandVerbs() Corpus {
 func diagnosticCodes() Corpus {
 	diagnostic.RegisterBuiltinCodes()
 	return Corpus{
-		Name:         "diagnostic codes",
-		Producer:     "diagnostic.AllCodes()",
-		Floor:        floorDiagnosticCodes,
-		Owners:       []string{"internal/core/diagnostic"},
+		Name:     "diagnostic codes",
+		Producer: "diagnostic.AllCodes()",
+		Floor:    floorDiagnosticCodes,
+		// builtinCodes is where the 141 builtin codes are written down, and
+		// RegisterBuiltinCodes above ranges over it. The plugin-registered
+		// codes are declared in their own packages, where the registrar call
+		// excuses them.
+		Declarations: []Declaration{{Package: "internal/core/diagnostic", Symbol: "builtinCodes"}},
 		WrittenWhole: true,
 		Groups:       []Group{{Name: "diagnostic codes", Keys: diagnostic.AllCodes()}},
 	}
@@ -249,7 +285,8 @@ func yangEnumerations() (Corpus, error) {
 		Name:     "YANG enumerations",
 		Producer: "yang.DefaultLoader() entry tree, entry.Type.Enum.Names()",
 		Floor:    floorYANGEnums,
-		Owners:   []string{"internal/component/config/yang"},
+		// An enumeration is declared in a .yang module, so no Go symbol holds
+		// the set and the loader package is judged like any other.
 		// An enumeration is closed, so a literal holds a copy of it only by
 		// holding all of it. Two shared words are two words: `parseBool` in
 		// internal/component/bfd/config.go holds "true" and "false", and the
@@ -267,16 +304,23 @@ func yangEnumerations() (Corpus, error) {
 	}
 
 	// Keyed by the joined value set, so one enumeration is one group however
-	// many leaves declare it. The value is the leaf path of the first declaring
-	// leaf, which is what the finding cites.
-	pathBySet := map[string]string{}
+	// many leaves declare it. The value is EVERY leaf that declares it: a row
+	// saying two declarations must agree is only actionable when the reader is
+	// told which two, and four leaves carry sha1/sha256/sha384/sha512 alone.
+	//
+	// ModuleNames answers in map order, so the modules are sorted before the
+	// walk. Left unsorted, the leaf a row cited changed between two runs over
+	// one tree, which is a gate disagreeing with itself.
+	pathsBySet := map[string][]string{}
 	keysBySet := map[string][]string{}
-	for _, module := range loader.ModuleNames() {
+	modules := loader.ModuleNames()
+	slices.Sort(modules)
+	for _, module := range modules {
 		entry := loader.GetEntry(module)
 		if entry == nil {
 			continue
 		}
-		collectEnums(entry, module, 0, map[*gyang.Entry]bool{}, pathBySet, keysBySet)
+		collectEnums(entry, module, 0, map[*gyang.Entry]bool{}, pathsBySet, keysBySet)
 	}
 
 	sets := make([]string, 0, len(keysBySet))
@@ -286,15 +330,31 @@ func yangEnumerations() (Corpus, error) {
 	slices.Sort(sets)
 	for _, set := range sets {
 		corpus.Groups = append(corpus.Groups, Group{
-			Name: "the enumeration at " + pathBySet[set],
+			Name: enumerationName(pathsBySet[set]),
 			Keys: keysBySet[set],
 		})
 	}
 	return corpus, nil
 }
 
-// collectEnums records every enumeration under entry, keyed by its value set.
-func collectEnums(entry *gyang.Entry, path string, depth int, seen map[*gyang.Entry]bool, pathBySet map[string]string, keysBySet map[string][]string) {
+// enumerationName names every leaf that declares one value set.
+//
+// Naming one of them was a guess the reader could not see: hashNames in
+// internal/component/ike/ipsec/types.go:122 was blamed on an OSPF leaf while
+// the package's own test gates it against the IPsec module, and both leaves
+// carry exactly those four values. A set several leaves declare may be a
+// vocabulary that wants declaring once, which is a fact about the MODEL, so the
+// row states it rather than choosing a side.
+func enumerationName(paths []string) string {
+	if len(paths) == 1 {
+		return "the enumeration at " + paths[0]
+	}
+	return "the enumeration at " + strconv.Itoa(len(paths)) + " leaves: " + strings.Join(paths, ", ")
+}
+
+// collectEnums records every enumeration under entry, keyed by its value set,
+// and every leaf path that declares one.
+func collectEnums(entry *gyang.Entry, path string, depth int, seen map[*gyang.Entry]bool, pathsBySet map[string][]string, keysBySet map[string][]string) {
 	if depth > entryDepthMax {
 		return
 	}
@@ -311,10 +371,8 @@ func collectEnums(entry *gyang.Entry, path string, depth int, seen map[*gyang.En
 			// The NUL byte joins the values because a YANG enum value cannot
 			// hold one, so two different sets cannot produce one key.
 			set := strings.Join(sorted, "\x00")
-			if _, known := keysBySet[set]; !known {
-				pathBySet[set] = path
-				keysBySet[set] = sorted
-			}
+			pathsBySet[set] = append(pathsBySet[set], path)
+			keysBySet[set] = sorted
 		}
 	}
 
@@ -324,6 +382,6 @@ func collectEnums(entry *gyang.Entry, path string, depth int, seen map[*gyang.En
 	}
 	slices.Sort(children)
 	for _, name := range children {
-		collectEnums(entry.Dir[name], path+"/"+name, depth+1, seen, pathBySet, keysBySet)
+		collectEnums(entry.Dir[name], path+"/"+name, depth+1, seen, pathsBySet, keysBySet)
 	}
 }
