@@ -328,7 +328,7 @@
       "claim-sha": "5b0f23b76f721da9",
       "route": "revert",
       "producer": "internal/core/eap/peer.go::handleTLSRequest",
-      "producer-sha": "dfdb8c956f08fc5d",
+      "producer-sha": "5800e2be67824c12",
       "break": "body of handleTLSRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
