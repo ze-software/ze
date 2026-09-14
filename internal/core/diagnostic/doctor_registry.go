@@ -7,7 +7,6 @@ import (
 	"errors"
 	"slices"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -43,6 +42,17 @@ type DoctorCheckContext struct {
 type DoctorCheckFunc func(DoctorCheckContext) []Diagnostic
 
 // DoctorCheck is a registered doctor readiness check.
+//
+// Codes names every code Check can put in a diagnostic, spelled as the
+// producer spells it. A check that bridges another surface's validator
+// declares that surface's codes (config.ValidateSemantics emits config-*), so
+// the namespace is not constrained here: a doctor- alias would be a second
+// code for one fact, and a prefix rule on the declaration cannot change what
+// the producer emits. Each code MUST resolve through Lookup, so that `ze
+// explain` answers for it. The builtin codes register after every init() has
+// run, so that resolution is proven by the owner's registry-reach test and by
+// TestDoctorRegisteredCheckCodesHaveMetadata (internal/component/doctor),
+// never by the validator below.
 type DoctorCheck struct {
 	Name         string
 	Phase        DoctorCheckPhase
@@ -226,7 +236,7 @@ func validateDoctorCheckCodesReg(codes []string) error {
 	}
 	seen := make(map[string]struct{}, len(codes))
 	for _, code := range codes {
-		if !strings.HasPrefix(code, "doctor-") {
+		if !isLowerKebabDiag(code) {
 			return errors.New(tb.Reset().Str(p).Str("invalid diagnostic code ").Str(code).String())
 		}
 		if _, exists := seen[code]; exists {

@@ -572,7 +572,7 @@ A `ze` older than this validation could store a certificate and a key that do
 not load as a pair. On such an appliance the web listener does not start. Run
 `ze doctor` to find it: the stored pair is reported as `doctor-tls-invalid`,
 "certificate and key in storage are not a usable pair". `replace-cert` fixes it.
-<!-- source: internal/component/doctor/checks_tls.go -- checkWebTLSPair -->
+<!-- source: internal/component/web/doctor_material.go -- checkWebTLSPair -->
 
 ### Config layering
 

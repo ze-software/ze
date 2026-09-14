@@ -1,115 +1,30 @@
 // Design: docs/features/ai-first.md — system readiness checks for agent tooling
 // Related: doctor.go — readiness check runner and output contract
-// Related: checks_helpers.go — shared config-tree navigation helpers
 
-// External-service reachability checks: probe every remote dependency named
-// in config (TACACS+, DNS resolvers, NTP servers, update-check and archive
-// URLs) plus system clock skew.
+// External-service reachability: the system clock skew probe.
 // Owner-specific reachability checks register through the doctor check
 // registry from their owning package: l2tp.auth.radius, the BGP RPKI caches
-// (bgp/plugins/rpki/doctor.go) and the BMP collectors
-// (bgp/plugins/bmp/doctor.go).
+// (bgp/plugins/rpki/doctor.go), the BMP collectors (bgp/plugins/bmp/doctor.go),
+// the NTP servers (plugins/ntp/doctor.go), the TACACS+ servers
+// (tacacs/doctor.go), the DNS resolvers and the update-check URL
+// (config/system/doctor.go) and the archive destinations
+// (config/archive/doctor.go).
 
 package doctor
 
 import (
 	"context"
-	"errors"
 	"net"
-	"net/http"
-	"slices"
-	"strings"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// reachProbeTimeout and the TCP probe below now live in internal/core/diagnostic,
-// beside the doctor check registry, so a check an owner package registers runs
-// the same probe this runner does (diagnostic.DoctorProbeTimeout,
-// diagnostic.DoctorTCPReachable).
-
-// tcpReachable is the seam the reachability tests replace. It stays a var here
-// rather than moving with the probe, because a test that swaps it must not
-// change what another package's registered check does.
-var tcpReachable = diagnostic.DoctorTCPReachable
-
-func checkTACACSServers(tree *config.Tree) []diagnostic.Diagnostic {
-	tacacs := getContainerPath(tree, "system", "authentication", "tacacs")
-	if tacacs == nil {
-		return nil
-	}
-
-	timeout := diagnostic.DoctorProbeTimeout(configTimeout(tacacs, "timeout", 5))
-	checked := false
-	for _, s := range tacacs.GetListOrdered("server") {
-		address := valueOrDefault(s.Value, "address", s.Key)
-		if address == "" {
-			continue
-		}
-		checked = true
-		if tcpReachable(net.JoinHostPort(address, valueOrDefault(s.Value, "port", "49")), timeout) {
-			return nil
-		}
-	}
-	if !checked {
-		return nil
-	}
-	return []diagnostic.Diagnostic{{
-		Code:     "doctor-tacacs-unreachable",
-		Severity: diagnostic.SeverityWarning,
-		Message:  "none of the configured TACACS+ servers are reachable",
-	}}
-}
-
-func checkDNSResolvers(tree *config.Tree) []diagnostic.Diagnostic {
-	sysBlock := tree.GetContainer("system")
-	if sysBlock == nil {
-		return nil
-	}
-	servers := sysBlock.GetSlice("name-server")
-	if len(servers) == 0 {
-		return nil
-	}
-
-	if slices.ContainsFunc(servers, dnsServerResponds) {
-		return nil
-	}
-
-	return []diagnostic.Diagnostic{{
-		Code:     "doctor-dns-resolver",
-		Severity: diagnostic.SeverityWarning,
-		Message:  "none of the configured name servers responded",
-	}}
-}
-
-// dnsServerResponds probes a DNS server with a query. Returns true if the
-// server responds at all (including NXDOMAIN or SERVFAIL), false only if
-// the server is unreachable or times out.
-func dnsServerResponds(addr string) bool {
-	resolver := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			d := net.Dialer{}
-			return d.DialContext(ctx, "udp", net.JoinHostPort(addr, "53"))
-		},
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), diagnostic.DoctorProbeTimeout(3*time.Second))
-	defer cancel()
-	_, err := resolver.LookupHost(ctx, "_dns-probe.invalid.")
-	if err == nil {
-		return true
-	}
-	// A DNS error (NXDOMAIN, SERVFAIL) means the server responded.
-	var dnsErr *net.DNSError
-	if errors.As(err, &dnsErr) && !dnsErr.IsTimeout && !dnsErr.IsTemporary {
-		return true
-	}
-	return false
-}
+// reachProbeTimeout and the probes now live in internal/core/diagnostic, beside
+// the doctor check registry, so a check an owner package registers runs the
+// same probe this runner does (diagnostic.DoctorProbeTimeout,
+// diagnostic.DoctorTCPReachable, diagnostic.DoctorHTTPReachable).
 
 const clockSkewThreshold = 5 * time.Minute
 
@@ -160,169 +75,4 @@ func checkClockSkew() []diagnostic.Diagnostic {
 		}}
 	}
 	return nil
-}
-func checkNTPClient(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
-	ntp := getContainerPath(tree, "environment", "ntp")
-	if !configEnabled(ntp, false) {
-		if severity, ok := clockNoSyncSeverity(platform); ok {
-			return []diagnostic.Diagnostic{{
-				Code:     "doctor-clock-no-sync",
-				Severity: severity,
-				Message:  clockNoSyncMessage(platform),
-				Path:     "environment/ntp/enabled",
-				Expected: "enabled Ze NTP or verified external clock synchronization",
-				Actual:   "Ze NTP disabled",
-			}}
-		}
-		return nil
-	}
-
-	var diags []diagnostic.Diagnostic
-
-	servers := ntp.GetListOrdered("server")
-	reachable := false
-	checked := false
-	for _, s := range servers {
-		addr, ok := s.Value.Get("address")
-		if !ok || addr == "" {
-			continue
-		}
-		checked = true
-		if ntpServerReachable(net.JoinHostPort(addr, "123"), diagnostic.DoctorProbeTimeout(3*time.Second)) {
-			reachable = true
-			break
-		}
-	}
-	if checked && !reachable {
-		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-ntp-server-unreachable",
-			Severity: diagnostic.SeverityWarning,
-			Message:  "none of the configured NTP servers are reachable",
-		})
-	}
-
-	return diags
-}
-
-func clockNoSyncSeverity(platform *host.PlatformInfo) (diagnostic.Severity, bool) {
-	if platform == nil {
-		return "", false
-	}
-	switch platform.Type {
-	case host.PlatformGokrazy:
-		return diagnostic.SeverityError, true
-	case host.PlatformSystemd, host.PlatformContainer, host.PlatformPlainLinux:
-		return diagnostic.SeverityWarning, true
-	default:
-		return "", false
-	}
-}
-
-func clockNoSyncMessage(platform *host.PlatformInfo) string {
-	if platform != nil && platform.Type == host.PlatformGokrazy {
-		return "gokrazy platform has no configured clock synchronization; enable environment/ntp because Ze owns appliance services"
-	}
-	if platform != nil {
-		var tb textbuf.Buffer
-		return tb.Str("Ze NTP is disabled on ").Str(platform.Type.String()).Str("; verify external clock synchronization or enable environment/ntp").String()
-	}
-	return "Ze NTP is disabled; verify external clock synchronization or enable environment/ntp"
-}
-
-var ntpServerReachable = probeNTPServer
-
-func probeNTPServer(addr string, timeout time.Duration) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	d := net.Dialer{Timeout: timeout}
-	conn, err := d.DialContext(ctx, "udp", addr)
-	if err != nil {
-		return false
-	}
-	defer func() { _ = conn.Close() }()
-	if deadlineErr := conn.SetDeadline(time.Now().Add(timeout)); deadlineErr != nil {
-		return false
-	}
-	req := make([]byte, 48)
-	req[0] = 0x1B // SNTP: LI=0, VN=3, Mode=3 (client)
-	if _, writeErr := conn.Write(req); writeErr != nil {
-		return false
-	}
-	resp := make([]byte, 48)
-	_, readErr := conn.Read(resp)
-	return readErr == nil
-}
-
-var httpHead = defaultHTTPHead
-
-func defaultHTTPHead(url string, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
-	if err != nil {
-		return err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	_ = resp.Body.Close()
-	return nil
-}
-
-func checkUpdateCheckURL(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
-	uc := getContainerPath(tree, "system", "update-check")
-	if uc == nil {
-		return nil
-	}
-	if platform != nil && platform.Type == host.PlatformGokrazy {
-		return nil
-	}
-	url, ok := uc.Get("url")
-	if !ok || url == "" {
-		return nil
-	}
-
-	if err := httpHead(url, diagnostic.DoctorProbeTimeout(5*time.Second)); err != nil {
-		var tb textbuf.Buffer
-		return []diagnostic.Diagnostic{{
-			Code:     "doctor-update-check-unreachable",
-			Severity: diagnostic.SeverityWarning,
-			Message:  tb.Str("update-check URL unreachable: ").Err(err).String(),
-			Path:     url,
-		}}
-	}
-	return nil
-}
-
-func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
-	system := tree.GetContainer("system")
-	if system == nil {
-		return nil
-	}
-	archives := system.GetListOrdered("archive")
-	if len(archives) == 0 {
-		return nil
-	}
-
-	var diags []diagnostic.Diagnostic
-	for _, a := range archives {
-		loc, ok := a.Value.Get("location")
-		if !ok || loc == "" {
-			continue
-		}
-		if !strings.HasPrefix(loc, "http://") && !strings.HasPrefix(loc, "https://") {
-			continue
-		}
-		if err := httpHead(loc, diagnostic.DoctorProbeTimeout(5*time.Second)); err != nil {
-			var tb textbuf.Buffer
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-archive-unreachable",
-				Severity: diagnostic.SeverityWarning,
-				Message:  tb.Str("archive ").Str(a.Key).Str(": location unreachable: ").Err(err).String(),
-				Path:     loc,
-			})
-		}
-	}
-	return diags
 }

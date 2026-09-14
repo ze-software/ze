@@ -2,44 +2,26 @@
 // Related: doctor.go — readiness check runner and output contract
 // Related: checks_storage.go — platformMismatch consumer for NTP persist-path
 
-// Platform checks: runtime platform detection, systemd service unit
-// validation, and config-vs-platform coherence (resolv.conf paths,
-// gokrazy-managed update settings).
+// Platform checks: runtime platform resolution and the judgement over the
+// resolved platform. The systemd service unit check is owned by
+// internal/plugins/systemd, the package that writes the unit; the
+// config-vs-platform coherence checks over the resolv.conf path and the
+// update-check block are owned by internal/component/config/system, the
+// package that declares and consumes those leaves.
 
 package doctor
 
 import (
 	"errors"
-	"os"
-	"os/user"
-	"path/filepath"
 	"strings"
 
-	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const (
-	doctorPlatformEnv     = "ze.test.doctor.platform"
-	doctorServiceUnitEnv  = "ze.test.doctor.service-unit"
-	defaultServiceUnit    = "/etc/systemd/system/ze.service"
-	gokrazyResolvConfPath = "/tmp/resolv.conf"
-	linuxResolvConfPath   = "/etc/resolv.conf"
-)
-
-// diagnosticServiceExecutable names a service-unit fault an operator sees in
-// `ze doctor` output.
-const diagnosticServiceExecutable = "doctor-service-executable"
-
-var _ = env.MustRegister(env.EnvEntry{
-	Key:         doctorServiceUnitEnv,
-	Type:        envTypeString,
-	Description: "Override ze.service unit path for doctor functional tests",
-	Private:     true,
-})
+const doctorPlatformEnv = "ze.test.doctor.platform"
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorPlatformEnv,
@@ -48,51 +30,68 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-var readServiceUnitFile = os.ReadFile
-var statServiceExecutable = os.Stat
-var lookupServiceUser = user.Lookup
-var lookupServiceGroup = user.LookupGroup
-
-func checkPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
+// resolveDoctorPlatform answers the platform every check reads off its context
+// and the phase dispatch filters on (runDoctorChecks, registry.go). It is the
+// runner's own input, resolved before the first phase runs, which is why it is
+// not a registered check: a check cannot run before the value that decides
+// whether it runs exists. It is the twin of resolveStorageWithDiag.
+//
+// A nil platform is a legitimate answer, and the diagnostic beside it says why:
+// the platform-gated checks then run only where their Platforms list carries
+// the wildcard, and checkPlatform has nothing to judge.
+func resolveDoctorPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
 	var tb textbuf.Buffer
 	p, err := detectDoctorPlatform()
 	if err != nil {
 		return nil, []diagnostic.Diagnostic{{
-			Code:     "doctor-platform-detect",
+			Code:     diagnostic.CodeDoctorPlatformDetect,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("platform detection failed: ").Err(err).String(),
 		}}
 	}
 	if p == nil {
 		return nil, []diagnostic.Diagnostic{{
-			Code:     "doctor-platform-detect",
+			Code:     diagnostic.CodeDoctorPlatformDetect,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "platform detection returned no platform information",
 		}}
 	}
+	return p, nil
+}
+
+// checkPlatform judges the platform the runner resolved: an unidentified one,
+// a gokrazy without a writable /perm, and a container whose root is read-only.
+//
+// A nil platform is a detection failure the runner already reported through
+// resolveDoctorPlatform, so there is nothing here to add to it.
+func checkPlatform(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	p := ctx.Platform
+	if p == nil {
+		return nil
+	}
 	var diags []diagnostic.Diagnostic
 	if p.Type == host.PlatformUnknown {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-platform-unknown",
+			Code:     diagnostic.CodeDoctorPlatformUnknown,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "could not identify runtime platform",
 		})
 	}
 	if p.Type == host.PlatformGokrazy && !p.PersistentStorageWritable {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-platform-perm",
+			Code:     diagnostic.CodeDoctorPlatformPerm,
 			Severity: diagnostic.SeverityError,
 			Message:  "gokrazy /perm partition is not writable; config and state persistence will fail",
 		})
 	}
 	if p.Type == host.PlatformContainer && p.ReadOnlyRoot {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-platform-container-ro",
+			Code:     diagnostic.CodeDoctorPlatformContainerRO,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "running in container with read-only root filesystem; ensure writable volumes are mounted for config and state",
 		})
 	}
-	return p, diags
+	return diags
 }
 
 func detectDoctorPlatform() (*host.PlatformInfo, error) {
@@ -121,225 +120,6 @@ func forcedPlatformInfo(name string) (*host.PlatformInfo, error) {
 		var tb textbuf.Buffer
 		return nil, errors.New(tb.Str("unknown forced platform: ").Str(name).String())
 	}
-}
-
-type serviceUnitInfo struct {
-	execStart string
-	user      string
-	group     string
-}
-
-func checkSystemdServiceInstall(platform *host.PlatformInfo) []diagnostic.Diagnostic {
-	if platform != nil && (platform.Type == host.PlatformGokrazy || platform.Type == host.PlatformContainer) {
-		return nil
-	}
-
-	unitPath := env.Get(doctorServiceUnitEnv)
-	if unitPath == "" {
-		unitPath = defaultServiceUnit
-	}
-
-	data, err := readServiceUnitFile(unitPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		var tb textbuf.Buffer
-		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-unit",
-			Severity: diagnostic.SeverityWarning,
-			Message:  tb.Str("systemd service unit cannot be read: ").Str(unitPath).Str(": ").Err(err).String(),
-			Path:     unitPath,
-		}}
-	}
-
-	unit := parseServiceUnit(data)
-	var diags []diagnostic.Diagnostic
-	diags = append(diags, checkServiceExecutable(unitPath, unit.execStart)...)
-	if unit.user != "" {
-		diags = append(diags, checkServiceUser(unitPath, unit.user)...)
-	}
-	if unit.group != "" {
-		diags = append(diags, checkServiceGroup(unitPath, unit.group)...)
-	}
-	return diags
-}
-
-func parseServiceUnit(data []byte) serviceUnitInfo {
-	var unit serviceUnitInfo
-	inService := false
-	for line := range strings.SplitSeq(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
-			continue
-		}
-		if strings.HasPrefix(line, "[") {
-			inService = line == "[Service]"
-			continue
-		}
-		if !inService {
-			continue
-		}
-		key, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		switch strings.TrimSpace(key) {
-		case "ExecStart":
-			unit.execStart = firstSystemdCommand(value)
-		case "User":
-			unit.user = strings.TrimSpace(value)
-		case "Group":
-			unit.group = strings.TrimSpace(value)
-		}
-	}
-	return unit
-}
-
-func firstSystemdCommand(value string) string {
-	fields := strings.Fields(strings.TrimSpace(value))
-	if len(fields) == 0 {
-		return ""
-	}
-	cmd := strings.Trim(fields[0], `"'`)
-	for cmd != "" {
-		switch cmd[0] {
-		case '-', '+', '!', '@', ':':
-			cmd = cmd[1:]
-		default:
-			return cmd
-		}
-	}
-	return cmd
-}
-
-func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic {
-	var tb textbuf.Buffer
-	if executable == "" {
-		return []diagnostic.Diagnostic{{
-			Code:     diagnosticServiceExecutable,
-			Severity: diagnostic.SeverityError,
-			Message:  tb.Str("systemd service unit has no ExecStart command: ").Str(unitPath).String(),
-			Path:     unitPath,
-		}}
-	}
-	if !filepath.IsAbs(executable) {
-		return []diagnostic.Diagnostic{{
-			Code:     diagnosticServiceExecutable,
-			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("systemd service ExecStart is not an absolute path: ").Str(executable).String(),
-			Path:     unitPath,
-			Expected: "absolute executable path",
-			Actual:   executable,
-		}}
-	}
-	info, err := statServiceExecutable(executable)
-	if err != nil {
-		return []diagnostic.Diagnostic{{
-			Code:     diagnosticServiceExecutable,
-			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("systemd service executable not found: ").Str(executable).Str(": ").Err(err).String(),
-			Path:     executable,
-		}}
-	}
-	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
-		return []diagnostic.Diagnostic{{
-			Code:     diagnosticServiceExecutable,
-			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("systemd service executable is not executable: ").Str(executable).String(),
-			Path:     executable,
-			Expected: "executable file",
-			Actual:   info.Mode().String(),
-		}}
-	}
-	return nil
-}
-
-func checkServiceUser(unitPath, name string) []diagnostic.Diagnostic {
-	if _, err := lookupServiceUser(name); err != nil {
-		var tb textbuf.Buffer
-		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-user",
-			Severity: diagnostic.SeverityError,
-			Message:  tb.Str("systemd service user not found: ").Str(name).String(),
-			Path:     unitPath,
-			Expected: "existing user",
-			Actual:   name,
-		}}
-	}
-	return nil
-}
-
-func checkServiceGroup(unitPath, name string) []diagnostic.Diagnostic {
-	if _, err := lookupServiceGroup(name); err != nil {
-		var tb textbuf.Buffer
-		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-group",
-			Severity: diagnostic.SeverityError,
-			Message:  tb.Str("systemd service group not found: ").Str(name).String(),
-			Path:     unitPath,
-			Expected: "existing group",
-			Actual:   name,
-		}}
-	}
-	return nil
-}
-func checkUpdateBackendConfig(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
-	if platform == nil || platform.Type != host.PlatformGokrazy {
-		return nil
-	}
-	uc := getContainerPath(tree, "system", "update-check")
-	if uc == nil {
-		return nil
-	}
-	return []diagnostic.Diagnostic{{
-		Code:     "doctor-config-platform-mismatch",
-		Severity: diagnostic.SeverityWarning,
-		Message:  "system update-check config is ignored on gokrazy; image updates are managed by gokrazy",
-		Path:     "system/update-check",
-	}}
-}
-func checkResolvConfPath(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
-	if platform == nil {
-		return nil
-	}
-	path := effectiveResolvConfPath(tree)
-	if path == "" {
-		return nil
-	}
-	switch platform.Type {
-	case host.PlatformGokrazy:
-		if strings.HasPrefix(path, "/etc/") {
-			return []diagnostic.Diagnostic{platformMismatch(
-				"DNS resolv-conf-path points at read-only gokrazy root filesystem",
-				"system/dns/resolv-conf-path",
-				gokrazyResolvConfPath,
-				path,
-			)}
-		}
-	case host.PlatformSystemd, host.PlatformPlainLinux:
-		if path == gokrazyResolvConfPath {
-			return []diagnostic.Diagnostic{platformMismatch(
-				"DNS resolv-conf-path uses gokrazy default on "+platform.Type.String(),
-				"system/dns/resolv-conf-path",
-				linuxResolvConfPath,
-				path,
-			)}
-		}
-	default:
-		return nil
-	}
-	return nil
-}
-
-func effectiveResolvConfPath(tree *config.Tree) string {
-	path := gokrazyResolvConfPath
-	if dns := getContainerPath(tree, "system", "dns"); dns != nil {
-		if value, ok := dns.Get("resolv-conf-path"); ok {
-			path = value
-		}
-	}
-	return path
 }
 
 func platformMismatch(message, path, expected, actual string) diagnostic.Diagnostic {

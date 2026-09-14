@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md -- semantic validation for offline checks
+// Related: doctor.go -- the doctor check that runs this validator
 
 package config
 
@@ -16,7 +17,7 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 	if mcpCfg, ok := ExtractMCPConfig(tree); ok {
 		if err := mcpCfg.Validate(); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "config-mcp-invalid",
+				Code:     diagnostic.CodeConfigMCPInvalid,
 				Severity: diagnostic.SeverityError,
 				Message:  err.Error(),
 			})
@@ -30,7 +31,7 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 	if gnmiCfg, ok := ExtractGNMIConfig(tree); ok {
 		if err := gnmiCfg.Validate(); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "config-gnmi-invalid",
+				Code:     diagnostic.CodeConfigGNMIInvalid,
 				Severity: diagnostic.SeverityError,
 				Message:  err.Error(),
 			})
@@ -39,7 +40,7 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 
 	for _, err := range VerifyPluginConfig(tree) {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "config-plugin-verify",
+			Code:     diagnostic.CodeConfigPluginVerify,
 			Severity: diagnostic.SeverityError,
 			Message:  err.Error(),
 		})
@@ -48,7 +49,7 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 	if tree.GetContainer("plugin") != nil {
 		if _, err := ExtractHubConfig(tree); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "config-hub-invalid",
+				Code:     diagnostic.CodeConfigHubInvalid,
 				Severity: diagnostic.SeverityError,
 				Message:  err.Error(),
 			})

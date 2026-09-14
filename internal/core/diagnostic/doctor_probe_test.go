@@ -3,6 +3,8 @@
 package diagnostic
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -69,5 +71,29 @@ func TestDoctorProbeWritableDirRefusesAnEmptyPath(t *testing.T) {
 	}
 	if err := DoctorProbeWritableDir(t.TempDir()); err != nil {
 		t.Fatalf("a fresh temp dir must be writable: %v", err)
+	}
+}
+
+// TestDoctorHTTPReachable drives the HEAD probe against a live server and
+// against a port nothing listens on.
+//
+// VALIDATES: a server that answers, with any status, is reachable; a closed
+// port is an error.
+// PREVENTS: a probe that reads a 404 as "unreachable" and sends the operator
+// after a network fault that is not there.
+func TestDoctorHTTPReachable(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	if err := DoctorHTTPReachable(srv.URL+"/version.json", time.Second); err != nil {
+		t.Fatalf("live server: %v", err)
+	}
+
+	closed := srv.URL
+	srv.Close()
+	if err := DoctorHTTPReachable(closed, time.Second); err == nil {
+		t.Fatal("closed port: reported reachable")
 	}
 }

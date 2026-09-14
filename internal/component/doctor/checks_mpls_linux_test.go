@@ -221,7 +221,8 @@ func TestMPLSInUseNamesRealFamilies(t *testing.T) {
 	// not reject it -- `family` is a list with a free-form key, and the
 	// registered-family check lives in ValidateBGPPeers, not in Parse (which is
 	// why `ze config validate` rejects it while `ze doctor` did not; see
-	// checkBGPPeerConfig in checks_config.go). What matters here is narrower and
+	// doctorCheckBGPPeerConfig in internal/component/bgp/config/doctor_checks.go).
+	// What matters here is narrower and
 	// is what the .ci depended on: an unregistered name must not count as MPLS
 	// forwarding.
 	t.Run("unregistered-family-does-not-count", func(t *testing.T) {
@@ -238,29 +239,4 @@ func TestMPLSInUseNamesRealFamilies(t *testing.T) {
 		tree.RemoveContainer("fib")
 		assert.False(t, kernelcap.MPLSInUse(tree), "MPLS support only matters for the kernel FIB")
 	})
-}
-
-// VALIDATES: readLoadedModules parses a /proc/modules-shaped file, and reports
-// an unreadable path as nil rather than as an empty set.
-// PREVENTS: "file missing" and "no modules loaded" collapsing into one answer,
-// which is what let the stub path in mpls-doctor.ci fail invisibly.
-func TestReadLoadedModulesDistinguishesEmptyFromUnreadable(t *testing.T) {
-	oldRead := readFilePath
-	t.Cleanup(func() { readFilePath = oldRead })
-
-	readFilePath = func(string) ([]byte, error) {
-		return []byte("mpls_router 32768 1 mpls_iptunnel, Live 0x0\nmpls_iptunnel 16384 0 - Live 0x0\n"), nil
-	}
-	loaded := readLoadedModules()
-	require.NotNil(t, loaded)
-	assert.True(t, loaded["mpls_router"])
-	assert.True(t, loaded["mpls_iptunnel"])
-
-	readFilePath = func(string) ([]byte, error) { return []byte(""), nil }
-	empty := readLoadedModules()
-	require.NotNil(t, empty, "an empty file means no modules, which is a real answer")
-	assert.Empty(t, empty)
-
-	readFilePath = func(string) ([]byte, error) { return nil, errors.New("permission denied") }
-	assert.Nil(t, readLoadedModules(), "an unreadable file must be nil, not an empty set")
 }

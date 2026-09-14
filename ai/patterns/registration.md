@@ -231,8 +231,8 @@ registration, check function, and unit test.
 **Registration:** owner package `register.go` or `doctor_check.go`, using the doctor check registry. If the current registry location is not importable from the owner, move or expose a leaf registry API before adding the check.
 **Runner boundary:** `internal/component/doctor` queries registered checks by phase and keeps only runner/output tests plus checks with no narrower owner.
 **Metadata:** name, phase, order, component, dependencies, platforms, diagnostic codes, check function
-**Validation:** rejects duplicate check names, unknown phases, missing metadata, invalid lower-kebab identifiers, and duplicate codes within one check
-**Code metadata:** registered `doctor-*` codes must resolve through `diagnostic.Lookup`
+**Validation:** rejects duplicate check names, unknown phases, missing metadata, invalid lower-kebab identifiers (names, components, dependencies and codes alike), and duplicate codes within one check. The code namespace is not constrained: a check declares the codes its producer emits, so the semantic-validation bridge in `internal/component/config` declares `config-*` codes rather than a `doctor-` alias for them
+**Code metadata:** every registered code must resolve through `diagnostic.Lookup`. Builtin codes register after `init()`, so the owner's registry-reach test and `TestDoctorRegisteredCheckCodesHaveMetadata` (`internal/component/doctor`) prove it, not the validator
 
 ### Attribute Name Registry
 

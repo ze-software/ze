@@ -28,36 +28,10 @@ func gnmiTreeOn(host, token string) *config.Tree {
 // with no token, so it serves unauthenticated Get AND Set on every interface.
 func exposedGnmiTree() *config.Tree { return gnmiTreeOn("0.0.0.0", "") }
 
-func hasDiagCode(t *testing.T, tree *config.Tree, code string) bool {
-	t.Helper()
-	diags := checkSemanticValidation(tree)
-	for i := range diags {
-		if diags[i].Code == code {
-			return true
-		}
-	}
-	return false
-}
-
-func TestDoctorFlagsGnmiExposure(t *testing.T) {
-	// VALIDATES: AC-6 -- `ze doctor` reports a tokenless non-loopback gNMI
-	// listener. Driven from checkSemanticValidation, the doctor check that owns
-	// config semantics, not from GNMIListenConfig.Validate: the defect this
-	// closes was a Validate no entry point called
-	// (ai/rules/evidence.md -- test the guard from its entry point).
-	// PREVENTS: doctor answering "ready" on a config the daemon refuses to boot.
-	assert.True(t, hasDiagCode(t, exposedGnmiTree(), "config-gnmi-invalid"),
-		"doctor must flag a tokenless 0.0.0.0 gNMI listener")
-}
-
-func TestDoctorGnmiLoopbackAndTokenAreClean(t *testing.T) {
-	// The check must not over-report: loopback needs no token, and a token
-	// authenticates any address.
-	assert.False(t, hasDiagCode(t, gnmiTreeOn("127.0.0.1", ""), "config-gnmi-invalid"),
-		"a loopback gNMI listener exposes nothing off-box")
-	assert.False(t, hasDiagCode(t, gnmiTreeOn("0.0.0.0", "s3cret"), "config-gnmi-invalid"),
-		"a token authenticates every gNMI request, so the bind address is free")
-}
+// The gNMI exposure assertions that sat here (TestDoctorFlagsGnmiExposure,
+// TestDoctorGnmiLoopbackAndTokenAreClean) moved with the semantic check to
+// internal/component/config/doctor_test.go, TestCheckSemanticsFlagsGnmiExposure
+// and TestCheckSemanticsGnmiLoopbackAndTokenAreClean.
 
 func TestDoctorGnmiListenerIsProbed(t *testing.T) {
 	// AC-6 second half, fallback path: the gNMI endpoint reaches the bind-probe

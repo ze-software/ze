@@ -3,9 +3,12 @@
 package doctor
 
 import (
+	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/env"
 )
 
 // TestDoctorOwnedChecksReachTheRunner asks the registry the runner reads
@@ -69,5 +72,90 @@ func TestRunChecksCallsNoDoctorOwnedCheckTwice(t *testing.T) {
 				t.Errorf("phase %q holds check %q %d times", phase, name, count)
 			}
 		}
+	}
+}
+
+// doctorCodesFor runs `ze doctor --json` over one config and answers the codes
+// it printed, whatever the exit status: the checks under test here are advisory
+// beside checks that are not, and the exit status belongs to those.
+func doctorCodesFor(t *testing.T, cfg string) []string {
+	t.Helper()
+	cfgPath := writeTestConfig(t, cfg)
+	out := captureStdout(t, func() { Run([]string{"--json", cfgPath}) })
+
+	var result diagnostic.DoctorResult
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatalf("ze doctor --json printed something json cannot read: %v\n%s", err, out)
+	}
+	codes := make([]string, 0, len(result.Diagnostics))
+	for i := range result.Diagnostics {
+		codes = append(codes, result.Diagnostics[i].Code)
+	}
+	return codes
+}
+
+// TestDoctorPlatformCheckFunctional drives the platform judgement through the
+// real entry point, on a platform detection forced to answer "unknown".
+//
+// VALIDATES: `ze doctor --json` prints doctor-platform-unknown, so the
+// registered platform check is what the runner reaches, after the resolver
+// gave it a platform to judge.
+// PREVENTS: the split from the resolver leaving the judgement declared, unit
+// tested, and never run.
+func TestDoctorPlatformCheckFunctional(t *testing.T) {
+	if err := env.Set(doctorPlatformEnv, "unknown"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = env.Set(doctorPlatformEnv, "") })
+
+	codes := doctorCodesFor(t, minimalConfig)
+	if !slices.Contains(codes, diagnostic.CodeDoctorPlatformUnknown) {
+		t.Fatalf("codes = %v, want %q among them", codes, diagnostic.CodeDoctorPlatformUnknown)
+	}
+}
+
+// TestDoctorListenersCheckFunctional drives the listener probe through the
+// real entry point, with the probe forced to fail for the schema listener code.
+//
+// VALIDATES: `ze doctor --json` prints doctor-listen-unavailable for the SSH
+// default endpoint, so the registered listeners check is what the runner
+// reaches.
+// PREVENTS: a listener check declared in the table and never run.
+func TestDoctorListenersCheckFunctional(t *testing.T) {
+	if err := env.Set(doctorListenerFailEnv, diagnostic.CodeDoctorListenUnavailable); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = env.Set(doctorListenerFailEnv, "") })
+
+	codes := doctorCodesFor(t, "environment {\n\tssh {\n\t\tenabled true\n\t}\n}\n")
+	if !slices.Contains(codes, diagnostic.CodeDoctorListenUnavailable) {
+		t.Fatalf("codes = %v, want %q among them", codes, diagnostic.CodeDoctorListenUnavailable)
+	}
+}
+
+// TestDoctorSemanticsCheckFunctional drives the config semantics check that
+// internal/component/config registers through the real entry point.
+//
+// VALIDATES: `ze doctor --json` prints config-mcp-invalid for an MCP block
+// that fails its own consistency check, so the check another component owns
+// is what the runner reaches, under the code that component emits.
+// PREVENTS: the semantic bridge going silent once its hand-written call left
+// the runner.
+func TestDoctorSemanticsCheckFunctional(t *testing.T) {
+	const cfg = `
+environment {
+	mcp {
+		enabled true
+		auth-mode oauth
+		server default {
+			ip 127.0.0.1
+			port 6274
+		}
+	}
+}
+`
+	codes := doctorCodesFor(t, cfg)
+	if !slices.Contains(codes, diagnostic.CodeConfigMCPInvalid) {
+		t.Fatalf("codes = %v, want %q among them", codes, diagnostic.CodeConfigMCPInvalid)
 	}
 }

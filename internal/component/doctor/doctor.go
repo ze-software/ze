@@ -2,16 +2,16 @@
 // Overview: register.go — command registration
 // Related: registry.go — the phase dispatch over internal/core/diagnostic
 // Related: doctor_checks.go — the checks this component owns and registers
-// Related: checks_platform.go, checks_storage.go, checks_tls.go — check implementations
-// Related: checks_listener.go, checks_reach.go, checks_config.go — check implementations
+// Related: checks_platform.go, checks_storage.go — check implementations
+// Related: checks_listener.go, checks_reach.go — check implementations
 // Related: checks_helpers.go — shared config-tree navigation helpers
 
 // Runner and output contract: argument parsing, config loading, the three phase
 // calls, and the text/JSON output formats. Check implementations live in the
-// checks_*.go siblings, grouped by concern. Every check an owner package
-// registers arrives through runDoctorChecks; the calls runChecks still writes
-// out by name are the ones not yet moved onto the registry
-// (`./le enumeration report` lists them).
+// checks_*.go siblings, grouped by concern. Every check, this component's own
+// included, arrives through runDoctorChecks: runChecks writes no check out by
+// name, so a check `ze doctor` runs is one some package registered
+// (`./le enumeration report` refuses the next hand-written call).
 
 package doctor
 
@@ -83,9 +83,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		}
 	}()
 
-	platform, platformDiags := checkPlatform()
+	platform, platformDiags := resolveDoctorPlatform()
 	diags = append(diags, platformDiags...)
-	diags = append(diags, checkSystemdServiceInstall(platform)...)
 	baseCtx := doctorCheckContext{Store: store, Platform: platform}
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePreConfig, baseCtx)...)
 
@@ -119,42 +118,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		Platform:  platform,
 	}
 
-	diags = append(diags, checkSemanticValidation(tree)...)
-	diags = append(diags, checkBGPPeerConfig(tree)...)
-	diags = append(diags, checkIfaceBackend(tree)...)
-	diags = append(diags, checkInterfaces(tree)...)
-	diags = append(diags, checkDHCPInterfaces(tree)...)
-	diags = append(diags, checkFirewallBackend(tree)...)
-	diags = append(diags, checkKernelNexthop()...)
-	diags = append(diags, checkTLS(tree, result.ConfigDir)...)
-	diags = append(diags, checkWebTLS(tree, store)...)
-	diags = append(diags, checkPKICerts(tree)...)
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePostConfig, checkCtx)...)
-	diags = append(diags, checkSSHHostKey(tree, result.ConfigDir)...)
-	diags = append(diags, checkListeners(tree)...)
-	diags = append(diags, checkDNSResolvers(tree)...)
-	diags = append(diags, checkTACACSServers(tree)...)
-	diags = append(diags, checkTelemetryProcfs(tree)...)
-	diags = append(diags, checkSysctlProcfs(tree)...)
-	diags = append(diags, checkConntrackProcfs(tree)...)
-	diags = append(diags, checkPolicyRouteNetlink(tree)...)
-	diags = append(diags, checkVPPVersion(tree)...)
-	diags = append(diags, checkBGPMD5(tree)...)
-	diags = append(diags, checkBGPPeersWithoutRole(tree)...)
-	diags = append(diags, checkRedistributeRules(tree)...)
-	diags = append(diags, checkNTPClient(tree, platform)...)
-	diags = append(diags, checkNTPClockPrivilege(tree)...)
-	diags = append(diags, checkRPKIServers(tree)...)
-	diags = append(diags, checkBMPCollectors(tree)...)
-	diags = append(diags, checkVPPDPDK(tree)...)
-	diags = append(diags, checkUpdateCheckURL(tree, platform)...)
-	diags = append(diags, checkUpdateBackendConfig(tree, platform)...)
-	diags = append(diags, checkArchiveDestinations(tree)...)
-	diags = append(diags, checkBGPCaptureDirectory(tree)...)
-	diags = append(diags, checkResolvConfPath(tree, platform)...)
-	diags = append(diags, checkSmartEnabled(tree)...)
-	diags = append(diags, checkConfigClaims(tree)...)
-	diags = append(diags, checkRIRDelegationSources(tree)...)
 
 	return diags
 }

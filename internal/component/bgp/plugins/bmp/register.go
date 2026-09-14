@@ -7,6 +7,7 @@ import (
 	bmpyang "github.com/ze-software/ze/internal/component/bgp/plugins/bmp/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -39,6 +40,13 @@ func init() {
 	}
 	if err := registry.Register(reg); err != nil {
 		slog.Error("bgp-bmp: registration failed", "error", err)
+		os.Exit(1)
+	}
+
+	// This plugin connects to the collectors the config names, so it owns the
+	// readiness check that asks whether any of them can be reached (doctor.go).
+	if err := diagnostic.RegisterDoctorCheck(bmpDoctorCheck); err != nil {
+		slog.Error("bgp-bmp: doctor check registration failed", "error", err)
 		os.Exit(1)
 	}
 }

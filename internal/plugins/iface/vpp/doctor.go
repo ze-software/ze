@@ -40,43 +40,76 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// vppDoctorChecks are the checks this backend owns. register.go's init()
+// installs them through registerDoctorChecks, and the registry-reach test
+// reads the same table.
+//
+// The api-socket and version entries arrive from internal/component/doctor,
+// where the runner called each one by name (doctor_api.go). Their Order
+// reproduces the position each held in that sequence: the socket probe ran
+// before the runner's registry dispatch, between the BGP peer-config check
+// (110) and the interface checks (130), so it keeps a low order; the version
+// probe ran after it, between the clock-skew check (2100) and the BGP MD5
+// check (2120), on the 2100 scale the doctor-owned table uses. The three
+// plugin checks keep the 740-742 band they were registered in.
+var vppDoctorChecks = []diagnostic.DoctorCheck{
+	{
+		Name:         "vpp-api-socket",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        120,
+		Component:    backendVPP,
+		Dependencies: []string{"vpp-api-socket"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{codeVPPUnreachable},
+		Check:        checkVPPAPISocket,
+	},
+	{
+		Name:         "vpp-version",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        2110,
+		Component:    backendVPP,
+		Dependencies: []string{"vppctl"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{codeVPPVersion},
+		Check:        checkVPPVersion,
+	},
+	{
+		Name:         "vpp-wireguard-plugin",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        740,
+		Component:    backendVPP,
+		Dependencies: []string{"vpp-wireguard-plugin"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{diagnostic.CodeDoctorVPPWireguard},
+		Check:        checkVPPWireguardPlugin,
+	},
+	{
+		Name:         "vpp-lcp-plugin",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        742,
+		Component:    backendVPP,
+		Dependencies: []string{"vpp-lcp"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{diagnostic.CodeDoctorVPPLCPPlugin},
+		Check:        checkVPPLCPPlugin,
+	},
+	{
+		Name:         "vpp-lcp-netns",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        741,
+		Component:    backendVPP,
+		Dependencies: []string{"vpp-lcp"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{diagnostic.CodeDoctorVPPLCPNetns},
+		Check:        checkVPPLCPNetns,
+	},
+}
+
 // registerDoctorChecks installs the vpp iface backend's doctor checks. Called
 // from init() in register.go so the checks travel with the plugin.
 func registerDoctorChecks() error {
-	checks := []diagnostic.DoctorCheck{
-		{
-			Name:         "vpp-wireguard-plugin",
-			Phase:        diagnostic.DoctorPhasePostConfig,
-			Order:        740,
-			Component:    backendVPP,
-			Dependencies: []string{"vpp-wireguard-plugin"},
-			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorVPPWireguard},
-			Check:        checkVPPWireguardPlugin,
-		},
-		{
-			Name:         "vpp-lcp-plugin",
-			Phase:        diagnostic.DoctorPhasePostConfig,
-			Order:        742,
-			Component:    backendVPP,
-			Dependencies: []string{"vpp-lcp"},
-			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorVPPLCPPlugin},
-			Check:        checkVPPLCPPlugin,
-		},
-		{
-			Name:         "vpp-lcp-netns",
-			Phase:        diagnostic.DoctorPhasePostConfig,
-			Order:        741,
-			Component:    backendVPP,
-			Dependencies: []string{"vpp-lcp"},
-			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{diagnostic.CodeDoctorVPPLCPNetns},
-			Check:        checkVPPLCPNetns,
-		},
-	}
-	for i := range checks {
-		if err := diagnostic.RegisterDoctorCheck(checks[i]); err != nil {
+	for i := range vppDoctorChecks {
+		if err := diagnostic.RegisterDoctorCheck(vppDoctorChecks[i]); err != nil {
 			return err
 		}
 	}

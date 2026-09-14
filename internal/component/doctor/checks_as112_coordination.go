@@ -11,8 +11,8 @@
 // as112-3 spec's own Key Design Decisions required that neither the as112
 // plugin read BGP config nor BGP hardcode AS112 knowledge. internal/component/doctor
 // is the neutral third home per ai/rules/repo-maintenance.md ("dependency with
-// no narrower owner") -- it already reads the whole config.Tree generically
-// (see checkBGPMD5) without importing either package.
+// no narrower owner") -- it reads the whole config.Tree generically without
+// importing either package.
 // The AS112 plugin's own (unrelated) port-53 bind-capability check lives at
 // internal/plugins/as112 instead, since that one is a same-plugin runtime
 // dependency, not a cross-component coordination concern.
@@ -233,7 +233,9 @@ func checkAS112GlobalOriginCoordination(tree *config.Tree) []diagnostic.Diagnost
 
 // hasReplaceAsOption treats peer's local-options as a full override of
 // group's whenever peer sets ANY value, same as inheritedValue's scalar
-// inheritance (checkBGPMD5's hasMD5 accepts the identical imprecision) --
+// inheritance (the BGP TCP-MD5 check, md5Configured in
+// internal/component/bgp/config/doctor_checks.go, accepts the identical
+// imprecision) --
 // config.Tree's GetSlice/SetSlice cannot distinguish "peer never set
 // local-options" from "peer explicitly cleared it," so an operator who
 // clears an inherited replace-as at the peer level is not detectable here.

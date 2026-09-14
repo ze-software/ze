@@ -5,7 +5,7 @@
 <!-- source: internal/core/capture/reader.go -- Reader, MaxLineLen -->
 <!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture, teeCapture, CaptureConfigEvent -->
 <!-- source: internal/test/cli/cmd_replay.go -- runReplay -->
-<!-- source: internal/component/doctor/checks_bgp_capture.go -- the capture directory check -->
+<!-- source: internal/component/bgp/config/doctor_checks.go -- doctorCheckBGPCaptureDirectory, the capture directory check -->
 
 When a BGP session misbehaves on an operator's box, capture records what the
 peer sent, and replay feeds that recording back through the same state machine

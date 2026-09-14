@@ -37,7 +37,7 @@ func TestRegisterDoctorCheck(t *testing.T) {
 // TestRegisterDoctorCheckAcceptsForeignNamespace registers a check that
 // declares the codes another surface already owns.
 //
-// checkSemanticValidation (internal/component/doctor/checks_config.go) returns
+// checkSemantics (internal/component/config/doctor.go) returns
 // config.ValidateSemantics verbatim, and that function emits config-mcp-invalid
 // and its three siblings. A doctor- alias for them would be a second code for
 // one fact, so the registry takes the codes the check really emits.

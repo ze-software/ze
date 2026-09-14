@@ -2,7 +2,7 @@
 // validity check, reused by the as112 and geodns doctor checks so both report
 // missing / malformed / expired cert material identically
 // (ai/rules/repo-maintenance.md: "New service with TLS -> Certificate validity +
-// expiry check"). Mirrors internal/component/doctor/checks_tls.go semantics.
+// expiry check"). Mirrors internal/core/diagnostic/doctor_cert.go semantics.
 
 package dnsserver
 
@@ -17,7 +17,7 @@ import (
 )
 
 // certExpiryWarnWindow is how far ahead of NotAfter a certificate is flagged as
-// a warning (mirrors checks_tls.go's 30-day window).
+// a warning (mirrors the 30-day window of diagnostic.DoctorCertExpiry).
 const certExpiryWarnWindow = 30 * 24 * time.Hour
 
 // The two severities a CertProblem carries. The codes it carries are

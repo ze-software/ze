@@ -1,4 +1,9 @@
 // Design: docs/features/ai-first.md — non-Linux readiness check stubs
+//
+// The stubs here answer for the checks this component registers itself
+// (doctor_checks.go). Every other Linux probe moved to the package that owns
+// the dependency it reads, and each owner carries its own platform split
+// (checks_linux.go names them).
 
 //go:build !linux
 
@@ -11,47 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-func checkVPPSocket(_ string) []diagnostic.Diagnostic {
-	return nil
-}
-
 func checkKernelModules(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkInterfaces(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkVPPVersion(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkKernelNexthop() []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkFirewallBackend(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkTelemetryProcfs(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkSysctlProcfs(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkConntrackProcfs(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkPolicyRouteNetlink(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkNTPClockPrivilege(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
 
@@ -59,14 +24,6 @@ func checkMachineID(_ *host.PlatformInfo, _ storage.Storage) []diagnostic.Diagno
 	return nil
 }
 
-func checkVPPDPDK(_ *config.Tree) []diagnostic.Diagnostic {
-	return nil
-}
-
 func checkRandomSeed(_ *host.PlatformInfo) []diagnostic.Diagnostic {
-	return nil
-}
-
-func checkSmartEnabled(_ *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }

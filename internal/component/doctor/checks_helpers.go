@@ -1,17 +1,14 @@
 // Design: docs/features/ai-first.md — system readiness checks for agent tooling
 // Related: doctor.go — readiness check runner and output contract
-// Related: checks_config.go — config coherence checks built on these helpers
+// Related: checks_listener.go — the listener checks built on these helpers
 
 // Shared config-tree navigation helpers used by the check implementations
-// (checks_config.go, checks_listener.go, checks_reach.go, checks_storage.go,
-// checks_platform.go, checks_linux.go).
+// (checks_listener.go, checks_storage.go, checks_linux.go,
+// checks_as112_coordination.go).
 
 package doctor
 
 import (
-	"strconv"
-	"time"
-
 	"github.com/ze-software/ze/internal/component/config"
 )
 
@@ -22,15 +19,6 @@ const configTrueValue = "true"
 // variable. env declares the vocabulary in a comment on that field rather than
 // as constants, so each caller spells it (internal/core/env/registry.go).
 const envTypeString = "string"
-
-func configTimeout(tree *config.Tree, leaf string, def int) time.Duration {
-	if v, ok := tree.Get(leaf); ok {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return time.Duration(n) * time.Second
-		}
-	}
-	return time.Duration(def) * time.Second
-}
 
 func configEnabled(tree *config.Tree, defaultValue bool) bool {
 	if tree == nil {

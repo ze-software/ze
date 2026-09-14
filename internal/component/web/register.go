@@ -1,5 +1,6 @@
 // Design: docs/architecture/pki/tls-listeners.md -- doctor check registration for the web component
-// Related: doctor.go -- checkWebTLSCertificate, the check registered here
+// Related: doctor.go -- checkWebTLSCertificate, the reference check registered here
+// Related: doctor_material.go -- checkWebTLSMaterial, the stored-pair check registered here
 //
 // The web component is not a plugin, so it registers through the component-style
 // path (diagnostic.RegisterDoctorCheck) rather than a plugin Registration's
@@ -29,6 +30,14 @@ func init() {
 	}
 	if err := diagnostic.RegisterDoctorCheck(check); err != nil {
 		fmt.Fprintf(os.Stderr, "web: doctor check registration: %v\n", err)
+		os.Exit(2)
+	}
+
+	// The certificate and key the listener serves from blob storage travel with
+	// this component too, so removing web removes the check that reads them
+	// (doctor_material.go).
+	if err := diagnostic.RegisterDoctorCheck(webTLSMaterialDoctorCheck); err != nil {
+		fmt.Fprintf(os.Stderr, "web: stored TLS pair doctor check registration: %v\n", err)
 		os.Exit(2)
 	}
 }

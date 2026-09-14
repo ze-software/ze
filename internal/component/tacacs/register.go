@@ -3,6 +3,7 @@
 // Related: authenticator.go -- bridges client to aaa.Authenticator
 // Related: authorizer.go -- bridges client to aaa.Authorizer
 // Related: accounting.go -- bridges client to aaa.Accountant
+// Related: doctor.go -- the reachability check registered here
 
 package tacacs
 
@@ -10,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // backendName is this AAA backend's identifier, and the AuthResult.Source every
@@ -96,5 +98,13 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 func init() {
 	if err := aaa.Default.Register(tacacsBackend{}); err != nil {
 		panic("BUG: tacacs: register TACACS+ AAA backend: " + err.Error())
+	}
+
+	// The servers this backend connects to travel with it, so removing tacacs
+	// removes the readiness check that probes them (doctor.go). A refusal is
+	// a programmer error in the declaration and stops the process rather than
+	// leaving `ze doctor` quietly short of a check.
+	if err := diagnostic.RegisterDoctorCheck(tacacsDoctorCheck); err != nil {
+		panic("BUG: tacacs: doctor check registration refused: " + err.Error())
 	}
 }

@@ -1,6 +1,6 @@
 // Design: docs/features/ai-first.md -- the readiness checks the BGP engine owns
 // Overview: register.go -- the init() that installs every entry below
-// Related: bfd_strict_doctor.go -- the fifth entry, declared beside its own codes
+// Related: bfd_strict_doctor.go, filter_reference_doctor.go -- the two siblings register.go installs on their own
 // Related: internal/component/doctor/doctor.go -- the runner that reads the registry
 //
 // A doctor check belongs to the package that owns the runtime dependency it
@@ -35,6 +35,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// doctorComponentBGP names this package as the owner of every check it
+// registers, here and in bfd_strict_doctor.go and filter_reference_doctor.go.
+const doctorComponentBGP = "bgp"
+
+// doctorDependencyConfigTree names the config tree as the one thing a check
+// reads; the registry publishes it as the check's dependency.
+const doctorDependencyConfigTree = "config-tree"
+
 // diagnosticBGPPeerConfig names a peer configuration the engine refuses.
 const diagnosticBGPPeerConfig = "doctor-config-bgp-peer"
 
@@ -61,16 +69,16 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 	Name:         "bgp-peer-config",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        110,
-	Component:    "bgp",
-	Dependencies: []string{"config-tree"},
+	Component:    doctorComponentBGP,
+	Dependencies: []string{doctorDependencyConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnosticBGPPeerConfig},
 	Check:        doctorCheckBGPPeerConfig,
-}, bfdStrictDoctorCheck, {
+}, {
 	Name:         "bgp-md5",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2120,
-	Component:    "bgp",
+	Component:    doctorComponentBGP,
 	Dependencies: []string{"kernel"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnosticBGPMD5},
@@ -79,8 +87,8 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 	Name:         "bgp-peer-no-role",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2130,
-	Component:    "bgp",
-	Dependencies: []string{"config-tree"},
+	Component:    doctorComponentBGP,
+	Dependencies: []string{doctorDependencyConfigTree},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnosticBGPPeerNoRole},
 	Check:        doctorCheckBGPPeersWithoutRole,
@@ -88,7 +96,7 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 	Name:         "bgp-capture-directory",
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2280,
-	Component:    "bgp",
+	Component:    doctorComponentBGP,
 	Dependencies: []string{"filesystem"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnosticBGPCaptureDirectory},
@@ -99,11 +107,11 @@ var bgpDoctorChecks = []diagnostic.DoctorCheck{{
 // error in the table beside it -- a duplicate name, a phase that does not
 // exist, a code without the doctor prefix -- and none of them can be reached
 // from a config or a peer, so it stops the process rather than leaving
-// `ze doctor` quietly short of a check.
+// `ze doctor` quietly short of a check (doctorRegistrationFailed, register.go).
 func registerBGPDoctorChecks() {
 	for i := range bgpDoctorChecks {
 		if err := diagnostic.RegisterDoctorCheck(bgpDoctorChecks[i]); err != nil {
-			panic("BUG: bgp doctor check registration refused: " + err.Error())
+			doctorRegistrationFailed(bgpDoctorChecks[i].Name, err)
 		}
 	}
 }
@@ -320,7 +328,7 @@ func captureEnabled(capture *config.Tree) bool {
 		return false
 	}
 	enabled, ok := capture.Get("enabled")
-	return ok && enabled == "true"
+	return ok && enabled == configTrue
 }
 
 // probeCaptureDirectory creates the directory if absent, then probes it. The

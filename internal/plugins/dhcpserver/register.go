@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	dhcpyang "github.com/ze-software/ze/internal/plugins/dhcpserver/yang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -42,6 +43,14 @@ func init() {
 	}
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "dhcpserver: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// The server binds a socket on every listen-interface, so this plugin owns
+	// the readiness check that asks whether each one exists (doctor.go). A
+	// refusal is a programmer error in the declaration beside it.
+	if err := diagnostic.RegisterDoctorCheck(dhcpDoctorCheck); err != nil {
+		fmt.Fprintf(os.Stderr, "dhcpserver: doctor check registration failed: %v\n", err)
 		os.Exit(1)
 	}
 }

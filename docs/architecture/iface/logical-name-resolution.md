@@ -135,7 +135,7 @@ a port or a veth. A doctor that counted every device carrying the address called
 a bridged port ambiguous, at error severity, while the daemon bound to it.
 
 <!-- source: internal/component/iface/config_apply.go -- validateSelectors, devicesWithMAC, isStackedDevice, aggregatingDevices -->
-<!-- source: internal/component/doctor/checks_linux.go -- netDevicesWithAddress, hasLowerDevice -->
+<!-- source: internal/component/iface/doctor_linux.go -- netDevicesWithAddress, hasLowerDevice -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice -->
 
 ## The mapping is published before the apply, not after

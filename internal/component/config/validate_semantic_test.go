@@ -36,7 +36,7 @@ func TestValidateSemanticsFlagsGNMI(t *testing.T) {
 	// VALIDATES: AC-6 -- the gNMI exposure is reported through the semantic
 	// entry point ValidateSemantics, not only by the GNMIListenConfig.Validate
 	// helper. `ze doctor` reaches gNMI exposure only through this function
-	// (internal/component/doctor/checks_config.go checkSemanticValidation), so a
+	// (checkSemantics, doctor.go), so a
 	// Validate that nothing calls leaves doctor blind to the exposure.
 	// PREVENTS: an operator config binding gNMI to 0.0.0.0 with no token passing
 	// `ze doctor` clean while the daemon refuses to boot on it.

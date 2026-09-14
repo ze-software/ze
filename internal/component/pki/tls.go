@@ -17,7 +17,8 @@ import (
 
 // certExpiryWarnWindow is how far ahead of NotAfter a certificate is reported as
 // a warning. Mirrors the file-based window in dnsserver/certcheck.go and
-// component/doctor/checks_tls.go so every TLS surface warns at the same point.
+// internal/core/diagnostic/doctor_cert.go so every TLS surface warns at the
+// same point.
 const certExpiryWarnWindow = 30 * 24 * time.Hour
 
 // errServerTLSNoName is the only fixed error here; the rest name the

@@ -1,10 +1,18 @@
 // Design: docs/features/ai-first.md — system readiness checks for agent tooling
-// Related: doctor.go — readiness check runner and output contract
+// Related: doctor_checks.go — the registration the runner reaches checkListeners through
 // Related: checks_helpers.go — shared config-tree navigation helpers
 
 // Listener readiness checks: collect every configured listen endpoint
 // (schema-discovered plus protocol-specific extractors) and probe that the
-// address/port can be bound; plus DHCP listen-interface existence.
+// address/port can be bound. The DHCP listen-interface check that sat here is
+// owned by internal/plugins/dhcpserver and reaches the runner through the
+// doctor check registry.
+//
+// The codes a probe failure carries are a closed set spelled in this file: one
+// for every schema-discovered service, and one per protocol extractor below.
+// The listener registry (config.DiscoverListenerServices and the registered
+// defaults) carries no code of its own, which is why the registration in
+// doctor_checks.go names these constants rather than deriving them.
 
 package doctor
 
@@ -64,7 +72,7 @@ func collectSchemaListeners(tree *config.Tree) []serviceListener {
 			network:  ep.Protocol,
 			host:     ep.IP.String(),
 			port:     textbuf.StringUint16(ep.Port),
-			code:     "doctor-listen-unavailable",
+			code:     diagnostic.CodeDoctorListenUnavailable,
 			severity: diagnostic.SeverityWarning,
 		}
 		listeners = append(listeners, l)
@@ -77,33 +85,33 @@ func collectHardcodedListeners(tree *config.Tree) []serviceListener {
 
 	if webCfg, ok := config.ExtractWebConfig(tree); ok {
 		for _, s := range webCfg.Servers {
-			listeners = append(listeners, tcpListener("web", s.Host, s.Port, "doctor-listen-unavailable"))
+			listeners = append(listeners, tcpListener("web", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
 		}
 	}
 	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
 		for _, s := range mcpCfg.Servers {
-			listeners = append(listeners, tcpListener("mcp", s.Host, s.Port, "doctor-listen-unavailable"))
+			listeners = append(listeners, tcpListener("mcp", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
 		}
 	}
 	if gnmiCfg, ok := config.ExtractGNMIConfig(tree); ok {
 		for _, s := range gnmiCfg.Servers {
-			listeners = append(listeners, tcpListener("gnmi", s.Host, s.Port, "doctor-listen-unavailable"))
+			listeners = append(listeners, tcpListener("gnmi", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
 		}
 	}
 	if lgCfg, ok := config.ExtractLGConfig(tree); ok {
 		for _, s := range lgCfg.Servers {
-			listeners = append(listeners, tcpListener("looking-glass", s.Host, s.Port, "doctor-listen-unavailable"))
+			listeners = append(listeners, tcpListener("looking-glass", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
 		}
 	}
 	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
 		if apiCfg.RESTOn {
 			for _, s := range apiCfg.REST {
-				listeners = append(listeners, tcpListener("api-server-rest", s.Host, s.Port, "doctor-listen-unavailable"))
+				listeners = append(listeners, tcpListener("api-server-rest", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
 			}
 		}
 		if apiCfg.GRPCOn {
 			for _, s := range apiCfg.GRPC {
-				listeners = append(listeners, tcpListener("api-server-grpc", s.Host, s.Port, "doctor-listen-unavailable"))
+				listeners = append(listeners, tcpListener("api-server-grpc", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
 			}
 		}
 	}
@@ -137,12 +145,12 @@ func extractSSHListeners(tree *config.Tree) []serviceListener {
 			if v, ok := s.Value.Get("port"); ok && v != "" {
 				port = v
 			}
-			listeners = append(listeners, tcpListener("ssh", host, port, "doctor-listen-unavailable"))
+			listeners = append(listeners, tcpListener("ssh", host, port, diagnostic.CodeDoctorListenUnavailable))
 		}
 	}
 
 	if len(listeners) == 0 {
-		listeners = append(listeners, tcpListener("ssh", "127.0.0.1", "2222", "doctor-listen-unavailable"))
+		listeners = append(listeners, tcpListener("ssh", "127.0.0.1", "2222", diagnostic.CodeDoctorListenUnavailable))
 	}
 
 	return listeners
@@ -156,14 +164,14 @@ func extractTelemetryListeners(tree *config.Tree) []serviceListener {
 
 	servers := prom.GetListOrdered("server")
 	if len(servers) == 0 {
-		return []serviceListener{tcpListener("telemetry", "127.0.0.1", "9273", "doctor-listen-unavailable")}
+		return []serviceListener{tcpListener("telemetry", "127.0.0.1", "9273", diagnostic.CodeDoctorListenUnavailable)}
 	}
 
 	listeners := make([]serviceListener, 0, len(servers))
 	for _, s := range servers {
 		host := valueOrDefault(s.Value, "ip", "127.0.0.1")
 		port := valueOrDefault(s.Value, "port", "9273")
-		listeners = append(listeners, tcpListener("telemetry", host, port, "doctor-listen-unavailable"))
+		listeners = append(listeners, tcpListener("telemetry", host, port, diagnostic.CodeDoctorListenUnavailable))
 	}
 	return listeners
 }
@@ -246,7 +254,7 @@ func dedupeListeners(listeners []serviceListener) []serviceListener {
 	result := make([]serviceListener, 0, len(listeners))
 	for _, l := range listeners {
 		if l.code == "" {
-			l.code = "doctor-listen-unavailable"
+			l.code = diagnostic.CodeDoctorListenUnavailable
 		}
 		if l.severity == "" {
 			l.severity = diagnostic.SeverityWarning
@@ -300,7 +308,7 @@ func appendBGPListener(listeners []serviceListener, parent, node *config.Tree) [
 		port = "179"
 	}
 
-	return append(listeners, tcpListener("bgp", host, port, "doctor-bgp-listen"))
+	return append(listeners, tcpListener("bgp", host, port, diagnostic.CodeDoctorBGPListen))
 }
 
 func extractBFDListeners(tree *config.Tree) []serviceListener {
@@ -308,7 +316,7 @@ func extractBFDListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(bfd, true) {
 		return nil
 	}
-	return []serviceListener{udpListener("bfd", "3784", "doctor-bfd-port")}
+	return []serviceListener{udpListener("bfd", "3784", diagnostic.CodeDoctorBFDPort)}
 }
 
 func extractIPsecListeners(tree *config.Tree) []serviceListener {
@@ -319,8 +327,8 @@ func extractIPsecListeners(tree *config.Tree) []serviceListener {
 		return nil
 	}
 	return []serviceListener{
-		udpListener("ipsec", "500", "doctor-ipsec-listen"),
-		udpListener("ipsec", "4500", "doctor-ipsec-listen"),
+		udpListener("ipsec", "500", diagnostic.CodeDoctorIPsecListen),
+		udpListener("ipsec", "4500", diagnostic.CodeDoctorIPsecListen),
 	}
 }
 
@@ -329,7 +337,7 @@ func extractTFTPListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(tftp, false) {
 		return nil
 	}
-	return []serviceListener{udpListener("tftp", "69", "doctor-tftp-listen")}
+	return []serviceListener{udpListener("tftp", "69", diagnostic.CodeDoctorTFTPListen)}
 }
 
 func extractImageListeners(tree *config.Tree) []serviceListener {
@@ -337,7 +345,7 @@ func extractImageListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(image, false) {
 		return nil
 	}
-	return []serviceListener{tcpListener("image-server", "0.0.0.0", valueOrDefault(image, "listen-port", "80"), "doctor-image-listen")}
+	return []serviceListener{tcpListener("image-server", "0.0.0.0", valueOrDefault(image, "listen-port", "80"), diagnostic.CodeDoctorImageListen)}
 }
 
 func extractNTPListeners(tree *config.Tree) []serviceListener {
@@ -345,40 +353,9 @@ func extractNTPListeners(tree *config.Tree) []serviceListener {
 	if !configEnabled(ntp, false) {
 		return nil
 	}
-	return []serviceListener{udpListener("ntp", "123", "doctor-ntp-listen")}
+	return []serviceListener{udpListener("ntp", "123", diagnostic.CodeDoctorNTPListen)}
 }
 
-var interfaceByName = net.InterfaceByName
-
-func checkDHCPInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
-	dhcp := getContainerPath(tree, "service", "dhcp-server")
-	if !configEnabled(dhcp, false) {
-		return nil
-	}
-
-	var diags []diagnostic.Diagnostic
-	var tb textbuf.Buffer
-	for _, name := range dhcp.GetSlice("listen-interface") {
-		if strings.ContainsAny(name, "/\x00") || strings.Contains(name, "..") {
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-dhcp-iface",
-				Severity: diagnostic.SeverityError,
-				Message:  tb.Reset().Str("DHCP server listen interface has invalid name: ").Str(name).String(),
-				Path:     "service/dhcp-server/listen-interface",
-			})
-			continue
-		}
-		if _, err := interfaceByName(name); err != nil {
-			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-dhcp-iface",
-				Severity: diagnostic.SeverityError,
-				Message:  tb.Reset().Str("DHCP server listen interface not found: ").Str(name).String(),
-				Path:     "service/dhcp-server/listen-interface",
-			})
-		}
-	}
-	return diags
-}
 func forcedDoctorCode(code, configured string) bool {
 	if configured == "" {
 		return false

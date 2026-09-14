@@ -117,8 +117,9 @@ func TestMPLSCapabilityNotGatedOnVPPBackend(t *testing.T) {
 // own reasons, so a probe that runs one answers a different question than the one
 // it was asked.
 //
-// The rule is scoped to the ENROLLED probes, not to the process: checkVPPVersion
-// in this package execs vppctl today, and VPP is not enrolled.
+// The rule is scoped to the ENROLLED probes, not to the process: the VPP
+// version check (internal/plugins/iface/vpp) execs vppctl today, and VPP is
+// not enrolled.
 func TestCapabilityProbeExecsNoBinary(t *testing.T) {
 	dir := filepath.Join("..", "kernelcap")
 	entries, err := os.ReadDir(dir)

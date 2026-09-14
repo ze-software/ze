@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
 	sysctlyang "github.com/ze-software/ze/internal/component/sysctl/yang"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
@@ -81,6 +82,14 @@ func init() {
 	}
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "sysctl: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Every sysctl is applied through /proc/sys, so this component owns the
+	// readiness check that asks whether the daemon will be able to write it
+	// (doctor.go). A refusal is a programmer error in the table beside it.
+	if err := diagnostic.RegisterDoctorCheck(sysctlProcfsDoctorCheck()); err != nil {
+		fmt.Fprintf(os.Stderr, "sysctl: doctor check registration failed: %v\n", err)
 		os.Exit(1)
 	}
 }

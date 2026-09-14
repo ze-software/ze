@@ -73,6 +73,25 @@ const (
 	CodeDoctorVPPLCPPlugin                         = "doctor-vpp-lcp-plugin"
 	CodeDoctorVPPWireguard                         = "doctor-vpp-wireguard" //nolint:gosec // G101 reads the "pw" in VPPWireguard as a credential name
 	CodeDoctorWriteDestination                     = "doctor-write-destination"
+	CodeConfigGNMIInvalid                          = "config-gnmi-invalid"
+	CodeConfigHubInvalid                           = "config-hub-invalid"
+	CodeConfigMCPInvalid                           = "config-mcp-invalid"
+	CodeConfigPluginVerify                         = "config-plugin-verify"
+	CodeDoctorBFDPort                              = "doctor-bfd-port"
+	CodeDoctorBGPListen                            = "doctor-bgp-listen"
+	CodeDoctorImageListen                          = "doctor-image-listen"
+	CodeDoctorIPsecListen                          = "doctor-ipsec-listen"
+	CodeDoctorListenUnavailable                    = "doctor-listen-unavailable"
+	CodeDoctorNTPListen                            = "doctor-ntp-listen"
+	CodeDoctorPlatformContainerRO                  = "doctor-platform-container-ro"
+	CodeDoctorPlatformDetect                       = "doctor-platform-detect"
+	CodeDoctorPlatformPerm                         = "doctor-platform-perm"
+	CodeDoctorPlatformUnknown                      = "doctor-platform-unknown"
+	CodeDoctorServiceExecutable                    = "doctor-service-executable"
+	CodeDoctorServiceGroup                         = "doctor-service-group"
+	CodeDoctorServiceUnit                          = "doctor-service-unit"
+	CodeDoctorServiceUser                          = "doctor-service-user"
+	CodeDoctorTFTPListen                           = "doctor-tftp-listen"
 )
 
 // The codes that another code's RelatedCodes list names. A cross-reference is
@@ -130,12 +149,12 @@ var builtinCodes = []CodeMeta{
 		Description: "A list or leaf-list in the config has too many or too few entries per the YANG schema.",
 	},
 	{
-		Code:        "config-plugin-verify",
+		Code:        CodeConfigPluginVerify,
 		Title:       "Plugin config verification failure",
 		Description: "An in-process plugin config verifier rejected the configuration.",
 	},
 	{
-		Code:        "config-mcp-invalid",
+		Code:        CodeConfigMCPInvalid,
 		Title:       "MCP config consistency failure",
 		Description: "MCP auth-mode, bind-remote, OAuth, or TLS cross-leaf consistency check failed.",
 	},
@@ -146,7 +165,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleConfigValidate, "ze explain config-kernel-capability"},
 	},
 	{
-		Code:        "config-gnmi-invalid",
+		Code:        CodeConfigGNMIInvalid,
 		Title:       "gNMI config exposure failure",
 		Description: "A gNMI server listens on a non-loopback address with no token, so it accepts unauthenticated Get and Set requests.",
 	},
@@ -166,7 +185,7 @@ var builtinCodes = []CodeMeta{
 		Description: "Peer settings, route extraction, or capability constraints failed during config validation.",
 	},
 	{
-		Code:        "config-hub-invalid",
+		Code:        CodeConfigHubInvalid,
 		Title:       "Hub config extraction failure",
 		Description: "Plugin hub config extraction (secret length, client blocks) failed.",
 	},
@@ -189,25 +208,25 @@ var builtinCodes = []CodeMeta{
 
 	// Doctor diagnostic codes -- platform.
 	{
-		Code:        "doctor-platform-detect",
+		Code:        CodeDoctorPlatformDetect,
 		Title:       "Platform detection failed",
 		Description: "Runtime platform detection encountered an error.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-platform-unknown",
+		Code:        CodeDoctorPlatformUnknown,
 		Title:       "Unknown runtime platform",
 		Description: "The runtime platform could not be identified as gokrazy, systemd, container, or plain Linux.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-platform-perm",
+		Code:        CodeDoctorPlatformPerm,
 		Title:       "Gokrazy /perm not writable",
 		Description: "Running on gokrazy but /perm is not writable. Config persistence and state storage require a writable /perm partition.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-platform-container-ro",
+		Code:        CodeDoctorPlatformContainerRO,
 		Title:       "Container with read-only root",
 		Description: "Running in a container with a read-only root filesystem. Writable volumes must be mounted for config and state.",
 		Examples:    []string{exampleDoctorJSON},
@@ -365,25 +384,25 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-hub-managed-collision"},
 	},
 	{
-		Code:        "doctor-service-unit",
+		Code:        CodeDoctorServiceUnit,
 		Title:       "Systemd service unit unreadable",
 		Description: "The installed ze systemd unit exists but cannot be read by doctor.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-unit"},
 	},
 	{
-		Code:        "doctor-service-executable",
+		Code:        CodeDoctorServiceExecutable,
 		Title:       "Systemd service executable invalid",
 		Description: "The installed ze systemd unit ExecStart does not point to an existing executable file.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-executable"},
 	},
 	{
-		Code:        "doctor-service-user",
+		Code:        CodeDoctorServiceUser,
 		Title:       "Systemd service user missing",
 		Description: "The user configured in the ze systemd unit does not exist on this host.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-user"},
 	},
 	{
-		Code:        "doctor-service-group",
+		Code:        CodeDoctorServiceGroup,
 		Title:       "Systemd service group missing",
 		Description: "The group configured in the ze systemd unit does not exist on this host.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-service-group"},
@@ -395,7 +414,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-listen-unavailable",
+		Code:        CodeDoctorListenUnavailable,
 		Title:       "Listen address unavailable",
 		Description: "A configured listen address/port could not be bound.",
 		Examples:    []string{exampleDoctorJSON},
@@ -748,7 +767,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unknown"},
 	},
 	{
-		Code:        "doctor-bgp-listen",
+		Code:        CodeDoctorBGPListen,
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bgp-listen"},
@@ -830,7 +849,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-traffic-usage-ebpf"},
 	},
 	{
-		Code:        "doctor-bfd-port",
+		Code:        CodeDoctorBFDPort,
 		Title:       "BFD control port unavailable",
 		Description: "BFD is configured but the UDP control port could not be bound.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bfd-port"},
@@ -842,7 +861,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-pki-cert"},
 	},
 	{
-		Code:        "doctor-ipsec-listen",
+		Code:        CodeDoctorIPsecListen,
 		Title:       "IPsec IKE listener unavailable",
 		Description: "IPsec is configured but an IKE UDP listener port could not be bound.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ipsec-listen"},
@@ -854,19 +873,19 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-telemetry-procfs"},
 	},
 	{
-		Code:        "doctor-tftp-listen",
+		Code:        CodeDoctorTFTPListen,
 		Title:       "TFTP listener unavailable",
 		Description: "The TFTP server is configured but its UDP listener port could not be bound.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-tftp-listen"},
 	},
 	{
-		Code:        "doctor-image-listen",
+		Code:        CodeDoctorImageListen,
 		Title:       "Image server listener unavailable",
 		Description: "The image server is configured but its HTTP listener port could not be bound.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-image-listen"},
 	},
 	{
-		Code:        "doctor-ntp-listen",
+		Code:        CodeDoctorNTPListen,
 		Title:       "NTP listener unavailable",
 		Description: "NTP is configured but UDP port 123 could not be bound.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ntp-listen"},
@@ -926,6 +945,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bmp-unreachable"},
 	},
 	{
+		Code:        "doctor-gtsm-kernel-state",
+		Title:       "GTSM peer kernel state missing",
+		Description: "A BGP peer configured with `connection ttl` (RFC 5082 GTSM) is short of the kernel state that protects its related ICMP messages: the host route to the peer carrying hop limit 255, or the ze_gtsm nftables table that drops an ICMP error arriving below the peer's TTL floor. Inside the daemon (show doctor) the check reads what the kernel holds against what the daemon published; the usual cause is a peer whose interface was down at config apply, and the next peer reconcile installs it. In `ze doctor`, before a start, the check reports a peer the kernel resolves no route to, because that route install will fail at apply.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-gtsm-kernel-state"},
+	},
+	{
 		Code:        CodeDoctorWriteDestination,
 		Title:       "Write destination not writable",
 		Description: "A configured file write destination (persist path, output directory) is not writable.",
@@ -942,6 +967,18 @@ var builtinCodes = []CodeMeta{
 		Title:       "VPP DPDK readiness failure",
 		Description: "VPP DPDK is configured but a required VFIO kernel module is not loaded or a PCI device is not present in sysfs.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-dpdk"},
+	},
+	{
+		Code:        "doctor-smart-sysfs",
+		Title:       "SMART block devices cannot be enumerated",
+		Description: "SMART management is enabled but /sys/class/block cannot be read, so the storage manager will find no device to monitor.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-smart-sysfs"},
+	},
+	{
+		Code:        "doctor-smart-access",
+		Title:       "No block device answers SMART",
+		Description: "SMART management is enabled and the host holds block devices, but none of them answers a SMART query, which is what a process with insufficient privileges for the SMART ioctls sees. Grant ze the privilege or disable storage/smart.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-smart-access"},
 	},
 	{
 		Code:        "doctor-vpp-hugepages",

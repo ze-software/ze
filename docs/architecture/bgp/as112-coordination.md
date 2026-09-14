@@ -31,8 +31,10 @@ Full checklists: `rfc/short/rfc7534.md`, `rfc/short/rfc7535.md`,
 Neither the as112 plugin nor the bgp component may own a check that reads the
 other's config. Both checks therefore live in `internal/component/doctor`, which
 reads the whole `config.Tree` generically and imports neither package. This is
-the "dependency with no narrower owner" bucket in `ai/rules/repo-maintenance.md`,
-and it follows the existing `checkConfigReferences` and `checkBGPMD5` pattern.
+the "dependency with no narrower owner" bucket in `ai/rules/repo-maintenance.md`.
+A check with a narrower owner registers from that owner: the BGP filter
+reference, TCP-MD5, role and capture directory checks live in
+`internal/component/bgp/config`.
 
 | Check code | Warns when |
 |------------|-----------|

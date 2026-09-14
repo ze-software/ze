@@ -81,6 +81,11 @@ func init() {
 		fmt.Fprintf(os.Stderr, "ntp: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+
+	// The client reads environment/ntp and adjusts the clock, so this plugin
+	// owns the readiness checks that probe its servers and its CAP_SYS_TIME
+	// (doctor.go).
+	registerNTPDoctorChecks()
 }
 
 func verifyNTPConfig(sections []sdk.ConfigSection) error {

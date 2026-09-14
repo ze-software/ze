@@ -25,6 +25,12 @@ const (
 	// doctorOwnComponent names this component as the owner of a check that has
 	// no narrower one.
 	doctorOwnComponent = "doctor"
+
+	// The dependencies the registry publishes for the checks below: the
+	// filesystem `ze doctor` stands on, and the config tree the coordination
+	// checks read.
+	doctorDependencyFilesystem = "filesystem"
+	doctorDependencyConfig     = "config"
 )
 
 // doctorOwnedChecks are the checks this component owns, in the order the runner
@@ -43,7 +49,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePreConfig,
 	Order:        120,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"storage", "filesystem"},
+	Dependencies: []string{"storage", doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorMachineIDMissing},
 	Check:        doctorCheckMachineID,
@@ -52,7 +58,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePreConfig,
 	Order:        130,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"filesystem"},
+	Dependencies: []string{doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorRandomSeed},
 	Check:        doctorCheckRandomSeed,
@@ -85,7 +91,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2020,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"filesystem"},
+	Dependencies: []string{doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorDiskSpace},
 	Check:        doctorCheckDiskSpace,
@@ -108,7 +114,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2150,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"config"},
+	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorAS112WatchdogMissingWithdraw},
 	Check:        doctorCheckAS112WatchdogWithdraw,
@@ -117,7 +123,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2160,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"config"},
+	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorAS112GlobalOriginUncoordinated},
 	Check:        doctorCheckAS112GlobalOriginCoordination,
@@ -126,7 +132,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2170,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"config"},
+	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorAS112RedistributeOriginUncoordinated},
 	Check:        doctorCheckAS112RedistributeOriginCoordination,
@@ -135,7 +141,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2180,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"config"},
+	Dependencies: []string{doctorDependencyConfig},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorAS112RedistributeNotImported},
 	Check:        doctorCheckAS112RedistributeNotImported,
@@ -144,10 +150,59 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Phase:        diagnostic.DoctorPhasePostConfig,
 	Order:        2270,
 	Component:    doctorOwnComponent,
-	Dependencies: []string{"filesystem"},
+	Dependencies: []string{doctorDependencyFilesystem},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorWriteDestination},
 	Check:        doctorCheckWritableDestinations,
+}, {
+	// The judgement over the platform the runner resolved. The resolution
+	// itself is the runner's own input (resolveDoctorPlatform,
+	// checks_platform.go): the phase dispatch filters every check on it, so it
+	// cannot be a check. Order 90 keeps its diagnostics ahead of
+	// store-integrity, where the runner printed them.
+	Name:         "platform",
+	Phase:        diagnostic.DoctorPhasePreConfig,
+	Order:        90,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"platform"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorPlatformUnknown, diagnostic.CodeDoctorPlatformPerm, diagnostic.CodeDoctorPlatformContainerRO},
+	Check:        checkPlatform,
+}, {
+	// Every configured listen endpoint, from every service, probed for a bind.
+	// The listener inventory is the schema's and the probe is this component's,
+	// so no one service owns a check over all of them. Order 2015 sits between
+	// the SSH host key check (2010) and disk-space (2020), where the runner ran
+	// it.
+	Name:         "listeners",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2015,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"network"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes: []string{
+		diagnostic.CodeDoctorListenUnavailable,
+		diagnostic.CodeDoctorBGPListen,
+		diagnostic.CodeDoctorBFDPort,
+		diagnostic.CodeDoctorIPsecListen,
+		diagnostic.CodeDoctorTFTPListen,
+		diagnostic.CodeDoctorImageListen,
+		diagnostic.CodeDoctorNTPListen,
+	},
+	Check: doctorCheckListeners,
+}, {
+	// The config-delivery audit reads the plugin registry and the schema
+	// registry together (checks_config_claims.go names why neither side owns
+	// it). Order 2310 sits after the S.M.A.R.T. check (2300) and before the RIR
+	// delegation sources (2320), where the runner ran it.
+	Name:         "config-claims",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2310,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{doctorDependencyConfig, "plugin-registry"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorConfigClaimsUnavailable, diagnostic.CodeDoctorConfigRootUnclaimed},
+	Check:        doctorCheckConfigClaims,
 }}
 
 // registerDoctorOwnedChecks installs every entry above. A refusal is a
@@ -205,4 +260,12 @@ func doctorCheckAS112RedistributeNotImported(ctx diagnostic.DoctorCheckContext) 
 
 func doctorCheckWritableDestinations(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	return checkWritableDestinations(doctorTree(ctx), ctx.Platform)
+}
+
+func doctorCheckListeners(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkListeners(doctorTree(ctx))
+}
+
+func doctorCheckConfigClaims(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkConfigClaims(doctorTree(ctx))
 }

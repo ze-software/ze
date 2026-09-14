@@ -9,7 +9,6 @@
 package doctor
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -19,7 +18,13 @@ import (
 // reads, so it answers for every check this binary carries rather than for the
 // component's own.
 //
-// VALIDATES: every registered doctor-* code resolves through diagnostic.Lookup.
+// A code is checked whatever namespace it belongs to. The registry accepts the
+// codes a check really emits (internal/core/diagnostic/doctor_registry.go,
+// DoctorCheck), so the semantic-validation bridge declares config-* codes, and
+// those owe `ze explain` an answer exactly as a doctor-* code does.
+//
+// VALIDATES: every code a registered check declares resolves through
+// diagnostic.Lookup.
 // PREVENTS: ze doctor emitting a code ze explain cannot describe.
 func TestDoctorRegisteredCheckCodesHaveMetadata(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
@@ -38,10 +43,6 @@ func TestDoctorRegisteredCheckCodesHaveMetadata(t *testing.T) {
 				continue
 			}
 			for _, code := range check.Codes {
-				if !strings.HasPrefix(code, "doctor-") {
-					t.Errorf("check %q declares non-doctor diagnostic code %q", check.Name, code)
-					continue
-				}
 				if diagnostic.Lookup(code) == nil {
 					t.Errorf("check %q declares %q without diagnostic metadata", check.Name, code)
 				}

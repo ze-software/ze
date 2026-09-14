@@ -51,6 +51,10 @@ func init() {
 	if err := diagnostic.RegisterDoctorCheck(filterReferenceDoctorCheck); err != nil {
 		doctorRegistrationFailed("filter reference", err)
 	}
+
+	// The peer resolution, TCP MD5, RFC 9234 role and capture directory checks
+	// read BGP configuration, so this package owns them (doctor_checks.go).
+	registerBGPDoctorChecks()
 }
 
 // doctorRegistrationFailed stops the process on a refused registration. Every

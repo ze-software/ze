@@ -30,12 +30,15 @@ const configCertExpiryWarnDays = 30
 
 // configCertDoctorCheck describes the check. register.go registers it.
 //
-// Order 834 keeps it where the runner used to call it: after the web material
-// and before the SSH host key.
+// Order 180 reproduces the sequence the doctor runner printed before the
+// check moved onto the registry: it ran before the runner's own phase
+// dispatch, right after the stored web pair at 170
+// (internal/component/web/doctor_material.go). Every check the runner called
+// after its dispatch, the SSH host key among them, sorts above 2000.
 var configCertDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "pki-configured-certificates",
 	Phase:        diagnostic.DoctorPhasePostConfig,
-	Order:        834,
+	Order:        180,
 	Component:    "pki",
 	Dependencies: []string{"config-tree"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},

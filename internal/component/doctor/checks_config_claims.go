@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config claim model
-// Overview: doctor.go — runChecks calls checkConfigClaims
+// Overview: doctor_checks.go — the registration the runner reaches checkConfigClaims through
 // Related: internal/component/config/claims — the claim semantics and allowlist
 //
 // Config claim check: report config the daemon stores and delivers to nobody.
@@ -27,7 +27,13 @@ import (
 )
 
 // checkConfigClaims resolves the live claim inventory and judges the config
-// tree against it. This is the entry point runChecks calls.
+// tree against it. This is the entry point the registered check calls.
+//
+// It is owned here rather than by internal/component/config/claims, which
+// holds the claim semantics and no inventory by design: the inventory comes
+// from the plugin registry and the schema registry together, and this
+// component is the one place that reads both without importing either into
+// the other.
 func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
 	cs := claims.FromConfigRoots(pluginregistry.ConfigRootsMap())
 

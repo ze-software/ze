@@ -1,12 +1,13 @@
 // Design: docs/features/ai-first.md -- the probes a registered doctor check runs
 // Related: doctor_registry.go -- the registry the owner packages below register with
 //
-// A doctor check probes a runtime dependency before the daemon starts. Two of
-// those probes are shared by checks that different packages own: can this TCP
-// endpoint be reached, and can this directory be written. They live beside the
-// registry because that is the one package every owner of a check imports, so
-// a check moved out of internal/component/doctor keeps the behavior the runner
-// had rather than growing a second copy of it.
+// A doctor check probes a runtime dependency before the daemon starts. Three
+// of those probes are shared by checks that different packages own: can this
+// TCP endpoint be reached, does this URL answer an HTTP HEAD, and can this
+// directory be written. They live beside the registry because that is the one
+// package every owner of a check imports, so a check moved out of
+// internal/component/doctor keeps the behavior the runner had rather than
+// growing a second copy of it.
 
 package diagnostic
 
@@ -14,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
@@ -60,6 +62,25 @@ func DoctorTCPReachable(addr string, timeout time.Duration) bool {
 	}
 	_ = conn.Close()
 	return true
+}
+
+// DoctorHTTPReachable reports whether url answers an HTTP HEAD inside timeout.
+// Any answer counts, whatever its status: the probe asks whether the endpoint
+// is there, and a 404 from a live server is a fact about the path rather than
+// about reachability.
+func DoctorHTTPReachable(url string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, http.NoBody)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	return nil
 }
 
 // DoctorProbeWritableDir reports whether the daemon will be able to write into
