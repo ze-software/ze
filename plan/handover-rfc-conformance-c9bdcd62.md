@@ -68,13 +68,31 @@ be adopted, committed or repaired.
 
 | File | State |
 |---|---|
-| `internal/plugins/ospf/ipsec_install.go` | `buildIPsecSA` now takes `(ifindex int, dst netip.Addr, dir dataplane.SADir, c ipsecInterfaceConfig)`. The callers were never updated, so **the package does not compile**: `go vet ./internal/plugins/ospf/` fails at `ipsec_install_test.go` with "not enough arguments in call to buildIPsecSA", and `ipsec_rfc4302_test.go` has the same. Finish the per-destination SA work or restore the old signature; do not diagnose it as a defect |
-| `internal/core/network/ttl_integration_linux_test.go` | +126 lines, the IPv6 minimum-hop-count proof from audit row 6. Unreviewed and unrun |
-| `test/policy/policy-next-hop.ci` | +11 lines, audit row 3. Unreviewed and unrun |
-| `test/policy/policy-set-table.ci` | +9 lines, audit row 3. Unreviewed and unrun |
+| `internal/plugins/ospf/ipsec_install.go` | 272 insertions. The per-destination redesign is largely DONE and its design comment is worth reading before touching it. `buildIPsecSA` now takes `(ifindex int, dst netip.Addr, dir dataplane.SADir, c ipsecInterfaceConfig)`, and the multicast half of the owner's ruling is wired: states for `AllSPFRouters`, `AllDRouters` and the interface's own link-local are installed when the interface opens. **But the package does not compile**, and the per-adjacency half is unreachable. See below |
+| `test/policy/policy-next-hop.ci`, `test/policy/policy-set-table.ci` | Audit row 3. Each adds a `ROUTE_GET_MARKED` assertion with an unmarked control, which is the right shape: it asks the KERNEL where a marked packet would go rather than reading `ip rule show` back. **Not committed because the native Go fixture that must emit `ROUTE_GET_MARKED:` was never written**, so both would fail for a missing producer rather than for a product reason |
+
+Two reasons `internal/plugins/ospf` cannot be committed as it stands, and the
+second is a finding rather than an inconvenience:
+
+1. The callers were never updated. `go vet ./internal/plugins/ospf/` fails at
+   `ipsec_install_test.go` with "not enough arguments in call to buildIPsecSA", and
+   `ipsec_rfc4302_test.go` has the same. Both call sites sit inside RFC-tagged
+   tests, so fixing them trips the weakening gate and needs an owner row in
+   `test/rfc-changed/` that an author may not write. That is why this was left
+   rather than finished.
+2. **`onNeighborSeen` and `onNeighborLost` exist and nothing calls them.** Both are
+   methods on `ipsecInstaller` in that file, complete with the neighbour-moved-
+   link-local case, metrics and error paths, and no OSPF state machine reaches
+   either. So the unicast-per-adjacency half of the owner's ruling is built and
+   inert: a correct producer with no caller, which is the same class as the wildcard
+   SA it was written to replace.
 
 The agent briefed on audit rows 1 and 2, the FIB and MPLS, was stopped while still
 reading and changed nothing.
+
+Audit row 6 DID land, as `TestSetIPv6MinHopCountEnforcesTheFloor`
+(`internal/core/network/ttl_integration_linux_test.go`). It is committed unrun:
+this host is darwin, the unit is linux-only, and it compiles under `GOOS=linux`.
 
 `internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go` is committed and RED
 for the product reason above. It carries the `RFC4302-3.3.4-1` tag, and the owner
