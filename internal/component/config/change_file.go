@@ -59,6 +59,7 @@ const (
 // PendingChangeKind identifies the operator-visible type of a pending change.
 type PendingChangeKind string
 
+// enumeration: exempt (these are the pending-change kinds a change file records, not the CLI verb vocabulary)
 const (
 	PendingChangeSet        PendingChangeKind = "set"
 	PendingChangeDelete     PendingChangeKind = "delete"

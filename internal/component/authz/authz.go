@@ -262,6 +262,7 @@ func builtinAdminProfile() Profile {
 func builtinReadOnlyProfile() Profile {
 	return Profile{
 		Name: "read-only",
+		// enumeration: exempt (these are the command prefixes the read-only profile denies, a policy list, not the CLI verb vocabulary)
 		Run: Section{Default: Allow, Entries: []Entry{
 			{Number: 10, Action: Deny, Match: "restart"},
 			{Number: 20, Action: Deny, Match: "kill"},

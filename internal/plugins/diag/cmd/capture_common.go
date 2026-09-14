@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// enumeration: exempt (these are the subsystem selectors `diag capture` takes, not plugin names)
 const (
 	argCount               = "count"
 	msgSubsystemNotRunning = "subsystem not running"

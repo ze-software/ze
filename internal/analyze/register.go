@@ -1,5 +1,9 @@
 // Design: docs/architecture/system-architecture.md -- ze-analyze root handler registration
 
+// codegen:skip -- the ze_analyze personality wires this, from cmd/ze/ze_analyze_register.go
+// under //go:build ze_analyze. The universal composition root carries no tag, so naming it
+// there would link the MRT analysis commands into the ze daemon as well.
+
 package analyze
 
 import (

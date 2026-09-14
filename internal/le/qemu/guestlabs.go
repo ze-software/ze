@@ -26,6 +26,7 @@ const (
 	labPPPoENetns     = "pppoe-netns"
 )
 
+// enumeration: exempt (these are the network-namespace names the QEMU labs create, not plugin names)
 const (
 	vrrpQS1 = "QS-1"
 	vrrpQS2 = "QS-2"

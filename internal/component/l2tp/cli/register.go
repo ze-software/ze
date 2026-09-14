@@ -3,6 +3,13 @@
 // Register the `l2tp` root command with the importable command registry.
 // This is the owner package: the offline L2TP CLI (packet decode, show) lives
 // with internal/component/l2tp, not under cmd/ze.
+
+// codegen:skip -- ze-test registers a `l2tp` SUITE root of its own
+// (internal/test/cli/register.go, registerCIRoot), and the ze-test binary imports
+// plugin/all. A generated blank import would put two `l2tp` roots in that one
+// binary, and MustRegisterRootHandler panics on the duplicate at init, which takes
+// every functional suite down. cmd/ze/dispatch_l2tp.go carries the import instead.
+
 package cli
 
 import "github.com/ze-software/ze/internal/component/command/registry"

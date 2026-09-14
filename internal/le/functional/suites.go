@@ -78,6 +78,7 @@ func (s Suite) Command() []string {
 // Constants make the run list and suite table use the same names.
 // A typo then becomes a compile error instead of an unresolved name.
 // This catches the `ipsec` failure before GatingSuites does.
+// enumeration: exempt (these are functional test suite names, not plugin names; the list being hand-written is its own defect, recorded in plan/journal/plugin-list-hardcoded.md)
 const (
 	suiteEncode    = "encode"
 	suitePlugin    = "plugin"
@@ -168,6 +169,7 @@ var Gating = []string{
 // four that need platform tooling or a fixture ze-precommit-verify does not
 // provide. Those four supply release evidence, not merge gates, so their .ci
 // files have no verify tier.
+// enumeration: exempt (these are functional test suite names, not plugin names; the list being hand-written is its own defect, recorded in plan/journal/plugin-list-hardcoded.md)
 var Suites = []Suite{
 	{
 		Name: suiteEncode, Args: []string{bgpVerb, "encode", allTests}, Scaled: true,

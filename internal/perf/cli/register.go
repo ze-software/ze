@@ -1,5 +1,9 @@
 // Design: docs/architecture/system-architecture.md -- ze-perf root handler registration
 
+// codegen:skip -- the ze-perf personality wires this, from cmd/ze/ze_perf_register.go under
+// //go:build ze_perf. The universal composition root carries no tag, so naming it there
+// would link the benchmark commands into the ze daemon as well.
+
 package cli
 
 import (

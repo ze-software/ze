@@ -95,6 +95,10 @@ func fullStages() []Stage {
 		stage("repository", "tree-check"),
 		stage("plugin imports", "check"),
 		stage("plugin declarations", "check"),
+		// enumeration judges the CHANGE SET rather than the tree: the copies
+		// already in the tree are `le enumeration report`, and this stage's red
+		// means the change under test added one (owner decision, 2026-09-14).
+		stage("enumeration", "check"),
 		stage("yang glue", "check"),
 		stage("feature-tags", "check"),
 		stage("doc check", "templ-output"),

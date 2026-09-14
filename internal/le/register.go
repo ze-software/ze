@@ -30,6 +30,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/doc/wiring"
 	_ "github.com/ze-software/ze/internal/le/docstocode"
 	_ "github.com/ze-software/ze/internal/le/docvalid"
+	_ "github.com/ze-software/ze/internal/le/enumeration"
 	_ "github.com/ze-software/ze/internal/le/evidence"
 	_ "github.com/ze-software/ze/internal/le/featuretags"
 	_ "github.com/ze-software/ze/internal/le/fspersistence"

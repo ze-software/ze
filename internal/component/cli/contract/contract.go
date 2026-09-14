@@ -102,6 +102,7 @@ type SessionChange struct {
 // PendingChangeKind identifies the operator-visible change type.
 type PendingChangeKind string
 
+// enumeration: exempt (these are the pending-change kinds the editor shows an operator, not the CLI verb vocabulary)
 const (
 	PendingChangeSet        PendingChangeKind = "set"
 	PendingChangeDelete     PendingChangeKind = "delete"

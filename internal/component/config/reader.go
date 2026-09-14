@@ -526,6 +526,7 @@ func diffBlocks(oldState, newState *blockState) []blockChange {
 			oldBlock := oldBlocks[key]
 			newBlock := newBlocks[key]
 
+			// enumeration: exempt (these are the actions a block diff takes, not the CLI verb vocabulary)
 			switch {
 			case oldBlock == nil && newBlock != nil:
 				changes = append(changes, blockChange{

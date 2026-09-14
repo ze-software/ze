@@ -103,6 +103,7 @@ func ConvertNeighborControl(selector, rest string) (Translation, bool, error) {
 	verb := strings.ToLower(fields[0])
 	names := len(fields) > 1 && strings.EqualFold(fields[1], "neighbor")
 
+	// enumeration: exempt (these are ExaBGP's own neighbor control words, not the CLI verb vocabulary)
 	switch {
 	case verb == "teardown":
 		return convertTeardown(selector, lowerFields(fields))

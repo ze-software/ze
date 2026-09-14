@@ -63,6 +63,7 @@ func ParseEvent(data []byte) (*Event, error) {
 
 	// If ze-bgp JSON format, parse the nested payload.
 	var payloadData []byte
+	// enumeration: exempt (these are the type words of the ze-bgp JSON event envelope, not plugin names)
 	switch wrapper.Type {
 	case "bgp":
 		if len(wrapper.BGP) > 0 {

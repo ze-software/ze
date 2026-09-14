@@ -124,6 +124,7 @@ const (
 
 // String returns a human-readable protocol name.
 func (p BGPLSProtocolID) String() string {
+	// enumeration: exempt (these are RFC 7752 BGP-LS protocol-ID names, not plugin names)
 	switch p { //nolint:exhaustive // Unknown protocols formatted in default
 	case ProtoISISL1:
 		return "isis-l1"

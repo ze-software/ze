@@ -57,6 +57,7 @@ func loadReservedIfaceNames() {
 	if tree == nil {
 		return
 	}
+	// enumeration: exempt (these two are the command roots this validator walks for reserved interface names, a policy list)
 	for _, root := range []string{"show", "clear"} {
 		rootNode := tree.Children[root]
 		if rootNode == nil {

@@ -40,6 +40,7 @@ const netnsTimeout = 30 * time.Second
 // These are the ip sub-command words that this package uses more than once.
 // They are part of ip's own grammar, not one proof's grammar. Their names show a
 // reader that every use has the same word.
+// enumeration: exempt (these are ip(8) subcommand words, named here because this package uses each more than once, not the CLI verb vocabulary)
 const (
 	ipNetns = "netns"
 	ipLink  = "link"

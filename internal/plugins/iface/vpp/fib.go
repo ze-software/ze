@@ -32,6 +32,7 @@ const (
 // Names are deliberately aligned with the netlink backend's protocol column
 // (bgp, static, dhcp, ra, ...) so an operator inspecting `show route`
 // sees the same vocabulary on either backend.
+// enumeration: exempt (these are VPP FIB source names, aligned with the netlink protocol column, not plugin names)
 var vppFibSrcNames = map[uint8]string{
 	0:  "special",
 	1:  "default-route",

@@ -165,6 +165,7 @@ type vmSuite struct {
 // test/ipsec/ipsec-teardown-leaves-nothing.ci asserts that the XFRM state and
 // policy tables are EMPTY after its daemons stop. RFC 4552 tests in test/ospfv3
 // program XFRM of their own.
+// enumeration: exempt (these are functional test suite names, not plugin names; the list being hand-written is its own defect, recorded in plan/journal/plugin-list-hardcoded.md)
 var vmSuites = []vmSuite{
 	{Name: "encode", Args: []string{bgpVerb, "encode", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},
 	{Name: "plugin", Args: []string{bgpVerb, "plugin", allTests}, Concurrency: scaledConcurrency, Namespace: guestRoot},

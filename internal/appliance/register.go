@@ -1,4 +1,9 @@
 // Design: docs/architecture/appliance/command-provider.md -- appliance command provider
+
+// codegen:skip -- the ze_setup personality wires this, from cmd/ze/setup_features_setup.go
+// under //go:build ze_setup. The universal composition root carries no tag, so naming it
+// there would link the installer commands into every ze build.
+
 package appliance
 
 import (

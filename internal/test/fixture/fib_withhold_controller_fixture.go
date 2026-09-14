@@ -28,6 +28,7 @@ import (
 // test reads would then say nothing about the withhold. The address is TEST-NET-2
 // and the device name is this scenario's own, so a sibling scenario running
 // beside it shares neither.
+// enumeration: exempt (these are kernel route protocol values this scenario installs, not plugin names)
 const (
 	fibControllerDevice    = "zefibc0"
 	fibControllerAddress   = "198.51.100.254/24"

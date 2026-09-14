@@ -389,6 +389,7 @@ func convertControl(selector, rest string) (Translation, bool) {
 		return Translation{}, false
 	}
 	var tb textbuf.Buffer
+	// enumeration: exempt (these are ExaBGP's own API control words, not the CLI verb vocabulary)
 	switch {
 	case len(fields) == 1 && fields[0] == "enable-ack":
 		return Translation{Local: LocalAckEnable}, true

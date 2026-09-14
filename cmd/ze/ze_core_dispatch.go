@@ -33,39 +33,35 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 
-	_ "github.com/ze-software/ze/internal/component/firewall/cli"
-	_ "github.com/ze-software/ze/internal/component/iface/cli"
-	_ "github.com/ze-software/ze/internal/component/sysctl/cli"
-
-	_ "github.com/ze-software/ze/internal/component/resolve/cli"
-
+	// Every package below is one the generated composition root CANNOT name, and
+	// each states why. `./le plugin imports check` finds a command owner that no
+	// blank import reaches, so a package added here without one of these reasons
+	// belongs in all.go instead.
+	//
 	// Routing-protocol CLI registration is gated per protocol in this same
 	// dispatch composition root; see dispatch_isis.go / dispatch_ospf.go
 	// (//go:build ze_core && ze_<proto>). With a protocol's tag off, its CLI
 	// imports drop from BOTH this root and the generated all.go, so the package
-	// unlinks (the two-composition-root reality this spec exists to handle).
+	// unlinks.
 
+	// config/yang/cli blank-imports plugin/all itself (tree.go), to reach every
+	// registered schema. The composition root naming it back is a cycle.
 	_ "github.com/ze-software/ze/internal/component/config/yang/cli"
-	_ "github.com/ze-software/ze/internal/component/plugin/cli"
+
+	// completion reaches plugin/all one hop away, through cli/client, and cycles
+	// for the same reason.
+	_ "github.com/ze-software/ze/internal/plugins/completion"
+
+	// traffic/cli and firewall/cli each own a ROOT whose name internal/test/cli
+	// also registers, for the ze-test suite of that name. ze-test imports
+	// plugin/all, so a generated import would put two roots of one name in that
+	// binary and MustRegisterRootHandler panics on the duplicate at init.
+	_ "github.com/ze-software/ze/internal/component/firewall/cli"
 	_ "github.com/ze-software/ze/internal/component/traffic/cli"
 
-	_ "github.com/ze-software/ze/internal/component/config/cli"
-	_ "github.com/ze-software/ze/internal/component/config/schema/cli"
-	_ "github.com/ze-software/ze/internal/component/config/storage/cli"
-
-	_ "github.com/ze-software/ze/internal/component/doctor"
-	_ "github.com/ze-software/ze/internal/plugins/completion"
-	_ "github.com/ze-software/ze/internal/plugins/crashes"
-	_ "github.com/ze-software/ze/internal/plugins/debug"
-	_ "github.com/ze-software/ze/internal/plugins/diag"
-	_ "github.com/ze-software/ze/internal/plugins/explain"
-	_ "github.com/ze-software/ze/internal/plugins/host"
-	_ "github.com/ze-software/ze/internal/plugins/init"
-	_ "github.com/ze-software/ze/internal/plugins/passwd"
-	_ "github.com/ze-software/ze/internal/plugins/signal"
-	_ "github.com/ze-software/ze/internal/plugins/skills"
-	_ "github.com/ze-software/ze/internal/plugins/support"
-
+	// aaa/all is a SECOND composition root, hand-maintained beside the generated
+	// one. It registers AAA backends rather than a command, so no discovery kind
+	// reaches it.
 	_ "github.com/ze-software/ze/internal/component/aaa/all"
 )
 

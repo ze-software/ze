@@ -20,6 +20,7 @@ const routeDisplayLimit = 1000
 // A = active (always for kernel routes), S = static, B = bgp,
 // C = connected (kernel), D = dynamic (non-static).
 func routeFlag(route iface.KernelRoute) (string, string) {
+	// enumeration: exempt (these are kernel route protocol names, not plugin names)
 	switch route.Protocol {
 	case "static":
 		return "A S", ""

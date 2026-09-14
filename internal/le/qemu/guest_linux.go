@@ -42,6 +42,7 @@ const (
 )
 
 // The iproute2 verbs a guest command vector applies to an object.
+// enumeration: exempt (these are the iproute2 verbs a guest command applies to an object, not the CLI verb vocabulary)
 const (
 	ipVerbAdd    = "add"
 	ipVerbDelete = "delete"

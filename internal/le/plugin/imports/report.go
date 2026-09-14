@@ -31,11 +31,12 @@ const (
 // carries. A run that found none of something has proven nothing about it,
 // which is why the count is published rather than implied.
 type Counts struct {
-	Plugins     int `json:"plugins"`
-	Schemas     int `json:"schemas"`
-	RPCs        int `json:"rpcs"`
-	Namespaces  int `json:"namespaces"`
-	GatedGroups int `json:"gated-groups"`
+	Plugins      int `json:"plugins"`
+	Schemas      int `json:"schemas"`
+	RPCs         int `json:"rpcs"`
+	Namespaces   int `json:"namespaces"`
+	RootHandlers int `json:"root-handlers"`
+	GatedGroups  int `json:"gated-groups"`
 }
 
 // CheckReport is what `le plugin imports check` answers.
@@ -90,5 +91,6 @@ func (c Counts) text() string {
 		Int(int64(c.Schemas)).Str(" schemas, ").
 		Int(int64(c.RPCs)).Str(" rpcs, ").
 		Int(int64(c.Namespaces)).Str(" namespaces, ").
+		Int(int64(c.RootHandlers)).Str(" cli commands, ").
 		Int(int64(c.GatedGroups)).Str(" gated groups").String()
 }

@@ -519,7 +519,7 @@ automatically.
 [ ] Owner package: register.go in internal/component/<owner>/cli (NOT cmd/ze) -- owner is cmd/ze-free
 [ ] register.go: registry.MustRegisterRootHandler(<name>, wrap(Run), Meta{...}) for `ze <name>` (registry-dispatched)
 [ ] register.go: registry.MustRegisterLocal(<path>, handler) for every `show X` shortcut
-[ ] Owner init() linked: blank import in cmd/ze/main.go (until the Phase 7 generated aggregator)
+[ ] Owner init() linked: run `./le repository generate`, which writes the blank import into internal/component/plugin/all
 [ ] If storage-dependent: root handler uses StorageAs(rctx); local shortcuts use registry.RuntimeStorage()
 [ ] No-owner / process-global only: stays in cmd/ze with RegisterRoot + main.go switch (allowlist)
 [ ] If online: YANG tree with ze:command extension

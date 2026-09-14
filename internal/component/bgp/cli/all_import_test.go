@@ -1,4 +1,4 @@
-package cli
+package cli_test
 
 import (
 	// Trigger plugin init() registrations needed by encode/decode tests.

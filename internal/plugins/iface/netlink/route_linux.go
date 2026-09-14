@@ -33,6 +33,7 @@ import (
 // names every value this map needs, so no key here has to be typed.
 //
 // Ze's own producer IDs are not here. protocolName asks rtproto first.
+// enumeration: exempt (these are the kernel's RTPROTO names from golang.org/x/sys/unix, not plugin names)
 var rtProtoNames = map[int]string{
 	unix.RTPROT_UNSPEC:   "unspec",
 	unix.RTPROT_REDIRECT: "redirect",

@@ -4,6 +4,13 @@
 // offline shortcuts with the importable command registry. This is the owner
 // package: the offline BGP tools CLI lives with internal/component/bgp, not
 // under cmd/ze.
+
+// codegen:skip -- ze-test registers a `bgp` SUITE root of its own
+// (internal/test/cli/register.go, registerCIRoot), and the ze-test binary imports
+// plugin/all. A generated blank import would put two `bgp` roots in that one
+// binary, and MustRegisterRootHandler panics on the duplicate at init, which takes
+// every functional suite down. cmd/ze/dispatch_bgp.go carries the import instead.
+
 package cli
 
 import (

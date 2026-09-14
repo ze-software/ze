@@ -125,9 +125,18 @@ imports it directly. `cmd/ze` keeps only no-owner / process-global commands.
 flow through `RuntimeContext` (heavy types as function values), never imported
 into the registry.
 
-**Linking:** owner `init()` runs because the package is blank-imported. Until the
-generated command-provider aggregator lands (Phase 7 of command-surface-ownership),
-the blank imports are hand-listed in `cmd/ze/main.go`.
+**Linking:** owner `init()` runs because the package is blank-imported, and the
+generated composition root `internal/component/plugin/all` writes that import.
+`internal/le/plugin/imports` discovers a command owner by its `command/registry`
+registrar call, so a new `internal/component/<x>/cli` is linked by
+`./le repository generate` and by nothing else. `./le plugin imports check`
+reports an owner no blank import reaches.
+
+`cmd/ze/ze_core_dispatch.go` still hand-imports five packages, each with its
+reason on the line: two that reach `plugin/all` and cannot be named there
+without a cycle, two whose root names a second binary also registers, and the
+hand-maintained AAA composition root. `docs/architecture/command-ownership.md`
+carries the table.
 
 **Pattern guidance:** `ai/patterns/cli-command.md` -- "Command
 Registration (BLOCKING)" section.

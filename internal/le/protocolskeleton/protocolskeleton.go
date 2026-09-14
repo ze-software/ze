@@ -33,6 +33,7 @@ const (
 // The protocol and module names the tables share. They are named because three
 // tables spell each one -- the manifest, the exception list and the selftest --
 // and a typo in one of the three would be invisible in the other two.
+// enumeration: exempt (these are protocol names the three skeleton tables share, not plugin names)
 const (
 	protoBGP  = "bgp"
 	protoBFD  = "bfd"

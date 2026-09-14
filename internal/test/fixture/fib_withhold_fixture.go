@@ -23,6 +23,7 @@ import (
 // The next-hop is on-link on a dummy device the scenario creates, because the
 // kernel refuses a route whose next-hop it cannot reach and the test would then
 // prove nothing about the withhold.
+// enumeration: exempt (these are kernel route protocol values this scenario installs, not plugin names)
 const (
 	fibWithholdDevice    = "zefibw0"
 	fibWithholdAddress   = "192.0.2.254/24"

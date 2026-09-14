@@ -28,7 +28,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"staticcheck-feature-matrix/check/part/6/of/6",
 		"repository tracked-build/check", "platform-vet/darwin/freebsd", "doc wiring",
 		"doc check/verify", "doc check/links", "repository/tree-check",
-		"plugin imports/check", "plugin declarations/check",
+		"plugin imports/check", "plugin declarations/check", "enumeration/check",
 		"yang glue/check", "feature-tags/check",
 		"doc check/templ-output", "vendor-web/check", "web-assets/check",
 		"docs-to-code/index-check", "rules/render-check", "rules/index-check",

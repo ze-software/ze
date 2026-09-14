@@ -464,12 +464,7 @@ func changedPaths(root, pathsFrom string) ([]string, error) {
 // fail-open branch could never run outside a test (ai/rules/evidence.md -- a
 // guard on a path the traffic does not take does not exist).
 func gitChangedPaths(root string) ([]string, error) {
-	queries := make([][]string, 0, 4)
-	queries = append(queries,
-		[]string{gitDiff, gitNameOnly, "-z"},
-		[]string{gitDiff, "--cached", gitNameOnly, "-z"},
-		[]string{"ls-files", "--others", "--exclude-standard", "-z"},
-	)
+	queries := workingTreeQueries()
 	baseline, err := greenBaseline(root)
 	if err != nil {
 		return nil, err
@@ -478,7 +473,40 @@ func gitChangedPaths(root string) ([]string, error) {
 	// queries above, so a scoped verify on a clean tree would test nothing in the
 	// package that commit changed.
 	queries = append(queries, []string{gitDiff, gitNameOnly, "-z", baseline, "HEAD"})
+	return runGitQueries(root, queries)
+}
 
+// errNoGreenBaseline says that no verify run has recorded a commit it proved.
+// The caller widens on it, so it is a widening reason rather than a failure.
+var errNoGreenBaseline = errors.New("no verify run has recorded a green commit")
+
+// workingTreeQueries are the three questions that answer what the WORKING TREE
+// changed against HEAD: unstaged, staged and untracked. They need no baseline,
+// so they answer in a checkout that has never recorded a green verify run.
+func workingTreeQueries() [][]string {
+	queries := make([][]string, 0, 4)
+	return append(queries,
+		[]string{gitDiff, gitNameOnly, "-z"},
+		[]string{gitDiff, "--cached", gitNameOnly, "-z"},
+		[]string{"ls-files", "--others", "--exclude-standard", "-z"},
+	)
+}
+
+// WorkingTreePaths answers every path this working tree changed against HEAD,
+// once each, in query order.
+//
+// It exists for a caller that must answer "what moved" when the package
+// selector has WIDENED, which is the selector saying it cannot tell. The
+// queries are the selector's own, so the two callers cannot come to ask git
+// different questions about one fact (ai/rules/principles.md).
+func WorkingTreePaths(root string) ([]string, error) {
+	return runGitQueries(root, workingTreeQueries())
+}
+
+// runGitQueries runs each query and collects its NUL-separated paths, once
+// each. A query that fails stops the run: a partial path list is a shorter
+// change set that reads exactly like a smaller change.
+func runGitQueries(root string, queries [][]string) ([]string, error) {
 	seen := map[string]bool{}
 	var paths []string
 	for _, query := range queries {
@@ -499,10 +527,6 @@ func gitChangedPaths(root string) ([]string, error) {
 	}
 	return paths, nil
 }
-
-// errNoGreenBaseline says that no verify run has recorded a commit it proved.
-// The caller widens on it, so it is a widening reason rather than a failure.
-var errNoGreenBaseline = errors.New("no verify run has recorded a green commit")
 
 // greenBaseline returns the commit recorded by the last PASSING verify. When no
 // such commit exists it returns errNoGreenBaseline naming the condition, and the

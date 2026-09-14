@@ -44,6 +44,7 @@ const (
 )
 
 // Action constants for configuration changes.
+// enumeration: exempt (these are the SDK's configuration-change actions, not the CLI verb vocabulary)
 const (
 	ActionCreate = "create"
 	ActionModify = "modify"

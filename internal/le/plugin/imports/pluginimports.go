@@ -1,13 +1,14 @@
 // Design: docs/architecture/command-ownership.md -- the generated composition root
 //
 // Package pluginimports generates internal/component/plugin/all, the product's
-// composition root, from what the tree REGISTERS. It scans for the four kinds
+// composition root, from what the tree REGISTERS. It scans for the five kinds
 // of package whose init() has to run for a feature to exist:
 //
 //   - a plugin: any register.go under a plugin search root
 //   - a schema package: a yang/ or schema/ register.go importing config/yang
 //   - an RPC command package: a file calling pluginserver.RegisterRPCs
 //   - an event namespace: a file calling .RegisterNamespace(
+//   - a CLI command owner: a file calling a command/registry registrar
 //
 // A package feature-gates.txt gates leaves the universal all.go for a generated
 // all_<tag>.go carrying that tag's //go:build line, so a build without the tag
@@ -23,11 +24,14 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"go/parser"
+	"go/token"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -178,6 +182,22 @@ func filterTagged(tags map[string]string, imps []string, byTag map[string][]stri
 			byTag[tag] = append(byTag[tag], imp)
 			continue
 		}
+		kept = append(kept, imp)
+	}
+
+	return kept
+}
+
+// firstNaming answers the imports of one category that no earlier category
+// already named, and records them in named.
+func firstNaming(named map[string]bool, imps []string) []string {
+	kept := make([]string, 0, len(imps))
+
+	for _, imp := range imps {
+		if named[imp] {
+			continue
+		}
+		named[imp] = true
 		kept = append(kept, imp)
 	}
 
@@ -469,14 +489,12 @@ func discoverRPCs(root, module string) ([]string, error) {
 }
 
 // discoverNamespaces finds the packages calling .RegisterNamespace() through any
-// import alias. A package already in the plugin list is left out, because it is
-// imported already.
-func discoverNamespaces(root, module string, plugins []string) ([]string, error) {
-	inPlugins := make(map[string]bool, len(plugins))
-	for _, p := range plugins {
-		inPlugins[p] = true
-	}
-
+// import alias.
+//
+// A package an earlier category already named is dropped by derive rather than
+// here, so one rule covers every pair of categories that can meet on one
+// package (internal/component/ping/cmd registers an RPC and a CLI command).
+func discoverNamespaces(root, module string) ([]string, error) {
 	var imports []string
 	seen := map[string]bool{}
 
@@ -505,7 +523,7 @@ func discoverNamespaces(root, module string, plugins []string) ([]string, error)
 		if relErr != nil {
 			return relErr
 		}
-		if inPlugins[imp] || seen[imp] {
+		if seen[imp] {
 			return nil
 		}
 		seen[imp] = true
@@ -522,6 +540,246 @@ func discoverNamespaces(root, module string, plugins []string) ([]string, error)
 	return imports, nil
 }
 
+// commandRegistrars are the calls that put a CLI command into
+// internal/component/command/registry: a root command, a local command path, a
+// local data command, or an offline fallback.
+//
+// Each is matched as a SELECTOR, with its leading dot, for two reasons. An
+// aliased import matches, and internal/component/plugin/register.go spells the
+// package cmdregistry. And the registry's own declarations do not match,
+// because "func RegisterLocal(" carries no dot.
+var commandRegistrars = []string{
+	".MustRegisterLocal(",
+	".MustRegisterLocalData(",
+	".MustRegisterLocalMeta(",
+	".MustRegisterOfflineFallback(",
+	".MustRegisterRootHandler(",
+	".RegisterLocal(",
+	".RegisterLocalData(",
+	".RegisterLocalMeta(",
+	".RegisterOfflineFallback(",
+	".RegisterRoot(",
+	".RegisterRootHandler(",
+}
+
+// callsCommandRegistrar reports whether path holds a CALL to a command
+// registrar, rather than a comment about one.
+//
+// A file that cannot be opened, or whose scan ends early, is an ERROR for the
+// reason fileHolds gives: answering false is indistinguishable from a file that
+// registers nothing, and it drops the command from the composition root.
+func callsCommandRegistrar(pathname string) (bool, error) {
+	f, err := os.Open(pathname) //nolint:gosec // a build tool reads the checkout it was pointed at
+	if err != nil {
+		return false, err
+	}
+	defer f.Close() //nolint:errcheck // read-only
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "//") {
+			continue
+		}
+		for _, call := range commandRegistrars {
+			if strings.Contains(line, call) {
+				return true, nil
+			}
+		}
+	}
+
+	return false, scanner.Err()
+}
+
+// pkgSkipsCodegen reports whether any non-test Go file of dir carries the
+// codegen:skip marker, which is the tree's one way of saying that the
+// composition root MUST NOT name this package.
+//
+// discoverPlugins asks the same question of the register.go it found, because a
+// plugin declares itself in exactly that file. A command owner has no such
+// file: the registrar call sits wherever the command lives, so the marker is
+// read over the whole package.
+func pkgSkipsCodegen(dir string) (bool, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false, err
+	}
+
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		skips, readErr := fileHolds(filepath.Join(dir, name), "codegen:skip")
+		if readErr != nil {
+			return false, readErr
+		}
+		if skips {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// compositionRootImporters answers every package that reaches the composition
+// root through module-internal imports, directly or through a chain of them.
+//
+// The composition root MUST NOT name one of these: all.go importing a package
+// that imports all.go is a cycle the compiler refuses.
+// internal/component/cli/client imports it to reach every registered schema, so
+// internal/plugins/completion, which builds its completion tree through that
+// client, is one hop away and stays hand-wired in cmd/ze.
+//
+// It is COMPUTED rather than declared by a marker, because a marker is a second
+// copy of what the import graph already states (ai/rules/principles.md). A
+// package that starts reaching the composition root is excluded with no file to
+// edit, and one that stops reaching it is generated again.
+//
+// EVERY READ FAILURE STOPS THE RUN, for the reason this package's header gives:
+// a file that parses as importing nothing cannot be told from a file the walk
+// could not read, and the consequence is a package the discovery wrongly
+// believes is safe to name.
+func compositionRootImporters(root, module string) (map[string]bool, error) {
+	importers := map[string][]string{}
+
+	err := filepath.WalkDir(filepath.Join(root, "internal"), func(pathname string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := d.Name()
+		if isTestTree(pathname) || d.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			return nil
+		}
+
+		imp, relErr := importPathOf(root, module, pathname)
+		if relErr != nil {
+			return relErr
+		}
+
+		fset := token.NewFileSet()
+		file, parseErr := parser.ParseFile(fset, pathname, nil, parser.ImportsOnly)
+		if parseErr != nil {
+			return parseErr
+		}
+		for _, spec := range file.Imports {
+			target, unquoteErr := strconv.Unquote(spec.Path.Value)
+			if unquoteErr != nil {
+				return unquoteErr
+			}
+			if !strings.HasPrefix(target, module+"/") {
+				continue
+			}
+			importers[target] = append(importers[target], imp)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var tb textbuf.Buffer
+	allPkg := tb.Str(module).Byte('/').Str(allDir).String()
+
+	// The queue is bounded by the number of packages in the tree: reaching
+	// guards every push, so a package enters it at most once.
+	reaching := map[string]bool{allPkg: true}
+	queue := []string{allPkg}
+	for len(queue) > 0 {
+		one := queue[0]
+		queue = queue[1:]
+		for _, importer := range importers[one] {
+			if reaching[importer] {
+				continue
+			}
+			reaching[importer] = true
+			queue = append(queue, importer)
+		}
+	}
+
+	return reaching, nil
+}
+
+// discoverRootHandlers finds the packages whose init() registers a CLI command
+// with internal/component/command/registry. Nothing else reaches such a package:
+// with no blank import it compiles, links nowhere and registers nothing, so
+// `ze <command>` answers "unknown command" while every gate stays green.
+//
+// The walk is NOT scoped by pluginDirs, and that is deliberate. pluginDirs
+// states where a PLUGIN is allowed to live, and a command owner legitimately
+// lives outside every one of those roots: internal/component/firewall/cli owns
+// `ze firewall` while the firewall plugin root is
+// internal/component/firewall/plugins. Scoping this kind by that policy would
+// pass over the owner and leave the command unregistered, which is the defect
+// this kind exists to close.
+//
+// internal/le is passed over because the product never links the tooling tree
+// (cmd/ze/ze_le_personality_test.go, TestNormalZeLinksNoInternalLe). A package
+// that reaches the composition root is passed over because naming it there
+// would cycle, and one marked codegen:skip because the tree has decided this
+// package is wired somewhere else. That marker carries two reasons today, and
+// each names a binary the generated import would break:
+//
+//   - another composition root owns it. The ze_setup, ze_distro, ze_analyze and
+//     ze_perf personalities each wire their command packages from a build-tagged
+//     file under cmd/ze, and the universal all.go carries no tag to keep them
+//     apart, so naming one there links that personality into every build.
+//   - a second binary registers the same ROOT NAME. ze-test blank-imports
+//     plugin/all and registers its own suite roots with MustRegisterRootHandler,
+//     which panics on a duplicate, so a generated import of the owner of `bgp`,
+//     `firewall`, `l2tp` or `traffic` stops ze-test at init.
+func discoverRootHandlers(root, module string, cycling map[string]bool) ([]string, error) {
+	var found []string
+	seen := map[string]bool{}
+
+	err := filepath.WalkDir(filepath.Join(root, "internal"), func(pathname string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		name := d.Name()
+		if isTestTree(pathname) || strings.Contains(filepath.ToSlash(pathname), "/internal/le/") ||
+			d.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			return nil
+		}
+
+		calls, readErr := callsCommandRegistrar(pathname)
+		if readErr != nil {
+			return readErr
+		}
+		if !calls {
+			return nil
+		}
+
+		imp, relErr := importPathOf(root, module, pathname)
+		if relErr != nil {
+			return relErr
+		}
+		if cycling[imp] || seen[imp] {
+			return nil
+		}
+		seen[imp] = true
+
+		skips, skipErr := pkgSkipsCodegen(filepath.Dir(pathname))
+		if skipErr != nil {
+			return skipErr
+		}
+		if skips {
+			return nil
+		}
+		found = append(found, imp)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	slices.Sort(found)
+
+	return found, nil
+}
+
 // imports is everything the composition root must blank-import, split into the
 // universal file and the per-tag groups.
 type imports struct {
@@ -531,6 +789,10 @@ type imports struct {
 	Schemas    []string
 	RPCs       []string
 	Namespaces []string
+	// RootHandlers are the CLI command owners: a package whose init() registers
+	// a command with internal/component/command/registry and which nothing else
+	// imports.
+	RootHandlers []string
 	// ByTag holds the gated imports, keyed by the build tag that gates them.
 	ByTag map[string][]string
 	// Tags is the manifest, which the constraint of a nested package reads.
@@ -549,6 +811,11 @@ func derive(root string) (imports, error) {
 		return imports{}, err
 	}
 
+	cycling, err := compositionRootImporters(root, module)
+	if err != nil {
+		return imports{}, err
+	}
+
 	plugins, err := discoverPlugins(root, module)
 	if err != nil {
 		return imports{}, err
@@ -561,20 +828,36 @@ func derive(root string) (imports, error) {
 	if err != nil {
 		return imports{}, err
 	}
-	namespaces, err := discoverNamespaces(root, module, plugins)
+	namespaces, err := discoverNamespaces(root, module)
+	if err != nil {
+		return imports{}, err
+	}
+	rootHandlers, err := discoverRootHandlers(root, module, cycling)
 	if err != nil {
 		return imports{}, err
 	}
 
+	// One package can answer two discoveries: internal/component/ping/cmd both
+	// registers RPCs and owns a CLI command. The blank import is the same line
+	// either way, so the first category to name it keeps it and the composition
+	// root carries it once.
+	named := map[string]bool{}
+	plugins = firstNaming(named, plugins)
+	schemas = firstNaming(named, schemas)
+	rpcs = firstNaming(named, rpcs)
+	namespaces = firstNaming(named, namespaces)
+	rootHandlers = firstNaming(named, rootHandlers)
+
 	byTag := map[string][]string{}
 
 	return imports{
-		Plugins:    filterTagged(tags, plugins, byTag),
-		Schemas:    filterTagged(tags, schemas, byTag),
-		RPCs:       filterTagged(tags, rpcs, byTag),
-		Namespaces: filterTagged(tags, namespaces, byTag),
-		ByTag:      byTag,
-		Tags:       tags,
+		Plugins:      filterTagged(tags, plugins, byTag),
+		Schemas:      filterTagged(tags, schemas, byTag),
+		RPCs:         filterTagged(tags, rpcs, byTag),
+		Namespaces:   filterTagged(tags, namespaces, byTag),
+		RootHandlers: filterTagged(tags, rootHandlers, byTag),
+		ByTag:        byTag,
+		Tags:         tags,
 	}, nil
 }
 
@@ -615,6 +898,15 @@ func allSource(in imports) []byte {
 	if len(in.RPCs) > 0 {
 		b.Str("\n\t// RPC command packages -- pluginserver.RegisterRPCs registration.\n")
 		for _, imp := range in.RPCs {
+			b.Str("\t_ \"").Str(imp).Str("\"\n")
+		}
+	}
+
+	// The CLI command owners come last: a command is dispatched after the
+	// schema and the plugin it reads are registered.
+	if len(in.RootHandlers) > 0 {
+		b.Str("\n\t// CLI command packages -- command/registry registration.\n")
+		for _, imp := range in.RootHandlers {
 			b.Str("\t_ \"").Str(imp).Str("\"\n")
 		}
 	}
@@ -869,11 +1161,12 @@ func expectedNames(owed []generated) map[string]bool {
 // counts answers what the verdict reports about one derivation.
 func counts(in imports) Counts {
 	return Counts{
-		Plugins:     len(in.Plugins),
-		Schemas:     len(in.Schemas),
-		RPCs:        len(in.RPCs),
-		Namespaces:  len(in.Namespaces),
-		GatedGroups: len(in.ByTag),
+		Plugins:      len(in.Plugins),
+		Schemas:      len(in.Schemas),
+		RPCs:         len(in.RPCs),
+		Namespaces:   len(in.Namespaces),
+		RootHandlers: len(in.RootHandlers),
+		GatedGroups:  len(in.ByTag),
 	}
 }
 

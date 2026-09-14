@@ -1,8 +1,6 @@
 // Design: docs/architecture/diagnostics/debug-filtering.md -- debug CLI registration
 // Related: debug.go -- verb-first set/delete/show/clear handlers
 
-// codegen:skip -- CLI commands wired via the command registry, not a runtime plugin.
-
 package debug
 
 import (

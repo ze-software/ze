@@ -110,10 +110,32 @@ The codegen (`internal/le/plugin/imports.Write`) scans the directory tree for:
 
 - Packages containing `yang.RegisterModule` calls -> adds to `all.go` schema imports
 - Packages containing `pluginserver.RegisterRPCs` calls -> adds to `all.go` RPC imports
+- Packages calling a `command/registry` registrar -> adds to `all.go` CLI command imports
 - `yang/` directories containing `.yang` files -> generates `embed.go` + `register.go`
 
 Because discovery is directory-based, copying a plugin folder in (or deleting it)
 and re-running codegen is all that's needed to wire (or unwire) the plugin.
+
+### The CLI command owner
+
+A package whose `init()` calls `registry.MustRegisterRootHandler`,
+`registry.RegisterRoot`, `registry.MustRegisterLocal` or any other
+`command/registry` registrar owns a command, and nothing else in the product
+imports it. Without a blank import it compiles, links nowhere and registers
+nothing: `ze <command>` answers "unknown command" while the build, the lint and
+every gate stay green. `./le plugin imports check` reports such a package, and
+the walk is deliberately NOT scoped by the plugin search roots, because a
+command owner legitimately lives outside every one of them.
+
+Three reasons stop the composition root from naming a command owner, and
+`cmd/ze/ze_core_dispatch.go` blank-imports those by hand with the reason beside
+each line:
+
+| Reason | How it is recognised | Example |
+|--------|----------------------|---------|
+| The package reaches `plugin/all` | computed from the import graph | `internal/component/config/yang/cli`, `internal/plugins/completion` |
+| Another composition root owns it | the `codegen:skip` marker and its reason | `internal/perf/cli` under `//go:build ze_perf` |
+| The package IS a composition root | its directory is named `all` | `internal/component/aaa/all` |
 
 ## YANG Container Merge
 
@@ -194,8 +216,8 @@ func init() {
 
 The package must be blank-imported (directly or transitively) from
 `internal/component/plugin/all/all.go`. The codegen scans for packages
-containing `pluginserver.RegisterRPCs` or `yang.RegisterModule` calls and
-generates the import list.
+containing `pluginserver.RegisterRPCs` or `yang.RegisterModule` calls, or a
+`command/registry` registrar call, and generates the import list.
 
 ## What the Removal Test Forbids
 

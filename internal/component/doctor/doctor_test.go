@@ -39,8 +39,6 @@ import (
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
-
-	_ "github.com/ze-software/ze/internal/component/plugin/all"
 )
 
 func TestMain(m *testing.M) {

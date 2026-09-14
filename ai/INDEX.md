@@ -322,6 +322,7 @@ disagree, the manifest is right and the row is stale.
 | `./le doc wiring` | `internal/le/doc/wiring.Answer` | the changed-file wiring, documentation, command and inventory gate |
 | `./le docs-to-code` | `internal/le/docstocode.Answer` | the two generated doc indexes, ai/DOCS-TO-CODE.md and its reverse ai/CODE-TO-DOCS.md: check either against the tree, or rewrite it |
 | `./le docvalid` | `internal/le/docvalid.Answer` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |
+| `./le enumeration` | `internal/le/enumeration.Answer` | no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself |
 | `./le evidence` | `internal/le/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
 | `./le feature-tags` | `internal/le/featuretags.Answer` | the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them |
 | `./le fs-persistence` | `internal/le/fspersistence.Answer` | daemon runtime state is persisted through the managed zefs store, never as a loose file a reimage would drop |
@@ -611,6 +612,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | spec status, spec metadata, spec closure, release bucket, immediate, pre-release, work not done, executive summary, session handoff, handover | `ai/rules/planning.md`, `docs/contributing/spec-workflow.md`, `plan/README.md`, `plan/TEMPLATE.md`, `plan/TEMPLATE-CLOSURE.md`, `./le spec status` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/repo-maintenance.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/repo-maintenance.md`, `ai/rules/writing.md`, `docs/contributing/documentation-testing.md`, `./le inventory`, `./le docvalid`, `./le docs-to-code` |
+| literal restates a registry, hardcoded plugin name list, copied key set, central enumeration, hand-called doctor check, enumeration exempt marker | `ai/rules/principles.md`, `./le enumeration check`, `internal/le/enumeration` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
 | command grammar, verb-first, command alias, deprecated alias, grammar gate | `ai/rules/cli.md` (Mechanical Enforcement), `./le cli-grammar`, `docs/architecture/cli/root-namespace-grammar.md` |
 | which verb, verb semantics, read-only verb, idempotent command, side effect, selector placement, narrowing versus shaping, least surprise | `docs/architecture/cli/command-verbs.md` |

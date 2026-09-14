@@ -485,6 +485,7 @@ func pluginBucketOf(group *pluginGroup) string {
 	}
 	text := strings.ToLower(strings.Join(append([]string{group.ID, group.Label},
 		append(append([]string{}, group.Roots...), group.Sources...)...), " "))
+	// enumeration: exempt (these are keyword substrings a text match uses to bucket a documentation group, not plugin names)
 	for _, rule := range []struct {
 		bucket string
 		tokens []string
