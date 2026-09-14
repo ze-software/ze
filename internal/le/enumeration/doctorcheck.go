@@ -39,6 +39,13 @@ const (
 	doctorCheckPrefix = "check"
 	// doctorDiagnosticType is the result every check answers.
 	doctorDiagnosticType = "diagnostic.Diagnostic"
+	// doctorCheckFloor is the least check functions checkDefinitions must
+	// resolve before the gate believes its two signs still match the component.
+	// The component declared 15 distinct check names on 2026-09-15 (18
+	// declarations, three of them twice for linux and !linux), so the floor
+	// fires on signs that resolve nothing rather than on a component that lost
+	// a check. A fixture test passes 0, as a fixture walk passes 0 to Check.
+	doctorCheckFloor = 8
 )
 
 // ErrNoDoctorRunner names a doctor package this gate could not read: the
@@ -49,10 +56,18 @@ const (
 // check, which is exactly what a fixed tree reports.
 var ErrNoDoctorRunner = errors.New("the doctor check runner was not found")
 
+// ErrFewDoctorChecks names a doctor package in which the two check signs
+// resolved fewer functions than the floor. It is an error for the reason
+// ErrNoDoctorRunner is: a renamed result type resolves zero checks, and zero
+// checks are zero hand-called checks, which is what a repaired component
+// answers.
+var ErrFewDoctorChecks = errors.New("the doctor package declares fewer check functions than the floor")
+
 // handCalledDoctorChecks answers every check function in the doctor component
 // that the runner reaches by writing its name out, and that no registration
-// names.
-func handCalledDoctorChecks(tree string) (Findings, error) {
+// names. checkFloor is the least check definitions the package must resolve:
+// the action passes doctorCheckFloor and a test over a fixture passes 0.
+func handCalledDoctorChecks(tree string, checkFloor int) (Findings, error) {
 	dir := filepath.Join(tree, filepath.FromSlash(doctorDir))
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -74,6 +89,10 @@ func handCalledDoctorChecks(tree string) (Findings, error) {
 	}
 
 	definitions := checkDefinitions(fset, files)
+	if len(definitions) < checkFloor {
+		return nil, fmt.Errorf("%w: %d in %s, below the floor of %d: the signs %q and %q resolve no check",
+			ErrFewDoctorChecks, len(definitions), doctorDir, checkFloor, doctorCheckPrefix, doctorDiagnosticType)
+	}
 	registered := registeredChecks(files)
 	runner, called, err := handCalls(files, definitions)
 	if err != nil {

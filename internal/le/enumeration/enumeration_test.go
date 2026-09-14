@@ -386,7 +386,7 @@ func TestCorporaMeetTheirFloors(t *testing.T) {
 // a check the runner reaches by name is reported, and one the registry names is
 // not.
 func TestHandCalledDoctorCheckIsReported(t *testing.T) {
-	found, err := handCalledDoctorChecks(filepath.Join("testdata", "doctor"))
+	found, err := handCalledDoctorChecks(filepath.Join("testdata", "doctor"), 0)
 	if err != nil {
 		t.Fatalf("read the fixture doctor package: %v", err)
 	}
@@ -414,7 +414,7 @@ func TestHandCalledDoctorCheckIsReported(t *testing.T) {
 // closed: a tree with no doctor runner refuses rather than reporting that no
 // check is hand-called, which is what a fixed tree reports.
 func TestDoctorRunnerRefusesAnUnreadablePackage(t *testing.T) {
-	_, err := handCalledDoctorChecks(filepath.Join("testdata", "plugin-names"))
+	_, err := handCalledDoctorChecks(filepath.Join("testdata", "plugin-names"), 0)
 	if !errors.Is(err, ErrNoDoctorRunner) {
 		t.Fatalf("a tree with no doctor package answered %v, want ErrNoDoctorRunner", err)
 	}
@@ -422,18 +422,35 @@ func TestDoctorRunnerRefusesAnUnreadablePackage(t *testing.T) {
 
 // TestHandCalledDoctorChecksOverTheCheckout proves the anchors still resolve in
 // the tree the gate is run over, and that the component stays repaired. A gate
-// whose anchor has been renamed refuses with ErrNoDoctorRunner rather than
-// answering an empty row set (TestDoctorRunnerRefusesAnUnreadablePackage), so
-// a nil error here is the anchor resolving. The component held about forty
-// hand-called checks when this gate landed and holds none since every check
-// registers from its owner (130c8c54d7), so a row here is a regression.
+// whose runner anchor has been renamed refuses with ErrNoDoctorRunner rather
+// than answering an empty row set (TestDoctorRunnerRefusesAnUnreadablePackage),
+// and one whose check signs no longer match any function refuses with
+// ErrFewDoctorChecks (TestDoctorCheckFloorFailsClosed), so a nil error here is
+// both anchors resolving. The component held about forty hand-called checks
+// when this gate landed and holds none since every check registers from its
+// owner (130c8c54d7), so a row here is a regression.
 func TestHandCalledDoctorChecksOverTheCheckout(t *testing.T) {
-	found, err := handCalledDoctorChecks(checkoutRoot(t))
+	found, err := handCalledDoctorChecks(checkoutRoot(t), doctorCheckFloor)
 	if err != nil {
 		t.Fatalf("read the doctor package: %v", err)
 	}
 	if len(found) != 0 {
 		t.Fatalf("%d doctor check(s) are reached by a hand-written call again:\n%s", len(found), found.Text())
+	}
+}
+
+// TestDoctorCheckFloorFailsClosed proves the second doctor anchor fails closed:
+// a run that resolved fewer check functions than the floor refuses rather than
+// answering that no check is hand-called. A rename of the result type every
+// check answers resolves zero definitions, and zero definitions are zero rows,
+// which is what a repaired component answers too.
+func TestDoctorCheckFloorFailsClosed(t *testing.T) {
+	_, err := handCalledDoctorChecks(checkoutRoot(t), 10_000)
+	if !errors.Is(err, ErrFewDoctorChecks) {
+		t.Fatalf("a floor above the check count answered %v, want ErrFewDoctorChecks", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "10000") {
+		t.Errorf("the refusal says %v, want the floor named", err)
 	}
 }
 
@@ -755,17 +772,21 @@ func TestDeadGatedMarkerIsReported(t *testing.T) {
 	}
 }
 
-// TestCheckDoesNotBlockOnAGatedRow is rule 4 through the action: a change set
-// whose only row is gated answers that row and exit 0, because the backlog
-// stays visible while the gate stops blocking on it.
+// TestCheckDoesNotBlockOnAGatedRow is rule 4 through the check's own scoping
+// and exit decision: a change set whose only row is gated answers that row and
+// exit 0, because the backlog stays visible while the gate stops blocking on
+// it. The change set is a fixture package rather than a real one, so a later
+// derivation of a real table cannot fail this test for a reason of its own.
 func TestCheckDoesNotBlockOnAGatedRow(t *testing.T) {
-	root := checkoutRoot(t)
-	// The package holds one table, the as-notation tokens, gated by the
-	// agreement test in internal/component/bgp/config.
-	publishScope(t, root, []string{"./internal/core/bgp/asn"})
-
-	report, code := checkReport(t)
-	if code != 0 {
+	found, err := Check("testdata", []string{"gated-closed"}, liveCorpora(t), 0)
+	if err != nil {
+		t.Fatalf("walk the fixture: %v", err)
+	}
+	report, err := inChangeSet(found, changed.ScopeReport{Packages: []string{"./gated-closed"}}, noWorkingTree)
+	if err != nil {
+		t.Fatalf("scope the findings: %v", err)
+	}
+	if code := report.exitCode(); code != 0 {
 		t.Fatalf("the check answered %d over a change set holding only a gated row, want 0:\n%s", code, report.Text())
 	}
 	gated := ofKind(report.Findings, KindGated)
@@ -790,5 +811,57 @@ func TestGatedMarkerOnAUnitThatAlsoRestatesARegistry(t *testing.T) {
 	}
 	if markers := ofKind(found, KindMarker); len(markers) != 0 {
 		t.Fatalf("a marker that gated a row is reported as misused:\n%s", found.Text())
+	}
+}
+
+// rowsIn answers the rows of one kind whose file sits in the package directory
+// dir of a fixture tree.
+func rowsIn(found Findings, kind, dir string) Findings {
+	kept := make(Findings, 0, len(found))
+	for _, finding := range ofKind(found, kind) {
+		if filepath.ToSlash(filepath.Dir(finding.File)) == dir {
+			kept = append(kept, finding)
+		}
+	}
+	return kept
+}
+
+// TestABareGateResolvesInTheUnitsOwnPackage proves a bare `gated by TestX` is
+// checked against the _test.go files of the marked unit's own package and
+// nowhere else. The fixture declares TestSpeedsMatchTheModel in own/ and in
+// other/: the bare marker in own/ is gated, and the bare marker in bare/ is a
+// finding, because a test of that name in another package reads another table
+// (TestParsedNamesMatchTheModel is declared in eight packages of the checkout,
+// and a gate keyed on the name alone let one package's test gate another's).
+func TestABareGateResolvesInTheUnitsOwnPackage(t *testing.T) {
+	found := fixtureFindings(t, "gated-package")
+	if gated := rowsIn(found, KindGated, "own"); len(gated) != 1 {
+		t.Fatalf("want own/speeds.go gated by the test its own package declares, got:\n%s", found.Text())
+	}
+	if literals := rowsIn(found, KindLiteral, "bare"); len(literals) != 1 {
+		t.Fatalf("want bare/rates.go a finding, because only other packages declare its test, got:\n%s", found.Text())
+	}
+	markers := rowsIn(found, KindMarker, "bare")
+	if len(markers) != 1 || !strings.Contains(markers[0].Detail, "bare") {
+		t.Fatalf("want the bare/ marker reported naming the package it was checked in, got:\n%s", found.Text())
+	}
+}
+
+// TestASpelledGateNamesItsPackage proves a cross-package gate is spelled
+// `gated by <dir>:TestX`, with the directory relative to the checkout, and that
+// it gates nothing when that directory declares no such test, whatever the
+// other packages declare.
+func TestASpelledGateNamesItsPackage(t *testing.T) {
+	found := fixtureFindings(t, "gated-package")
+	gated := rowsIn(found, KindGated, "spelled")
+	if len(gated) != 1 || !strings.Contains(gated[0].Detail, "gated by other:TestSpeedsMatchTheModel") {
+		t.Fatalf("want spelled/modes.go gated by other:TestSpeedsMatchTheModel, got:\n%s", found.Text())
+	}
+	if literals := rowsIn(found, KindLiteral, "wrong"); len(literals) != 1 {
+		t.Fatalf("want wrong/levels.go a finding, because nowhere/ declares no test, got:\n%s", found.Text())
+	}
+	markers := rowsIn(found, KindMarker, "wrong")
+	if len(markers) != 1 || !strings.Contains(markers[0].Detail, "nowhere") {
+		t.Fatalf("want the wrong/ marker reported naming the package it was checked in, got:\n%s", found.Text())
 	}
 }

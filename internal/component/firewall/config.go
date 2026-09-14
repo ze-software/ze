@@ -937,7 +937,7 @@ var byteRateMultiplier = map[string]uint64{
 // four words, because a pattern is the only way YANG can constrain half of a
 // string. That is the copy this table is checked against
 // (config_rate_test.go).
-// enumeration: gated by TestLimitUnitsMatchTheModel
+// enumeration: gated by internal/plugins/anomaly/shape:TestLimitUnitsMatchTheModel
 var rateUnitSeconds = map[string]uint64{
 	"second": 1,
 	"minute": 60,

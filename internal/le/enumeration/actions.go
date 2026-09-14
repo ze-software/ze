@@ -86,10 +86,7 @@ func runCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	if findings, _ := report.Findings.split(); len(findings) > 0 {
-		return report, 1
-	}
-	return report, 0
+	return report, report.exitCode()
 }
 
 // runReport is the `le enumeration report` action. It answers every row in the
@@ -275,7 +272,7 @@ func walkTree(tree string, corpora []Corpus, floor int) (Findings, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	handCalled, err := handCalledDoctorChecks(tree)
+	handCalled, err := handCalledDoctorChecks(tree, doctorCheckFloor)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

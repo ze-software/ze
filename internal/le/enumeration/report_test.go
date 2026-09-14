@@ -94,3 +94,18 @@ func TestTextListsGatedRowsAfterTheFindings(t *testing.T) {
 		t.Errorf("a run holding only gated rows should answer OK and still list them:\n%s", onlyGated)
 	}
 }
+
+// TestTheRemedySaysWhatTheGateVerifiesOfAGatedRow proves a reader is told the
+// limit of a gated row: the gate checks that the named test is declared in
+// the package the marker resolves to, and never that the test reads the leaf,
+// so a gated row is proved by its test and not by the gate. It also proves the
+// remedy shows the spelling for a test in another package.
+func TestTheRemedySaysWhatTheGateVerifiesOfAGatedRow(t *testing.T) {
+	text := Findings{{Kind: KindGated, File: "internal/a/b.go", Line: 20, Symbol: "speeds",
+		Corpus: "YANG enumerations", Detail: "holds every value of the enumeration at ze-x/y, gated by TestSpeedsMatchTheModel"}}.Text()
+	for _, want := range []string{"only that", "declared", "not that it reads the leaf", "gated by <dir>:TestX"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the remedy does not say %q:\n%s", want, text)
+		}
+	}
+}

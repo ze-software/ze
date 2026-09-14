@@ -41,7 +41,11 @@
 // the same accounting as an exemption, plus two rules of its own: it is honored
 // only on a closed-corpus row, because a registry copy derives from the
 // registry and no test makes it legitimate, and the test it names must be
-// declared in a _test.go under the walked roots.
+// declared in a _test.go of the marked unit's own package. A test in another
+// package is spelled with its directory, `gated by internal/component/bgp/config:TestX`,
+// because one test name is declared in many packages and each reads its own
+// table. The gate verifies that the test is declared there and nothing more:
+// whether it reads the leaf the row names is what a reader checks.
 
 package enumeration
 
@@ -85,10 +89,12 @@ var markerRe = regexp.MustCompile(`enumeration:\s*(exempt|gated by)`)
 // markerWordGated is the submatch markerRe answers for a gated marker.
 const markerWordGated = "gated by"
 
-// markerTestRe reads the test name a gated marker opens with. A Go test
-// function is `Test` followed by an identifier, and the walk then checks that a
-// _test.go declares it.
-var markerTestRe = regexp.MustCompile(`^\s*(Test[A-Za-z0-9_]*)\b`)
+// markerTestRe reads the test a gated marker opens with: a Go test name, which
+// is `Test` followed by an identifier, and before it an optional package
+// directory and a colon. A bare name is checked against the _test.go files of
+// the marked unit's own package; a spelled one, `internal/component/bgp/config:TestX`,
+// against the directory it names, relative to the checkout.
+var markerTestRe = regexp.MustCompile(`^\s*(?:([A-Za-z0-9_./-]+):)?(Test[A-Za-z0-9_]*)\b`)
 
 // testDeclRe reads the test functions one _test.go declares, so a gated marker
 // can be checked against the tests that exist without parsing every test file.
@@ -145,7 +151,11 @@ type scan struct {
 	// dead marker apart from a live one.
 	matched map[string]bool
 	// tests holds every test function a _test.go under the walked roots
-	// declares, which is what a gated marker's test name is checked against.
+	// declares, keyed by testKey: the package directory AND the name. A gated
+	// marker is checked against the tests of one package, because one name is
+	// declared in many: TestParsedNamesMatchTheModel reads traffic's table in
+	// internal/component/traffic and firewall's in internal/component/firewall,
+	// and keyed on the name alone, deleting one left its rows gated by the other.
 	tests map[string]bool
 	// walkFound is what the walk itself reports, apart from the copies: a
 	// marker that states no reason is a finding wherever it stands.
@@ -232,33 +242,40 @@ func (s *scan) walk(tree, root string) error {
 		if !strings.HasSuffix(path, ".go") {
 			return nil
 		}
-		if strings.HasSuffix(path, "_test.go") {
-			return s.readTestDecls(path)
-		}
 		rel, relErr := filepath.Rel(tree, path)
 		if relErr != nil {
 			return relErr
 		}
-		s.read++
 		slashed := filepath.ToSlash(rel)
 		pkgDir := pathpkg.Dir(slashed)
+		if strings.HasSuffix(path, "_test.go") {
+			return s.readTestDecls(path, pkgDir)
+		}
+		s.read++
 		s.files[pkgDir] = append(s.files[pkgDir], slashed)
 		return nil
 	})
 }
 
-// readTestDecls records the test functions one _test.go declares. The file is
-// read as text rather than parsed, because the walk covers thousands of test
-// files and a declaration line is all a gated marker is checked against.
-func (s *scan) readTestDecls(path string) error {
+// readTestDecls records the test functions one _test.go declares, under the
+// package directory it sits in. The file is read as text rather than parsed,
+// because the walk covers thousands of test files and a declaration line is
+// all a gated marker is checked against.
+func (s *scan) readTestDecls(path, pkgDir string) error {
 	text, err := os.ReadFile(path) //nolint:gosec // G304: the walk names the _test.go it found under the product roots; reading it is the gate
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
 	}
 	for _, match := range testDeclRe.FindAllSubmatch(text, -1) {
-		s.tests[string(match[1])] = true
+		s.tests[testKey(pkgDir, string(match[1]))] = true
 	}
 	return nil
+}
+
+// testKey names one test in one package, which is the spelling a
+// cross-package gated marker uses.
+func testKey(pkgDir, name string) string {
+	return pkgDir + ":" + name
 }
 
 // skipDir answers the directories a product walk never enters. Generated
@@ -477,43 +494,53 @@ func (s *scan) readMarkers(fset *token.FileSet, file *ast.File, rel string) {
 }
 
 // readGatedMarker records one gated marker, or reports it where it stands when
-// the name after `gated by` is not a declared Go test.
+// the name after `gated by` is not a Go test declared in the package it is
+// checked against.
 //
 // The walk has read every _test.go under the roots before any package is
-// judged, so s.tests is complete here. A marker naming a test nobody wrote
-// gates nothing: the row it stands on stays a finding, and the marker is
-// reported beside it naming what it asked for.
+// judged, so s.tests is complete here. A bare name is checked in the marked
+// unit's own package directory; a spelled `dir:TestX` in the directory it
+// names. A marker naming a test that package does not declare gates nothing:
+// the row it stands on stays a finding, and the marker is reported beside it
+// naming what it asked for and where it looked.
 func (s *scan) readGatedMarker(rel string, line int, tail string) {
-	test := markerTest(tail)
+	dir, test := markerTest(tail)
 	if test == "" {
 		s.walkFound = append(s.walkFound, Finding{
 			Kind:   KindMarker,
 			File:   rel,
 			Line:   line,
-			Detail: "the marker names no Go test, so it gates nothing: write `enumeration: gated by TestX`, where TestX reads the enumeration at the leaf the row names",
+			Detail: "the marker names no Go test, so it gates nothing: write `enumeration: gated by TestX`, where TestX reads the enumeration at the leaf the row names, or `gated by <dir>:TestX` when TestX is declared in another package",
 		})
 		return
 	}
-	if !s.tests[test] {
+	reference := test
+	if dir == "" {
+		dir = pathpkg.Dir(rel)
+	} else {
+		reference = testKey(dir, test)
+	}
+	if !s.tests[testKey(dir, test)] {
 		s.walkFound = append(s.walkFound, Finding{
 			Kind:   KindMarker,
 			File:   rel,
 			Line:   line,
-			Detail: "the marker names " + test + ", which no _test.go under the walked roots declares, so it gates nothing",
+			Detail: "the marker names " + test + ", which no _test.go in " + dir + " declares, so it gates nothing: a test in another package is spelled `gated by <dir>:" + test + "`",
 		})
 		return
 	}
-	s.markers[markerKey(rel, line)] = markerSite{file: rel, line: line, gated: true, test: test}
+	s.markers[markerKey(rel, line)] = markerSite{file: rel, line: line, gated: true, test: reference}
 }
 
-// markerTest answers the test name a gated marker opens with, or the empty
-// string when what follows `gated by` is not the name of a Go test function.
-func markerTest(tail string) string {
+// markerTest answers the package directory and the test name a gated marker
+// opens with. The directory is empty when the marker is bare, and the name is
+// empty when what follows `gated by` is not the name of a Go test function.
+func markerTest(tail string) (dir, name string) {
 	match := markerTestRe.FindStringSubmatch(tail)
 	if match == nil {
-		return ""
+		return "", ""
 	}
-	return match[1]
+	return match[1], match[2]
 }
 
 // markerReason answers the parenthesised reason that follows a marker, or the

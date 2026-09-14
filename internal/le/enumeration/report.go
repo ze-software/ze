@@ -76,6 +76,16 @@ func (r CheckReport) Text() string {
 	return tb.Str(r.Findings.Text()).String()
 }
 
+// exitCode is what check answers the shell for this report: 1 on a finding,
+// 0 on none. A gated row is not a finding, so a report holding only gated rows
+// exits 0 while still listing them.
+func (r CheckReport) exitCode() int {
+	if findings, _ := r.Findings.split(); len(findings) > 0 {
+		return 1
+	}
+	return 0
+}
+
 // Findings is the whole answer of one run.
 type Findings []Finding
 
@@ -207,8 +217,13 @@ func (f Findings) Text() string {
 	tb.Str("declaration and the model is the copy: an agreement test in the owning package\n")
 	tb.Str("loads the module, reads the enumeration at the leaf the row names and compares\n")
 	tb.Str("both ways. Mark the table `enumeration: gated by TestX`, naming that test, and\n")
-	tb.Str("the row stays listed here while check stops blocking on it. The marker is\n")
-	tb.Str("legitimate only where the Go side carries such a fact; a plain copy of the model\n")
-	tb.Str("derives from the model, and a gated marker on a registry copy is itself a finding.\n")
+	tb.Str("the row stays listed here while check stops blocking on it. A bare TestX must be\n")
+	tb.Str("declared in the table's own package; a test in another package is spelled\n")
+	tb.Str("`enumeration: gated by <dir>:TestX`, with the directory relative to the checkout.\n")
+	tb.Str("The gate verifies only that the test is declared in that package,\n")
+	tb.Str("not that it reads the leaf: a gated row is proved by its test, never by the gate.\n")
+	tb.Str("The marker is legitimate only where the Go side carries such a fact; a plain\n")
+	tb.Str("copy of the model derives from the model, and a gated marker on a registry copy\n")
+	tb.Str("is itself a finding.\n")
 	return tb.String()
 }

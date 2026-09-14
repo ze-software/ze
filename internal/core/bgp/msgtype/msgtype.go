@@ -43,7 +43,7 @@ const (
 //
 // Index 0 is the empty string: RFC 4271 defines no type 0, so no name is owed
 // for one, and FromText refuses an empty name for that reason.
-// enumeration: gated by TestMessageTypeNamesMatchTheYANGModel
+// enumeration: gated by internal/component/bgp/plugins/cmd/raw:TestMessageTypeNamesMatchTheYANGModel
 var typeNames = [...]string{
 	TypeOPEN:         "open",
 	TypeUPDATE:       "update",

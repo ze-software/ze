@@ -60,7 +60,7 @@ const (
 // The config tokens that name each notation. They are the enum values of the
 // `as-notation` leaf in internal/component/bgp/yang/ze-bgp-conf.yang. They are
 // also the names RFC 5396 Section 2 gives the three schemes.
-// enumeration: gated by TestASNotationTokensMatchTheYANGModel
+// enumeration: gated by internal/component/bgp/config:TestASNotationTokensMatchTheYANGModel
 const (
 	TokenPlain   = "asplain"
 	TokenDot     = "asdot"
