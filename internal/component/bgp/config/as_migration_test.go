@@ -24,10 +24,18 @@ import (
 // rather than the group's. The third peer is outside the group and MUST carry neither, so
 // a group leaf cannot leak to a peer that never inherited it.
 //
-// VALIDATES: AC-8, RFC7705-4.2-1, and AC-7's configured half: each migrating peer resolves
-// as iBGP whichever of the two ASNs its remote-as names.
-// No `RFC requirement:` tag is carried: the summary is parked at rfc/pending/rfc7705.md,
-// so the id is unknown to `./le rfc check` (internal/le/rfc/check_core.go) until enrolment.
+// RFC requirement: RFC7705-4.2-1 positive -- the Section 4.2 migration AS is configurable
+// on a per-neighbor-group basis and on a per-neighbor basis: the group's `migration` leaf
+// reaches a peer that names none, and a peer that names `migration` of its own resolves
+// with the value it named.
+// RFC requirement: RFC7705-4.2-1 negative -- the group's `migration` leaf reaches neither a
+// peer outside the group, whose MigrationAS stays zero and whose session stays external,
+// nor a peer that states `migration` of its own. Without this arm the positive arm would
+// pass against code that put every peer on one migration AS, which is configurability on no
+// basis at all.
+//
+// VALIDATES: AC-8, and AC-7's configured half: each migrating peer resolves as iBGP
+// whichever of the two ASNs its remote-as names.
 // PREVENTS: the leaf being peer-only, a group value overwriting a peer's own choice, and a
 // group value reaching a peer outside the group.
 func TestPeersFromConfigTree_ASMigrationPerNeighborGroup(t *testing.T) {

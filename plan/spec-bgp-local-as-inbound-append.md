@@ -18,7 +18,7 @@ append that ASN to the AS_PATH of routes RECEIVED from that neighbor: "The
 router SHOULD append the configured 'Local AS' ASN in the AS_PATH attribute
 before installing the route or advertising the UPDATE to an iBGP neighbor." Ze
 does not do it. Every AS_PATH write site is gated on an eBGP DESTINATION, so
-the requirement (`RFC7705-3.3-9` in `rfc/pending/rfc7705.md`) is an
+the requirement (`RFC7705-3.3-9` in `rfc/short/rfc7705.md`) is an
 unimplemented SHOULD, and it is why the `no-prepend` enum of `local-options`
 suppresses nothing.
 
@@ -51,8 +51,8 @@ meets it (`plan/README.md`).
   → Constraint: a tunable defaults to a YANG leaf, and every node declares `description` plus `ze:help`. Applied here to the EXISTING `as-path-prepend` and `local-options` texts, whose prose this spec corrects rather than extends.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/pending/rfc7705.md` - the parked summary; `rfc/short/rfc7705.md` does not exist yet
-  → Constraint: enrolment of RFC 7705 belongs to `plan/immediate/spec-bgp-as-migration.md`. This spec adds no `rfc/short/` row and no `RFC requirement:` tag, because `./le rfc check` answers "unknown RFC requirement" until that spec lands. The seam is: that spec owns the LEDGER, this spec owns the RECIPE and the defects under it.
+- [ ] `rfc/short/rfc7705.md` - the enrolled summary, returned from `rfc/pending/` on 2026-09-14
+  → Constraint: enrolment of RFC 7705 belonged to `plan/immediate/spec-bgp-as-migration.md` and is done. `RFC7705-3.3-9` is a SHOULD, so it is outside the gated set and this spec still adds no `RFC requirement:` tag for it. The seam is unchanged: that spec owned the LEDGER, this spec owns the RECIPE and the defects under it.
 - [ ] `rfc/short/rfc7947.md` - route server transparency
   → Constraint: Section 2.2.2.1 forbids a route server from modifying AS_PATH "in any other way", which is wider than the prepend it names. An inbound append on a route-server path is inside that prohibition, and RFC 7705 never mentions route servers, so the interaction is ze's to settle.
 

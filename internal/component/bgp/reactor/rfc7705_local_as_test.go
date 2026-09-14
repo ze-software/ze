@@ -18,11 +18,9 @@
 // The tests below read the AS_PATH each destination actually receives off the
 // forward rail, because that is the only place the difference exists. The
 // requirement ids are RFC7705-3.3-2 and -3.3-3 (No Prepend Inbound) and
-// RFC7705-3.3-4 and -3.3-5 (Replace Old AS), in the parked summary
-// rfc/pending/rfc7705.md. No `RFC requirement:` tag is carried yet: the summary
-// is not in rfc/short/, so a tag would be an unknown id and would fail
-// `./le rfc check` (internal/le/rfc/check_core.go). Enrolment belongs to
-// plan/spec-bgp-as-migration.md, and the tags land with it.
+// RFC7705-3.3-4 and -3.3-5 (Replace Old AS), declared by rfc/short/rfc7705.md.
+// Each of the four carries an `RFC requirement:` tag in both polarities on the
+// test below that reads it off the forward rail.
 package reactor
 
 import (
@@ -327,6 +325,21 @@ func makeLocalASPeer(t *testing.T, topo localASTopology, ctx *bgpctx.EncodingCon
 // The peer beside it carries the same local-as with no option and receives both
 // ASNs, so the assertion cannot pass on a rail that prepends nothing.
 //
+// RFC requirement: RFC7705-3.3-4 positive -- a destination carrying "Replace Old
+// AS" receives the AS_PATH 65010 65002, in which the globally configured AS
+// number 65000 does not appear.
+// RFC requirement: RFC7705-3.3-4 negative -- the destination beside it, carrying
+// the same "Local AS" and no option, receives 65010 65000 65002, so the globally
+// configured AS number IS appended without the option. Without this arm the
+// positive arm would pass against code that never appended it to anything.
+// RFC requirement: RFC7705-3.3-5 positive -- the same replace-as destination
+// receives 65010 65002 and nothing else, so the "Local AS" value is the only AS
+// number this speaker appends toward it.
+// RFC requirement: RFC7705-3.3-5 negative -- the no-option destination's
+// 65010 65000 65002 has this speaker appending two AS numbers, so "only the
+// configured 'Local AS' ASN value" is a consequence of the option rather than of
+// a speaker that appends one AS number whatever it is configured with.
+//
 // VALIDATES: RFC7705-3.3-4 and RFC7705-3.3-5 on the wire, against the base
 // two-ASN form of the same section.
 // PREVENTS: replace-as losing its meaning, and the base local-as prepend losing
@@ -364,7 +377,22 @@ func TestLocalASReplaceASSendsOnlyTheLocalAS(t *testing.T) {
 //   - the peer's own outbound path, which the option does not govern and which
 //     therefore keeps the base two-ASN form.
 //
-// VALIDATES: RFC7705-3.3-2 and RFC7705-3.3-3.
+// RFC requirement: RFC7705-3.3-2 positive -- the source peer carries "No Prepend
+// Inbound", and the AS_PATH the iBGP neighbor receives for that peer's route
+// holds the source AS alone: the "Local AS" value 65010 is absent from it.
+// RFC requirement: RFC7705-3.3-2 negative -- in the same forward run, a
+// destination that carries the option itself still receives the base form
+// 65010 65000 65002, so the "Local AS" value IS appended on the outbound rail
+// the option does not govern. Without this arm the positive arm would pass
+// against code that never appended a "Local AS" value to anything.
+// RFC requirement: RFC7705-3.3-3 positive -- the eBGP neighbor peering with the
+// globally configured AS number receives 65000 65002, so that AS number is
+// appended as normal for a route learned from the no-prepend peer.
+// RFC requirement: RFC7705-3.3-3 negative -- the iBGP neighbor in the same run
+// receives 65002 alone, so the globally configured AS number is NOT appended
+// toward an internal neighbor. Without this arm the positive arm would pass
+// against code that appended it to every destination.
+//
 // PREVENTS: no-prepend acting on the outbound rail, which is what made it a
 // second spelling of replace-as, and an inbound rewrite appearing later.
 func TestLocalASNoPrependLeavesEveryOutboundPathAlone(t *testing.T) {

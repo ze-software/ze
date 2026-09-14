@@ -85,7 +85,7 @@ and the Section 4.2 four are that spec's.
   → Decision: choosing to leave a MUST unimplemented, or classifying it `{gap}` / `{not-applicable}`, is Thomas's call. Making Ze more conformant needs no permission. This spec's open axis A-1 is therefore a question to ask, not a choice to make.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/full/rfc7705.txt` - AS migration mechanisms and their effect on AS_PATH. The implementation summary is written but parked at `rfc/pending/rfc7705.md`, out of `rfc/short/` until `plan/immediate/spec-bgp-as-migration.md` enrols it; read the source text meanwhile.
+- [ ] `rfc/full/rfc7705.txt` - AS migration mechanisms and their effect on AS_PATH. The implementation summary is enrolled at `rfc/short/rfc7705.md` since 2026-09-14, and every Section 3.3 MUST it declares carries a tagged test in both polarities.
   → Constraint: Section 3.3 separates "No Prepend Inbound" (inbound, `RFC7705-3.3-2` and `RFC7705-3.3-3`) from "Replace Old AS" (outbound, `RFC7705-3.3-4` and `RFC7705-3.3-5`). They are not two spellings of one thing.
   → Constraint: `RFC7705-3.3-1` requires both mechanisms to be configurable per neighbour or per neighbour group, which the `session` container already satisfies by inheritance.
 - [ ] `rfc/short/rfc4271.md` - UPDATE format, eBGP AS_PATH prepend
@@ -158,7 +158,7 @@ and the Section 4.2 four are that spec's.
 - `PeerSettings.LocalASNoPrepend` and `PeerSettings.LocalASReplaceAS` keep their names, so config parsing is unchanged whatever A-1 decides.
 - `peerForwardFacts` is the precompute boundary; anything the encoder needs must land there, not be re-derived per destination.
 - `wireu.RewriteASPathDual` and `wireu.RewriteASPath` are unchanged: this spec changes which is called, not what either does.
-- The parked summary at `rfc/pending/rfc7705.md` supplies the requirement IDs the new tests will tag; it returns to `rfc/short/` when `plan/immediate/spec-bgp-as-migration.md` enrols the RFC.
+- The enrolled summary at `rfc/short/rfc7705.md` supplies the requirement IDs the tests tag; `plan/immediate/spec-bgp-as-migration.md` returned it from `rfc/pending/` and enrolled the RFC on 2026-09-14.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |

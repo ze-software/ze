@@ -1,0 +1,203 @@
+{
+  "rfc": "rfc7705",
+  "records": [
+    {
+      "rid": "RFC7705-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup",
+      "unit-sha": "5104e0f911f439cc",
+      "claim-sha": "77d4d43e34b1e05f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
+      "producer-sha": "6f7cf0e3f1e664ed",
+      "break": "body of parsePeerSettings replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup",
+      "unit-sha": "5104e0f911f439cc",
+      "claim-sha": "3760404c5ead3e35",
+      "route": "revert",
+      "producer": "internal/component/bgp/config/resolve.go::ResolveBGPTree",
+      "producer-sha": "7f64166a642fa608",
+      "break": "body of ResolveBGPTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone",
+      "unit-sha": "172baf847812701e",
+      "claim-sha": "ece62d20b4364503",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
+      "producer-sha": "015180dd93c516f4",
+      "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone",
+      "unit-sha": "172baf847812701e",
+      "claim-sha": "174aebbf6aae1ad8",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone",
+      "unit-sha": "172baf847812701e",
+      "claim-sha": "ff6be918c0ebe94b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone",
+      "unit-sha": "172baf847812701e",
+      "claim-sha": "4b29cb25c7bdc043",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
+      "producer-sha": "015180dd93c516f4",
+      "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS",
+      "unit-sha": "df81e96bb4ed7e9a",
+      "claim-sha": "53dd2895de837de7",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS",
+      "unit-sha": "df81e96bb4ed7e9a",
+      "claim-sha": "2b2b39f17df777d3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS",
+      "unit-sha": "df81e96bb4ed7e9a",
+      "claim-sha": "d596998cf0270100",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS",
+      "unit-sha": "df81e96bb4ed7e9a",
+      "claim-sha": "f8e5f518d204342a",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/as_migration_test.go::TestPeersFromConfigTree_ASMigrationPerNeighborGroup",
+      "unit-sha": "4350b220418a59f4",
+      "claim-sha": "705ef34f2d7bbf09",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::setMigrationAS",
+      "producer-sha": "4ffb54e6b3eb65e6",
+      "break": "body of setMigrationAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/config/as_migration_test.go::TestPeersFromConfigTree_ASMigrationPerNeighborGroup",
+      "unit-sha": "4350b220418a59f4",
+      "claim-sha": "dd4efe6ff0be09c0",
+      "route": "revert",
+      "producer": "internal/component/bgp/config/resolve.go::ResolveBGPTree",
+      "producer-sha": "7f64166a642fa608",
+      "break": "body of ResolveBGPTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN",
+      "unit-sha": "b9a84d23d8d417e1",
+      "claim-sha": "a38e64caf6397197",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::peerASAccepted",
+      "producer-sha": "e14e9444cdd17ec5",
+      "break": "body of peerASAccepted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationAcceptsEitherASN",
+      "unit-sha": "b9a84d23d8d417e1",
+      "claim-sha": "c513878e3cee82f3",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+      "producer-sha": "aa3702633b697bcb",
+      "break": "body of validateOpenPeerAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN",
+      "unit-sha": "20642dfb1e5da569",
+      "claim-sha": "7919e94c98f5067b",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::openLocalAS",
+      "producer-sha": "6198eddb77f7a148",
+      "break": "body of openLocalAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationOpenCarriesResolvedASN",
+      "unit-sha": "20642dfb1e5da569",
+      "claim-sha": "50930d65501bab34",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
+      "producer-sha": "ba1931134eb7f3c9",
+      "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationSessionIsIBGP",
+      "unit-sha": "a0b388ba5df922b9",
+      "claim-sha": "2bea7d6ae7ca1b74",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
+      "producer-sha": "015180dd93c516f4",
+      "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-4.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/session_as_migration_test.go::TestMigrationSessionIsIBGP",
+      "unit-sha": "a0b388ba5df922b9",
+      "claim-sha": "006f8a0c06bd0e86",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+      "producer-sha": "61b8ec6638a4d864",
+      "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

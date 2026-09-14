@@ -1,0 +1,193 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7705",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7705.txt",
+  "source-sha": "f7503ea9d187b305",
+  "signed-off": "2026-09-14",
+  "reviewer": "ze-implement agent, plan/immediate/spec-bgp-as-migration.md phase 8, rfc7705 enrolment walk",
+  "register-reason": "Standards Track, November 2015, with the RFC 2119 key-words paragraph at section 1.1. The capitalised scan finds eight sites against the nine gated rows rfc/short/rfc7705.md declares, so the derivation grades the source 'prose' and this sign-off claims exactly that grade. A grep for MUST, SHALL and REQUIRED over rfc/full/rfc7705.txt returns ten lines: line 143 is the key-words paragraph itself, lines 417, 479, 481, 488 and 489 are section 3.3, and lines 662, 664, 669 and 685 are section 4.2. No other section states a capitalised MUST-level keyword, which is why every section outside 3.3 and 4.2 derives no capitalised site. The one gated row with no site of its own is RFC7705-3.3-3: the sentence at lines 479 to 483 states its MUST NOT and its MUST in one sentence, the splitter derives that as a single site, and the site maps to RFC7705-3.3-2, so RFC7705-3.3-3 is declared unsourced on section 3.3. The four further sites the case-insensitive prose scan adds are all lowercase 'must' or 'required', and all four are excluded below as non-normative: one is the IETF Trust Legal Provisions boilerplate, two are the Introduction describing the base protocol and the pre-migration world it made, and one is a step of the section 4.1 operator recipe.",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and the Table of Contents. It states what the document discusses and under which IETF process it was published, and it binds no implementation."
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7705-3.3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The heading over the two reference lists below it."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References. Citation entries for RFC 2119, RFC 4271, RFC 4456, RFC 5082, RFC 5925 and RFC 6793. Each says where a cited document lives and binds nothing."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References. Citation entries for RFC 5065, RFC 5398 and the AS migration drafts. Each says where a cited document lives and binds nothing."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A, Implementation Report. Names the vendors whose shipping implementations the document describes (Cisco, Juniper, Alcatel-Lucent) and says the list is not exhaustive. It records what other implementations do and imposes nothing."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust Legal Provisions boilerplate the splitter did not strip: \"Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions\". It binds whoever copies code out of the document into another work, and this document contains no code component. It states nothing a BGP speaker does."
+    },
+    {
+      "id": "1:1",
+      "quote": "By default, the BGP protocol requires an operator to configure a router to use a single remote ASN for the BGP neighbor, and the ASN must match on both ends of the peering in order to successfully negotiate and establish a BGP session.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction, describing the base protocol this document then relaxes: \"By default, the BGP protocol requires an operator to configure a router to use a single remote ASN for the BGP neighbor, and the ASN must match on both ends of the peering in order to successfully negotiate and establish a BGP session.\" Indicative, and about BGP-4 rather than about this document. The obligation it describes is RFC 4271 Section 6.2 Bad Peer AS, which rfc/short/rfc4271.md owns; this document's own normative sentence about it is site 4.2:2, which carves the migration exception out of that check and is mapped to RFC7705-4.2-2."
+    },
+    {
+      "id": "1:2",
+      "quote": "Prior to the existence of these migration mechanisms, it would have required an ISP to coordinate an ASN change with, in some cases, tens of thousands of customers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction, a counterfactual about the world before these mechanisms existed: \"Prior to the existence of these migration mechanisms, it would have required an ISP to coordinate an ASN change with, in some cases, tens of thousands of customers.\" The word 'required' sits inside 'it would have required', a past conditional describing what an ISP would have had to do, and it states no obligation on anybody now."
+    },
+    {
+      "id": "3.3:1",
+      "quote": "The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-3.3-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "\"No Prepend Inbound\": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the \"Local AS\" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors, but it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (i.e., those natively peering with the globally configured ASN).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-3.3-2"
+    },
+    {
+      "id": "3.3:3",
+      "quote": "\"Replace Old AS\" (outbound): When the BGP router generates outbound BGP UPDATEs toward an eBGP neighbor configured with this option, the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-3.3-4"
+    },
+    {
+      "id": "3.3:4",
+      "quote": "The BGP router MUST append only the configured \"Local AS\" ASN value to the AS_PATH attribute before sending the BGP UPDATEs outbound to the eBGP neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-3.3-5"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "The \"Internal BGP AS Migration\" mechanism is still required on all RRs for all RR Client iBGP sessions.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Step 2 of the section 4.1 migration recipe: \"The 'Internal BGP AS Migration' mechanism is still required on all RRs for all RR Client iBGP sessions.\" It tells the operator carrying out the five-step renumbering which sessions must keep the mechanism configured while the walk is in progress, immediately after saying it 'is no longer needed' on the Non-Client sessions. It is a deployment instruction to the person running the migration, not a rule an implementation enforces: section 4.1 states outright that the mechanism 'can be enabled independent of the use of Route Reflectors'. The obligation this document places on the implementation is that the mechanism be configurable per neighbor or per neighbor group, which is site 4.2:1, mapped to RFC7705-4.2-1."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "The mechanism introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "When configured with this mechanism, a BGP speaker MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in \"My Autonomous System\" is either the globally configured ASN or a locally configured ASN provided when this capability is utilized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-4.2-2"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "Additionally, a BGP router configured with this mechanism MUST send its own BGP OPEN [RFC4271] (see Section 4.2) using either the globally configured or the locally configured ASN in \"My Autonomous System\" as follows.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-4.2-3"
+    },
+    {
+      "id": "4.2:4",
+      "quote": "In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271] and [RFC4456].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7705-4.2-4"
+    }
+  ]
+}

@@ -670,9 +670,18 @@ func TestDynamicGroupTemplateBuildsSessionCapabilities(t *testing.T) {
 // carry neither, so a group option cannot leak to a peer that never inherited
 // it.
 //
-// VALIDATES: AC-7, RFC7705-3.3-1. No `RFC requirement:` tag is carried: the
-// summary is parked at rfc/pending/rfc7705.md, so the id is unknown to
-// `./le rfc check` (internal/le/rfc/check_core.go) until enrolment.
+// RFC requirement: RFC7705-3.3-1 positive -- the local-as value and the
+// local-options leaf-list are both configurable on a per-neighbor-group basis
+// and on a per-neighbor basis: the group's `local` and `local-options` reach a
+// peer that names neither, and a peer that names `local-options` of its own
+// resolves with the option it named.
+// RFC requirement: RFC7705-3.3-1 negative -- the group's `local-options` reaches
+// neither a peer outside the group nor a peer that states `local-options` of its
+// own, and the peer outside the group keeps the globally configured AS number.
+// Without this arm the positive arm would pass against code that gave every peer
+// every option, which is configurability on no basis at all.
+//
+// VALIDATES: AC-7.
 // PREVENTS: the options being peer-only, a group option overwriting a peer's own
 // choice, and a group option reaching a peer outside the group.
 func TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup(t *testing.T) {
