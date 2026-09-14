@@ -14,7 +14,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 **RESUME HERE (session stopped 2026-09-14 at the weekly usage cap).** The state,
 the resume kit, the gate's judgement rules, the wave-2 scope split and the traps
 that cost agents real time are in
-`tmp/session/2026-09-11-2689b5a6-3b93-45df-a100-95ee8d0e6081/state/session-state-the-fix-pass-for-restated-registries-2689b5a6-3b93-45df-a100-95ee8d0e6081.md`.
+`plan/handover/restated-registry-fix-pass-2026-09-14.md`.
 Read it BEFORE touching anything: eight agents were stopped mid-edit, the tree
 does not compile, and `./le` does not rebuild itself so every measurement needs
 `./le --update` first. Derive the uncommitted file list from `git status`; do not
