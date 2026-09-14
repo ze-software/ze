@@ -220,18 +220,19 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 }
 `)
 
-	reg := newDoctorCheckRegistry()
+	const fixtureName = "doctor-runner-fixture"
 	called := false
-	require.NoError(t, reg.register(doctorCheck{
-		Name:         "plugin-binaries",
-		Phase:        doctorCheckPhasePostConfig,
+	require.NoError(t, diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name:         fixtureName,
+		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        700,
 		Component:    "plugin",
 		Dependencies: []string{"external-binary"},
-		Platforms:    []string{doctorCheckPlatformAny},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{"doctor-plugin-missing"},
-		Check: func(ctx doctorCheckContext) []diagnostic.Diagnostic {
-			if ctx.Tree == nil || ctx.Store == nil || ctx.Platform == nil || ctx.ConfigDir == "" {
+		Check: func(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+			tree, isTree := ctx.Tree.(*config.Tree)
+			if !isTree || tree == nil || ctx.Store == nil || ctx.Platform == nil || ctx.ConfigDir == "" {
 				return nil
 			}
 			if len(ctx.Plugins) != 1 || ctx.Plugins[0].Name != "rib" {
@@ -245,12 +246,7 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 			}}
 		},
 	}))
-
-	originalRegistry := defaultDoctorCheckRegistry
-	defaultDoctorCheckRegistry = reg
-	t.Cleanup(func() {
-		defaultDoctorCheckRegistry = originalRegistry
-	})
+	t.Cleanup(func() { diagnostic.UnregisterDoctorCheckForTest(fixtureName) })
 
 	diags := runChecks(cfgPath)
 	assert.True(t, called, "registered plugin check did not receive parsed plugin context")
@@ -1152,79 +1148,6 @@ func TestCheckCoherenceNilPlatform(t *testing.T) {
 	assertNoDiagCode(t, diags, "doctor-config-platform-mismatch")
 	assertNoDiagCode(t, diags, "doctor-machine-id-missing")
 	assertNoDiagCode(t, diags, "doctor-random-seed")
-}
-
-// --- Config reference tests ---
-
-func TestCheckConfigReferences_NoBGP(t *testing.T) {
-	tree := config.NewTree()
-	diags := checkConfigReferences(tree)
-	assert.Empty(t, diags)
-}
-
-func TestCheckConfigReferences_NoPolicyNoRefs(t *testing.T) {
-	tree := config.NewTree()
-	tree.GetOrCreateContainer("bgp")
-	diags := checkConfigReferences(tree)
-	assert.Empty(t, diags)
-}
-
-func TestCheckConfigReferences_DanglingGlobalRef(t *testing.T) {
-	tree := config.NewTree()
-	bgp := tree.GetOrCreateContainer("bgp")
-	filter := bgp.GetOrCreateContainer("filter")
-	filter.SetSlice("import", []string{"nonexistent"})
-
-	diags := checkConfigReferences(tree)
-	require.Len(t, diags, 1)
-	assert.Equal(t, "doctor-config-reference", diags[0].Code)
-	assert.Contains(t, diags[0].Message, "nonexistent")
-}
-
-func TestCheckConfigReferences_DefinedPolicyPasses(t *testing.T) {
-	tree := config.NewTree()
-	bgp := tree.GetOrCreateContainer("bgp")
-
-	policy := bgp.GetOrCreateContainer("policy")
-	policy.AddListEntry("prefix-list", "customers", config.NewTree())
-
-	filter := bgp.GetOrCreateContainer("filter")
-	filter.SetSlice("import", []string{"customers"})
-
-	diags := checkConfigReferences(tree)
-	assert.Empty(t, diags)
-}
-
-func TestCheckConfigReferences_NamespacedRefPasses(t *testing.T) {
-	tree := config.NewTree()
-	bgp := tree.GetOrCreateContainer("bgp")
-
-	policy := bgp.GetOrCreateContainer("policy")
-	policy.AddListEntry("prefix-list", "customers", config.NewTree())
-
-	filter := bgp.GetOrCreateContainer("filter")
-	filter.SetSlice("import", []string{"bgp-filter-prefix:customers"})
-
-	diags := checkConfigReferences(tree)
-	assert.Empty(t, diags)
-}
-
-func TestCheckConfigReferences_PeerLevelRef(t *testing.T) {
-	tree := config.NewTree()
-	bgp := tree.GetOrCreateContainer("bgp")
-
-	policy := bgp.GetOrCreateContainer("policy")
-	policy.AddListEntry("prefix-list", "allowed", config.NewTree())
-
-	peerTree := config.NewTree()
-	peerFilter := peerTree.GetOrCreateContainer("filter")
-	peerFilter.SetSlice("export", []string{"missing"})
-	bgp.AddListEntry("peer", "192.0.2.1", peerTree)
-
-	diags := checkConfigReferences(tree)
-	require.Len(t, diags, 1)
-	assert.Contains(t, diags[0].Message, "missing")
-	assert.Contains(t, diags[0].Message, "bgp/peer/192.0.2.1/filter/export")
 }
 
 // --- Disk space tests ---

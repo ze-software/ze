@@ -14,6 +14,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -223,7 +224,7 @@ func TestVirtualLinkRejectStubTransit(t *testing.T) {
 	built := ospfConfig{
 		present:  true,
 		RouterID: mustRouterID(t, "10.0.0.1"),
-		Areas:    []areaConfig{{AreaID: mustAreaID(t, "0.0.0.1"), AreaType: areaTypeNormal, NSSATranslateRole: translateRoleCandidate}, {AreaID: mustAreaID(t, "0.0.0.2"), AreaType: areaTypeNormal, NSSATranslateRole: translateRoleCandidate}},
+		Areas:    []areaConfig{{AreaID: mustAreaID(t, "0.0.0.1"), AreaType: types.AreaTypeNormal, NSSATranslateRole: translateRoleCandidate}, {AreaID: mustAreaID(t, "0.0.0.2"), AreaType: types.AreaTypeNormal, NSSATranslateRole: translateRoleCandidate}},
 		Interfaces: []interfaceConfig{
 			{Name: "eth0", AreaID: mustAreaID(t, "0.0.0.1"), Enabled: true},
 			{Name: "eth1", AreaID: mustAreaID(t, "0.0.0.2"), Enabled: true},
@@ -323,7 +324,7 @@ func TestOSPFNSSAAreaConfig(t *testing.T) {
 		t.Fatalf("Areas = %d, want 1", len(cfg.Areas))
 	}
 	a := cfg.Areas[0]
-	if a.AreaType != areaTypeNSSA || a.NSSATranslateRole != translateRoleAlways || a.NSSAStabilityInterval != 65535 || !a.NSSADefaultOriginate {
+	if a.AreaType != types.AreaTypeNSSA || a.NSSATranslateRole != translateRoleAlways || a.NSSAStabilityInterval != 65535 || !a.NSSADefaultOriginate {
 		t.Fatalf("nssa config = %+v", a)
 	}
 
@@ -385,7 +386,7 @@ func TestOSPFConfigResolve(t *testing.T) {
 		t.Fatalf("Areas = %d, want 1", len(cfg.Areas))
 	}
 	area := cfg.Areas[0]
-	if !area.AreaID.IsBackbone() || area.AreaType != areaTypeStub || !area.NoSummary || area.DefaultCost != 3 || area.AuthKeyChain != "area-key" {
+	if !area.AreaID.IsBackbone() || area.AreaType != types.AreaTypeStub || !area.NoSummary || area.DefaultCost != 3 || area.AuthKeyChain != "area-key" {
 		t.Errorf("area = %+v", area)
 	}
 	if len(area.Ranges) != 1 || area.Ranges[0].Advertise || area.Ranges[0].Cost != 11 || !area.Ranges[0].HasCost {
@@ -395,10 +396,10 @@ func TestOSPFConfigResolve(t *testing.T) {
 		t.Fatalf("Interfaces = %d, want 1", len(cfg.Interfaces))
 	}
 	ic := cfg.Interfaces[0]
-	if ic.Name != "eth0" || ic.NetworkType != networkPointToPoint || ic.Cost != 100 || !ic.HasCost || ic.HelloInterval != 5 || ic.DeadInterval != 20 || ic.Priority != 0 || ic.Passive || !ic.MTUIgnore || ic.RetransmitInterval != 6 || ic.TransmitDelay != 2 {
+	if ic.Name != "eth0" || ic.NetworkType != types.NetworkPointToPoint || ic.Cost != 100 || !ic.HasCost || ic.HelloInterval != 5 || ic.DeadInterval != 20 || ic.Priority != 0 || ic.Passive || !ic.MTUIgnore || ic.RetransmitInterval != 6 || ic.TransmitDelay != 2 {
 		t.Errorf("interface = %+v", ic)
 	}
-	if ic.Authentication.Mode != authAlgorithmMD5 || ic.Authentication.KeyChain != "area-key" {
+	if ic.Authentication.Mode != packet.AuthMD5 || ic.Authentication.KeyChain != "area-key" {
 		t.Errorf("auth = %+v", ic.Authentication)
 	}
 	if len(cfg.KeyChains) != 1 || len(cfg.KeyChains[0].Keys) != 1 {
@@ -424,11 +425,11 @@ func TestOSPFConfigDefaults(t *testing.T) {
 	if cfg.Timers.SPFDelayMS != DefaultSPFDelayMS || cfg.Timers.SPFHoldMS != DefaultSPFHoldMS || cfg.Timers.SPFMaxHoldMS != DefaultSPFMaxHoldMS || cfg.Timers.MinLSIntervalMS != DefaultMinLSIntervalMS || cfg.Timers.MinLSArrivalMS != DefaultMinLSArrivalMS {
 		t.Errorf("timer defaults = %+v", cfg.Timers)
 	}
-	if len(cfg.Areas) != 1 || cfg.Areas[0].AreaType != areaTypeNormal || cfg.Areas[0].DefaultCost != DefaultAreaCost {
+	if len(cfg.Areas) != 1 || cfg.Areas[0].AreaType != types.AreaTypeNormal || cfg.Areas[0].DefaultCost != DefaultAreaCost {
 		t.Errorf("area defaults = %+v", cfg.Areas)
 	}
 	ic := cfg.Interfaces[0]
-	if !ic.Enabled || ic.Passive || ic.NetworkType != networkBroadcast || ic.HelloInterval != DefaultHelloInterval || ic.DeadInterval != DefaultDeadInterval || ic.Priority != DefaultPriority || ic.RetransmitInterval != DefaultRetransmitInterval || ic.TransmitDelay != DefaultTransmitDelay || ic.Authentication.Mode != authModeInherit {
+	if !ic.Enabled || ic.Passive || ic.NetworkType != types.NetworkBroadcast || ic.HelloInterval != DefaultHelloInterval || ic.DeadInterval != DefaultDeadInterval || ic.Priority != DefaultPriority || ic.RetransmitInterval != DefaultRetransmitInterval || ic.TransmitDelay != DefaultTransmitDelay || ic.Authentication.Mode != authModeInherit {
 		t.Errorf("interface defaults = %+v", ic)
 	}
 }

@@ -96,7 +96,7 @@ func TestOSPFNSSABackboneDownWithdrawsBorderDefault(t *testing.T) {
 
 	down := ospfiface.New(ospfiface.Config{
 		Name: "eth0", RouterID: self, AreaID: types.BackboneArea,
-		NetworkType: ospfiface.NetworkPointToPoint,
+		NetworkType: types.NetworkPointToPoint,
 	}, &rfc5340Sender{}, ospfiface.NopMetrics())
 	t.Cleanup(down.Stop)
 	eng.interfaces["eth0"] = down

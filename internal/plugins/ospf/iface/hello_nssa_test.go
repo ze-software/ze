@@ -15,7 +15,7 @@ import (
 
 func TestOSPFStubEbitMismatch(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.AreaType = AreaStub
+	cfg.AreaType = types.AreaTypeStub
 	ifc := New(cfg, &fakeSender{}, NopMetrics())
 	peer := rid(t, "10.0.0.2")
 
@@ -38,7 +38,7 @@ func TestOSPFStubEbitMismatch(t *testing.T) {
 
 func TestOSPFNSSANbitMismatch(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.AreaType = AreaNSSA
+	cfg.AreaType = types.AreaTypeNSSA
 	ifc := New(cfg, &fakeSender{}, NopMetrics())
 	peer := rid(t, "10.0.0.2")
 

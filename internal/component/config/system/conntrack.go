@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -108,33 +110,34 @@ type DCCPTimeouts struct {
 	Timewait int
 }
 
-var allowedModules = map[string]bool{
-	"ftp":        true,
-	"h323":       true,
-	"sip":        true,
-	"pptp":       true,
-	"tftp":       true,
-	"nfs":        true,
-	"sane":       true,
-	"irc":        true,
-	"amanda":     true,
-	"netbios-ns": true,
-	"snmp":       true,
-	"sqlnet":     true,
-}
+// conntrackModulePath is the leaf-list the model declares the helper modules
+// at. The enumeration there is the allowlist, and it is the only declaration of
+// it: a helper added to the model is accepted here in the same edit.
+const conntrackModulePath = "system/conntrack/module"
 
-// ValidConntrackModule returns true if the module name is in the allowlist.
-func ValidConntrackModule(name string) bool {
-	return allowedModules[name]
-}
+// conntrackModules answers the helper modules the model declares, once for the
+// life of the process. The model is embedded in the binary, so it cannot change
+// while the process runs.
+var conntrackModules = sync.OnceValues(func() ([]string, error) {
+	return configyang.EnumValues(conntrackModulePath)
+})
 
-// AllConntrackModules returns the list of valid module names.
-func AllConntrackModules() []string {
-	names := make([]string, 0, len(allowedModules))
-	for name := range allowedModules {
-		names = append(names, name)
+// CheckConntrackModule answers nil when the model declares name as a conntrack
+// helper, and an error naming the values the model does declare otherwise.
+//
+// This is the guard in front of modprobe: LoadConntrackModules passes the name
+// it approves to an external command, so a name the model does not declare
+// MUST NOT reach it. A model that cannot be read is therefore an error rather
+// than an empty allowlist, so the refusal states why.
+func CheckConntrackModule(name string) error {
+	allowed, err := conntrackModules()
+	if err != nil {
+		return fmt.Errorf("conntrack: refusing module %q, the YANG model did not answer: %w", name, err)
 	}
-	return names
+	if !slices.Contains(allowed, name) {
+		return fmt.Errorf("conntrack: unknown module %q (valid: %s)", name, textbuf.Join(allowed, ", "))
+	}
+	return nil
 }
 
 var logInvalidProtocols = map[string]int{
@@ -364,14 +367,12 @@ func (c *ConntrackConfig) hasTCPBehavior() bool {
 	return b.BeLiberal != nil || b.Loose != nil || b.MaxRetrans > 0 || b.IgnoreInvalidRST != nil
 }
 
-// ValidateModules checks that all module names are in the allowlist.
-// Returns an error for the first invalid module name.
+// ValidateModules checks every configured module name against the model.
+// Returns the error of the first name the model does not declare.
 func (c *ConntrackConfig) ValidateModules() error {
 	for _, m := range c.Modules {
-		if !ValidConntrackModule(m) {
-			names := AllConntrackModules()
-			slices.Sort(names)
-			return fmt.Errorf("conntrack: unknown module %q (valid: %s)", m, textbuf.Join(names, ", "))
+		if err := CheckConntrackModule(m); err != nil {
+			return err
 		}
 	}
 	return nil

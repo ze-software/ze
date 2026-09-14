@@ -8,6 +8,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 func TestConntrackConfigParse(t *testing.T) {
@@ -162,15 +163,30 @@ func TestConntrackConfigParseFromMap_Empty(t *testing.T) {
 	assert.False(t, cc2.HasConfig())
 }
 
+// TestConntrackModuleValidation proves the guard in front of modprobe accepts
+// exactly the helper modules the YANG model declares.
+//
+// The expected set is read from the model rather than written here: a list in
+// this file would be a third declaration of it, and it would agree with a Go
+// copy that had drifted away from the model just as happily.
+//
+// VALIDATES: every value of the enumeration at system/conntrack/module passes
+// the guard, and a name outside it does not.
+// PREVENTS: a helper added to the model validating at the config layer and then
+// being refused by the loader, and a name the model never declared reaching
+// modprobe.
 func TestConntrackModuleValidation(t *testing.T) {
-	valid := []string{"ftp", "h323", "sip", "pptp", "tftp", "nfs", "sane", "irc", "amanda", "netbios-ns", "snmp", "sqlnet"}
+	valid, err := configyang.EnumValues("system/conntrack/module")
+	require.NoError(t, err)
+	require.NotEmpty(t, valid, "the model declares no conntrack helper module")
+
 	for _, m := range valid {
-		assert.True(t, system.ValidConntrackModule(m), "expected %q to be valid", m)
+		assert.NoError(t, system.CheckConntrackModule(m), "the model declares %q, so the guard must accept it", m)
 	}
 
 	invalid := []string{"broadcast", "unknown", "", "ftp; rm -rf /"}
 	for _, m := range invalid {
-		assert.False(t, system.ValidConntrackModule(m), "expected %q to be invalid", m)
+		assert.Error(t, system.CheckConntrackModule(m), "expected %q to be refused", m)
 	}
 }
 
@@ -328,10 +344,21 @@ func TestConntrackHasConfig(t *testing.T) {
 	assert.True(t, (&system.ConntrackConfig{TimeoutGeneric: 600}).HasConfig())
 }
 
-func TestAllConntrackModules(t *testing.T) {
-	modules := system.AllConntrackModules()
-	assert.Len(t, modules, 12)
-	for _, m := range modules {
-		assert.True(t, system.ValidConntrackModule(m))
+// TestConntrackModuleRefusalNamesTheModel proves the refusal an operator reads
+// lists the values the model declares, so the message cannot name a set the
+// guard does not enforce.
+//
+// VALIDATES: the error text of a refused module carries a value the model holds.
+// PREVENTS: the "valid: ..." list going stale against the enumeration, which is
+// how an operator is told to write a name the guard then refuses.
+func TestConntrackModuleRefusalNamesTheModel(t *testing.T) {
+	valid, err := configyang.EnumValues("system/conntrack/module")
+	require.NoError(t, err)
+	require.NotEmpty(t, valid)
+
+	err = system.CheckConntrackModule("nonexistent")
+	require.Error(t, err)
+	for _, m := range valid {
+		assert.Contains(t, err.Error(), m, "the refusal must name every value the model declares")
 	}
 }

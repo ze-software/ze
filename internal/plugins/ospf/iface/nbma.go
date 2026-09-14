@@ -13,6 +13,8 @@ package iface
 import (
 	"net/netip"
 	"time"
+
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // afLabel is the address-family metric label value.
@@ -28,9 +30,9 @@ func afLabel(isV6 bool) string {
 // point-to-multipoint variant that carries an explicit neighbor list (RFC 2328 sec 9.5).
 func (i *Interface) nonBroadcastLocked() bool {
 	switch i.cfg.NetworkType {
-	case NetworkNBMA:
+	case types.NetworkNBMA:
 		return true
-	case NetworkPointToMultipoint:
+	case types.NetworkPointToMultipoint:
 		return len(i.cfg.NBMANeighbors) > 0
 	default:
 		return false
@@ -80,7 +82,7 @@ func (i *Interface) nbmaHeardLocked(n NBMANeighbor) bool {
 // one-shot Start Hello. It records poll times, counts polls, and refreshes the
 // configured-neighbor gauge.
 func (i *Interface) helloTargetsLocked(now time.Time) []netip.Addr {
-	isNBMA := i.cfg.NetworkType == NetworkNBMA
+	isNBMA := i.cfg.NetworkType == types.NetworkNBMA
 	poll := time.Duration(i.cfg.PollInterval) * time.Second
 	af := afLabel(i.cfg.IsV6)
 	out := make([]netip.Addr, 0, len(i.cfg.NBMANeighbors))
@@ -120,7 +122,7 @@ func (i *Interface) helloTargetsLocked(now time.Time) []netip.Addr {
 // became DR or BDR (RFC 2328 sec 9.4 step 6). It returns nil unless the election changed
 // this router's role and it is now the DR or BDR.
 func (i *Interface) startHelloTargetsLocked(elected bool) []netip.Addr {
-	if !elected || i.cfg.NetworkType != NetworkNBMA {
+	if !elected || i.cfg.NetworkType != types.NetworkNBMA {
 		return nil
 	}
 	if i.state != StateDR && i.state != StateBackup {

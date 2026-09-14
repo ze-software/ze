@@ -59,7 +59,7 @@ func TestExtDatabaseRenderDecoded(t *testing.T) {
 		t.Fatalf("Extended Link not decoded: %+v", db.ExtendedLink)
 	}
 	l := db.ExtendedLink[0]
-	if l.LinkType != networkPointToPoint || l.LinkID != "2.2.2.2" || l.LinkData != "10.0.0.1" {
+	if l.LinkType != types.NetworkPointToPoint || l.LinkID != "2.2.2.2" || l.LinkData != "10.0.0.1" {
 		t.Fatalf("link row = %+v", l)
 	}
 

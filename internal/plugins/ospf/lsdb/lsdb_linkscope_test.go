@@ -69,8 +69,8 @@ func receiveLinkLSA(t *testing.T, db *LSDB, iface string, areaID types.AreaID, l
 		return []InterfaceInfo{{
 			Name:        iface,
 			AreaID:      areaID,
-			AreaType:    AreaTypeNormal,
-			NetworkType: NetworkBroadcast,
+			AreaType:    types.AreaTypeNormal,
+			NetworkType: types.NetworkBroadcast,
 			State:       InterfaceStateBackup,
 			RouterID:    rid("1.1.1.1"),
 			DR:          lsa.Header.AdvertisingRouter,
@@ -144,8 +144,8 @@ func TestOSPFv6ReceiveLinkLSALinkScoped(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{
-			{Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal, NetworkType: NetworkBroadcast, State: InterfaceStateBackup, RouterID: rid("1.1.1.1"), DR: rid("2.2.2.2"), BDR: rid("1.1.1.1"), IsV6: true, Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: netip.MustParseAddr("fe80::2"), State: NeighborStateFull}}},
-			{Name: "eth1", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal, NetworkType: NetworkBroadcast, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"), IsV6: true, Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: netip.MustParseAddr("fe80::3"), State: NeighborStateFull}}},
+			{Name: "eth0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal, NetworkType: types.NetworkBroadcast, State: InterfaceStateBackup, RouterID: rid("1.1.1.1"), DR: rid("2.2.2.2"), BDR: rid("1.1.1.1"), IsV6: true, Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: netip.MustParseAddr("fe80::2"), State: NeighborStateFull}}},
+			{Name: "eth1", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal, NetworkType: types.NetworkBroadcast, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"), IsV6: true, Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: netip.MustParseAddr("fe80::3"), State: NeighborStateFull}}},
 		}
 	})
 	lsa := linkLSAForTest(t, rid("2.2.2.2"), 10, netip.MustParseAddr("fe80::2"), types.InitialSequenceNumber)
@@ -183,8 +183,8 @@ func TestOSPFv6OriginateLinkLSAFloodsLoadingNeighbor(t *testing.T) {
 		return []InterfaceInfo{{
 			Name:        "eth0",
 			AreaID:      areaID,
-			AreaType:    AreaTypeNormal,
-			NetworkType: NetworkPointToPoint,
+			AreaType:    types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint,
 			State:       "point-to-point",
 			RouterID:    router,
 			IsV6:        true,

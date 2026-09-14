@@ -94,7 +94,7 @@ func TestOSPFExtLinkOriginateFunctional(t *testing.T) {
 		t.Fatalf("want exactly one Extended Link LSA, got %d: %+v", len(db.ExtendedLink), db.ExtendedLink)
 	}
 	l := db.ExtendedLink[0]
-	if l.LinkType != networkPointToPoint || l.LinkID != "2.2.2.2" || l.LinkData != "10.0.0.1" {
+	if l.LinkType != types.NetworkPointToPoint || l.LinkID != "2.2.2.2" || l.LinkData != "10.0.0.1" {
 		t.Fatalf("Extended Link fields do not mirror the Router-LSA link: %+v", l)
 	}
 }
@@ -104,8 +104,8 @@ func extRecvInto(t *testing.T, eng *engine, adv types.RouterID) {
 	t.Helper()
 	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{{
-			Name: "eth0", AreaID: types.BackboneArea, AreaType: ospflsdb.AreaTypeNormal,
-			NetworkType: ospflsdb.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR,
+			Name: "eth0", AreaID: types.BackboneArea, AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR,
 			RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []ospflsdb.NeighborInfo{{RouterID: adv, Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}},
 		}}

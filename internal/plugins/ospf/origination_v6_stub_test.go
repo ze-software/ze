@@ -60,7 +60,7 @@ func TestOSPFv6OriginateStubDefault(t *testing.T) {
 		Areas:   []types.AreaID{types.BackboneArea, stub},
 		Results: map[types.AreaID]*ospfspf.Result{types.BackboneArea: backboneRes, stub: stubRes},
 		Policies: map[types.AreaID]ospfspf.AreaSummaryPolicy{
-			stub: {Type: ospfspf.AreaTypeStub, DefaultCost: 10},
+			stub: {Type: types.AreaTypeStub, DefaultCost: 10},
 		},
 	}
 	if out := e.v6OriginateSummaries(in); out.Changed == 0 {
@@ -131,7 +131,7 @@ func TestOSPFv6OriginateTotallyStubbyOnlyDefault(t *testing.T) {
 		Areas:   []types.AreaID{types.BackboneArea, stub},
 		Results: map[types.AreaID]*ospfspf.Result{types.BackboneArea: backboneRes, stub: stubRes},
 		Policies: map[types.AreaID]ospfspf.AreaSummaryPolicy{
-			stub: {Type: ospfspf.AreaTypeStub, NoSummary: true, DefaultCost: 5},
+			stub: {Type: types.AreaTypeStub, NoSummary: true, DefaultCost: 5},
 		},
 	}
 	if out := e.v6OriginateSummaries(in); out.Changed == 0 {

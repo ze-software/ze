@@ -163,9 +163,9 @@ func (e *engine) v6BuildERouterBody(ifaces []ospflsdb.InterfaceInfo) ([]byte, bo
 // 0 for a link type SR does not advertise an Adj-SID on.
 func v6ERouterLinkType(networkType string) byte {
 	switch networkType {
-	case ospflsdb.NetworkPointToPoint, ospflsdb.NetworkPointToMultipoint:
+	case types.NetworkPointToPoint, types.NetworkPointToMultipoint:
 		return ospfv3packet.RouterLinkTypeP2P
-	case ospflsdb.NetworkBroadcast, ospflsdb.NetworkNBMA:
+	case types.NetworkBroadcast, types.NetworkNBMA:
 		return ospfv3packet.RouterLinkTypeTransit
 	default:
 		return 0

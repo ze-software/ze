@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/host"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // SystemConfig holds system-wide identity configuration.
@@ -231,10 +235,7 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 			}
 		}
 		if v, ok := dns.Get("dnssec-validation"); ok {
-			switch v {
-			case "off", "permissive", "strict":
-				sc.DNSSECValidation = v
-			}
+			sc.DNSSECValidation = acceptedDNSSECValidation(v, sc.DNSSECValidation)
 		}
 	}
 
@@ -285,6 +286,38 @@ func ExtractSystemConfig(tree *config.Tree) SystemConfig {
 	}
 
 	return sc
+}
+
+// dnssecValidationPath is the leaf the model declares the DNSSEC modes at.
+const dnssecValidationPath = "system/dns/dnssec-validation"
+
+// dnssecValidationModes answers the DNSSEC modes the model declares, once.
+var dnssecValidationModes = sync.OnceValues(func() ([]string, error) {
+	return configyang.EnumValues(dnssecValidationPath)
+})
+
+// acceptedDNSSECValidation answers configured when the model declares it as a
+// DNSSEC mode, and fallback with a warning otherwise.
+//
+// The validator refuses a value outside the enumeration before extraction
+// reaches it, so this is the second of the pair: it keeps a value that reached
+// the resolver through an unvalidated path from being passed on. The warning is
+// what the earlier code did not have, and the reason it is owed is the
+// direction of the fallback -- "off" asks for no DNSSEC at all, so a mode that
+// is dropped in silence weakens the answer the operator asked for.
+func acceptedDNSSECValidation(configured, fallback string) string {
+	modes, err := dnssecValidationModes()
+	if err != nil {
+		slogutil.Logger("config.system").Warn("dnssec-validation: the YANG model did not answer, keeping the current mode",
+			"configured", configured, "mode", fallback, "error", err)
+		return fallback
+	}
+	if !slices.Contains(modes, configured) {
+		slogutil.Logger("config.system").Warn("dnssec-validation: the model declares no such mode, keeping the current mode",
+			"configured", configured, "mode", fallback, "declared", modes)
+		return fallback
+	}
+	return configured
 }
 
 // extractDelegationSources reads the per-registry delegation file URLs an

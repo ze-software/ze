@@ -122,8 +122,8 @@ func TestOSPFOpaqueReceiveFunctional(t *testing.T) {
 	a0 := mustBackboneArea(t)
 	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{{
-			Name: "eth0", AreaID: a0, AreaType: ospflsdb.AreaTypeNormal,
-			NetworkType: ospflsdb.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR, RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1,
+			Name: "eth0", AreaID: a0, AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR, RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "2.2.2.2"), Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}},
 		}}
 	})
@@ -197,7 +197,7 @@ func TestOSPFOpaqueScopeFunctional(t *testing.T) {
 	eng, _ := newRedistEngine(t, opaqueCfgJSON)
 	a0 := mustBackboneArea(t)
 	stub := mustLinkStateID(t, "0.0.0.7")
-	eng.lsdb.SetAreaTypes(map[types.AreaID]string{types.AreaID(stub): ospflsdb.AreaTypeStub})
+	eng.lsdb.SetAreaTypes(map[types.AreaID]string{types.AreaID(stub): types.AreaTypeStub})
 	var sends []string
 	eng.lsdb.SetTx(func(iface string, _ netip.Addr, _ []byte) error {
 		sends = append(sends, iface)
@@ -205,8 +205,8 @@ func TestOSPFOpaqueScopeFunctional(t *testing.T) {
 	})
 	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{
-			{Name: "eth0", AreaID: a0, AreaType: ospflsdb.AreaTypeNormal, NetworkType: ospflsdb.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR, RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "2.2.2.2"), Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}}},
-			{Name: "eth1", AreaID: types.AreaID(stub), AreaType: ospflsdb.AreaTypeStub, NetworkType: ospflsdb.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR, RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "3.3.3.3"), Address: naddrForTest("10.0.1.3"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}}},
+			{Name: "eth0", AreaID: a0, AreaType: types.AreaTypeNormal, NetworkType: types.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR, RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "2.2.2.2"), Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}}},
+			{Name: "eth1", AreaID: types.AreaID(stub), AreaType: types.AreaTypeStub, NetworkType: types.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR, RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "3.3.3.3"), Address: naddrForTest("10.0.1.3"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}}},
 		}
 	})
 

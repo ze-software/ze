@@ -71,7 +71,7 @@ func TestOSPFv3NSSABorderRouterDefaultPBit(t *testing.T) {
 		}
 		if noSummary {
 			in.NSSAPolicies = map[types.AreaID]ospfspf.AreaSummaryPolicy{
-				nssa: {Type: ospfspf.AreaTypeNSSA, NoSummary: true},
+				nssa: {Type: types.AreaTypeNSSA, NoSummary: true},
 			}
 		}
 		return v6Strategy{}.ComputeExternal(in)
@@ -121,7 +121,7 @@ func TestOSPFv3NSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 			NextHops: []ospfspf.NextHop{{Addr: nextHop}},
 		}},
 		NSSAPolicies: map[types.AreaID]ospfspf.AreaSummaryPolicy{
-			nssa: {Type: ospfspf.AreaTypeNSSA, NoSummary: true},
+			nssa: {Type: types.AreaTypeNSSA, NoSummary: true},
 		},
 	})
 	require.Len(t, routes, 1, "an NSSA internal router installs the border router's P-clear default")

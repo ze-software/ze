@@ -41,8 +41,8 @@ func TestConfigClaimsCheckReportsUnclaimedRoot(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("want 1 diagnostic, got %d: %v", len(diags), diags)
 	}
-	if diags[0].Code != diagnosticConfigRootUnclaimed {
-		t.Errorf("want code %q, got %q", diagnosticConfigRootUnclaimed, diags[0].Code)
+	if diags[0].Code != diagnostic.CodeDoctorConfigRootUnclaimed {
+		t.Errorf("want code %q, got %q", diagnostic.CodeDoctorConfigRootUnclaimed, diags[0].Code)
 	}
 	if diags[0].Severity != diagnostic.SeverityWarning {
 		t.Errorf("want a warning, got %q", diags[0].Severity)
@@ -85,8 +85,8 @@ func TestConfigClaimsCheckFailsClosedWithNoClaims(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("want 1 diagnostic, got %d: %v", len(diags), diags)
 	}
-	if diags[0].Code != diagnosticConfigClaimsUnavailable {
-		t.Errorf("want code %q, got %q", diagnosticConfigClaimsUnavailable, diags[0].Code)
+	if diags[0].Code != diagnostic.CodeDoctorConfigClaimsUnavailable {
+		t.Errorf("want code %q, got %q", diagnostic.CodeDoctorConfigClaimsUnavailable, diags[0].Code)
 	}
 }
 
@@ -112,7 +112,11 @@ func TestConfigClaimsCheckHandlesEmptyTree(t *testing.T) {
 // PREVENTS: a diagnostic an operator cannot look up.
 func TestConfigClaimsCheckCodesRegistered(t *testing.T) {
 	diagnostic.RegisterBuiltinCodes()
-	for _, code := range []string{diagnosticConfigRootUnclaimed, diagnosticConfigClaimsUnavailable} {
+	codes := []string{
+		diagnostic.CodeDoctorConfigRootUnclaimed,
+		diagnostic.CodeDoctorConfigClaimsUnavailable,
+	}
+	for _, code := range codes {
 		if diagnostic.Lookup(code) == nil {
 			t.Errorf("diagnostic code %q is emitted but not registered", code)
 		}
@@ -132,7 +136,7 @@ func TestConfigClaimsCheckWiredIntoDoctor(t *testing.T) {
 
 	found := false
 	for _, d := range diags {
-		if d.Code == diagnosticConfigRootUnclaimed &&
+		if d.Code == diagnostic.CodeDoctorConfigRootUnclaimed &&
 			strings.Contains(d.Message, "definitely-not-a-config-root") {
 			found = true
 		}

@@ -22,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
@@ -61,26 +62,18 @@ const (
 	bfdMaxIntervalMs = uint64(10000)
 )
 
+// The area types and the network types this resolver reads are declared in
+// internal/plugins/ospf/types (vocabulary.go), because the config resolver, iface,
+// neighbor, lsdb and spf all act on the same words.
 const (
-	areaTypeNormal = "normal"
-	areaTypeStub   = "stub"
-	areaTypeNSSA   = "nssa"
-
 	translateRoleCandidate = "candidate"
 	translateRoleAlways    = "always"
 	translateRoleNever     = "never"
-
-	networkBroadcast         = "broadcast"
-	networkPointToPoint      = "point-to-point"
-	networkLoopback          = "loopback"
-	networkNBMA              = "nbma"
-	networkPointToMultipoint = "point-to-multipoint"
 
 	metricType1 = "type-1"
 	metricType2 = "type-2"
 
 	authModeInherit    = "inherit"
-	authAlgorithmMD5   = "md5"
 	rangeAdvertise     = "advertise"
 	rangeNotAdvertise  = "not-advertise"
 	redistributeStatic = "static"
@@ -618,7 +611,7 @@ func (c ospfConfig) activeInterfaces() []interfaceConfig {
 	enrolled := c.enrolledInterfaces()
 	out := enrolled[:0]
 	for _, ic := range enrolled {
-		if !ic.Passive && ic.NetworkType != networkLoopback {
+		if !ic.Passive && ic.NetworkType != types.NetworkLoopback {
 			out = append(out, ic)
 		}
 	}
@@ -924,7 +917,7 @@ func validateConfigAF(cfg ospfConfig, isV6 bool) error {
 		// only reach the statically configured neighbor list. With an empty list it unicasts
 		// to nobody and silently forms no adjacency. Reject it at config time. (An empty list
 		// is valid for point-to-multipoint, which discovers neighbors via multicast Hellos.)
-		if ic.NetworkType == networkNBMA && len(ic.nbmaNeighborList()) == 0 {
+		if ic.NetworkType == types.NetworkNBMA && len(ic.nbmaNeighborList()) == 0 {
 			return fmt.Errorf("%w: interface %q", ErrNBMANoNeighbors, ic.Name)
 		}
 		// RFC 3630 / RFC 5392: the traffic-engineering inter-as cross-field requirements.
@@ -957,13 +950,13 @@ func validateConfigAF(cfg ospfConfig, isV6 bool) error {
 			// RFC 2328 App D / RFC 5709 AuType 2: the on-wire Key ID is a single octet, so a
 			// crypto key-id above 255 cannot be represented and would truncate silently.
 			// AuType 1 (simple) carries no Key ID on the wire, so it is unconstrained.
-			if k.Algorithm != "simple" && k.KeyID > 255 {
+			if k.Algorithm != packet.AuthSimple && k.KeyID > 255 {
 				return fmt.Errorf("%w: key-chain %q key %d", ErrKeyIDTooWide, kc.Name, k.KeyID)
 			}
 			// RFC 2328 App D: the AuType 1 (Simple Password) authentication field is exactly 8
 			// octets, so a longer simple-password secret cannot be carried on the wire and would
 			// be silently truncated. Reject it at config time instead of truncating.
-			if k.Algorithm == "simple" && len(decodeSecret(k.Secret)) > 8 {
+			if k.Algorithm == packet.AuthSimple && len(decodeSecret(k.Secret)) > 8 {
 				return fmt.Errorf("%w: key-chain %q key %d", ErrSimplePasswordLen, kc.Name, k.KeyID)
 			}
 		}
@@ -1015,7 +1008,7 @@ func validateVirtualLinks(cfg ospfConfig) error {
 		if !ok {
 			return fmt.Errorf("%w: %s (neighbor %s)", ErrVirtualLinkTransitMissing, vl.TransitArea.String(), vl.RemoteRouterID.String())
 		}
-		if at == areaTypeStub || at == areaTypeNSSA {
+		if at == types.AreaTypeStub || at == types.AreaTypeNSSA {
 			return fmt.Errorf("%w: area %s", ErrVirtualLinkTransitStub, vl.TransitArea.String())
 		}
 		if !abr {
@@ -1068,9 +1061,13 @@ func validateKeyRollover(kc keyChainConfig) error {
 
 // isHMACSHA reports whether algo is one of the RFC 5709 HMAC-SHA algorithms (the only
 // ones valid under RFC 7474 extended sequence numbers).
+//
+// The words come from the packet package, which is where the signer reads them. A copy
+// spelled here would let this check accept a word the signer has no case for, and the
+// key would then pass the commit and sign nothing (ai/rules/principles.md).
 func isHMACSHA(algo string) bool {
 	switch algo {
-	case "hmac-sha-1", "hmac-sha-256", "hmac-sha-384", "hmac-sha-512":
+	case packet.AuthHMACSHA1, packet.AuthHMACSHA256, packet.AuthHMACSHA384, packet.AuthHMACSHA512:
 		return true
 	default:
 		return false
@@ -1232,7 +1229,7 @@ func parseArea(entry listEntry) (areaConfig, error) {
 	}
 	a := areaConfig{
 		AreaID:                id,
-		AreaType:              areaTypeNormal,
+		AreaType:              types.AreaTypeNormal,
 		DefaultCost:           DefaultAreaCost,
 		NSSATranslateRole:     translateRoleCandidate,
 		NSSAStabilityInterval: DefaultNSSAStabilityInterval,
@@ -1241,7 +1238,7 @@ func parseArea(entry listEntry) (areaConfig, error) {
 		// Validate against the YANG enum instead of silently coercing an unrecognized value
 		// (which fell through to normal). Defends the non-YANG doctor/verifier parse paths.
 		switch s {
-		case areaTypeNormal, areaTypeStub, areaTypeNSSA:
+		case types.AreaTypeNormal, types.AreaTypeStub, types.AreaTypeNSSA:
 			a.AreaType = areaType(s)
 		default:
 			return areaConfig{}, fmt.Errorf("ospf: area %s invalid area-type %q (want normal|stub|nssa)", id, s)
@@ -1355,7 +1352,7 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 	ic := interfaceConfig{
 		Name:               entry.key,
 		Enabled:            configBool(m["enabled"], true),
-		NetworkType:        networkBroadcast,
+		NetworkType:        types.NetworkBroadcast,
 		HelloInterval:      DefaultHelloInterval,
 		DeadInterval:       DefaultDeadInterval,
 		Priority:           DefaultPriority,
@@ -1382,7 +1379,7 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 		// YANG enum is the authoritative per-family gate); an IPv6 loopback never reaches an
 		// interface because the v6 schema does not offer it.
 		switch s {
-		case networkBroadcast, networkPointToPoint, networkLoopback, networkNBMA, networkPointToMultipoint:
+		case types.NetworkBroadcast, types.NetworkPointToPoint, types.NetworkLoopback, types.NetworkNBMA, types.NetworkPointToMultipoint:
 			ic.NetworkType = networkType(s)
 		default:
 			return ic, fmt.Errorf("ospf: interface %q invalid network-type %q (want broadcast|point-to-point|nbma|point-to-multipoint|loopback)", ic.Name, s)
@@ -1402,7 +1399,7 @@ func parseInterface(entry listEntry) (interfaceConfig, error) {
 	if err != nil {
 		return ic, err
 	}
-	if ic.NetworkType == networkNBMA || ic.NetworkType == networkPointToMultipoint || pollSet || len(neighbors) > 0 {
+	if ic.NetworkType == types.NetworkNBMA || ic.NetworkType == types.NetworkPointToMultipoint || pollSet || len(neighbors) > 0 {
 		ic.NBMA = &nbmaConfig{PollInterval: poll, Neighbors: neighbors}
 	}
 	if v, ok := configNumber(m["cost"]); ok {
@@ -1617,7 +1614,7 @@ func parseKeyChain(entry listEntry) keyChainConfig {
 	}
 	kc.ExtendedSequence = configBool(entry.data["extended-sequence"], false)
 	for _, keyEntry := range keyedList(entry.data["key"], true) {
-		k := keyConfig{Algorithm: authAlgorithmMD5}
+		k := keyConfig{Algorithm: packet.AuthMD5}
 		if v, ok := configUint32(keyEntry.data["key-id"]); ok {
 			k.KeyID = v
 		} else if id, err := strconv.ParseUint(keyEntry.key, 10, 32); err == nil {

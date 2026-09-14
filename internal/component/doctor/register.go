@@ -20,5 +20,6 @@ func init() {
 			"the dependencies Ze needs. Run it before the first start, and again after a change " +
 			"to the platform.",
 	})
+	registerDoctorOwnedChecks()
 	diagnostic.RegisterDoctorProvider(runChecks)
 }

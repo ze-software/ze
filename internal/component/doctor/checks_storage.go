@@ -23,14 +23,6 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// Storage diagnostic codes. Each one names the fault an operator sees in
-// `ze doctor` output.
-const (
-	diagnosticStoreIntegrity   = "doctor-store-integrity"
-	diagnosticDiskSpace        = "doctor-disk-space"
-	diagnosticWriteDestination = "doctor-write-destination"
-)
-
 // defaultNTPPersistPath is the gokrazy default for environment/ntp persist-path.
 const defaultNTPPersistPath = "/perm/ze/timefile"
 
@@ -50,7 +42,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		// HEALTHY verdict, so returning it here would report a store that was
 		// never opened (ai/rules/evidence.md).
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticStoreIntegrity,
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("store unreadable at ").Str(storePath).Str(": ").Err(err).String(),
 			Path:     storePath,
@@ -60,7 +52,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 	report, err := zefs.Check(storePath)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticStoreIntegrity,
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("store integrity check failed: ").Err(err).String(),
 		}}
@@ -68,7 +60,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 
 	if report.ContainerError != "" {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticStoreIntegrity,
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str("store corrupt: ").Str(report.ContainerError).String(),
 		}}
@@ -76,7 +68,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 
 	if report.CorruptEntries > 0 {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticStoreIntegrity,
+			Code:     diagnostic.CodeDoctorStoreIntegrity,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str("store has ").Int(int64(report.CorruptEntries)).Str(" corrupt entries").String(),
 		}}
@@ -99,7 +91,7 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 		}
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticDiskSpace,
+			Code:     diagnostic.CodeDoctorDiskSpace,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("config partition unreadable at ").Str(configDir).Str(": ").Err(err).String(),
 			Path:     configDir,
@@ -110,7 +102,7 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 	if stat.Blocks == 0 {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticDiskSpace,
+			Code:     diagnostic.CodeDoctorDiskSpace,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("config partition reports zero total blocks at ").Str(configDir).String(),
 			Path:     configDir,
@@ -120,7 +112,7 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 	if pctFree < 5 {
 		pctStr := textbuf.UintStr(pctFree, "%")
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticDiskSpace,
+			Code:     diagnostic.CodeDoctorDiskSpace,
 			Severity: diagnostic.SeverityWarning,
 			Message:  textbuf.StrUintStr("config partition has ", pctFree, "% free space"),
 			Path:     configDir,
@@ -131,24 +123,10 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 	return nil
 }
 
-var probeWritable = probeWritableDir
-
-func probeWritableDir(dir string) error {
-	if dir == "" {
-		return errors.New("empty path")
-	}
-	f, err := os.CreateTemp(dir, ".ze-doctor-probe-*")
-	if err != nil {
-		return err
-	}
-	name := f.Name()
-	closeErr := f.Close()
-	removeErr := os.Remove(name)
-	if closeErr != nil {
-		return closeErr
-	}
-	return removeErr
-}
+// probeWritable is the seam the storage tests replace. The probe itself lives
+// in internal/core/diagnostic so a check an owner package registers runs the
+// same one (diagnostic.DoctorProbeWritableDir).
+var probeWritable = diagnostic.DoctorProbeWritableDir
 
 func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
 	var tb textbuf.Buffer
@@ -161,7 +139,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 			dir := filepath.Dir(persistPath)
 			if err := probeWritable(dir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnosticWriteDestination,
+					Code:     diagnostic.CodeDoctorWriteDestination,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("NTP persist-path parent not writable: ").Str(dir).String(),
 					Path:     persistPath,
@@ -174,7 +152,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 		if persistDir, ok := bfd.Get("persist-dir"); ok && persistDir != "" {
 			if err := probeWritable(persistDir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnosticWriteDestination,
+					Code:     diagnostic.CodeDoctorWriteDestination,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("BFD persist-dir not writable: ").Str(persistDir).String(),
 					Path:     persistDir,
@@ -188,7 +166,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 			dir := filepath.Dir(rcPath)
 			if err := probeWritable(dir); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnosticWriteDestination,
+					Code:     diagnostic.CodeDoctorWriteDestination,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("DNS resolv-conf-path parent not writable: ").Str(dir).String(),
 					Path:     rcPath,
@@ -212,7 +190,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 			}
 			if err := probeWritable(path); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     diagnosticWriteDestination,
+					Code:     diagnostic.CodeDoctorWriteDestination,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("archive ").Str(a.Key).Str(": file location not writable: ").Str(path).String(),
 					Path:     path,
@@ -231,7 +209,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 				dir := filepath.Dir(exe)
 				if writeErr := probeWritable(dir); writeErr != nil {
 					diags = append(diags, diagnostic.Diagnostic{
-						Code:     diagnosticWriteDestination,
+						Code:     diagnostic.CodeDoctorWriteDestination,
 						Severity: diagnostic.SeverityWarning,
 						Message:  tb.Reset().Str("self-update auto-apply: binary parent not writable: ").Str(dir).String(),
 						Path:     exe,

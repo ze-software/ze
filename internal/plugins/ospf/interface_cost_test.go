@@ -128,7 +128,7 @@ func TestOSPFTopologyCostFollowsReferenceBandwidth(t *testing.T) {
 // forty auto-costed links that is forty adjacencies for one commit.
 func TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth(t *testing.T) {
 	stubLinkSpeed(t, map[string]uint64{"eth0": 1000})
-	backbone := []areaConfig{{AreaID: types.BackboneArea, AreaType: areaTypeNormal}}
+	backbone := []areaConfig{{AreaID: types.BackboneArea, AreaType: types.AreaTypeNormal}}
 	oldCfg := ospfConfig{RouterID: types.RouterID{10, 0, 0, 1}, ReferenceBandwidth: 100000, Areas: backbone}
 	auto := interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
 
@@ -151,7 +151,7 @@ func TestInterfaceGlobalParamsChangedIgnoresReferenceBandwidth(t *testing.T) {
 		t.Error("a Router ID change did not restart the interface: its Hellos would carry the old identity")
 	}
 	stub := oldCfg
-	stub.Areas = []areaConfig{{AreaID: types.BackboneArea, AreaType: areaTypeStub}}
+	stub.Areas = []areaConfig{{AreaID: types.BackboneArea, AreaType: types.AreaTypeStub}}
 	if !interfaceGlobalParamsChanged(oldCfg, stub, auto) {
 		t.Error("an area-type change did not restart the interface: its Hellos would carry the old E-bit")
 	}
@@ -734,7 +734,7 @@ func TestDerivedCostReachesLDPSyncAndTEMetric(t *testing.T) {
 	// Link ID: this router is the DR, so the Link ID is its own interface address.
 	eng.teOrig.setTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{{
-			Name: "eth0", AreaID: types.BackboneArea, NetworkType: networkBroadcast,
+			Name: "eth0", AreaID: types.BackboneArea, NetworkType: types.NetworkBroadcast,
 			State: "dr", Address: [4]byte{10, 0, 0, 1},
 			RouterID: types.RouterID{1, 1, 1, 1}, DR: types.RouterID{1, 1, 1, 1},
 		}}

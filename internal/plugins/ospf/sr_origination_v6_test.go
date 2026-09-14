@@ -31,7 +31,7 @@ func TestOSPFv3ERouterBodyCarriesAdjSID(t *testing.T) {
 		}},
 	}}
 	ifaces := []ospflsdb.InterfaceInfo{{
-		Name: "eth0", NetworkType: ospflsdb.NetworkPointToPoint, InterfaceID: 5, Cost: 10,
+		Name: "eth0", NetworkType: types.NetworkPointToPoint, InterfaceID: 5, Cost: 10,
 		Neighbors: []ospflsdb.NeighborInfo{{RouterID: nbr, State: ospflsdb.NeighborStateFull, InterfaceID: 6}},
 	}}
 
@@ -64,7 +64,7 @@ func TestOSPFv3ERouterBodyEmptyWithoutAdjSID(t *testing.T) {
 	eng := newV6RIEngine(t)
 	eng.srAdj = &srAdjManager{labels: map[srAdjKey]srAdjRecord{}}
 	ifaces := []ospflsdb.InterfaceInfo{{
-		Name: "eth0", NetworkType: ospflsdb.NetworkPointToPoint, InterfaceID: 5,
+		Name: "eth0", NetworkType: types.NetworkPointToPoint, InterfaceID: 5,
 		Neighbors: []ospflsdb.NeighborInfo{{RouterID: types.RouterID{2, 2, 2, 2}, State: ospflsdb.NeighborStateFull}},
 	}}
 	if _, ok := eng.v6BuildERouterBody(ifaces); ok {

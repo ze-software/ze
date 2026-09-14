@@ -47,13 +47,6 @@ const (
 	systemdRandomSeedPath = "/var/lib/systemd/random-seed"
 )
 
-// Linux-only diagnostic codes. Each one names the fault an operator sees in
-// `ze doctor` output.
-const (
-	diagnosticModuleMissing = "doctor-module-missing"
-	diagnosticRandomSeed    = "doctor-random-seed"
-)
-
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorModulesEnv,
 	Type:        envTypeString,
@@ -163,7 +156,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	for _, mod := range required {
 		if !loaded[mod] {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     diagnosticModuleMissing,
+				Code:     diagnostic.CodeDoctorModuleMissing,
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str("kernel module not loaded: ").Str(mod).String(),
 			})
@@ -172,7 +165,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 
 	if l2tpRequired && !loaded["l2tp_ppp"] && !loaded["pppol2tp"] {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-l2tp-module",
+			Code:     diagnostic.CodeDoctorL2TPModule,
 			Severity: diagnostic.SeverityError,
 			Message:  "L2TP kernel module not loaded: l2tp_ppp or pppol2tp",
 		})
@@ -180,7 +173,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 
 	if pppoeRequired && !loaded["pppoe"] {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-pppoe-module",
+			Code:     diagnostic.CodeDoctorPPPoEModule,
 			Severity: diagnostic.SeverityError,
 			Message:  "PPPoE kernel module not loaded: pppoe",
 		})
@@ -194,7 +187,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 
 	if hasIPsec && !loaded["ip_tables"] && !loaded["nf_tables"] {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnosticModuleMissing,
+			Code:     diagnostic.CodeDoctorModuleMissing,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "IPsec: neither ip_tables nor nf_tables loaded (firewall marking may not work)",
 		})
@@ -342,14 +335,14 @@ func selectedNetDevice(name string, entry *config.Tree) (string, *diagnostic.Dia
 				return devices[0], nil
 			case 0:
 				return "", &diagnostic.Diagnostic{
-					Code:     "doctor-iface-selector-unmatched",
+					Code:     diagnostic.CodeDoctorIfaceSelectorUnmatched,
 					Severity: diagnostic.SeverityWarning,
 					Message: tb.Reset().Str("ethernet ").Str(name).Str(": no device carries MAC ").Str(match).
 						Str("; the binding stays deferred until one appears").String(),
 				}
 			default:
 				return "", &diagnostic.Diagnostic{
-					Code:     "doctor-iface-selector-ambiguous",
+					Code:     diagnostic.CodeDoctorIfaceSelectorAmbiguous,
 					Severity: diagnostic.SeverityError,
 					Message: tb.Reset().Str("ethernet ").Str(name).Str(": MAC ").Str(match).Str(" is carried by ").
 						Str(strings.Join(devices, ", ")).Str("; a hardware MAC selects at most one device").String(),
@@ -697,7 +690,7 @@ func checkMachineID(platform *host.PlatformInfo, store storage.Storage) []diagno
 
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-machine-id-missing",
+		Code:     diagnostic.CodeDoctorMachineIDMissing,
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.Str("machine-id is missing or empty on ").Str(platform.Type.String()).String(),
 		Path:     path,
@@ -782,7 +775,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 			return nil
 		}
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticRandomSeed,
+			Code:     diagnostic.CodeDoctorRandomSeed,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "gokrazy random seed not found at " + path + "; verify randomd is included in the gokrazy image",
 			Path:     path,
@@ -796,7 +789,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 			return nil
 		}
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticRandomSeed,
+			Code:     diagnostic.CodeDoctorRandomSeed,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "systemd random seed not found at " + path + "; systemd-random-seed.service may not be enabled",
 			Path:     path,
@@ -806,7 +799,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 
 	case host.PlatformPlainLinux:
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticRandomSeed,
+			Code:     diagnostic.CodeDoctorRandomSeed,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "non-systemd Linux without a known random-seed service; early-boot entropy may be insufficient for cryptographic operations",
 		}}

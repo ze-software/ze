@@ -490,7 +490,7 @@ func (c *Computer) Run() RouteDelta {
 	internal := selectBestRoutes(candidates, maxPaths)
 	var nssaAreas []types.AreaID
 	for area, p := range areaPolicies {
-		if p.Type == AreaTypeNSSA {
+		if p.Type == types.AreaTypeNSSA {
 			nssaAreas = append(nssaAreas, area)
 		}
 	}
@@ -704,7 +704,7 @@ func areaConfigMaps(configs []AreaConfig) (map[types.AreaID]types.Options, map[t
 		if len(cfg.Ranges) > 0 {
 			ranges[cfg.AreaID] = append([]AreaRange(nil), cfg.Ranges...)
 		}
-		if cfg.AreaType != "" && cfg.AreaType != AreaTypeNormal {
+		if cfg.AreaType != "" && cfg.AreaType != types.AreaTypeNormal {
 			policies[cfg.AreaID] = AreaSummaryPolicy{Type: cfg.AreaType, NoSummary: cfg.NoSummary, DefaultCost: cfg.DefaultCost}
 		}
 	}

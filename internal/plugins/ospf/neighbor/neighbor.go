@@ -87,12 +87,9 @@ func (s state) String() string {
 	}
 }
 
-const (
-	NetworkBroadcast         = "broadcast"
-	NetworkPointToPoint      = "point-to-point"
-	NetworkNBMA              = "nbma"
-	NetworkPointToMultipoint = "point-to-multipoint"
-)
+// The network types this package reads are declared in
+// internal/plugins/ospf/types (vocabulary.go), because the config resolver, iface,
+// neighbor, lsdb and spf all act on the same words.
 
 type Sender interface {
 	SendPacket(name string, dst netip.Addr, payload []byte) error

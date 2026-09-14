@@ -13,8 +13,8 @@ func originTopology() []InterfaceInfo {
 		{
 			Name:               "eth0",
 			AreaID:             area("0.0.0.0"),
-			AreaType:           AreaTypeNormal,
-			NetworkType:        NetworkBroadcast,
+			AreaType:           types.AreaTypeNormal,
+			NetworkType:        types.NetworkBroadcast,
 			State:              InterfaceStateDR,
 			Address:            ip4("10.0.0.1"),
 			NetworkMask:        ip4("255.255.255.0"),
@@ -30,8 +30,8 @@ func originTopology() []InterfaceInfo {
 		{
 			Name:               "ptp0",
 			AreaID:             area("0.0.0.0"),
-			AreaType:           AreaTypeNormal,
-			NetworkType:        NetworkPointToPoint,
+			AreaType:           types.AreaTypeNormal,
+			NetworkType:        types.NetworkPointToPoint,
 			State:              "point-to-point",
 			Address:            ip4("192.0.2.1"),
 			NetworkMask:        ip4("255.255.255.252"),
@@ -46,28 +46,28 @@ func originTopology() []InterfaceInfo {
 }
 
 // virtualLinkTopology is an ABR (areas 0.0.0.0 + 0.0.0.1) with a Full virtual link through
-// the transit area presented as a synthetic NetworkVirtual interface in the BACKBONE. Its
+// the transit area presented as a synthetic types.NetworkVirtual interface in the BACKBONE. Its
 // local (transit) address is 172.16.0.1 and the virtual neighbor is 9.9.9.9 at cost 15.
 func virtualLinkTopology() []InterfaceInfo {
 	return []InterfaceInfo{
 		{
-			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkBroadcast, State: InterfaceStateDR,
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkBroadcast, State: InterfaceStateDR,
 			Address: ip4("10.0.0.1"), NetworkMask: ip4("255.255.255.0"),
 			Cost: 10, RouterID: rid("1.1.1.1"), Options: types.OptionE,
 			DR: rid("1.1.1.1"), BDR: rid("2.2.2.2"), RetransmitInterval: 5, TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull}},
 		},
 		{
-			Name: "eth2", AreaID: area("0.0.0.1"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, State: "point-to-point",
+			Name: "eth2", AreaID: area("0.0.0.1"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: "point-to-point",
 			Address: ip4("198.51.100.1"), NetworkMask: ip4("255.255.255.252"),
 			Cost: 5, RouterID: rid("1.1.1.1"), Options: types.OptionE, RetransmitInterval: 5, TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("4.4.4.4"), Address: naddr4("198.51.100.2"), State: NeighborStateFull}},
 		},
 		{
-			Name: "*vlink-0.0.0.1-9.9.9.9", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkVirtual, State: "point-to-point", VirtualTransitArea: area("0.0.0.1"),
+			Name: "*vlink-0.0.0.1-9.9.9.9", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkVirtual, State: "point-to-point", VirtualTransitArea: area("0.0.0.1"),
 			Address: ip4("172.16.0.1"), Cost: 15, RouterID: rid("1.1.1.1"), Options: types.OptionE,
 			RetransmitInterval: 5, TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("9.9.9.9"), Address: naddr4("172.16.0.2"), State: NeighborStateFull}},
@@ -313,8 +313,8 @@ func TestOSPFOriginateFromTopologySetsABRFlag(t *testing.T) {
 		ifs = append(ifs, InterfaceInfo{
 			Name:        "eth2",
 			AreaID:      area("0.0.0.1"),
-			AreaType:    AreaTypeNormal,
-			NetworkType: NetworkPointToPoint,
+			AreaType:    types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint,
 			State:       "point-to-point",
 			Address:     ip4("198.51.100.1"),
 			NetworkMask: ip4("255.255.255.252"),

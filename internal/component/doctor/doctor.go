@@ -1,14 +1,17 @@
 // Design: docs/features/ai-first.md — system readiness checks for agent tooling
 // Overview: register.go — command registration
-// Related: registry.go — doctor check registry bridge run from runChecks
+// Related: registry.go — the phase dispatch over internal/core/diagnostic
+// Related: doctor_checks.go — the checks this component owns and registers
 // Related: checks_platform.go, checks_storage.go, checks_tls.go — check implementations
 // Related: checks_listener.go, checks_reach.go, checks_config.go — check implementations
 // Related: checks_helpers.go — shared config-tree navigation helpers
 
-// Runner and output contract: argument parsing, config loading, the ordered
-// runChecks sequence, and the text/JSON output formats. Check implementations
-// live in the checks_*.go siblings, grouped by concern; owner-registered
-// checks arrive through registry.go.
+// Runner and output contract: argument parsing, config loading, the three phase
+// calls, and the text/JSON output formats. Check implementations live in the
+// checks_*.go siblings, grouped by concern. Every check an owner package
+// registers arrives through runDoctorChecks; the calls runChecks still writes
+// out by name are the ones not yet moved onto the registry
+// (`./le enumeration report` lists them).
 
 package doctor
 
@@ -82,10 +85,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 
 	platform, platformDiags := checkPlatform()
 	diags = append(diags, platformDiags...)
-	diags = append(diags, checkStoreIntegrity()...)
 	diags = append(diags, checkSystemdServiceInstall(platform)...)
-	diags = append(diags, checkMachineID(platform, store)...)
-	diags = append(diags, checkRandomSeed(platform)...)
 	baseCtx := doctorCheckContext{Store: store, Platform: platform}
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePreConfig, baseCtx)...)
 
@@ -97,7 +97,6 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 			Message:  err.Error(),
 		})
 		diags = append(diags, runDoctorChecks(doctorCheckPhaseMissingConfig, baseCtx)...)
-		diags = append(diags, checkKernelModules(nil)...)
 		return diags
 	}
 
@@ -125,7 +124,6 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkIfaceBackend(tree)...)
 	diags = append(diags, checkInterfaces(tree)...)
 	diags = append(diags, checkDHCPInterfaces(tree)...)
-	diags = append(diags, checkKernelModules(tree)...)
 	diags = append(diags, checkFirewallBackend(tree)...)
 	diags = append(diags, checkKernelNexthop()...)
 	diags = append(diags, checkTLS(tree, result.ConfigDir)...)
@@ -134,23 +132,16 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePostConfig, checkCtx)...)
 	diags = append(diags, checkSSHHostKey(tree, result.ConfigDir)...)
 	diags = append(diags, checkListeners(tree)...)
-	diags = append(diags, checkDiskSpace()...)
 	diags = append(diags, checkDNSResolvers(tree)...)
 	diags = append(diags, checkTACACSServers(tree)...)
 	diags = append(diags, checkTelemetryProcfs(tree)...)
 	diags = append(diags, checkSysctlProcfs(tree)...)
 	diags = append(diags, checkConntrackProcfs(tree)...)
 	diags = append(diags, checkPolicyRouteNetlink(tree)...)
-	diags = append(diags, checkConfigReferences(tree)...)
-	diags = append(diags, checkClockSkew()...)
 	diags = append(diags, checkVPPVersion(tree)...)
 	diags = append(diags, checkBGPMD5(tree)...)
 	diags = append(diags, checkBGPPeersWithoutRole(tree)...)
 	diags = append(diags, checkRedistributeRules(tree)...)
-	diags = append(diags, checkAS112WatchdogWithdraw(tree)...)
-	diags = append(diags, checkAS112GlobalOriginCoordination(tree)...)
-	diags = append(diags, checkAS112RedistributeOriginCoordination(tree)...)
-	diags = append(diags, checkAS112RedistributeNotImported(tree)...)
 	diags = append(diags, checkNTPClient(tree, platform)...)
 	diags = append(diags, checkNTPClockPrivilege(tree)...)
 	diags = append(diags, checkRPKIServers(tree)...)
@@ -159,7 +150,6 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkUpdateCheckURL(tree, platform)...)
 	diags = append(diags, checkUpdateBackendConfig(tree, platform)...)
 	diags = append(diags, checkArchiveDestinations(tree)...)
-	diags = append(diags, checkWritableDestinations(tree, platform)...)
 	diags = append(diags, checkBGPCaptureDirectory(tree)...)
 	diags = append(diags, checkResolvConfPath(tree, platform)...)
 	diags = append(diags, checkSmartEnabled(tree)...)

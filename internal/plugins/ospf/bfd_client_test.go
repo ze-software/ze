@@ -194,11 +194,11 @@ func bfdTestEngine(t *testing.T, bfd bfdInterfaceConfig, svc api.Service) (*engi
 	reg := newBFDMetricRegistry()
 	e.setBFDMetrics(reg)
 	e.mu.Lock()
-	e.running[bfdTestIface] = interfaceConfig{Name: bfdTestIface, AreaID: types.BackboneArea, Enabled: true, NetworkType: networkPointToPoint, BFD: bfd}
+	e.running[bfdTestIface] = interfaceConfig{Name: bfdTestIface, AreaID: types.BackboneArea, Enabled: true, NetworkType: types.NetworkPointToPoint, BFD: bfd}
 	e.mu.Unlock()
 	e.neighbors.ConfigureInterface(ospfneighbor.InterfaceConfig{
 		Name: bfdTestIface, AreaID: types.BackboneArea, RouterID: ridMust(t, bfdTestLocalRID),
-		NetworkType: networkPointToPoint, Options: types.OptionE, DeadInterval: 40, InterfaceMTU: 1500,
+		NetworkType: types.NetworkPointToPoint, Options: types.OptionE, DeadInterval: 40, InterfaceMTU: 1500,
 	})
 	api.SetService(svc)
 	t.Cleanup(func() { api.SetService(nil); e.shutdown() })
@@ -212,7 +212,7 @@ func seedNeighbor(t *testing.T, e *engine, id types.RouterID, addr netip.Addr) {
 	e.neighbors.Hello(ospfneighbor.HelloInput{
 		InterfaceName: bfdTestIface, AreaID: types.BackboneArea, LocalRouterID: ridMust(t, bfdTestLocalRID),
 		NeighborID: id, Address: addr, Priority: 1, TwoWay: false,
-		NetworkType: networkPointToPoint, DeadInterval: 40, InterfaceMTU: 1500, Now: time.Now(),
+		NetworkType: types.NetworkPointToPoint, DeadInterval: 40, InterfaceMTU: 1500, Now: time.Now(),
 	})
 }
 
@@ -224,7 +224,7 @@ func driveNeighborFull(t *testing.T, e *engine, id types.RouterID, addr netip.Ad
 	e.neighbors.Hello(ospfneighbor.HelloInput{
 		InterfaceName: bfdTestIface, AreaID: types.BackboneArea, LocalRouterID: ridMust(t, bfdTestLocalRID),
 		NeighborID: id, Address: addr, Priority: 1, TwoWay: true,
-		NetworkType: networkPointToPoint, DeadInterval: 40, InterfaceMTU: 1500, Now: time.Now(),
+		NetworkType: types.NetworkPointToPoint, DeadInterval: 40, InterfaceMTU: 1500, Now: time.Now(),
 	})
 	if r := e.neighbors.HandleDBDesc(bfdTestIface, id, ospfpacket.DBDesc{
 		InterfaceMTU: 1500, Options: types.OptionE,
@@ -503,7 +503,7 @@ func TestOSPFBFDReloadEnablesSessionForFullNeighbor(t *testing.T) {
 		t.Fatalf("EnsureSession = %d before enable, want 0", svc.ensure.Load())
 	}
 	desired := map[string]interfaceConfig{
-		"eth0": {Name: "eth0", AreaID: types.BackboneArea, Enabled: true, NetworkType: networkPointToPoint, BFD: enabledBFD()},
+		"eth0": {Name: "eth0", AreaID: types.BackboneArea, Enabled: true, NetworkType: types.NetworkPointToPoint, BFD: enabledBFD()},
 	}
 	e.reconcileBFD(desired)
 	waitFor(t, func() bool { return svc.ensure.Load() == 1 })
@@ -524,7 +524,7 @@ func TestOSPFBFDReloadDisableKeepsAdjacency(t *testing.T) {
 		t.Fatalf("EnsureSession = %d, want 1", svc.ensure.Load())
 	}
 	desired := map[string]interfaceConfig{
-		"eth0": {Name: "eth0", AreaID: types.BackboneArea, Enabled: true, NetworkType: networkPointToPoint, BFD: bfdInterfaceConfig{Enabled: false}},
+		"eth0": {Name: "eth0", AreaID: types.BackboneArea, Enabled: true, NetworkType: types.NetworkPointToPoint, BFD: bfdInterfaceConfig{Enabled: false}},
 	}
 	e.reconcileBFD(desired)
 	if svc.release.Load() != 1 {

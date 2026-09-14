@@ -13,14 +13,14 @@ import (
 func floodTopology() []InterfaceInfo {
 	return []InterfaceInfo{
 		{
-			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkBroadcast, State: InterfaceStateBackup,
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkBroadcast, State: InterfaceStateBackup,
 			Address: ip4("10.0.0.1"), NetworkMask: ip4("255.255.255.0"), RouterID: rid("1.1.1.1"), DR: rid("2.2.2.2"), BDR: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull}},
 		},
 		{
-			Name: "eth1", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkBroadcast, State: InterfaceStateDR,
+			Name: "eth1", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkBroadcast, State: InterfaceStateDR,
 			Address: ip4("10.0.1.1"), NetworkMask: ip4("255.255.255.0"), RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.1.3"), State: NeighborStateFull}},
 		},
@@ -63,8 +63,8 @@ func TestOSPFFloodQueuesExchangeAndLoadingNeighbors(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "eth0", AreaID: a, AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, RouterID: rid("1.1.1.1"),
+			Name: "eth0", AreaID: a, AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, RouterID: rid("1.1.1.1"),
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateExchange},
 				{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.0.3"), State: NeighborStateLoading},
@@ -165,7 +165,7 @@ func TestOSPFRetransmitTimerKeepsExchangeNeighbor(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "eth0", AreaID: a, AreaType: AreaTypeNormal, RetransmitInterval: 5,
+			Name: "eth0", AreaID: a, AreaType: types.AreaTypeNormal, RetransmitInterval: 5,
 			Neighbors: []NeighborInfo{{RouterID: peer, Address: naddr4("10.0.0.2"), State: NeighborStateExchange}},
 		}}
 	})
@@ -250,7 +250,7 @@ func TestOSPFStubAreaDropsType5(t *testing.T) {
 	db := newTestDB(clock)
 	db.SetTopology(func() []InterfaceInfo {
 		ifs := floodTopology()
-		ifs[0].AreaType = AreaTypeStub
+		ifs[0].AreaType = types.AreaTypeStub
 		return ifs[:1]
 	})
 	lsa := externalLSA(t, rid("4.4.4.4"), types.InitialSequenceNumber)
@@ -268,7 +268,7 @@ func TestOSPFStubAreaSummaryHidesType5(t *testing.T) {
 	db := newTestDB(clock)
 	normal := area("0.0.0.0")
 	stub := area("0.0.0.1")
-	db.SetAreaTypes(map[types.AreaID]string{stub: AreaTypeStub})
+	db.SetAreaTypes(map[types.AreaID]string{stub: types.AreaTypeStub})
 	lsa := externalLSA(t, rid("4.4.4.4"), types.InitialSequenceNumber)
 	if !db.Install(normal, lsa) {
 		t.Fatalf("external install failed")

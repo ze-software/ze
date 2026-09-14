@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func TestOSPFParsePtMPInterface(t *testing.T) {
@@ -18,7 +20,7 @@ func TestOSPFParsePtMPInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
-	if cfg.Interfaces[0].NetworkType != networkPointToMultipoint {
+	if cfg.Interfaces[0].NetworkType != types.NetworkPointToMultipoint {
 		t.Fatalf("network-type = %q, want point-to-multipoint", cfg.Interfaces[0].NetworkType)
 	}
 }
@@ -31,7 +33,7 @@ func TestOSPFv3ParsePtMPInterface(t *testing.T) {
 	if cfg.V6 == nil || len(cfg.V6.Interfaces) != 1 {
 		t.Fatalf("v6 interfaces = %+v", cfg.V6)
 	}
-	if cfg.V6.Interfaces[0].NetworkType != networkPointToMultipoint {
+	if cfg.V6.Interfaces[0].NetworkType != types.NetworkPointToMultipoint {
 		t.Fatalf("v6 network-type = %q, want point-to-multipoint", cfg.V6.Interfaces[0].NetworkType)
 	}
 }
@@ -42,7 +44,7 @@ func TestOSPFParseNBMAInterface(t *testing.T) {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
 	ic := cfg.Interfaces[0]
-	if ic.NetworkType != networkNBMA {
+	if ic.NetworkType != types.NetworkNBMA {
 		t.Fatalf("network-type = %q, want nbma", ic.NetworkType)
 	}
 	if ic.pollInterval() != 90 {
@@ -77,7 +79,7 @@ func TestOSPFv3ParseNBMAInterface(t *testing.T) {
 		t.Fatalf("parseOSPFConfig: %v", err)
 	}
 	ic := cfg.V6.Interfaces[0]
-	if ic.NetworkType != networkNBMA || ic.pollInterval() != 60 {
+	if ic.NetworkType != types.NetworkNBMA || ic.pollInterval() != 60 {
 		t.Fatalf("v6 nbma iface = %+v", ic)
 	}
 	neighbors := ic.nbmaNeighborList()

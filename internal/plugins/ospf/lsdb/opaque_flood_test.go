@@ -20,8 +20,8 @@ func TestOpaqueFloodOnlyToOpaqueNeighbor(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "eth0", AreaID: a0, AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Name: "eth0", AreaID: a0, AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull, OpaqueCapable: true},
 				{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.0.3"), State: NeighborStateFull, OpaqueCapable: false},

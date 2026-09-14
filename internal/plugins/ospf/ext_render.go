@@ -15,6 +15,8 @@ import (
 	"encoding/hex"
 	"sort"
 
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
@@ -212,7 +214,7 @@ func extRouteTypeString(rt uint8) string {
 func extLinkTypeString(lt uint8) string {
 	switch lt {
 	case packet.RouterLinkTypeP2P:
-		return networkPointToPoint
+		return types.NetworkPointToPoint
 	case packet.RouterLinkTypeTransit:
 		return "transit"
 	case packet.RouterLinkTypeStub:

@@ -19,7 +19,7 @@ import (
 // Link ID = neighbor Router ID, Link Data = local address).
 func extP2PIface(local [4]byte, nbr types.RouterID, nbrAddr string) ospflsdb.InterfaceInfo {
 	return ospflsdb.InterfaceInfo{
-		Name: "eth0", AreaID: types.BackboneArea, NetworkType: ospflsdb.NetworkPointToPoint, State: "point-to-point", Address: local,
+		Name: "eth0", AreaID: types.BackboneArea, NetworkType: types.NetworkPointToPoint, State: "point-to-point", Address: local,
 		Neighbors: []ospflsdb.NeighborInfo{{RouterID: nbr, Address: netip.MustParseAddr(nbrAddr), State: ospflsdb.NeighborStateFull}},
 	}
 }

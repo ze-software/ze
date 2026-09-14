@@ -255,7 +255,7 @@ func buildIntraTELink(self types.RouterID, ic interfaceConfig, info ospflsdb.Int
 		return packet.TELink{}, false
 	}
 	link := packet.TELink{HasLinkType: true}
-	if ic.NetworkType == networkPointToPoint {
+	if ic.NetworkType == types.NetworkPointToPoint {
 		link.LinkType = packet.TELinkTypePointToPoint
 		nbr, ok := firstFullNeighbor(info)
 		if !ok {

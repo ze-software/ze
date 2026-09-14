@@ -52,7 +52,7 @@ func rfc5340SendHello(t *testing.T, cfg ospfiface.Config) ospfv3packet.Hello {
 	t.Helper()
 	cfg.IsV6 = true
 	if cfg.NetworkType == "" {
-		cfg.NetworkType = ospfiface.NetworkPointToPoint
+		cfg.NetworkType = types.NetworkPointToPoint
 	}
 	if cfg.HelloInterval == 0 {
 		cfg.HelloInterval = DefaultHelloInterval
@@ -100,7 +100,7 @@ func TestRFC5340HelloCarriesInterfaceID(t *testing.T) {
 	cfg.IsV6 = true
 	cfg.HelloInterval = DefaultHelloInterval
 	cfg.DeadInterval = DefaultDeadInterval
-	cfg.NetworkType = ospfiface.NetworkPointToPoint
+	cfg.NetworkType = types.NetworkPointToPoint
 	ifc := ospfiface.New(cfg, sender, ospfiface.NopMetrics())
 	ifc.SetEncoder(v6Encoder{})
 	reason := ifc.ReceiveDecodedHello(ridOf("10.0.0.2"), netip.MustParseAddr("fe80::2"), packet.Hello{
@@ -138,11 +138,11 @@ func TestRFC5340HelloOptionsBits(t *testing.T) {
 	assert.False(t, normal.NSSA(), "a regular area must not set the N-bit")
 	assert.True(t, normal.V6() && normal.Router(), "an active IPv6 router sets V6 and R")
 
-	nssa := mk(ospfiface.AreaNSSA)
+	nssa := mk(types.AreaTypeNSSA)
 	assert.True(t, nssa.NSSA(), "an NSSA area must set the N-bit")
 	assert.False(t, nssa.External(), "an NSSA area must not set the E-bit")
 
-	stub := mk(ospfiface.AreaStub)
+	stub := mk(types.AreaTypeStub)
 	assert.False(t, stub.External(), "a stub area must clear the E-bit")
 	assert.False(t, stub.NSSA(), "a stub area must not set the N-bit")
 
@@ -476,7 +476,7 @@ func TestRFC5340IPv6InterfaceCostAndTransmitDelay(t *testing.T) {
 func TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink(t *testing.T) {
 	ifc := ospfiface.New(ospfiface.Config{
 		Name: "eth0", RouterID: ridOf("10.0.0.1"), AreaID: types.BackboneArea,
-		NetworkType: ospfiface.NetworkPointToPoint, IsV6: true, InterfaceID: 42,
+		NetworkType: types.NetworkPointToPoint, IsV6: true, InterfaceID: 42,
 		HelloInterval: DefaultHelloInterval, DeadInterval: DefaultDeadInterval,
 	}, &rfc5340Sender{}, ospfiface.NopMetrics())
 	ifc.SetEncoder(v6Encoder{})

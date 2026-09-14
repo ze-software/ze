@@ -12,6 +12,8 @@ package ospf
 import (
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 )
@@ -204,7 +206,7 @@ func teLinkRowFromLink(l packet.TELink) teLinkRow {
 func teLinkTypeString(t uint8) string {
 	switch t {
 	case packet.TELinkTypePointToPoint:
-		return networkPointToPoint
+		return types.NetworkPointToPoint
 	case packet.TELinkTypeMultiAccess:
 		return "multi-access"
 	default:

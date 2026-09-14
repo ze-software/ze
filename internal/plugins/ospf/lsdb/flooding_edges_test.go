@@ -85,8 +85,8 @@ func TestOSPFDRRefloodsBackOutReceivingInterface(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkBroadcast, State: InterfaceStateDR,
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkBroadcast, State: InterfaceStateDR,
 			Address: ip4("10.0.0.1"), RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"), BDR: rid("2.2.2.2"),
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull},

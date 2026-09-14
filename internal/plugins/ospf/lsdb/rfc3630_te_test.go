@@ -42,13 +42,13 @@ func TestRFC3630NonTECapableFloodsTELSAByScope(t *testing.T) {
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{
 			{
-				Name: "eth0", AreaID: a0, AreaType: AreaTypeNormal,
-				NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+				Name: "eth0", AreaID: a0, AreaType: types.AreaTypeNormal,
+				NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 				Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull, OpaqueCapable: true}},
 			},
 			{
-				Name: "eth1", AreaID: a1, AreaType: AreaTypeNormal,
-				NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+				Name: "eth1", AreaID: a1, AreaType: types.AreaTypeNormal,
+				NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 				Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.1.3"), State: NeighborStateFull, OpaqueCapable: true}},
 			},
 		}

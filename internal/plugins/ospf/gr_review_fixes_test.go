@@ -84,7 +84,7 @@ func grPrepareEngine(t *testing.T, now time.Time) *engine {
 	e.cfg.RouterID = rid
 	e.mu.Unlock()
 	e.lsdb.SetSelfRouterID(rid)
-	e.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: networkPointToPoint}
+	e.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: ospftypes.NetworkPointToPoint}
 	return e
 }
 

@@ -61,7 +61,7 @@ func TestGRStorageAndFactKey(t *testing.T) {
 func TestInterfaceAreaType(t *testing.T) {
 	area := types.AreaID{0, 0, 0, 9}
 	e := &engine{
-		cfg: ospfConfig{Areas: []areaConfig{{AreaID: area, AreaType: areaTypeStub}}},
+		cfg: ospfConfig{Areas: []areaConfig{{AreaID: area, AreaType: types.AreaTypeStub}}},
 		running: map[string]interfaceConfig{
 			"eth0": {Name: "eth0", AreaID: area},
 		},

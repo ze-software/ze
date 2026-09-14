@@ -7,8 +7,8 @@
 package ospf
 
 import (
-	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
 	ospfpacket "github.com/ze-software/ze/internal/plugins/ospf/packet"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 // grV4Body builds the RFC 3623 sec A IPv4 Grace-LSA body for one interface: the mandatory
@@ -38,7 +38,7 @@ func grV4Parse(body []byte) (ospfpacket.GraceLSA, error) {
 // point-to-multipoint). Point-to-point and virtual links identify the neighbor by Router ID.
 func grSharedMedia(networkType string) bool {
 	switch networkType {
-	case ospfiface.NetworkBroadcast, ospfiface.NetworkNBMA, ospfiface.NetworkPointToMultipoint:
+	case types.NetworkBroadcast, types.NetworkNBMA, types.NetworkPointToMultipoint:
 		return true
 	default:
 		return false

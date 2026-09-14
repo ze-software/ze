@@ -97,7 +97,7 @@ func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
 			Source: db, Root: root, Routes: routeTable,
 			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true,
 			NSSAPolicies: map[types.AreaID]AreaSummaryPolicy{
-				nssa: {Type: AreaTypeNSSA, NoSummary: true},
+				nssa: {Type: types.AreaTypeNSSA, NoSummary: true},
 			},
 			MaxPaths: 8,
 		})
@@ -143,7 +143,7 @@ func TestOSPFNSSANonBorderRouterInstallsPClearDefault(t *testing.T) {
 		Source: db, Root: root, Routes: routeTable,
 		NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: false,
 		NSSAPolicies: map[types.AreaID]AreaSummaryPolicy{
-			nssa: {Type: AreaTypeNSSA, NoSummary: true},
+			nssa: {Type: types.AreaTypeNSSA, NoSummary: true},
 		},
 		MaxPaths: 8,
 	})

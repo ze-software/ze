@@ -72,7 +72,7 @@ func (e *engine) externalScopeV6For(cfg ospfConfig, running []interfaceConfig, a
 			continue
 		}
 		switch areaTypeFor(cfg, ic.AreaID) {
-		case areaTypeNSSA:
+		case types.AreaTypeNSSA:
 			fa, ok := e.forwardingAddressForAF(ic.Name)
 			if idx, dup := seen[ic.AreaID]; dup {
 				if !nssas[idx].hasFA && ok {
@@ -82,7 +82,7 @@ func (e *engine) externalScopeV6For(cfg ospfConfig, running []interfaceConfig, a
 			}
 			seen[ic.AreaID] = len(nssas)
 			nssas = append(nssas, nssaAttachmentV6{area: ic.AreaID, fa: fa, hasFA: ok})
-		case areaTypeStub:
+		case types.AreaTypeStub:
 			// stub areas carry no externals
 		default:
 			attachedNormal = true

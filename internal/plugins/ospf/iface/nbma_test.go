@@ -37,7 +37,7 @@ func (s *dstSender) sentTo(a netip.Addr) int {
 
 func nbmaConfig(t *testing.T) Config {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkNBMA
+	cfg.NetworkType = types.NetworkNBMA
 	cfg.PollInterval = 120
 	return cfg
 }
@@ -54,7 +54,7 @@ func v6NBMAConfig(t *testing.T) Config {
 // ISM state and never elects (AC-1, RFC 2328 sec 9.5).
 func TestOSPFPtMPISMNoElection(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkPointToMultipoint
+	cfg.NetworkType = types.NetworkPointToMultipoint
 	ifc := New(cfg, &fakeSender{}, NopMetrics())
 	ifc.Start()
 	defer ifc.Stop()
@@ -69,7 +69,7 @@ func TestOSPFPtMPISMNoElection(t *testing.T) {
 
 func TestOSPFv3PtMPISMNoElection(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkPointToMultipoint
+	cfg.NetworkType = types.NetworkPointToMultipoint
 	cfg.IsV6 = true
 	ifc := New(cfg, &fakeSender{}, NopMetrics())
 	ifc.Start()
@@ -87,7 +87,7 @@ func TestOSPFv3PtMPISMNoElection(t *testing.T) {
 // election (AC-6, R-3).
 func TestOSPFPtMPNoElection(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkPointToMultipoint
+	cfg.NetworkType = types.NetworkPointToMultipoint
 	ifc := New(cfg, &fakeSender{}, NopMetrics())
 	ifc.Start()
 	defer ifc.Stop()
@@ -103,7 +103,7 @@ func TestOSPFPtMPNoElection(t *testing.T) {
 
 func TestOSPFv3PtMPNoElection(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkPointToMultipoint
+	cfg.NetworkType = types.NetworkPointToMultipoint
 	cfg.IsV6 = true
 	cfg.NetworkMask = [4]byte{}
 	ifc := New(cfg, &fakeSender{}, NopMetrics())

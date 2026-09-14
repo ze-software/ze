@@ -492,7 +492,7 @@ func (e *engine) setConfig(cfg ospfConfig) {
 			// RFC 3101 §3.5: advertise the Nt-bit for NSSAs whose translate role is not
 			// `never`, so the highest-Router-ID candidate (not a higher-RID `never` ABR)
 			// is elected the Type 7 -> Type 5 translator.
-			if area.AreaType == areaTypeNSSA && area.NSSATranslateRole != translateRoleNever {
+			if area.AreaType == types.AreaTypeNSSA && area.NSSATranslateRole != translateRoleNever {
 				ntAreas[area.AreaID] = true
 			}
 		}
@@ -698,7 +698,7 @@ func (e *engine) openInterfaces() error {
 
 func (e *engine) openConfiguredInterface(ic interfaceConfig) error {
 	e.startNeighborRetransmitLoop()
-	if ic.Passive || ic.NetworkType == networkLoopback {
+	if ic.Passive || ic.NetworkType == types.NetworkLoopback {
 		e.mu.Lock()
 		e.running[ic.Name] = ic
 		e.startInterfaceLocked(ic)
@@ -848,14 +848,14 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 				e.log.Warn("ospf: reconcile open failed", "interface", name, "err", err)
 				continue
 			}
-			if !want.Passive && want.NetworkType != networkLoopback {
+			if !want.Passive && want.NetworkType != types.NetworkLoopback {
 				res.opened = append(res.opened, name)
 			}
 		case !interfaceParamsEqual(have, want) || interfaceGlobalParamsChanged(oldCfg, newCfg, want):
-			if !have.Passive && have.NetworkType != networkLoopback && (want.Passive || want.NetworkType == networkLoopback) && e.transport != nil {
+			if !have.Passive && have.NetworkType != types.NetworkLoopback && (want.Passive || want.NetworkType == types.NetworkLoopback) && e.transport != nil {
 				e.transport.DisableInterface(name)
 			}
-			if (have.Passive || have.NetworkType == networkLoopback) && !want.Passive && want.NetworkType != networkLoopback {
+			if (have.Passive || have.NetworkType == types.NetworkLoopback) && !want.Passive && want.NetworkType != types.NetworkLoopback {
 				e.mu.Lock()
 				e.stopInterfaceLocked(name)
 				e.mu.Unlock()
@@ -925,7 +925,7 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 		old.Stop()
 	}
 	var sender ospfiface.Sender
-	if !ic.Passive && ic.NetworkType != networkLoopback {
+	if !ic.Passive && ic.NetworkType != types.NetworkLoopback {
 		sender = e.transport
 	}
 	cfg := e.interfaceRuntimeConfigLocked(ic)
@@ -944,7 +944,7 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
 	}
 	e.interfaces[ic.Name] = rt
-	if ic.Passive || ic.NetworkType == networkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
+	if ic.Passive || ic.NetworkType == types.NetworkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
 		rt.Start()
 	}
 }
@@ -975,7 +975,7 @@ func (e *engine) stopInterfaceLocked(name string) {
 }
 
 func (e *engine) interfaceRuntimeConfigLocked(ic interfaceConfig) ospfiface.Config {
-	areaKind := areaTypeNormal
+	areaKind := types.AreaTypeNormal
 	for _, a := range e.cfg.Areas {
 		if a.AreaID == ic.AreaID {
 			areaKind = string(a.AreaType)
@@ -1060,9 +1060,9 @@ func neighborInterfaceConfig(cfg ospfiface.Config, opaque bool) ospfneighbor.Int
 func ospfOptionsForAreaType(areaKind string) types.Options {
 	var o types.Options
 	switch areaKind {
-	case ospfiface.AreaStub:
+	case types.AreaTypeStub:
 		return o.Clear(types.OptionE)
-	case ospfiface.AreaNSSA:
+	case types.AreaTypeNSSA:
 		return o.Clear(types.OptionE).Set(types.OptionNP)
 	default:
 		return o.Set(types.OptionE)
@@ -1220,7 +1220,7 @@ func (e *engine) startInterfaceUpLocked(name string) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, ic := range e.cfg.Interfaces {
-		if ic.Name != name || !ic.Enabled || ic.Passive || ic.NetworkType == networkLoopback {
+		if ic.Name != name || !ic.Enabled || ic.Passive || ic.NetworkType == types.NetworkLoopback {
 			continue
 		}
 		bound := false
@@ -1282,7 +1282,7 @@ func areaTypeFor(cfg ospfConfig, areaID types.AreaID) areaType {
 			return a.AreaType
 		}
 	}
-	return areaTypeNormal
+	return types.AreaTypeNormal
 }
 
 // shutdown MUST cancel and join the maintenance worker started by

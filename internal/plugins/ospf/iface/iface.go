@@ -115,7 +115,7 @@ type Config struct {
 	InstanceID uint8
 	// PollInterval is the RFC 2328 App C.5 NBMA poll rate (seconds): a configured but
 	// currently silent NBMA neighbor is sent a Hello at this slower rate rather than at
-	// HelloInterval. It applies only when NetworkType is NetworkNBMA.
+	// HelloInterval. It applies only when NetworkType is types.NetworkNBMA.
 	PollInterval uint16
 	// NBMANeighbors is the statically configured neighbor list for a non-broadcast
 	// interface (RFC 2328 App C.6): NBMA always, and the non-broadcast point-to-multipoint
@@ -375,17 +375,17 @@ func (i *Interface) Start() {
 		startTimers = false
 	} else {
 		switch i.cfg.NetworkType {
-		case NetworkLoopback:
+		case types.NetworkLoopback:
 			i.state = StateLoopback
 			i.setUpLocked(false)
 			startTimers = false
-		case NetworkPointToPoint, NetworkPointToMultipoint:
+		case types.NetworkPointToPoint, types.NetworkPointToMultipoint:
 			// RFC 2328 sec 9.5: point-to-multipoint is treated as a collection of
 			// point-to-point links -- the point-to-point ISM state, no Waiting, no
 			// DR/BDR election.
 			i.state = StatePointToPoint
 			i.setUpLocked(true)
-			i.setPTMPHostRouteLocked(i.cfg.NetworkType == NetworkPointToMultipoint)
+			i.setPTMPHostRouteLocked(i.cfg.NetworkType == types.NetworkPointToMultipoint)
 		default:
 			// Broadcast and NBMA (RFC 2328 sec 9.3): an eligible interface waits for the
 			// election; a priority-0 interface goes straight to DROther.
@@ -415,7 +415,7 @@ func (i *Interface) Start() {
 	if deadInterval > 0 {
 		i.wg.Go(func() { i.inactivityLoop(time.Duration(deadInterval) * time.Second) })
 	}
-	if (networkType == NetworkBroadcast || networkType == NetworkNBMA) && priority > 0 && deadInterval > 0 {
+	if (networkType == types.NetworkBroadcast || networkType == types.NetworkNBMA) && priority > 0 && deadInterval > 0 {
 		i.wg.Go(func() { i.waitTimer(time.Duration(deadInterval) * time.Second) })
 	}
 }
@@ -692,7 +692,7 @@ func (i *Interface) snapshotLocked() Snapshot {
 		Passive:       i.cfg.Passive,
 		BFD:           i.cfg.BFDEnabled,
 	}
-	if i.cfg.NetworkType == NetworkNBMA {
+	if i.cfg.NetworkType == types.NetworkNBMA {
 		snap.PollInterval = i.cfg.PollInterval
 		snap.NBMANeighbors = i.nbmaNeighborSnapshotsLocked()
 	}
@@ -772,7 +772,7 @@ func (i *Interface) SendHello() error {
 // cadence is testable.
 func (i *Interface) sendHelloAt(now time.Time) error {
 	i.mu.Lock()
-	if i.sender == nil || i.cfg.Passive || i.cfg.NetworkType == NetworkLoopback {
+	if i.sender == nil || i.cfg.Passive || i.cfg.NetworkType == types.NetworkLoopback {
 		i.mu.Unlock()
 		return nil
 	}
@@ -826,7 +826,7 @@ func (i *Interface) runElectionLocked() interfaceEvents {
 	// RFC 2328 sec 9.4: the DR/BDR election runs on broadcast AND NBMA (the same
 	// election over a manually configured neighbor set); point-to-point,
 	// point-to-multipoint, loopback, and passive interfaces never elect.
-	if i.cfg.Passive || (i.cfg.NetworkType != NetworkBroadcast && i.cfg.NetworkType != NetworkNBMA) {
+	if i.cfg.Passive || (i.cfg.NetworkType != types.NetworkBroadcast && i.cfg.NetworkType != types.NetworkNBMA) {
 		return interfaceEvents{}
 	}
 	candidates := make([]Candidate, 0, len(i.neighbors)+1)
@@ -873,7 +873,7 @@ func (i *Interface) validateHelloLocked(h packet.Hello) string {
 	// of a Network Mask, so the v6 path skips it entirely.
 	if !i.cfg.IsV6 {
 		switch i.cfg.NetworkType {
-		case NetworkBroadcast, NetworkNBMA, NetworkPointToMultipoint:
+		case types.NetworkBroadcast, types.NetworkNBMA, types.NetworkPointToMultipoint:
 			if h.NetworkMask != i.cfg.NetworkMask {
 				return DropReasonNetworkMask
 			}
@@ -908,9 +908,9 @@ const (
 func (i *Interface) expectedOptionsLocked() types.Options {
 	var o types.Options
 	switch i.cfg.AreaType {
-	case AreaStub:
+	case types.AreaTypeStub:
 		return o.Clear(types.OptionE)
-	case AreaNSSA:
+	case types.AreaTypeNSSA:
 		return o.Clear(types.OptionE).Set(types.OptionNP)
 	default:
 		return o.Set(types.OptionE)

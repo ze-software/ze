@@ -29,7 +29,7 @@ func v6ShouldOriginateLinkLSA(iface ospflsdb.InterfaceInfo) bool {
 	// link-local (the SPF next-hop) and the on-link prefixes (RFC 5340 sec 4.4.3.8),
 	// including NBMA and point-to-multipoint.
 	switch iface.NetworkType {
-	case ospflsdb.NetworkBroadcast, ospflsdb.NetworkPointToPoint, ospflsdb.NetworkNBMA, ospflsdb.NetworkPointToMultipoint:
+	case types.NetworkBroadcast, types.NetworkPointToPoint, types.NetworkNBMA, types.NetworkPointToMultipoint:
 		return true
 	default:
 		return false

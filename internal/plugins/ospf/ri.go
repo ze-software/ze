@@ -408,7 +408,7 @@ func attachedNSSAAreas(cfg ospfConfig) []types.AreaID {
 	}
 	var out []types.AreaID
 	for _, a := range cfg.Areas {
-		if a.AreaType != areaTypeNSSA {
+		if a.AreaType != types.AreaTypeNSSA {
 			continue
 		}
 		if _, ok := attached[a.AreaID]; ok {

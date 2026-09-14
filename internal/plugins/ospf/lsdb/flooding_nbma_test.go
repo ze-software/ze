@@ -40,7 +40,7 @@ func TestOSPFNBMAFloodUnicast(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "nb0", AreaID: a, AreaType: AreaTypeNormal, NetworkType: NetworkNBMA, State: InterfaceStateDR,
+			Name: "nb0", AreaID: a, AreaType: types.AreaTypeNormal, NetworkType: types.NetworkNBMA, State: InterfaceStateDR,
 			Address: ip4("10.0.0.1"), NetworkMask: ip4("255.255.255.0"), RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"),
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull},
@@ -70,7 +70,7 @@ func TestOSPFv3NBMAFloodUnicast(t *testing.T) {
 	ll3 := netip.MustParseAddr("fe80::3")
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "nb0", AreaID: a, AreaType: AreaTypeNormal, NetworkType: NetworkNBMA, State: InterfaceStateDR,
+			Name: "nb0", AreaID: a, AreaType: types.AreaTypeNormal, NetworkType: types.NetworkNBMA, State: InterfaceStateDR,
 			RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"), IsV6: true, IPv6LinkLocal: netip.MustParseAddr("fe80::1"),
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: ll2, State: NeighborStateFull},
@@ -98,7 +98,7 @@ func TestOSPFPtMPFloodUnicast(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "ptp0", AreaID: a, AreaType: AreaTypeNormal, NetworkType: NetworkPointToMultipoint, State: "point-to-point",
+			Name: "ptp0", AreaID: a, AreaType: types.AreaTypeNormal, NetworkType: types.NetworkPointToMultipoint, State: "point-to-point",
 			Address: ip4("10.0.0.1"), RouterID: rid("1.1.1.1"),
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull},
@@ -128,7 +128,7 @@ func TestOSPFPtMPFloodNoDRRelaySuppression(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "ptp0", AreaID: a, AreaType: AreaTypeNormal, NetworkType: NetworkPointToMultipoint, State: "point-to-point",
+			Name: "ptp0", AreaID: a, AreaType: types.AreaTypeNormal, NetworkType: types.NetworkPointToMultipoint, State: "point-to-point",
 			Address: ip4("10.0.0.1"), RouterID: rid("1.1.1.1"),
 			Neighbors: []NeighborInfo{
 				{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull},

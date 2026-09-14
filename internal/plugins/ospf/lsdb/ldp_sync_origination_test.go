@@ -19,8 +19,8 @@ func broadcastLDPSyncTopology(withhold bool) []InterfaceInfo {
 	return []InterfaceInfo{{
 		Name:                   "eth0",
 		AreaID:                 area("0.0.0.0"),
-		AreaType:               AreaTypeNormal,
-		NetworkType:            NetworkBroadcast,
+		AreaType:               types.AreaTypeNormal,
+		NetworkType:            types.NetworkBroadcast,
 		State:                  InterfaceStateDR,
 		Address:                ip4("10.0.0.1"),
 		NetworkMask:            ip4("255.255.255.0"),
@@ -99,8 +99,8 @@ func TestLDPSyncP2PMaxMetricNotWithheld(t *testing.T) {
 	topo := []InterfaceInfo{{
 		Name:             "ptp0",
 		AreaID:           area("0.0.0.0"),
-		AreaType:         AreaTypeNormal,
-		NetworkType:      NetworkPointToPoint,
+		AreaType:         types.AreaTypeNormal,
+		NetworkType:      types.NetworkPointToPoint,
 		State:            "point-to-point",
 		Address:          ip4("192.0.2.1"),
 		NetworkMask:      ip4("255.255.255.252"),

@@ -262,7 +262,7 @@ func driveFull(t *testing.T, tbl *Table, cfg InterfaceConfig, peer types.RouterI
 // it can be echoed as the Neighbor Interface ID in this router's Router-LSA link. The DD
 // exchange does not reset it (only Hellos carry the Interface ID).
 func TestOSPFNeighborInterfaceIDFlows(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	in := hello(cfg, peer, true, time.Unix(1, 0))
 	in.InterfaceID = 99
@@ -277,7 +277,7 @@ func TestOSPFNeighborInterfaceIDFlows(t *testing.T) {
 }
 
 func TestOSPFNSMDownToInit(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, false, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)
@@ -289,7 +289,7 @@ func TestOSPFNSMDownToInit(t *testing.T) {
 }
 
 func TestOSPFNSMDownToFull(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)
@@ -302,7 +302,7 @@ func TestOSPFNSMDownToFull(t *testing.T) {
 }
 
 func TestOSPFShouldAdjBroadcast(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkBroadcast)
+	tbl, cfg := testTable(t, types.NetworkBroadcast)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)
@@ -319,7 +319,7 @@ func TestOSPFShouldAdjBroadcast(t *testing.T) {
 }
 
 func TestOSPFDDNegotiation(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	if reason := tbl.HandleDBDesc(cfg.Name, peer, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 99}); reason != "" {
@@ -332,7 +332,7 @@ func TestOSPFDDNegotiation(t *testing.T) {
 }
 
 func TestOSPFLocalMasterSendsNextDDAfterNegotiation(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	cfg.RouterID = rid(t, "10.0.0.3")
 	tbl.ConfigureInterface(cfg)
 	sender := &fakeSender{}
@@ -365,7 +365,7 @@ func TestOSPFDDRetransmit(t *testing.T) {
 	// The master retransmits its unacked Database Description every RetransmitInterval until the
 	// slave responds (RFC 2328 sec 10.8); the InactivityTimer bounds the retries. Covers the
 	// previously untested neighbor Table.Retransmit DD path.
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	cfg.RouterID = rid(t, "10.0.0.3") // higher than the peer -> local is master, sends the initial DD
 	cfg.RetransmitInterval = 5
 	tbl.ConfigureInterface(cfg)
@@ -401,7 +401,7 @@ func TestOSPFDDRetransmit(t *testing.T) {
 }
 
 func TestOSPFDDMTUMismatch(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	if got := tbl.HandleDBDesc(cfg.Name, peer, packet.DBDesc{InterfaceMTU: 9000}); got != "mtu-mismatch" {
@@ -414,7 +414,7 @@ func TestOSPFDDMTUMismatch(t *testing.T) {
 }
 
 func TestOSPFDDMTUIgnore(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	cfg.MTUIgnore = true
 	tbl.ConfigureInterface(cfg)
 	peer := rid(t, "10.0.0.2")
@@ -430,7 +430,7 @@ func TestOSPFDDMTUIgnore(t *testing.T) {
 
 // RFC requirement: RFC2328-10.1-1 negative -- a duplicate Database Description does not open a second outstanding DD: the slave resends the previously sent DD verbatim (sameDD holds) instead of advancing the sequence and emitting a new one (handleDBDesc duplicate branch, dd.go:52-58).
 func TestOSPFDuplicateDD(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -471,7 +471,7 @@ func testHeaderIndex(t *testing.T, i int) packet.LSAHeader {
 }
 
 func TestOSPFLSRequestListPopulated(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber+1)
 	older := h
@@ -487,7 +487,7 @@ func TestOSPFLSRequestListPopulated(t *testing.T) {
 }
 
 func TestOSPFNilLSDBDDDoesNotRequest(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber+1)
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
@@ -500,7 +500,7 @@ func TestOSPFNilLSDBDDDoesNotRequest(t *testing.T) {
 }
 
 func TestOSPFLoadingDrainToFull(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber+1)
 	tbl.lsdb = fakeLSDB{}
@@ -518,7 +518,7 @@ func TestOSPFLoadingDrainToFull(t *testing.T) {
 }
 
 func TestOSPFv3LinkScopedLSAsEnterDDDatabaseSummary(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber)
 	h.Type = types.LSTypeLink
@@ -537,7 +537,7 @@ func TestOSPFv3LinkScopedLSAsEnterDDDatabaseSummary(t *testing.T) {
 }
 
 func TestOSPFv3LinkScopedLoadingDrainToFull(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber+1)
 	h.Type = types.LSTypeLink
@@ -565,7 +565,7 @@ func TestOSPFv3LinkScopedLoadingDrainToFull(t *testing.T) {
 
 // RFC requirement: RFC2328-10.2-1 positive -- an LS Request naming an LSA that is not in the database generates the BadLSReq event: the adjacency is torn down back to ExStart and the Database Exchange restarts with a fresh initial DD (handleLSReq, lsreq.go:69-74).
 func TestOSPFBadLSReqRestart(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -591,7 +591,7 @@ func TestOSPFBadLSReqRestart(t *testing.T) {
 }
 
 func TestOSPFSeqNumberMismatchRestart(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	driveNegotiation(t, tbl, cfg, peer)
@@ -601,7 +601,7 @@ func TestOSPFSeqNumberMismatchRestart(t *testing.T) {
 }
 
 func TestOSPFAdjOKDropsToTwoWay(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkBroadcast)
+	tbl, cfg := testTable(t, types.NetworkBroadcast)
 	cfg.LocalDR = cfg.RouterID
 	tbl.ConfigureInterface(cfg)
 	peer := rid(t, "10.0.0.2")
@@ -617,7 +617,7 @@ func TestOSPFAdjOKDropsToTwoWay(t *testing.T) {
 }
 
 func TestOSPFNSMSendsInitialDDOnExStart(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -637,7 +637,7 @@ func TestOSPFNSMSendsInitialDDOnExStart(t *testing.T) {
 }
 
 func TestOSPFDDChunkedByInterfaceMTU(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -665,7 +665,7 @@ func TestOSPFDDChunkedByInterfaceMTU(t *testing.T) {
 }
 
 func TestOSPFDDRejectedBeforeShouldAdj(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkBroadcast)
+	tbl, cfg := testTable(t, types.NetworkBroadcast)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	if got := tbl.HandleDBDesc(cfg.Name, peer, peerExStartDD()); got != "adjacency-not-ready" {
@@ -678,7 +678,7 @@ func TestOSPFDDRejectedBeforeShouldAdj(t *testing.T) {
 }
 
 func TestOSPFDDInvalidExStartRejected(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	if got := tbl.HandleDBDesc(cfg.Name, peer, packet.DBDesc{InterfaceMTU: 1500, DDSequence: 7}); got != "negotiation" {
@@ -691,7 +691,7 @@ func TestOSPFDDInvalidExStartRejected(t *testing.T) {
 }
 
 func TestOSPFDDExStartMissingMoreRejected(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	if got := tbl.HandleDBDesc(cfg.Name, peer, packet.DBDesc{InterfaceMTU: 1500, Options: types.OptionE, Flags: packet.DDFlagInit | packet.DDFlagMaster, DDSequence: 7}); got != "negotiation" {
@@ -704,7 +704,7 @@ func TestOSPFDDExStartMissingMoreRejected(t *testing.T) {
 }
 
 func TestOSPFLSReqWithoutLSDBDoesNotRestart(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber)
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
@@ -720,7 +720,7 @@ func TestOSPFLSReqWithoutLSDBDoesNotRestart(t *testing.T) {
 
 // RFC requirement: RFC2328-10.2-1 negative -- the BadLSReq restart is confined to unsatisfiable requests: an LS Request for an LSA the database holds is answered with an LS Update and does not restart the exchange (handleLSReq, lsreq.go:75-82).
 func TestOSPFValidLSReqSendsLSUpdate(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -743,7 +743,7 @@ func TestOSPFValidLSReqSendsLSUpdate(t *testing.T) {
 }
 
 func TestOSPFLSReqChunked(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -774,7 +774,7 @@ func TestOSPFLSReqChunked(t *testing.T) {
 }
 
 func TestOSPFRequestListLimitRestartsExchange(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -803,7 +803,7 @@ func TestOSPFRequestListLimitRestartsExchange(t *testing.T) {
 }
 
 func TestOSPFLSUpdateChunked(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	peer := rid(t, "10.0.0.2")
@@ -834,7 +834,7 @@ func TestOSPFLSUpdateChunked(t *testing.T) {
 }
 
 func TestOSPFLSReqBeforeExchangeDoesNotStartAdjacency(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkBroadcast)
+	tbl, cfg := testTable(t, types.NetworkBroadcast)
 	tbl.lsdb = fakeLSDB{}
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber)
@@ -848,7 +848,7 @@ func TestOSPFLSReqBeforeExchangeDoesNotStartAdjacency(t *testing.T) {
 	}
 }
 func TestOSPFLoadingIgnoresOlderLSUpdate(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	h := testHeader(t, types.InitialSequenceNumber+2)
 	older := h
@@ -881,7 +881,7 @@ func TestOSPFNeighborMetricCounts(t *testing.T) {
 		Name:             "eth0",
 		AreaID:           area(t, "0"),
 		RouterID:         rid(t, "10.0.0.1"),
-		NetworkType:      NetworkBroadcast,
+		NetworkType:      types.NetworkBroadcast,
 		InterfaceAddress: [4]byte{10, 0, 0, 1},
 		InterfaceMTU:     1500,
 		DeadInterval:     40,
@@ -902,7 +902,7 @@ func TestOSPFNeighborMetricCounts(t *testing.T) {
 }
 
 func TestOSPFInactivityTimerKills(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	if expired := tbl.Expire(time.Unix(42, 0)); expired != 1 {
@@ -915,7 +915,7 @@ func TestOSPFInactivityTimerKills(t *testing.T) {
 }
 
 func TestOSPFDownNeighborsReapedForAdmission(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	for i := range maxNeighbors {
 		peer := types.RouterID{10, 1, byte(i >> 8), byte(i)}
 		if got := tbl.Hello(hello(cfg, peer, false, time.Unix(1, 0))); got != "" {
@@ -936,7 +936,7 @@ func TestOSPFDownNeighborsReapedForAdmission(t *testing.T) {
 }
 
 func TestOSPFKillNbr(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0)))
 	tbl.NeighborDown(cfg.Name, peer)
@@ -947,7 +947,7 @@ func TestOSPFKillNbr(t *testing.T) {
 }
 
 func TestOSPFNeighborTableKeying(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkBroadcast)
+	tbl, cfg := testTable(t, types.NetworkBroadcast)
 	_ = tbl.Hello(hello(cfg, rid(t, "10.0.0.2"), false, time.Unix(1, 0)))
 	_ = tbl.Hello(hello(cfg, rid(t, "10.0.0.3"), false, time.Unix(1, 0)))
 	if got := len(tbl.Snapshot()); got != 2 {
@@ -956,7 +956,7 @@ func TestOSPFNeighborTableKeying(t *testing.T) {
 }
 
 func TestOSPFNeighborSnapshot(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	_ = tbl.Hello(hello(cfg, peer, false, time.Unix(1, 0)))
 	snap, ok := tbl.Lookup(cfg.Name, peer)

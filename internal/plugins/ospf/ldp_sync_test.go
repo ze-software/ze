@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+
 	"github.com/ze-software/ze/internal/core/slogutil"
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 )
@@ -119,7 +121,7 @@ func newTestSyncManager() (*ldpSyncManager, *fakeTimers) {
 }
 
 func p2pMachine(m *ldpSyncManager, name string, holddown time.Duration, cost uint16) {
-	m.reconcileTo(map[string]ldpSyncConfig{name: {HoldDown: holddown, Cost: cost, NetworkType: networkPointToPoint}})
+	m.reconcileTo(map[string]ldpSyncConfig{name: {HoldDown: holddown, Cost: cost, NetworkType: types.NetworkPointToPoint}})
 }
 
 // --- tests ---------------------------------------------------------------------------

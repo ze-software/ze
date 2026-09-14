@@ -27,7 +27,7 @@ func v6P2PInterface(area types.AreaID, self, neighbor types.RouterID) ospflsdb.I
 	return ospflsdb.InterfaceInfo{
 		Name:        "eth0",
 		AreaID:      area,
-		NetworkType: ospflsdb.NetworkPointToPoint,
+		NetworkType: types.NetworkPointToPoint,
 		State:       "point-to-point",
 		Cost:        10,
 		RouterID:    self,
@@ -48,7 +48,7 @@ func v6VirtualInterface(area types.AreaID, self, neighbor types.RouterID, cost u
 	return ospflsdb.InterfaceInfo{
 		Name:               "*vlink-0.0.0.1-" + neighbor.String(),
 		AreaID:             area,
-		NetworkType:        ospflsdb.NetworkVirtual,
+		NetworkType:        types.NetworkVirtual,
 		State:              "point-to-point",
 		VirtualTransitArea: types.AreaID{0, 0, 0, 1},
 		Cost:               cost,

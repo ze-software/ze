@@ -116,7 +116,7 @@ func (e *engine) externalScopeFor(cfg ospfConfig, running []interfaceConfig, act
 			continue
 		}
 		switch areaTypeFor(cfg, ic.AreaID) {
-		case areaTypeNSSA:
+		case types.AreaTypeNSSA:
 			fa := e.nssaIPv4Address(ic.Name)
 			if idx, ok := seen[ic.AreaID]; ok {
 				if nssas[idx].fa == ([4]byte{}) && fa != ([4]byte{}) {
@@ -126,7 +126,7 @@ func (e *engine) externalScopeFor(cfg ospfConfig, running []interfaceConfig, act
 			}
 			seen[ic.AreaID] = len(nssas)
 			nssas = append(nssas, nssaAttachment{area: ic.AreaID, fa: fa})
-		case areaTypeStub:
+		case types.AreaTypeStub:
 			// stub areas carry no externals
 		default:
 			attachedNormal = true

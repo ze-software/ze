@@ -109,8 +109,8 @@ func TestUnplannedGraceLSAFloodsToAllSPFRouters(t *testing.T) {
 		return []ospflsdb.InterfaceInfo{{
 			Name:          "eth0",
 			AreaID:        ospftypes.BackboneArea,
-			AreaType:      ospflsdb.AreaTypeNormal,
-			NetworkType:   ospflsdb.NetworkBroadcast,
+			AreaType:      ospftypes.AreaTypeNormal,
+			NetworkType:   ospftypes.NetworkBroadcast,
 			State:         ospflsdb.InterfaceStateDR,
 			RouterID:      self,
 			DR:            self,
@@ -181,9 +181,9 @@ func TestUnplannedGraceLSAPerActiveInterface(t *testing.T) {
 	rid := ospftypes.RouterID{10, 0, 0, 1}
 	e.mu.Lock()
 	e.cfg.RouterID = rid
-	e.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: networkPointToPoint}
-	e.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: networkPointToPoint}
-	e.running["passive0"] = interfaceConfig{Name: "passive0", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: networkPointToPoint, Passive: true}
+	e.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: ospftypes.NetworkPointToPoint}
+	e.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: ospftypes.NetworkPointToPoint}
+	e.running["passive0"] = interfaceConfig{Name: "passive0", AreaID: ospftypes.BackboneArea, Enabled: true, NetworkType: ospftypes.NetworkPointToPoint, Passive: true}
 	e.mu.Unlock()
 	e.lsdb.SetSelfRouterID(rid)
 

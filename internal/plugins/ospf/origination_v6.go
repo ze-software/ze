@@ -284,7 +284,7 @@ func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, 
 			metric = v6MaxLinkMetric
 		}
 		switch iface.NetworkType {
-		case ospflsdb.NetworkVirtual:
+		case types.NetworkVirtual:
 			// RFC 5340 App A.4.3: a virtual link is a RouterLinkTypeVirtual record (no IP
 			// address) carrying the local virtual-interface ID, the neighbor's Interface ID,
 			// the neighbor Router ID, and the transit-area path cost. It sets the V-bit
@@ -301,7 +301,7 @@ func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, 
 					NeighborRouterID:    ospfv3types.RouterID(nbr.RouterID),
 				})
 			}
-		case ospflsdb.NetworkPointToPoint, ospflsdb.NetworkPointToMultipoint:
+		case types.NetworkPointToPoint, types.NetworkPointToMultipoint:
 			// RFC 5340 App A.4.3: point-to-multipoint contributes one address-free
 			// Type-1 link per Full neighbor, exactly like point-to-point. The link's
 			// prefixes (and the PtMP /128 host route) live in the Intra-Area-Prefix-LSA,
@@ -318,7 +318,7 @@ func v6RouterLSABody(opts ospfv3types.Options, ifaces []ospflsdb.InterfaceInfo, 
 					NeighborRouterID:    ospfv3types.RouterID(nbr.RouterID),
 				})
 			}
-		case ospflsdb.NetworkBroadcast, ospflsdb.NetworkNBMA:
+		case types.NetworkBroadcast, types.NetworkNBMA:
 			// RFC 6138 Section 4: withhold the transit (Link Type 2) link for a
 			// non-cut-edge broadcast segment until LDP is synchronized with all peers.
 			// The AF-neutral LDP-sync state is applied to both address families through
@@ -386,7 +386,7 @@ func v6InterfacePrefixes(ifaces []ospflsdb.InterfaceInfo) []ospfv3packet.Prefix 
 		// RFC 5340 App A.4.10/A.4.1: a point-to-multipoint interface advertises its own
 		// global address as a /128 host route with the LA-bit, not the subnet prefix, so
 		// remote routers reach the interface directly.
-		if iface.NetworkType == ospflsdb.NetworkPointToMultipoint {
+		if iface.NetworkType == types.NetworkPointToMultipoint {
 			for _, p := range v6HostPrefixes(*iface) {
 				pfx, ok := v6PrefixToNetip(p, afIPv6Unicast)
 				if !ok {
@@ -480,7 +480,7 @@ func v6AdvertiseInterface(iface ospflsdb.InterfaceInfo) bool {
 // for the segment: only the DR of a broadcast OR NBMA link does (RFC 5340 App A.4.4). A
 // point-to-multipoint interface has no DR and originates none.
 func v6OriginatesNetworkLSA(iface ospflsdb.InterfaceInfo, router types.RouterID) bool {
-	if iface.NetworkType != ospflsdb.NetworkBroadcast && iface.NetworkType != ospflsdb.NetworkNBMA {
+	if iface.NetworkType != types.NetworkBroadcast && iface.NetworkType != types.NetworkNBMA {
 		return false
 	}
 	return iface.DR == router && v6AdvertiseInterface(iface)
@@ -488,7 +488,7 @@ func v6OriginatesNetworkLSA(iface ospflsdb.InterfaceInfo, router types.RouterID)
 
 func v6AreaHasAdvertisedLinks(ifaces []ospflsdb.InterfaceInfo) bool {
 	for idx := range ifaces {
-		if ifaces[idx].NetworkType == ospflsdb.NetworkVirtual {
+		if ifaces[idx].NetworkType == types.NetworkVirtual {
 			// RFC 5340 section 3.5: a virtual link makes its area (the backbone) active for
 			// ABR/backbone-attachment only when the adjacency is fully adjacent.
 			if v6VirtualLinkFull(ifaces[idx]) {
@@ -518,7 +518,7 @@ func v6VirtualLinkFull(iface ospflsdb.InterfaceInfo) bool {
 func v6FullVirtualTransitAreas(ifaces []ospflsdb.InterfaceInfo) map[types.AreaID]bool {
 	var out map[types.AreaID]bool
 	for idx := range ifaces {
-		if ifaces[idx].NetworkType != ospflsdb.NetworkVirtual || !v6VirtualLinkFull(ifaces[idx]) {
+		if ifaces[idx].NetworkType != types.NetworkVirtual || !v6VirtualLinkFull(ifaces[idx]) {
 			continue
 		}
 		if out == nil {
@@ -536,7 +536,7 @@ func v6IsAreaBorderRouter(areas []types.AreaID) bool {
 func v6NSSATranslatorArea(cfg ospfConfig, area types.AreaID) bool {
 	for _, a := range cfg.Areas {
 		if a.AreaID == area {
-			return a.AreaType == areaTypeNSSA && a.NSSATranslateRole != translateRoleNever
+			return a.AreaType == types.AreaTypeNSSA && a.NSSATranslateRole != translateRoleNever
 		}
 	}
 	return false

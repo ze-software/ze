@@ -151,8 +151,8 @@ func TestVirtualLinkTopologyEmitsBackboneInterface(t *testing.T) {
 		t.Fatalf("virtualLinkTopology = %d entries, want 1", len(got))
 	}
 	iface := got[0]
-	if iface.NetworkType != ospflsdb.NetworkVirtual {
-		t.Fatalf("network type = %q, want %q", iface.NetworkType, ospflsdb.NetworkVirtual)
+	if iface.NetworkType != types.NetworkVirtual {
+		t.Fatalf("network type = %q, want %q", iface.NetworkType, types.NetworkVirtual)
 	}
 	if iface.AreaID != types.BackboneArea {
 		t.Fatalf("area = %s, want backbone (a virtual link belongs to Area 0)", iface.AreaID)

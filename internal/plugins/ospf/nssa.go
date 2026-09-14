@@ -140,7 +140,7 @@ func (e *engine) applyNSSADefaults() {
 	desired := make(map[types.AreaID]struct{}, len(cfg.Areas))
 	changed := false
 	for _, a := range cfg.Areas {
-		if a.AreaType != areaTypeNSSA || !attached[a.AreaID] {
+		if a.AreaType != types.AreaTypeNSSA || !attached[a.AreaID] {
 			continue
 		}
 		wantType7 := wantsType7Default(isABR, a.NoSummary, a.NSSADefaultOriginate, hasFA[a.AreaID])
@@ -291,7 +291,7 @@ func (e *engine) translateNSSA(now time.Time) {
 		}
 		policyByArea := make(map[types.AreaID]areaPolicy, len(cfg.Areas))
 		for _, a := range cfg.Areas {
-			if a.AreaType == areaTypeNSSA {
+			if a.AreaType == types.AreaTypeNSSA {
 				policyByArea[a.AreaID] = areaPolicy{role: a.NSSATranslateRole, stability: time.Duration(a.NSSAStabilityInterval) * time.Second}
 			}
 		}
@@ -407,7 +407,7 @@ func (e *engine) translateNSSAV6(now time.Time) {
 		}
 		policyByArea := make(map[types.AreaID]areaPolicy, len(cfg.Areas))
 		for _, a := range cfg.Areas {
-			if a.AreaType == areaTypeNSSA {
+			if a.AreaType == types.AreaTypeNSSA {
 				policyByArea[a.AreaID] = areaPolicy{role: a.NSSATranslateRole, stability: time.Duration(a.NSSAStabilityInterval) * time.Second}
 			}
 		}

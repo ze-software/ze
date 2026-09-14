@@ -174,7 +174,7 @@ func (d *LSDB) SetAreaTypes(areaTypes map[types.AreaID]string) {
 	d.areaTypes = make(map[types.AreaID]string, len(areaTypes))
 	for area, kind := range areaTypes {
 		if kind == "" {
-			kind = AreaTypeNormal
+			kind = types.AreaTypeNormal
 		}
 		d.areaTypes[area] = kind
 	}
@@ -335,7 +335,7 @@ func (d *LSDB) dbForReadLocked(area types.AreaID, key types.LSAKey) *areaDB {
 func (d *LSDB) areaTypeLocked(area types.AreaID) string {
 	kind := d.areaTypes[area]
 	if kind == "" {
-		return AreaTypeNormal
+		return types.AreaTypeNormal
 	}
 	return kind
 }

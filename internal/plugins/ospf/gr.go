@@ -360,7 +360,7 @@ func (e *engine) interfaceAreaType(iface string) string {
 	ic, ok := e.running[iface]
 	e.mu.Unlock()
 	if !ok {
-		return areaTypeNormal
+		return ospftypes.AreaTypeNormal
 	}
 	return string(areaTypeFor(cfg, ic.AreaID))
 }

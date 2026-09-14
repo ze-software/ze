@@ -13,7 +13,7 @@ import (
 )
 
 func TestOSPFShouldAdjPtMP(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToMultipoint)
+	tbl, cfg := testTable(t, types.NetworkPointToMultipoint)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)
@@ -31,7 +31,7 @@ func TestOSPFv3ShouldAdjPtMP(t *testing.T) {
 }
 
 func TestOSPFShouldAdjNBMA(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkNBMA)
+	tbl, cfg := testTable(t, types.NetworkNBMA)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)
@@ -54,7 +54,7 @@ func TestOSPFv3ShouldAdjNBMA(t *testing.T) {
 }
 
 func TestOSPFPtMPAdjacency(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToMultipoint)
+	tbl, cfg := testTable(t, types.NetworkPointToMultipoint)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)
@@ -71,7 +71,7 @@ func TestOSPFv3PtMPAdjacency(t *testing.T) {
 }
 
 func TestOSPFNBMAAdjacency(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkNBMA)
+	tbl, cfg := testTable(t, types.NetworkNBMA)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("Hello: %s", reason)

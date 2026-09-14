@@ -13,6 +13,8 @@ import (
 	"net/netip"
 	"sort"
 
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
+
 	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
 )
 
@@ -36,7 +38,7 @@ import (
 // routes of Type-7 default LSAs." A regular NSSA therefore leaves here with no default at
 // all, and takes the Type-7 one applyNSSADefaults originates instead.
 func v6ApplyAreaTypePolicy(nets []v6SummaryNet, routers []v6SummaryRouter, p ospfspf.AreaSummaryPolicy) ([]v6SummaryNet, []v6SummaryRouter) {
-	if p.Type != ospfspf.AreaTypeStub && p.Type != ospfspf.AreaTypeNSSA {
+	if p.Type != types.AreaTypeStub && p.Type != types.AreaTypeNSSA {
 		return nets, routers
 	}
 	routers = nil // stub/NSSA: never originate an Inter-Area-Router-LSA into the area
@@ -47,7 +49,7 @@ func v6ApplyAreaTypePolicy(nets []v6SummaryNet, routers []v6SummaryRouter, p osp
 	// border-router default as a summary-LSA, not as a Type-7.
 	// RFC requirement: RFC3101-2.7-3 -- an NSSA that imports summary
 	// routes MUST NOT take its border-router default as a summary-LSA.
-	if p.Type == ospfspf.AreaTypeStub || p.NoSummary {
+	if p.Type == types.AreaTypeStub || p.NoSummary {
 		nets = append(nets, v6SummaryNet{Prefix: netip.PrefixFrom(netip.IPv6Unspecified(), 0), Metric: p.DefaultCost})
 		sort.Slice(nets, func(i, j int) bool { return nets[i].Prefix.Compare(nets[j].Prefix) < 0 })
 	}

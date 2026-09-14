@@ -39,20 +39,6 @@ func (s State) String() string {
 	}
 }
 
-const (
-	NetworkBroadcast    = "broadcast"
-	NetworkPointToPoint = "point-to-point"
-	NetworkLoopback     = "loopback"
-	// NetworkNBMA is a non-broadcast multi-access link (RFC 2328 App C.5): a DR/BDR is
-	// elected over a manually configured neighbor list and Hellos are unicast/polled.
-	NetworkNBMA = "nbma"
-	// NetworkPointToMultipoint treats a multi-access link as a collection of
-	// point-to-point links (RFC 2328 sec 9.5): no DR/BDR, an adjacency with every
-	// reachable neighbor, and a host route for the interface address.
-	NetworkPointToMultipoint = "point-to-multipoint"
-)
-
-const (
-	AreaStub = "stub"
-	AreaNSSA = "nssa"
-)
+// The network types and the area types this package reads are declared in
+// internal/plugins/ospf/types (vocabulary.go), because the config resolver, iface,
+// neighbor, lsdb and spf all act on the same words.

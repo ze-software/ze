@@ -441,7 +441,7 @@ func TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops(t *testing.T) {
 		t.Fatalf("Adj-SID not allocated at Full")
 	}
 	ifaces := []ospflsdb.InterfaceInfo{{
-		Name: "eth0", NetworkType: ospflsdb.NetworkPointToPoint, InterfaceID: 5, Cost: 10,
+		Name: "eth0", NetworkType: types.NetworkPointToPoint, InterfaceID: 5, Cost: 10,
 		Neighbors: []ospflsdb.NeighborInfo{{RouterID: nbr, State: ospflsdb.NeighborStateFull, InterfaceID: 6}},
 	}}
 	if _, ok := eng.v6BuildERouterBody(ifaces); !ok {

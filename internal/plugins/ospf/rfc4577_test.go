@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
@@ -114,7 +113,7 @@ func TestRFC4577VirtualLinkGivesArea0Adjacency(t *testing.T) {
 	got := e.virtualLinkTopology()
 	require.Len(t, got, 1, "a reachable virtual link surfaces one synthetic interface")
 	assert.Equal(t, types.BackboneArea, got[0].AreaID, "the virtual link is an area 0 link")
-	assert.Equal(t, ospflsdb.NetworkVirtual, got[0].NetworkType)
+	assert.Equal(t, types.NetworkVirtual, got[0].NetworkType)
 	assert.Equal(t, transit, got[0].VirtualTransitArea)
 	assert.Equal(t, uint16(17), got[0].Cost)
 }

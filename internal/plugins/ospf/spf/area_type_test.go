@@ -32,7 +32,7 @@ func TestOSPFStubDefaultInjection(t *testing.T) {
 		Areas:    []types.AreaID{backbone, stub},
 		Options:  map[types.AreaID]types.Options{stub: 0},
 		Results:  results,
-		Policies: map[types.AreaID]AreaSummaryPolicy{stub: {Type: AreaTypeStub, DefaultCost: 5}},
+		Policies: map[types.AreaID]AreaSummaryPolicy{stub: {Type: types.AreaTypeStub, DefaultCost: 5}},
 	})
 
 	def, ok := db.LookupLSA(stub, summaryDefaultKey(root))
@@ -60,7 +60,7 @@ func TestOSPFTotallyStubbyOnlyDefault(t *testing.T) {
 		Areas:    []types.AreaID{backbone, stub},
 		Options:  map[types.AreaID]types.Options{stub: 0},
 		Results:  results,
-		Policies: map[types.AreaID]AreaSummaryPolicy{stub: {Type: AreaTypeStub, NoSummary: true, DefaultCost: 9}},
+		Policies: map[types.AreaID]AreaSummaryPolicy{stub: {Type: types.AreaTypeStub, NoSummary: true, DefaultCost: 9}},
 	})
 
 	def, ok := db.LookupLSA(stub, summaryDefaultKey(root))
@@ -84,7 +84,7 @@ func TestOSPFNSSAType3SummaryImport(t *testing.T) {
 
 	// RFC requirement: RFC3101-2.7-1 positive -- a regular NSSA imports
 	// inter-area Type-3 summary-LSAs and drops Type-4 ASBR summaries.
-	imported := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA})
+	imported := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: types.AreaTypeNSSA})
 	assert.True(t, slices.Contains(imported, type3), "regular NSSA imports the inter-area Type-3 summary")
 	assert.False(t, slices.Contains(imported, type4), "NSSA drops the Type-4 ASBR summary")
 	// RFC requirement: RFC3101-2.7-2 negative -- a regular NSSA does not
@@ -95,7 +95,7 @@ func TestOSPFNSSAType3SummaryImport(t *testing.T) {
 
 	// RFC requirement: RFC3101-2.7-1 negative -- a no-summary NSSA
 	// suppresses imported inter-area Type-3 and Type-4 summaries.
-	suppressed := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA, NoSummary: true, DefaultCost: 9})
+	suppressed := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: types.AreaTypeNSSA, NoSummary: true, DefaultCost: 9})
 	assert.False(t, slices.Contains(suppressed, type3), "no-summary NSSA suppresses the inter-area Type-3 summary")
 	assert.False(t, slices.Contains(suppressed, type4), "no-summary NSSA drops the Type-4 ASBR summary")
 	// RFC requirement: RFC3101-2.7-2 positive -- an ABR originates a
@@ -119,7 +119,7 @@ func TestOSPFNSSANoSummaryDefaultInjection(t *testing.T) {
 			Sink: db, Root: root, Areas: []types.AreaID{backbone, nssa},
 			Results: results,
 			Policies: map[types.AreaID]AreaSummaryPolicy{
-				nssa: {Type: AreaTypeNSSA, NoSummary: true, DefaultCost: 11},
+				nssa: {Type: types.AreaTypeNSSA, NoSummary: true, DefaultCost: 11},
 			},
 		})
 
@@ -142,7 +142,7 @@ func TestOSPFNSSANoSummaryDefaultInjection(t *testing.T) {
 			Sink: db, Root: root, Areas: []types.AreaID{backbone, nssa},
 			Results: results,
 			Policies: map[types.AreaID]AreaSummaryPolicy{
-				nssa: {Type: AreaTypeNSSA, DefaultCost: 11},
+				nssa: {Type: types.AreaTypeNSSA, DefaultCost: 11},
 			},
 		})
 

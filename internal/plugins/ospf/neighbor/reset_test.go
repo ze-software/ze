@@ -7,10 +7,12 @@ package neighbor
 import (
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
 func TestTableResetAll(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	peer := rid(t, "10.0.0.2")
 	if reason := tbl.Hello(hello(cfg, peer, true, time.Unix(1, 0))); reason != "" {
 		t.Fatalf("hello: %s", reason)
@@ -25,7 +27,7 @@ func TestTableResetAll(t *testing.T) {
 }
 
 func TestTableResetAllEmpty(t *testing.T) {
-	tbl, _ := testTable(t, NetworkPointToPoint)
+	tbl, _ := testTable(t, types.NetworkPointToPoint)
 	if n := tbl.ResetAll(); n != 0 {
 		t.Fatalf("ResetAll on an empty table = %d, want 0", n)
 	}

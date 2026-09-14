@@ -57,20 +57,20 @@ func TestOSPFShouldDropByAreaV6(t *testing.T) {
 		wantDrop bool
 	}{
 		// Stub area drops AS-External + ASBR-summary (both AFs); intra/inter-prefix stay.
-		{"v4-ext-stub", AreaTypeStub, types.LSTypeASExternal, true},
-		{"v6-ext-stub", AreaTypeStub, 0x4005, true},
-		{"v4-asbr-stub", AreaTypeStub, types.LSTypeSummaryASBR, true},
-		{"v6-iar-stub", AreaTypeStub, 0x2004, true},
-		{"v6-iaprefix-stub", AreaTypeStub, 0x2003, false}, // inter-area prefix IS allowed in stub
-		{"v6-router-stub", AreaTypeStub, 0x2001, false},
+		{"v4-ext-stub", types.AreaTypeStub, types.LSTypeASExternal, true},
+		{"v6-ext-stub", types.AreaTypeStub, 0x4005, true},
+		{"v4-asbr-stub", types.AreaTypeStub, types.LSTypeSummaryASBR, true},
+		{"v6-iar-stub", types.AreaTypeStub, 0x2004, true},
+		{"v6-iaprefix-stub", types.AreaTypeStub, 0x2003, false}, // inter-area prefix IS allowed in stub
+		{"v6-router-stub", types.AreaTypeStub, 0x2001, false},
 		// Normal area keeps AS-External; a stray NSSA-LSA is invalid outside an NSSA.
-		{"v6-ext-normal", AreaTypeNormal, 0x4005, false},
-		{"v4-nssa-normal", AreaTypeNormal, types.LSTypeNSSA, true},
-		{"v6-nssa-normal", AreaTypeNormal, 0x2007, true},
+		{"v6-ext-normal", types.AreaTypeNormal, 0x4005, false},
+		{"v4-nssa-normal", types.AreaTypeNormal, types.LSTypeNSSA, true},
+		{"v6-nssa-normal", types.AreaTypeNormal, 0x2007, true},
 		// NSSA area drops AS-External but accepts the NSSA-LSA.
-		{"v6-ext-nssa", AreaTypeNSSA, 0x4005, true},
-		{"v4-nssa-nssa", AreaTypeNSSA, types.LSTypeNSSA, false},
-		{"v6-nssa-nssa", AreaTypeNSSA, 0x2007, false},
+		{"v6-ext-nssa", types.AreaTypeNSSA, 0x4005, true},
+		{"v4-nssa-nssa", types.AreaTypeNSSA, types.LSTypeNSSA, false},
+		{"v6-nssa-nssa", types.AreaTypeNSSA, 0x2007, false},
 	}
 	for _, c := range cases {
 		if got := shouldDropByArea(c.area, c.typ); got != c.wantDrop {
@@ -92,7 +92,7 @@ func TestOSPFLSDBV6ASExternalDroppedFromStub(t *testing.T) {
 	// OSPFv3 AS-External (0x4005), but a Lookup against a stub area must hide it.
 	clock := &fakeClock{now: time.Unix(0, 0)}
 	db := newTestDB(clock)
-	db.SetAreaTypes(map[types.AreaID]string{area("0.0.0.1"): AreaTypeStub})
+	db.SetAreaTypes(map[types.AreaID]string{area("0.0.0.1"): types.AreaTypeStub})
 	adv := rid("9.9.9.9")
 
 	raw := make([]byte, types.LSAHeaderLen+4)

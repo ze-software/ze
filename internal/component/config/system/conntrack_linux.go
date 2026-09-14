@@ -29,8 +29,8 @@ func LoadConntrackModules(modules []string) (loaded []string, errs []error) {
 	loadedSet := readLoadedModules()
 
 	for _, mod := range modules {
-		if !ValidConntrackModule(mod) {
-			errs = append(errs, fmt.Errorf("conntrack: refusing to load unknown module %q", mod))
+		if err := CheckConntrackModule(mod); err != nil {
+			errs = append(errs, err)
 			continue
 		}
 		kernelMod := toKernelModName(mod)
@@ -38,7 +38,7 @@ func LoadConntrackModules(modules []string) (loaded []string, errs []error) {
 			loaded = append(loaded, mod)
 			continue
 		}
-		cmd := exec.CommandContext(context.Background(), modprobePath, kernelMod) //nolint:gosec // module validated against the ValidConntrackModule allowlist; modprobePath is resolved
+		cmd := exec.CommandContext(context.Background(), modprobePath, kernelMod) //nolint:gosec // module name accepted by CheckConntrackModule, whose allowlist is the YANG enumeration at system/conntrack/module; modprobePath is resolved
 		if err := cmd.Run(); err != nil {
 			errs = append(errs, fmt.Errorf("conntrack: modprobe %s: %w", kernelMod, err))
 			continue

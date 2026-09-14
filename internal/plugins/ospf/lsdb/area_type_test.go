@@ -21,17 +21,17 @@ func TestOSPFStubFloodFilter(t *testing.T) {
 		typ      types.LSType
 		drop     bool // expected shouldDropByArea
 	}{
-		{"normal accepts Type5", AreaTypeNormal, types.LSTypeASExternal, false},
-		{"stub drops Type5", AreaTypeStub, types.LSTypeASExternal, true},
-		{"nssa drops Type5", AreaTypeNSSA, types.LSTypeASExternal, true},
-		{"normal accepts Type4", AreaTypeNormal, types.LSTypeSummaryASBR, false},
-		{"stub drops Type4", AreaTypeStub, types.LSTypeSummaryASBR, true},
-		{"nssa drops Type4", AreaTypeNSSA, types.LSTypeSummaryASBR, true},
-		{"normal drops Type7", AreaTypeNormal, types.LSTypeNSSA, true},
-		{"stub drops Type7", AreaTypeStub, types.LSTypeNSSA, true},
-		{"nssa accepts Type7", AreaTypeNSSA, types.LSTypeNSSA, false},
-		{"stub accepts Type3", AreaTypeStub, types.LSTypeSummaryNetwork, false},
-		{"stub accepts Router", AreaTypeStub, types.LSTypeRouter, false},
+		{"normal accepts Type5", types.AreaTypeNormal, types.LSTypeASExternal, false},
+		{"stub drops Type5", types.AreaTypeStub, types.LSTypeASExternal, true},
+		{"nssa drops Type5", types.AreaTypeNSSA, types.LSTypeASExternal, true},
+		{"normal accepts Type4", types.AreaTypeNormal, types.LSTypeSummaryASBR, false},
+		{"stub drops Type4", types.AreaTypeStub, types.LSTypeSummaryASBR, true},
+		{"nssa drops Type4", types.AreaTypeNSSA, types.LSTypeSummaryASBR, true},
+		{"normal drops Type7", types.AreaTypeNormal, types.LSTypeNSSA, true},
+		{"stub drops Type7", types.AreaTypeStub, types.LSTypeNSSA, true},
+		{"nssa accepts Type7", types.AreaTypeNSSA, types.LSTypeNSSA, false},
+		{"stub accepts Type3", types.AreaTypeStub, types.LSTypeSummaryNetwork, false},
+		{"stub accepts Router", types.AreaTypeStub, types.LSTypeRouter, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestOSPFStubFloodFilter(t *testing.T) {
 	}
 
 	// A Type 7 must not flood out of its NSSA into a different area on the same router.
-	nssaIface := InterfaceInfo{AreaID: types.AreaID{0, 0, 0, 2}, AreaType: AreaTypeNSSA}
+	nssaIface := InterfaceInfo{AreaID: types.AreaID{0, 0, 0, 2}, AreaType: types.AreaTypeNSSA}
 	if eligibleInterface(nssaIface, area, types.LSTypeNSSA) {
 		t.Fatal("Type 7 flooded out an interface in a different area")
 	}

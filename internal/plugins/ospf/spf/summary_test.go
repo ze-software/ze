@@ -26,8 +26,8 @@ func TestOSPFABRBitSet(t *testing.T) {
 	db := ospflsdb.New(nil)
 	db.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{
-			{Name: "bb", AreaID: backbone, Address: testIP(t, "10.0.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
-			{Name: "a1", AreaID: area1, Address: testIP(t, "10.1.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
+			{Name: "bb", AreaID: backbone, Address: testIP(t, "10.0.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
+			{Name: "a1", AreaID: area1, Address: testIP(t, "10.1.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
 		}
 	})
 	db.OriginateFromTopology(router, false)
@@ -40,8 +40,8 @@ func TestOSPFABRBitSet(t *testing.T) {
 	db2 := ospflsdb.New(nil)
 	db2.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{
-			{Name: "a1", AreaID: area1, Address: testIP(t, "10.1.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
-			{Name: "a2", AreaID: areaID(t, "0.0.0.2"), Address: testIP(t, "10.2.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
+			{Name: "a1", AreaID: area1, Address: testIP(t, "10.1.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
+			{Name: "a2", AreaID: areaID(t, "0.0.0.2"), Address: testIP(t, "10.2.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
 		}
 	})
 	db2.OriginateFromTopology(router, false)
@@ -54,8 +54,8 @@ func TestOSPFABRBitSet(t *testing.T) {
 	db3 := ospflsdb.New(nil)
 	db3.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{
-			{Name: "bb", AreaID: backbone, Address: testIP(t, "10.0.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDown},
-			{Name: "a1", AreaID: area1, Address: testIP(t, "10.1.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
+			{Name: "bb", AreaID: backbone, Address: testIP(t, "10.0.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDown},
+			{Name: "a1", AreaID: area1, Address: testIP(t, "10.1.0.1"), NetworkMask: testIP(t, "255.255.255.0"), NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDR},
 		}
 	})
 	db3.OriginateFromTopology(router, false)

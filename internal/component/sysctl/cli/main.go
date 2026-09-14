@@ -10,14 +10,23 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 )
 
+// The subcommand names. show and set are the canonical CLI verbs, so their
+// spelling comes from the verb registry (internal/component/command) and an
+// operator meets one word on every surface. The rest are nouns this tool owns.
 const (
-	commandList         = "list"
-	commandListProfiles = "list-profiles"
+	commandList            = "list"
+	commandListProfiles    = "list-profiles"
+	commandDescribe        = "describe"
+	commandDescribeProfile = "describe-profile"
+	commandShow            = command.VerbShow
+	commandSet             = command.VerbSet
+	commandHelp            = "help"
 )
 
 // Run executes the sysctl subcommand. Returns exit code.
@@ -30,7 +39,7 @@ func Run(args []string) int {
 	subcmd := args[0]
 	subArgs := args[1:]
 
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" { //nolint:goconst // consistent pattern across cmd files
+	if subcmd == commandHelp || subcmd == "-h" || subcmd == "--help" {
 		usage()
 		return 0
 	}
@@ -38,21 +47,22 @@ func Run(args []string) int {
 	switch subcmd {
 	case commandList:
 		return cmdList(subArgs)
-	case "describe":
+	case commandDescribe:
 		return cmdDescribe(subArgs)
 	case commandListProfiles:
 		return cmdListProfiles(subArgs)
-	case "describe-profile":
+	case commandDescribeProfile:
 		return cmdDescribeProfile(subArgs)
-	case "show":
+	case commandShow:
 		return cmdShow(subArgs)
-	case "set":
+	case commandSet:
 		return cmdSet(subArgs)
 	}
 
 	fmt.Fprintf(os.Stderr, "error: unknown sysctl subcommand: %s\n", subcmd)
 	if s := suggest.Command(subcmd, []string{
-		commandList, "describe", commandListProfiles, "describe-profile", "show", "set", "help",
+		commandList, commandDescribe, commandListProfiles, commandDescribeProfile,
+		commandShow, commandSet, commandHelp,
 	}); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}

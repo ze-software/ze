@@ -12,7 +12,7 @@
 // plugin read BGP config nor BGP hardcode AS112 knowledge. internal/component/doctor
 // is the neutral third home per ai/rules/repo-maintenance.md ("dependency with
 // no narrower owner") -- it already reads the whole config.Tree generically
-// (see checkConfigReferences, checkBGPMD5) without importing either package.
+// (see checkBGPMD5) without importing either package.
 // The AS112 plugin's own (unrelated) port-53 bind-capability check lives at
 // internal/plugins/as112 instead, since that one is a same-plugin runtime
 // dependency, not a cross-component coordination concern.
@@ -79,7 +79,7 @@ func checkAS112WatchdogWithdraw(tree *config.Tree) []diagnostic.Diagnostic {
 			return
 		}
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-as112-watchdog-missing-withdraw",
+			Code:     diagnostic.CodeDoctorAS112WatchdogMissingWithdraw,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(path).
 				Str(": update block announces an AS112 covering prefix without watchdog{withdraw true} -- the route will be announced at startup before AS112 health is confirmed (RFC 7534 Section 3.3)").
@@ -210,7 +210,7 @@ func checkAS112GlobalOriginCoordination(tree *config.Tree) []diagnostic.Diagnost
 			return
 		}
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-as112-global-origin-uncoordinated",
+			Code:     diagnostic.CodeDoctorAS112GlobalOriginUncoordinated,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(path).
 				Str(": asn.local 112 with replace-as is set on an eBGP session to non-private ASN ").Str(remoteStr).
@@ -330,7 +330,7 @@ func checkAS112RedistributeOriginCoordination(tree *config.Tree) []diagnostic.Di
 			return
 		}
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-as112-redistribute-origin-uncoordinated",
+			Code:     diagnostic.CodeDoctorAS112RedistributeOriginUncoordinated,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str(path).
 				Str(": service as112 originates AS112 (asn 112) via 'import as112' toward the eBGP non-private ASN ").Str(remoteStr).
@@ -383,7 +383,7 @@ func checkAS112RedistributeNotImported(tree *config.Tree) []diagnostic.Diagnosti
 
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-as112-redistribute-not-imported",
+		Code:     diagnostic.CodeDoctorAS112RedistributeNotImported,
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Reset().
 			Str("service as112 sets a redistribute knob (asn/community) but 'redistribute { destination bgp { import as112 } }' is absent -- the AS112 covering prefixes will NOT be originated into BGP (the knob is ignored without the import); add the import, or remove the knob if this node serves DNS only").

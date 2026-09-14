@@ -26,14 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-const (
-	// diagnosticConfigRootUnclaimed marks a configured subtree that no plugin
-	// and no hub handler receives.
-	diagnosticConfigRootUnclaimed = "doctor-config-root-unclaimed"
-	// diagnosticConfigClaimsUnavailable marks the check being unable to run.
-	diagnosticConfigClaimsUnavailable = "doctor-config-claims-unavailable"
-)
-
 // checkConfigClaims resolves the live claim inventory and judges the config
 // tree against it. This is the entry point runChecks calls.
 func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
@@ -48,7 +40,7 @@ func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
 	if err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticConfigClaimsUnavailable,
+			Code:     diagnostic.CodeDoctorConfigClaimsUnavailable,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("cannot read the schema handler paths, so config delivery was not checked: ").Err(err).String(),
 		}}
@@ -59,7 +51,7 @@ func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
 	if err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticConfigClaimsUnavailable,
+			Code:     diagnostic.CodeDoctorConfigClaimsUnavailable,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str("cannot read the config claim allowlist, so config delivery was not checked: ").Err(err).String(),
 		}}
@@ -79,7 +71,7 @@ func configClaimDiagnostics(tree *config.Tree, cs []claims.Claim, allow []claims
 	}
 	if len(cs) == 0 {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnosticConfigClaimsUnavailable,
+			Code:     diagnostic.CodeDoctorConfigClaimsUnavailable,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "no plugin declares a config root in this build, so config delivery could not be checked",
 		}}
@@ -91,7 +83,7 @@ func configClaimDiagnostics(tree *config.Tree, cs []claims.Claim, allow []claims
 	diags := make([]diagnostic.Diagnostic, 0, len(findings))
 	for _, f := range findings {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     diagnosticConfigRootUnclaimed,
+			Code:     diagnostic.CodeDoctorConfigRootUnclaimed,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Reset().Str("config under ").Str(f.Path).
 				Str(" is stored but delivered to no plugin and no handler: it has no effect. ").

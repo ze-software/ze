@@ -65,13 +65,13 @@ func TestOSPFv3PtMPNextHop(t *testing.T) {
 	tbl := neighbor.NewTable(neighbor.NopMetrics())
 	tbl.SetSender(nopNbrSender{})
 	tbl.ConfigureInterface(neighbor.InterfaceConfig{
-		Name: "eth0", AreaID: area, RouterID: self, NetworkType: neighbor.NetworkPointToMultipoint,
+		Name: "eth0", AreaID: area, RouterID: self, NetworkType: types.NetworkPointToMultipoint,
 		InterfaceMTU: 1500, DeadInterval: 40,
 	})
 	now := time.Unix(1, 0)
 	if reason := tbl.Hello(neighbor.HelloInput{
 		InterfaceName: "eth0", AreaID: area, LocalRouterID: self, NeighborID: neighborID,
-		Address: ll, TwoWay: true, NetworkType: neighbor.NetworkPointToMultipoint,
+		Address: ll, TwoWay: true, NetworkType: types.NetworkPointToMultipoint,
 		DeadInterval: 40, InterfaceMTU: 1500, Now: now,
 	}); reason != "" {
 		t.Fatalf("Hello: %s", reason)

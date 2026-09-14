@@ -61,7 +61,7 @@ func baseConfig(t *testing.T) Config {
 		RouterID:         rid(t, "10.0.0.1"),
 		AreaID:           area(t, "0"),
 		AreaType:         "normal",
-		NetworkType:      NetworkBroadcast,
+		NetworkType:      types.NetworkBroadcast,
 		NetworkMask:      [4]byte{255, 255, 255, 0},
 		InterfaceAddress: [4]byte{10, 0, 0, 1},
 		Cost:             10,
@@ -131,7 +131,7 @@ func TestOSPFISMBroadcastUpToWaiting(t *testing.T) {
 
 func TestOSPFISMP2PUpToPointToPoint(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkPointToPoint
+	cfg.NetworkType = types.NetworkPointToPoint
 	ifc := New(cfg, &fakeSender{}, NopMetrics())
 	ifc.Start()
 	defer ifc.Stop()
@@ -146,7 +146,7 @@ func TestOSPFISMP2PUpToPointToPoint(t *testing.T) {
 
 func TestOSPFISMLoopbackNoHello(t *testing.T) {
 	cfg := baseConfig(t)
-	cfg.NetworkType = NetworkLoopback
+	cfg.NetworkType = types.NetworkLoopback
 	sender := &fakeSender{}
 	ifc := New(cfg, sender, NopMetrics())
 	ifc.Start()
@@ -464,7 +464,7 @@ func TestOSPFHelloEbitSetNormalClearStub(t *testing.T) {
 	if !p.Hello.Options.Has(types.OptionE) {
 		t.Fatal("normal area Hello missing E-bit")
 	}
-	cfg.AreaType = AreaStub
+	cfg.AreaType = types.AreaTypeStub
 	ifc = New(cfg, &fakeSender{}, NopMetrics())
 	p, err = packet.DecodePacket(ifc.buildHelloPacket())
 	if err != nil {

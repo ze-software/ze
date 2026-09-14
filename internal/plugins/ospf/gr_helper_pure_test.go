@@ -32,13 +32,13 @@ func TestStringsToRouterIDs(t *testing.T) {
 func TestWouldFloodToHelperASExternal(t *testing.T) {
 	// An AS-external LSA floods to X in a normal area, but NOT in a stub or NSSA area
 	// (RFC 3623 §3.2 exception). This branch never consults the engine, so e is nil.
-	if !wouldFloodToHelper(types.LSTypeASExternal, areaTypeNormal, "eth0", types.AreaID{}, nil) {
+	if !wouldFloodToHelper(types.LSTypeASExternal, types.AreaTypeNormal, "eth0", types.AreaID{}, nil) {
 		t.Fatalf("AS-external LSA must flood to a helper in a normal area")
 	}
-	if wouldFloodToHelper(types.LSTypeASExternal, areaTypeStub, "eth0", types.AreaID{}, nil) {
+	if wouldFloodToHelper(types.LSTypeASExternal, types.AreaTypeStub, "eth0", types.AreaID{}, nil) {
 		t.Fatalf("AS-external LSA must NOT flood to a helper in a stub area")
 	}
-	if wouldFloodToHelper(types.LSTypeASExternal, areaTypeNSSA, "eth0", types.AreaID{}, nil) {
+	if wouldFloodToHelper(types.LSTypeASExternal, types.AreaTypeNSSA, "eth0", types.AreaID{}, nil) {
 		t.Fatalf("AS-external LSA must NOT flood to a helper in an NSSA area")
 	}
 }
@@ -49,11 +49,11 @@ func TestWouldFloodToHelperAreaScoped(t *testing.T) {
 	area := types.AreaID{0, 0, 0, 1}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: area}
 
-	if !wouldFloodToHelper(types.LSTypeRouter, areaTypeNormal, "eth0", area, eng) {
+	if !wouldFloodToHelper(types.LSTypeRouter, types.AreaTypeNormal, "eth0", area, eng) {
 		t.Fatalf("a Router-LSA in eth0's own area must flood to the helper (sameHelperArea true)")
 	}
 	other := types.AreaID{0, 0, 0, 2}
-	if wouldFloodToHelper(types.LSTypeRouter, areaTypeNormal, "eth0", other, eng) {
+	if wouldFloodToHelper(types.LSTypeRouter, types.AreaTypeNormal, "eth0", other, eng) {
 		t.Fatalf("a Router-LSA for a different area must NOT flood to eth0's helper")
 	}
 	// sameHelperArea returns false for an interface the engine is not running.

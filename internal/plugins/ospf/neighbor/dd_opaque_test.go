@@ -14,7 +14,7 @@ import (
 )
 
 func TestDDSetsOpaqueBit(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	// Opaque enabled: the interface Options carry the O-bit (the engine ORs it in when
 	// the `opaque` config leaf is set).
 	cfg.Options = types.OptionE | types.OptionO
@@ -40,7 +40,7 @@ func TestDDSetsOpaqueBit(t *testing.T) {
 }
 
 func TestOpaqueBitIgnoredOutsideDD(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	cfg.Options = types.OptionE | types.OptionO
 	tbl.ConfigureInterface(cfg)
 	sender := &fakeSender{}

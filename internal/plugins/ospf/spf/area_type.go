@@ -5,12 +5,9 @@ package spf
 
 import "github.com/ze-software/ze/internal/plugins/ospf/types"
 
-// Area-type policy strings (mirrors the lsdb AreaType* constants and the config enum).
-const (
-	AreaTypeNormal = "normal"
-	AreaTypeStub   = "stub"
-	AreaTypeNSSA   = "nssa"
-)
+// The area types this package reads are declared in internal/plugins/ospf/types
+// (vocabulary.go), because the config resolver, iface, neighbor, lsdb and spf all act
+// on the same words.
 
 // AreaSummaryPolicy carries the per-destination-area stub/NSSA origination policy the
 // ABR applies on top of the normal Type 3/4 desired set.
@@ -21,7 +18,7 @@ type AreaSummaryPolicy struct {
 }
 
 func (p AreaSummaryPolicy) isStubOrNSSA() bool {
-	return p.Type == AreaTypeStub || p.Type == AreaTypeNSSA
+	return p.Type == types.AreaTypeStub || p.Type == types.AreaTypeNSSA
 }
 
 // applyAreaTypePolicy rewrites the desired Type-3/4 set for a stub or NSSA
@@ -55,7 +52,7 @@ func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summar
 	// border-router default as a Type-3 summary-LSA.
 	// RFC requirement: RFC3101-2.7-3 -- an NSSA that imports summary
 	// routes MUST NOT take its border-router default as a Type-3 summary-LSA.
-	if p.Type == AreaTypeStub || p.Type == AreaTypeNSSA && p.NoSummary {
+	if p.Type == types.AreaTypeStub || p.Type == types.AreaTypeNSSA && p.NoSummary {
 		out = append(out, summaryDesired{
 			Type:   types.LSTypeSummaryNetwork,
 			LSID:   types.LinkStateID([4]byte{}),

@@ -127,8 +127,8 @@ func TestOSPFRIReceiveFunctional(t *testing.T) {
 	a0 := types.BackboneArea
 	eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{{
-			Name: "eth0", AreaID: a0, AreaType: ospflsdb.AreaTypeNormal,
-			NetworkType: ospflsdb.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR,
+			Name: "eth0", AreaID: a0, AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: ospflsdb.InterfaceStateDR,
 			RouterID: mustRouterID(t, "1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "2.2.2.2"), Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull, OpaqueCapable: true}},
 		}}

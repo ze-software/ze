@@ -13,21 +13,10 @@ import (
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
+// The network types and the area types this package reads are declared in
+// internal/plugins/ospf/types (vocabulary.go), because the config resolver, iface,
+// neighbor, lsdb and spf all act on the same words.
 const (
-	AreaTypeNormal = "normal"
-	AreaTypeStub   = "stub"
-	AreaTypeNSSA   = "nssa"
-
-	NetworkBroadcast         = "broadcast"
-	NetworkPointToPoint      = "point-to-point"
-	NetworkNBMA              = "nbma"
-	NetworkPointToMultipoint = "point-to-multipoint"
-	// NetworkVirtual marks a synthetic virtual-link interface (RFC 2328 section 15 / RFC 5340
-	// section 4.2). It is a backbone point-to-point interface whose Router-LSA link is a
-	// Type-4 virtual record (IPv4) / RouterLinkTypeVirtual record (IPv6); it carries no
-	// Network-LSA/stub link and its packets are routed, not link-local.
-	NetworkVirtual = "virtual"
-
 	InterfaceStateDown   = "down"
 	InterfaceStateDR     = "dr"
 	InterfaceStateBackup = "backup"
@@ -95,7 +84,7 @@ type InterfaceInfo struct {
 	// InterfaceInfo.Cost override, which would also cost out the stub). The engine sets
 	// this only for a P2P interface whose LDP-sync state is not yet synchronized.
 	LDPSyncMaxMetric bool
-	// VirtualTransitArea is the transit area a NetworkVirtual interface runs through (RFC
+	// VirtualTransitArea is the transit area a types.NetworkVirtual interface runs through (RFC
 	// 2328 section 15). The virtual link's Type-4 record is emitted into the backbone
 	// Router-LSA, but the Router-LSA V-bit is set in the TRANSIT area's Router-LSA (RFC
 	// 2328 App A.4.2 / section 16.3 TransitCapability). Zero for non-virtual interfaces.
@@ -268,7 +257,7 @@ func isASWideType(t types.LSType) bool {
 // (OSPFv2 Type 5/4/7 or the OSPFv3 scope-typed 0x4005/0x2004/0x2007), so the same filter
 // applies to both families.
 func shouldDropByArea(areaType string, typ types.LSType) bool {
-	stubLike := areaType == AreaTypeStub || areaType == AreaTypeNSSA
+	stubLike := areaType == types.AreaTypeStub || areaType == types.AreaTypeNSSA
 	switch {
 	// RFC 5250 Section 3.1: a Type-11 (AS-scope) opaque LSA MUST NOT be flooded into a
 	// stub or NSSA area, and one received on such an interface MUST be discarded --
@@ -276,7 +265,7 @@ func shouldDropByArea(areaType string, typ types.LSType) bool {
 	case isASWideType(typ) || typ.InterAreaRouter():
 		return stubLike
 	case typ.NSSA():
-		return areaType != AreaTypeNSSA
+		return areaType != types.AreaTypeNSSA
 	default:
 		return false
 	}
@@ -399,7 +388,7 @@ func (d *LSDB) floodExcept(incoming string, sender types.RouterID, area types.Ar
 // its own NSSA. AS-External is AS-wide (no area match); all others are area-scoped. The type
 // classification is address-family-neutral (OSPFv2 Type 5/4/7 or OSPFv3 0x4005/0x2004/0x2007).
 func eligibleInterface(iface InterfaceInfo, area types.AreaID, typ types.LSType) bool {
-	stubLike := iface.AreaType == AreaTypeStub || iface.AreaType == AreaTypeNSSA
+	stubLike := iface.AreaType == types.AreaTypeStub || iface.AreaType == types.AreaTypeNSSA
 	switch {
 	// RFC 5250 Section 3.1: Type-11 opaque flooding scope equals Type-5 AS-External --
 	// AS-wide (no area match) but never out a stub/NSSA interface (isASWideType covers both).
@@ -410,7 +399,7 @@ func eligibleInterface(iface InterfaceInfo, area types.AreaID, typ types.LSType)
 	case typ.InterAreaRouter():
 		return iface.AreaID == area && !stubLike
 	case typ.NSSA():
-		return iface.AreaID == area && iface.AreaType == AreaTypeNSSA
+		return iface.AreaID == area && iface.AreaType == types.AreaTypeNSSA
 	default:
 		return iface.AreaID == area
 	}
@@ -431,7 +420,7 @@ var (
 )
 
 func floodDestination(iface InterfaceInfo) netip.Addr {
-	toDRouters := iface.NetworkType == NetworkBroadcast &&
+	toDRouters := iface.NetworkType == types.NetworkBroadcast &&
 		iface.State != InterfaceStateDR && iface.State != InterfaceStateBackup
 	if iface.IsV6 {
 		if toDRouters {
@@ -687,7 +676,7 @@ func (d *LSDB) FlushDelayedAcks(ifaceName string) int {
 // isNonBroadcastNetwork reports whether an interface floods by per-neighbor unicast
 // (NBMA and point-to-multipoint) rather than to a multicast group.
 func isNonBroadcastNetwork(networkType string) bool {
-	return networkType == NetworkNBMA || networkType == NetworkPointToMultipoint
+	return networkType == types.NetworkNBMA || networkType == types.NetworkPointToMultipoint
 }
 
 // PacketEncoder encodes the LSDB's outgoing flooded LSUpdate and LSAck packets for the

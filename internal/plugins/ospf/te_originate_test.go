@@ -42,7 +42,7 @@ const teOrigCfg = `{"ospf":{"router-id":"1.1.1.1","router-address":"9.9.9.9","op
 
 func p2pTopo(name string, local [4]byte, nbr types.RouterID, nbrAddr string) ospflsdb.InterfaceInfo {
 	return ospflsdb.InterfaceInfo{
-		Name: name, AreaID: types.BackboneArea, NetworkType: networkPointToPoint,
+		Name: name, AreaID: types.BackboneArea, NetworkType: types.NetworkPointToPoint,
 		State: "point-to-point", Address: local, RouterID: types.RouterID{1, 1, 1, 1},
 		Neighbors: []ospflsdb.NeighborInfo{{RouterID: nbr, Address: naddrForTest(nbrAddr), State: ospflsdb.NeighborStateFull}},
 	}
@@ -94,7 +94,7 @@ func TestTEOriginateRefusesIncompleteLink(t *testing.T) {
 	// TE enabled but the p2p interface has no Full neighbor -> no usable Link ID -> no Link
 	// LSA (RFC 3630 sec 2.4.2 mandatory Link ID). The router-address may still be originated.
 	eng := teEngineWithTopology(t, teOrigCfg, []ospflsdb.InterfaceInfo{{
-		Name: "eth0", AreaID: types.BackboneArea, NetworkType: networkPointToPoint,
+		Name: "eth0", AreaID: types.BackboneArea, NetworkType: types.NetworkPointToPoint,
 		State: ospflsdb.InterfaceStateDown, Address: [4]byte{10, 0, 0, 1},
 	}})
 	for _, o := range eng.teOriginateType1(types.RouterID{1, 1, 1, 1}) {

@@ -18,8 +18,8 @@ func TestOSPFFloodingFunctional(t *testing.T) {
 	db.SetSelfRouterID(self)
 	db.SetTopology(func() []ospflsdb.InterfaceInfo {
 		return []ospflsdb.InterfaceInfo{
-			{Name: "eth0", AreaID: mustBackboneArea(t), AreaType: ospflsdb.AreaTypeNormal, NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateBackup, Address: ip4ForTest("10.0.0.1"), DR: mustRouterID(t, "2.2.2.2"), BDR: self, TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "2.2.2.2"), Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull}}},
-			{Name: "eth1", AreaID: mustBackboneArea(t), AreaType: ospflsdb.AreaTypeNormal, NetworkType: ospflsdb.NetworkBroadcast, State: ospflsdb.InterfaceStateDR, Address: ip4ForTest("10.0.1.1"), DR: self, TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "3.3.3.3"), Address: naddrForTest("10.0.1.3"), State: ospflsdb.NeighborStateFull}}},
+			{Name: "eth0", AreaID: mustBackboneArea(t), AreaType: types.AreaTypeNormal, NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateBackup, Address: ip4ForTest("10.0.0.1"), DR: mustRouterID(t, "2.2.2.2"), BDR: self, TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "2.2.2.2"), Address: naddrForTest("10.0.0.2"), State: ospflsdb.NeighborStateFull}}},
+			{Name: "eth1", AreaID: mustBackboneArea(t), AreaType: types.AreaTypeNormal, NetworkType: types.NetworkBroadcast, State: ospflsdb.InterfaceStateDR, Address: ip4ForTest("10.0.1.1"), DR: self, TransmitDelay: 1, Neighbors: []ospflsdb.NeighborInfo{{RouterID: mustRouterID(t, "3.3.3.3"), Address: naddrForTest("10.0.1.3"), State: ospflsdb.NeighborStateFull}}},
 		}
 	})
 	var sends []struct {
@@ -69,12 +69,12 @@ func TestOSPFLSUpdateBelowExchangeDoesNotReachLSDB(t *testing.T) {
 	cfg := defaultOSPFConfig()
 	cfg.present = true
 	cfg.RouterID = self
-	cfg.Areas = []areaConfig{{AreaID: a, AreaType: areaTypeNormal}}
+	cfg.Areas = []areaConfig{{AreaID: a, AreaType: types.AreaTypeNormal}}
 	cfg.Interfaces = []interfaceConfig{{
 		Name:               "eth0",
 		AreaID:             a,
 		Enabled:            true,
-		NetworkType:        networkBroadcast,
+		NetworkType:        types.NetworkBroadcast,
 		HelloInterval:      DefaultHelloInterval,
 		DeadInterval:       DefaultDeadInterval,
 		Priority:           DefaultPriority,

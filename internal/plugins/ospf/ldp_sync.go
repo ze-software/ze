@@ -557,7 +557,7 @@ func (e *engine) applyLDPSyncOverride(info *ospflsdb.InterfaceInfo, ic interface
 		return
 	}
 	switch ic.NetworkType {
-	case networkPointToPoint:
+	case types.NetworkPointToPoint:
 		// RFC 5443 §2: cost the point-to-point link out to LSInfinity while not yet
 		// synchronized, via the per-interface max-metric flag so ONLY the p2p/transit
 		// link is raised and the connected-subnet stub link keeps its configured cost
@@ -565,7 +565,7 @@ func (e *engine) applyLDPSyncOverride(info *ospflsdb.InterfaceInfo, ic interface
 		// Past the guard above the machine is managed and not synchronized, so the flag is
 		// always set here.
 		info.LDPSyncMaxMetric = true
-	case networkBroadcast:
+	case types.NetworkBroadcast:
 		// No transit link exists until a DR is elected, so there is nothing to withhold
 		// yet (routerLinks only builds it when DR != 0). RFC 6138 §4 acts "just before
 		// the adjacency is reflected in the LSA".
@@ -660,7 +660,7 @@ func (m *ldpSyncManager) snapshot() []ldpSyncSnapshotEntry {
 		// the p2p link); broadcast keeps the configured cost (it withholds the transit link
 		// rather than cost it out). effectiveP2PCost is the shared P2P metric definition.
 		metric := int(mc.cost)
-		if mc.networkType == networkPointToPoint {
+		if mc.networkType == types.NetworkPointToPoint {
 			metric = int(effectiveP2PCost(mc.state, true, mc.cost))
 		}
 		out = append(out, ldpSyncSnapshotEntry{

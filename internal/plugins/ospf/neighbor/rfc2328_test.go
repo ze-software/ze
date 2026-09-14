@@ -22,7 +22,7 @@ import (
 // the engine turns into a drop before the LSDB sees the packet (AcceptsFlooding state gate,
 // table.go:415-417).
 func TestRFC2328FloodingRequiresExchangeOrHigher(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	tbl.SetLSDB(fakeLSDB{})
@@ -65,7 +65,7 @@ func TestRFC2328FloodingRequiresExchangeOrHigher(t *testing.T) {
 // (sendDBDescLocked, dd.go:170).
 func TestRFC2328VirtualLinkDBDescCarriesZeroMTU(t *testing.T) {
 	// A virtual link: no Interface MTU configured, and the MTU match is skipped.
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	cfg.Name = "*vl-0.0.0.1-10.0.0.2"
 	cfg.InterfaceMTU = 0
 	cfg.MTUIgnore = true
@@ -95,7 +95,7 @@ func TestRFC2328VirtualLinkDBDescCarriesZeroMTU(t *testing.T) {
 	}
 
 	// A real interface keeps its MTU in the DD.
-	realTbl, realCfg := testTable(t, NetworkPointToPoint)
+	realTbl, realCfg := testTable(t, types.NetworkPointToPoint)
 	realSender := &fakeSender{}
 	realTbl.SetSender(realSender)
 	_ = realTbl.Hello(hello(realCfg, peer, true, time.Unix(1, 0)))
@@ -122,7 +122,7 @@ func TestRFC2328VirtualLinkDBDescCarriesZeroMTU(t *testing.T) {
 // database cannot satisfy: an LS Request naming an LSA that IS in the database is answered with
 // an LS Update and leaves the adjacency in place (handleLSReq, lsreq.go:75-82).
 func TestRFC2328KnownLSRequestDoesNotRestartExchange(t *testing.T) {
-	tbl, cfg := testTable(t, NetworkPointToPoint)
+	tbl, cfg := testTable(t, types.NetworkPointToPoint)
 	sender := &fakeSender{}
 	tbl.SetSender(sender)
 	held := packet.LSA{Header: testHeader(t, types.InitialSequenceNumber)}

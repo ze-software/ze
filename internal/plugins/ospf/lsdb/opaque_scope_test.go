@@ -35,13 +35,13 @@ func opaqueLSA(t *testing.T, scope types.LSType, opaqueType uint8, opaqueID uint
 func opaqueTopology() []InterfaceInfo {
 	return []InterfaceInfo{
 		{
-			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull, OpaqueCapable: true}},
 		},
 		{
-			Name: "eth1", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Name: "eth1", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.1.3"), State: NeighborStateFull, OpaqueCapable: true}},
 		},
 	}
@@ -137,11 +137,11 @@ func TestOpaqueType11StubDiscarded(t *testing.T) {
 	tx := &txRecorder{}
 	db.SetTx(tx.Send)
 	stub := area("0.0.0.7")
-	db.SetAreaTypes(map[types.AreaID]string{stub: AreaTypeStub})
+	db.SetAreaTypes(map[types.AreaID]string{stub: types.AreaTypeStub})
 	db.SetTopology(func() []InterfaceInfo {
 		return []InterfaceInfo{{
-			Name: "eth0", AreaID: stub, AreaType: AreaTypeStub,
-			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Name: "eth0", AreaID: stub, AreaType: types.AreaTypeStub,
+			NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull, OpaqueCapable: true}},
 		}}
 	})
@@ -177,13 +177,13 @@ func TestOpaqueType11StubDiscarded(t *testing.T) {
 func opaqueTwoAreaTopology() []InterfaceInfo {
 	return []InterfaceInfo{
 		{
-			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Name: "eth0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull, OpaqueCapable: true}},
 		},
 		{
-			Name: "eth1", AreaID: area("0.0.0.2"), AreaType: AreaTypeNormal,
-			NetworkType: NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
+			Name: "eth1", AreaID: area("0.0.0.2"), AreaType: types.AreaTypeNormal,
+			NetworkType: types.NetworkPointToPoint, State: InterfaceStateDR, RouterID: rid("1.1.1.1"), TransmitDelay: 1,
 			Neighbors: []NeighborInfo{{RouterID: rid("3.3.3.3"), Address: naddr4("10.0.1.3"), State: NeighborStateFull, OpaqueCapable: true}},
 		},
 	}

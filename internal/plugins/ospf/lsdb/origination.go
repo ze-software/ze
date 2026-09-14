@@ -153,7 +153,7 @@ func (d *LSDB) OriginateRouter(in OriginInput) (packet.LSAHeader, bool) {
 // interface, or a Full virtual link, that contributes to its Router-LSA.
 func AreaHasAdvertisedLinks(ifaces []InterfaceInfo) bool {
 	for idx := range ifaces {
-		if ifaces[idx].NetworkType == NetworkVirtual {
+		if ifaces[idx].NetworkType == types.NetworkVirtual {
 			// RFC 2328 section 15 / RFC 5340 section 3.5: a virtual link makes its area (the
 			// backbone) active for ABR/backbone-attachment only when the adjacency is Full.
 			if virtualLinkFull(ifaces[idx]) {
@@ -180,7 +180,7 @@ func advertiseInterfaceLinks(iface InterfaceInfo) bool {
 func fullVirtualTransitAreas(ifaces []InterfaceInfo) map[types.AreaID]bool {
 	var out map[types.AreaID]bool
 	for idx := range ifaces {
-		if ifaces[idx].NetworkType != NetworkVirtual || !virtualLinkFull(ifaces[idx]) {
+		if ifaces[idx].NetworkType != types.NetworkVirtual || !virtualLinkFull(ifaces[idx]) {
 			continue
 		}
 		if out == nil {
@@ -217,7 +217,7 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 		// neighbor Router ID, Link Data = the local transit interface address, and Metric =
 		// the transit-area path cost. It has no stub/transit link, so `continue` after
 		// emitting the record. Only emitted when the adjacency is Full.
-		if iface.NetworkType == NetworkVirtual {
+		if iface.NetworkType == types.NetworkVirtual {
 			for _, nbr := range iface.Neighbors {
 				if nbr.State != NeighborStateFull {
 					continue
@@ -232,8 +232,8 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 		}
 		// Point-to-multipoint is a collection of point-to-point links (RFC 2328 sec
 		// 12.4.1.4): one Type-1 link per Full neighbor, exactly like point-to-point.
-		isPtMP := iface.NetworkType == NetworkPointToMultipoint
-		if iface.NetworkType == NetworkPointToPoint || isPtMP {
+		isPtMP := iface.NetworkType == types.NetworkPointToMultipoint
+		if iface.NetworkType == types.NetworkPointToPoint || isPtMP {
 			for _, nbr := range iface.Neighbors {
 				if nbr.State != NeighborStateFull {
 					continue
@@ -263,7 +263,7 @@ func routerLinks(in OriginInput) []packet.RouterLink {
 		// only for a non-cut-edge broadcast interface not yet LDP-synchronized; a
 		// cut-edge is advertised immediately (the RFC 6138 MUST NOT-delay rule) and so
 		// never carries this flag. The stub link (below) for the subnet is unaffected.
-		if (iface.NetworkType == NetworkBroadcast || iface.NetworkType == NetworkNBMA) && iface.DR != (types.RouterID{}) && !iface.LDPSyncWithholdTransit {
+		if (iface.NetworkType == types.NetworkBroadcast || iface.NetworkType == types.NetworkNBMA) && iface.DR != (types.RouterID{}) && !iface.LDPSyncWithholdTransit {
 			drAddr := iface.Address
 			if iface.DR != in.RouterID {
 				for _, nbr := range iface.Neighbors {

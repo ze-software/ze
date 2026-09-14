@@ -110,7 +110,7 @@ func v6NSSAActiveAreas(cfg ospfConfig, active []types.AreaID) []types.AreaID {
 	}
 	out := make([]types.AreaID, 0, len(cfg.Areas))
 	for _, a := range cfg.Areas {
-		if a.AreaType != areaTypeNSSA {
+		if a.AreaType != types.AreaTypeNSSA {
 			continue
 		}
 		if _, ok := activeSet[a.AreaID]; ok {

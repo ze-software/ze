@@ -4,9 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // TestExpandEnvValue verifies $VAR expansion resolves from environment.
@@ -177,6 +179,30 @@ func TestExtractSystemConfig_DNSSEC(t *testing.T) {
 	badTree := config.NewTree()
 	badTree.GetOrCreateContainer("system").GetOrCreateContainer("dns").Set("dnssec-validation", "bogus")
 	assert.Equal(t, "off", system.ExtractSystemConfig(badTree).DNSSECValidation, "unknown value keeps default")
+}
+
+// TestExtractSystemConfig_DNSSECTakesEveryModeTheModelDeclares proves the mode
+// extraction accepts is decided by the model rather than by a list in Go.
+//
+// The modes are read from the model rather than written here: a list in this
+// file would agree with a Go copy that had drifted away from the model just as
+// happily as with one that had not.
+//
+// VALIDATES: every value of the enumeration at system/dns/dnssec-validation
+// survives extraction.
+// PREVENTS: a mode added to the model validating at the config layer and then
+// being dropped in silence back to off, which is the weakest of the modes.
+func TestExtractSystemConfig_DNSSECTakesEveryModeTheModelDeclares(t *testing.T) {
+	declared, err := configyang.EnumValues("system/dns/dnssec-validation")
+	require.NoError(t, err)
+	require.NotEmpty(t, declared, "the model declares no DNSSEC mode")
+
+	for _, mode := range declared {
+		tree := config.NewTree()
+		tree.GetOrCreateContainer("system").GetOrCreateContainer("dns").Set("dnssec-validation", mode)
+		assert.Equal(t, mode, system.ExtractSystemConfig(tree).DNSSECValidation,
+			"the model declares %q, so extraction must keep it", mode)
+	}
 }
 
 // TestExtractSystemConfig_DNS_Defaults verifies default values when no dns block.

@@ -31,7 +31,7 @@ func v6BroadcastInterface(area types.AreaID, self types.RouterID) ospflsdb.Inter
 	return ospflsdb.InterfaceInfo{
 		Name:          "eth0",
 		AreaID:        area,
-		NetworkType:   ospflsdb.NetworkBroadcast,
+		NetworkType:   types.NetworkBroadcast,
 		State:         ospflsdb.InterfaceStateDR,
 		Priority:      7,
 		Cost:          10,
@@ -166,7 +166,7 @@ func TestOSPFv2NoLinkLSA(t *testing.T) {
 		return []ospflsdb.InterfaceInfo{{
 			Name:        "eth0",
 			AreaID:      types.BackboneArea,
-			NetworkType: ospflsdb.NetworkPointToPoint,
+			NetworkType: types.NetworkPointToPoint,
 			State:       "point-to-point",
 			RouterID:    self,
 			Address:     netip.MustParseAddr("192.0.2.1").As4(),

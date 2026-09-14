@@ -1,0 +1,398 @@
+=== Ze Crash Report ===
+Time: 2026-09-14T11:04:54Z
+Version: dev
+Build: unknown
+Commit: 64d5f884f25e (modified)
+Go: go1.27.0
+OS/Arch: darwin/arm64
+PID: 30905
+Goroutines: 5
+Uptime: 1h11m1s
+Command: /Users/thomas/Code/github.com/ze-software/ze/main/bin/le verify current mode full
+
+=== Panic ===
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1062ceafa?, 0x107e3b108?}, 0x757487b99b28?, {{0x7574878aa2e0, 0x1d}, {0x0, 0x0}, {0x1062cb896, 0x7}, {0x1062c5213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1062ceafa, 0x8}, 0x75748754a370, {0x7574878aa2e0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1062ceafa, 0x8}, {0x1062ceafa?, 0x104c6dc14?}, {0x1062ceafa, 0x8}, {0x1063fd0b3?, 0x1063b8192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite encode took 1s of its 600s budget (0%)
+
+[2/27] suite plugin
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1063f2afa?, 0x107f5f108?}, 0x6f52a49d3b28?, {{0x6f52a49f24a0, 0x1d}, {0x0, 0x0}, {0x1063ef896, 0x7}, {0x1063e9213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1063f2afa, 0x8}, 0x6f52a497b220, {0x6f52a49f24a0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1063f2afa, 0x8}, {0x1063f2afa?, 0x104d91c14?}, {0x1063f2afa, 0x8}, {0x1065210b3?, 0x1064dc192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite plugin took 0s of its 1500s budget (0%)
+
+[3/27] suite parse
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x105fd2afa?, 0x107b3f108?}, 0x1e9b37c2fb28?, {{0x1e9b3797c620, 0x1d}, {0x0, 0x0}, {0x105fcf896, 0x7}, {0x105fc9213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x105fd2afa, 0x8}, 0x1e9b37ba25f0, {0x1e9b3797c620, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x105fd2afa, 0x8}, {0x105fd2afa?, 0x104971c14?}, {0x105fd2afa, 0x8}, {0x1061010b3?, 0x1060bc192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite parse took 0s of its 600s budget (0%)
+
+[4/27] suite decode
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x10402eafa?, 0x105b9b108?}, 0x36ea0a9ebb28?, {{0x36ea0ab16400, 0x1d}, {0x0, 0x0}, {0x10402b896, 0x7}, {0x104025213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x10402eafa, 0x8}, 0x36ea0ab0d0e0, {0x36ea0ab16400, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x10402eafa, 0x8}, {0x10402eafa?, 0x1029cdc14?}, {0x10402eafa, 0x8}, {0x10415d0b3?, 0x104118192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite decode took 0s of its 600s budget (0%)
+
+[5/27] suite reload
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x102432afa?, 0x103f9f108?}, 0x48b76e8efb28?, {{0x48b76e456780, 0x1d}, {0x0, 0x0}, {0x10242f896, 0x7}, {0x102429213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x102432afa, 0x8}, 0x48b76e4791d0, {0x48b76e456780, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x102432afa, 0x8}, {0x102432afa?, 0x100dd1c14?}, {0x102432afa, 0x8}, {0x1025610b3?, 0x10251c192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite reload took 0s of its 600s budget (0%)
+
+[6/27] suite ui
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x103f5eafa?, 0x105acb108?}, 0x386883e51b28?, {{0x386883966700, 0x1d}, {0x0, 0x0}, {0x103f5b896, 0x7}, {0x103f55213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x103f5eafa, 0x8}, 0x386883734c30, {0x386883966700, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x103f5eafa, 0x8}, {0x103f5eafa?, 0x1028fdc14?}, {0x103f5eafa, 0x8}, {0x10408d0b3?, 0x104048192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite ui took 0s of its 600s budget (0%)
+
+[7/27] suite editor
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x101ba6afa?, 0x103713108?}, 0x5c5813a39b28?, {{0x5c58137062e0, 0x1d}, {0x0, 0x0}, {0x101ba3896, 0x7}, {0x101b9d213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x101ba6afa, 0x8}, 0x5c58133ec370, {0x5c58137062e0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x101ba6afa, 0x8}, {0x101ba6afa?, 0x100545c14?}, {0x101ba6afa, 0x8}, {0x101cd50b3?, 0x101c90192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite editor took 0s of its 600s budget (0%)
+
+[8/27] suite managed
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x10593eafa?, 0x1042a2dd0?}, 0x62e0351f1b58?, {{0x62e034d56040, 0x1d}, {0x0, 0x0}, {0x10593b896, 0x7}, {0x105935213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x10593eafa, 0x8}, 0x62e034d4c190, {0x62e034d56040, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x10593eafa, 0x8}, {0x10593eafa?, 0x1042ddc14?}, {0x10593eafa, 0x8}, {0x105a6d0b3?, 0x105a28192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite managed took 0s of its 600s budget (0%)
+
+[9/27] suite l2tp
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x10422eafa?, 0x105d9b108?}, 0x661c861c1b28?, {{0x661c85dac9e0, 0x1d}, {0x0, 0x0}, {0x10422b896, 0x7}, {0x104225213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x10422eafa, 0x8}, 0x661c85e28280, {0x661c85dac9e0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x10422eafa, 0x8}, {0x10422eafa?, 0x102bcdc14?}, {0x10422eafa, 0x8}, {0x10435d0b3?, 0x104318192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite l2tp took 0s of its 600s budget (0%)
+
+[10/27] suite firewall
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x101cbeafa?, 0x10382b108?}, 0x3fd54f7b3b28?, {{0x3fd54f6620c0, 0x1d}, {0x0, 0x0}, {0x101cbb896, 0x7}, {0x101cb5213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x101cbeafa, 0x8}, 0x3fd54f6f44b0, {0x3fd54f6620c0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x101cbeafa, 0x8}, {0x101cbeafa?, 0x10065dc14?}, {0x101cbeafa, 0x8}, {0x101ded0b3?, 0x101da8192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite firewall took 0s of its 600s budget (0%)
+
+[11/27] suite policy
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1058f6afa?, 0x107463108?}, 0x54c4f27abb28?, {{0x54c4f2796420, 0x1d}, {0x0, 0x0}, {0x1058f3896, 0x7}, {0x1058ed213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1058f6afa, 0x8}, 0x54c4f2914eb0, {0x54c4f2796420, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1058f6afa, 0x8}, {0x1058f6afa?, 0x104295c14?}, {0x1058f6afa, 0x8}, {0x105a250b3?, 0x1059e0192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite policy took 0s of its 600s budget (0%)
+
+[12/27] suite ipsec
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1036d6afa?, 0x105243108?}, 0x69f9884b5b28?, {{0x69f9883167c0, 0x1d}, {0x0, 0x0}, {0x1036d3896, 0x7}, {0x1036cd213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1036d6afa, 0x8}, 0x69f987f79270, {0x69f9883167c0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1036d6afa, 0x8}, {0x1036d6afa?, 0x102075c14?}, {0x1036d6afa, 0x8}, {0x1038050b3?, 0x1037c0192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite ipsec took 0s of its 600s budget (0%)
+
+[13/27] suite ldp
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x105b26afa?, 0x10448add0?}, 0x4c4d03f8fb58?, {{0x4c4d03a4a040, 0x1d}, {0x0, 0x0}, {0x105b23896, 0x7}, {0x105b1d213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x105b26afa, 0x8}, 0x4c4d03a540f0, {0x4c4d03a4a040, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x105b26afa, 0x8}, {0x105b26afa?, 0x1044c5c14?}, {0x105b26afa, 0x8}, {0x105c550b3?, 0x105c10192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite ldp took 0s of its 600s budget (0%)
+
+[14/27] suite rsvpte
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x10602aafa?, 0x107b97108?}, 0x32b6b2b65b38?, {{0x32b6b298aa00, 0x1d}, {0x0, 0x0}, {0x106027896, 0x7}, {0x106021213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x10602aafa, 0x8}, 0x32b6b2c1e140, {0x32b6b298aa00, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x10602aafa, 0x8}, {0x10602aafa?, 0x1049c9c14?}, {0x10602aafa, 0x8}, {0x1061590b3?, 0x106114192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite rsvpte took 0s of its 600s budget (0%)
+
+[15/27] suite isis
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x105deeafa?, 0x10795b108?}, 0x25792597db28?, {{0x257925868200, 0x1d}, {0x0, 0x0}, {0x105deb896, 0x7}, {0x105de5213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x105deeafa, 0x8}, 0x2579254ae690, {0x257925868200, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x105deeafa, 0x8}, {0x105deeafa?, 0x10478dc14?}, {0x105deeafa, 0x8}, {0x105f1d0b3?, 0x105ed8192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite isis took 0s of its 600s budget (0%)
+
+[16/27] suite ospf
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x101bf6afa?, 0x103763108?}, 0x301af0fbb28?, {{0x301af290580, 0x1d}, {0x0, 0x0}, {0x101bf3896, 0x7}, {0x101bed213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x101bf6afa, 0x8}, 0x301af29b180, {0x301af290580, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x101bf6afa, 0x8}, {0x101bf6afa?, 0x100595c14?}, {0x101bf6afa, 0x8}, {0x101d250b3?, 0x101ce0192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite ospf took 0s of its 600s budget (0%)
+
+[17/27] suite ospfv3
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x103716afa?, 0x105283108?}, 0x398e660bfb28?, {{0x398e662842c0, 0x1d}, {0x0, 0x0}, {0x103713896, 0x7}, {0x10370d213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x103716afa, 0x8}, 0x398e66292cd0, {0x398e662842c0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x103716afa, 0x8}, {0x103716afa?, 0x1020b5c14?}, {0x103716afa, 0x8}, {0x1038450b3?, 0x103800192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite ospfv3 took 0s of its 600s budget (0%)
+
+[18/27] suite web
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1024b2afa?, 0x10401f108?}, 0x25c661929b28?, {{0x25c661309d20, 0x1d}, {0x0, 0x0}, {0x1024af896, 0x7}, {0x1024a9213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1024b2afa, 0x8}, 0x25c6615a94f0, {0x25c661309d20, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1024b2afa, 0x8}, {0x1024b2afa?, 0x100e51c14?}, {0x1024b2afa, 0x8}, {0x1025e10b3?, 0x10259c192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite web took 0s of its 600s budget (0%)
+
+[19/27] suite install
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x105732afa?, 0x10729f108?}, 0x52eae4ba3b28?, {{0x52eae4c845a0, 0x1d}, {0x0, 0x0}, {0x10572f896, 0x7}, {0x105729213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x105732afa, 0x8}, 0x52eae46ec1e0, {0x52eae4c845a0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x105732afa, 0x8}, {0x105732afa?, 0x1040d1c14?}, {0x105732afa, 0x8}, {0x1058610b3?, 0x10581c192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite install took 0s of its 600s budget (0%)
+
+[20/27] suite appliance
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x10464aafa?, 0x1061b7108?}, 0x23698916bb28?, {{0x236988f062e0, 0x1d}, {0x0, 0x0}, {0x104647896, 0x7}, {0x104641213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x10464aafa, 0x8}, 0x236988c46370, {0x236988f062e0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x10464aafa, 0x8}, {0x10464aafa?, 0x102fe9c14?}, {0x10464aafa, 0x8}, {0x1047790b3?, 0x104734192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite appliance took 0s of its 600s budget (0%)
+
+[21/27] suite l2tp-wire
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x106106afa?, 0x107c73108?}, 0x9e77ed51b28?, {{0x9e77eb7a2e0, 0x1d}, {0x0, 0x0}, {0x106103896, 0x7}, {0x1060fd213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x106106afa, 0x8}, 0x9e77e7f84b0, {0x9e77eb7a2e0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x106106afa, 0x8}, {0x106106afa?, 0x104aa5c14?}, {0x106106afa, 0x8}, {0x1062350b3?, 0x1061f0192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite l2tp-wire took 0s of its 600s budget (0%)
+
+[22/27] suite isis-wire
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x104282afa?, 0x105def108?}, 0x4dcc3a519b28?, {{0x4dcc3a436700, 0x1d}, {0x0, 0x0}, {0x10427f896, 0x7}, {0x104279213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x104282afa, 0x8}, 0x4dcc3a3b09b0, {0x4dcc3a436700, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x104282afa, 0x8}, {0x104282afa?, 0x102c21c14?}, {0x104282afa, 0x8}, {0x1043b10b3?, 0x10436c192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite isis-wire took 0s of its 600s budget (0%)
+
+[23/27] suite ospf-wire
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1037eaafa?, 0x105357108?}, 0x74d1e032db28?, {{0x74d1dfc7f900, 0x1d}, {0x0, 0x0}, {0x1037e7896, 0x7}, {0x1037e1213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1037eaafa, 0x8}, 0x74d1e0290cd0, {0x74d1dfc7f900, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1037eaafa, 0x8}, {0x1037eaafa?, 0x102189c14?}, {0x1037eaafa, 0x8}, {0x1039190b3?, 0x1038d4192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite ospf-wire took 0s of its 600s budget (0%)
+
+[24/27] suite runner
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x105bceafa?, 0x10773b108?}, 0x60a00860fb28?, {{0x60a008802200, 0x1d}, {0x0, 0x0}, {0x105bcb896, 0x7}, {0x105bc5213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x105bceafa, 0x8}, 0x60a0088065a0, {0x60a008802200, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x105bceafa, 0x8}, {0x105bceafa?, 0x10456dc14?}, {0x105bceafa, 0x8}, {0x105cfd0b3?, 0x105cb8192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite runner took 0s of its 600s budget (0%)
+
+[25/27] suite bfd
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x103fbaafa?, 0x105b27108?}, 0x55d9e173fb28?, {{0x55d9e1908380, 0x1d}, {0x0, 0x0}, {0x103fb7896, 0x7}, {0x103fb1213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x103fbaafa, 0x8}, 0x55d9e1894fa0, {0x55d9e1908380, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x103fbaafa, 0x8}, {0x103fbaafa?, 0x102959c14?}, {0x103fbaafa, 0x8}, {0x1040e90b3?, 0x1040a4192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite bfd took 0s of its 600s budget (0%)
+
+[26/27] suite dhcp
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1057a2afa?, 0x10730f108?}, 0x4be794d69b28?, {{0x4be794940a40, 0x1d}, {0x0, 0x0}, {0x10579f896, 0x7}, {0x105799213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1057a2afa, 0x8}, 0x4be794e8b720, {0x4be794940a40, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1057a2afa, 0x8}, {0x1057a2afa?, 0x104141c14?}, {0x1057a2afa, 0x8}, {0x1058d10b3?, 0x10588c192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite dhcp took 0s of its 600s budget (0%)
+
+[27/27] suite vrrp
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x1036c2afa?, 0x10522f108?}, 0x400063038b3b28?, {{0x224d0377bc40, 0x1d}, {0x0, 0x0}, {0x1036bf896, 0x7}, {0x1036b9213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x1036c2afa, 0x8}, 0x224d033f9450, {0x224d0377bc40, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x1036c2afa, 0x8}, {0x1036c2afa?, 0x102061c14?}, {0x1036c2afa, 0x8}, {0x1037f10b3?, 0x1037ac192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0
+      suite vrrp took 0s of its 600s budget (0%)
+panic: BUG: registry.MustRegisterRootHandler: registry.RegisterRootHandler: duplicate root command "firewall"
+
+goroutine 1 [running]:
+github.com/ze-software/ze/internal/component/command/registry.MustRegisterRootHandler({0x105ad2afa?, 0x10763f108?}, 0x316a91193b28?, {{0x316a90bce3a0, 0x1d}, {0x0, 0x0}, {0x105acf896, 0x7}, {0x105ac9213, ...}, ...})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/component/command/registry/registry.go:287 +0x94
+github.com/ze-software/ze/internal/test/cli.registerRoot({0x105ad2afa, 0x8}, 0x316a90b76f50, {0x316a90bce3a0, 0x1d})
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:12 +0xdc
+github.com/ze-software/ze/internal/test/cli.registerCIRoot({0x105ad2afa, 0x8}, {0x105ad2afa?, 0x104471c14?}, {0x105ad2afa, 0x8}, {0x105c010b3?, 0x105bbc192?}, 0x39?)
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/dispatch.go:34 +0x278
+github.com/ze-software/ze/internal/test/cli.init.1()
+	/Users/thomas/Code/github.com/ze-software/ze/main/internal/test/cli/register.go:24 +0xe0

@@ -234,7 +234,7 @@ func helperShouldExitOnChange(strict bool, helperAreaType string, changedType os
 	if !strict {
 		return false
 	}
-	if changedType.ASExternal() && (helperAreaType == areaTypeStub || helperAreaType == areaTypeNSSA) {
+	if changedType.ASExternal() && (helperAreaType == ospftypes.AreaTypeStub || helperAreaType == ospftypes.AreaTypeNSSA) {
 		return false
 	}
 	return wouldFlood
@@ -245,7 +245,7 @@ func helperShouldExitOnChange(strict bool, helperAreaType string, changedType os
 // to X in any non-stub/NSSA area.
 func wouldFloodToHelper(lsType ospftypes.LSType, helperAreaType, iface string, area ospftypes.AreaID, e *engine) bool {
 	if lsType.ASExternal() {
-		return helperAreaType != areaTypeStub && helperAreaType != areaTypeNSSA
+		return helperAreaType != ospftypes.AreaTypeStub && helperAreaType != ospftypes.AreaTypeNSSA
 	}
 	return sameHelperArea(e, iface, area)
 }

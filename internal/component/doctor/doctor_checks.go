@@ -1,0 +1,208 @@
+// Design: docs/features/ai-first.md -- the readiness checks the doctor component owns
+// Overview: doctor.go -- the runner, which now reaches these through the registry
+// Related: registry.go -- runDoctorChecks and doctorTree
+// Related: register.go -- the init() that installs every entry below
+//
+// A check belongs to the package that owns the runtime dependency it probes
+// (ai/patterns/registration.md, "Doctor Check Registry"). The entries here are
+// the ones with no narrower owner: the storage and platform substrate `ze
+// doctor` stands on, and the cross-component coordination checks that would
+// make one component import another if either side held them.
+//
+// Order reproduces the sequence the runner used to write out by hand. An order
+// below the 700-1000 band that owner packages use runs before them; an order
+// above it runs after. What the sequence guarantees is the PHASE -- the store is
+// open, the platform is resolved, the config is loaded -- and order inside a
+// phase decides only the order the diagnostics print in.
+
+package doctor
+
+import (
+	"github.com/ze-software/ze/internal/core/diagnostic"
+)
+
+const (
+	// doctorOwnComponent names this component as the owner of a check that has
+	// no narrower one.
+	doctorOwnComponent = "doctor"
+)
+
+// doctorOwnedChecks are the checks this component owns, in the order the runner
+// ran them.
+var doctorOwnedChecks = []diagnostic.DoctorCheck{{
+	Name:         "store-integrity",
+	Phase:        diagnostic.DoctorPhasePreConfig,
+	Order:        100,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"storage"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorStoreIntegrity},
+	Check:        doctorCheckStoreIntegrity,
+}, {
+	Name:         "machine-id",
+	Phase:        diagnostic.DoctorPhasePreConfig,
+	Order:        120,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"storage", "filesystem"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorMachineIDMissing},
+	Check:        doctorCheckMachineID,
+}, {
+	Name:         "random-seed",
+	Phase:        diagnostic.DoctorPhasePreConfig,
+	Order:        130,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"filesystem"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorRandomSeed},
+	Check:        doctorCheckRandomSeed,
+}, {
+	// The missing-config twin of kernel-modules. The runner called
+	// checkKernelModules(nil) on the path where no config loaded, so the
+	// operator still learns that a module the daemon needs is absent. A nil
+	// tree is what the missing-config phase context already carries, so the
+	// same function answers both, under two names because one registry entry
+	// belongs to one phase.
+	Name:         "kernel-modules-no-config",
+	Phase:        diagnostic.DoctorPhaseMissingConfig,
+	Order:        2000,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"kernel"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorModuleMissing, diagnostic.CodeDoctorL2TPModule, diagnostic.CodeDoctorPPPoEModule},
+	Check:        doctorCheckKernelModules,
+}, {
+	Name:         "kernel-modules",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        150,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"kernel"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorModuleMissing, diagnostic.CodeDoctorL2TPModule, diagnostic.CodeDoctorPPPoEModule},
+	Check:        doctorCheckKernelModules,
+}, {
+	Name:         "disk-space",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2020,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"filesystem"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorDiskSpace},
+	Check:        doctorCheckDiskSpace,
+}, {
+	Name:         "clock-skew",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2100,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"clock"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorClockSkew},
+	Check:        doctorCheckClockSkew,
+}, {
+	// The four AS112 coordination checks read BGP config and AS112 config
+	// together. Neither side may hold them: the as112 plugin must not read BGP
+	// config and BGP must not spell AS112 (checks_as112_coordination.go names
+	// the spec decision). This component is the neutral third home, so these
+	// four are owned here rather than parked here.
+	Name:         "as112-watchdog-withdraw",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2150,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"config"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorAS112WatchdogMissingWithdraw},
+	Check:        doctorCheckAS112WatchdogWithdraw,
+}, {
+	Name:         "as112-global-origin-coordination",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2160,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"config"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorAS112GlobalOriginUncoordinated},
+	Check:        doctorCheckAS112GlobalOriginCoordination,
+}, {
+	Name:         "as112-redistribute-origin-coordination",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2170,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"config"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorAS112RedistributeOriginUncoordinated},
+	Check:        doctorCheckAS112RedistributeOriginCoordination,
+}, {
+	Name:         "as112-redistribute-not-imported",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2180,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"config"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorAS112RedistributeNotImported},
+	Check:        doctorCheckAS112RedistributeNotImported,
+}, {
+	Name:         "writable-destinations",
+	Phase:        diagnostic.DoctorPhasePostConfig,
+	Order:        2270,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{"filesystem"},
+	Platforms:    []string{diagnostic.DoctorPlatformAny},
+	Codes:        []string{diagnostic.CodeDoctorWriteDestination},
+	Check:        doctorCheckWritableDestinations,
+}}
+
+// registerDoctorOwnedChecks installs every entry above. A refusal is a
+// programmer error in the table beside it -- a duplicate name, a phase that
+// does not exist, a code without the doctor prefix -- and none of them can be
+// reached from a config or a peer, so it stops the process rather than leaving
+// `ze doctor` quietly short of a check.
+func registerDoctorOwnedChecks() {
+	for i := range doctorOwnedChecks {
+		if err := diagnostic.RegisterDoctorCheck(doctorOwnedChecks[i]); err != nil {
+			panic("BUG: doctor check registration refused: " + err.Error())
+		}
+	}
+}
+
+func doctorCheckStoreIntegrity(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkStoreIntegrity()
+}
+
+func doctorCheckMachineID(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkMachineID(ctx.Platform, ctx.Store)
+}
+
+func doctorCheckRandomSeed(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkRandomSeed(ctx.Platform)
+}
+
+func doctorCheckKernelModules(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkKernelModules(doctorTree(ctx))
+}
+
+func doctorCheckDiskSpace(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkDiskSpace()
+}
+
+func doctorCheckClockSkew(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkClockSkew()
+}
+
+func doctorCheckAS112WatchdogWithdraw(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkAS112WatchdogWithdraw(doctorTree(ctx))
+}
+
+func doctorCheckAS112GlobalOriginCoordination(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkAS112GlobalOriginCoordination(doctorTree(ctx))
+}
+
+func doctorCheckAS112RedistributeOriginCoordination(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkAS112RedistributeOriginCoordination(doctorTree(ctx))
+}
+
+func doctorCheckAS112RedistributeNotImported(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkAS112RedistributeNotImported(doctorTree(ctx))
+}
+
+func doctorCheckWritableDestinations(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkWritableDestinations(doctorTree(ctx), ctx.Platform)
+}

@@ -20,7 +20,7 @@ func v6PtMPInterface(area types.AreaID, self, neighbor types.RouterID) ospflsdb.
 	return ospflsdb.InterfaceInfo{
 		Name:          "eth0",
 		AreaID:        area,
-		NetworkType:   ospflsdb.NetworkPointToMultipoint,
+		NetworkType:   types.NetworkPointToMultipoint,
 		State:         "point-to-point",
 		Cost:          10,
 		RouterID:      self,
@@ -40,7 +40,7 @@ func v6PtMPInterface(area types.AreaID, self, neighbor types.RouterID) ospflsdb.
 
 func v6NBMAInterface(area types.AreaID, self types.RouterID) ospflsdb.InterfaceInfo {
 	iface := v6BroadcastInterface(area, self)
-	iface.NetworkType = ospflsdb.NetworkNBMA
+	iface.NetworkType = types.NetworkNBMA
 	return iface
 }
 

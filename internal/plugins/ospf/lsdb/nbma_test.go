@@ -15,8 +15,8 @@ import (
 
 func ptmpInterface() InterfaceInfo {
 	return InterfaceInfo{
-		Name: "ptp0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-		NetworkType: NetworkPointToMultipoint, State: "point-to-point",
+		Name: "ptp0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+		NetworkType: types.NetworkPointToMultipoint, State: "point-to-point",
 		Address: ip4("10.0.0.1"), NetworkMask: ip4("255.255.255.0"), RouterID: rid("1.1.1.1"), Cost: 10,
 		Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull}},
 	}
@@ -87,8 +87,8 @@ func TestOSPFNBMANetworkLSA(t *testing.T) {
 	db.SetTx(tx.Send)
 	// An NBMA interface where this router is the DR: originate the Type-2 Network-LSA.
 	nbma := InterfaceInfo{
-		Name: "nb0", AreaID: area("0.0.0.0"), AreaType: AreaTypeNormal,
-		NetworkType: NetworkNBMA, State: InterfaceStateDR,
+		Name: "nb0", AreaID: area("0.0.0.0"), AreaType: types.AreaTypeNormal,
+		NetworkType: types.NetworkNBMA, State: InterfaceStateDR,
 		Address: ip4("10.0.0.1"), NetworkMask: ip4("255.255.255.0"), RouterID: rid("1.1.1.1"), DR: rid("1.1.1.1"), Cost: 10,
 		Neighbors: []NeighborInfo{{RouterID: rid("2.2.2.2"), Address: naddr4("10.0.0.2"), State: NeighborStateFull}},
 	}
