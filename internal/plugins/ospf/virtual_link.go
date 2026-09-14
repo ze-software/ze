@@ -252,6 +252,10 @@ func (e *engine) startVirtualInterface(rt *virtualLinkRuntime) {
 	if e.sink != nil {
 		ifc.SetEventSink(e.sink)
 	}
+	// No ipsec: RFC 4552 §9 requires "a different SA than the SA of the underlying
+	// interface" for a virtual link, keyed on the global endpoint addresses, and ze
+	// configures no such SA (rfc/short/rfc4552.md, RFC4552-9-1). The interface installer
+	// holds nothing under a virtual link's name, so wiring it here would protect nothing.
 	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
 	rt.iface = ifc
 	e.interfaces[rt.name] = ifc

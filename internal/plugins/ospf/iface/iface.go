@@ -464,8 +464,9 @@ func (i *Interface) BDR() types.RouterID {
 func (i *Interface) forceWaitTimer() { i.runElection() }
 
 // ReceiveDecodedHello processes a Hello already decoded by the engine's codec (the codec is
-// version-specific; the interface FSM is AF-neutral). src is the datagram source for neighbor
-// addressing (OSPFv2) and is ignored for the Router-ID-keyed OSPFv3 path.
+// version-specific; the interface FSM is AF-neutral). src is the datagram source and becomes
+// the neighbor's Address: its IPv4 address for OSPFv2, its link-local for OSPFv3, where it is
+// the unicast destination of the exchange that follows and the key of its RFC 4552 SA.
 func (i *Interface) ReceiveDecodedHello(router types.RouterID, src netip.Addr, h packet.Hello, now time.Time) string {
 	return i.receiveHello(router, src, h, now)
 }

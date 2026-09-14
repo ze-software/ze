@@ -4,6 +4,7 @@ package bgp
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -751,6 +752,7 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
 	"ospf-ipsec-ah-frr": {
+		ospfIPsecPeerSetup(xfrmProtoAH, "0x101"),
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 		{kind: opRequireContains, peer: "ze", command: []string{"ip", "-6", ipObjectXfrm, xfrmObjectState}, contains: []string{xfrmProtoAH, xfrmModeTransport, xfrmAuthTruncSHA256}},
 		{kind: opRequireContains, peer: peerFRR, command: []string{"ip", "-6", ipObjectXfrm, xfrmObjectState}, contains: []string{xfrmProtoAH, xfrmModeTransport, xfrmAuthTruncSHA256}},
@@ -758,6 +760,7 @@ var scenarioOperations = map[string][]operation{
 		{kind: opRequireContains, peer: "ze", command: []string{"ip", "-6", ipObjectXfrm, "policy"}, contains: []string{"dir out", "proto ospf", "tmpl", xfrmProtoAH, xfrmModeTransport}},
 	},
 	"ospf-ipsec-frr": {
+		ospfIPsecPeerSetup(xfrmProtoESP, "0x100"),
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 		{kind: opRequireContains, peer: "ze", command: []string{"ip", "-6", ipObjectXfrm, xfrmObjectState}, contains: []string{xfrmProtoESP, xfrmModeTransport, xfrmAuthTruncSHA256}},
 		{kind: opRequireContains, peer: peerFRR, command: []string{"ip", "-6", ipObjectXfrm, xfrmObjectState}, contains: []string{xfrmProtoESP, xfrmModeTransport, xfrmAuthTruncSHA256}},
@@ -899,4 +902,43 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitContains, peer: "ze", command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, contains: []string{vrrpVirtualAddress}, timeout: 40 * time.Second},
 		{kind: opRequireAbsent, peer: peerKeepalived, command: []string{"ip", "-o", "-f", ipFamilyInet, ipObjectAddr}, absent: []string{vrrpVirtualAddress}, proof: []string{containerInterface}},
 	},
+}
+
+// ospfIPsecPeerSetup keys FRR's kernel for the ospf-ipsec scenarios, which is what
+// FRR ospf6d cannot do from frr.conf. It mirrors what ze installs (RFC 4552 §7, one manual
+// SPI and key on every state; buildIPsecInterfaceSAs, internal/plugins/ospf): one
+// transport-mode state per OSPF destination FRR has, the two multicast groups, its own
+// link-local and ze's, and an out and an in policy for protocol 89. Ze's link-local is
+// derived from its MAC (EUI-64, which is how the kernel assigned it) after one ping to
+// its lab address fills FRR's neighbor cache. proto is the "proto esp" or "proto ah"
+// token `ip xfrm` prints, and spi the hex SPI the scenario's ze.conf configures.
+//
+// The peer state keyed on ze's link-local is what lets FRR's Database Description reach
+// ze. The one keyed on FRR's own link-local is what ze's Database Description resolves
+// on arrival, and the matching outbound state on ze's side is installed by ze itself when
+// FRR's first Hello arrives: without it the adjacency stops at ExStart, which is the red
+// this scenario was measured against.
+func ospfIPsecPeerSetup(proto, spi string) operation {
+	proto = strings.TrimPrefix(proto, "proto ")
+	encryption := ""
+	if proto == "esp" {
+		encryption = " enc cipher_null ''"
+	}
+	script := "set -e\n" +
+		"key=0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n" +
+		"local=$(ip -6 addr show dev eth0 scope link | awk '/inet6/ {sub(\"/.*\", \"\", $2); print $2; exit}')\n" +
+		"ping -c 1 -W 2 " + zeLabAddress + " >/dev/null 2>&1 || true\n" +
+		"mac=$(ip neigh show " + zeLabAddress + " dev eth0 | awk '{for (i = 1; i <= NF; i++) if ($i == \"lladdr\") print $(i + 1)}')\n" +
+		"test -n \"$local\" -a -n \"$mac\"\n" +
+		"set -- $(echo \"$mac\" | tr ':' ' ')\n" +
+		"peer=$(printf 'fe80::%02x%s:%sff:fe%s:%s%s' $(( 0x$1 ^ 2 )) \"$2\" \"$3\" \"$4\" \"$5\" \"$6\")\n" +
+		"for dst in ff02::5 ff02::6 \"$local\" \"$peer\"; do\n" +
+		"  ip -6 xfrm state add src :: dst \"$dst\" proto " + proto + " spi " + spi +
+		" mode transport auth-trunc 'hmac(sha256)' \"$key\" 128" + encryption +
+		" sel src ::/0 dst ::/0 proto ospf\n" +
+		"done\n" +
+		"ip -6 xfrm policy add dir out src ::/0 dst ::/0 proto ospf tmpl proto " + proto + " mode transport\n" +
+		"ip -6 xfrm policy add dir in src ::/0 dst ::/0 proto ospf tmpl proto " + proto + " mode transport\n" +
+		"echo \"ospf-ipsec: frr keyed local=$local peer=$peer\"\n"
+	return operation{kind: opExec, peer: peerFRR, command: []string{"sh", "-c", script}}
 }

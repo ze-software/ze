@@ -941,7 +941,7 @@ func (e *engine) startInterfaceLocked(ic interfaceConfig) {
 		rt.SetEventSink(e.sink)
 	}
 	if e.neighbors != nil {
-		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
+		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, ipsec: e.ipsec, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
 	}
 	e.interfaces[ic.Name] = rt
 	if ic.Passive || ic.NetworkType == types.NetworkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
@@ -1105,6 +1105,10 @@ func (s neighborEventSink) NeighborDown(snap ospfneighbor.Snapshot) {
 
 type nsmAdapter struct {
 	table *ospfneighbor.Table
+	// ipsec is the RFC 4552 installer of the IPv6-family engine, nil on the IPv4 family
+	// and on a virtual link. It is told each neighbor's link-local by the Hello and each
+	// drop by the state machine, and installs and removes that neighbor's outbound SA.
+	ipsec *ipsecInstaller
 	// onChange re-originates the self-LSAs inline. onChangeDeferred does the same on a
 	// goroutine the engine joins, and InterfaceDown MUST use it: that callback arrives from
 	// under the engine's mu, which the origination itself takes.
@@ -1118,6 +1122,14 @@ var _ ospfiface.NeighborSink = nsmAdapter{}
 func (a nsmAdapter) NeighborHello(ev ospfiface.NeighborEvent) {
 	if a.table == nil {
 		return
+	}
+	// RFC 4552 §9: "the routing module must install the corresponding SPD/SAD entries
+	// before starting these exchanges". ev.Address is the Hello's IPv6 source, the
+	// neighbor's link-local, and table.Hello below sends the first Database Description
+	// to it inline, so the neighbor's outbound SA goes in first: the kernel drops a packet
+	// whose policy resolves no state.
+	if a.ipsec != nil {
+		a.ipsec.onNeighborSeen(ev.InterfaceName, ev.NeighborID, ev.Address)
 	}
 	_ = a.table.Hello(ospfneighbor.HelloInput{
 		InterfaceName: ev.InterfaceName,
@@ -1147,6 +1159,9 @@ func (a nsmAdapter) NeighborDown(interfaceName string, id types.RouterID) {
 	if a.table != nil {
 		a.table.NeighborDown(interfaceName, id)
 	}
+	if a.ipsec != nil {
+		a.ipsec.onNeighborLost(interfaceName, id)
+	}
 	if a.auth != nil {
 		// RFC 2328 App D: forget this neighbor's cryptographic receive sequence so it can
 		// re-establish with any sequence after its own restart without a false replay drop.
@@ -1169,6 +1184,9 @@ func (a nsmAdapter) AdjOK(interfaceName string, dr, bdr types.RouterID) {
 func (a nsmAdapter) InterfaceDown(interfaceName string) {
 	if a.table != nil {
 		a.table.InterfaceDown(interfaceName)
+	}
+	if a.ipsec != nil {
+		a.ipsec.clearNeighbors(interfaceName)
 	}
 	if a.auth != nil {
 		a.auth.resetInterface(interfaceName)

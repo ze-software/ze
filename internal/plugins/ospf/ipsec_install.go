@@ -22,10 +22,12 @@
 //     State Request, Link State Update and acknowledgement a neighbor sends US, and each
 //     neighbor's link-local for the same exchange in the other direction. The first three
 //     are known when the interface opens; a neighbor's is known from its first Hello, so
-//     its SA is installed then and removed when the interface state machine drops it
-//     (onNeighborSeen / onNeighborLost / clearNeighbors). RFC 4552 §9 sets that pattern
-//     for the virtual link: "the routing module must install the corresponding SPD/SAD
-//     entries before starting these exchanges".
+//     its SA is installed then and removed when the interface state machine drops it.
+//     nsmAdapter (instance.go) is the interface state machine's NeighborSink and calls
+//     onNeighborSeen from NeighborHello, onNeighborLost from NeighborDown and
+//     clearNeighbors from InterfaceDown. RFC 4552 §9 sets that pattern for the virtual
+//     link: "the routing module must install the corresponding SPD/SAD entries before
+//     starting these exchanges".
 //   - Every one of them carries the SAME SPI and key (RFC 4552 §7 Figure 3: "the same SA
 //     parameters (SPI, keys, etc.) for both inbound (SAi) and outbound (SAo) SAs"),
 //     because IKE cannot key a multicast group and every router on the link has to read
@@ -175,8 +177,17 @@ func newIPsecInstaller(reg metrics.Registry, log *slog.Logger) *ipsecInstaller {
 // the v3 transport link-local/ifindex source. The engine's onInterfaceUp / onInterfaceDown
 // (registered on the transport via Transport.OnInterfaceUp / Transport.OnInterfaceDown in
 // newEngineWithCodec) drive install/remove, so the kernel policy+SA exist before the first
-// Hello (spec-ospf-ext-16 R-1). Called from register.go for the eng6 instance only.
+// Hello (spec-ospf-ext-16 R-1). Called from register_multiaf.go for each v6 engine only.
+//
+// MUST be called before the first interface starts: startInterfaceLocked copies the
+// installer into the interface's nsmAdapter, which is what installs a neighbor's SA, and
+// an adapter built while this field was nil would protect no neighbor and say nothing.
 func (e *engine) installIPsecHooks(inst *ipsecInstaller) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.interfaces) != 0 {
+		panic("BUG: installIPsecHooks after an interface started")
+	}
 	e.ipsec = inst
 }
 
@@ -401,10 +412,10 @@ func (i *ipsecInstaller) installLocked(ifindex int, name string, local netip.Add
 
 // onNeighborSeen installs the outbound SA for one neighbor's unicast address, which is
 // where this router sends its Database Description, Link State Request, Link State
-// Update and acknowledgement. It is called from the interface state machine's Hello
-// handler BEFORE that handler runs the neighbor state machine, because the machine sends
-// the first Database Description inline and the kernel drops any packet whose policy
-// resolves no state (RFC 4552 §9: install the SAD entry before the exchange starts).
+// Update and acknowledgement. nsmAdapter.NeighborHello calls it BEFORE it runs the
+// neighbor state machine, because the machine sends the first Database Description
+// inline and the kernel drops any packet whose policy resolves no state (RFC 4552 §9:
+// install the SAD entry before the exchange starts).
 //
 // It is called for every Hello and is idempotent: a neighbor already installed at the
 // same address costs one map lookup.
@@ -440,9 +451,9 @@ func (i *ipsecInstaller) onNeighborSeen(name string, id types.RouterID, addr net
 	i.log.Info("ospf ipsec: neighbor protected", "interface", name, "neighbor", id.String(), "dst", addr.String())
 }
 
-// onNeighborLost removes one neighbor's outbound SA. The interface state machine calls it
-// for every drop it performs, the dead-interval expiry included, so a state outlives the
-// adjacency by nothing.
+// onNeighborLost removes one neighbor's outbound SA. nsmAdapter.NeighborDown calls it for
+// every drop the interface state machine performs, the dead-interval expiry included, so
+// a state outlives the adjacency by nothing.
 func (i *ipsecInstaller) onNeighborLost(name string, id types.RouterID) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
@@ -459,8 +470,10 @@ func (i *ipsecInstaller) onNeighborLost(name string, id types.RouterID) {
 }
 
 // clearNeighbors removes every neighbor SA on an interface. The interface state machine
-// drops all its neighbors at once when it stops, and reports that as one event rather
-// than one per neighbor.
+// drops all its neighbors at once when it stops and reports that as one event rather
+// than one per neighbor, which nsmAdapter.InterfaceDown forwards here. On a link-down the
+// engine has already removed the whole interface, so this finds no record and does
+// nothing; a state machine restart on a config change is where it does the work.
 func (i *ipsecInstaller) clearNeighbors(name string) {
 	i.mu.Lock()
 	defer i.mu.Unlock()

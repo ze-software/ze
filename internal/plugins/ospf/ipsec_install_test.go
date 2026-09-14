@@ -10,28 +10,76 @@ package ospf
 import (
 	"net"
 	"net/netip"
+	"slices"
+	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
+// fakeDP records what the installer asks of the kernel. Safe for concurrent use: the
+// interface state machine's dead-interval expiry removes a neighbor SA from its own
+// goroutine while a test reads the record (ipsec_neighbor_test.go).
 type fakeDP struct {
+	mu          sync.Mutex
 	sas         []dataplane.SAParams
 	pols        []dataplane.SPParams
 	removedSAs  []uint32
+	removedDsts []netip.Addr
 	removedPols []dataplane.SPParams
 }
 
-func (f *fakeDP) InstallSA(p dataplane.SAParams) error { f.sas = append(f.sas, p); return nil }
-func (f *fakeDP) RemoveSA(spi uint32, _ net.IP, _ uint8) error {
-	f.removedSAs = append(f.removedSAs, spi)
+func (f *fakeDP) InstallSA(p dataplane.SAParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sas = append(f.sas, p)
 	return nil
 }
-func (f *fakeDP) InstallPolicy(p dataplane.SPParams) error { f.pols = append(f.pols, p); return nil }
+
+func (f *fakeDP) RemoveSA(spi uint32, dst net.IP, _ uint8) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.removedSAs = append(f.removedSAs, spi)
+	addr, ok := netip.AddrFromSlice(dst)
+	if !ok {
+		panic("BUG: fakeDP.RemoveSA: dst is not an IP address")
+	}
+	f.removedDsts = append(f.removedDsts, addr)
+	return nil
+}
+
+func (f *fakeDP) InstallPolicy(p dataplane.SPParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pols = append(f.pols, p)
+	return nil
+}
+
 func (f *fakeDP) RemovePolicyParams(p dataplane.SPParams) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.removedPols = append(f.removedPols, p)
 	return nil
+}
+
+// installedTo reports the direction of the installed SA keyed on dst, and whether one is.
+func (f *fakeDP) installedTo(dst netip.Addr) (dataplane.SADir, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for index := range f.sas {
+		if addr, ok := netip.AddrFromSlice(f.sas[index].Dst); ok && addr == dst {
+			return f.sas[index].Dir, true
+		}
+	}
+	return 0, false
+}
+
+// removedTo reports whether an SA keyed on dst was removed.
+func (f *fakeDP) removedTo(dst netip.Addr) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Contains(f.removedDsts, dst)
 }
 
 // testIfIndex is the fixed kernel ifindex the test installer reports for every interface.
@@ -64,12 +112,18 @@ func TestIPsecInstallOnInterfaceUp(t *testing.T) {
 	// (the automated-keying half is TestChildSAInstallsInDataplane).
 	inst.onInterfaceUp(testIfIndex, "eth1")
 
-	// RFC 4552 §7: one shared wildcard SA (the same (::, spi, proto) state protects
-	// egress and verifies ingress), plus out/in/fwd require-policies.
-	// RFC requirement: RFC4552-3-2 positive -- an esp interface installs a kernel SA (Proto
-	// resolves to ProtoESP), so ESP is supported (ipsecProtoNumber, ipsec_install.go:454-459).
-	if len(fake.sas) != 1 {
-		t.Fatalf("InstallSA count = %d, want 1 (shared wildcard SA)", len(fake.sas))
+	// RFC 4552 §7: one state per destination the interface has when it opens (ff02::5,
+	// ff02::6 and its own link-local), all on the same SPI and key, plus out/in/fwd
+	// require-policies. A neighbor's state arrives with its Hello (ipsec_neighbor_test.go).
+	// RFC requirement: RFC4552-3-2 positive -- an esp interface installs kernel SAs (Proto
+	// resolves to ProtoESP), so ESP is supported (ipsecProtoNumber, ipsec_install.go).
+	if len(fake.sas) != 3 {
+		t.Fatalf("InstallSA count = %d, want 3 (ff02::5, ff02::6, link-local)", len(fake.sas))
+	}
+	for index := range fake.sas {
+		if fake.sas[index].Proto != dataplane.ProtoESP {
+			t.Fatalf("SA %d Proto = %d, want ESP (%d)", index, fake.sas[index].Proto, dataplane.ProtoESP)
+		}
 	}
 	// RFC requirement: RFC4552-11-3 positive -- an IPsec-enabled interface installs the
 	// out/in/fwd protect (require) policies into the SPD (installLocked, ipsec_install.go:329-337).
@@ -98,8 +152,8 @@ func TestIPsecRemoveOnInterfaceDown(t *testing.T) {
 	if len(fake.removedPols) != 3 {
 		t.Errorf("RemovePolicyParams count = %d, want 3", len(fake.removedPols))
 	}
-	if len(fake.removedSAs) != 1 {
-		t.Errorf("RemoveSA count = %d, want 1 (shared wildcard SA)", len(fake.removedSAs))
+	if len(fake.removedSAs) != 3 {
+		t.Errorf("RemoveSA count = %d, want 3 (ff02::5, ff02::6, link-local)", len(fake.removedSAs))
 	}
 	if _, ok := inst.status("eth1"); ok {
 		t.Error("status still reports IPsec after down")
@@ -115,11 +169,11 @@ func TestIPsecReconcileReplacesSA(t *testing.T) {
 	inst.setConfig([]interfaceConfig{espIface(512)})
 	inst.reconcileAll()
 
-	if len(fake.removedSAs) != 1 {
-		t.Errorf("rekey RemoveSA count = %d, want 1 (old shared SA removed)", len(fake.removedSAs))
+	if len(fake.removedSAs) != 3 {
+		t.Errorf("rekey RemoveSA count = %d, want 3 (the old SPI's three states removed)", len(fake.removedSAs))
 	}
-	if len(fake.sas) != 2 {
-		t.Errorf("total InstallSA = %d, want 2 (1 old + 1 new)", len(fake.sas))
+	if len(fake.sas) != 6 {
+		t.Errorf("total InstallSA = %d, want 6 (3 old + 3 new)", len(fake.sas))
 	}
 	st, ok := inst.status("eth1")
 	if !ok || st.SPI != 512 {
@@ -127,55 +181,71 @@ func TestIPsecReconcileReplacesSA(t *testing.T) {
 	}
 }
 
-func TestIPsecSAIsWildcardWithOSPFSelector(t *testing.T) {
-	// FIX-1 (corrected model): the SA is a single wildcard-address (Src=Dst=::)
-	// transport-mode state bound to a {::/0, ::/0, proto 89} selector, so the kernel
-	// resolves it for every OSPFv3 destination in both directions -- not the broken
-	// Dst=ff02::5 / Dst=link-local pair that could not carry unicast DBD or ff02::6.
+func TestIPsecSAPerDestinationWithOSPFSelector(t *testing.T) {
+	// The kernel resolves a transport-mode state by the flow's destination and nothing
+	// widens that, so the interface installs one state per OSPF destination it has when
+	// it opens: ff02::5 and ff02::6, which carry both directions, and its own link-local,
+	// which is inbound. Each keeps the {::/0, ::/0, proto 89} selector and wildcards only
+	// the SOURCE, which __xfrm6_state_addr_check honors.
 	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
 	inst.setConfig([]interfaceConfig{espIface(256)})
 	inst.onInterfaceUp(testIfIndex, "eth1")
 
-	// RFC requirement: RFC4552-7-1 positive -- one manually configured SPI/key drives a single shared
-	// SA that both protects egress and verifies ingress with the same parameters (installed once,
-	// ipsec_install.go:316-328), so exactly one SA is installed for both directions.
-	if len(fake.sas) != 1 {
-		t.Fatalf("want 1 shared SA, got %d: %+v", len(fake.sas), fake.sas)
+	// RFC requirement: RFC4552-7-1 positive -- one manually configured SPI/key drives every
+	// state of the interface, and the two multicast states carry NO direction: the same
+	// state protects what this router sends to the group and verifies what a neighbor sent
+	// to it (buildIPsecInterfaceSAs, ipsecSharedDir, ipsec_install.go).
+	want := map[netip.Addr]dataplane.SADir{
+		ospfv3transport.AllSPFRouters:  ipsecSharedDir,
+		ospfv3transport.AllDRouters:    ipsecSharedDir,
+		netip.MustParseAddr("fe80::1"): dataplane.SADirIn,
 	}
-	sa := fake.sas[0]
-	if !sa.Src.Equal(net.IPv6zero) || !sa.Dst.Equal(net.IPv6zero) {
-		t.Errorf("SA must be wildcard-address (::,::); got src=%v dst=%v", sa.Src, sa.Dst)
+	if len(fake.sas) != len(want) {
+		t.Fatalf("want %d states, got %d: %+v", len(want), len(fake.sas), fake.sas)
 	}
-	// RFC requirement: RFC4301-4.1-1 positive -- Ze supports both IPsec modes; this asserts the
-	// transport-mode half: the OSPFv3 (RFC 4552) SA is installed with Mode == ModeTransport
-	// (the tunnel-mode half is TestChildSAInstallsInDataplane, the IKE Child SA).
-	// RFC requirement: RFC4552-2-2 positive -- transport-mode SA MUST be supported: the installed
-	// OSPFv3 SA carries Mode == ModeTransport (buildIPsecSA Mode=ModeTransport, ipsec_install.go:413),
-	// and there is no tunnel-mode SA path for OSPFv3 to reject.
-	if sa.Mode != dataplane.ModeTransport {
-		t.Errorf("SA mode = %d, want transport (RFC 4552 §2)", sa.Mode)
-	}
-	if sa.ReqID != ipsecReqIDBase+uint32(testIfIndex) {
-		t.Errorf("SA reqid = %d, want per-interface base+ifindex %d", sa.ReqID, ipsecReqIDBase+uint32(testIfIndex))
-	}
-	if sa.Sel == nil {
-		t.Fatal("SA must carry a state selector so the kernel resolves it for any OSPF daddr")
-	}
-	if sa.Sel.UpperProto != ospfv3transport.Protocol {
-		t.Errorf("SA selector UpperProto = %d, want %d (OSPF)", sa.Sel.UpperProto, ospfv3transport.Protocol)
-	}
-	// The selector Dst must be the ::/0 wildcard so it covers ff02::5, ff02::6, and
-	// neighbor link-local unicast alike (not just AllSPFRouters).
-	assertWildcardV6(t, "SA selector src", sa.Sel.Src)
-	assertWildcardV6(t, "SA selector dst", sa.Sel.Dst)
-	for _, dst := range []netip.Addr{
-		ospfv3transport.AllSPFRouters,  // ff02::5
-		ospfv3transport.AllDRouters,    // ff02::6
-		netip.MustParseAddr("fe80::2"), // neighbor link-local unicast (DBD/LSU-retransmit)
-	} {
-		if !sa.Sel.Dst.Contains(dst.AsSlice()) {
-			t.Errorf("SA selector dst %v does not cover OSPF destination %v", sa.Sel.Dst, dst)
+	for index := range fake.sas {
+		sa := &fake.sas[index]
+		dst, ok := netip.AddrFromSlice(sa.Dst)
+		if !ok {
+			t.Fatalf("SA %d Dst %v is not an address", index, sa.Dst)
 		}
+		dir, expected := want[dst]
+		if !expected {
+			t.Fatalf("SA %d Dst %s is not an OSPF destination of the interface", index, dst)
+		}
+		delete(want, dst)
+		if sa.Dir != dir {
+			t.Errorf("SA to %s Dir = %v, want %v", dst, sa.Dir, dir)
+		}
+		if sa.SPI != 256 {
+			t.Errorf("SA to %s SPI = %d, want 256 (one SPI for every state)", dst, sa.SPI)
+		}
+		if !sa.Src.Equal(net.IPv6zero) {
+			t.Errorf("SA to %s Src = %v, want :: (the source alone is wildcarded)", dst, sa.Src)
+		}
+		// RFC requirement: RFC4301-4.1-1 positive -- Ze supports both IPsec modes; this asserts the
+		// transport-mode half: every OSPFv3 (RFC 4552) SA is installed with Mode == ModeTransport
+		// (the tunnel-mode half is TestChildSAInstallsInDataplane, the IKE Child SA).
+		// RFC requirement: RFC4552-2-2 positive -- transport-mode SA MUST be supported: every
+		// installed OSPFv3 SA carries Mode == ModeTransport (buildIPsecSA Mode=ModeTransport,
+		// ipsec_install.go), and there is no tunnel-mode SA path for OSPFv3 to reject.
+		if sa.Mode != dataplane.ModeTransport {
+			t.Errorf("SA to %s mode = %d, want transport (RFC 4552 §2)", dst, sa.Mode)
+		}
+		if sa.ReqID != ipsecReqIDBase+uint32(testIfIndex) {
+			t.Errorf("SA to %s reqid = %d, want per-interface base+ifindex %d", dst, sa.ReqID, ipsecReqIDBase+uint32(testIfIndex))
+		}
+		if sa.Sel == nil {
+			t.Fatalf("SA to %s carries no state selector, so a non-OSPF flow could resolve it", dst)
+		}
+		if sa.Sel.UpperProto != ospfv3transport.Protocol {
+			t.Errorf("SA to %s selector UpperProto = %d, want %d (OSPF)", dst, sa.Sel.UpperProto, ospfv3transport.Protocol)
+		}
+		assertWildcardV6(t, "SA selector src", sa.Sel.Src)
+		assertWildcardV6(t, "SA selector dst", sa.Sel.Dst)
+	}
+	if len(want) != 0 {
+		t.Fatalf("destinations with no state: %v", want)
 	}
 }
 
@@ -236,23 +306,25 @@ func assertWildcardV6(t *testing.T, what string, n *net.IPNet) {
 }
 
 func TestSAParamsSharedKey(t *testing.T) {
-	// RFC 4552 §7: one configured key/SPI drives the single shared SA that both
-	// protects egress and verifies ingress for the multicast group.
+	// RFC 4552 §7: one configured key/SPI drives every state of the interface, the
+	// multicast ones protecting egress and verifying ingress alike.
 	inst, fake := testInstaller(t, netip.MustParseAddr("fe80::1"))
 	inst.setConfig([]interfaceConfig{espIface(256)})
 	inst.onInterfaceUp(testIfIndex, "eth1")
 
-	if len(fake.sas) != 1 {
-		t.Fatalf("want 1 shared SA, got %d", len(fake.sas))
+	if len(fake.sas) != 3 {
+		t.Fatalf("want 3 states (ff02::5, ff02::6, link-local), got %d", len(fake.sas))
 	}
 	// RFC requirement: RFC4552-6-5 positive -- manually configured keys secure the specified traffic:
-	// the SA is keyed from the statically configured SPI+key with no IKE (buildIPsecSA,
-	// ipsec_install.go:401-424), asserted by the configured auth key and SPI flowing into the SA.
-	if len(fake.sas[0].AuthKey) == 0 {
-		t.Error("shared SA must carry the configured auth key (RFC 4552 §7)")
-	}
-	if fake.sas[0].SPI != 256 {
-		t.Errorf("shared SA must use the configured SPI 256; got %d", fake.sas[0].SPI)
+	// every state is keyed from the statically configured SPI+key with no IKE (buildIPsecSA,
+	// ipsec_install.go), asserted by the configured auth key and SPI flowing into each SA.
+	for index := range fake.sas {
+		if len(fake.sas[index].AuthKey) == 0 {
+			t.Errorf("SA to %v must carry the configured auth key (RFC 4552 §7)", fake.sas[index].Dst)
+		}
+		if fake.sas[index].SPI != 256 {
+			t.Errorf("SA to %v must use the configured SPI 256; got %d", fake.sas[index].Dst, fake.sas[index].SPI)
+		}
 	}
 }
 

@@ -5,23 +5,23 @@
       "rid": "RFC4302-2-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
-      "unit-sha": "ec3c85e7670888d9",
+      "unit-sha": "ca8f825ae96efac8",
       "claim-sha": "f3abeb078f966b1b",
       "route": "mutant",
       "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
       "producer-sha": "c05a39ef55486b0e",
-      "break": "line 471: \"protocol == ipsecProtoAH\" -\u003e \"false\""
+      "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"false\""
     },
     {
       "rid": "RFC4302-2-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
-      "unit-sha": "ec3c85e7670888d9",
+      "unit-sha": "ca8f825ae96efac8",
       "claim-sha": "da8d8feef7bd794d",
       "route": "mutant",
       "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
       "producer-sha": "c05a39ef55486b0e",
-      "break": "line 471: \"protocol == ipsecProtoAH\" -\u003e \"true\""
+      "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"true\""
     },
     {
       "rid": "RFC4302-2-2",
@@ -49,44 +49,44 @@
       "rid": "RFC4302-2.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol",
-      "unit-sha": "19f52eeb2eb6854d",
-      "claim-sha": "2b3061f1ca57020e",
+      "unit-sha": "76150f7de074b229",
+      "claim-sha": "08b876305d7717bb",
       "route": "mutant",
       "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
       "producer-sha": "c05a39ef55486b0e",
-      "break": "line 471: \"protocol == ipsecProtoAH\" -\u003e \"false\""
+      "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"false\""
     },
     {
       "rid": "RFC4302-2.4-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAIdentifiedBySPIAndProtocol",
-      "unit-sha": "19f52eeb2eb6854d",
+      "unit-sha": "76150f7de074b229",
       "claim-sha": "6db684b87fa574e0",
       "route": "revert",
       "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
-      "producer-sha": "8cdc399f20b49025",
+      "producer-sha": "6a340d64849a22e0",
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4302-2.4-5",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication",
-      "unit-sha": "8ccd8ce46ef2d23d",
+      "unit-sha": "c25132ab67504682",
       "claim-sha": "e3647d3b1cdd8a51",
       "route": "revert",
       "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
-      "producer-sha": "8cdc399f20b49025",
+      "producer-sha": "6a340d64849a22e0",
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4302-2.4-5",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/ipsec_rfc4302_test.go::TestAHSAAddressMatchIndication",
-      "unit-sha": "8ccd8ce46ef2d23d",
+      "unit-sha": "c25132ab67504682",
       "claim-sha": "2de31dc7afba9569",
       "route": "revert",
       "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
-      "producer-sha": "8cdc399f20b49025",
+      "producer-sha": "6a340d64849a22e0",
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -110,6 +110,28 @@
       "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
       "producer-sha": "30c3ee956902c48e",
       "break": "line 117: \"c.SPI \u003c ipsecSPIMin\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4302-3.3.4-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
+      "unit-sha": "f93b127fe33cf0ea",
+      "claim-sha": "497f223b351350c1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies",
+      "producer-sha": "82d190d1cec3f817",
+      "break": "body of buildIPsecPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4302-3.3.4-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender",
+      "unit-sha": "f93b127fe33cf0ea",
+      "claim-sha": "fa06674caf993e0c",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::removeLocked",
+      "producer-sha": "7cc537b81b2c3187",
+      "break": "body of removeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4302-3.4.2-1",
@@ -137,22 +159,22 @@
       "rid": "RFC4302-3.4.3-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow",
-      "unit-sha": "52e1773bcde89d15",
+      "unit-sha": "6d42ef0c49107b81",
       "claim-sha": "cf569fa159c8f8d6",
       "route": "revert",
       "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
-      "producer-sha": "8cdc399f20b49025",
+      "producer-sha": "6a340d64849a22e0",
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4302-3.4.3-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAReplayWindow",
-      "unit-sha": "52e1773bcde89d15",
+      "unit-sha": "6d42ef0c49107b81",
       "claim-sha": "3d9e619186ab76da",
       "route": "revert",
       "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
-      "producer-sha": "8cdc399f20b49025",
+      "producer-sha": "6a340d64849a22e0",
       "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

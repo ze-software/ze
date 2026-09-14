@@ -37,11 +37,12 @@ func ahIface(spi uint32) interfaceConfig {
 // RFC requirement: RFC4302-2.4-1 positive -- RFC 4302 Section 2.4: "The SPI field is
 // mandatory, and this mechanism for mapping inbound traffic to unicast SAs described
 // above MUST be supported by all AH implementations." buildIPsecSA gives the state the
-// configured SPI, the AH protocol number, and a wildcard :: destination. That is the
-// {SPI, protocol} identifier of the section's third search step: a wildcard destination
-// matches neither step 1 nor step 2, so the SPI and the protocol are what resolve an
-// inbound AH packet to this SA. The body asserts the SPI, the protocol number and the
-// wildcard destination of the installed state.
+// configured SPI, the AH protocol number, and the OSPF destination it is keyed on. That
+// is the {SPI, destination} identifier of the section's first search step, which is the
+// one a multicast destination such as ff02::5 takes, and the kernel's own inbound lookup
+// (xfrm_state_lookup takes the destination off the received packet with the SPI and the
+// protocol). The body asserts the SPI, the protocol number and the destination of the
+// built state, and that the source alone is the :: wildcard.
 // RFC requirement: RFC4302-2.4-1 negative -- the identifier follows the configuration
 // rather than being one constant: a second interface configured with a different SPI
 // builds a state carrying that SPI, so an installer writing a fixed SPI fails here.
@@ -53,8 +54,11 @@ func TestAHSAIdentifiedBySPIAndProtocol(t *testing.T) {
 	if sa.Proto != dataplane.ProtoAH {
 		t.Errorf("AH SA proto = %d, want %d (AH)", sa.Proto, dataplane.ProtoAH)
 	}
-	if !sa.Dst.Equal(net.IPv6zero) {
-		t.Errorf("AH SA dst = %v, want :: so that the SPI and the protocol resolve it", sa.Dst)
+	if !sa.Dst.Equal(ospfv3transport.AllSPFRouters.AsSlice()) {
+		t.Errorf("AH SA dst = %v, want %s: the destination is part of the identifier the kernel resolves", sa.Dst, ospfv3transport.AllSPFRouters)
+	}
+	if !sa.Src.Equal(net.IPv6zero) {
+		t.Errorf("AH SA src = %v, want :: (the source alone is wildcarded)", sa.Src)
 	}
 	other := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ahIPsec(0x2000))
 	if other.SPI != 0x2000 {

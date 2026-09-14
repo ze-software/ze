@@ -25,7 +25,10 @@ FROM alpine:3.21
 # instrument: `show firewall` renders the registry's own record, and the nft
 # readback skips every table outside the ze_ ownership prefix
 # (internal/plugins/firewall/nft/readback_linux.go).
-RUN apk add --no-cache tini nftables
+# iproute2 supplies `ip xfrm` for the same reason: the ospf-ipsec scenarios read
+# the RFC 4552 states and policies ze installed back out of the kernel, and the
+# BusyBox `ip` in the base image has no xfrm object.
+RUN apk add --no-cache tini nftables iproute2
 
 COPY test/interop/ze-linux /usr/local/bin/ze
 COPY test/interop/ze-test-linux /usr/local/bin/ze-test

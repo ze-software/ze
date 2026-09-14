@@ -1,0 +1,60 @@
+{
+  "rfc": "rfc4552",
+  "records": [
+    {
+      "rid": "RFC4552-11-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp",
+      "unit-sha": "4c5f0f60b7df2b90",
+      "claim-sha": "1a2365c073db3508",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::installLocked",
+      "producer-sha": "835cbea83b267cb0",
+      "break": "line 399: \"err != nil\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4552-2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector",
+      "unit-sha": "2de77b535ba9309b",
+      "claim-sha": "7ebcd8ee24efccac",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4552-3-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp",
+      "unit-sha": "4c5f0f60b7df2b90",
+      "claim-sha": "e40d6de3b4d20f54",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+      "producer-sha": "c05a39ef55486b0e",
+      "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"true\""
+    },
+    {
+      "rid": "RFC4552-6-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestSAParamsSharedKey",
+      "unit-sha": "feacb1d13c7d58c9",
+      "claim-sha": "d0c9dd873b577cc9",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4552-7-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector",
+      "unit-sha": "2de77b535ba9309b",
+      "claim-sha": "32d7571ef28c3cd0",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+      "producer-sha": "585210642d31eeae",
+      "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

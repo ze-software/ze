@@ -2,6 +2,17 @@
   "rfc": "rfc4301",
   "records": [
     {
+      "rid": "RFC4301-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector",
+      "unit-sha": "2de77b535ba9309b",
+      "claim-sha": "afba151d25e9ebc5",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+      "producer-sha": "6a340d64849a22e0",
+      "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.4.1-4",
       "polarity": "positive",
       "unit": "internal/component/ike/engine/rfc4301_spd_discard_test.go::TestSPDPolicyMirrorsTheInboundSelector",
@@ -22,6 +33,17 @@
       "producer": "internal/component/ike/ipsec/spd_policy.go::validate",
       "producer-sha": "e37c9a9c013588f4",
       "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp",
+      "unit-sha": "4c5f0f60b7df2b90",
+      "claim-sha": "52d3792ef8173049",
+      "route": "mutant",
+      "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
+      "producer-sha": "105a438ab75af3a8",
+      "break": "line 243: \"ic.IPsec != nil\" -\u003e \"false\""
     },
     {
       "rid": "RFC4301-7.4-1",
