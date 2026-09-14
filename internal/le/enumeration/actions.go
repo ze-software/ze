@@ -62,6 +62,10 @@ func Answer(args []string) (any, int) { return actions.Answer(args) }
 // state mostly suppression (owner decision, 2026-09-14). Judging the change set
 // stops the class GROWING, which is what the gate is for, and `report` keeps
 // the backlog in the open rather than behind markers.
+//
+// A gated row is answered and not counted: it is in the report the caller
+// reads, and it is zero findings for the exit code, because the test it names
+// is what proves the row (report.go, KindGated).
 func runCheck() (any, int) {
 	found, code := walkCheckout()
 	if code != 0 {
@@ -82,7 +86,7 @@ func runCheck() (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	if len(report.Findings) > 0 {
+	if findings, _ := report.Findings.split(); len(findings) > 0 {
 		return report, 1
 	}
 	return report, 0

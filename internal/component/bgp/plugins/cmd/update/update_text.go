@@ -983,6 +983,7 @@ func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 // does not, a handler for each word, so the model stays the grammar and this
 // table stays the dispatch; TestUpdateEncodingsMatchTheYANGModel holds the two
 // together.
+// enumeration: gated by TestUpdateEncodingsMatchTheYANGModel
 var updateEncodings = map[string]func(*pluginserver.CommandContext, []string) (*plugin.Response, error){
 	"text":   handleUpdateText,
 	"hex":    handleUpdateHex,

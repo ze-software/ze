@@ -15,6 +15,7 @@ import (
 // migrate` commands name them too. They read them from here: a second spelling
 // in the CLI package drifts from this one, and the CLI is where an operator
 // meets the difference.
+// enumeration: gated by TestCreatableTypesMatchTheModel
 const (
 	zeTypeEthernet  = "ethernet"
 	TypeBridge      = "bridge"

@@ -855,6 +855,7 @@ const (
 // PrefixReconnectUnset, which the model has no value for: it says the family
 // stated no `reconnect` at all, so it is a word String prints and never a word
 // parsePrefixReconnectMode accepts.
+// enumeration: gated by TestPrefixReconnectNamesMatchTheYANGModel
 var prefixReconnectNames = [...]string{
 	PrefixReconnectUnset:   "unset",
 	PrefixReconnectNever:   "never",

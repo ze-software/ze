@@ -272,6 +272,7 @@ const (
 )
 
 func parseRPFMode(s string) (rpfMode, bool) {
+	// enumeration: gated by TestRPFModesMatchTheModel
 	switch s {
 	case "disable":
 		return rpfModeDisable, true

@@ -697,6 +697,7 @@ func vppCryptoAlg(algo string, isAEAD bool) (ipsec_types.IpsecCryptoAlg, error) 
 // SHA_256_128, so the SA authenticated with an algorithm the peer did not negotiate
 // and every packet failed its integrity check.
 func vppIntegAlg(algo string, isAEAD bool) (ipsec_types.IpsecIntegAlg, error) {
+	// enumeration: gated by TestVPPIntegrityVocabularyMatchesModel
 	const (
 		integSHA256 = "sha256"
 		integSHA384 = "sha384"

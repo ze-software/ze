@@ -35,6 +35,7 @@ type ResolverConfig struct {
 // DNSSEC validation modes. Each word is the one the YANG enumeration at
 // system/dns/dnssec-validation spells, because an operator writes the mode
 // there and `ze resolve dns --dnssec` passes the same word in.
+// enumeration: gated by TestValidationModesMatchTheYANGEnumeration
 const (
 	dnssecOff        = "off"
 	dnssecPermissive = "permissive"

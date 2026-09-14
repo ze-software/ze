@@ -18,7 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The three kinds of row this gate answers. A reader filters on the kind, so
+// The four kinds of row this gate answers. A reader filters on the kind, so
 // each one is a word rather than a sentence.
 const (
 	// KindLiteral is a syntactic unit that writes a registry's keys out again.
@@ -29,6 +29,11 @@ const (
 	// KindDoctorCheck is a doctor check function a hand-written call reaches
 	// and no registration does.
 	KindDoctorCheck = "doctor-check"
+	// KindGated is a closed-corpus row whose agreement with the model a named
+	// test proves (the `gated by TestX` marker). It is listed, counted apart,
+	// and never blocks: the backlog stays visible while check stops on it
+	// (owner decision, 2026-09-14).
+	KindGated = "gated"
 )
 
 // Finding is one row of the gate's answer.
@@ -88,31 +93,59 @@ func (f Findings) sort() {
 	})
 }
 
-// Tally counts the rows by corpus, and by kind for the rows that name no
-// corpus. It is what `le enumeration report` is read for: which registry the
-// tree copies most.
-func (f Findings) Tally() map[string]int {
-	tally := map[string]int{}
+// split answers the rows apart: the findings, which check blocks on, and the
+// gated rows, which it does not.
+func (f Findings) split() (findings, gated Findings) {
 	for _, finding := range f {
-		if finding.Corpus != "" {
-			tally[finding.Corpus]++
+		if finding.Kind == KindGated {
+			gated = append(gated, finding)
 			continue
 		}
-		tally[finding.Kind]++
+		findings = append(findings, finding)
+	}
+	return findings, gated
+}
+
+// Count is one tally row: the findings and the gated rows of one corpus.
+type Count struct {
+	Findings int
+	Gated    int
+}
+
+// Tally counts the rows by corpus, and by kind for the rows that name no
+// corpus, with the gated rows of a corpus counted apart from its findings. It
+// is what `le enumeration report` is read for: which registry the tree copies
+// most, and how much of a closed corpus is proved by a test.
+func (f Findings) Tally() map[string]Count {
+	tally := map[string]Count{}
+	for _, finding := range f {
+		name := finding.Corpus
+		if name == "" {
+			name = finding.Kind
+		}
+		count := tally[name]
+		if finding.Kind == KindGated {
+			count.Gated++
+		} else {
+			count.Findings++
+		}
+		tally[name] = count
 	}
 	return tally
 }
 
-// Text renders the findings for a person: the tally, one line for each row, and
-// the remedy. A run that found nothing says so. It ends in a newline.
+// Text renders the rows for a person: the findings, then the gated rows, then
+// the tally and the remedy. A run that found nothing says so, and a run whose
+// every row is gated says OK and still lists them. It ends in a newline.
 func (f Findings) Text() string {
 	var tb textbuf.Buffer
-	if len(f) == 0 {
-		return tb.Str("enumeration: OK\n").String()
+	findings, gated := f.split()
+	if len(findings) == 0 {
+		tb.Str("enumeration: OK\n")
+	} else {
+		tb.Str("enumeration: ").Int(int64(len(findings))).Str(" finding(s):\n")
 	}
-
-	tb.Str("enumeration: ").Int(int64(len(f))).Str(" finding(s):\n")
-	for _, finding := range f {
+	for _, finding := range findings {
 		tb.Str("  ").Str(finding.File).Byte(':').Int(int64(finding.Line)).Str(": ")
 		if finding.Symbol != "" {
 			tb.Str(finding.Symbol).Str(": ")
@@ -127,6 +160,19 @@ func (f Findings) Text() string {
 		}
 		tb.Byte('\n')
 	}
+	if len(f) == 0 {
+		return tb.String()
+	}
+
+	// The gated rows come after the findings and carry no key list: the test
+	// each one names is what a reader opens, and the row is not work to do.
+	if len(gated) > 0 {
+		tb.Byte('\n')
+	}
+	for _, row := range gated {
+		tb.Str("gated: ").Str(row.File).Byte(':').Int(int64(row.Line)).Str(": ").
+			Str(row.Symbol).Str(": ").Str(row.Detail).Byte('\n')
+	}
 
 	tb.Byte('\n').Str("by corpus:\n")
 	tally := f.Tally()
@@ -136,7 +182,12 @@ func (f Findings) Text() string {
 	}
 	slices.Sort(names)
 	for _, name := range names {
-		tb.Str("  ").Str(name).Str(": ").Int(int64(tally[name])).Byte('\n')
+		count := tally[name]
+		tb.Str("  ").Str(name).Str(": ").Int(int64(count.Findings))
+		if count.Gated > 0 {
+			tb.Str(" findings, ").Int(int64(count.Gated)).Str(" gated")
+		}
+		tb.Byte('\n')
 	}
 
 	tb.Byte('\n')
@@ -151,5 +202,13 @@ func (f Findings) Text() string {
 	tb.Str("Where the list states what is ALLOWED rather than what EXISTS, it is policy:\n")
 	tb.Str("mark it `enumeration: exempt (why this list is policy)` and the marker itself is\n")
 	tb.Str("accounted for, so it goes red when it stops suppressing anything.\n")
+	tb.Str("A GATED row is a MUST AGREE row whose Go side carries a fact the model does not\n")
+	tb.Str("(a wire value, an IANA number, a kernel name, a handler), so the Go table is the\n")
+	tb.Str("declaration and the model is the copy: an agreement test in the owning package\n")
+	tb.Str("loads the module, reads the enumeration at the leaf the row names and compares\n")
+	tb.Str("both ways. Mark the table `enumeration: gated by TestX`, naming that test, and\n")
+	tb.Str("the row stays listed here while check stops blocking on it. The marker is\n")
+	tb.Str("legitimate only where the Go side carries such a fact; a plain copy of the model\n")
+	tb.Str("derives from the model, and a gated marker on a registry copy is itself a finding.\n")
 	return tb.String()
 }

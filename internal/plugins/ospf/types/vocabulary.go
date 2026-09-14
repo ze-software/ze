@@ -15,6 +15,7 @@ package types
 // Interface network types (RFC 2328 Section 1.2 "Interfaces", RFC 5340 Section 3).
 // The word decides whether a DR is elected, how Hellos are addressed, and which link
 // records the Router-LSA carries for the interface.
+// enumeration: gated by TestNetworkTypeVocabularyMatchesModel
 const (
 	NetworkBroadcast    = "broadcast"
 	NetworkPointToPoint = "point-to-point"
@@ -38,6 +39,7 @@ const (
 
 // Area types (RFC 2328 Section 3.6 stub areas, RFC 3101 NSSA). The word decides which
 // LSA types the ABR floods into the area and which default it originates there.
+// enumeration: gated by TestAreaTypeVocabularyMatchesModel
 const (
 	AreaTypeNormal = "normal"
 	AreaTypeStub   = "stub"

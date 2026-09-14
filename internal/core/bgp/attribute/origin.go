@@ -55,6 +55,7 @@ var originNames = map[Origin]string{
 // nothing to arbitrate it (ai/rules/principles.md). The set is also the
 // `origin` enumeration of ze-bgp-conf.yang, and the two are held together by
 // TestOriginTextNamesMatchTheYANGModel in internal/component/bgp/config.
+// enumeration: gated by TestOriginTextNamesMatchTheYANGModel
 var originTextNames = [...]string{
 	OriginIGP:        "igp",
 	OriginEGP:        "egp",

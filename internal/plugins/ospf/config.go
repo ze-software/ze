@@ -65,6 +65,7 @@ const (
 // The area types and the network types this resolver reads are declared in
 // internal/plugins/ospf/types (vocabulary.go), because the config resolver, iface,
 // neighbor, lsdb and spf all act on the same words.
+// enumeration: gated by TestIPsecVocabularyMatchesModel
 const (
 	translateRoleCandidate = "candidate"
 	translateRoleAlways    = "always"

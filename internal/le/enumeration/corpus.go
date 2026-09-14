@@ -354,7 +354,7 @@ func enumerationName(paths []string) string {
 
 // collectEnums records every enumeration under entry, keyed by its value set,
 // and every leaf path that declares one.
-func collectEnums(entry *gyang.Entry, path string, depth int, seen map[*gyang.Entry]bool, pathsBySet map[string][]string, keysBySet map[string][]string) {
+func collectEnums(entry *gyang.Entry, path string, depth int, seen map[*gyang.Entry]bool, pathsBySet, keysBySet map[string][]string) {
 	if depth > entryDepthMax {
 		return
 	}

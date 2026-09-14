@@ -401,6 +401,7 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 
 // parseAddPathDirection converts a direction string to AddPathMode.
 func parseAddPathDirection(dir string) capability.AddPathMode {
+	// enumeration: gated by TestAddPathDirectionsMatchTheYANGModel
 	switch dir {
 	case "send":
 		return capability.AddPathSend

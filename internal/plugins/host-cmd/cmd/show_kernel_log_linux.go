@@ -32,6 +32,7 @@ const (
 // in ze-host-cmd.yang offers the same words to an operator, and
 // TestKernelLogLevelsMatchTheModel holds the two together
 // (ai/rules/principles.md).
+// enumeration: gated by TestKernelLogLevelsMatchTheModel
 var kmsgLevelNames = [8]string{
 	"emerg", "alert", "crit", "err", "warning", "notice", "info", "debug",
 }

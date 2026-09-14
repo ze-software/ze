@@ -29,6 +29,7 @@ const (
 // unregistered value rather than returning "unknown" -- every AuthMethod
 // const MUST appear in this switch; drift is a programmer error.
 func (m AuthMethod) String() string {
+	// enumeration: gated by TestAuthMethodVocabularyMatchesModel
 	switch m {
 	case AuthMethodNone:
 		return "none"

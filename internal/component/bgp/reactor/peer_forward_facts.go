@@ -379,6 +379,7 @@ func sendCommunitySuppression(list []string) sendCommunityMask {
 	}
 	sendStandard, sendLarge, sendExtended := false, false, false
 	for _, v := range list {
+		// enumeration: gated by TestSendCommunityKeywordsMatchTheYANGModel
 		switch v {
 		case "all":
 			return 0

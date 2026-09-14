@@ -20,6 +20,7 @@ import (
 )
 
 // Authentication algorithm identifiers (match the ze-ospf-conf.yang algorithm enum).
+// enumeration: gated by TestAuthAlgorithmVocabularyMatchesModel
 const (
 	AuthSimple     = "simple"
 	AuthMD5        = "md5"

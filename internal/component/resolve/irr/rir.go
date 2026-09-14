@@ -63,6 +63,7 @@ const (
 // below is keyed by one, an operator names a source by one, and the YANG
 // enumeration offers the same five, so the token is declared here once rather
 // than spelled again in each map.
+// enumeration: gated by TestRegistryTokensMatchTheYANGEnumeration
 const (
 	registryRIPE    = "ripencc"
 	registryARIN    = "arin"

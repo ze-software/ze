@@ -17,6 +17,7 @@ import (
 // ID_DER_ASN1_GN is deliberately absent. RFC 7296 Section 3.5 assigns it, and RFC 7296
 // Section 4 does not require accepting it, so ze offers no way to ask for a type it
 // cannot compare.
+// enumeration: gated by TestVocabularyMatchesModel
 var remoteIDTypeNames = map[string]uint8{
 	"ipv4-address":   wire.IDTypeIPv4Addr,
 	"ipv6-address":   wire.IDTypeIPv6Addr,

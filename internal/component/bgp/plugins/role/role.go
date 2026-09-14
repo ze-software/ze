@@ -259,6 +259,7 @@ func remoteRoleRecorded(addr, name string) bool {
 }
 
 // Role name constants (RFC 9234 Section 4.1, Table 1).
+// enumeration: gated by TestRoleNamesMatchTheYANGModel
 const (
 	roleProvider = "provider"
 	roleRS       = "rs"

@@ -417,6 +417,7 @@ func collectFirewallInfo() (any, error) {
 }
 
 func tableFamilyName(f nftables.TableFamily) string {
+	// enumeration: gated by TestTableFamilyNamesMatchTheModel
 	switch f {
 	case nftables.TableFamilyIPv4:
 		return "ip"

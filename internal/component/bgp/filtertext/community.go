@@ -27,6 +27,7 @@ const (
 
 // String renders the kind as it is written in configuration.
 func (k CommunityKind) String() string {
+	// enumeration: gated by TestCommunityKindNamesMatchTheYANGModel
 	switch k {
 	case CommunityStandard:
 		return "standard"

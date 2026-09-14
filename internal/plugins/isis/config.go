@@ -39,6 +39,7 @@ const (
 
 // String renders the level as the YANG enum token.
 func (l Level) String() string {
+	// enumeration: gated by TestLevelVocabularyMatchesModel
 	switch l {
 	case LevelL1:
 		return "l1"

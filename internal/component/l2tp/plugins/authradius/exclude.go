@@ -82,6 +82,7 @@ var excludableAttributes = map[string]uint8{
 // excludablePacketKinds maps a `packet-type` leaf-list member to its kind. Each
 // attribute's leaf-list enumerates only the kinds that attribute can reach, so
 // the schema has already refused an illegal pair by the time this is read.
+// enumeration: gated by TestExcludeVocabularyMatchesModel
 var excludablePacketKinds = map[string]packetKind{
 	"access-request":     packetAccessRequest,
 	"accounting-start":   packetAccountingStart,

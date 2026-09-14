@@ -49,6 +49,7 @@ const mcpDefaultPort = "8080"
 
 // MCP auth-mode YANG enumeration values. These are the raw string forms
 // parsed from YAML; typed enum lives in internal/component/mcp/auth.go.
+// enumeration: gated by TestMCPAuthModesMatchTheModel
 const (
 	mcpAuthNone       = "none"
 	mcpAuthBearer     = "bearer"

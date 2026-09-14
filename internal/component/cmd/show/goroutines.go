@@ -12,6 +12,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
+// enumeration: gated by TestGoroutineModesMatchTheModel
 const (
 	goroutineFullBufSize = 16 << 20 // 16 MB
 	goroutineModeSummary = "summary"

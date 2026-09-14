@@ -27,6 +27,21 @@
 // exemption marker with a reason, and the marker set is itself accounted for,
 // so a marker that suppresses nothing turns the gate red rather than rotting in
 // place.
+//
+// A CLOSED corpus (the YANG enumerations) has a second marker, because its rows
+// have a second legitimate answer. Where the Go table carries a fact the model
+// does not (a wire value, an IANA number, a kernel name, a handler), the table
+// is the declaration and the model is the copy, and what the two owe each other
+// is AGREEMENT: a test in the owning package that loads the module, reads the
+// enumeration at the leaf the row names, and compares both ways. The gate
+// cannot see a test, so the second marker, `gated by TestX` after the
+// `enumeration:` word, names it. A gated row
+// leaves the findings and stays in the report, so the backlog is visible while
+// check stops blocking on it (owner decision, 2026-09-14). The marker is held to
+// the same accounting as an exemption, plus two rules of its own: it is honored
+// only on a closed-corpus row, because a registry copy derives from the
+// registry and no test makes it legitimate, and the test it names must be
+// declared in a _test.go under the walked roots.
 
 package enumeration
 
@@ -61,10 +76,23 @@ const keyThreshold = 2
 // ErrShortScan names a walk that read fewer files than the floor.
 var ErrShortScan = errors.New("the walk read fewer Go files than the floor")
 
-// markerRe matches the inline exemption marker. The reason in parentheses after
-// it is what makes it an exemption: markerReason reads it, and a marker without
-// one suppresses nothing.
-var markerRe = regexp.MustCompile(`enumeration:\s*exempt`)
+// markerRe matches the two inline markers. What follows the word is what makes
+// the marker mean something: the reason in parentheses after `exempt`, which
+// markerReason reads, or the test name after `gated by`, which markerTest
+// reads. A marker with neither suppresses nothing.
+var markerRe = regexp.MustCompile(`enumeration:\s*(exempt|gated by)`)
+
+// markerWordGated is the submatch markerRe answers for a gated marker.
+const markerWordGated = "gated by"
+
+// markerTestRe reads the test name a gated marker opens with. A Go test
+// function is `Test` followed by an identifier, and the walk then checks that a
+// _test.go declares it.
+var markerTestRe = regexp.MustCompile(`^\s*(Test[A-Za-z0-9_]*)\b`)
+
+// testDeclRe reads the test functions one _test.go declares, so a gated marker
+// can be checked against the tests that exist without parsing every test file.
+var testDeclRe = regexp.MustCompile(`(?m)^func (Test[A-Za-z0-9_]*)\(`)
 
 // productRoots are the directories holding the Go the gate judges, relative to
 // the checkout.
@@ -116,6 +144,9 @@ type scan struct {
 	// matched holds the markers that suppressed a unit, which is what tells a
 	// dead marker apart from a live one.
 	matched map[string]bool
+	// tests holds every test function a _test.go under the walked roots
+	// declares, which is what a gated marker's test name is checked against.
+	tests map[string]bool
 	// walkFound is what the walk itself reports, apart from the copies: a
 	// marker that states no reason is a finding wherever it stands.
 	walkFound Findings
@@ -127,15 +158,19 @@ func newScan(corpora []Corpus) *scan {
 		files:   map[string][]string{},
 		markers: map[string]markerSite{},
 		matched: map[string]bool{},
+		tests:   map[string]bool{},
 	}
 }
 
-// markerSite is one exemption marker: where it stands, and the reason its
-// author gave for it.
+// markerSite is one marker: where it stands, and what its author wrote after
+// it. An exemption carries its reason; a gated marker carries the test that
+// proves the agreement, and gated says which of the two this is.
 type markerSite struct {
 	file   string
 	line   int
 	reason string
+	gated  bool
+	test   string
 }
 
 // candidate is one syntactic unit holding two or more keys of one group, before
@@ -155,6 +190,9 @@ type candidate struct {
 	start  int
 	end    int
 	corpus string
+	// closed says the corpus is a closed enumeration, which is the one kind of
+	// row a gated marker is honored on.
+	closed bool
 	group  string
 	detail string
 	keys   []string
@@ -164,7 +202,8 @@ type candidate struct {
 	strings int
 }
 
-// walk reads every non-test Go file under root.
+// walk reads every non-test Go file under root, and records the test functions
+// every _test.go under it declares.
 //
 // A root the tree does not carry is passed over, because a fixture tree holds
 // only the roots its case needs. Every other stat failure stops the run: a walk
@@ -190,8 +229,11 @@ func (s *scan) walk(tree, root string) error {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+		if !strings.HasSuffix(path, ".go") {
 			return nil
+		}
+		if strings.HasSuffix(path, "_test.go") {
+			return s.readTestDecls(path)
 		}
 		rel, relErr := filepath.Rel(tree, path)
 		if relErr != nil {
@@ -203,6 +245,20 @@ func (s *scan) walk(tree, root string) error {
 		s.files[pkgDir] = append(s.files[pkgDir], slashed)
 		return nil
 	})
+}
+
+// readTestDecls records the test functions one _test.go declares. The file is
+// read as text rather than parsed, because the walk covers thousands of test
+// files and a declaration line is all a gated marker is checked against.
+func (s *scan) readTestDecls(path string) error {
+	text, err := os.ReadFile(path) //nolint:gosec // G304: the walk names the _test.go it found under the product roots; reading it is the gate
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+	for _, match := range testDeclRe.FindAllSubmatch(text, -1) {
+		s.tests[string(match[1])] = true
+	}
+	return nil
 }
 
 // skipDir answers the directories a product walk never enters. Generated
@@ -389,18 +445,23 @@ func (s *scan) judgeable(pkgDir, symbol string) []Corpus {
 	return judged
 }
 
-// readMarkers records every exemption marker in one file. A marker whose
-// parentheses are empty or absent is reported where it stands, because it asks
-// the next reader to take the exemption on trust.
+// readMarkers records every marker in one file. A marker that carries nothing
+// after its word is reported where it stands, because it asks the next reader
+// to take the exemption, or the agreement, on trust.
 func (s *scan) readMarkers(fset *token.FileSet, file *ast.File, rel string) {
 	for _, group := range file.Comments {
 		for _, comment := range group.List {
-			found := markerRe.FindStringIndex(comment.Text)
+			found := markerRe.FindStringSubmatchIndex(comment.Text)
 			if found == nil {
 				continue
 			}
 			line := fset.Position(comment.Pos()).Line
-			reason := markerReason(comment.Text[found[1]:])
+			tail := comment.Text[found[1]:]
+			if comment.Text[found[2]:found[3]] == markerWordGated {
+				s.readGatedMarker(rel, line, tail)
+				continue
+			}
+			reason := markerReason(tail)
 			if reason == "" {
 				s.walkFound = append(s.walkFound, Finding{
 					Kind:   KindMarker,
@@ -413,6 +474,46 @@ func (s *scan) readMarkers(fset *token.FileSet, file *ast.File, rel string) {
 			s.markers[markerKey(rel, line)] = markerSite{file: rel, line: line, reason: reason}
 		}
 	}
+}
+
+// readGatedMarker records one gated marker, or reports it where it stands when
+// the name after `gated by` is not a declared Go test.
+//
+// The walk has read every _test.go under the roots before any package is
+// judged, so s.tests is complete here. A marker naming a test nobody wrote
+// gates nothing: the row it stands on stays a finding, and the marker is
+// reported beside it naming what it asked for.
+func (s *scan) readGatedMarker(rel string, line int, tail string) {
+	test := markerTest(tail)
+	if test == "" {
+		s.walkFound = append(s.walkFound, Finding{
+			Kind:   KindMarker,
+			File:   rel,
+			Line:   line,
+			Detail: "the marker names no Go test, so it gates nothing: write `enumeration: gated by TestX`, where TestX reads the enumeration at the leaf the row names",
+		})
+		return
+	}
+	if !s.tests[test] {
+		s.walkFound = append(s.walkFound, Finding{
+			Kind:   KindMarker,
+			File:   rel,
+			Line:   line,
+			Detail: "the marker names " + test + ", which no _test.go under the walked roots declares, so it gates nothing",
+		})
+		return
+	}
+	s.markers[markerKey(rel, line)] = markerSite{file: rel, line: line, gated: true, test: test}
+}
+
+// markerTest answers the test name a gated marker opens with, or the empty
+// string when what follows `gated by` is not the name of a Go test function.
+func markerTest(tail string) string {
+	match := markerTestRe.FindStringSubmatch(tail)
+	if match == nil {
+		return ""
+	}
+	return match[1]
 }
 
 // markerReason answers the parenthesised reason that follows a marker, or the
@@ -487,7 +588,7 @@ func (s *scan) scanDecl(fset *token.FileSet, rel, symbol string, decl ast.Decl, 
 			s.candidates = append(s.candidates, candidate{
 				file: rel, symbol: symbol,
 				from: node.Pos(), to: node.End(), start: start, end: end,
-				corpus: corpus.Name, group: group, detail: corpus.detail(group),
+				corpus: corpus.Name, closed: corpus.Closed, group: group, detail: corpus.detail(group),
 				keys: matched, strings: len(keys),
 			})
 		}
@@ -680,9 +781,18 @@ func within(declared []posRange, node ast.Node) bool {
 // must agree, and leaves the direction to whoever repairs it.
 func (c Corpus) detail(group string) string {
 	if c.Closed {
-		return "holds every value of " + group + ", so the two must agree"
+		return holdsEveryValue + group + ", so the two must agree"
 	}
 	return "restates " + group
+}
+
+// holdsEveryValue opens every closed-corpus row, gated or not, so a reader
+// greps one phrase for both.
+const holdsEveryValue = "holds every value of "
+
+// gatedDetail says what a gated row did and which test proves the agreement.
+func gatedDetail(group, test string) string {
+	return holdsEveryValue + group + ", gated by " + test
 }
 
 // isUnit reports whether node is one of the three shapes that write a set down:
@@ -795,25 +905,50 @@ func intersect(set, keys []string) []string {
 }
 
 // findings turns the candidates into the answer: the innermost unit for each
-// copied set, minus what an exemption marker excuses, plus every marker that
-// excused nothing.
+// copied set, minus what an exemption marker excuses, with each unit a gated
+// marker covers moved to a gated row, plus every marker that excused nothing.
+//
+// A gated marker on a FLAT-corpus unit is the one place a marker matches a
+// unit and the unit stays a finding: a copy of a registry is not made
+// legitimate by a test, because the registry is the declaration and the copy
+// derives from it. The marker is counted as matched so the dead-marker
+// accounting does not report it a second time. It is reported as misused only
+// when it gated NO closed unit, because one unit can be both: firewall's
+// ianaProtocolNumbers holds every value of the protocol enumeration and two
+// words that are also plugin names, and the marker on it does its job on the
+// first while the second stays the finding it was.
 func (s *scan) findings() (Findings, error) {
 	found := s.walkFound
+	gates := map[string]bool{}
+	misused := map[string]markerSite{}
 	for _, unit := range s.innermost() {
 		key, excused := s.excuse(unit)
-		if excused {
-			s.matched[key] = true
+		if !excused {
+			found = append(found, unit.finding())
+			continue
+		}
+		s.matched[key] = true
+		site := s.markers[key]
+		if !site.gated {
+			continue
+		}
+		if unit.closed {
+			gates[key] = true
+			found = append(found, unit.gatedRow(site.test))
+			continue
+		}
+		found = append(found, unit.finding())
+		misused[key] = site
+	}
+	for key, site := range misused {
+		if gates[key] {
 			continue
 		}
 		found = append(found, Finding{
-			Kind:    KindLiteral,
-			File:    unit.file,
-			Line:    unit.start,
-			Symbol:  unit.symbol,
-			Corpus:  unit.corpus,
-			Keys:    unit.keys,
-			Strings: unit.strings,
-			Detail:  unit.detail,
+			Kind:   KindMarker,
+			File:   site.file,
+			Line:   site.line,
+			Detail: "a gated marker excuses a copy of a registry; derive the set instead",
 		})
 	}
 
@@ -824,6 +959,36 @@ func (s *scan) findings() (Findings, error) {
 	found = append(found, dead...)
 	found.sort()
 	return found, nil
+}
+
+// finding is the row a unit answers when nothing excuses it.
+func (c candidate) finding() Finding {
+	return Finding{
+		Kind:    KindLiteral,
+		File:    c.file,
+		Line:    c.start,
+		Symbol:  c.symbol,
+		Corpus:  c.corpus,
+		Keys:    c.keys,
+		Strings: c.strings,
+		Detail:  c.detail,
+	}
+}
+
+// gatedRow is the row a closed-corpus unit answers when a gated marker names
+// the test that proves its agreement with the model. It carries the same keys
+// as the finding it replaces, so a reader of the JSON sees what was gated.
+func (c candidate) gatedRow(test string) Finding {
+	return Finding{
+		Kind:    KindGated,
+		File:    c.file,
+		Line:    c.start,
+		Symbol:  c.symbol,
+		Corpus:  c.corpus,
+		Keys:    c.keys,
+		Strings: c.strings,
+		Detail:  gatedDetail(c.group, test),
+	}
 }
 
 // innermost drops a candidate that encloses another candidate for the same set
@@ -896,17 +1061,23 @@ func (s *scan) markerBetween(file string, first, last int) (string, bool) {
 	return "", false
 }
 
-// deadMarkers accounts for every marker against the units it suppressed.
+// deadMarkers accounts for every marker, exempt or gated, against the units it
+// suppressed.
 //
 // A marker that suppresses nothing is not untidiness. It states that some
-// literal at that place is legitimately written out, and it keeps stating it
-// for whatever code arrives there next, with nobody having judged it.
+// literal at that place is legitimately written out, or that some table's
+// agreement with the model is proved, and it keeps stating it for whatever
+// code arrives there next, with nobody having judged it.
 func (s *scan) deadMarkers() (Findings, error) {
 	reasons := make(map[string]string, len(s.markers))
 	for key, site := range s.markers {
+		if site.gated {
+			reasons[key] = markerWordGated + " " + site.test
+			continue
+		}
 		reasons[key] = site.reason
 	}
-	coverage, err := population.Exemptions("enumeration exemption markers", reasons, s.matched)
+	coverage, err := population.Exemptions("enumeration markers", reasons, s.matched)
 	if err != nil {
 		return nil, err
 	}

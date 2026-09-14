@@ -140,6 +140,7 @@ func CheckConntrackModule(name string) error {
 	return nil
 }
 
+// enumeration: gated by TestLogInvalidProtocolsMatchTheModel
 var logInvalidProtocols = map[string]int{
 	"all":    255,
 	"tcp":    6,

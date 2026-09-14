@@ -421,17 +421,20 @@ func TestDoctorRunnerRefusesAnUnreadablePackage(t *testing.T) {
 }
 
 // TestHandCalledDoctorChecksOverTheCheckout proves the anchors still resolve in
-// the tree the gate is run over. A gate whose anchor has been renamed reports
-// nothing, which reads as a repaired component.
+// the tree the gate is run over, and that the component stays repaired. A gate
+// whose anchor has been renamed refuses with ErrNoDoctorRunner rather than
+// answering an empty row set (TestDoctorRunnerRefusesAnUnreadablePackage), so
+// a nil error here is the anchor resolving. The component held about forty
+// hand-called checks when this gate landed and holds none since every check
+// registers from its owner (130c8c54d7), so a row here is a regression.
 func TestHandCalledDoctorChecksOverTheCheckout(t *testing.T) {
 	found, err := handCalledDoctorChecks(checkoutRoot(t))
 	if err != nil {
 		t.Fatalf("read the doctor package: %v", err)
 	}
-	if len(found) == 0 {
-		t.Fatal("no hand-called doctor check was found, and the component holds about forty")
+	if len(found) != 0 {
+		t.Fatalf("%d doctor check(s) are reached by a hand-written call again:\n%s", len(found), found.Text())
 	}
-	t.Logf("%d hand-called doctor checks", len(found))
 }
 
 // changeSetRows is the two rows the scoping tests judge: one under
@@ -650,5 +653,142 @@ func TestReportAnswersTheWholeTreeAtExitZero(t *testing.T) {
 func TestATwoValueEnumerationIsNotAFinding(t *testing.T) {
 	if found := fixtureFindings(t, "two-value-enum"); len(found) != 0 {
 		t.Fatalf("want no finding, got:\n%s", found.Text())
+	}
+}
+
+// ofKind answers the rows of one kind, so a test can say what a run holds
+// beside the row it is about.
+func ofKind(found Findings, kind string) Findings {
+	kept := make(Findings, 0, len(found))
+	for _, finding := range found {
+		if finding.Kind == kind {
+			kept = append(kept, finding)
+		}
+	}
+	return kept
+}
+
+// TestGatedMarkerOnAClosedCorpusRowIsGated is the marker's one legitimate use:
+// a table holding every value of a YANG enumeration, whose agreement with the
+// model a named test proves. The row leaves the findings and stays visible as a
+// gated row naming that test (owner decision, 2026-09-14).
+func TestGatedMarkerOnAClosedCorpusRowIsGated(t *testing.T) {
+	found := fixtureFindings(t, "gated-closed")
+	if literals := ofKind(found, KindLiteral); len(literals) != 0 {
+		t.Fatalf("the gated table is still a finding:\n%s", found.Text())
+	}
+	if markers := ofKind(found, KindMarker); len(markers) != 0 {
+		t.Fatalf("the gated marker is reported as excusing nothing:\n%s", found.Text())
+	}
+	gated := ofKind(found, KindGated)
+	if len(gated) != 1 {
+		t.Fatalf("want one gated row, got %d:\n%s", len(gated), found.Text())
+	}
+	if gated[0].Corpus != "YANG enumerations" || gated[0].Symbol != "speeds" {
+		t.Errorf("the gated row names %q at %q, want the YANG enumerations corpus at speeds", gated[0].Corpus, gated[0].Symbol)
+	}
+	for _, want := range []string{"holds every value of", "console/device/speed", "gated by TestSpeedsMatchTheModel"} {
+		if !strings.Contains(gated[0].Detail, want) {
+			t.Errorf("the gated row says %q, want it to say %q", gated[0].Detail, want)
+		}
+	}
+}
+
+// TestGatedMarkerOnARegistryCopyIsAFinding is rule 1: a registry has one
+// declaration and a copy of it derives from it. A gated marker there excuses
+// nothing, the copy stays a finding, and the marker is reported beside it.
+func TestGatedMarkerOnARegistryCopyIsAFinding(t *testing.T) {
+	found := fixtureFindings(t, "gated-flat")
+	wantOneCopy(t, found, "family names", "shipped")
+	if gated := ofKind(found, KindGated); len(gated) != 0 {
+		t.Fatalf("a registry copy was gated:\n%s", found.Text())
+	}
+	markers := ofKind(found, KindMarker)
+	if len(markers) != 1 || !strings.Contains(markers[0].Detail, "derive the set instead") {
+		t.Fatalf("want one marker finding saying to derive the set, got:\n%s", found.Text())
+	}
+}
+
+// TestGatedMarkerNamingAMissingTestIsAFinding is rule 2: the name after
+// `gated by` is a Go test function that some _test.go under the walked roots
+// declares. A marker naming a test that does not exist, or naming something
+// that is not a test, gates nothing: the literal stays a finding and the
+// marker is reported, naming what it asked for.
+func TestGatedMarkerNamingAMissingTestIsAFinding(t *testing.T) {
+	found := fixtureFindings(t, "gated-missing-test")
+	if literals := ofKind(found, KindLiteral); len(literals) != 2 {
+		t.Fatalf("want both literals reported, got %d:\n%s", len(literals), found.Text())
+	}
+	if gated := ofKind(found, KindGated); len(gated) != 0 {
+		t.Fatalf("a marker naming no declared test gated a row:\n%s", found.Text())
+	}
+	markers := ofKind(found, KindMarker)
+	if len(markers) != 2 {
+		t.Fatalf("want two marker findings, got %d:\n%s", len(markers), found.Text())
+	}
+	said := map[string]bool{}
+	for _, marker := range markers {
+		if strings.Contains(marker.Detail, "TestSpeedsNeverWritten") {
+			said["missing"] = true
+		}
+		if strings.Contains(marker.Detail, "names no Go test") {
+			said["not a test"] = true
+		}
+	}
+	for _, want := range []string{"missing", "not a test"} {
+		if !said[want] {
+			t.Errorf("no marker finding says the marker is %s:\n%s", want, found.Text())
+		}
+	}
+}
+
+// TestDeadGatedMarkerIsReported is rule 3: a gated marker that suppresses no
+// finding is a finding, exactly as a dead exemption is, so a marker cannot
+// outlive the table it was written for.
+func TestDeadGatedMarkerIsReported(t *testing.T) {
+	found := fixtureFindings(t, "gated-dead")
+	if len(found) != 1 {
+		t.Fatalf("want one finding, got %d:\n%s", len(found), found.Text())
+	}
+	if found[0].Kind != KindMarker || !strings.Contains(found[0].Detail, "suppresses nothing") {
+		t.Fatalf("want the dead-marker finding, got %+v", found[0])
+	}
+}
+
+// TestCheckDoesNotBlockOnAGatedRow is rule 4 through the action: a change set
+// whose only row is gated answers that row and exit 0, because the backlog
+// stays visible while the gate stops blocking on it.
+func TestCheckDoesNotBlockOnAGatedRow(t *testing.T) {
+	root := checkoutRoot(t)
+	// The package holds one table, the as-notation tokens, gated by the
+	// agreement test in internal/component/bgp/config.
+	publishScope(t, root, []string{"./internal/core/bgp/asn"})
+
+	report, code := checkReport(t)
+	if code != 0 {
+		t.Fatalf("the check answered %d over a change set holding only a gated row, want 0:\n%s", code, report.Text())
+	}
+	gated := ofKind(report.Findings, KindGated)
+	if len(gated) == 0 {
+		t.Fatalf("the check dropped the gated row from its answer:\n%s", report.Text())
+	}
+	if len(gated) != len(report.Findings) {
+		t.Fatalf("the check answered rows beside the gated one:\n%s", report.Text())
+	}
+}
+
+// TestGatedMarkerOnAUnitThatAlsoRestatesARegistry is the other half of rule
+// 1: one unit can hold every value of an enumeration AND two registry keys
+// (firewall's ianaProtocolNumbers spells ospf and vrrp). The marker gates the
+// enumeration row, the registry copy stays a finding, and the marker is not
+// reported as misused, because it did its job.
+func TestGatedMarkerOnAUnitThatAlsoRestatesARegistry(t *testing.T) {
+	found := fixtureFindings(t, "gated-both")
+	wantOneCopy(t, found, "plugin names", "table")
+	if gated := ofKind(found, KindGated); len(gated) != 1 || gated[0].Corpus != "YANG enumerations" {
+		t.Fatalf("want the enumeration row gated, got:\n%s", found.Text())
+	}
+	if markers := ofKind(found, KindMarker); len(markers) != 0 {
+		t.Fatalf("a marker that gated a row is reported as misused:\n%s", found.Text())
 	}
 }

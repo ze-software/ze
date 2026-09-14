@@ -668,6 +668,7 @@ const (
 )
 
 // xfrmEncNames maps a non-AEAD cipher word to its kernel transform.
+// enumeration: gated by TestXfrmCipherVocabularyMatchesModel
 var xfrmEncNames = map[string]string{
 	"aes128": xfrmEncAESCBC,
 	"aes256": xfrmEncAESCBC,
@@ -702,6 +703,7 @@ type xfrmAuthTransform struct {
 }
 
 // xfrmAuthNames maps an integrity algorithm word to its kernel transform.
+// enumeration: gated by TestXfrmAuthVocabularyMatchesModel
 var xfrmAuthNames = map[string]xfrmAuthTransform{
 	"sha256": {name: xfrmAuthSHA256, truncLen: 128},
 	"sha384": {name: "hmac(sha384)", truncLen: 192},

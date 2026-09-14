@@ -347,6 +347,7 @@ func certBundlePEM(entry *CertificateEntry) (*plugin.Response, error) {
 	}, nil
 }
 
+// enumeration: gated by TestFingerprintAlgorithmsMatchTheModel
 const (
 	algoSHA256 = "sha256"
 	algoSHA384 = "sha384"

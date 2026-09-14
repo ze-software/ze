@@ -27,6 +27,7 @@ const (
 	maxLocationLen = 100
 )
 
+// enumeration: gated by TestAddressFamiliesMatchTheModel
 const (
 	addressFamilyBoth     = "both"
 	addressFamilyIPv4Only = "ipv4-only"

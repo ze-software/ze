@@ -25,6 +25,7 @@ var bfdRawCapture BFDRawCaptureProvider
 // operator, and TestCaptureRawActionsMatchTheModel holds the two together,
 // because each word selects a handler the model cannot name
 // (ai/rules/principles.md).
+// enumeration: gated by TestCaptureRawActionsMatchTheModel
 const (
 	captureRawActionStart = "start"
 	captureRawActionStop  = "stop"

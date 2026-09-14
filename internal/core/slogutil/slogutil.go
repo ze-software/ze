@@ -130,6 +130,7 @@ func Subsystems() []SubsystemInfo {
 }
 
 // Log level and backend string constants.
+// enumeration: gated by TestLogBackendLeafMatchesSlogutil
 const (
 	levelDisabled = "disabled"
 	levelDebug    = "debug"

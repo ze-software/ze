@@ -39,6 +39,7 @@ var ErrAuthModeInvalid = errors.New("auth-mode: invalid value")
 // String returns the YANG-string form of a mode; unknown values return
 // "unspecified" so log messages never panic on a corrupted enum.
 func (m AuthMode) String() string {
+	// enumeration: gated by TestAuthModesMatchTheModel
 	switch m {
 	case AuthNone:
 		return "none"
@@ -59,6 +60,7 @@ func (m AuthMode) String() string {
 // distinguish "operator did not set auth-mode" from "operator set an invalid
 // value". Any other unknown value returns a wrapped ErrAuthModeInvalid.
 func ParseAuthMode(s string) (AuthMode, error) {
+	// enumeration: gated by TestAuthModesMatchTheModel
 	switch s {
 	case "":
 		return AuthUnspecified, nil

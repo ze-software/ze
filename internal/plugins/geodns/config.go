@@ -114,6 +114,7 @@ const configValueTrue = "true"
 // client from, and the SOA serial modes, each selecting how computeSerial
 // numbers a generation. Both sets are declared here once and the words below
 // are the words those two branch on.
+// enumeration: gated by TestSerialModesMatchTheModel
 const (
 	clientIPSourceEDNS0           = "edns0"
 	clientIPSourcePacket          = "packet"

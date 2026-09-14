@@ -52,6 +52,7 @@ const (
 	QdiscIngress           // ingress
 )
 
+// enumeration: gated by TestParsedNamesMatchTheModel
 var qdiscTypeNames = map[QdiscType]string{
 	QdiscHTB:     "htb",
 	QdiscHFSC:    "hfsc",
@@ -120,6 +121,7 @@ const (
 	FilterProtocol            // protocol
 )
 
+// enumeration: gated by TestParsedNamesMatchTheModel
 var filterTypeNames = map[FilterType]string{
 	FilterMark:     "mark",
 	FilterDSCP:     "dscp",

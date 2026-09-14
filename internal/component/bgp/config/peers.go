@@ -648,6 +648,7 @@ type roleChainObligation struct {
 // (internal/component/bgp/plugins/role/yang/ze-role.yang). A role absent from
 // this table obliges nothing, which is the answer a peer that declares no role
 // gets: no relationship is stated, so none is implied.
+// enumeration: gated by TestLeakFilterRolesMatchTheYANGModel
 var leakFilterByRole = map[string]roleChainObligation{
 	"peer":      {importChain: true, exportChain: true},
 	"provider":  {importChain: true},

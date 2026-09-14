@@ -173,6 +173,7 @@ const (
 // authMethodNames spells each method as the YANG enum spells it. It is the one
 // declaration both String and parseAuthMethod read, so the two can never name
 // different sets.
+// enumeration: gated by TestAuthMethodVocabularyMatchesModel
 var authMethodNames = map[AuthMethod]string{
 	AuthMethodPAP:         "pap",
 	AuthMethodCHAP:        "chap",

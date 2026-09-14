@@ -84,6 +84,7 @@ func nameIndex[T comparable](names map[T]string) map[string]T {
 	return index
 }
 
+// enumeration: gated by TestParsedNamesMatchTheModel
 var familyNames = map[TableFamily]string{
 	FamilyInet:   "inet",
 	FamilyIP:     "ip",
@@ -134,6 +135,7 @@ const (
 // Hook names in the config surface: what the `hook` leaf accepts and what
 // String() prints. The table below names each hook once, and the parser is the
 // index of that table.
+// enumeration: gated by TestParsedNamesMatchTheModel
 const (
 	hookNameInput       = "input"
 	hookNameOutput      = "output"
@@ -187,6 +189,7 @@ const (
 	ChainRoute                 // route
 )
 
+// enumeration: gated by TestParsedNamesMatchTheModel
 var chainTypeNames = map[ChainType]string{
 	ChainFilter: "filter",
 	ChainNAT:    "nat",

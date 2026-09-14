@@ -182,6 +182,7 @@ func resolveChain(kc KeyChainConfig) *keyChain {
 // key-chains/key/algorithm) to the packet auth algorithm. The tokens MUST match
 // the schema enum (cleartext / hmac-md5 / hmac-sha-1 / hmac-sha-256 / ...).
 func algoFromString(s string) (packet.AuthAlgorithm, bool) {
+	// enumeration: gated by TestKeyChainAlgorithmVocabularyMatchesModel
 	switch s {
 	case "cleartext":
 		return packet.AuthAlgoCleartext, true

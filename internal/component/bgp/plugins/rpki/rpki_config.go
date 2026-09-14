@@ -40,6 +40,7 @@ const (
 // answers cannot drift. The same three words are the `action/invalid`
 // enumeration of ze-bgp-conf.yang, and
 // TestASPAPolicyNamesMatchTheYANGModel holds the two together.
+// enumeration: gated by TestASPAPolicyNamesMatchTheYANGModel
 var aspaPolicyNames = [...]string{
 	ASPAPolicyReject:  "reject",
 	ASPAPolicyLogOnly: "log-only",

@@ -44,6 +44,7 @@ const (
 
 // String renders the operator spelling of this direction.
 func (d SPDDirection) String() string {
+	// enumeration: gated by TestVocabularyMatchesModel
 	switch d {
 	case SPDDirOut:
 		return "out"

@@ -34,6 +34,7 @@ import (
 var ErrIncompleteConfig = errors.New("incomplete config")
 
 // Config tree string constants (shared with reactor.go to satisfy goconst).
+// enumeration: gated by TestAddPathModeKeywordsMatchTheYANGModel
 const (
 	valTrue    = "true"
 	valFalse   = "false"

@@ -34,6 +34,7 @@ const (
 	EncryptionAES256CCM16 // AES-CCM-256 with 16-byte ICV
 )
 
+// enumeration: gated by TestVocabularyMatchesModel
 var encryptionNames = map[EncryptionAlgo]string{
 	EncryptionAES128:       "aes128",
 	EncryptionAES256:       "aes256",
@@ -119,6 +120,7 @@ const (
 	HashSHA512           // HMAC-SHA-512-256
 )
 
+// enumeration: gated by TestVocabularyMatchesModel
 var hashNames = map[HashAlgo]string{
 	HashSHA1:   "sha1",
 	HashSHA256: "sha256",
@@ -211,6 +213,7 @@ const (
 	AuthEAPMD5
 )
 
+// enumeration: gated by TestVocabularyMatchesModel
 var authModeNames = map[AuthMode]string{ //nolint:gosec // enum name, not a credential
 	AuthPreSharedSecret: "pre-shared-secret",
 	AuthX509:            "x509",
@@ -285,6 +288,7 @@ const (
 	CloseActionRestart
 )
 
+// enumeration: gated by TestVocabularyMatchesModel
 var closeActionNames = map[CloseAction]string{
 	CloseActionNone:    "none",
 	CloseActionStart:   "start",
@@ -322,6 +326,7 @@ const (
 	DPDActionClear
 )
 
+// enumeration: gated by TestVocabularyMatchesModel
 var dpdActionNames = map[DPDAction]string{
 	DPDActionRestart: "restart",
 	DPDActionHold:    "hold",

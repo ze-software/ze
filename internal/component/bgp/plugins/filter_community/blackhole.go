@@ -16,6 +16,7 @@ import (
 
 // Values of the blackhole-propagation leaf. The two live tokens are the two
 // communities RFC 7999 Section 3.2 names, spelled as RFC 1997 spells them.
+// enumeration: gated by TestBlackholeGuardTokensMatchTheYANGModel
 const (
 	blackholeGuardNone        = "none"
 	blackholeGuardNoExport    = "no-export"

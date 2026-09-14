@@ -284,6 +284,7 @@ const (
 // Neighbor family tokens an operator types. The `family` leaf of
 // ze-iface-show-cmd.yang declares the same four words, and
 // enum_model_test.go holds the two together.
+// enumeration: gated by TestNeighborFamilyTokensMatchTheModel
 const (
 	neighborTokenIPv4 = "ipv4"
 	neighborTokenIPv6 = "ipv6"

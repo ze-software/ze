@@ -937,6 +937,7 @@ var byteRateMultiplier = map[string]uint64{
 // four words, because a pattern is the only way YANG can constrain half of a
 // string. That is the copy this table is checked against
 // (config_rate_test.go).
+// enumeration: gated by TestLimitUnitsMatchTheModel
 var rateUnitSeconds = map[string]uint64{
 	"second": 1,
 	"minute": 60,
@@ -1276,6 +1277,7 @@ func parseICMPv6Type(v string) (uint8, error) {
 }
 
 // setTypeFromString maps YANG set type names to SetType values.
+// enumeration: gated by TestParsedNamesMatchTheModel
 var setTypeFromString = map[string]SetType{
 	"ipv4":         SetTypeIPv4,
 	"ipv6":         SetTypeIPv6,
@@ -1457,6 +1459,7 @@ var globalOptionDefs = map[string]globalOptionDef{
 
 const sourceValidationKey = "net.ipv4.conf.all.rp_filter"
 
+// enumeration: gated by TestParsedNamesMatchTheModel
 var sourceValidationValues = map[string]string{
 	"disable": "0",
 	"strict":  "1",

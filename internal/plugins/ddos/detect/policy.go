@@ -20,6 +20,7 @@ import (
 // resolve to deny (fail-safe: defend).
 
 // Enum string values -- these MUST match the YANG enum leaf values verbatim.
+// enumeration: gated by TestPolicyWordsMatchTheModel
 const (
 	actionAllow = "allow"
 	actionDeny  = "deny"

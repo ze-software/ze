@@ -38,9 +38,13 @@ Two readings, which is the owner's call:
 | A. A gated row is done | the closed corpus reads the `_test.go` files of the package (and, for a bottom-tier package, of the package its test lives in) for the leaf path string beside a model-loader call, and reports the row as `gated by TestX` rather than as a finding; a test that names a path no leaf holds is itself a finding | one reader in `internal/le/enumeration/corpus.go`; the 64 rows leave `report` and `check` |
 | B. A gated row stays a finding | nothing; AC-1 is reworded so a row with a named agreement test counts as "named in this spec" | the report stops being a work list for the closed corpus, and `check` keeps blocking the 64 files |
 
-Reading A is recommended: it is what the gate's own row text asks for ("the two
-must agree") made checkable. Until the owner answers, the 64 rows are listed in
-Known Limitations by test name.
+**Decided: reading A (owner, 2026-09-14).** The gate learns a second marker,
+`// enumeration: gated by TestX`, honoured only on a closed-corpus finding, only
+when `TestX` exists in a `_test.go` the walk reads, and red where it suppresses
+nothing. A gated row leaves the findings and `check` does not block on it, but
+`report` still prints it in its own section, so the backlog stays visible. A
+marker that gates a plain copy of the model is the misuse this marker is not
+for: a plain copy derives.
 
 ## Task
 
@@ -317,9 +321,9 @@ types matched to the log backend leaf (`test/runner/record_parse_vocabulary.go`)
 ## Work Not Done
 | Item | Home |
 |------|------|
-| Where the standard family registrations live, so the 7 family rows can derive and `kernelcap.labeledFamilies` stops being a fail-open guard | `plan/next/spec-standard-families-register-outside-the-bgp-tag.md` (to write) |
-| The 121 feature-owned `doctor-*` codes still declared in `internal/core/diagnostic/codes.go`; moving them breaks `ze explain` on a build without the feature's tag | `plan/next/spec-doctor-codes-move-to-their-owners.md` (to write) |
-| The gate learning to see an agreement test (Open decision, reading A) | this spec, once the owner answers |
+| Where the standard family registrations live, so the 7 family rows can derive and `kernelcap.labeledFamilies` stops being a fail-open guard | `plan/spec-standard-families-register-outside-the-bgp-tag.md` (skeleton) |
+| The 121 feature-owned `doctor-*` codes still declared in `internal/core/diagnostic/codes.go`; moving them breaks `ze explain` on a build without the feature's tag | `plan/spec-doctor-codes-move-to-their-owners.md` (skeleton) |
+| The gate learning to see an agreement test (Open decision, reading A) | this spec: the owner chose reading A on 2026-09-14, and the `enumeration: gated by TestX` marker is its implementation |
 
 ## Checklist
 

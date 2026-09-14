@@ -35,6 +35,7 @@ const (
 // words to an operator; TestDNSLookupTypesMatchTheModel holds the two
 // together, because neither side can be derived from the other
 // (ai/rules/principles.md).
+// enumeration: gated by TestDNSLookupTypesMatchTheModel
 var dnsLookups = map[string]dnsStdlibLookup{
 	"A":     lookupA,
 	"AAAA":  lookupAAAA,

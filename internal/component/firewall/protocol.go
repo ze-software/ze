@@ -10,6 +10,7 @@ import "slices"
 // field). It is the single source of truth shared by every firewall backend --
 // the nftables L4PROTO match, the VPP classify table, and the VPP NAT44 static
 // mapping -- so the backends must not keep private copies that can drift apart.
+// enumeration: gated by TestParsedNamesMatchTheModel
 var ianaProtocolNumbers = map[string]uint8{
 	"tcp": 6, "udp": 17, "icmp": 1, "icmpv6": 58,
 	"sctp": 132, "gre": 47, "esp": 50, "ah": 51,

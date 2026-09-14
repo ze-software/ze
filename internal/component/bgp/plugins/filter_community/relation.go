@@ -23,6 +23,7 @@ import "encoding/binary"
 // The tokens themselves are RFC 9234 Section 4.1 Table 1 role names, not a
 // private vocabulary. So the two spellings cannot drift without the RFC
 // changing.
+// enumeration: gated by TestRelationRoleTokensMatchTheYANGModel
 const (
 	roleProvider = "provider"
 	roleCustomer = "customer"

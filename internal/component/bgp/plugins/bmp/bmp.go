@@ -38,6 +38,7 @@ var errPluginNotInitialized = errors.New("plugin not initialized")
 // Route-monitoring policy values (the YANG leaf's enum). Named constants rather
 // than repeated literals so a typo in one arm of the dispatch cannot silently
 // disable a direction.
+// enumeration: gated by TestRouteMonitoringPolicyNamesMatchTheYANGModel
 const (
 	policyPrePolicy  = "pre-policy"  // Route Monitoring for received UPDATEs only
 	policyPostPolicy = "post-policy" // Route Monitoring for sent UPDATEs only

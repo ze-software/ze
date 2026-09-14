@@ -1394,6 +1394,7 @@ var terminalKeywords = map[string]bool{
 }
 
 // scopeKeywords are positional scope keywords (must appear first).
+// enumeration: gated by TestRIBScopeKeywordsMatchTheYANGModel
 var scopeKeywords = map[string]string{
 	"advertised":    scopeSent,
 	"sent":          scopeSent,

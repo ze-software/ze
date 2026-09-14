@@ -35,6 +35,7 @@ const (
 )
 
 // Trigger keywords for archive blocks.
+// enumeration: gated by TestTriggerVocabularyMatchesModel
 const (
 	TriggerCommit = "commit"
 	TriggerManual = "manual"
