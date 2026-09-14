@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/softver/yang"
@@ -217,8 +218,11 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			continue
 		}
 
-		version := decodeSoftwareVersion(data)
-		if version == "" && len(data) == 0 {
+		version, ok := decodeSoftwareVersion(data)
+		if !ok {
+			// Section 3's encoding error: a zero Capability Length, a value
+			// shorter than its own length octet, or invalid UTF-8. Each is
+			// reported as unknown, which is how this path ignores it.
 			writeUnknown()
 			continue
 		}
@@ -244,16 +248,36 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 	return 0
 }
 
-// decodeSoftwareVersion decodes software-version capability wire bytes.
-func decodeSoftwareVersion(data []byte) string {
+// decodeSoftwareVersion decodes software-version capability wire bytes and
+// reports whether the value was well formed. A false ok is the draft's
+// "encoding error": the caller ignores the capability and shows no version.
+//
+// draft-abraitis-bgp-version-capability Section 3: "The Capability Length for
+// the Software Version Capability MUST be greater than zero.  A value of zero
+// SHALL be treated as an encoding error and the Capability MUST be ignored."
+// data holds the Capability Value, so a Capability Length of zero arrives here
+// as an empty slice. A value whose own length octet is zero is refused on the
+// same ground: the capability then carries no version at all, which is the
+// state Section 3 requires a receiver to ignore rather than to display.
+//
+// draft-abraitis-bgp-version-capability Section 3: "The Version field MUST be
+// encoded using UTF-8.  A receiving BGP speaker MUST NOT interpret invalid
+// UTF-8 sequences." Go's string conversion never fails, so an unchecked
+// conversion would hand invalid bytes to the renderer and interpret them. The
+// validity test is what stops that, and it runs before any caller sees a value.
+func decodeSoftwareVersion(data []byte) (string, bool) {
 	if len(data) < 1 {
-		return ""
+		return "", false
 	}
 	vLen := int(data[0])
-	if len(data) < 1+vLen {
-		return ""
+	if vLen == 0 || len(data) < 1+vLen {
+		return "", false
 	}
-	return string(data[1 : 1+vLen])
+	value := data[1 : 1+vLen]
+	if !utf8.Valid(value) {
+		return "", false
+	}
+	return string(value), true
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.
@@ -264,7 +288,15 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 		return 1
 	}
 
-	version := decodeSoftwareVersion(data)
+	version, ok := decodeSoftwareVersion(data)
+	if !ok {
+		// The capability is ignored, so no version is shown. Section 3 gives
+		// the receiver one answer for a zero Capability Length and for invalid
+		// UTF-8 alike, and printing an empty value would interpret both.
+		var eb textbuf.Buffer
+		_, _ = io.WriteString(stderr, eb.Str("error: software-version capability ignored: encoding error").Byte('\n').String())
+		return 1
+	}
 
 	if textOutput {
 		_, _ = fmt.Fprintf(stdout, "%-20s %s\n", "software-version", version) //nolint:errcheck // output

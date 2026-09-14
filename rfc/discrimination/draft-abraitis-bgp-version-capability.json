@@ -1,0 +1,192 @@
+{
+  "rfc": "draft-abraitis-bgp-version-capability",
+  "records": [
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionDisables",
+      "unit-sha": "e295c47bb25e26a8",
+      "claim-sha": "a454bd9e94eebf3f",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::extractSoftverCapabilities",
+      "producer-sha": "3ab5d55b9bddf3cf",
+      "break": "line 147: \"!\" -\u003e \"\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverConfigOptionEnables",
+      "unit-sha": "d763fe7c9d27c364",
+      "claim-sha": "d90274421dd6d2e4",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::extractSoftverCapabilities",
+      "producer-sha": "3ab5d55b9bddf3cf",
+      "break": "line 143: \"peerHasExplicit\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultIsNotABlanketRefusal",
+      "unit-sha": "04332bfac9678b46",
+      "claim-sha": "98a3f73c1a0a5203",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::encodeValue",
+      "producer-sha": "a7b3840774cc31b8",
+      "break": "line 53: \"len(version) \u003e 255\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverDefaultsToDisabled",
+      "unit-sha": "a006e3d3f35296d2",
+      "claim-sha": "82aff66d8041c744",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::extractSoftverCapabilities",
+      "producer-sha": "3ab5d55b9bddf3cf",
+      "break": "line 147: \"!\" -\u003e \"\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverCapabilityLengthIsGreaterThanZero",
+      "unit-sha": "90835df3c4f17555",
+      "claim-sha": "1bf7612e89d80c3c",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::encodeValue",
+      "producer-sha": "a7b3840774cc31b8",
+      "break": "line 53: \"len(version) \u003e 255\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroCapabilityLengthIsRefused",
+      "unit-sha": "aa99c618c92be7d7",
+      "claim-sha": "ce6a939e047d42e2",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 269: \"len(data) \u003c 1\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedValueIsNotAnEncodingError",
+      "unit-sha": "4756ea99b54d0f7f",
+      "claim-sha": "e99555e1517cab59",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 269: \"len(data) \u003c 1\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueIsAnEncodingError",
+      "unit-sha": "96d336d46dfbe9c5",
+      "claim-sha": "9b3a708a5e267f09",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 269: \"len(data) \u003c 1\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverWellFormedCapabilityIsNotIgnored",
+      "unit-sha": "7f0bcb131130d807",
+      "claim-sha": "7361e103585c7e86",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::RunDecodeMode",
+      "producer-sha": "e916339af0b363a9",
+      "break": "line 204: \"parts[capIdx] != \\\"capability\\\"\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverZeroValueCapabilityIsIgnored",
+      "unit-sha": "a084319df173fa1f",
+      "claim-sha": "e27a45d3091cb150",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 269: \"len(data) \u003c 1\" -\u003e \"false\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNonUTF8VersionFieldIsRefused",
+      "unit-sha": "d9a6ed55964ff8d9",
+      "claim-sha": "b0c54858dd193d56",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 276: \"+\" -\u003e \"-\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverVersionFieldIsUTF8",
+      "unit-sha": "758288ec3ed37633",
+      "claim-sha": "54b15df7ccaff91e",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::encodeValue",
+      "producer-sha": "a7b3840774cc31b8",
+      "break": "line 53: \"len(version) \u003e 255\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverInvalidUTF8IsNotInterpreted",
+      "unit-sha": "39b0645700416508",
+      "claim-sha": "25b1564bdc00efa0",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 276: \"+\" -\u003e \"-\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverValidMultiByteUTF8IsInterpreted",
+      "unit-sha": "d94cee86a8cf00eb",
+      "claim-sha": "1e32e2f4d29e229f",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+      "producer-sha": "72bcf4b9f5052418",
+      "break": "line 269: \"len(data) \u003c 1\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverProductIdentifierCarriesNothingNonessential",
+      "unit-sha": "522a7905de0c0f5f",
+      "claim-sha": "150787a5e5fe27df",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::encodeValue",
+      "producer-sha": "a7b3840774cc31b8",
+      "break": "line 53: \"len(version) \u003e 255\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration",
+      "unit-sha": "f089bd20c3298a30",
+      "claim-sha": "f681fb467585b017",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::encodeValue",
+      "producer-sha": "a7b3840774cc31b8",
+      "break": "line 53: \"len(version) \u003e 255\" -\u003e \"true\""
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration",
+      "unit-sha": "526f5bce91345c6e",
+      "claim-sha": "36de39b54616626f",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/softver/softver.go::extractSoftverCapabilities",
+      "producer-sha": "3ab5d55b9bddf3cf",
+      "break": "line 147: \"!\" -\u003e \"\""
+    }
+  ]
+}

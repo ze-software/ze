@@ -411,6 +411,22 @@ draft-abraitis-bgp-version-capability, revision 18
 | Version Len | 1 | Length of version string |
 | Version String | Variable | UTF-8 software version |
 
+Section 3 of the draft gives a receiver one answer for a Capability Value it
+cannot read: "A value of zero SHALL be treated as an encoding error and the
+Capability MUST be ignored", and "A receiving BGP speaker MUST NOT interpret
+invalid UTF-8 sequences". `decodeSoftwareVersion`
+(`internal/component/bgp/plugins/softver/softver.go`) reports an encoding error
+for three shapes, and ze then shows no version at all rather than an empty one:
+a Capability Value of zero octets, a Version Len of zero or one longer than the
+octets that follow it, and a Version String that is not valid UTF-8.
+
+The session receive path never reaches that decoder. `parseCapability`
+(`internal/core/bgp/capability/capability.go`) has no case for code 75, so a
+received Software Version Capability becomes an `Unknown` that no ze decision
+reads. `ze bgp decode capability 75 <hex>` is the operator path into it.
+
+<!-- source: internal/component/bgp/plugins/softver/softver.go -- decodeSoftwareVersion, the three encoding errors and the ignore -->
+
 ---
 
 ## Capability Negotiation

@@ -24,16 +24,21 @@ func TestDecodeSoftwareVersion(t *testing.T) {
 		name     string
 		hex      string
 		expected string
+		ok       bool
 	}{
-		{"basic", "057a65626770", "zebgp"},
-		{"empty", "00", ""},
-		{"too_short", "057a65", ""},
+		{"basic", "057a65626770", "zebgp", true},
+		{"empty_version_string", "00", "", false},
+		{"zero_capability_length", "", "", false},
+		{"too_short", "057a65", "", false},
+		{"invalid_utf8", "03c328610000", "", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, _ := hex.DecodeString(tt.hex)
-			assert.Equal(t, tt.expected, decodeSoftwareVersion(data))
+			version, ok := decodeSoftwareVersion(data)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.expected, version)
 		})
 	}
 }
@@ -149,14 +154,20 @@ func TestEncodeValueBoundary(t *testing.T) {
 	data255 := make([]byte, 1+255)
 	data255[0] = 255
 	copy(data255[1:], version255)
-	assert.Equal(t, version255, decodeSoftwareVersion(data255))
+	decoded, ok := decodeSoftwareVersion(data255)
+	assert.True(t, ok)
+	assert.Equal(t, version255, decoded)
 
-	// Test decode of 0-byte version (boundary: empty).
+	// Test decode of 0-byte version (boundary: empty, an encoding error).
 	data0 := []byte{0x00}
-	assert.Equal(t, "", decodeSoftwareVersion(data0))
+	decoded, ok = decodeSoftwareVersion(data0)
+	assert.False(t, ok)
+	assert.Equal(t, "", decoded)
 
 	// Test decode with nil input.
-	assert.Equal(t, "", decodeSoftwareVersion(nil))
+	decoded, ok = decodeSoftwareVersion(nil)
+	assert.False(t, ok)
+	assert.Equal(t, "", decoded)
 }
 
 func TestYANGSchema(t *testing.T) {
