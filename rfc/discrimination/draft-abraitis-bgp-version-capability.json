@@ -167,6 +167,50 @@
       "break": "line 53: \"len(version) \u003e 255\" -\u003e \"true\""
     },
     {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling",
+      "unit-sha": "2d1cdeb9d37aa1f5",
+      "claim-sha": "7b170b60cfb0e5e2",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::UnpackOpen",
+      "producer-sha": "3c949155f7d6d078",
+      "break": "body of UnpackOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityUsesExtendedOptionalParameters",
+      "unit-sha": "c1553db9fccecf4b",
+      "claim-sha": "2b0ecacf82330a6d",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/open.go::UnpackOpen",
+      "producer-sha": "3c949155f7d6d078",
+      "break": "body of UnpackOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing",
+      "unit-sha": "54f2c84e15b99fda",
+      "claim-sha": "9c92badce562e940",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "3301956a410f3cfb",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay",
+      "unit-sha": "dfd3dd6d922f4470",
+      "claim-sha": "6bbfaf8b2937b399",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+      "producer-sha": "3301956a410f3cfb",
+      "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration",
