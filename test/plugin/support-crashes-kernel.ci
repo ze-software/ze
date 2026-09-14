@@ -25,9 +25,22 @@ tmpfs=.support-out-keep:terminator=EOF_KEEP
 placeholder so the runner allocates an isolated working dir
 EOF_KEEP
 
-cmd=foreground:seq=1:exec=ze support --module crashes --json --output .
-expect=exit:code=0
+# `--json` prints the manifest and only the manifest: one {collected,
+# duration-ms} row per module (SupportManifest, internal/component/support/
+# support.go). The reports and the readiness block are in the ARCHIVE, so the
+# second command reads crashes.json back out of it and the assertions below it
+# hold on the bytes ze wrote there.
+cmd=foreground:seq=1:exec=ze support --module crashes --json --output .:exit=0
 expect=stdout:contains="crashes"
+expect=stdout:contains="collected": true
+
+# `expect=exit:code=` is what makes the runner WAIT for this command: a
+# foreground helper that is the last line of a file is otherwise started and
+# torn down without a Wait, and its stdout races the assertions below
+# (runOrchestrated, internal/test/runner/runner_exec.go).
+cmd=foreground:seq=2:exec=ze-test fixture plugin/support-crashes-archive
+expect=exit:code=0
 expect=stdout:contains="kind": "kernel"
 expect=stdout:contains="readiness"
 expect=stdout:contains=Kernel panic - not syncing
+reject=stderr:contains=ZE-OBSERVER-FAIL

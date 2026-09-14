@@ -671,6 +671,17 @@ keep their own default when it does not parse, so it is refused here instead.
 without blocking later steps. Its peers or observer determine when teardown starts.
 **Stop:** Terminates a named background process mid-test (see below).
 
+A foreground helper that is the LAST `cmd=` line is the exception, and a file
+that asserts on its output MUST declare `expect=exit:code=`. The runner waits
+for a foreground helper only while another command still follows it; as the last
+line it is classed with the daemons, so it is started and torn down with no
+`Wait`, and its output reaches the accumulators only if it wins that race. The
+exit assertion is what makes the runner wait for it (`fgProc.Wait()`), and the
+code it asserts is that helper's own. Without it an `expect=stdout:contains=`
+over the helper's span reads an empty buffer, and a `reject=` over the same span
+can never fail.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the foreground arm and the ExpectExitCode wait -->
+
 When an embedded observer sends `request shutdown`, teardown waits out that
 daemon's bounded self-stop grace before it stops any other background process,
 whatever order those processes started in. A helper the daemon still talks to

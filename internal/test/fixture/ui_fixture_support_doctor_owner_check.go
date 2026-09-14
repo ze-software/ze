@@ -1,14 +1,11 @@
 package fixture
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 )
@@ -102,50 +99,9 @@ func (e productExitError) ExitCode() int {
 }
 
 func supportDoctorCodes(archivePath string) ([]any, error) {
-	archiveFile, err := os.Open(archivePath) //nolint:gosec // the path is the fixture's own scratch file
+	doctorJSON, err := supportArchiveMember(archivePath, "doctor.json")
 	if err != nil {
-		return nil, fmt.Errorf("open support archive: %w", err)
-	}
-	defer archiveFile.Close() //nolint:errcheck // fixture teardown
-
-	gzipReader, err := gzip.NewReader(archiveFile)
-	if err != nil {
-		return nil, fmt.Errorf("open support archive gzip stream: %w", err)
-	}
-	defer gzipReader.Close() //nolint:errcheck // fixture teardown
-
-	tarReader := tar.NewReader(gzipReader)
-	var doctorJSON []byte
-	foundDoctor := false
-
-	for {
-		header, err := tarReader.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("read support archive: %w", err)
-		}
-		if header.Name != "doctor.json" {
-			continue
-		}
-
-		// Archive name lookup selects the last matching member. Keep replacing
-		// the saved value so duplicate entries have the same behavior.
-		foundDoctor = header.Typeflag == tar.TypeReg
-		doctorJSON = nil
-		if !foundDoctor {
-			continue
-		}
-
-		doctorJSON, err = io.ReadAll(tarReader)
-		if err != nil {
-			return nil, fmt.Errorf("read doctor.json from support archive: %w", err)
-		}
-	}
-
-	if !foundDoctor {
-		return nil, errors.New("support archive missing doctor.json")
+		return nil, err
 	}
 
 	var doctor struct {

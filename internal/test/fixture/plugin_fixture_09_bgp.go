@@ -455,9 +455,17 @@ func metricsNameShow09(ctx context.Context, _ []string) error {
 		// form is refused by the dispatcher and never reaches the handler. The
 		// handler's own "usage:" answer serves a caller that is not the command
 		// tree, and asking for it here would assert the opposite of the model.
+		//
+		// The refusal arrives as a Go ERROR and carries no status. A dispatcher
+		// that never reached a handler produces no answer for a status to be
+		// derived from, so DispatchCommand returns the empty string beside the
+		// error (answerValue, pkg/plugin/sdk/sdk_engine.go), and the documented
+		// contract reads status only when err is nil
+		// (docs/plugin-development/commands.md). A handler that runs and fails
+		// is the other shape, and the named form above asserts that one.
 		bare := dispatch09(ctx, p, "show metrics name")
-		if bare.status != statusError {
-			return fmt.Errorf("metrics-name: the bare form answered %q, want the model's refusal", bare.status)
+		if bare.err == nil {
+			return fmt.Errorf("metrics-name: the bare form answered status %q with no error, want the model's refusal: %s", bare.status, bare.text)
 		}
 		if !strings.Contains(bare.text, "required argument missing: name") {
 			return fmt.Errorf("metrics-name: the bare form was refused for something else: %s", bare.text)

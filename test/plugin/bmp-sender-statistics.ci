@@ -9,8 +9,8 @@
 # Flow:
 # 1. Start a native fixture BMP collector listener on $PORT2.
 # 2. Start ze as BMP sender with statistics-timeout 1, peered with ze-peer.
-# 3. ze-peer establishes; ze reports it up to the collector, then sends one
-#    Statistics Report per second.
+# 3. ze-peer establishes and lingers; ze reports it up to the collector, then
+#    sends one Statistics Report per second for as long as the peer is up.
 # 4. The collector validates TWO reports: at least one statistic, Stat Type 13
 #    four bytes wide, and the O flag clear. Two, because one report proves a
 #    report was sent and says nothing about a timer.
@@ -24,6 +24,14 @@ option=timeout:value=30s
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=update:value=send-route:prefix=10.20.30.0/24:origin-as=65001:next-hop=101.1.101.1
+# The peer holds the session open after its End-of-RIB expectation completes.
+# A Statistics Report is written for every peer in BMPPlugin.peerUps
+# (internal/component/bgp/plugins/bmp/statistics.go, sendStatisticsReports),
+# and the session-down event deletes that entry
+# (internal/component/bgp/plugins/bmp/bmp_events.go). A peer that closes on
+# completion therefore leaves ze with nothing to report on, and two reports one
+# second apart need the session up for more than two seconds.
+option=linger:value=true
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
