@@ -404,3 +404,11 @@ func networkHostAddress(network interoplab.Network, host uint8) string {
 	octets[3] = host
 	return netip.AddrFrom4(octets).String()
 }
+
+// networkHostAddress6 is the IPv6 sibling: host N on the selected /64, which
+// is the address Docker gives the container at Host N (addressAtHost).
+func networkHostAddress6(network interoplab.Network, host uint8) string {
+	octets := network.IPv6.Masked().Addr().As16()
+	octets[15] = host
+	return netip.AddrFrom16(octets).String()
+}

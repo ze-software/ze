@@ -856,3 +856,144 @@ func requireSpeakerEVPNDiscard(report string) error {
 	}
 	return nil
 }
+
+// gtsmPeerCounters is the GTSM receiver's own kernel reading of the related
+// ICMPv6 errors ze sent it: three per-namespace counters the FRR container
+// prints under /proc/net.
+//
+// minHopDrops is TcpExt TCPMinTTLDrop (/proc/net/netstat), which tcp_v6_err
+// increments when an ICMPv6 error about a socket carrying IPV6_MINHOPCOUNT
+// arrives with a hop limit below it. destUnreach is Icmp6InDestUnreachs
+// (/proc/net/snmp6), which proves an error ARRIVED at all. inErrors is
+// Icmp6InErrors, which tcp_v6_err increments when the quoted header names no
+// socket, so a delta of zero is what proves the error was read against the
+// BGP session and not discarded before the hop-limit check.
+type gtsmPeerCounters struct {
+	minHopDrops uint64
+	destUnreach uint64
+	inErrors    uint64
+}
+
+// parseGTSMPeerCounters reads the three counters out of the concatenated
+// /proc/net/netstat and /proc/net/snmp6 text. A counter that is not printed
+// is an error, never a zero: the receiver's kernel prints every counter it
+// holds, so an absent name means the wrong file or a truncated read.
+func parseGTSMPeerCounters(text string) (gtsmPeerCounters, error) {
+	minHopDrops, err := parseNetstatCounter(text, "TcpExt", "TCPMinTTLDrop")
+	if err != nil {
+		return gtsmPeerCounters{}, err
+	}
+	destUnreach, err := parseSNMP6Counter(text, "Icmp6InDestUnreachs")
+	if err != nil {
+		return gtsmPeerCounters{}, err
+	}
+	inErrors, err := parseSNMP6Counter(text, "Icmp6InErrors")
+	if err != nil {
+		return gtsmPeerCounters{}, err
+	}
+	return gtsmPeerCounters{minHopDrops: minHopDrops, destUnreach: destUnreach, inErrors: inErrors}, nil
+}
+
+// parseNetstatCounter reads one counter of /proc/net/netstat, whose sections
+// come as a header line naming the columns and a value line under it, both
+// opening with the section name and a colon.
+func parseNetstatCounter(text, section, name string) (uint64, error) {
+	prefix := section + ":"
+	var header []string
+	for _, line := range strings.Split(text, "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		fields := strings.Fields(strings.TrimPrefix(line, prefix))
+		if header == nil {
+			header = fields
+			continue
+		}
+		index := slices.Index(header, name)
+		if index < 0 {
+			return 0, fmt.Errorf("/proc/net/netstat section %s names no counter %s", section, name)
+		}
+		if index >= len(fields) {
+			return 0, fmt.Errorf("/proc/net/netstat section %s value line is shorter than its header", section)
+		}
+		value, err := strconv.ParseUint(fields[index], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("/proc/net/netstat %s %s: %w", section, name, err)
+		}
+		return value, nil
+	}
+	return 0, fmt.Errorf("/proc/net/netstat carries no %s section with a value line", section)
+}
+
+// parseSNMP6Counter reads one counter of /proc/net/snmp6, which prints one
+// "name value" pair on each line.
+func parseSNMP6Counter(text, name string) (uint64, error) {
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || fields[0] != name {
+			continue
+		}
+		value, err := strconv.ParseUint(fields[1], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("/proc/net/snmp6 %s: %w", name, err)
+		}
+		return value, nil
+	}
+	return 0, fmt.Errorf("/proc/net/snmp6 names no counter %s", name)
+}
+
+// gtsmErrorArrived reports whether the receiver counted at least one more
+// ICMPv6 Destination Unreachable since the reading before the stimulus. It is
+// the wait condition: the verdict below is read once this holds.
+func gtsmErrorArrived(before, after gtsmPeerCounters) bool {
+	return after.destUnreach > before.destUnreach
+}
+
+// requireRelatedICMPAccepted is the RFC 5082 Section 3 verdict, read on the
+// receiver's side. The error must have arrived, must have been matched to the
+// BGP session's socket, and must NOT have been dropped by the hop-limit floor
+// that IPV6_MINHOPCOUNT 255 installs.
+//
+// The three clauses are three observations of one event, and each one refuses
+// a different vacuous pass: no error at all, an error the kernel matched to no
+// session, and an error the session refused. Without the RTAX_HOPLIMIT metric
+// on ze's host route the error leaves at the interface default of 64, and the
+// third clause is the one that turns red.
+func requireRelatedICMPAccepted(before, after gtsmPeerCounters) error {
+	if !gtsmErrorArrived(before, after) {
+		return fmt.Errorf("FRR counted no ICMPv6 Destination Unreachable from ze (Icmp6InDestUnreachs %d before, %d after)",
+			before.destUnreach, after.destUnreach)
+	}
+	if after.inErrors != before.inErrors {
+		return fmt.Errorf("FRR matched an ICMPv6 error to no socket (Icmp6InErrors %d before, %d after), so the quoted header named no BGP session",
+			before.inErrors, after.inErrors)
+	}
+	if after.minHopDrops != before.minHopDrops {
+		return fmt.Errorf("FRR dropped ze's ICMPv6 error below its GTSM floor (TCPMinTTLDrop %d before, %d after): the error did not carry hop limit 255",
+			before.minHopDrops, after.minHopDrops)
+	}
+	return nil
+}
+
+// frrGTSMHops reads the hop count FRR applies ttl-security with, out of its
+// own neighbor JSON. Zero with a nil error never comes back: a neighbor with
+// no ttl-security prints no such field, and that is an error here because the
+// scenario's whole reading depends on FRR having armed the floor.
+func frrGTSMHops(neighborJSON string) (uint64, error) {
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(neighborJSON), &document); err != nil {
+		return 0, fmt.Errorf("decode FRR neighbor JSON: %w", err)
+	}
+	for _, raw := range document {
+		var neighbor struct {
+			Hops uint64 `json:"externalBgpNbrMaxHopsAway"`
+		}
+		if err := json.Unmarshal(raw, &neighbor); err != nil {
+			continue
+		}
+		if neighbor.Hops > 0 {
+			return neighbor.Hops, nil
+		}
+	}
+	return 0, errors.New("FRR neighbor JSON carries no externalBgpNbrMaxHopsAway, so ttl-security is not applied")
+}

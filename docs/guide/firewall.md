@@ -137,6 +137,19 @@ firewall {
 }
 ```
 
+### Tables another feature installs
+
+A `ze_` table is not always one the `firewall { }` section declared. A feature
+that needs kernel state of its own publishes a table through the same backend,
+so it appears beside yours in `show firewall ruleset <name>` and is withdrawn
+with the configuration that asked for it. One example: a BGP peer configured
+with `connection { ttl { max N; } }` (RFC 5082 GTSM) gets `ze_gtsm`, an input
+chain that drops an ICMP error which quotes that peer's BGP session and arrives
+below the peer's TTL floor. `show firewall ruleset gtsm` lists it, and removing
+the peer's `ttl` block removes it. The full list of table owners is in
+[table ownership](../architecture/firewall/table-ownership-and-shutdown-flush.md).
+<!-- source: internal/component/gtsm/gtsm.go -- filterTables, peerTerms -->
+
 ### Table Families
 
 `inet` (dual-stack), `ip`, `ip6`, `arp`, `bridge`, `netdev`.

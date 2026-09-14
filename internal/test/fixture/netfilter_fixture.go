@@ -42,6 +42,7 @@ func init() {
 	Register("firewall/flush-persist", func(ctx context.Context, _ []string) error {
 		return firewallPersist(ctx, "ze_fwpersist", syscall.SIGTERM, "SHUTDOWN")
 	})
+	Register("firewall/gtsm-related-icmp", gtsmRelatedICMP)
 
 	Register("flow-export/collector-reload", func(ctx context.Context, _ []string) error {
 		return reloadAndStop(ctx, 2500*time.Millisecond)

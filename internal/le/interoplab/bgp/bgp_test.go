@@ -530,6 +530,67 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("gtsm-related-icmp-ttl", func(t *testing.T) {
+		// The two files FRR's container prints, concatenated as the checker
+		// reads them, with the counters the verdict reads at their measured
+		// positions.
+		counters := func(minHopDrops, destUnreach, inErrors int) string {
+			return "TcpExt: SyncookiesSent TCPMinTTLDrop OutOfWindowIcmps\n" +
+				fmt.Sprintf("TcpExt: 0 %d 0\n", minHopDrops) +
+				"IpExt: InNoRoutes\nIpExt: 0\n" +
+				"Ip6InReceives                   \t10\n" +
+				fmt.Sprintf("Icmp6InErrors                   \t%d\n", inErrors) +
+				fmt.Sprintf("Icmp6InDestUnreachs             \t%d\n", destUnreach)
+		}
+		before, err := parseGTSMPeerCounters(counters(0, 4, 1))
+		if err != nil {
+			t.Fatalf("measured counters were refused: %v", err)
+		}
+		if before.minHopDrops != 0 || before.destUnreach != 4 || before.inErrors != 1 {
+			t.Fatalf("counters = %+v, want drops 0, unreach 4, errors 1", before)
+		}
+		if _, err := parseGTSMPeerCounters("TcpExt: SyncookiesSent\nTcpExt: 0\n"); err == nil {
+			t.Fatal("a netstat with no TCPMinTTLDrop column passed as a zero")
+		}
+		if _, err := parseGTSMPeerCounters(counters(0, 4, 1) + "Icmp6InDestUnreachs x\n"); err != nil {
+			t.Fatalf("the first spelling of a counter did not decide: %v", err)
+		}
+		if _, err := parseSNMP6Counter("Icmp6InErrors\t1\n", "Icmp6InDestUnreachs"); err == nil {
+			t.Fatal("an absent snmp6 counter passed as a zero")
+		}
+		accepted, _ := parseGTSMPeerCounters(counters(0, 5, 1))
+		if !gtsmErrorArrived(before, accepted) {
+			t.Fatal("one more Destination Unreachable was not read as an arrival")
+		}
+		if gtsmErrorArrived(before, before) {
+			t.Fatal("an unchanged counter was read as an arrival")
+		}
+		if err := requireRelatedICMPAccepted(before, accepted); err != nil {
+			t.Fatalf("an error delivered above the floor failed: %v", err)
+		}
+		if err := requireRelatedICMPAccepted(before, before); err == nil {
+			t.Fatal("no error arriving at all passed as accepted")
+		}
+		unmatched, _ := parseGTSMPeerCounters(counters(0, 5, 2))
+		if err := requireRelatedICMPAccepted(before, unmatched); err == nil {
+			t.Fatal("an error the kernel matched to no socket passed as accepted")
+		}
+		dropped, _ := parseGTSMPeerCounters(counters(1, 5, 1))
+		if err := requireRelatedICMPAccepted(before, dropped); err == nil {
+			t.Fatal("an error dropped below the GTSM floor passed as accepted")
+		}
+		hops, err := frrGTSMHops(`{"fd00:1e:2c::2":{"remoteAs":65001,"externalBgpNbrMaxHopsAway":1}}`)
+		if err != nil || hops != 1 {
+			t.Fatalf("hops = %d, %v; want 1", hops, err)
+		}
+		if _, err := frrGTSMHops(`{"fd00:1e:2c::2":{"remoteAs":65001}}`); err == nil {
+			t.Fatal("a neighbor with no ttl-security passed as armed")
+		}
+		if _, err := frrGTSMHops(""); err == nil {
+			t.Fatal("an empty neighbor answer passed as armed")
+		}
+	})
+
 	t.Run("no-family-peer-eor-frr", func(t *testing.T) {
 		const peer = "172.30.0.2"
 		decoded := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd End-of-RIB for IPv4 Unicast from " + peer + "\n"

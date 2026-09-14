@@ -63,6 +63,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"ospf-stub-nssa-frr":                    checkNSSADefault,
 	"ospf-ti-lfa-frr":                       checkOSPFTILFA,
 	"bgp-max-prefix-per-family-frr":         checkMaxPrefixPerFamily,
+	"gtsm-related-icmp-ttl":                 checkGTSMRelatedICMPTTL,
 }
 
 func checkBFDFailover(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {

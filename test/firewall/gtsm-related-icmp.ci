@@ -1,0 +1,69 @@
+# Test: A BGP peer with `connection ttl max N` installs the GTSM kernel state
+#       for its related ICMP messages, and removing the block withdraws it.
+# VALIDATES: spec-gtsm-related-icmp-ttl AC-1, AC-7, AC-8 -- the reactor
+#            publishes the peer to internal/component/gtsm, which installs a
+#            host route to the peer carrying hop limit 255 and the `ze_gtsm`
+#            nftables table; a reload without the `ttl` block withdraws both.
+# PREVENTS: a `ttl` block accepted by the parser whose kernel state never
+#           reaches the kernel, or outlives the configuration that asked for it.
+#
+# The peer never connects: the kernel state is derived from the peer's
+# configuration, not from a session, and RFC 5082 Section 3 wants it in place
+# before the first packet. The netns-link gives the test namespace an interface
+# carrying the peer's subnet, so the kernel resolves a route the host route
+# copies its nexthop from. Requires CAP_NET_ADMIN for the route and the table.
+
+option=needs-linux:caps=net-admin
+option=netns-link:name=zegtsm0:address=192.0.2.1/24
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 192.0.2.2; }
+			local  { ip 192.0.2.1; }
+			ttl { max 1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 192.0.2.2; }
+			local  { ip 192.0.2.1; }
+		}
+		session {
+			asn { local 65001; remote 65002; }
+			router-id 192.0.2.1;
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.gtsm:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test fixture firewall/gtsm-related-icmp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=table inet ze_gtsm
+expect=stdout:contains=chain input
+expect=stdout:contains=ip saddr 192.0.2.2
+expect=stdout:contains=drop
+expect=stdout:contains=hoplimit 255
+expect=stderr:contains=CONFIGURED: table present
+expect=stderr:contains=CONFIGURED: route present
+expect=stderr:contains=RELOADED: table withdrawn
+expect=stderr:contains=RELOADED: route withdrawn
