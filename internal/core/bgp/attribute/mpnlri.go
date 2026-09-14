@@ -366,11 +366,21 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 	case AFIIPv4:
 		switch safi {
 		case SAFIUnicast, SAFIMulticast:
-			return []int{4, 16} // plain IPv4 or RFC 5549 IPv6
+			// RFC 8950 Section 3, for <1/1>, <1/2> and <1/4>: "Length of Next
+			// Hop Address = 16 or 32" and "Next Hop Address = IPv6 address of a
+			// next hop (potentially followed by the link-local IPv6 address of
+			// the next hop). This field is to be constructed as per Section 3 of
+			// [RFC2545]." So the two-address form of RFC 2545 Section 3 is a
+			// length this AFI/SAFI carries, beside the plain IPv4 one.
+			return []int{4, 16, 32}
 		case SAFIMPLSLabel:
 			return []int{4}
 		case SAFIVPN:
-			return []int{12, 24} // RD+IPv4 or RD+IPv6
+			// RFC 8950 Section 3, for <1/128> and <1/129>: "Length of Next Hop
+			// Address = 24 or 48", the VPN-IPv6 address with its zero RD,
+			// "potentially followed by the link-local VPN-IPv6 address of the
+			// next hop with an 8-octet RD set to zero".
+			return []int{12, 24, 48} // RD+IPv4, RD+IPv6, or RD+IPv6 pair
 		case SAFISRPolicy:
 			return []int{4, 16} // RFC 9830: NH AFI independent of policy AFI
 		case SAFIFlowSpec, SAFIEVPN:

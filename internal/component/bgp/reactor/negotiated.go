@@ -21,6 +21,12 @@ type NegotiatedCapabilities struct {
 	RouteRefresh         bool                   // RFC 2918: Route refresh
 	EnhancedRouteRefresh bool                   // RFC 7313: Enhanced route refresh
 	ASN4                 bool                   // RFC 6793: 4-byte ASN support
+	// LinkLocalNextHop is draft-ietf-idr-linklocal-capability Section 2's
+	// condition: both speakers advertised capability 77, so the Section 3 to
+	// Section 6 procedures apply to this session. Ze reads it before it sends a
+	// 16-octet Link-Local-only Next Hop field (Peer.linkLocalOnlyNextHopPermitted,
+	// peer.go).
+	LinkLocalNextHop bool
 
 	// Nonzero PATHS-LIMIT facts, immutable after publication. Sending is
 	// enforced locally; receiving is only our advertised request to the peer.
@@ -46,6 +52,7 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 		RouteRefresh:         neg.RouteRefresh,
 		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
 		ASN4:                 neg.ASN4,
+		LinkLocalNextHop:     neg.LinkLocalNextHop,
 		HoldTime:             neg.HoldTime,
 		GracefulRestart:      neg.GracefulRestart,
 	}

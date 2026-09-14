@@ -676,7 +676,15 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		}
 
 		// RFC 4456: Route reflection forwarding rules.
-		if srcInfo.isIBGP && !facts.isEBGP {
+		//
+		// isReflected says this destination receives the route BY REFLECTION: the
+		// source is internal, the destination is internal, and one of the two is a
+		// client (the pair the refusal below leaves standing). Two rules read it,
+		// the RFC 4456 attribute injection and the
+		// draft-ietf-idr-linklocal-capability Section 4 next-hop gate, so it is
+		// derived once rather than spelled at each.
+		isReflected := srcInfo.isIBGP && !facts.isEBGP
+		if isReflected {
 			if !srcInfo.isRRClient && !facts.rrClient {
 				suppressedCount++
 				continue
@@ -741,7 +749,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		}
 
 		// RFC 4456: Route reflection attribute injection.
-		if srcInfo.isIBGP && !facts.isEBGP {
+		if isReflected {
 			mods.Op(9, filterapi.AttrModSet, origBuf[:])
 			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
@@ -788,6 +796,56 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				"peer", facts.addrStr, "next-hop", facts.addr,
 				"rfc", "RFC 4271 Section 5.1.3",
 				"action", "announcement not sent to this peer; withdrawals in the same UPDATE still are")
+			if srcWithdrawOnly == nil {
+				suppressedCount++
+				continue
+			}
+			peerBaseWire = srcWithdrawOnly
+		}
+
+		// draft-ietf-idr-linklocal-capability Section 4: "A Route Reflector (RR)
+		// reflecting a route with a link-local-only next hop MUST NOT advertise
+		// that route to a client unless the client shares the same link-layer
+		// segment as the original advertiser. For all other clients, the RR MUST
+		// either rewrite the next hop to its own address (next-hop-self) or
+		// consider the route ineligible for advertisement to that specific peer."
+		//
+		// ONE condition answers both sentences, because the second one's first
+		// answer removes the case the first one refuses: a client the operator
+		// configured a next-hop mode for carries ze's own address by now
+		// (applyFactsNextHop above), so the next hop about to be written is no
+		// longer link-local-only and the route goes. A client with no rewrite is
+		// the "ineligible for advertisement to that specific peer" arm, and this
+		// is where it is made ineligible.
+		//
+		// Asked AFTER the egress step pass and after applyFactsNextHop, and over
+		// the same resolved address as RFC 4271 Section 5.1.3 above, so a policy
+		// rewrite counts as the rewrite Section 4 names. The address is re-read
+		// when that gate replaced the payload with the withdrawal half, which
+		// carries no next hop and so is not refused a second time.
+		//
+		// THE PROHIBITION COVERS THE ANNOUNCEMENT, NOT THE WITHDRAWAL, which is
+		// the repair every gate above makes for the same reason: refusing the
+		// whole message would leave the client holding a prefix ze can no longer
+		// take back until the session resets.
+		//
+		// Section 4 also asks for the suppression to be visible: "implementations
+		// SHOULD log this suppression, or otherwise expose it through operator
+		// notification ... so that unexpected reachability gaps can be detected."
+		// The warning below is that log line.
+		if peerBaseWire != update.WireUpdate {
+			baseNextHop = payloadNextHop(peerBaseWire.Payload())
+		}
+		if isReflected && egressNextHopIsLinkLocalOnly(&mods, baseNextHop) &&
+			!sameLinkLayerSegment(peer.llScope.Load().connectedPrefixes(), srcAddr, facts.addr) {
+			if !withdrawOnlyDerived {
+				withdrawOnlyDerived = true
+				srcWithdrawOnly = wireu.WithdrawalsOnly(update.WireUpdate)
+			}
+			fwdLogger().Warn("withholding route: its next hop is link-local-only and this client is not on the advertiser's link-layer segment",
+				"peer", facts.addrStr, "advertiser", srcAddr,
+				"rfc", "draft-ietf-idr-linklocal-capability Section 4",
+				"action", "announcement not sent to this peer; configure next-hop self for it to have the next hop rewritten")
 			if srcWithdrawOnly == nil {
 				suppressedCount++
 				continue

@@ -6,33 +6,31 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// TestParseRouteAttributesRejectsLinkLocalNextHop drives the RFC 2545 Section 3
-// next-hop form guard from the config entry point that reaches it, rather than
-// from the helper alone.
+// TestParseRouteAttributesAcceptsLinkLocalNextHop drives the config entry point
+// for the one next-hop form the session rather than the config decides.
 //
-// RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
-// Address of Next Hop field the global IPv6 address of the next hop, potentially
-// followed by the link-local IPv6 address of the next hop." Ze appends the second
-// address itself when the section's condition holds, so a link-local supplied as
-// THE next hop has no global address to follow and the config is refused.
+// draft-ietf-idr-linklocal-capability Section 3 defines a Next Hop field of 16
+// octets holding one IPv6 Link-Local address, which RFC 2545 Section 3 has no
+// form for. One static route is advertised to many peers and only a session that
+// negotiated capability 77 may carry that form, so this parser keeps the address
+// and Peer.resolveNextHop (../reactor/peer.go) answers per peer.
 //
-// VALIDATES: a static route configured with `next-hop fe80::cafe` fails to parse.
-// PREVENTS: ze emitting a 16-octet Next Hop field whose only address is
-// link-local, which is the shape Section 3 excludes.
-func TestParseRouteAttributesRejectsLinkLocalNextHop(t *testing.T) {
-	_, err := ParseRouteAttributes(&StaticRouteConfig{
+// VALIDATES: a static route configured with `next-hop fe80::cafe` parses, and
+// the address reaches the attributes unchanged.
+// PREVENTS: the config refusing at parse time what a capable session may send,
+// which is how ze came to advertise capability 77 and be unable to produce the
+// form behind it.
+func TestParseRouteAttributesAcceptsLinkLocalNextHop(t *testing.T) {
+	attrs, err := ParseRouteAttributes(&StaticRouteConfig{
 		Prefix:  netip.MustParsePrefix("2001:db8:1::1/128"),
 		NextHop: "fe80::cafe",
 		Origin:  "igp",
 	})
 
-	require.Error(t, err)
-	assert.ErrorIs(t, err, attribute.ErrLinkLocalNextHop)
-	assert.Contains(t, err.Error(), "fe80::cafe")
+	require.NoError(t, err)
+	assert.Equal(t, netip.MustParseAddr("fe80::cafe"), attrs.NextHop)
 }
 
 // TestParseRouteAttributesAcceptsGlobalNextHop is the other side of the guard.

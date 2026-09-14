@@ -32,6 +32,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/rib"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
@@ -124,6 +125,12 @@ var (
 	// ErrNextHopIncompatible is returned when Self address is incompatible
 	// with the NLRI family and Extended Next Hop is not negotiated.
 	ErrNextHopIncompatible = errors.New("next-hop incompatible with family")
+
+	// ErrNextHopLinkLocalOnly is returned when the next hop resolves to an IPv6
+	// link-local address on a session that may not carry the 16-octet
+	// Link-Local-only Next Hop field that address would produce
+	// (draft-ietf-idr-linklocal-capability Sections 2, 3 and 5).
+	ErrNextHopLinkLocalOnly = errors.New("next-hop link-local-only: capability 77 not negotiated for this family")
 )
 
 // PeerCallback is called when peer state changes.
@@ -1359,7 +1366,53 @@ func (p *Peer) asn4() bool {
 //
 // RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
 // RFC 5549/8950 - Extended Next Hop Encoding.
+//
+// An IPv6 link-local address is refused on a session that may not carry the
+// form it produces (linkLocalOnlyNextHopPermitted below). The refusal is here,
+// on the one function every origination rail resolves through, rather than at
+// each of them: a route the speaker cannot encode conformantly is left out of
+// the announcement, which is what draft-ietf-idr-linklocal-capability Section 4
+// asks for -- "If, after completing these procedures, there are no IPv6 next hop
+// addresses included in the next hop, the BGP route MUST not be advertised to
+// its peer" -- and each caller already logs the skip.
 func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
+	addr, err := p.resolveNextHopAddr(nh, fam)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	if !addr.Is6() || !addr.IsLinkLocalUnicast() {
+		return addr, nil
+	}
+	if !p.linkLocalOnlyNextHopPermitted(fam) {
+		return netip.Addr{}, ErrNextHopLinkLocalOnly
+	}
+	return addr, nil
+}
+
+// linkLocalOnlyNextHopPermitted reports whether this session may send a 16-octet
+// Link-Local-only Next Hop field for an NLRI of fam.
+//
+// The rule itself is attribute.LinkLocalOnlyNextHopPermitted, which quotes the
+// two sentences behind it. This method supplies the session's two answers: what
+// capability 77 negotiated to (NegotiatedCapabilities.LinkLocalNextHop,
+// negotiated.go), and whether RFC 8950 Extended Next Hop Encoding was negotiated
+// for this family, which Section 5 makes the second half of the combination.
+//
+// A session with no negotiation state yet answers false for both, so the form is
+// refused until the OPEN exchange has settled it.
+func (p *Peer) linkLocalOnlyNextHopPermitted(fam family.Family) bool {
+	nc := p.negotiated.Load()
+	ctx := p.sendCtx.Load()
+	return attribute.LinkLocalOnlyNextHopPermitted(
+		fam.AFI == family.AFIIPv4,
+		nc != nil && nc.LinkLocalNextHop,
+		ctx != nil && ctx.ExtendedNextHopFor(fam) != 0,
+	)
+}
+
+// resolveNextHopAddr answers the address one RouteNextHop policy names, before
+// the wire-form question resolveNextHop asks of it.
+func (p *Peer) resolveNextHopAddr(nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
 	switch nh.Policy {
 	case bgptypes.NextHopExplicit:
 		// Explicit addresses bypass validation - user is responsible.

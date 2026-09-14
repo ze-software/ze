@@ -222,3 +222,36 @@ func originatedNextHopIsPeerOwn(body []byte, peer netip.Addr) bool {
 	}
 	return payloadNextHop(body).has(peer)
 }
+
+// linkLocalOnly reports whether the MP_REACH next hop this UPDATE offers is a
+// Link-Local-only Next Hop, the 16-octet form of
+// draft-ietf-idr-linklocal-capability Section 3.
+//
+// The length half of the classification is already settled by the time the pair
+// is built: nextHopAddr fills mpLL for the 32-octet and 48-octet forms only, so
+// an invalid mpLL beside a link-local mp is the 16-octet field. The address half
+// is attribute.IsLinkLocalOnlyNextHop's own test, over the address rather than
+// over the bytes it came from.
+func (n nextHopValue) linkLocalOnly() bool {
+	if n.mpLL.IsValid() {
+		return false
+	}
+	return n.mp.Is6() && n.mp.IsLinkLocalUnicast()
+}
+
+// egressNextHopIsLinkLocalOnly answers, for ONE destination, whether the
+// MP_REACH next hop it is about to be sent is a Link-Local-only Next Hop.
+//
+// It resolves the address the same way egressNextHopIsPeerOwn does, and for the
+// same reason: a next-hop rewrite recorded in mods replaces the payload's
+// address, so the question is asked about the bytes the rebuild will emit. That
+// is what lets ONE test answer both halves of the route-reflector rule
+// (reactor_api_forward.go): a client the operator configured next-hop-self for
+// carries ze's own address here and is no longer link-local-only, which is the
+// rewrite Section 4 offers as the first of its two answers.
+func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopValue) bool {
+	if nh, set := modsNextHop(mods); set {
+		return nh.linkLocalOnly()
+	}
+	return base.linkLocalOnly()
+}

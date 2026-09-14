@@ -542,9 +542,23 @@ func (ub *UpdateBuilder) buildMPReach(p *UnicastParams) *attribute.MPReachNLRI {
 	nlriBytes := ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
-	// RFC 2545 Section 3: IPv6 MP_REACH_NLRI may include link-local as second next-hop.
+	// RFC 2545 Section 3: the Next Hop field carries "the global IPv6 address of
+	// the next hop, potentially followed by the link-local IPv6 address of the
+	// next hop". The caller has already decided whether the second address is
+	// owed (Peer.linkLocalNextHopFor, reactor/link_scope.go); the zero Addr is
+	// its "in all other cases" answer and selects the 16-octet form.
+	//
+	// The pair is keyed on the NEXT HOP being IPv6, never on the PREFIX being
+	// IPv6. RFC 8950 Section 3 carries IPv4 NLRI with an IPv6 next hop at
+	// "Length of Next Hop Address = 16 or 32", and says that field "is to be
+	// constructed as per Section 3 of [RFC2545]". Reading the prefix instead
+	// dropped the link-local address for every IPv4 NLRI, which is the 16-octet
+	// field draft-ietf-idr-linklocal-capability Section 5 refuses outside the
+	// negotiated combination: "When this combination has not been negotiated, a
+	// sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next
+	// Hop as 32 octets."
 	nhCount := 1
-	if p.LinkLocalNextHop.IsValid() && p.Prefix.Addr().Is6() {
+	if p.LinkLocalNextHop.IsValid() && p.NextHop.Is6() && !p.NextHop.Is4In6() {
 		nhCount = 2
 	}
 	nextHops := make([]netip.Addr, nhCount) // pool-fallback: escapes via MPReachNLRI.NextHops

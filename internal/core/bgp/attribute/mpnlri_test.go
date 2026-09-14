@@ -858,3 +858,40 @@ func TestMPUnreachNLRI_RoundTrip(t *testing.T) {
 		t.Errorf("NLRI len = %d, want %d", len(parsed.NLRI), len(original.NLRI))
 	}
 }
+
+// TestValidNextHopLensAdmitsTheRFC8950PairForIPv4NLRI covers the lengths RFC
+// 8950 gives IPv4 NLRI carried behind an IPv6 next hop.
+//
+// RFC 8950 Section 3, for <1/1>, <1/2> and <1/4>: "Length of Next Hop Address =
+// 16 or 32", the address "potentially followed by the link-local IPv6 address of
+// the next hop". For <1/128> and <1/129> it is "24 or 48", each address carrying
+// its own zero Route Distinguisher.
+//
+// VALIDATES: the RFC 2545 Section 3 two-address form is a length ze admits under
+// AFI 1, on both the encode side and the RFC 7606 validation side that reads this
+// table.
+// PREVENTS: ze refusing its own conformant UPDATE. parseNextHops already split a
+// 32-octet field for any AFI, and this table did not list 32 for IPv4, so a peer
+// sending the form RFC 8950 defines met a malformed-attribute verdict.
+func TestValidNextHopLensAdmitsTheRFC8950PairForIPv4NLRI(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		safi SAFI
+		want []int
+	}{
+		{SAFIUnicast, []int{4, 16, 32}},
+		{SAFIMulticast, []int{4, 16, 32}},
+		{SAFIVPN, []int{12, 24, 48}},
+	} {
+		got := ValidNextHopLens(AFIIPv4, tc.safi)
+		if len(got) != len(tc.want) {
+			t.Fatalf("ValidNextHopLens(IPv4, %d) = %v, want %v", tc.safi, got, tc.want)
+		}
+		for i := range tc.want {
+			if got[i] != tc.want[i] {
+				t.Errorf("ValidNextHopLens(IPv4, %d) = %v, want %v", tc.safi, got, tc.want)
+			}
+		}
+	}
+}

@@ -388,15 +388,18 @@ func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error
 		if err != nil {
 			return nil, fmt.Errorf("invalid next-hop %q: %w", src.NextHop, err)
 		}
-		// RFC 2545 Section 3: the Network Address of Next Hop field carries the
-		// GLOBAL IPv6 address of the next hop. A link-local address belongs after
-		// it, in the second half of the 32-octet form, and Ze appends that half
-		// itself from the session's link-local leaf when the section's condition
-		// holds. There is no global address to pair one with here, so the config
-		// is refused rather than encoded into a field the RFC forbids it in.
-		if err := attribute.ValidateGlobalNextHop(ip); err != nil {
-			return nil, err
-		}
+		// A LINK-LOCAL ADDRESS IS ACCEPTED HERE, AND THE SESSION DECIDES.
+		// draft-ietf-idr-linklocal-capability Section 3 gives it a form RFC 2545
+		// has none for: "it MUST set the length of the Next Hop field to 16 and
+		// include only the IPv6 Link-Local address in the Next Hop field". That
+		// form belongs to a session that negotiated capability 77, and one route
+		// is advertised to many peers, so this file cannot answer for it.
+		// Peer.resolveNextHop (../reactor/peer.go) asks per peer and leaves the
+		// route out of the announcement where the answer is no.
+		//
+		// RFC 2545 Section 3 still governs the FIRST address of the 32-octet
+		// pair, and attribute.ValidateGlobalNextHop still refuses a link-local
+		// one there (linkScope.linkLocalNextHop, ../reactor/link_scope.go).
 		attrs.NextHop = ip
 	}
 

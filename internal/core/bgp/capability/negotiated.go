@@ -81,6 +81,12 @@ type Negotiated struct {
 	// BfdStrictNegotiated session attribute (Section 3 below) is set to
 	// TRUE." Nothing in the FSM waits for BFD unless this is TRUE.
 	BFDStrictMode bool
+	// draft-ietf-idr-linklocal-capability Section 2: "In this document, all
+	// procedures described are applicable only when the capability described
+	// herein has been successfully advertised by both BGP speakers; i.e.,
+	// negotiated." TRUE is that condition, and it is what every Section 3 to
+	// Section 6 procedure is conditioned on.
+	LinkLocalNextHop bool
 	// RFC 4271 Section 4.2: Hold Time is the minimum of the two Hold Time values
 	HoldTime uint16
 
@@ -146,6 +152,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	remoteERR := false
 	localBFDStrict := false
 	remoteBFDStrict := false
+	localLLNH := false
+	remoteLLNH := false
 
 	for _, c := range local {
 		switch cap := c.(type) {
@@ -163,6 +171,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			localERR = true
 		case *BFDStrictMode:
 			localBFDStrict = true
+		case *LinkLocalNextHop:
+			localLLNH = true
 		case *ExtendedNextHop:
 			localExtNH = cap
 		case *PathsLimit:
@@ -193,6 +203,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			remoteERR = true
 		case *BFDStrictMode:
 			remoteBFDStrict = true
+		case *LinkLocalNextHop:
+			remoteLLNH = true
 		case *GracefulRestart:
 			neg.GracefulRestart = cap
 		case *ExtendedNextHop:
@@ -217,6 +229,10 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	// remote BGP speakers include the BFD Strict-Mode Capability, the
 	// BfdStrictNegotiated session attribute (Section 3 below) is set to TRUE."
 	neg.BFDStrictMode = localBFDStrict && remoteBFDStrict
+	// draft-ietf-idr-linklocal-capability Section 2: "all procedures described
+	// are applicable only when the capability described herein has been
+	// successfully advertised by both BGP speakers; i.e., negotiated."
+	neg.LinkLocalNextHop = localLLNH && remoteLLNH
 
 	// RFC 5492 Section 3: Track mismatches for reporting
 	if localASN4 != remoteASN4 {
@@ -252,6 +268,13 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			Code:           CodeBFDStrictMode,
 			LocalSupported: localBFDStrict,
 			PeerSupported:  remoteBFDStrict,
+		})
+	}
+	if localLLNH != remoteLLNH {
+		neg.Mismatches = append(neg.Mismatches, Mismatch{
+			Code:           CodeLinkLocalNextHop,
+			LocalSupported: localLLNH,
+			PeerSupported:  remoteLLNH,
 		})
 	}
 
@@ -467,6 +490,7 @@ func (n *Negotiated) buildSubComponents() {
 		RouteRefresh:         n.RouteRefresh,
 		EnhancedRouteRefresh: n.EnhancedRouteRefresh,
 		BFDStrictMode:        n.BFDStrictMode,
+		LinkLocalNextHop:     n.LinkLocalNextHop,
 		HoldTime:             n.HoldTime,
 		GracefulRestart:      n.GracefulRestart,
 		Mismatches:           n.Mismatches,
@@ -522,14 +546,15 @@ func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 	// Maintenance: when adding a new negotiated capability, add an entry here.
 	// Codes absent from this map default to false (fail-closed: reported as missing).
 	negotiated := map[Code]bool{
-		CodeASN4:            n.ASN4,
-		CodeExtendedMessage: n.ExtendedMessage,
-		CodeRouteRefresh:    n.RouteRefresh,
-		CodeBFDStrictMode:   n.BFDStrictMode,
-		CodeAddPath:         len(n.addPath) > 0,
-		CodeExtendedNextHop: len(n.extendedNextHop) > 0,
-		CodeGracefulRestart: n.GracefulRestart != nil,
-		CodePathsLimit:      len(n.pathsLimitSend) > 0 || len(n.pathsLimitRecv) > 0,
+		CodeASN4:             n.ASN4,
+		CodeExtendedMessage:  n.ExtendedMessage,
+		CodeRouteRefresh:     n.RouteRefresh,
+		CodeBFDStrictMode:    n.BFDStrictMode,
+		CodeLinkLocalNextHop: n.LinkLocalNextHop,
+		CodeAddPath:          len(n.addPath) > 0,
+		CodeExtendedNextHop:  len(n.extendedNextHop) > 0,
+		CodeGracefulRestart:  n.GracefulRestart != nil,
+		CodePathsLimit:       len(n.pathsLimitSend) > 0 || len(n.pathsLimitRecv) > 0,
 	}
 
 	var missing []Code

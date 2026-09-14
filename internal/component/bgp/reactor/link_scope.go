@@ -157,3 +157,55 @@ func (p *Peer) refreshLinkScopeFrom(connected []netip.Prefix) {
 func (p *Peer) linkLocalNextHopFor(globalNextHop netip.Addr) netip.Addr {
 	return p.llScope.Load().linkLocalNextHop(p.settings.LinkLocal, globalNextHop)
 }
+
+// sameLinkLayerSegment reports whether two peer addresses sit on ONE link-layer
+// segment this speaker is attached to.
+//
+// draft-ietf-idr-linklocal-capability Section 4: "A Route Reflector (RR)
+// reflecting a route with a link-local-only next hop MUST NOT advertise that
+// route to a client unless the client shares the same link-layer segment as the
+// original advertiser." A link-local next hop names a host on one segment and
+// nothing else, so a client on another segment is told to forward through an
+// address it cannot resolve.
+//
+// The answer is derived from the subnets this host is attached to, which is the
+// same evidence RFC 2545 Section 3's "shares a common subnet" is decided on
+// (linkScope above). Two peers inside ONE connected prefix are on one segment as
+// far as this speaker can see.
+//
+// A LINK-LOCAL PREFIX IS NOT EVIDENCE, and the exclusion is what makes the
+// answer safe rather than merely usual. Every IPv6 interface holds fe80::/64, so
+// ConnectedPrefixes reports that same prefix once per interface and two peers on
+// DIFFERENT segments both fall inside it. The interface each one came from is not
+// in that list, so a link-local prefix cannot separate them and is refused as
+// evidence. The requirement it serves is a MUST NOT, and a false "they share a
+// segment" would publish the route this function exists to withhold.
+//
+// An unreadable interface table is an empty list and answers false, so a failed
+// read withholds rather than advertises.
+func sameLinkLayerSegment(connected []netip.Prefix, advertiser, client netip.Addr) bool {
+	if !advertiser.IsValid() || !client.IsValid() {
+		return false
+	}
+	advertiser, client = advertiser.Unmap(), client.Unmap()
+	for _, prefix := range connected {
+		if prefix.Addr().IsLinkLocalUnicast() {
+			continue
+		}
+		if prefix.Contains(advertiser) && prefix.Contains(client) {
+			return true
+		}
+	}
+	return false
+}
+
+// connectedPrefixes returns the subnets this snapshot was settled against.
+//
+// A nil scope has read no interface table and answers the empty list, which
+// every reader treats as "no shared subnet" rather than as "every subnet".
+func (ls *linkScope) connectedPrefixes() []netip.Prefix {
+	if ls == nil {
+		return nil
+	}
+	return ls.connected
+}

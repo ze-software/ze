@@ -81,6 +81,7 @@ const (
 	CodeFQDN                 Code = 73 // draft-walton-bgp-hostname-capability
 	CodeBFDStrictMode        Code = 74 // draft-ietf-idr-bgp-bfd-strict-mode Section 5
 	CodePathsLimit           Code = 76 // draft-abraitis-idr-addpath-paths-limit
+	CodeLinkLocalNextHop     Code = 77 // draft-ietf-idr-linklocal-capability Section 2
 )
 
 // String returns human-readable capability code name.
@@ -110,6 +111,8 @@ func (c Code) String() string {
 		return "BFD Strict-Mode(74)"
 	case CodePathsLimit:
 		return "PATHS-LIMIT(76)"
+	case CodeLinkLocalNextHop:
+		return "Link-Local Next Hop(77)"
 	default:
 		return textbuf.StrIntStr("Unknown(", int64(c), ")")
 	}
@@ -245,6 +248,8 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parseFQDN(data)
 	case CodePathsLimit:
 		return parsePathsLimit(data)
+	case CodeLinkLocalNextHop:
+		return parseZeroLengthCapability(code, data, &LinkLocalNextHop{})
 	default: // RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
 		// We preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
@@ -447,6 +452,43 @@ func (b *BFDStrictMode) WriteTo(buf []byte, off int) int {
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (b *BFDStrictMode) ConfigValues() map[string]string {
 	return map[string]string{"draft-ietf-idr-bgp-bfd-strict-mode:enabled": configTrue}
+}
+
+// LinkLocalNextHop represents the Link-Local Next Hop capability
+// (draft-ietf-idr-linklocal-capability Section 2).
+//
+// draft-ietf-idr-linklocal-capability Section 2: "The Link-Local Next Hop
+// capability is a new BGP capability. Its Capability code is 77 and its
+// Capability Length is 0."
+//
+// Advertising it says this speaker is willing to send and to receive an
+// MP_REACH_NLRI Next Hop field holding one IPv6 Link-Local address in 16 octets.
+// Section 2 scopes every procedure of Sections 3 to 6 to a session on which both
+// speakers advertised it: "In this document, all procedures described are
+// applicable only when the capability described herein has been successfully
+// advertised by both BGP speakers; i.e., negotiated. When the capability has not
+// been negotiated, the procedures in this document do not apply."
+//
+// The local side of that advertisement is declared by the llnh plugin
+// (extractLLNHCapabilities, internal/component/bgp/plugins/llnh/llnh.go) for a
+// peer whose config asks for it. Both OPENs are parsed back through
+// parseCapability before Negotiate reads them (handleOpen,
+// internal/component/bgp/reactor/session_handlers.go), so a capability this
+// package types is seen as this type on both sides.
+type LinkLocalNextHop struct{}
+
+func (l *LinkLocalNextHop) Code() Code { return CodeLinkLocalNextHop }
+
+func (l *LinkLocalNextHop) Len() int { return 2 } // 2 header + 0 value
+
+func (l *LinkLocalNextHop) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeLinkLocalNextHop, 0)
+	return 2
+}
+
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (l *LinkLocalNextHop) ConfigValues() map[string]string {
+	return map[string]string{"draft-ietf-idr-linklocal-capability:enabled": configTrue}
 }
 
 // AddPathMode indicates send/receive capability for ADD-PATH.

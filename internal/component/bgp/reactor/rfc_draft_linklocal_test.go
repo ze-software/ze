@@ -114,3 +114,47 @@ func TestLinkLocalIncludedForDirectlyAttachedExternalPeer(t *testing.T) {
 	require.Equal(t, nhModeSelfV6LL, facts.nhMode, "a directly attached peer does get the two-address form")
 	assert.Equal(t, llnhGlobal.As16(), [16]byte(facts.nhGlobalLL[:16]), "the Global address is still first")
 }
+
+// llnhUnchangedFacts runs the same two producers over a peer whose next-hop mode
+// leaves the received next hop alone. That is the case where the announced
+// network is reachable through ANOTHER router: the speaker is not the next hop,
+// so no address of its own belongs in the field.
+func llnhUnchangedFacts(connected []netip.Prefix, peer, global, linkLocal netip.Addr) *peerForwardFacts {
+	settings := &PeerSettings{
+		Address:      peer,
+		LocalAddress: global,
+		LinkLocal:    linkLocal,
+		NextHopMode:  NextHopUnchanged,
+	}
+	facts := &peerForwardFacts{}
+	precomputeNextHop(settings, facts)
+	applyLinkLocalNextHop(settings, facts, newLinkScopeFrom(connected, peer))
+	return facts
+}
+
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 positive -- a route reachable
+// through the speaker itself, announced to a one-hop internal peer, carries the speaker's
+// OWN Link-Local IPv6 address in the next hop: precomputeNextHop puts the speaker's own
+// address in the Global slot (next-hop-self), and applyLinkLocalNextHop appends the
+// link-local address configured for that session behind it.
+func TestLinkLocalOwnAddressIncludedForRouteReachableThroughTheSpeaker(t *testing.T) {
+	facts := llnhFacts(llnhConnected, llnhOnLink, llnhGlobal, llnhLinkLocal)
+
+	require.Equal(t, nhModeSelfV6LL, facts.nhMode, "the next hop must carry both addresses")
+	assert.Equal(t, llnhGlobal.As16(), [16]byte(facts.nhGlobalLL[:16]),
+		"the speaker's own Global address is the next hop")
+	assert.Equal(t, llnhLinkLocal.As16(), [16]byte(facts.nhGlobalLL[16:]),
+		"the speaker's own Link-Local address is included")
+}
+
+// RFC requirement: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 negative -- that inclusion is keyed
+// on the speaker being the next hop and is not written into every next hop: for the same peer
+// on the same link, a route whose announced network is reachable through another router
+// (next-hop unchanged) keeps the next hop it arrived with, and no Link-Local address of the
+// speaker's own is inserted.
+func TestLinkLocalOwnAddressNotInsertedWhenAnotherRouterIsTheNextHop(t *testing.T) {
+	facts := llnhUnchangedFacts(llnhConnected, llnhOnLink, llnhGlobal, llnhLinkLocal)
+
+	require.Equal(t, nhModeNone, facts.nhMode, "an unchanged next hop is rewritten by nothing")
+	assert.Equal(t, [32]byte{}, facts.nhGlobalLL, "no Link-Local address of the speaker's own")
+}

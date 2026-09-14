@@ -21,6 +21,11 @@ type SessionCaps struct {
 	// Strict-Mode capability.
 	BFDStrictMode bool
 
+	// draft-ietf-idr-linklocal-capability Section 2: TRUE when both speakers
+	// advertised the Link-Local Next Hop capability, which is the condition
+	// every procedure of Sections 3 to 6 is scoped to.
+	LinkLocalNextHop bool
+
 	// RFC 4271 Section 4.2: Negotiated Hold Time (minimum of local and peer).
 	HoldTime uint16
 
