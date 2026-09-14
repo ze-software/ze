@@ -271,8 +271,11 @@ state; a tracked route and a health-check script are not implemented.
 
 - vrrp shares the `interface` config root with the iface plugin and augments its
   tree with 8 augments: ethernet, veth, bridge and dummy, each for ipv4 and ipv6.
-  It auto-loads whenever interfaces are configured. With zero groups the engine is
-  idle: no sockets and no devices.
+  The module is the only place that set is written: the config walk
+  (`extractGroupSpecs`, `groups.go`) reads every interface list and looks only
+  for a `vrrp` container under a unit's family, so a list the module augments
+  is found without a Go edit. It auto-loads whenever interfaces are configured.
+  With zero groups the engine is idle: no sockets and no devices.
 - The owned-macvlan registry is generic iface infrastructure and survives the
   deletion of vrrp. Orphan cleanup is driven by a kernel-side `IFLA_IFALIAS`
   marker (`ze:owned:<owner>`), so it works after a crash with no in-memory

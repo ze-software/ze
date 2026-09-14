@@ -133,11 +133,12 @@ func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerInd
 		}
 	}
 
-	// parse.OriginString is where Ze spells the three ORIGIN values, so the
-	// dump names them as every other surface does (ai/rules/principles.md). It
-	// answers unknown(N) for a code RFC 4271 Section 5.1.1 does not define,
-	// which the arm here used to report as incomplete: a malformed dump now
-	// says so rather than passing a fourth code off as the third.
+	// parse.OriginString reads the attribute package's table, the one place Ze
+	// spells the three ORIGIN values, so the dump names them as every other
+	// surface does (ai/rules/principles.md). It answers unknown(N) for a code
+	// RFC 4271 Section 5.1.1 does not define, which the arm here used to
+	// report as incomplete: a malformed dump now says so rather than passing a
+	// fourth code off as the third.
 	if origin, ok := mrt.ExtractOrigin(attrs); ok {
 		rec.Origin = parse.OriginString(origin)
 	}

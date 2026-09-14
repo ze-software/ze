@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -51,7 +52,7 @@ const envKeyBaseLevel = "ze.log"
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: envKeyBaseLevel, Type: envTypeString, Default: levelWarn, Description: "Base log level for all subsystems"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: envTypeString, Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)", Private: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: envTypeString, Default: "stderr", Description: "Log output: stderr, stdout, or syslog (requires ze.log.destination)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: envTypeString, Default: "stderr", Description: "Log output, one of " + strings.Join(BackendNames(), ", ") + ", or a comma-separated list of them (syslog requires ze.log.destination)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: envTypeString, Description: "Syslog address when backend=syslog (e.g. localhost:514, /dev/log)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.relay", Type: envTypeString, Description: "Plugin stderr relay level (disabled/debug/info/warn/err)"})
 )
@@ -341,6 +342,12 @@ func openKmsg() io.Writer {
 	return f
 }
 
+// validBackends is the one place Go names the log backends: each word selects
+// a writer in createHandler, so the word set is declared beside the code that
+// acts on it. The environment/log/backend leaf of ze-hub-conf.yang offers the
+// same words to an operator, and internal/component/config holds the two
+// together in TestLogBackendLeafMatchesSlogutil, because this package sits
+// under the model and cannot read it (ai/rules/principles.md).
 var validBackends = map[string]bool{
 	backendStderr: true,
 	backendStdout: true,
@@ -348,12 +355,18 @@ var validBackends = map[string]bool{
 	backendKmsg:   true,
 }
 
+// BackendNames answers every log backend name, sorted: the words a refusal
+// names, and the words a description of ze.log.backend lists.
+func BackendNames() []string {
+	return slices.Sorted(maps.Keys(validBackends))
+}
+
 // validateBackends checks that every comma-separated backend name is known.
 func validateBackends(value string) error {
 	for part := range strings.SplitSeq(strings.ToLower(value), ",") {
 		name := strings.TrimSpace(part)
 		if name != "" && !validBackends[name] {
-			return fmt.Errorf("invalid log backend %q (must be stderr/stdout/syslog/kmsg)", name)
+			return fmt.Errorf("invalid log backend %q (must be one of %s)", name, strings.Join(BackendNames(), "/"))
 		}
 	}
 	return nil

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/core/configvalue"
 )
 
@@ -133,10 +134,10 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("action %q must be limit or drop", c.Action)
 	}
-	switch c.LimitUnit {
-	case "second", "minute", "hour", "day":
-	default:
-		return fmt.Errorf("limit-unit %q must be second, minute, hour, or day", c.LimitUnit)
+	// The unit reaches the backends as a firewall.Limit, so the firewall's
+	// rate-unit table is the one declaration of what a unit can be.
+	if _, known := firewall.RateUnitSeconds(c.LimitUnit); !known {
+		return fmt.Errorf("limit-unit %q must be one of %s", c.LimitUnit, strings.Join(firewall.RateUnitNames(), ", "))
 	}
 	if c.Action == ActionLimit && c.LimitRate < 1 {
 		return fmt.Errorf("limit-rate must be >= 1 for the limit action")

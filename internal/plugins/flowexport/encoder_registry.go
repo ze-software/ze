@@ -3,7 +3,11 @@
 
 package flowexport
 
-import "time"
+import (
+	"maps"
+	"slices"
+	"time"
+)
 
 // EncoderFactory creates a ProtocolEncoder for a collector configuration.
 // Registered by each protocol subpackage (sflow, netflow9, ipfix) in init().
@@ -20,6 +24,14 @@ func RegisterEncoderFactory(protocol string, f EncoderFactory) {
 // lookupEncoderFactory returns the factory for the given protocol, or nil.
 func lookupEncoderFactory(protocol string) EncoderFactory {
 	return encoderFactories[protocol]
+}
+
+// RegisteredProtocols answers every protocol an encoder registered for,
+// sorted. It is what a collector's protocol is validated against: a protocol
+// this binary links no encoder for is refused at commit, rather than accepted
+// and then exported to nobody.
+func RegisteredProtocols() []string {
+	return slices.Sorted(maps.Keys(encoderFactories))
 }
 
 // FlowSampleEncoderFactory creates a FlowSampleEncoder for a collector.

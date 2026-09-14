@@ -131,7 +131,7 @@ func TestCapabilityDecls(t *testing.T) {
 		t.Fatalf("route-refresh caps = %+v, want one code=2", caps)
 	}
 
-	caps = capabilityDecls(bridgeConfig{AddPath: addPathReceive, Families: []string{defaultFamily}})
+	caps = capabilityDecls(bridgeConfig{AddPath: "receive", Families: []string{defaultFamily}})
 	if len(caps) != 1 || caps[0].Code != 69 {
 		t.Fatalf("add-path caps = %+v, want one code=69", caps)
 	}

@@ -10,11 +10,13 @@ package radius
 import (
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
@@ -210,6 +212,9 @@ func (m AuthMethod) EAPType() (uint8, bool) {
 // define means the two disagree, and picking a credential for the operator
 // would send one he did not choose. ExtractConfig returns the error, Build logs
 // it and contributes nothing, and login falls through to the local backend.
+//
+// The error names the words authMethodNames holds rather than a second list of
+// them, so it cannot advertise a method the parser refuses.
 func parseAuthMethod(s string) (AuthMethod, error) {
 	for method, name := range authMethodNames {
 		if name == s {
@@ -217,5 +222,16 @@ func parseAuthMethod(s string) (AuthMethod, error) {
 		}
 	}
 	return AuthMethodPAP, fmt.Errorf(
-		"radius: auth-method %q is not pap, chap, eap-md5 or eap-mschapv2", s)
+		"radius: auth-method %q is not one of %s", s, textbuf.Join(authMethodWords(), ", "))
+}
+
+// authMethodWords answers every word authMethodNames holds, sorted, so an error
+// message and a test read the one declaration.
+func authMethodWords() []string {
+	words := make([]string, 0, len(authMethodNames))
+	for _, name := range authMethodNames {
+		words = append(words, name)
+	}
+	slices.Sort(words)
+	return words
 }

@@ -1,8 +1,8 @@
 // VALIDATES: the XFRM translation helpers — xfrmPolicyFromParams maps SPParams
 // onto a netlink.XfrmPolicy (direction offset, upper-proto and interface
 // selectors, and the single transform template), and the algorithm-name mappers
-// (xfrmEncName / xfrmAEADName / xfrmAuthName / xfrmAuthTruncLen) return the
-// kernel transform names and truncation lengths, defaults included.
+// (xfrmEncName / xfrmAEADName / xfrmAuthName) return the kernel transform names
+// and truncation lengths, and refuse a word no table holds.
 // PREVENTS: an install/delete selector mismatch (kernel identifies a policy by
 // its whole selector) or a wrong cipher/auth transform string reaching the kernel.
 
@@ -11,6 +11,7 @@
 package dataplane
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -182,60 +183,101 @@ func TestXFRMInstallSARejectsUnknownMode(t *testing.T) {
 	}
 }
 
+// TestXfrmEncName proves each cipher word maps to its kernel transform and that a word
+// no table holds is refused rather than installed as AES-CBC.
 func TestXfrmEncName(t *testing.T) {
 	for _, tc := range []struct{ algo, want string }{
 		{"aes128", "cbc(aes)"},
 		{"aes256", "cbc(aes)"},
 		{"3des", "cbc(des3_ede)"},
 		{"null", "ecb(cipher_null)"},
-		{"unknown", "cbc(aes)"},
 	} {
-		if got := xfrmEncName(tc.algo); got != tc.want {
+		got, err := xfrmEncName(tc.algo)
+		if err != nil {
+			t.Fatalf("xfrmEncName(%q): %v", tc.algo, err)
+		}
+		if got != tc.want {
 			t.Errorf("xfrmEncName(%q) = %q, want %q", tc.algo, got, tc.want)
 		}
 	}
+	if _, err := xfrmEncName("unknown"); !errors.Is(err, ErrNotSupported) {
+		t.Errorf("xfrmEncName(unknown) err = %v, want ErrNotSupported: an unknown cipher installed as AES-CBC encrypts with a cipher the peer did not negotiate", err)
+	}
 }
 
+// TestXfrmAEADName proves each combined-mode word maps to its kernel transform, and
+// that a word no table holds is refused rather than installed as AES-GCM.
 func TestXfrmAEADName(t *testing.T) {
 	for _, tc := range []struct{ algo, want string }{
 		{"aes128gcm", "rfc4106(gcm(aes))"},
 		{"aes256gcm", "rfc4106(gcm(aes))"},
 		{"chacha20poly1305", "rfc7539esp(chacha20,poly1305)"},
-		{"unknown", "rfc4106(gcm(aes))"},
 	} {
-		if got := xfrmAEADName(tc.algo); got != tc.want {
+		got, err := xfrmAEADName(tc.algo)
+		if err != nil {
+			t.Fatalf("xfrmAEADName(%q): %v", tc.algo, err)
+		}
+		if got != tc.want {
 			t.Errorf("xfrmAEADName(%q) = %q, want %q", tc.algo, got, tc.want)
 		}
 	}
-}
-
-func TestXfrmAuthName(t *testing.T) {
-	for _, tc := range []struct{ algo, want string }{
-		{"sha256", "hmac(sha256)"},
-		{"sha384", "hmac(sha384)"},
-		{"sha512", "hmac(sha512)"},
-		{"sha1", "hmac(sha1)"},
-		{"unknown", "hmac(sha256)"},
-	} {
-		if got := xfrmAuthName(tc.algo); got != tc.want {
-			t.Errorf("xfrmAuthName(%q) = %q, want %q", tc.algo, got, tc.want)
-		}
+	if _, err := xfrmAEADName("unknown"); !errors.Is(err, ErrNotSupported) {
+		t.Errorf("xfrmAEADName(unknown) err = %v, want ErrNotSupported", err)
 	}
 }
 
-func TestXfrmAuthTruncLen(t *testing.T) {
+// TestXfrmAuthName proves each integrity word maps to its kernel transform and ICV
+// length, and that a word no table holds is refused rather than installed as SHA-256.
+func TestXfrmAuthName(t *testing.T) {
 	for _, tc := range []struct {
 		algo string
-		want int
+		want xfrmAuthTransform
 	}{
-		{"sha256", 128},
-		{"sha384", 192},
-		{"sha512", 256},
-		{"sha1", 96},
-		{"unknown", 128},
+		{"sha256", xfrmAuthTransform{name: "hmac(sha256)", truncLen: 128}},
+		{"sha384", xfrmAuthTransform{name: "hmac(sha384)", truncLen: 192}},
+		{"sha512", xfrmAuthTransform{name: "hmac(sha512)", truncLen: 256}},
+		{"sha1", xfrmAuthTransform{name: "hmac(sha1)", truncLen: 96}},
 	} {
-		if got := xfrmAuthTruncLen(tc.algo); got != tc.want {
-			t.Errorf("xfrmAuthTruncLen(%q) = %d, want %d", tc.algo, got, tc.want)
+		got, err := xfrmAuthName(tc.algo)
+		if err != nil {
+			t.Fatalf("xfrmAuthName(%q): %v", tc.algo, err)
 		}
+		if got != tc.want {
+			t.Errorf("xfrmAuthName(%q) = %+v, want %+v", tc.algo, got, tc.want)
+		}
+	}
+	if _, err := xfrmAuthName("unknown"); !errors.Is(err, ErrNotSupported) {
+		t.Errorf("xfrmAuthName(unknown) err = %v, want ErrNotSupported", err)
+	}
+}
+
+// TestXFRMStateRefusesUnknownAlgorithm drives the refusal through the entry point the
+// SA install uses, so the guard is proven where the kernel would have been reached
+// (ai/rules/evidence.md).
+func TestXFRMStateRefusesUnknownAlgorithm(t *testing.T) {
+	base := SAParams{
+		SPI:      0x1000,
+		Src:      net.ParseIP("192.0.2.1"),
+		Dst:      net.ParseIP("198.51.100.1"),
+		Proto:    ProtoESP,
+		Mode:     ModeTunnel,
+		EncAlgo:  "aes256",
+		AuthAlgo: "sha256",
+	}
+	cases := []struct {
+		what string
+		p    SAParams
+	}{
+		{what: "an unknown cipher", p: func() SAParams { p := base; p.EncAlgo = "unknown"; return p }()},
+		{what: "an unknown integrity algorithm", p: func() SAParams { p := base; p.AuthAlgo = "unknown"; return p }()},
+		{what: "an unknown AEAD cipher", p: func() SAParams { p := base; p.EncAlgo = "unknown"; p.IsAEAD = true; return p }()},
+	}
+	for _, tc := range cases {
+		if _, err := xfrmStateFromParams(tc.p); !errors.Is(err, ErrNotSupported) {
+			t.Errorf("%s: xfrmStateFromParams err = %v, want ErrNotSupported", tc.what, err)
+		}
+	}
+	if _, err := xfrmStateFromParams(base); err != nil {
+		t.Errorf("the known pair: xfrmStateFromParams err = %v, want a state", err)
 	}
 }

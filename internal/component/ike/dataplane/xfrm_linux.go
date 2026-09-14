@@ -152,23 +152,35 @@ func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 	// unit-testable on any platform.
 	plan := planStateAlgos(p)
 	if plan.AEAD {
+		name, err := xfrmAEADName(p.EncAlgo)
+		if err != nil {
+			return nil, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+		}
 		state.Aead = &netlink.XfrmStateAlgo{
-			Name:   xfrmAEADName(p.EncAlgo),
+			Name:   name,
 			Key:    p.EncKey,
-			ICVLen: 128,
+			ICVLen: 128, // every entry of xfrmAEADNames carries a 16-octet ICV
 		}
 	}
 	if plan.Crypt {
+		name, err := xfrmEncName(p.EncAlgo)
+		if err != nil {
+			return nil, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+		}
 		state.Crypt = &netlink.XfrmStateAlgo{
-			Name: xfrmEncName(p.EncAlgo),
+			Name: name,
 			Key:  p.EncKey,
 		}
 	}
 	if plan.Auth {
+		auth, err := xfrmAuthName(p.AuthAlgo)
+		if err != nil {
+			return nil, fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+		}
 		state.Auth = &netlink.XfrmStateAlgo{
-			Name:        xfrmAuthName(p.AuthAlgo),
+			Name:        auth.name,
 			Key:         p.AuthKey, //nolint:gosec // AH/ESP integrity key, not a credential
-			TruncateLen: xfrmAuthTruncLen(p.AuthAlgo),
+			TruncateLen: auth.truncLen,
 		}
 	}
 
@@ -638,71 +650,91 @@ func zeXFRMMode(kernelMode uint8) (uint8, bool) {
 
 func (b *xfrmBackend) Close() error { return b.espForms.Close() }
 
-// Kernel transform names, spelled as the kernel's algorithm registry spells
-// them (net/xfrm/xfrm_algo.c). Each of the three is both a mapped result and
-// the fallback its own switch returns for an unknown algorithm, so each is
-// named once here rather than written twice.
+// Kernel transform names, spelled as the kernel's algorithm registry spells them
+// (net/xfrm/xfrm_algo.c), keyed by the algorithm word the SA carries. The words are
+// the ones ipsec.Encryption.String and ipsec.Hash.String render for a negotiated
+// Child SA, and the ones the OSPFv3 resolver reads from ze-ospf-conf.yang for an
+// RFC 4552 manual SA; xfrm_vocabulary_test.go gates the three tables against both
+// modules, so a word one side adds alone turns that test red.
+//
+// A word no table holds is REFUSED (ErrNotSupported), never defaulted. Until
+// 2026-09-14 each mapper answered AES-CBC, AES-GCM or HMAC-SHA256 for an unknown
+// word, so the kernel installed a transform the peer had not negotiated and every
+// packet on the SA failed its integrity check. vppCryptoAlg names the same defect.
 const (
 	xfrmEncAESCBC  = "cbc(aes)"
 	xfrmAEADAESGCM = "rfc4106(gcm(aes))"
 	xfrmAuthSHA256 = "hmac(sha256)"
 )
 
-func xfrmEncName(algo string) string {
-	switch algo {
-	case "aes128", "aes256":
-		return xfrmEncAESCBC
-	case "3des":
-		return "cbc(des3_ede)"
-	case "null":
-		// RFC 4552 §3 / RFC 2410: ESP with NULL encryption (authentication-only ESP).
-		// NOTE: verify against target kernel -- the kernel's ealg registry names this
-		// transform "cipher_null" (net/xfrm/xfrm_algo.c: ealg_list "cipher_null"), and
-		// some kernels/iproute2 reject the "ecb(cipher_null)" spelling. Validate the
-		// accepted string on the appliance kernel in QEMU (cannot be exercised here).
-		return "ecb(cipher_null)"
-	default:
-		return xfrmEncAESCBC
-	}
+// xfrmEncNames maps a non-AEAD cipher word to its kernel transform.
+var xfrmEncNames = map[string]string{
+	"aes128": xfrmEncAESCBC,
+	"aes256": xfrmEncAESCBC,
+	"3des":   "cbc(des3_ede)",
+	// RFC 4552 §3 / RFC 2410: ESP with NULL encryption (authentication-only ESP).
+	// NOTE: verify against target kernel -- the kernel's ealg registry names this
+	// transform "cipher_null" (net/xfrm/xfrm_algo.c: ealg_list "cipher_null"), and
+	// some kernels/iproute2 reject the "ecb(cipher_null)" spelling. Validate the
+	// accepted string on the appliance kernel in QEMU (cannot be exercised here).
+	"null": "ecb(cipher_null)",
 }
 
-func xfrmAEADName(algo string) string {
-	switch algo {
-	case "aes128gcm", "aes256gcm":
-		return xfrmAEADAESGCM
-	case "chacha20poly1305":
-		return "rfc7539esp(chacha20,poly1305)"
-	default:
-		return xfrmAEADAESGCM
-	}
+// xfrmAEADNames maps a combined-mode cipher word to its kernel transform. Every entry
+// carries a 16-octet ICV, which is why xfrmStateFromParams writes ICVLen 128 beside
+// the name: AES-GCM is negotiated with the 16-octet ICV only (ENCR_AES_GCM_16), and
+// ChaCha20-Poly1305 always carries a 16-octet tag (RFC 7634 Section 2). The AES-CCM
+// words the model offers are absent on purpose: an ESP proposal naming one is refused
+// at config parse (ipsec.EncryptionImplementedESP), so a CCM word reaching here is a
+// defect and is refused rather than installed as AES-GCM.
+var xfrmAEADNames = map[string]string{
+	"aes128gcm":        xfrmAEADAESGCM,
+	"aes256gcm":        xfrmAEADAESGCM,
+	"chacha20poly1305": "rfc7539esp(chacha20,poly1305)",
 }
 
-func xfrmAuthName(algo string) string {
-	switch algo {
-	case "sha256":
-		return xfrmAuthSHA256
-	case "sha384":
-		return "hmac(sha384)"
-	case "sha512":
-		return "hmac(sha512)"
-	case "sha1":
-		return "hmac(sha1)"
-	default:
-		return "hmac(sha256)"
-	}
+// xfrmAuthTransform is one integrity algorithm as the kernel takes it: the transform
+// name and the ICV length in bits (RFC 4868 Section 2.3 for the SHA-2 family, RFC 2404
+// for HMAC-SHA-1-96).
+type xfrmAuthTransform struct {
+	name     string
+	truncLen int
 }
 
-func xfrmAuthTruncLen(algo string) int {
-	switch algo {
-	case "sha256":
-		return 128
-	case "sha384":
-		return 192
-	case "sha512":
-		return 256
-	case "sha1":
-		return 96
-	default:
-		return 128
+// xfrmAuthNames maps an integrity algorithm word to its kernel transform.
+var xfrmAuthNames = map[string]xfrmAuthTransform{
+	"sha256": {name: xfrmAuthSHA256, truncLen: 128},
+	"sha384": {name: "hmac(sha384)", truncLen: 192},
+	"sha512": {name: "hmac(sha512)", truncLen: 256},
+	"sha1":   {name: "hmac(sha1)", truncLen: 96},
+}
+
+func xfrmEncName(algo string) (string, error) {
+	name, ok := xfrmEncNames[algo]
+	if !ok {
+		return "", fmt.Errorf(
+			"%w: xfrm: cipher %q is not one this backend can name to the kernel; installing it would encrypt with a different cipher",
+			ErrNotSupported, algo)
 	}
+	return name, nil
+}
+
+func xfrmAEADName(algo string) (string, error) {
+	name, ok := xfrmAEADNames[algo]
+	if !ok {
+		return "", fmt.Errorf(
+			"%w: xfrm: AEAD cipher %q is not one this backend can name to the kernel; installing it would encrypt with a different cipher",
+			ErrNotSupported, algo)
+	}
+	return name, nil
+}
+
+func xfrmAuthName(algo string) (xfrmAuthTransform, error) {
+	transform, ok := xfrmAuthNames[algo]
+	if !ok {
+		return xfrmAuthTransform{}, fmt.Errorf(
+			"%w: xfrm: integrity algorithm %q is not one this backend can name to the kernel; installing it would authenticate with a different algorithm",
+			ErrNotSupported, algo)
+	}
+	return transform, nil
 }

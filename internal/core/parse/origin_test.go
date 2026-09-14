@@ -1,10 +1,13 @@
 package parse
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
 // TestOrigin verifies parsing of BGP ORIGIN attribute values.
@@ -97,4 +100,43 @@ func TestOriginString(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestOriginReadsTheAttributeTable proves both parsers answer from the
+// attribute package's origin table rather than from a copy of it.
+//
+// PREVENTS: a name changed in the attribute table that the config parser keeps
+// refusing, or a name the parser accepts that no UPDATE can carry
+// (ai/rules/principles.md).
+func TestOriginReadsTheAttributeTable(t *testing.T) {
+	names := attribute.OriginTextNames()
+	require.NotEmpty(t, names, "attribute.OriginTextNames answered no name, so there is nothing to compare against")
+
+	for _, name := range names {
+		want, ok := attribute.OriginFromText(name)
+		require.True(t, ok, "the attribute table spells %q and OriginFromText refuses it", name)
+
+		got, err := Origin(name)
+		require.NoError(t, err, "the attribute table spells %q and Origin refuses it", name)
+		assert.Equal(t, uint8(want), got)
+
+		got, err = Origin(strings.ToUpper(name))
+		require.NoError(t, err)
+		assert.Equal(t, uint8(want), got, "Origin is case-insensitive")
+
+		assert.Equal(t, name, OriginString(uint8(want)))
+	}
+
+	// A word the table does not hold is refused, and the refusal offers the
+	// table's words rather than a list written here.
+	_, err := Origin("sideways")
+	require.Error(t, err)
+	for _, name := range names {
+		assert.Contains(t, err.Error(), name)
+	}
+
+	// A value past the table is named by its number, not by a table word.
+	past := uint8(len(names))
+	_, ok := attribute.OriginFromText(OriginString(past))
+	assert.False(t, ok, "OriginString(%d) answered a table word for a value the table does not hold", past)
 }

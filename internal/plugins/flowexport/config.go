@@ -357,12 +357,14 @@ func (c *CollectorConfig) validate() error {
 		errs = append(errs, fmt.Errorf("port %d out of range 1-65535", c.Port))
 	}
 
-	switch c.Protocol {
-	case "sflow", "netflow9", "ipfix":
-	case "":
+	// The encoders this binary registered are the protocols it can speak.
+	// The model's enumeration is the operator's view of that set, and the
+	// two are gated against each other in protocols_test.go.
+	switch {
+	case c.Protocol == "":
 		errs = append(errs, errors.New("protocol is required"))
-	default:
-		errs = append(errs, fmt.Errorf("unknown protocol %q (sflow, netflow9, ipfix)", c.Protocol))
+	case lookupEncoderFactory(c.Protocol) == nil:
+		errs = append(errs, fmt.Errorf("unknown protocol %q (%s)", c.Protocol, strings.Join(RegisteredProtocols(), ", ")))
 	}
 
 	if c.PollingInterval < 1 || c.PollingInterval > 3600 {

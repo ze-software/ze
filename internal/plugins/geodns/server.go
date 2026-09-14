@@ -28,9 +28,9 @@ import (
 //   - fixed: the configured serial leaf verbatim.
 func computeSerial(soa soaConfig, prevSerial uint32, now time.Time) uint32 {
 	switch soa.SerialMode {
-	case "fixed":
+	case serialModeFixed:
 		return soa.Serial
-	case "auto-datetime":
+	case serialModeAutoDatetime:
 		y, mo, d := now.Date()
 		base := uint32(y*10000+int(mo)*100+d) * 100
 		if prevSerial >= base && prevSerial < base+100 {

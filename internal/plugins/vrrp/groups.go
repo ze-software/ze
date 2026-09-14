@@ -89,10 +89,6 @@ const (
 	v2IntervalStepMs = 1000
 )
 
-// ifaceTypes are the interface list names whose units the vrrp YANG augments
-// attach to. Kept in sync with the augment paths in yang/ze-vrrp-conf.yang.
-var ifaceTypes = []string{"ethernet", "veth", "bridge", "dummy"}
-
 var (
 	// errMissingVRID fires when a group carries no vrid. The schema marks it
 	// mandatory, so this only reaches an operator through a producer that
@@ -298,6 +294,15 @@ func sectionTree(s configSection) (map[string]any, error) {
 // extractGroupSpecs walks the interface sections and returns every configured
 // group, sorted by key for deterministic diffing. Keys other than the vrrp path
 // are skipped without inspection (extract-only walk, spec-vrrp-5 R-1).
+//
+// Every interface list is walked, in name order so two runs over one tree answer
+// one order. Which lists carry a group is decided by the augment statements in
+// yang/ze-vrrp-conf.yang, and until 2026-09-14 a second list of those names sat
+// here with a comment asking the reader to keep the two in step. A list without
+// the augment never holds a vrrp container under a family, so the walk finds
+// nothing under it, and a list the module gains reaches this walk unchanged
+// (ai/rules/principles.md). yang_vocabulary_test.go proves the walk reaches
+// every list the module augments.
 func extractGroupSpecs(sections []configSection) ([]GroupSpec, error) {
 	var specs []GroupSpec
 	for _, s := range sections {
@@ -308,7 +313,12 @@ func extractGroupSpecs(sections []configSection) ([]GroupSpec, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, ifType := range ifaceTypes {
+		ifTypes := make([]string, 0, len(tree))
+		for ifType := range tree {
+			ifTypes = append(ifTypes, ifType)
+		}
+		slices.Sort(ifTypes)
+		for _, ifType := range ifTypes {
 			byName, ok := tree[ifType].(map[string]any)
 			if !ok {
 				continue

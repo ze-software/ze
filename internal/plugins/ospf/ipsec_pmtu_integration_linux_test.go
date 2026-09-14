@@ -32,7 +32,7 @@ import (
 
 // ahHeaderOctets is the IPv6 AH header Linux prepends for the integrity algorithm this
 // file configures: 12 octets of ip_auth_hdr plus the 16-octet ICV that
-// xfrmAuthTruncLen (ike/dataplane/xfrm_linux.go) asks for with "sha256", rounded up to
+// xfrmAuthNames (ike/dataplane/xfrm_linux.go) asks for with "sha256", rounded up to
 // the 8-octet alignment IPv6 requires. The test asserts the kernel took at least this
 // much off the path MTU rather than exactly this much: the exact figure is the kernel's
 // to choose, and asserting it would make a correct implementation red on the day the

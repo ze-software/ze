@@ -226,5 +226,8 @@ func TestExtractConfigAuthMethod(t *testing.T) {
 	_, err = ExtractConfig(withMethod("mschapv2"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mschapv2")
-	assert.Contains(t, err.Error(), "pap, chap, eap-md5 or eap-mschapv2")
+	// The error names every word the parser accepts, so the operator can pick one.
+	for _, word := range []string{"pap", "chap", "eap-md5", "eap-mschapv2"} {
+		assert.Contains(t, err.Error(), word)
+	}
 }

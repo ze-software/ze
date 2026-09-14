@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
 )
@@ -195,18 +196,13 @@ func typeName(t uint16) string {
 	return tb.Str("type-").Uint16(t).String()
 }
 
+// bgpMsgTypeName names a BGP message type as every other surface does: the
+// word is read from the msgtype table, which is the one place Ze spells the
+// five names (ai/rules/principles.md). A code no RFC defines is reported by its
+// number rather than counted under a name it does not have.
 func bgpMsgTypeName(t uint8) string {
-	switch t {
-	case 1:
-		return "open"
-	case 2:
-		return "update"
-	case 3:
-		return "notification"
-	case 4:
-		return "keepalive"
-	case 5:
-		return "route-refresh"
+	if name := msgtype.MessageType(t).LowerString(); name != "" {
+		return name
 	}
 	var tb textbuf.Buffer
 	return tb.Str("type-").Uint(uint64(t)).String()

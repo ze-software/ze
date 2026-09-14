@@ -6,6 +6,7 @@ package geodns
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -109,19 +110,44 @@ func checkGlueNames(zones []string, nameservers int) error {
 // configValueTrue is the canonical boolean-true spelling in config leaf values.
 const configValueTrue = "true"
 
-// defaultClientIPSource and the valid set mirror the YANG enumeration.
-const defaultClientIPSource = "edns0-then-packet"
+// The client IP sources, each selecting where dnsserver.ClientIP reads the
+// client from, and the SOA serial modes, each selecting how computeSerial
+// numbers a generation. Both sets are declared here once and the words below
+// are the words those two branch on.
+const (
+	clientIPSourceEDNS0           = "edns0"
+	clientIPSourcePacket          = "packet"
+	clientIPSourceEDNS0ThenPacket = "edns0-then-packet"
 
+	serialModeAutoEpoch    = "auto-epoch"
+	serialModeAutoDatetime = "auto-datetime"
+	serialModeFixed        = "fixed"
+)
+
+const defaultClientIPSource = clientIPSourceEDNS0ThenPacket
+
+// validClientIPSources and validSerialModes are the one place Go names each
+// set. The enumerations at service/geodns/client-ip-source and
+// service/geodns/soa/serial-mode in ze-geodns-conf.yang offer the same words to
+// an operator, and TestClientIPSourcesMatchTheModel and
+// TestSerialModesMatchTheModel hold the two sides together, because neither
+// can be derived from the other (ai/rules/principles.md).
 var validClientIPSources = map[string]bool{
-	"edns0":             true,
-	"packet":            true,
-	"edns0-then-packet": true,
+	clientIPSourceEDNS0:           true,
+	clientIPSourcePacket:          true,
+	clientIPSourceEDNS0ThenPacket: true,
 }
 
 var validSerialModes = map[string]bool{
-	"auto-epoch":    true,
-	"auto-datetime": true,
-	"fixed":         true,
+	serialModeAutoEpoch:    true,
+	serialModeAutoDatetime: true,
+	serialModeFixed:        true,
+}
+
+// sortedWords answers the words a set holds, sorted, for a refusal that names
+// what an operator may write.
+func sortedWords(set map[string]bool) []string {
+	return slices.Sorted(maps.Keys(set))
 }
 
 // soaConfig holds the configurable SOA fields. Serial generation per SerialMode
@@ -181,7 +207,7 @@ func parseConfig(data string) (geodnsConfig, error) {
 	cfg.DefaultTTL = defaultTTLSeconds
 	cfg.ClientIPSource = defaultClientIPSource
 	cfg.HostSets = map[string]*hostSet{}
-	cfg.SOA = soaConfig{Contact: "hostmaster", SerialMode: "auto-epoch", Refresh: 3600, Retry: 600, Expire: 300, Minimum: 300}
+	cfg.SOA = soaConfig{Contact: "hostmaster", SerialMode: serialModeAutoEpoch, Refresh: 3600, Retry: 600, Expire: 300, Minimum: 300}
 	cfg.Secure = dnsserver.DefaultSecureConfig()
 
 	var root map[string]any
@@ -223,7 +249,7 @@ func parseConfig(data string) (geodnsConfig, error) {
 
 	if v, ok := asString(g, "client-ip-source"); ok {
 		if !validClientIPSources[v] {
-			return cfg, fmt.Errorf("geodns: client-ip-source %q invalid (edns0|packet|edns0-then-packet)", v)
+			return cfg, fmt.Errorf("geodns: client-ip-source %q invalid (%s)", v, strings.Join(sortedWords(validClientIPSources), "|"))
 		}
 		cfg.ClientIPSource = v
 	}
@@ -316,7 +342,7 @@ func parseSOA(m map[string]any, soa *soaConfig) error {
 	}
 	if v, ok := asString(m, "serial-mode"); ok {
 		if !validSerialModes[v] {
-			return fmt.Errorf("geodns: soa serial-mode %q invalid (auto-epoch|auto-datetime|fixed)", v)
+			return fmt.Errorf("geodns: soa serial-mode %q invalid (%s)", v, strings.Join(sortedWords(validSerialModes), "|"))
 		}
 		soa.SerialMode = v
 	}

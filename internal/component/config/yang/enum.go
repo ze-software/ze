@@ -87,6 +87,23 @@ func EnumValues(path string) ([]string, error) {
 	return nil, fmt.Errorf("resolve %s in the YANG model: no loaded module declares that path", path)
 }
 
+// EnumNamesDeclared answers the names of e in the order the module declares
+// them, which is the order of their values.
+//
+// goyang's Names sorts alphabetically and loses the declaration order, and a
+// surface that offers the values to an operator, such as a form dropdown, keeps
+// the module's order: the module puts the default first and groups what belongs
+// together. A surface that only asks whether a value is a member reads Names.
+func EnumNamesDeclared(e *gyang.EnumType) []string {
+	values := e.Values()
+	slices.Sort(values)
+	names := make([]string, len(values))
+	for i, value := range values {
+		names[i] = e.Name(value)
+	}
+	return names
+}
+
 // moduleNames answers every loaded module once, in name order, so two runs over
 // one model read the modules in one order.
 func (l *Loader) moduleNames() []string {

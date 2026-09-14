@@ -35,13 +35,13 @@ func EncryptionImplemented(e EncryptionAlgo) bool {
 // RFC 5282 carries AES CCM into the IKE SA's Encrypted payload, which ze implements in
 // software: SealIKEAEAD and OpenIKEAEAD (crypto/aead.go) produce and verify that ICV.
 // An ESP SA is installed into a dataplane instead, and neither backend names an AES CCM
-// transform. xfrmAEADName (dataplane/xfrm_linux.go) maps an unknown AEAD algorithm to
-// rfc4106(gcm(aes)), and aeadSaltBytes (dataplane/vpp.go) knows no AES CCM salt. So an
-// ESP proposal naming AES CCM would be installed as AES GCM on Linux, which no peer can
-// decrypt and nothing reports.
+// transform: xfrmAEADNames (dataplane/xfrm_linux.go) holds no CCM entry, and VPP's
+// ipsec_types declares no CCM id (dataplane/vpp.go, vppCryptoAlg). Both backends refuse
+// a word they do not hold, so a CCM proposal that reached them would fail the install
+// and leave the tunnel carrying nothing.
 //
 // The refusal therefore belongs at config parse, where a wrong algorithm stops the load
-// rather than reaching a backend that cannot say no (ai/rules/protocol.md).
+// rather than a tunnel that comes up empty (ai/rules/protocol.md).
 func EncryptionImplementedESP(e EncryptionAlgo) bool {
 	if !EncryptionImplemented(e) {
 		return false

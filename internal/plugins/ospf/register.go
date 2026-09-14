@@ -611,11 +611,11 @@ func runOSPFEngine(conn net.Conn) int {
 		case cmdShowIPv6DatabaseRouterDetail:
 			return statusDone, v6DatabaseDetail(v6set, "router", ""), nil
 		case cmdShowIPv6DatabaseScopeLink:
-			return statusDone, v6DatabaseDetail(v6set, "", "link"), nil
+			return statusDone, v6DatabaseDetail(v6set, "", extRegistryLink), nil
 		case cmdShowIPv6DatabaseScopeArea:
-			return statusDone, v6DatabaseDetail(v6set, "", "area"), nil
+			return statusDone, v6DatabaseDetail(v6set, "", scopeAreaName), nil
 		case cmdShowIPv6DatabaseScopeAS:
-			return statusDone, v6DatabaseDetail(v6set, "", "as"), nil
+			return statusDone, v6DatabaseDetail(v6set, "", scopeASName), nil
 		case cmdShowIPv6DatabaseRI:
 			v6ri, _ := v6set.engineFor(afIPv6Unicast)
 			return statusDone, riDatabaseSnapshot(nil, v6ri), nil

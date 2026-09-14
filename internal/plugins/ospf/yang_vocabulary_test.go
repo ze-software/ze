@@ -2,11 +2,13 @@
 // Related: types/vocabulary.go -- the network types and the area types every OSPF package reads
 // Related: config.go -- the OSPFv3 IPsec words this resolver reads
 // Related: packet/auth_verify.go -- the OSPFv2 authentication algorithm words
+// Related: opaque_registry.go -- OpaqueScope, the flooding-scope words
 //
-// Four vocabularies cross the configuration boundary into this plugin: the network type
+// Five vocabularies cross the configuration boundary into this plugin: the network type
 // of an interface, the type of an area, the authentication algorithm of a key-chain key,
-// and the OSPFv3 IPsec transforms of RFC 4552. ze-ospf-conf.yang decides which words an
-// operator can type, and the Go side decides what each word selects. Neither side derives
+// the OSPFv3 IPsec transforms of RFC 4552, and the RFC 5250 flooding scope of an opaque
+// LSA. ze-ospf-conf.yang and ze-ospf-cmd.yang decide which words an operator can type,
+// and the Go side decides what each word selects. Neither side derives
 // from the other, so the two are gated against each other here: a word added to the module
 // alone reaches the resolver as an unknown value, and a word added to Go alone is one no
 // operator can ask for (ai/rules/principles.md).
@@ -29,7 +31,10 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/ospf/yang"
 )
 
-const ospfModule = "ze-ospf-conf"
+const (
+	ospfModule    = "ze-ospf-conf"
+	ospfCmdModule = "ze-ospf-cmd"
+)
 
 // afPath is one address family of the model. Every family uses one grouping, so a
 // vocabulary read here is the one every family carries.
@@ -148,6 +153,52 @@ func TestIPsecVocabularyMatchesModel(t *testing.T) {
 	}
 }
 
+// TestOpaqueScopeVocabularyMatchesModel checks both directions of the flooding-scope
+// binding at the three leaves that declare it: every word a leaf admits selects a scope
+// through parseOpaqueScope, and every scope the type carries is a word each leaf holds.
+// The config leaf reaches parseRouterInformation and the two debug leaves reach
+// parseOpaqueScopeKeyword, so a word one side gains alone is either a scope no operator
+// can ask for or a word the daemon drops without a message.
+func TestOpaqueScopeVocabularyMatchesModel(t *testing.T) {
+	loader := loadOSPFModel(t)
+
+	spelled := make([]string, 0, len(opaqueScopes))
+	for _, scope := range opaqueScopes {
+		spelled = append(spelled, scope.String())
+	}
+	spelled = sorted(spelled)
+
+	leaves := []struct {
+		module string
+		path   []string
+	}{
+		{module: ospfModule, path: []string{"ospf", "router-information", "scope"}},
+		{module: ospfCmdModule, path: []string{"debug", "ip", "ospf", "inject", "opaque", "scope", "scope"}},
+		{module: ospfCmdModule, path: []string{"debug", "ipv6", "ospf", "inject", "lsa", "scope", "scope"}},
+	}
+	for _, leaf := range leaves {
+		model := modelEnumIn(t, loader, leaf.module, leaf.path)
+		if !slices.Equal(model, spelled) {
+			t.Errorf("the flooding scopes disagree: %s at %v holds %v and OpaqueScope spells %v",
+				leaf.module, leaf.path, model, spelled)
+		}
+		for _, word := range model {
+			scope, ok := parseOpaqueScope(word)
+			if !ok {
+				t.Errorf("%s admits scope %q and parseOpaqueScope does not know it, so the LSA is flooded at no scope at all", leaf.module, word)
+				continue
+			}
+			if scope.String() != word {
+				t.Errorf("parseOpaqueScope(%q) selected %s, so the scope an operator named is not the one the LSA is flooded at", word, scope)
+			}
+		}
+	}
+
+	if _, ok := parseOpaqueScope("no-such-scope"); ok {
+		t.Error("parseOpaqueScope accepted a word no leaf holds")
+	}
+}
+
 func loadOSPFModel(t *testing.T) *configyang.Loader {
 	t.Helper()
 
@@ -158,20 +209,26 @@ func loadOSPFModel(t *testing.T) *configyang.Loader {
 	return loader
 }
 
-// modelEnum answers the values of the enumeration at one leaf of the loaded model.
+// modelEnum answers the values of the enumeration at one leaf of the config module.
+func modelEnum(t *testing.T, loader *configyang.Loader, path []string) []string {
+	t.Helper()
+	return modelEnumIn(t, loader, ospfModule, path)
+}
+
+// modelEnumIn answers the values of the enumeration at one leaf of the named module.
 //
 // It FAILS on a path that names no enumeration rather than answering an empty set.
 // DefaultLoader discards its own LoadRegistered and Resolve errors, so a model that
 // loaded half way comes back looking whole, and an empty set here would let every
 // comparison above pass over nothing (ai/rules/evidence.md).
-func modelEnum(t *testing.T, loader *configyang.Loader, path []string) []string {
+func modelEnumIn(t *testing.T, loader *configyang.Loader, module string, path []string) []string {
 	t.Helper()
 
-	entry := loader.GetEntry(ospfModule)
+	entry := loader.GetEntry(module)
 	if entry == nil {
-		t.Fatalf("the loaded model holds no module %s: this binary registered nothing to compare against", ospfModule)
+		t.Fatalf("the loaded model holds no module %s: this binary registered nothing to compare against", module)
 	}
-	walked := ospfModule
+	walked := module
 	for _, name := range path {
 		child := childEntry(entry, name)
 		if child == nil {

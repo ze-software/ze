@@ -15,7 +15,9 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 )
@@ -29,19 +31,20 @@ const (
 	feedList        = "feed"
 )
 
-const (
-	addPathNone    = "none"
-	addPathReceive = "receive"
-	addPathSend    = "send"
-	addPathBoth    = "both"
-)
+// addPathNone is the ADD-PATH mode that asks for no capability. It is the leaf's
+// default in the model, and the one value capabilityDecls has to recognize.
+const addPathNone = "none"
 
-var validAddPath = map[string]bool{
-	addPathNone:    true,
-	addPathReceive: true,
-	addPathSend:    true,
-	addPathBoth:    true,
-}
+// addPathModePath is the leaf the model declares the ADD-PATH modes at.
+const addPathModePath = configRoot + "/" + bridgeContainer + "/add-path"
+
+// addPathModes answers the ADD-PATH modes the model declares, once for the
+// process. The model is the one declaration of the set, and a copy here is a
+// second one that drifts (ai/rules/principles.md). It is read on the config
+// path rather than in init, because the modules load through init.
+var addPathModes = sync.OnceValues(func() ([]string, error) {
+	return configyang.EnumValues(addPathModePath)
+})
 
 // defaultFamily is the address family the bridge negotiates when the operator
 // configures none. Mirrors the `ze exabgp plugin` CLI default (main.go's
@@ -100,8 +103,13 @@ func parseConfig(data string) (bridgeConfig, error) {
 	}
 
 	if v, ok := asString(blk, "add-path"); ok {
-		if !validAddPath[v] {
-			return cfg, fmt.Errorf("exabgp bridge: add-path %q invalid (none|receive|send|both)", v)
+		// A model that cannot answer refuses every mode: the closed direction.
+		modes, err := addPathModes()
+		if err != nil {
+			return cfg, fmt.Errorf("exabgp bridge: add-path: %w", err)
+		}
+		if !slices.Contains(modes, v) {
+			return cfg, fmt.Errorf("exabgp bridge: add-path %q is not one of %s", v, strings.Join(modes, ", "))
 		}
 		cfg.AddPath = v
 	}

@@ -1160,7 +1160,7 @@ func parseRouterInformation(m map[string]any) routerInformationConfig {
 	// list whenever the operator named exactly one scope, and the default below
 	// then substituted BOTH scopes -- a wrong value rather than a missing one.
 	for _, s := range configvalue.LeafList(m[labelScope]) {
-		if sc, ok := routerInfoScope(s); ok && !cfg.HasScope(sc) {
+		if sc, ok := parseOpaqueScope(s); ok && !cfg.HasScope(sc) {
 			cfg.Scopes = append(cfg.Scopes, sc)
 		}
 	}
@@ -1168,17 +1168,6 @@ func parseRouterInformation(m map[string]any) routerInformationConfig {
 		cfg.Scopes = []OpaqueScope{OpaqueScopeArea, OpaqueScopeAS}
 	}
 	return cfg
-}
-
-// routerInfoScope maps a YANG `scope` enumeration token to its RFC 5250 flooding scope,
-// reusing OpaqueScope.String() so the token spellings live in exactly one place.
-func routerInfoScope(s string) (OpaqueScope, bool) {
-	for _, sc := range []OpaqueScope{OpaqueScopeLink, OpaqueScopeArea, OpaqueScopeAS} {
-		if sc.String() == s {
-			return sc, true
-		}
-	}
-	return 0, false
 }
 
 func parseTimers(m map[string]any) timerConfig {

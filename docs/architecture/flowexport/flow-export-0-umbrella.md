@@ -37,6 +37,15 @@ registers a factory for its adapter at `init()` time.
 This constraint is the reason the encoder interfaces exist. A direct call from
 `flowexport` into `sflow` is an import cycle, not a style choice.
 
+The registry is also the one declaration of which protocols a collector can
+name. `CollectorConfig.validate` refuses a protocol no encoder registered for,
+and its error lists `RegisteredProtocols()`, so a binary that links no encoder
+for a protocol refuses it at commit rather than exporting to nobody. The
+`protocol` enumeration in `ze-flowexport-conf.yang` is the operator's copy of
+that set, and `protocols_test.go` holds the two together.
+<!-- source: internal/plugins/flowexport/encoder_registry.go -- RegisteredProtocols -->
+<!-- source: internal/plugins/flowexport/config.go -- CollectorConfig.validate -->
+
 ## Buffer-first encoding
 
 <!-- source: internal/plugins/flowexport/sender.go -- MaxDatagramSize, buffer pool -->

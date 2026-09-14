@@ -10,6 +10,7 @@ package traffic
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 var errTrafficRateMustBe1Got = errors.New("traffic: rate must be >= 1, got 0")
@@ -69,15 +70,23 @@ var qdiscTypeNames = map[QdiscType]string{
 // the ingress hook rather than at the root, and the mirror and sampling paths
 // own that hook. The two names stay in qdiscTypeNames above, which is the
 // other direction: naming a qdisc this backend READS off an interface.
-var qdiscTypeByName = map[string]QdiscType{
-	"htb":      QdiscHTB,
-	"hfsc":     QdiscHFSC,
-	"fq":       QdiscFQ,
-	"fq_codel": QdiscFQCodel,
-	"sfq":      QdiscSFQ,
-	"tbf":      QdiscTBF,
-	"netem":    QdiscNetem,
-	"prio":     QdiscPrio,
+var qdiscTypeByName = nameIndex(qdiscTypeNames, QdiscClsact, QdiscIngress)
+
+// nameIndex inverts a name table into the parser's index, leaving out the
+// values in skip. Each name is then spelled once, in the table String() reads,
+// so the parser cannot drift from it.
+func nameIndex[T comparable](names map[T]string, skip ...T) map[string]T {
+	index := make(map[string]T, len(names))
+	for value, name := range names {
+		if slices.Contains(skip, value) {
+			continue
+		}
+		if _, dup := index[name]; dup {
+			panic("BUG: traffic: two values share the name " + name)
+		}
+		index[name] = value
+	}
+	return index
 }
 
 func (q QdiscType) String() string {
@@ -117,11 +126,7 @@ var filterTypeNames = map[FilterType]string{
 	FilterProtocol: "protocol",
 }
 
-var filterTypeByName = map[string]FilterType{
-	"mark":     FilterMark,
-	"dscp":     FilterDSCP,
-	"protocol": FilterProtocol,
-}
+var filterTypeByName = nameIndex(filterTypeNames)
 
 func (f FilterType) String() string {
 	if name, ok := filterTypeNames[f]; ok {

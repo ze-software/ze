@@ -292,14 +292,20 @@ func (m *Manager) checkSelfTest(name string, now time.Time) {
 	}
 }
 
-var validDays = map[string]time.Weekday{
-	"sunday":    time.Sunday,
-	"monday":    time.Monday,
-	"tuesday":   time.Tuesday,
-	"wednesday": time.Wednesday,
-	"thursday":  time.Thursday,
-	"friday":    time.Friday,
-	"saturday":  time.Saturday,
+// weekdayNamed answers the weekday whose English name is day, compared without
+// case, and false for a word that names none.
+//
+// The words are time.Weekday's own, so Go holds no second list of them. The
+// enumeration at storage/smart/self-test/long/day in ze-storage-conf.yang
+// spells the same seven to an operator, and TestSelfTestDayLeafMatchesWeekdays
+// holds the model to the standard library (ai/rules/principles.md).
+func weekdayNamed(day string) (time.Weekday, bool) {
+	for wd := time.Sunday; wd <= time.Saturday; wd++ {
+		if strings.EqualFold(day, wd.String()) {
+			return wd, true
+		}
+	}
+	return time.Sunday, false
 }
 
 // pastTimeOfDay returns true if the current time is at or past the
@@ -331,7 +337,7 @@ func matchesDay(now time.Time, day string) bool {
 	if day == "" {
 		return true
 	}
-	wd, ok := validDays[strings.ToLower(day)]
+	wd, ok := weekdayNamed(day)
 	if !ok {
 		return true
 	}

@@ -363,6 +363,9 @@ var mcpAuthModeLeaf = struct {
 // closed answer: an unread schema MUST NOT publish a mode the daemon would then
 // refuse (ai/rules/principles.md).
 func mcpAuthModes(schema *config.Schema) []string {
+	if schema == nil {
+		return nil
+	}
 	leaf := findLeafNode(schema, mcpAuthModeLeaf.path, mcpAuthModeLeaf.leaf)
 	if leaf == nil {
 		return nil

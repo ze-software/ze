@@ -20,15 +20,21 @@ type BFDRawCaptureProvider interface {
 var bfdRawCapture BFDRawCaptureProvider
 
 // The three actions `capture-raw` accepts. Each one is both a CLI token and
-// the action echoed in the response payload.
+// the action echoed in the response payload. The enumeration at
+// show/capture/raw/action in ze-diag-cmd.yang offers the same words to an
+// operator, and TestCaptureRawActionsMatchTheModel holds the two together,
+// because each word selects a handler the model cannot name
+// (ai/rules/principles.md).
 const (
 	captureRawActionStart = "start"
 	captureRawActionStop  = "stop"
 	captureRawActionDump  = "dump"
 )
 
-// The response payload keys one captured frame carries.
+// The response payload keys: the action every answer echoes, and the three
+// one captured frame carries.
 const (
+	keyAction    = "action"
 	keyTimestamp = "timestamp"
 	keyDirection = "direction"
 	keyBytes     = "bytes"
@@ -89,7 +95,7 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 		}
 	}
 	data := plugin.Map{
-		"action":  captureRawActionStart,
+		keyAction: captureRawActionStart,
 		"started": started,
 	}
 	if note := captureRawL2TPNote(protocol); note != "" {
@@ -116,7 +122,7 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 		}
 	}
 	data := plugin.Map{
-		"action":  captureRawActionStop,
+		keyAction: captureRawActionStop,
 		"stopped": stopped,
 	}
 	if note := captureRawL2TPNote(protocol); note != "" {
@@ -126,7 +132,7 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 }
 
 func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, limit int) (*plugin.Response, error) {
-	result := map[string]any{}
+	result := map[string]any{keyAction: captureRawActionDump}
 
 	// The l2tp branch lives in capture_raw_l2tp.go (//go:build ze_l2tp)
 	// with a not-in-this-build stub counterpart.

@@ -26,11 +26,15 @@ lines for a build tag and flags the pair without one.
 <!-- source: internal/component/cmd/show/memory_map_linux.go -- memory from /proc/self/status -->
 <!-- source: internal/plugins/host-cmd/cmd/show_kernel_log_linux.go -- kernel log from /dev/kmsg -->
 
-**DNS lookup uses the stdlib `net.Resolver`, not the `miekg/dns` resolver the
-resolve component holds.** The lookup handler must work when the resolver
-component was never initialized. Cache statistics come from
+**DNS lookup asks the resolve component's resolver when one is running, and
+the stdlib `net.Resolver` otherwise.** The lookup handler must work when the
+resolver component was never initialized. `dnsLookups` is the one Go
+declaration of the record types the command answers: each word selects the
+stdlib lookup that serves it, the RR type number comes from the `miekg/dns`
+registry, and `TestDNSLookupTypesMatchTheModel` holds the table to the
+`show dns lookup type` enumeration. Cache statistics come from
 `Resolver.CacheStats()`, which counts hits, misses and evictions.
-<!-- source: internal/component/resolve/cmd/show_dns.go -- dnsLookupStdlib, getDNSCacheStats -->
+<!-- source: internal/component/resolve/cmd/show_dns.go -- dnsLookups, dnsLookupStdlib, getDNSCacheStats -->
 
 **The concurrent-dump guard for `show system goroutines full` is hand-written
 from a mutex, a flag and a channel.** Only `errgroup` is vendored from

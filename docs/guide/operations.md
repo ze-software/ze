@@ -184,7 +184,7 @@ ze env get ze.log              # details for one var
 |----------|---------|---------|
 | `ze.log` | `warn` | Base log level |
 | `ze.log.<subsystem>` | -- | Per-subsystem log level |
-| `ze.log.backend` | `stderr` | Log output: stderr, stdout, syslog |
+| `ze.log.backend` | `stderr` | Log output: stderr, stdout, syslog, kmsg, or a comma-separated list of them |
 | `ze.log.destination` | -- | Syslog address (when backend=syslog) |
 | `ze.log.relay` | `warn` | Plugin stderr relay threshold |
 | `ze.ssh.host` | -- | Override SSH host for CLI commands |

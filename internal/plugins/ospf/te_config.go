@@ -136,7 +136,7 @@ func parseInterAS(m map[string]any, ifaceName string) (interASConfig, error) {
 		switch s {
 		case scopeAreaName:
 			ia.Scope = OpaqueScopeArea
-		case "as":
+		case scopeASName:
 			ia.Scope = OpaqueScopeAS
 		default:
 			return ia, fmt.Errorf("%w: interface %q value %q", ErrTEInterASScope, ifaceName, s)

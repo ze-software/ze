@@ -37,6 +37,25 @@ func (s OpaqueScope) lsType() types.LSType { return types.LSType(s) }
 // valid reports whether s is one of the three RFC 5250 opaque scopes.
 func (s OpaqueScope) valid() bool { return s.lsType().IsOpaque() }
 
+// opaqueScopes is every scope the type carries, in LS type order. String spells each
+// one, so parseOpaqueScope holds no second copy of the vocabulary and a scope added to
+// the const block without a String arm renders "unknown" rather than parsing into
+// silence (ai/rules/principles.md).
+var opaqueScopes = [...]OpaqueScope{OpaqueScopeLink, OpaqueScopeArea, OpaqueScopeAS}
+
+// parseOpaqueScope maps a scope word to its flooding scope, reading String so the
+// word an operator types and the word Ze renders are one spelling. The words are the
+// ones ze-ospf-conf.yang (router-information/scope) and ze-ospf-cmd.yang (debug inject
+// scope) declare, and yang_vocabulary_test.go gates the two sides against each other.
+func parseOpaqueScope(word string) (OpaqueScope, bool) {
+	for _, scope := range opaqueScopes {
+		if scope.String() == word {
+			return scope, true
+		}
+	}
+	return 0, false
+}
+
 // String returns a stable lowercase scope name.
 func (s OpaqueScope) String() string {
 	switch s {

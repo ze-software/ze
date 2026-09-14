@@ -8,40 +8,39 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // Origin parses a BGP ORIGIN attribute string value.
 // RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
 //
-// Valid values:
-//   - "igp" or "" (empty) → 0 (IGP)
-//   - "egp" → 1 (EGP)
-//   - "incomplete" or "?" → 2 (INCOMPLETE)
+// The three names are read from the attribute package, which is the one place
+// Ze spells them (ai/rules/principles.md). This function adds the spellings the
+// config and the ExaBGP API accept on top of them:
+//   - "" (empty) → IGP, the config default
+//   - "?" → INCOMPLETE, the ExaBGP API alias
 //
 // Input is case-insensitive.
 func Origin(s string) (uint8, error) {
-	switch strings.ToLower(s) {
-	case "", "igp":
-		return 0, nil
-	case "egp":
-		return 1, nil
-	case "incomplete", "?":
-		return 2, nil
+	switch s {
+	case "":
+		return uint8(attribute.OriginIGP), nil
+	case "?":
+		return uint8(attribute.OriginIncomplete), nil
 	}
-	return 0, fmt.Errorf("invalid origin %q: valid values are igp, egp, incomplete", s)
+	if origin, ok := attribute.OriginFromText(strings.ToLower(s)); ok {
+		return uint8(origin), nil
+	}
+	return 0, fmt.Errorf("invalid origin %q: valid values are %s", s, strings.Join(attribute.OriginTextNames(), ", "))
 }
 
-// OriginString returns the string representation of an ORIGIN value.
-// RFC 4271 Section 5.1.1: 0=IGP, 1=EGP, 2=INCOMPLETE.
+// OriginString returns the lowercase name of an ORIGIN value, as the attribute
+// package spells it, or unknown(N) for a value RFC 4271 Section 5.1.1 does not
+// define.
 func OriginString(v uint8) string {
-	switch v {
-	case 0:
-		return "igp"
-	case 1:
-		return "egp"
-	case 2:
-		return "incomplete"
+	if name := attribute.Origin(v).LowerString(); name != "" {
+		return name
 	}
 	var b textbuf.Buffer
 	return b.Reset().Str("unknown(").Int(int64(v)).Byte(')').String()

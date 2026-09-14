@@ -6,8 +6,11 @@ package as112
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/netip"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/dnsserver"
@@ -30,10 +33,22 @@ const (
 	addressFamilyIPv6Only = "ipv6-only"
 )
 
+// validAddressFamilies is the one place Go names the address families: each
+// word selects which anycast addresses hostAddresses registers and which
+// covering prefixes familiesFor announces. The enumeration at
+// service/as112/address-family in ze-as112-conf.yang offers the same words to
+// an operator, and TestAddressFamiliesMatchTheModel holds the two together,
+// because neither side can be derived from the other (ai/rules/principles.md).
 var validAddressFamilies = map[string]bool{
 	addressFamilyBoth:     true,
 	addressFamilyIPv4Only: true,
 	addressFamilyIPv6Only: true,
+}
+
+// addressFamilyNames answers the words validAddressFamilies holds, sorted, for
+// a refusal that names what an operator may write.
+func addressFamilyNames() []string {
+	return slices.Sorted(maps.Keys(validAddressFamilies))
 }
 
 // as112DefaultASN is the origin AS a redistributed AS112 covering prefix carries
@@ -108,7 +123,7 @@ func parseConfig(data string) (as112Config, error) {
 
 	if v, ok := asString(a, "address-family"); ok {
 		if !validAddressFamilies[v] {
-			return cfg, fmt.Errorf("as112: address-family %q invalid (both|ipv4-only|ipv6-only)", v)
+			return cfg, fmt.Errorf("as112: address-family %q invalid (%s)", v, strings.Join(addressFamilyNames(), "|"))
 		}
 		cfg.AddressFamily = v
 	}

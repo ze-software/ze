@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
@@ -220,16 +221,24 @@ func buildInjectTLV(typeStr, valueHex string) ([]byte, error) {
 }
 
 func parseOpaqueScopeKeyword(s string) (OpaqueScope, error) {
-	switch s {
-	case "link":
-		return OpaqueScopeLink, nil
-	case scopeAreaName:
-		return OpaqueScopeArea, nil
-	case "as":
-		return OpaqueScopeAS, nil
-	default:
-		return 0, fmt.Errorf("unknown opaque scope (want link/area/as): %s", s)
+	scope, ok := parseOpaqueScope(s)
+	if !ok {
+		return 0, fmt.Errorf("unknown opaque scope (want %s): %s", opaqueScopeWords(), s)
 	}
+	return scope, nil
+}
+
+// opaqueScopeWords renders the words parseOpaqueScope accepts as "link/area/as" for an
+// error message, read from the one place they are spelled.
+func opaqueScopeWords() string {
+	var b textbuf.Buffer
+	for i, scope := range opaqueScopes {
+		if i > 0 {
+			b.Byte('/')
+		}
+		b.Str(scope.String())
+	}
+	return b.String()
 }
 
 // injectNextArg returns the argument after position i, or an error when it is missing.

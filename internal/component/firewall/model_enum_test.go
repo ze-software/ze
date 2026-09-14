@@ -12,10 +12,16 @@ import (
 // enumeration an operator writes the value into.
 //
 // The Go side is kept rather than derived, and the reason is the same for all
-// four sets: each name here is paired with a typed constant the nft backend
-// lowers to a netlink value (lowerFamily, lowerHook), so the table carries a
-// kernel meaning the model does not hold. That makes the model the copy, and
-// this test is what keeps the copy honest in both directions.
+// six sets: each name here is paired with a value the model does not hold, a
+// typed constant the nft backend lowers to a netlink value (lowerFamily,
+// lowerHook), the rp_filter value a source-validation word writes, or the
+// IANA number every backend programs for a protocol name. That makes the
+// model the copy, and this test is what keeps the copy honest in both
+// directions.
+//
+// The protocol enumeration is declared at two leaves, the firewall term and
+// the policy-route rule; the policy-route package resolves its names through
+// ProtocolNumber, so the one table is checked at the leaf this package owns.
 //
 // The expected values are read from the model. A list written in this file
 // would agree with a Go table that had drifted away from the model just as
@@ -36,6 +42,8 @@ func TestParsedNamesMatchTheModel(t *testing.T) {
 		{"chain hook", "firewall/table/chain/hook", nameSet(chainHookByName)},
 		{"chain type", "firewall/table/chain/type", nameSet(chainTypeByName)},
 		{"set type", "firewall/table/set/type", nameSet(setTypeFromString)},
+		{"source validation", "firewall/global-options/source-validation", nameSet(sourceValidationValues)},
+		{"term protocol", "firewall/table/chain/term/from/protocol", ProtocolNames()},
 	}
 
 	for _, c := range cases {

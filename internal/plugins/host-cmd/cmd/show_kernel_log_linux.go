@@ -26,6 +26,12 @@ const (
 	kmsgRecordMax = 8192
 )
 
+// kmsgLevelNames is the kernel's own syslog level vocabulary, indexed by the
+// priority number a /dev/kmsg record carries, so the position is what Go
+// holds and the model cannot. The enumeration at show/system/kernel-log/level
+// in ze-host-cmd.yang offers the same words to an operator, and
+// TestKernelLogLevelsMatchTheModel holds the two together
+// (ai/rules/principles.md).
 var kmsgLevelNames = [8]string{
 	"emerg", "alert", "crit", "err", "warning", "notice", "info", "debug",
 }
