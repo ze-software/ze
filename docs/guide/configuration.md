@@ -37,7 +37,7 @@ bgp {
         remote { connect false; }   # passive: don't initiate outbound
 
         capability {
-            asn4;
+            asn4 enable;
             route-refresh;
         }
 
@@ -882,7 +882,7 @@ Configured under `capability { }` at any inheritance level.
 
 | Capability | Config | Values |
 |------------|--------|--------|
-| 4-byte ASN | `asn4` | presence (enabled by default) |
+| 4-byte ASN | `asn4` | `enable` (default), `disable`, `require`, `refuse` |
 | Route Refresh | `route-refresh` | presence |
 | Extended Message | `extended-message` | presence |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](graceful-restart.md) |
@@ -2173,7 +2173,7 @@ error.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
-<!-- source: internal/component/doctor/checks_linux.go -- checkInterfaces, selectedNetDevice -->
+<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 
 ### MAC Address Binding
@@ -2193,7 +2193,7 @@ reports that shape as `doctor-iface-mac-override-by-name`, at warning severity. 
 `mac { match }` against the NIC's permanent address clears it: the override then follows
 the NIC it was written for. Discovery writes no override on an ethernet for this reason.
 
-<!-- source: internal/component/doctor/checks_linux.go -- macOverrideBoundByName -->
+<!-- source: internal/component/iface/doctor_linux.go -- macOverrideBoundByName -->
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, SetMACAddress -->
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->

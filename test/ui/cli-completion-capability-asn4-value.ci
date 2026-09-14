@@ -1,5 +1,5 @@
-# Test: ze config completion — capability asn4 boolean value
-# VALIDATES: asn4 is a boolean leaf with true/false completions
+# Test: ze config completion — capability asn4 mode value
+# VALIDATES: asn4 is a capability-mode leaf whose completions are the four modes
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -29,5 +29,8 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/capability --input set+asn4+ test.conf
 expect=exit:code=0
-expect=stdout:contains=true
-expect=stdout:contains=false
+expect=stdout:contains=enable
+expect=stdout:contains=disable
+expect=stdout:contains=require
+expect=stdout:contains=refuse
+reject=stdout:pattern=true

@@ -769,9 +769,12 @@ func ValidateValue(typ ValueType, value string) error {
 		return nil
 
 	case TypeBool:
-		if value != configTrue && value != "false" && value != "enable" && value != "disable" && //nolint:goconst // String literals for validation
-			value != "require" && value != "refuse" {
-			return fmt.Errorf("invalid bool: %q (expected true/false/enable/disable/require/refuse)", value)
+		// enable and disable are the config spelling of true and false;
+		// NormalizeLeafValue rewrites them before the tree stores the value.
+		// A capability mode (require, refuse) is an enumeration of its own
+		// (ze-bgp-conf.yang, typedef capability-mode) and no boolean takes it.
+		if value != configTrue && value != configFalse && value != configEnable && value != configDisable {
+			return fmt.Errorf("invalid bool: %q (expected true/false/enable/disable)", value)
 		}
 		return nil
 

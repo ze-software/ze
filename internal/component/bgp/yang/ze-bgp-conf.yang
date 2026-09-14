@@ -12,6 +12,17 @@ module ze-bgp-conf {
         description "Initial revision";
     }
 
+    typedef capability-mode {
+        type enumeration {
+            enum enable { description "Advertise the capability; no enforcement"; }
+            enum disable { description "Do not advertise the capability; no enforcement"; }
+            enum require { description "Advertise the capability; refuse the session when the peer does not offer it"; }
+            enum refuse { description "Do not advertise the capability; refuse the session when the peer offers it"; }
+        }
+        description "The four negotiation modes of one BGP capability. Every mode leaf under capability
+            declares this type, so the set is spelled once and parseCapMode in the reactor reads it.";
+    }
+
     // BGP block - main BGP configuration
     container bgp {
         description "Border Gateway Protocol routing configuration.";
@@ -972,11 +983,12 @@ module ze-bgp-conf {
                     not advertise it and refuses the session when the peer offers it.";
 
                 leaf asn4 {
-                    type boolean;
-                    default true;
-                    description "Advertise the 4-byte ASN capability (RFC 6793).";
+                    type capability-mode;
+                    default enable;
+                    description "4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.";
                     ze:help "The capability is required for an ASN of more than 65535. Disable it only for a peer that runs a
-                        legacy implementation, which speaks 2-byte ASNs alone.";
+                        legacy implementation, which speaks 2-byte ASNs alone. require refuses the session when the
+                        peer does not offer it, and refuse refuses the session when the peer offers it.";
                 }
 
                 container route-refresh {
@@ -1036,12 +1048,7 @@ module ze-bgp-conf {
                                 to the sender, not local receive-side policing.";
                         }
                         leaf mode {
-                            type enumeration {
-                                enum enable { description "Enable ADD-PATH for this family"; }
-                                enum disable { description "Disable ADD-PATH for this family"; }
-                                enum require { description "Require ADD-PATH for this family"; }
-                                enum refuse { description "Refuse ADD-PATH for this family"; }
-                            }
+                            type capability-mode;
                             description "ADD-PATH negotiation mode for this family.";
                             ze:help "enable and disable act on this family alone. require refuses the session when
                                 the peer does not offer ADD-PATH. refuse refuses the session when the peer offers
@@ -1068,12 +1075,7 @@ module ze-bgp-conf {
                     leaf nhafi { type zt:afi; description "Next-hop AFI (e.g. ipv6)";
  ze:help "Ze reads ipv4 and ipv6 alone, and it skips an entry that names another value."; }
                     leaf mode {
-                        type enumeration {
-                            enum enable { description "Enable extended next hop"; }
-                            enum disable { description "Disable extended next hop"; }
-                            enum require { description "Require extended next hop"; }
-                            enum refuse { description "Refuse extended next hop"; }
-                        }
+                        type capability-mode;
                         description "Extended next hop negotiation mode";
                         ze:help "Ze takes the most restrictive mode over the whole list, where require wins against
                             refuse, and refuse wins against enable. enable and require both advertise the family.";

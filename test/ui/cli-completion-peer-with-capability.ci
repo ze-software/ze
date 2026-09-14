@@ -23,7 +23,7 @@ bgp {
 				remote 65001
 			}
 			capability {
-				asn4 true
+				asn4 enable
 				add-path {
 					direction send/receive
 					limit 10

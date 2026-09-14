@@ -1,7 +1,7 @@
 # Raw BGP injector for the RFC 6793 Section 4.2.3 mixed-width relay scenario.
 #
 # It is the OLD BGP speaker. ze holds this session to two octets from its own
-# side (ze.conf, capability asn4 false), so the AS path below is the pair
+# side (ze.conf, capability asn4 disable), so the AS path below is the pair
 # Section 4.2.3 exists to reconcile: a two-octet AS_PATH carrying AS_TRANS where
 # a four-octet AS number belongs, and an AS4_PATH carrying the real one.
 #

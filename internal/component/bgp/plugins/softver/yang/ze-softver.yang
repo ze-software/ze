@@ -22,12 +22,7 @@ module ze-softver {
                 leaf changes it. A container on the peer replaces the container on the group rather than adding to
                 it.";
             leaf mode {
-                type enumeration {
-                    enum enable { description "Advertise capability (default)."; }
-                    enum disable { description "Do not advertise capability."; }
-                    enum require { description "Advertise and require peer support."; }
-                    enum refuse { description "Do not advertise, reject if peer has it."; }
-                }
+                type bgp:capability-mode;
                 default "enable";
                 description "Capability negotiation mode.";
                 ze:help "enable is the default, and Ze sends the capability. disable sends none. Ze treats require

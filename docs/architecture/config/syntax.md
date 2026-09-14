@@ -616,15 +616,16 @@ Peer configuration is organized into nested containers by concern.
 
 ### Capability Section
 
-All capabilities support a four-mode vocabulary:
+All capabilities support a four-mode vocabulary, declared once as the
+`capability-mode` typedef and reused by every mode leaf under `capability`:
 
-| Mode | Advertise? | Enforcement | Aliases |
-|------|------------|-------------|---------|
-| `enable` | Yes | None | `true` |
-| `disable` | No | None | `false` |
-| `require` | Yes | Reject peer if capability missing | |
-| `refuse` | No | Reject peer if capability present | |
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container capability, enum enable/disable/require/refuse -->
+| Mode | Advertise? | Enforcement |
+|------|------------|-------------|
+| `enable` | Yes | None |
+| `disable` | No | None |
+| `require` | Yes | Reject peer if capability missing |
+| `refuse` | No | Reject peer if capability present |
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- typedef capability-mode -->
 
 **Simple capabilities** -- mode is the value:
 
@@ -684,9 +685,14 @@ The `direction` and `limit` on the container are inherited by all negotiated fam
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability container -->
 
 **Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) -- they only participate in negotiation when explicitly configured.
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf asn4 default true -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf asn4 default enable -->
 
-**Backwards compatibility:** `true` is accepted as `enable`, `false` as `disable`. Bare capability names (e.g., `route-refresh;`) mean `enable`.
+**Presence capabilities:** `route-refresh` and `extended-message` are presence
+containers, so a bare name (`route-refresh;`) means `enable`, and the value form
+also takes `true` as `enable` and `false` as `disable`. `asn4` is a
+`capability-mode` leaf and takes the four modes only: `asn4 true` is refused as
+an invalid enum.
+<!-- source: internal/component/bgp/reactor/config_capabilities.go -- parseCapMode -->
 
 ### Family Section
 
@@ -896,7 +902,7 @@ one standing, so a reload that removed the last `redistribute` block stops
 redistributing.
 <!-- source: internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
 <!-- source: internal/component/bgp/config/loader_create.go -- initRedistribute -->
-<!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules -->
+<!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 
 ---
 
@@ -1264,12 +1270,14 @@ l2info:19:0:1500:111
 ```
 enable          # or true
 disable         # or false
-require         # capability mode: reject session if peer lacks it
-refuse          # capability mode: reject session if peer has it
 ```
 
-The `require` and `refuse` values are accepted by boolean fields to support capability mode enforcement. The parser normalizes `enable` to `true` and `disable` to `false` internally; `require` and `refuse` pass through unchanged.
-<!-- source: internal/component/config/environment.go -- ParseBoolStrict -->
+A boolean leaf takes these four words and nothing else. The parser normalizes
+`enable` to `true` and `disable` to `false` before the tree stores the value.
+`require` and `refuse` are capability modes, an enumeration of their own
+(`capability-mode` above), and a boolean leaf given either is refused with
+`invalid bool`.
+<!-- source: internal/component/config/schema.go -- ValidateValue, NormalizeBool -->
 
 ### Origin
 

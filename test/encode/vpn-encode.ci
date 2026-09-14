@@ -34,7 +34,7 @@ bgp {
 					ipv4/mpls-vpn { prefix { maximum 10000; } }
 				}
 				capability {
-					asn4 true
+					asn4 enable
 				}
 			}
 			behavior {

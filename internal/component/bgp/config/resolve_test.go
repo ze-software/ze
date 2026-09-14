@@ -62,32 +62,32 @@ func TestDeepMergeMaps(t *testing.T) {
 		{
 			name: "deep_merge_containers",
 			dst: map[string]any{
-				"capability": map[string]any{"asn4": "true"},
+				"capability": map[string]any{"asn4": "enable"},
 			},
 			src: map[string]any{
 				"capability": map[string]any{"route-refresh": "true"},
 			},
 			want: map[string]any{
-				"capability": map[string]any{"asn4": "true", "route-refresh": "true"},
+				"capability": map[string]any{"asn4": "enable", "route-refresh": "true"},
 			},
 		},
 		{
 			name: "deep_override_in_container",
 			dst: map[string]any{
-				"capability": map[string]any{"asn4": "true", "route-refresh": "false"},
+				"capability": map[string]any{"asn4": "enable", "route-refresh": "false"},
 			},
 			src: map[string]any{
 				"capability": map[string]any{"route-refresh": "true"},
 			},
 			want: map[string]any{
-				"capability": map[string]any{"asn4": "true", "route-refresh": "true"},
+				"capability": map[string]any{"asn4": "enable", "route-refresh": "true"},
 			},
 		},
 		{
 			name: "src_replaces_non_map_with_map",
 			dst:  map[string]any{"capability": "simple"},
-			src:  map[string]any{"capability": map[string]any{"asn4": "true"}},
-			want: map[string]any{"capability": map[string]any{"asn4": "true"}},
+			src:  map[string]any{"capability": map[string]any{"asn4": "enable"}},
+			want: map[string]any{"capability": map[string]any{"asn4": "enable"}},
 		},
 		{
 			name: "empty_src",

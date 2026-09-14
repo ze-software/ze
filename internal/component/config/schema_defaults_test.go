@@ -204,7 +204,7 @@ func TestYANGDefaultsMatchRFC(t *testing.T) {
 		{"bgp/peer/timer/receive-hold-time", "90", "RFC 4271 Section 10"},
 		{"bgp/peer/timer/connect-retry", "120", "RFC 4271 Section 10"},
 		{"bgp/peer/timer/send-hold-time", "0", "RFC 9687 (0 = auto)"},
-		{"bgp/peer/session/capability/asn4", "true", "RFC 6793"},
+		{"bgp/peer/session/capability/asn4", "enable", "RFC 6793"},
 		{"bgp/peer/connection/local/accept", "true", "RFC 4271 Section 8.1.1"},
 		{"bgp/peer/connection/remote/connect", "true", "RFC 4271 Section 8.1.1"},
 		{"bgp/peer/session/family/prefix/teardown", "true", "RFC 4486"},

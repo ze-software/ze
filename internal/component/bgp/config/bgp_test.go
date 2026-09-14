@@ -309,7 +309,7 @@ bgp {
                 remote 65001
             }
             capability {
-                asn4 true;
+                asn4 enable;
                 route-refresh;
                 graceful-restart {
                     restart-time 120;
@@ -336,7 +336,7 @@ bgp {
 	require.NotNil(t, cap)
 
 	val, _ := cap.Get("asn4")
-	require.Equal(t, "true", val)
+	require.Equal(t, "enable", val)
 
 	grCap := cap.GetContainer("graceful-restart")
 	require.NotNil(t, grCap)

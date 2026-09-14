@@ -131,7 +131,7 @@ Configured under `capability { }` at any inheritance level.
 
 | Capability | Config | Notes |
 |------------|--------|-------|
-| 4-byte ASN | `asn4` | Enabled by default |
+| 4-byte ASN | `asn4 enable` | Mode enable (default), disable, require or refuse |
 | Route Refresh | `route-refresh` | RFC 2918 |
 | Extended Message | `extended-message` | RFC 8654, raises max message to 65535 bytes |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | RFC 4724 |

@@ -165,7 +165,7 @@ bgp {
 
 // TestEnableDisable verifies enable/disable as bool.
 //
-// VALIDATES: "asn4 enable;" parses as true.
+// VALIDATES: "connect enable;" on a boolean leaf parses as true.
 //
 // PREVENTS: Only accepting true/false.
 func TestEnableDisable(t *testing.T) {
@@ -175,15 +175,13 @@ bgp {
         connection {
             remote {
                 ip 192.0.2.1
+                connect enable
             }
         }
         session {
             asn {
                 local 65000
                 remote 65001
-            }
-            capability {
-                asn4 enable
             }
         }
     }
@@ -200,8 +198,8 @@ bgp {
 	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["peer1"]
 
-	cap := n.GetContainer("session").GetContainer("capability")
-	val, ok := cap.Get("asn4")
+	remote := n.GetContainer("connection").GetContainer("remote")
+	val, ok := remote.Get("connect")
 	require.True(t, ok)
 	require.Equal(t, "true", val)
 }

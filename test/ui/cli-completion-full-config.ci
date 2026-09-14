@@ -47,7 +47,7 @@ bgp {
 				remote 65001
 			}
 			capability {
-				asn4 true
+				asn4 enable
 				graceful-restart {
 					restart-time 120
 				}

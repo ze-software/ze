@@ -9,7 +9,6 @@ const (
 	configFalse   = "false"   // Config value for boolean false
 	configEnable  = "enable"  // Config value for enabled state
 	configDisable = "disable" // Config value for disabled state
-	configRequire = "require" // Config value for required state
 	configSelf    = "self"    // Config value for next-hop self
 
 	// The type keywords a YANG leaf declares and an env.EnvEntry names. One

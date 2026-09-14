@@ -24,7 +24,9 @@ const (
 )
 
 // parseCapMode parses a capability mode string.
-// Accepts enable/disable/require/refuse plus backwards-compat true/false.
+// Accepts the four modes of the capability-mode enumeration (ze-bgp-conf.yang),
+// plus true/false: a presence capability written bare (route-refresh;) reaches
+// here as "true" because the parser stores presence as that word.
 // Empty string or unrecognized values default to enable (lenient parsing).
 func parseCapMode(s string) capMode {
 	switch strings.ToLower(s) {
