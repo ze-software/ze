@@ -24,6 +24,14 @@ const (
 	EncryptionAES256GCM                   // AES-GCM-256 with 16-byte ICV
 	EncryptionChaCha20Poly                // ChaCha20-Poly1305 AEAD
 	Encryption3DES                        // Triple-DES-CBC (legacy)
+	// RFC 5282 Section 7.2 gives AES CCM one Transform ID per ICV size, so the
+	// algorithm names the ICV as well as the AES key length.
+	EncryptionAES128CCM8  // AES-CCM-128 with 8-byte ICV
+	EncryptionAES256CCM8  // AES-CCM-256 with 8-byte ICV
+	EncryptionAES128CCM12 // AES-CCM-128 with 12-byte ICV
+	EncryptionAES256CCM12 // AES-CCM-256 with 12-byte ICV
+	EncryptionAES128CCM16 // AES-CCM-128 with 16-byte ICV
+	EncryptionAES256CCM16 // AES-CCM-256 with 16-byte ICV
 )
 
 var encryptionNames = map[EncryptionAlgo]string{
@@ -33,6 +41,12 @@ var encryptionNames = map[EncryptionAlgo]string{
 	EncryptionAES256GCM:    "aes256gcm",
 	EncryptionChaCha20Poly: "chacha20poly1305",
 	Encryption3DES:         "3des",
+	EncryptionAES128CCM8:   "aes128ccm8",
+	EncryptionAES256CCM8:   "aes256ccm8",
+	EncryptionAES128CCM12:  "aes128ccm12",
+	EncryptionAES256CCM12:  "aes256ccm12",
+	EncryptionAES128CCM16:  "aes128ccm16",
+	EncryptionAES256CCM16:  "aes256ccm16",
 }
 
 var encryptionByName map[string]EncryptionAlgo
@@ -65,7 +79,29 @@ func (e EncryptionAlgo) IsAEAD() bool {
 	switch e {
 	case EncryptionAES128GCM, EncryptionAES256GCM, EncryptionChaCha20Poly:
 		return true
+	case EncryptionAES128CCM8, EncryptionAES256CCM8,
+		EncryptionAES128CCM12, EncryptionAES256CCM12,
+		EncryptionAES128CCM16, EncryptionAES256CCM16:
+		// RFC 5282 Section 3.2: "AES CCM provides an encrypted ICV", so the transform
+		// carries its own integrity and the proposal offers INTEG NONE beside it.
+		return true
 	case EncryptionUnknown, EncryptionAES128, EncryptionAES256, Encryption3DES:
+		return false
+	}
+	return false
+}
+
+// IsAESCCM reports whether the algorithm is one of the AES CCM transforms of RFC 5282
+// Section 7.2. EncryptionImplementedESP reads it, and that function states why the two
+// SA kinds answer differently.
+func (e EncryptionAlgo) IsAESCCM() bool {
+	switch e {
+	case EncryptionAES128CCM8, EncryptionAES256CCM8,
+		EncryptionAES128CCM12, EncryptionAES256CCM12,
+		EncryptionAES128CCM16, EncryptionAES256CCM16:
+		return true
+	case EncryptionUnknown, EncryptionAES128, EncryptionAES256,
+		EncryptionAES128GCM, EncryptionAES256GCM, EncryptionChaCha20Poly, Encryption3DES:
 		return false
 	}
 	return false

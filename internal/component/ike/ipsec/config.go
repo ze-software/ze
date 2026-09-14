@@ -232,9 +232,9 @@ func parseESPProposal(groupName, numStr string, t *config.Tree) (ESPProposal, er
 		return p, fmt.Errorf("ipsec esp-group %q proposal %d: unsupported encryption algorithm %q",
 			groupName, num, encStr)
 	}
-	if !EncryptionImplemented(enc) {
-		return p, fmt.Errorf("ipsec esp-group %q proposal %d: encryption algorithm %q is not implemented by this build (implemented: %s)",
-			groupName, num, encStr, strings.Join(SupportedEncryptionNames(), ", "))
+	if !EncryptionImplementedESP(enc) {
+		return p, fmt.Errorf("ipsec esp-group %q proposal %d: encryption algorithm %q is not implemented by this build for ESP (implemented: %s)",
+			groupName, num, encStr, strings.Join(SupportedESPEncryptionNames(), ", "))
 	}
 	p.Encryption = enc
 

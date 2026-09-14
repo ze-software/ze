@@ -10,6 +10,8 @@ IDs and to Go standard library implementations.
 <!-- source: internal/component/ike/crypto/prf.go -- PRF, PRFPlus -->
 <!-- source: internal/component/ike/crypto/keys.go -- DeriveSKEYSEED, DeriveSKKeys, DeriveChildSAKeys, DeriveChildSAKeysPFS -->
 <!-- source: internal/component/ike/crypto/cipher.go -- AEAD and CBC sealers, HMAC integrity -->
+<!-- source: internal/component/ike/crypto/aead.go -- aeadTransforms, AEADICVOctets, SealIKEAEAD, OpenIKEAEAD -->
+<!-- source: internal/core/ccm/ccm.go -- New, the CCM mode of RFC 3610 -->
 <!-- source: internal/component/ike/crypto/proposal.go -- IKEProposal, ESPProposal, acceptEncryption, acceptPRF, acceptIntegrity -->
 
 ## RFC obligations carried by this code
@@ -25,10 +27,36 @@ IDs and to Go standard library implementations.
 ## Decisions
 
 **Standard library crypto only, no CGo and no external library.** The packages
-used are `crypto/ecdh`, `crypto/aes`, `crypto/hmac` and `math/big`.
+used are `crypto/ecdh`, `crypto/aes`, `crypto/cipher`, `crypto/hmac` and
+`math/big`.
+
+**AES CCM is written in `internal/core/ccm`, because the standard library has no
+CCM.** RFC 5282 Section 3.2 obliges an IKEv2 implementation that negotiates AES
+CCM to produce its ICV, and `crypto/cipher` carries GCM alone. The mode is CTR
+encryption over a CBC-MAC, specified in RFC 3610 and NIST SP 800-38C, and it is
+driven by the twenty-four packet vectors of RFC 3610 Section 8 in both
+directions. It sits in `internal/core` rather than beside the IKE code because
+it holds no config, registers nothing, and keeps no state.
+
+**One table decides every AEAD property, keyed on the wire Transform ID.**
+`aeadTransforms` (`aead.go`) carries the salt, the ICV and the mode constructor
+for each of the four AEAD transforms Ze specifies. Membership in it IS the AEAD
+property that `EncryptionID.IsAEAD` answers. The nonce length is derived rather
+than stored: RFC 5282 Section 4 builds the nonce as the salt then the IV, so AES
+GCM answers twelve octets and AES CCM eleven, and a stored length could disagree
+with the salt beside it.
+
+**AES CCM is offered for the IKE SA and refused for ESP.** RFC 5282 carries AES
+CCM into the IKE SA's Encrypted payload, which Ze seals and opens in software.
+An ESP SA is installed into a dataplane instead, and neither backend names an AES
+CCM transform, so `EncryptionImplementedESP` (`ipsec/algorithm_support.go`)
+refuses one at config parse rather than letting the Linux backend install it as
+AES GCM. The `ike-aes-ccm16` interop scenario holds that split against strongSwan:
+the IKE SA negotiates AES CCM and the Child SA negotiates AES GCM
+(`docs/architecture/testing/interop.md`).
 
 **A flat map registry, not the registration pattern.** The algorithm set is
-small and fixed: four encryption transforms, three PRFs, three integrity
+small and fixed: ten encryption transforms, three PRFs, three integrity
 transforms and three DH groups. A registry with `init()` hooks buys nothing at
 that size.
 

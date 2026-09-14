@@ -28,6 +28,27 @@ func EncryptionImplemented(e EncryptionAlgo) bool {
 	return err == nil
 }
 
+// EncryptionImplementedESP reports whether this build can install the algorithm in an
+// ESP Security Association. It is narrower than EncryptionImplemented, and AES CCM is
+// the difference.
+//
+// RFC 5282 carries AES CCM into the IKE SA's Encrypted payload, which ze implements in
+// software: SealIKEAEAD and OpenIKEAEAD (crypto/aead.go) produce and verify that ICV.
+// An ESP SA is installed into a dataplane instead, and neither backend names an AES CCM
+// transform. xfrmAEADName (dataplane/xfrm_linux.go) maps an unknown AEAD algorithm to
+// rfc4106(gcm(aes)), and aeadSaltBytes (dataplane/vpp.go) knows no AES CCM salt. So an
+// ESP proposal naming AES CCM would be installed as AES GCM on Linux, which no peer can
+// decrypt and nothing reports.
+//
+// The refusal therefore belongs at config parse, where a wrong algorithm stops the load
+// rather than reaching a backend that cannot say no (ai/rules/protocol.md).
+func EncryptionImplementedESP(e EncryptionAlgo) bool {
+	if !EncryptionImplemented(e) {
+		return false
+	}
+	return !e.IsAESCCM()
+}
+
 // HashImplemented reports whether this build carries an integrity transform and a PRF
 // for the algorithm. An IKE proposal reads its hash as the PRF and an ESP proposal
 // reads it as the integrity algorithm, so a usable hash needs both.
@@ -66,6 +87,26 @@ func integrityTransformFor(h HashAlgo) (crypto.IntegrityTransform, error) {
 // error message. Both derive from the crypto registry, so neither can drift from what
 // the daemon can actually key (ai/rules/evidence.md).
 func SupportedEncryptionNames() []string { return crypto.SupportedEncryptionNames() }
+
+// SupportedESPEncryptionNames names the set an ESP proposal may pick from, which is
+// SupportedEncryptionNames without the AES CCM transforms. EncryptionImplementedESP
+// states why the two sets differ, and this list is filtered through that same predicate
+// so the error can never name an algorithm the guard refuses.
+func SupportedESPEncryptionNames() []string {
+	all := crypto.SupportedEncryptionNames()
+	names := make([]string, 0, len(all))
+	for _, name := range all {
+		algo, ok := ParseEncryptionAlgo(name)
+		if !ok {
+			continue
+		}
+		if !EncryptionImplementedESP(algo) {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
 
 // SupportedDHGroupIDs lists the Diffie-Hellman groups this build implements, for the
 // error DHGroupImplemented's caller returns. Derived for the same reason.

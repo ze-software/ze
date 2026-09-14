@@ -17,6 +17,24 @@ module ze-ipsec-conf {
             enum aes256 { description "AES-CBC-256 (RFC 3602)."; }
             enum aes128gcm { description "AES-GCM-128, 16-byte ICV (RFC 4106)."; }
             enum aes256gcm { description "AES-GCM-256, 16-byte ICV (RFC 4106)."; }
+            enum aes128ccm8 {
+                description "AES-CCM-128, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+            }
+            enum aes256ccm8 {
+                description "AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+            }
+            enum aes128ccm12 {
+                description "AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+            }
+            enum aes256ccm12 {
+                description "AES-CCM-256, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+            }
+            enum aes128ccm16 {
+                description "AES-CCM-128, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+            }
+            enum aes256ccm16 {
+                description "AES-CCM-256, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+            }
             enum chacha20poly1305 {
                 description "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.";
             }

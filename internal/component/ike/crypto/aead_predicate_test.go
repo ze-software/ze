@@ -23,10 +23,10 @@ func aeadIKEProposal(id EncryptionID) *IKEProposal {
 // to the one documented list was rejected with ErrProposalIncomplete. The registry
 // agreement test cannot see this: both of its sides are fed by NewEncryptionTransform.
 func TestIKEProposalCompleteAcceptsEveryAEAD(t *testing.T) {
-	if len(aeadSaltBytes) == 0 {
-		t.Fatal("aeadSaltBytes is empty, so this test proves nothing")
+	if len(aeadTransforms) == 0 {
+		t.Fatal("aeadTransforms is empty, so this test proves nothing")
 	}
-	for id := range aeadSaltBytes {
+	for id := range aeadTransforms {
 		if err := ikeProposalComplete(aeadIKEProposal(id)); err != nil {
 			t.Errorf("ikeProposalComplete(%s, INTEG NONE) = %v, want nil for an AEAD cipher",
 				id, err)
@@ -50,11 +50,11 @@ func TestIKEProposalCompleteRefusesNonAEADWithoutIntegrity(t *testing.T) {
 // PREVENTS: an AEAD added to the registry whose KEYMAT is sized with another cipher's
 // salt, which shortens the key and moves the second direction's offset.
 func TestEncKeyMaterialLenSaltsEveryAEAD(t *testing.T) {
-	for id, salt := range aeadSaltBytes {
+	for id, transform := range aeadTransforms {
 		enc := EncryptionTransform{ID: id, KeyLength: 256}
-		if got, want := encKeyMaterialLen(enc), 32+salt; got != want {
+		if got, want := encKeyMaterialLen(enc), 32+transform.saltOctets; got != want {
 			t.Errorf("encKeyMaterialLen(%s, 256 bits) = %d, want %d (32 octet key plus %d octet salt)",
-				id, got, want, salt)
+				id, got, want, transform.saltOctets)
 		}
 	}
 }
@@ -66,11 +66,29 @@ func TestEncKeyMaterialLenSaltsEveryAEAD(t *testing.T) {
 // The per-algorithm test above reads its expected value from the same map, so it
 // cannot pin any number on its own.
 func TestAESGCMSaltIsFourOctets(t *testing.T) {
-	salt, ok := aeadSaltBytes[ENCR_AES_GCM_16]
+	transform, ok := aeadTransforms[ENCR_AES_GCM_16]
 	if !ok {
-		t.Fatal("ENCR_AES_GCM_16 is absent from aeadSaltBytes, so it is not AEAD")
+		t.Fatal("ENCR_AES_GCM_16 is absent from aeadTransforms, so it is not AEAD")
 	}
-	if salt != 4 {
-		t.Errorf("AES-GCM salt = %d octets, want 4 (RFC 4106 Section 8.1)", salt)
+	if transform.saltOctets != 4 {
+		t.Errorf("AES-GCM salt = %d octets, want 4 (RFC 4106 Section 8.1)", transform.saltOctets)
+	}
+}
+
+// VALIDATES: AES CCM takes a three octet salt. RFC 4309 Section 7.1: "The size of
+// KEYMAT MUST be three octets longer than is needed for the associated AES key." RFC
+// 5282 Section 7.1 carries that layout into the IKE SA.
+// PREVENTS: an AES CCM transform keyed with the four octet salt of AES GCM, which
+// shortens the cipher key by one octet and moves the nonce off the salt.
+func TestAESCCMSaltIsThreeOctets(t *testing.T) {
+	for _, id := range []EncryptionID{ENCR_AES_CCM_8, ENCR_AES_CCM_12, ENCR_AES_CCM_16} {
+		transform, ok := aeadTransforms[id]
+		if !ok {
+			t.Fatalf("%s is absent from aeadTransforms, so it is not AEAD", id)
+		}
+		if transform.saltOctets != 3 {
+			t.Errorf("%s salt = %d octets, want 3 (RFC 4309 Section 7.1)",
+				id, transform.saltOctets)
+		}
 	}
 }

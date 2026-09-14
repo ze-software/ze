@@ -139,6 +139,9 @@ var specifiedEncryption = map[EncryptionID]bool{
 	ENCR_AES_CBC:    true,
 	encrAESCTR:      true,
 	ENCR_AES_GCM_16: true,
+	ENCR_AES_CCM_8:  true,
+	ENCR_AES_CCM_12: true,
+	ENCR_AES_CCM_16: true,
 }
 
 // specifiedIntegrity lists the integrity transforms this implementation specifies.
@@ -165,14 +168,15 @@ var specifiedDHGroup = map[DHGroupID]bool{
 // RFC 5282 Section 7.3 adds the AES GCM and AES CCM identifiers to that set:
 // "Because the AES supports three key lengths, the Key Length attribute MUST be
 // specified when any of the identifiers for AES GCM or AES CCM, specified in
-// Section 7.2 of this document, is used." ENCR_AES_GCM_16 is the only one of the
-// six identifiers this build specifies, so it is the only one named here. The list
-// is written out rather than derived from EncryptionID.IsAEAD, because the rule is
-// a property of the AES key size rather than of the AEAD property: ChaCha20-Poly1305
-// (RFC 7634 Section 4) is an AEAD cipher whose transform carries no Key Length
-// attribute at all.
+// Section 7.2 of this document, is used." Four of those six identifiers are specified
+// by this build, ENCR_AES_GCM_16 and the three AES CCM ICV sizes, so all four are
+// named here. The list is written out rather than derived from EncryptionID.IsAEAD,
+// because the rule is a property of the AES key size rather than of the AEAD property:
+// ChaCha20-Poly1305 (RFC 7634 Section 4) is an AEAD cipher whose transform carries no
+// Key Length attribute at all.
 func keyLengthRequired(id EncryptionID) bool {
-	return id == ENCR_AES_CBC || id == encrAESCTR || id == ENCR_AES_GCM_16
+	return id == ENCR_AES_CBC || id == encrAESCTR || id == ENCR_AES_GCM_16 ||
+		id == ENCR_AES_CCM_8 || id == ENCR_AES_CCM_12 || id == ENCR_AES_CCM_16
 }
 
 // keyLengthRule names how an offered Key Length attribute is compared with the key

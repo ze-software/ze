@@ -50,7 +50,7 @@ func sealSKData(t *testing.T, keyWithSalt, plaintext, aad []byte, icvOctets int)
 	return append(iv, gcm.Seal(nil, nonce, plaintext, aad)...)
 }
 
-// RFC requirement: RFC5282-3.2-2 positive -- DecryptIKEAEAD refuses SK payload data whose
+// RFC requirement: RFC5282-3.2-2 positive -- OpenIKEAEAD refuses SK payload data whose
 // ICV is 13, 14 or 15 octets. Each message is a real AES-GCM sealing at that tag length
 // under the correct key, nonce and associated data, so the only reason it is refused is the
 // ICV length.
@@ -69,7 +69,7 @@ func TestRFC5282AEADRefusesAForbiddenICVLength(t *testing.T) {
 
 	for _, icvOctets := range []int{13, 14, 15} {
 		data := sealSKData(t, key, plaintext, aad, icvOctets)
-		got, err := DecryptIKEAEAD(key, data, aad)
+		got, err := OpenIKEAEAD(ENCR_AES_GCM_16, key, data, aad)
 		if err == nil {
 			t.Fatalf("a %d octet ICV was accepted and answered %q, want a refusal: RFC 5282 "+
 				"Section 3.2 forbids supporting an ICV length other than 16, 8 and 12",
@@ -88,12 +88,12 @@ func TestRFC5282AEADOpensTheFullLengthICV(t *testing.T) {
 	aad := bytes.Repeat([]byte{0x11}, 32)
 
 	data := sealSKData(t, key, plaintext, aad, 16)
-	got, err := DecryptIKEAEAD(key, data, aad)
+	got, err := OpenIKEAEAD(ENCR_AES_GCM_16, key, data, aad)
 	if err != nil {
-		t.Fatalf("DecryptIKEAEAD over a 16 octet ICV = %v, want the plaintext", err)
+		t.Fatalf("OpenIKEAEAD over a 16 octet ICV = %v, want the plaintext", err)
 	}
 	if !bytes.Equal(got, plaintext) {
-		t.Fatalf("DecryptIKEAEAD answered %q, want %q", got, plaintext)
+		t.Fatalf("OpenIKEAEAD answered %q, want %q", got, plaintext)
 	}
 }
 
@@ -169,7 +169,7 @@ func TestRFC5282NonAEADIntegrityKeysAreDerived(t *testing.T) {
 // RFC requirement: RFC5282-7.1-2 positive -- SK_ei and SK_er each have the size and format
 // of the AES-GCM KEYMAT for the AES key size in use: the cipher key followed by four octets
 // of salt, so 20 octets at 128 bits and 36 at 256. The format is proven by USING it, and
-// not only by the length: the key is sealed with encryptIKEAEAD and opened by an
+// not only by the length: the key is sealed with SealIKEAEAD and opened by an
 // independent AES-GCM instance keyed with the leading octets and given the trailing four as
 // the implicit half of the nonce.
 //
@@ -200,9 +200,9 @@ func TestRFC5282AEADEncryptionKeysCarryTheirSalt(t *testing.T) {
 			}
 			plaintext := []byte("the inner payloads")
 			aad := bytes.Repeat([]byte{0x33}, 32)
-			data, err := encryptIKEAEAD(key, plaintext, aad)
+			data, err := SealIKEAEAD(ENCR_AES_GCM_16, key, plaintext, aad)
 			if err != nil {
-				t.Fatalf("AES-GCM-%d: encryptIKEAEAD with %s: %v", tc.bits, name, err)
+				t.Fatalf("AES-GCM-%d: SealIKEAEAD with %s: %v", tc.bits, name, err)
 			}
 			block, err := aes.NewCipher(key[:len(key)-4])
 			if err != nil {

@@ -645,35 +645,35 @@ func buildSKMessageCBCWithMsgID(sa *SA, innerData []byte, firstType uint8, messa
 	return buf, nil
 }
 
-// buildSKMessageAEADWithMsgID builds a complete IKE_AUTH message with AES-GCM.
-// Wire: [Header 28][SK GH 4][IV 8][ciphertext][GCM tag 16].
+// buildSKMessageAEADWithMsgID builds a complete IKE message whose Encrypted payload is
+// sealed by an authenticated encryption algorithm.
+// Wire: [Header 28][SK GH 4][IV 8][ciphertext][ICV].
 //
-// RFC 5282 Section 3.1: "The Initialization Vector (IV) MUST be eight octets."
-// Section 3.2 for AES GCM: "Implementations MUST support a full-length 16 octet
-// ICV", and the ICV is the AES-GCM authentication tag that gocipher.NewGCM
-// appends, so no separate ICV field exists.
+// RFC 5282 Section 3.1: "The Initialization Vector (IV) MUST be eight octets." The ICV
+// is inside the ciphertext rather than in a field of its own, because Section 3.2 says
+// of both AES GCM and AES CCM that "the Ciphertext field consists of the output of the
+// authenticated encryption algorithm. (Note that this field incorporates integrity
+// check data.)"
 func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
 	const ivLen = 8
-	const tagLen = 16
+
+	// RFC 5282 Section 3.2 gives each transform its own ICV length, and the Length
+	// field of the fixed header counts it, so the length is read before the buffer is
+	// sized. An encryption transform this build does not specify is refused here rather
+	// than sized with another transform's ICV.
+	icvLen, err := ikecrypto.AEADICVOctets(sa.Proposal.Encryption.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	plaintext := make([]byte, len(innerData)+1)
 	copy(plaintext, innerData)
 	plaintext[len(innerData)] = 0
 
-	totalLen := wire.HeaderLen + wire.GenericHeaderLen + ivLen + len(plaintext) + tagLen
+	totalLen := wire.HeaderLen + wire.GenericHeaderLen + ivLen + len(plaintext) + icvLen
 	buf := make([]byte, totalLen)
 
 	writeAuthHeaderWithMsgID(buf, sa, firstType, uint32(totalLen), messageID, exchangeType, flags)
-
-	// RFC 5282 Section 3.1: "The IV MUST be chosen by the encryptor in a manner that
-	// ensures that the same IV value is used only once for a given key." Eight fresh
-	// octets from the system CSPRNG give a collision probability of 2^-33 over the
-	// 2^15 messages one IKE SA can send before it rekeys, which is what "MAY generate
-	// the IV in any manner that ensures uniqueness" permits.
-	ivOff := wire.HeaderLen + wire.GenericHeaderLen
-	if _, err := crand.Read(buf[ivOff : ivOff+ivLen]); err != nil {
-		return nil, err
-	}
 
 	// RFC 5282 Section 5.1: the associated data runs "from the first octet of the
 	// Fixed IKE Header through the last octet of the Payload Header of the Encrypted
@@ -682,28 +682,15 @@ func buildSKMessageAEADWithMsgID(sa *SA, innerData []byte, firstType uint8, mess
 	// header directly after the fixed header, so this message carries no payload
 	// between the two and the span is the first 32 octets.
 	aad := buf[:wire.HeaderLen+wire.GenericHeaderLen]
-	// RFC 5282 Section 4: "both the encryptor and decryptor construct the nonce by
-	// concatenating the salt with the IV, in that order", and "For the use of AES GCM
-	// with the IKEv2 Encrypted Payload, this default nonce format MUST be used and a
-	// 12 octet nonce MUST be used." The salt is the four octets SK_ei or SK_er carries
-	// beyond the AES key (Section 7.1).
-	sendKey := skSendEncKey(sa)
-	key := sendKey[:len(sendKey)-4]
-	salt := sendKey[len(sendKey)-4:]
-	nonce := make([]byte, 12)
-	copy(nonce, salt)
-	copy(nonce[4:], buf[ivOff:ivOff+ivLen])
 
-	block, err := aes.NewCipher(key)
+	// SealIKEAEAD draws the eight fresh IV octets RFC 5282 Section 3.1 requires and
+	// builds the nonce as the salt then the IV (Section 4). It answers IV || ciphertext,
+	// which is exactly the Encrypted payload's data.
+	sealed, err := ikecrypto.SealIKEAEAD(sa.Proposal.Encryption.ID, skSendEncKey(sa), plaintext, aad)
 	if err != nil {
 		return nil, err
 	}
-	gcm, err := gocipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	sealed := gcm.Seal(nil, nonce, plaintext, aad)
-	copy(buf[ivOff+ivLen:], sealed)
+	copy(buf[wire.HeaderLen+wire.GenericHeaderLen:], sealed)
 	return buf, nil
 }
 
@@ -747,7 +734,7 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 		if aadLen < wire.HeaderLen+wire.GenericHeaderLen || aadLen > len(rawMsg) {
 			return nil, errInvalidMessage
 		}
-		return ikecrypto.DecryptIKEAEAD(skRecvEncKey(sa), skPayload.CipherText, rawMsg[:aadLen])
+		return ikecrypto.OpenIKEAEAD(sa.Proposal.Encryption.ID, skRecvEncKey(sa), skPayload.CipherText, rawMsg[:aadLen])
 	}
 
 	integTrunc := int(sa.Proposal.Integrity.TruncatedLength)

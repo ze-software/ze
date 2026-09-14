@@ -21,7 +21,14 @@ const (
 // RFC 7296 Section 3.3.3: Encryption Algorithm Transform IDs.
 type EncryptionID uint16
 
+// RFC 5282 Section 7.2 reuses the ESP identifiers for the IKEv2 Encrypted payload and
+// gives each AES CCM ICV size one of its own: "14 for AES CCM with an 8-octet ICV; 15
+// for AES CCM with a 12-octet ICV; 16 for AES CCM with a 16-octet ICV; ... and 20 for
+// AES GCM with a 16-octet ICV."
 const (
+	ENCR_AES_CCM_8  EncryptionID = 14
+	ENCR_AES_CCM_12 EncryptionID = 15
+	ENCR_AES_CCM_16 EncryptionID = 16
 	ENCR_AES_CBC    EncryptionID = 12
 	ENCR_AES_GCM_16 EncryptionID = 20
 )
@@ -70,6 +77,12 @@ func (id EncryptionID) String() string {
 		return "aes-cbc"
 	case ENCR_AES_GCM_16:
 		return "aes-gcm"
+	case ENCR_AES_CCM_8:
+		return "aes-ccm-8"
+	case ENCR_AES_CCM_12:
+		return "aes-ccm-12"
+	case ENCR_AES_CCM_16:
+		return "aes-ccm-16"
 	default:
 		return unknownAlgo
 	}
@@ -103,32 +116,6 @@ func (id DHGroupID) String() string {
 	}
 }
 
-// aeadEncryption names every encryption transform that combines integrity with
-// encryption. It is the one place this property is written down for a wire Transform
-// ID. Every site that decides the property asks EncryptionID.IsAEAD, and the tests in
-// aead_predicate_test.go enumerate this map to prove it.
-//
-// The comment above once said the same thing. ikeProposalComplete kept a private copy
-// that compared against ENCR_AES_GCM_16 alone. An entry added here therefore produced a
-// cipher that keyed correctly, and negotiation then refused it with
-// ErrProposalIncomplete.
-//
-// Two neighboring maps are NOT this property, and neither is derived from it. A new
-// AEAD cipher needs an entry in each. specifiedEncryption (proposal.go) lists the IDs
-// this build accepts off the wire. encryptionRegistry (below) maps a config name to a
-// transform. ipsec.EncryptionAlgo.IsAEAD answers the same question over the config
-// enum rather than the wire ID. A test in that package binds the two.
-//
-// The value is the salt the cipher takes beyond its key, in octets. A future AEAD
-// whose salt is not four octets records it here. The salt was once a package constant
-// applied to every AEAD. That is correct while AES-GCM is the only entry, and it gives
-// a wrong key length silently for the first cipher that differs. Ze holds no RFC text
-// for the AES-CCM or the ChaCha20-Poly1305 salt, so neither is asserted here. Read RFC
-// 4309 or RFC 7634 first.
-var aeadSaltBytes = map[EncryptionID]int{
-	ENCR_AES_GCM_16: 4, // RFC 4106 Section 8.1
-}
-
 // IsAEAD reports whether this encryption transform combines integrity with
 // encryption. RFC 7296 Section 3.3 makes an integrity transform of NONE the correct
 // value for such a cipher.
@@ -139,18 +126,18 @@ var aeadSaltBytes = map[EncryptionID]int{
 // leave it at its zero value, and that false value reads as a valid "not AEAD"
 // answer (ai/rules/evidence.md). The ID cannot lie in that way.
 //
-// Membership in aeadSaltBytes IS the AEAD property. A miss means the cipher is not
-// AEAD. A hit gives that cipher's own salt. Neither answer can be a zero value that
-// reads as valid.
+// Membership in aeadTransforms (aead.go) IS the AEAD property. A miss means the cipher
+// is not AEAD. A hit gives that cipher's own salt, ICV and mode. Neither answer can be
+// a zero value that reads as valid.
 func (id EncryptionID) IsAEAD() bool {
-	_, ok := aeadSaltBytes[id]
+	_, ok := aeadTransforms[id]
 	return ok
 }
 
 // aeadSalt returns the salt this cipher takes beyond its key, in octets, and zero for
 // a cipher that is not AEAD.
 func (id EncryptionID) aeadSalt() int {
-	return aeadSaltBytes[id]
+	return aeadTransforms[id].saltOctets
 }
 
 // EncryptionTransform names one encryption algorithm and the key it takes.
@@ -198,6 +185,16 @@ func buildEncryptionRegistry() map[string]EncryptionTransform {
 		"aes256":    NewEncryptionTransform(ENCR_AES_CBC, 256),
 		"aes128gcm": NewEncryptionTransform(ENCR_AES_GCM_16, 128),
 		"aes256gcm": NewEncryptionTransform(ENCR_AES_GCM_16, 256),
+		// RFC 5282 Section 7.2 gives AES CCM one Transform ID per ICV size, so the
+		// config name carries the ICV as well as the AES key length. Section 7.2 adds
+		// that "A 16-octet ICV size SHOULD be used with IKEv2", which is what the
+		// operator picks by naming the ccm16 pair.
+		"aes128ccm8":  NewEncryptionTransform(ENCR_AES_CCM_8, 128),
+		"aes256ccm8":  NewEncryptionTransform(ENCR_AES_CCM_8, 256),
+		"aes128ccm12": NewEncryptionTransform(ENCR_AES_CCM_12, 128),
+		"aes256ccm12": NewEncryptionTransform(ENCR_AES_CCM_12, 256),
+		"aes128ccm16": NewEncryptionTransform(ENCR_AES_CCM_16, 128),
+		"aes256ccm16": NewEncryptionTransform(ENCR_AES_CCM_16, 256),
 	}
 }
 

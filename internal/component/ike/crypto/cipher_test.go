@@ -93,7 +93,7 @@ func TestIKEAEADRoundTrip128(t *testing.T) {
 	plaintext := []byte("IKE AEAD roundtrip test payload")
 	aad := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08} // IKE header stub
 
-	ct, err := encryptIKEAEAD(keyWithSalt, plaintext, aad)
+	ct, err := SealIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, plaintext, aad)
 	if err != nil {
 		t.Fatalf("EncryptIKEAEAD: %v", err)
 	}
@@ -101,9 +101,9 @@ func TestIKEAEADRoundTrip128(t *testing.T) {
 		t.Fatalf("ciphertext too short: %d", len(ct))
 	}
 
-	pt, err := DecryptIKEAEAD(keyWithSalt, ct, aad)
+	pt, err := OpenIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, ct, aad)
 	if err != nil {
-		t.Fatalf("DecryptIKEAEAD: %v", err)
+		t.Fatalf("OpenIKEAEAD: %v", err)
 	}
 	if !bytes.Equal(pt, plaintext) {
 		t.Error("IKE AEAD-128 roundtrip mismatch")
@@ -121,14 +121,14 @@ func TestIKEAEADRoundTrip256(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ct, err := encryptIKEAEAD(keyWithSalt, plaintext, aad)
+	ct, err := SealIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, plaintext, aad)
 	if err != nil {
 		t.Fatalf("EncryptIKEAEAD: %v", err)
 	}
 
-	pt, err := DecryptIKEAEAD(keyWithSalt, ct, aad)
+	pt, err := OpenIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, ct, aad)
 	if err != nil {
-		t.Fatalf("DecryptIKEAEAD: %v", err)
+		t.Fatalf("OpenIKEAEAD: %v", err)
 	}
 	if !bytes.Equal(pt, plaintext) {
 		t.Error("IKE AEAD-256 roundtrip mismatch")
@@ -140,18 +140,18 @@ func TestIKEAEADWrongAAD(t *testing.T) {
 	if _, err := rand.Read(keyWithSalt); err != nil {
 		t.Fatal(err)
 	}
-	ct, err := encryptIKEAEAD(keyWithSalt, []byte("test"), []byte("correct-aad"))
+	ct, err := SealIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, []byte("test"), []byte("correct-aad"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = DecryptIKEAEAD(keyWithSalt, ct, []byte("wrong-aad"))
+	_, err = OpenIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, ct, []byte("wrong-aad"))
 	if !errors.Is(err, ErrDecryptionFailed) {
 		t.Errorf("wrong AAD: got %v, want ErrDecryptionFailed", err)
 	}
 }
 
 func TestIKEAEADShortKey(t *testing.T) {
-	_, err := encryptIKEAEAD([]byte{1, 2, 3}, []byte("test"), nil)
+	_, err := SealIKEAEAD(ENCR_AES_GCM_16, []byte{1, 2, 3}, []byte("test"), nil)
 	if !errors.Is(err, ErrInvalidKeyLength) {
 		t.Errorf("short key: got %v, want ErrInvalidKeyLength", err)
 	}
@@ -162,7 +162,7 @@ func TestIKEAEADShortData(t *testing.T) {
 	if _, err := rand.Read(keyWithSalt); err != nil {
 		t.Fatal(err)
 	}
-	_, err := DecryptIKEAEAD(keyWithSalt, []byte{1, 2, 3}, nil)
+	_, err := OpenIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, []byte{1, 2, 3}, nil)
 	if !errors.Is(err, ErrDecryptionFailed) {
 		t.Errorf("short data: got %v, want ErrDecryptionFailed", err)
 	}
@@ -175,7 +175,7 @@ func TestIKEAEADWireFormat(t *testing.T) {
 	}
 	plaintext := []byte("wire format check")
 
-	ct, err := encryptIKEAEAD(keyWithSalt, plaintext, nil)
+	ct, err := SealIKEAEAD(ENCR_AES_GCM_16, keyWithSalt, plaintext, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -30,9 +30,9 @@
       "unit-sha": "cacb28adfba768d0",
       "claim-sha": "db1850a779454843",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+      "producer-sha": "fa847fa99772e737",
+      "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-3.1-1",
@@ -42,7 +42,7 @@
       "claim-sha": "33334ebca51b294b",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
-      "producer-sha": "63019d55c06780cf",
+      "producer-sha": "2bcba23be754aec5",
       "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "8f1895aa0a2d3af3",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
-      "producer-sha": "63019d55c06780cf",
+      "producer-sha": "2bcba23be754aec5",
       "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "40cd1f78966362f8",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
-      "producer-sha": "63019d55c06780cf",
+      "producer-sha": "2bcba23be754aec5",
       "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -74,9 +74,9 @@
       "unit-sha": "fddd62da50b0e0f4",
       "claim-sha": "20ecd7e0ee9ac9b4",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+      "producer-sha": "fa847fa99772e737",
+      "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-3.2-1",
@@ -86,30 +86,74 @@
       "claim-sha": "d0b595f6572245b4",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
-      "producer-sha": "63019d55c06780cf",
+      "producer-sha": "2bcba23be754aec5",
       "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-3.2-2",
       "polarity": "negative",
       "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOpensTheFullLengthICV",
-      "unit-sha": "ccea21cf38a8dd95",
+      "unit-sha": "f41a698a8b7027dd",
       "claim-sha": "f0d0307886b4268c",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+      "producer-sha": "fa847fa99772e737",
+      "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-3.2-2",
       "polarity": "positive",
       "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADRefusesAForbiddenICVLength",
-      "unit-sha": "3dc241f0546902e5",
-      "claim-sha": "09a0785add3d780d",
+      "unit-sha": "8fb0215af01c356e",
+      "claim-sha": "91f6651e5bbbb73d",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+      "producer-sha": "fa847fa99772e737",
+      "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-3.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMSupportsTheEightAndSixteenOctetICV",
+      "unit-sha": "90227822e9ed86e7",
+      "claim-sha": "8b47c9d968aca5bc",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+      "producer-sha": "2bcba23be754aec5",
+      "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-3.2-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV",
+      "unit-sha": "baa394c7c14de71e",
+      "claim-sha": "5a179b7fd9c2339a",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+      "producer-sha": "fa847fa99772e737",
+      "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-3.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength",
+      "unit-sha": "af7adca01cdca87c",
+      "claim-sha": "35e383f4469baff6",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::AEADICVOctets",
+      "producer-sha": "0a37cd517e032b96",
+      "break": "body of AEADICVOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-3.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMSupportsTheThreePermittedICVLengths",
+      "unit-sha": "a314d8176bbe8bbc",
+      "claim-sha": "27947da632b91d34",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::SealIKEAEAD",
+      "producer-sha": "05468201f8fe5b54",
+      "break": "body of SealIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-4-1",
@@ -118,9 +162,9 @@
       "unit-sha": "7ae7928c6c5f6abd",
       "claim-sha": "0e4150e8934abd4a",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-4-1",
@@ -129,9 +173,9 @@
       "unit-sha": "7182315522144cc8",
       "claim-sha": "51a8e48e0d630675",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-4-2",
@@ -140,9 +184,9 @@
       "unit-sha": "a3695991081afae2",
       "claim-sha": "bcad881f25d7358c",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-4-2",
@@ -151,9 +195,53 @@
       "unit-sha": "d9099c92cd041813",
       "claim-sha": "fa51b221763251cc",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/cipher.go::DecryptIKEAEAD",
-      "producer-sha": "b648d35ff02617e9",
-      "break": "body of DecryptIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsSaltThenIV",
+      "unit-sha": "ec59efb4c9f6b439",
+      "claim-sha": "4322c74826ea184d",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesAReversedNonce",
+      "unit-sha": "68cb9e694bb030ba",
+      "claim-sha": "c7fd0f940be2ff75",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+      "producer-sha": "6536163049ce3b0b",
+      "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-4-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets",
+      "unit-sha": "9f21208be4590400",
+      "claim-sha": "e01bc2c8eea57564",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::newIKEAEAD",
+      "producer-sha": "577ca63b0a0d14d7",
+      "break": "body of newIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5282-4-4",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesANonceThatIsNotElevenOctets",
+      "unit-sha": "22ad332b20fc650d",
+      "claim-sha": "0447b80192352590",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/aead.go::newIKEAEAD",
+      "producer-sha": "577ca63b0a0d14d7",
+      "break": "body of newIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-5.1-1",
@@ -163,7 +251,7 @@
       "claim-sha": "3bbeffb0bb9b48f8",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
-      "producer-sha": "a53ff5a8364bc73f",
+      "producer-sha": "d7d446228e538738",
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +262,7 @@
       "claim-sha": "45e512a82d9a9cef",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
-      "producer-sha": "a53ff5a8364bc73f",
+      "producer-sha": "d7d446228e538738",
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +273,7 @@
       "claim-sha": "f284784ae9e40e8f",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
-      "producer-sha": "a53ff5a8364bc73f",
+      "producer-sha": "d7d446228e538738",
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +284,7 @@
       "claim-sha": "287f9a80f966d3d2",
       "route": "revert",
       "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
-      "producer-sha": "a53ff5a8364bc73f",
+      "producer-sha": "d7d446228e538738",
       "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -225,12 +313,12 @@
       "rid": "RFC5282-7.1-2",
       "polarity": "positive",
       "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt",
-      "unit-sha": "d8133428805b35fd",
-      "claim-sha": "316139493b8236e7",
+      "unit-sha": "5cbfd92fc4203686",
+      "claim-sha": "9898003597a5e624",
       "route": "revert",
-      "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
-      "producer-sha": "04402ade258d3213",
-      "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/ike/crypto/aead.go::SealIKEAEAD",
+      "producer-sha": "05468201f8fe5b54",
+      "break": "body of SealIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5282-7.1-2",
@@ -251,7 +339,7 @@
       "claim-sha": "bc95674efdd57e71",
       "route": "revert",
       "producer": "internal/component/ike/crypto/proposal.go::keyLengthRequired",
-      "producer-sha": "ecbd9df1e5a70070",
+      "producer-sha": "4a3af9e33bdabe1b",
       "break": "body of keyLengthRequired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
