@@ -278,7 +278,7 @@ func waitContains(ctx context.Context, lab interoplab.CheckerLab, peer string, c
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output").String(),
@@ -287,7 +287,22 @@ func waitContains(ctx context.Context, lab interoplab.CheckerLab, peer string, c
 	}, func(output string) bool {
 		return containsAll(output, needles)
 	})
-	return err
+	return withLastOutput(err, last)
+}
+
+// withLastOutput carries the peer's last answer on a wait that timed out, so a red
+// names the state the peer was in rather than only that it never reached the wanted
+// one (plan/journal/failing-gate-prints-no-cause.md). A nil err and an empty answer
+// pass through.
+func withLastOutput(err error, last string) error {
+	if err == nil {
+		return nil
+	}
+	last = strings.TrimSpace(last)
+	if last == "" {
+		return err
+	}
+	return fmt.Errorf("%w; last output:\n%s", err, last)
 }
 
 func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, timeout time.Duration, needles ...string) error {
@@ -299,7 +314,7 @@ func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer strin
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output").String(),
@@ -308,7 +323,7 @@ func waitContainsFold(ctx context.Context, lab interoplab.CheckerLab, peer strin
 	}, func(output string) bool {
 		return containsAll(strings.ToLower(output), lower)
 	})
-	return err
+	return withLastOutput(err, last)
 }
 
 func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, timeout time.Duration, needles ...string) error {
@@ -316,7 +331,7 @@ func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string
 		timeout = 90 * time.Second
 	}
 	var description textbuf.Buffer
-	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout:     timeout,
 		Interval:    2 * time.Second,
 		Description: description.Str(peer).Str(" output alternatives").String(),
@@ -330,7 +345,7 @@ func waitContainsAny(ctx context.Context, lab interoplab.CheckerLab, peer string
 		}
 		return false
 	})
-	return err
+	return withLastOutput(err, last)
 }
 
 func delayRequireContains(ctx context.Context, lab interoplab.CheckerLab, peer string, command []string, delay time.Duration, needles ...string) error {

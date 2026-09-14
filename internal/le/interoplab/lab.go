@@ -85,6 +85,33 @@ type SuiteReport struct {
 	Code        int              `json:"code"`
 }
 
+// Text renders the report for a terminal, so a failing `./le integration interop`
+// prints the scenario that failed and the assertion that failed it under the
+// "Failed: interop" summary rather than the summary alone. The sweep renders a
+// failing native answer only when it can render itself
+// (plan/journal/failing-gate-prints-no-cause.md); a passing report is not printed.
+func (r SuiteReport) Text() string {
+	var out textbuf.Buffer
+	if r.SetupError != "" {
+		out.Str("interop: setup: ").Str(r.SetupError).Byte('\n')
+	}
+	for index := range r.Scenarios {
+		scenario := &r.Scenarios[index]
+		if scenario.Passed {
+			continue
+		}
+		out.Str("interop: ").Str(scenario.Name).Str(": FAIL: ").Str(scenario.Error).Byte('\n')
+		for _, cleanup := range scenario.CleanupErrors {
+			out.Str("interop: ").Str(scenario.Name).Str(": cleanup: ").Str(cleanup).Byte('\n')
+		}
+	}
+	out.Str("interop: ").Int(int64(r.Passed)).Str(" passed, ").Int(int64(r.Failed)).Str(" failed")
+	if len(r.FailedNames) != 0 {
+		out.Str(": ").Join(r.FailedNames, " ")
+	}
+	return out.Byte('\n').String()
+}
+
 // ScenarioResult records the checker verdict separately from cleanup diagnostics.
 type ScenarioResult struct {
 	Name          string   `json:"name"`
