@@ -5,7 +5,14 @@
         <link>https://ze-software.net/project/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 31 Aug 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 07 Sep 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Week of 2026-09-07</title>
+            <link>https://ze-software.net/project/changes/2026-09-07/</link>
+            <guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-07/</guid>
+            <pubDate>Mon, 07 Sep 2026 00:00:00 +0000</pubDate>
+            <description>Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.</description>
+        </item>
         <item>
             <title>Week of 2026-08-31</title>
             <link>https://ze-software.net/project/changes/2026-08-31/</link>

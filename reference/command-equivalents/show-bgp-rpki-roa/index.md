@@ -13,6 +13,7 @@ Show ROA table entries or lookup covering VRPs for a prefix
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: prefix
+- Column order: prefix, max-length, asn
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

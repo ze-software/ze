@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 4.5% | 1 of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 22 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50.0% | 26 of 52 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 57.7% | 30 of 52 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -252,8 +252,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L295) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L293) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L295) | unit/verify | revert, verified |
+| positive | [`TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L293) | unit/verify | revert, verified |
 
 ### [`RFC5176-2.3-7`](#rfc5176-2.3-7)
 
@@ -285,8 +285,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L400) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L397) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L400) | unit/verify | revert, verified |
+| positive | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L397) | unit/verify | revert, verified |
 
 ### [`RFC5176-3.3-2`](#rfc5176-3.3-2)
 

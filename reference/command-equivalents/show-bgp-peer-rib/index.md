@@ -13,6 +13,7 @@ Show RIB data scoped to one peer.
 - Subcommands: `scope`
 - Answer shape: tab
 - Address fields: peer, next-hop
+- Column order: peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

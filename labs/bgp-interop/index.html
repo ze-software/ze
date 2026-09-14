@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP Protocol Interop - Ze</title>
-        <meta name="description" content="Ze&#39;s BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta name="description" content="Ze&#39;s BGP engine against real FRR, BIRD, and GoBGP in Docker, across 151 protocol scenarios." />
         <meta property="og:title" content="BGP Protocol Interop - Ze" />
-        <meta property="og:description" content="Ze&#39;s BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta property="og:description" content="Ze&#39;s BGP engine against real FRR, BIRD, and GoBGP in Docker, across 151 protocol scenarios." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="BGP Protocol Interop - Ze" />
-        <meta name="twitter:description" content="Ze&#39;s BGP engine against real FRR, BIRD, and GoBGP in Docker, across 68 protocol scenarios." />
+        <meta name="twitter:description" content="Ze&#39;s BGP engine against real FRR, BIRD, and GoBGP in Docker, across 151 protocol scenarios." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -69,13 +69,13 @@
                                 >
                             </h3>
                             <p>
-                                Run 68 curated scenarios against FRR, BIRD, and
-                                GoBGP. The harness starts only the required
-                                daemons and checks behavior through each peer's
-                                own CLI.
+                                Run 151 curated scenarios. 142 of them drive
+                                a real FRR, BIRD, or GoBGP daemon. The harness
+                                starts only the required daemons and checks
+                                behavior through each peer's own CLI.
                             </p>
                             <div class="chips">
-                                <span class="chip">68 scenarios</span>
+                                <span class="chip">151 scenarios</span>
                                 <span class="chip">FRR</span>
                                 <span class="chip">BIRD</span>
                                 <span class="chip">GoBGP</span>
@@ -125,12 +125,13 @@
                             only spins up what it needs.
                         </p>
                         <p>
-                            68 scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
+                            151 scenarios: eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
                             Route Refresh, Graceful Restart, Route Server,
                             standard and extended communities, MD5 auth, BGP
-                            Roles, EVPN, VPN, FlowSpec, multihop, BFD, ECMP,
-                            SRv6, RPKI, BMP, max-prefix, GTSM, AS112, and
-                            OSPF/IS-IS interop with FRR.
+                            Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD
+                            strict mode, update delay, ECMP, SRv6, RPKI, BMP,
+                            max-prefix, GTSM, AS112, VRRP against keepalived,
+                            and OSPF/IS-IS interop with FRR.
                         </p>
                     </div>
                     <div class="status-table" aria-label="Lab facts">
@@ -163,7 +164,7 @@
                             <span class="terminal-title">bgp-interop</span>
                         </div>
                         <div class="terminal-body">
-                            <pre><span class="term-comment"># all 68 scenarios</span>
+                            <pre><span class="term-comment"># all 151 scenarios</span>
 <span class="term-prompt">$</span> <span class="term-cmd">./le</span> integration interop
 
 <span class="term-comment"># single scenario, verbose</span>
@@ -220,7 +221,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:47 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:54 UTC</span>
                 </div>
             </div>
         </footer>

@@ -11,9 +11,9 @@ what Ze has
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | Tested both ways | 40.9% | 9 of 22 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 31.8% | 7 of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity plus reason | 36.4% | 8 of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 22 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 41 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 2.4% | 1 of 42 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 22.7% | 5 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 18.2% | 4 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -62,13 +62,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 34 |
 | Gated MUST-level | 22 |
 | Not applicable, so out of scope | 1 |
-| Declared gaps | 5 |
+| Declared gaps | 4 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 41 |
-| Tagged units | 41 |
+| Test tags | 42 |
+| Tagged units | 42 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 1 |
 | Summary | `rfc/short/rfc8955.md` |
 | Requirement shard | `rfc/requirements/rfc8955.md` |
 | RFC text | `rfc/full/rfc8955.txt` |
@@ -89,7 +89,7 @@ Enrolled: Dissemination of Flow Specification Rules
 
 **What the ledger says remains**
 
-Five MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md): [`RFC8955-4-3`](#rfc8955-4-3) -- the MP_REACH next-hop length is taken from the configured next-hop instead of being forced to 0 for SAFI 133/134; [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3) -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as `=`; [`RFC8955-6-1`](#rfc8955-6-1) -- no feasibility validation of a FlowSpec against the unicast RIB; [`RFC8955-6-2`](#rfc8955-6-2) -- no eBGP leftmost-neighbor-AS enforcement; and [`RFC8955-6-3`](#rfc8955-6-3) -- no revalidation when unicast routes change.
+Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md): [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3) -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as `=`; [`RFC8955-6-1`](#rfc8955-6-1) -- no feasibility validation of a FlowSpec against the unicast RIB; [`RFC8955-6-2`](#rfc8955-6-2) -- no eBGP leftmost-neighbor-AS enforcement; and [`RFC8955-6-3`](#rfc8955-6-3) -- no revalidation when unicast routes change.
 
 ## Coverage
 
@@ -112,7 +112,7 @@ Five MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.
 |---|---|---|---|---|
 | `RFC8955-4-1` | Implementations wishing to exchange Flow Specification MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§4) | MUST | 4 | **positive:** `unit/verify` [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L846). **negative:** no negative test. **{single-polarity}:** the flowspec plugin unconditionally maps each declared FlowSpec family to a Multiprotocol (Code 1) capability during OPEN, so there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go, types.go:47) |
 | `RFC8955-4-2` | The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=1, SAFI=133) for IPv4 Flow Specification and (AFI=1, SAFI=134) for VPNv4 Flow Specification (§4) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647). **positive:** `unit/verify` [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L847). **negative:** no negative test. **{single-polarity}:** the (AFI 1, SAFI 133) and (AFI 1, SAFI 134) pairs are family-registration constants, not an input guard, so only the positive assignment is assertable (internal/component/bgp/plugins/nlri/flowspec/types.go:47-50) |
-| `RFC8955-4-3` | Length of the Next-Hop Network Address MUST be set to 0 (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** buildMPReachPlugin writes the MP_REACH next-hop length from the configured next-hop with no SAFI 133/134 special case (internal/component/bgp/message/update_build_plugin.go:140,:147), and the FlowSpec config parser passes the operator's next-hop straight through (internal/component/bgp/plugins/nlri/flowspec/config.go:94 -> internal/component/bgp/reactor/peer_static_routes.go:22), so a FlowSpec route configured with a next-hop encodes a 4- or 16-octet length; buildMPReachFlowSpec does the same (internal/component/bgp/message/update_build_flowspec.go:148,:180) |
+| `RFC8955-4-3` | Length of the Next-Hop Network Address MUST be set to 0 (§4) | MUST | 4 | **positive:** `functional/verify` [`flow-encode.ci`](https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11). **negative:** no negative test. **{single-polarity}:** the length is a constant rather than a decision, so there is no wrong input the encoder rejects. Both producers the earlier gap named are fixed: buildMPReachFlowSpec writes SAFI 133 and 134 only, so it sets the length to 0 and does not read the next-hop at all, and buildMPReachPlugin asks family.NeedsNextHop, which answers false for both SAFIs (internal/component/bgp/message/update_build_flowspec.go, update_build_plugin.go, internal/core/family/family.go). The API batch rail already asked the same question. The operator's next-hop is still parsed and still carried; the family is what refuses to put it on the wire |
 | `RFC8955-4-4` | Network Address of the Next-Hop field MUST be ignored (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/bridge_test.go#L264). **negative:** no negative test. **{single-polarity}:** the FlowSpec receive path lowers an UPDATE to firewall Terms from the NLRI components and action communities alone and no code in internal/plugins/flowspec-firewall reads a next-hop, so the field is ignored and there is no next-hop value to reject (internal/plugins/flowspec-firewall/translate.go:38, engine.go:106) |
 | `RFC8955-4.2-1` | Components MUST follow strict type ordering by increasing numerical order (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228). **positive:** `unit/verify` [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270). **negative:** `unit/verify` [`TestAddComponentRefusesASecondPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1387). **negative:** `unit/verify` [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307). **negative:** `unit/verify` [`TestParseFlowSpecVPNRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1367) |
 | `RFC8955-4.2-2` | If a component is present, it MUST precede any component of higher numeric type value (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229). **negative:** `unit/verify` [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) |
@@ -149,7 +149,6 @@ Five MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8955-4-3`](#rfc8955-4-3) Length of the Next-Hop Network Address MUST be set to 0 (§4) | {gap}, no test | buildMPReachPlugin writes the MP_REACH next-hop length from the configured next-hop with no SAFI 133/134 special case (internal/component/bgp/message/update_build_plugin.go:140,:147), and the FlowSpec config parser passes the operator's next-hop straight through (internal/component/bgp/plugins/nlri/flowspec/config.go:94 -> internal/component/bgp/reactor/peer_static_routes.go:22), so a FlowSpec route configured with a next-hop encodes a 4- or 16-octet length; buildMPReachFlowSpec does the same (internal/component/bgp/message/update_build_flowspec.go:148,:180) |
 | [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3) Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1) | {gap}, no test | parseNumericComponent masks off only the end-of-list, AND and length bits (op &^ 0xF0), so reserved bit 4 (0x08) survives into FlowMatch.Op and formatWithOperator's switch then falls through to the '=' default -- a received '>' operator with the reserved bit set decodes as '=' instead of being ignored (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:322, plugin_decode.go:247-265) |
 | [`RFC8955-6-1`](#rfc8955-6-1) Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6) | {gap}, no test | ze decodes a received FlowSpec NLRI and lowers it to the firewall with no feasibility validation against the unicast RIB; no code implements the Section 6 procedure (internal/component/bgp/plugins/nlri/flowspec/types.go:351, internal/plugins/flowspec-firewall/translate.go:38) |
 | [`RFC8955-6-2`](#rfc8955-6-2) BGP implementations MUST enforce that AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6) | {gap}, no test | ze runs no eBGP leftmost-neighbor-AS enforcement; the only AS_PATH ingress guard is RFC 4271 Section 9 loop detection and firstASInPath serves MED neighbor comparison only (internal/component/bgp/reactor/filter/loop_metrics.go:31, internal/component/bgp/plugins/rib/bestpath.go:544) |
@@ -187,7 +186,9 @@ Length of the Next-Hop Network Address MUST be set to 0 (§4)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8955-4-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| positive | [`flow-encode.ci`](https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11) | functional/verify | revert, verified |
 
 ### [`RFC8955-4-4`](#rfc8955-4-4)
 

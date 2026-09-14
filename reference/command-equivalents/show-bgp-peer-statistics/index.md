@@ -13,6 +13,7 @@ Show UPDATE throughput for your peers.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: address
+- Column order: address, remote-as, state, uptime, updates-received, updates-sent, keepalives-received, keepalives-sent, eor-received, eor-sent, rate-updates-received, rate-updates-sent, rate-keepalives-received, rate-keepalives-sent
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

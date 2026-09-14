@@ -52570,6 +52570,94 @@
     ]
   },
   {
+    "path": "update bgp config",
+    "description": "Write the running peer set to the configuration file.",
+    "long-help": "Ze writes the running peer set into the configuration file. A peer\n'create bgp peer' built is added to the file, and a peer the file declares that\n'delete bgp peer' removed is taken out of it. A peer both sides already hold is\nleft exactly as it was written. The running daemon does not change: the file is\nbrought to it. The command takes no selector, because after a delete no peer is\nleft to name and that absence is half of what the command persists. A created\npeer is written under a name derived from its address, such as\n'peer-192.0.2.7', because a peer name cannot start with a digit. The answer\nnames what was added, what was removed, and the file that was written.",
+    "mode": "daemon",
+    "wire-method": "ze-bgp:peer-save",
+    "usage": "update bgp config",
+    "grammar": [
+      {
+        "text": "update",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      }
+    ],
+    "answer-shape": "doc",
+    "column-orders": [
+      [
+        "added",
+        "removed",
+        "config",
+        "message"
+      ]
+    ]
+  },
+  {
     "path": "update bgp irr all",
     "description": "Refresh all IRR prefix-lists immediately.",
     "long-help": "Re-queries the IRR server for every enrolled ASN and atomically\nswaps prefix-lists on success. Failed refreshes preserve the\nexisting prefix-list and report an error.",

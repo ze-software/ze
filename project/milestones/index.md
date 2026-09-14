@@ -4,6 +4,14 @@ The landmarks that mark Ze's path from a bare BGP speaker to a full network oper
 
 ## Q3 2026
 
+### IPv6 Router Advertisement sender (Sep 2026)
+
+*services*
+
+Ze advertises itself as an IPv6 router on an interface unit (RFC 4861), with prefixes, flags, a router lifetime and RDNSS resolvers, so a host autoconfigures without radvd beside Ze. Sending is per unit and off by default.
+
+[Read the week](../changes/2026-09-07/)
+
 ### RFC 7999 remote-triggered blackholing (Aug 2026)
 
 *secure*

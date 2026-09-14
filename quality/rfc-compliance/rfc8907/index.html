@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8907 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 12 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 13 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 8907 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 12 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 13 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8907 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 12 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol. 13 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,26 +115,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25.0%</strong><b>3 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>50.0%</strong><b>6 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 14 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.8%</strong><b>4 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>46.2%</strong><b>6 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>11.8%</strong><b>2 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>12</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 12 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>8.3%</strong><b>1 of 12 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 17 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>16.7%</strong><b>2 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.4%</strong><b>2 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -202,10 +202,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>16</td>
+<td>17</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>12</td>
+<td>13</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>1</td>
@@ -220,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>14</td>
+<td>17</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>14</td>
+<td>17</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8907.md</code></td>
@@ -245,7 +245,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: The TACACS+ Protocol (ze as a TACACS+ client/NAS): eleven MUST-level requirements. Eight are met in internal/component/tacacs: 4-1 (the major version nibble is 0xC, other versions rejected) and 4-2 (the sequence number is client-odd and the reply is request+1) carry positive+negative tags; 4-3 (the session id is drawn from a cryptographic RNG) is {single-polarity: positive} with a new uniqueness test; 4-4 (one session id for the whole session), 4-5 (multi-octet header fields are network byte order), 7-1 and 7-2 (an accounting REQUEST sets only Start or Stop, never the MORE flag), and 10-1 (the Unencrypted flag is never set when a key is configured) are {single-polarity: positive}. 5-1 (sequence-number wrap ends the session) is {not-applicable}: ze runs a single-exchange PAP authentication with no CONTINUE loop, so the sequence never approaches 0xFE. Two are {gap}: 4.6-1 (no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected) and 6-1 (authorization is decided on the response Status alone; mandatory response arguments are never parsed). Disclosed in the docs/features/rfc-status.md RFC 8907 row.</p>
+<p>Enrolled: The TACACS+ Protocol (ze as a TACACS+ client/NAS): thirteen MUST-level requirements. Ten are met in internal/component/tacacs: 4-1 (the major version nibble is 0xC, other versions rejected) and 4-2 (the sequence number is client-odd and the reply is request+1) carry positive+negative tags; 4-3 (the session id is drawn from a cryptographic RNG) is {single-polarity: positive} with a new uniqueness test; 4-4 (one session id for the whole session), 4-5 (multi-octet header fields are network byte order), 7-1 and 7-2 (an accounting REQUEST sets only Start or Stop, never the MORE flag), and 10-1 (the Unencrypted flag is never set when a key is configured) are {single-polarity: positive}. 10.5.2-1 (a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from closes the TCP session and reads as a FAIL) and 10-2 (a client never sets TAC_PLUS_UNENCRYPTED_FLAG) carry positive+negative tags. 5-1 (sequence-number wrap ends the session) is {not-applicable}: ze runs a single-exchange PAP authentication with no CONTINUE loop, so the sequence never approaches 0xFE. Two are {gap}: 4.6-1 (no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected) and 6-1 (authorization is decided on the response Status alone; mandatory response arguments are never parsed). Disclosed in the docs/features/rfc-status.md RFC 8907 row.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -264,7 +264,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -283,11 +283,11 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>12</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc8907-4-1"><code>RFC8907-4-1</code></a>, <a href="#rfc8907-4-2"><code>RFC8907-4-2</code></a>, <a href="#rfc8907-10.5.2-1"><code>RFC8907-10.5.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc8907-4-1"><code>RFC8907-4-1</code></a>, <a href="#rfc8907-4-2"><code>RFC8907-4-2</code></a>, <a href="#rfc8907-10-2"><code>RFC8907-10-2</code></a>, <a href="#rfc8907-10.5.2-1"><code>RFC8907-10.5.2-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (9):</strong> <a href="#rfc8907-4-3"><code>RFC8907-4-3</code></a>, <a href="#rfc8907-4-4"><code>RFC8907-4-4</code></a>, <a href="#rfc8907-4-5"><code>RFC8907-4-5</code></a>, <a href="#rfc8907-4.6-1"><code>RFC8907-4.6-1</code></a>, <a href="#rfc8907-5-1"><code>RFC8907-5-1</code></a>, <a href="#rfc8907-7-1"><code>RFC8907-7-1</code></a>, <a href="#rfc8907-7-2"><code>RFC8907-7-2</code></a>, <a href="#rfc8907-10-1"><code>RFC8907-10-1</code></a>, <a href="#rfc8907-6-1"><code>RFC8907-6-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -377,23 +377,33 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits Flags as exactly AcctFlagStart (0x02) or AcctFlagStop (0x04) at internal/component/tacacs/accounting.go:171 and 198, never combined; a Start-plus-Stop combination is unreachable by construction, so there is no negative to test</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10-1">RFC8907-10-1</code></td><td colspan="3"><span class="rfc-subject">Unencrypted mode (flag 0x01) MUST only be used with TLS (§10, Security)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10-1">RFC8907-10-1</code></td><td colspan="3"><span class="rfc-subject">§10.5.2: &#34;Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG.&#34; (§10, Security)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalRoundTrip</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93" title="internal/component/tacacs/rfc8907_unencrypted_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907UnencryptedModeIsNotReachableFromConfiguration</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the client never sets TAC_PLUS_UNENCRYPTED_FLAG and never emits a readable body: MarshalInto (internal/component/tacacs/packet.go MarshalInto) obfuscates whenever a key is configured and the client only ORs FlagSingleConnect (internal/component/tacacs/client.go trySend), so the emission is judged on the octets the client puts on the connection (TestRFC8907ClientNeverSendsUnobfuscatedBody); no configuration reaches an unencrypted send, so there is no negative path</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze exposes no configuration that enables TAC_PLUS_UNENCRYPTED_FLAG: the schema declares no leaf for it and makes the shared secret mandatory (internal/component/tacacs/yang/ze-tacacs-conf.yang), the only request flag any producer sets is FlagSingleConnect (internal/component/tacacs/client.go trySend), and (*Packet).MarshalInto (internal/component/tacacs/packet.go) refuses a marshal with no shared secret instead of falling back to an unencrypted send, so there is no enabled state to drive a negative against</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10-2">RFC8907-10-2</code></td><td colspan="3"><span class="rfc-subject">&#34;TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG.&#34; (§10, Security)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalNoEncryption</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-10.5.2-1">RFC8907-10.5.2-1</code></td><td colspan="3"><span class="rfc-subject">A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>10.5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8907-10.5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L221" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L194" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L225" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8907-6-1">RFC8907-6-1</code></td><td colspan="3"><span class="rfc-subject">Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization)</span></td></tr>
@@ -597,7 +607,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 </table>
 </div>
 <h3><a href="#rfc8907-10-1"><code>RFC8907-10-1</code></a></h3>
-<p>Unencrypted mode (flag 0x01) MUST only be used with TLS (§10, Security)</p>
+<p>§10.5.2: &#34;Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG.&#34; (§10, Security)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -613,6 +623,31 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93" title="internal/component/tacacs/rfc8907_unencrypted_config_test.go" target="_blank" rel="noopener"><code>TestRFC8907UnencryptedModeIsNotReachableFromConfiguration</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8907-10-2"><code>RFC8907-10-2</code></a></h3>
+<p>&#34;TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG.&#34; (§10, Security)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167" title="internal/component/tacacs/packet_test.go" target="_blank" rel="noopener"><code>TestPacketMarshalNoEncryption</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientNeverSendsUnobfuscatedBody</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -624,12 +659,12 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L194" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientRefusesUnobfuscatedReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L221" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L225" title="internal/component/tacacs/rfc8907_obfuscation_test.go" target="_blank" rel="noopener"><code>TestRFC8907ClientAcceptsObfuscatedReply</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -676,7 +711,7 @@ Two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -13,6 +13,7 @@ Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392).
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

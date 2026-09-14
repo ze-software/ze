@@ -1728,17 +1728,24 @@ encryption and integrity algorithm names, replay window, byte and packet
 counters, and the add and use timestamps. It never renders key material.
 <code>policy</code> lists each policy with its selector prefixes and ports, direction,
 priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
-installed it. A policy Ze did not install reports its owner as unknown.</p>
+installed it. A port reads <code>any</code> under a zero mask, a decimal number under mask
+<code>0xffff</code>, and <code>&lt;port&gt;/0x&lt;mask&gt;</code> under any other mask, so a masked selector never
+appears as one exact port. A policy Ze did not install reports its owner as
+unknown.</p>
 <p><code>drift</code> names each expected Child SA identity the kernel does not hold and exits
 non-zero when it finds one. Identity includes SPI, destination, protocol, and
-XFRM interface ID. Extra kernel SAs are permitted during rekey. A failed or
-changing observation returns an error rather than a clean result.</p>
+XFRM interface ID. Extra kernel SAs are permitted during rekey. Engine belief
+and the kernel dump come from one observation, taken under a generation check.
+A failed observation, an install or a removal running across the read, and a
+Child SA whose removal has started each return an error rather than a clean
+result.</p>
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
 <!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 <p>A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
-process without CAP_NET_ADMIN. An empty table would answer "nothing is
-installed" to a question nobody asked the kernel.</p>
+process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
+backend at all. An empty table would answer "nothing is installed" to a question
+nobody asked the kernel.</p>
 <p>RFC 4303 Section 2.1 reserves SPI 0, so the <code>spi</code> selector refuses it rather
 than reading it as "every SPI".</p>
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, handleShowVPNIPsecDataplanePolicy, handleShowVPNIPsecDataplaneDrift -->
@@ -3234,10 +3241,15 @@ are optional: <code>local-as</code>, <code>local-address</code>, <code>router-id
 <code>graceful-restart</code>, <code>group-updates</code> and <code>attach</code>. <code>family</code> and <code>attach</code> each
 take a comma-separated list. A keyword the command does not take is refused by
 name, and so is a value it cannot use.</p>
-<p>The peer lives in the running daemon alone. Nothing is written to the
-configuration, so <code>show config</code> does not carry it and a reload removes it. That
-is what <code>delete bgp peer</code> mirrors on the way out: it removes the peer from the
-running daemon and leaves the file on disk alone.</p>
+<p>The peer lives in the running daemon. The running configuration carries it, and
+the configuration FILE does not, so <code>show config</code> does not carry it and a reload
+removes it. That is what <code>delete bgp peer</code> mirrors on the way out: it takes the
+peer out of the running daemon and out of the running configuration, and leaves
+the file on disk alone.</p>
+<p><code>update bgp config</code> is what makes either change permanent. It writes the running
+peer set into the file: a peer created here is added to it, and a peer the file
+declares that <code>delete bgp peer</code> removed is taken out of it.</p>
+<!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave -->
 <h3 id="del-commands">Del Commands</h3>
 <table>
 <thead>
@@ -3426,6 +3438,11 @@ send bgp &lt;sel&gt; raw &lt;hex|b64&gt; &lt;data&gt; [type &lt;type&gt;]
 <td><code>update bgp peer &lt;sel&gt; prefix</code></td>
 <td>write</td>
 <td>Refresh max-prefix limits from PeeringDB (saves to draft; run <code>config commit</code> to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --></td>
+</tr>
+<tr>
+<td><code>update bgp config</code></td>
+<td>write</td>
+<td>Write the running peer set to the configuration file: a peer <code>create bgp peer</code> built is added, and a peer <code>delete bgp peer</code> removed is taken out. Takes no selector <!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave --></td>
 </tr>
 </tbody>
 </table>
@@ -4327,7 +4344,7 @@ ze-chaos --ai-help                           # Print tool schemas
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

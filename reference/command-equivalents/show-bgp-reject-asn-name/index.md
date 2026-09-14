@@ -13,6 +13,7 @@ Show one reject-asn list.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
+- Column order: name, import-peers, export-peers, entries, patterns; asn, positions, network
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

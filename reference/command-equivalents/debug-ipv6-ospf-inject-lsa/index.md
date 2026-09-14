@@ -13,6 +13,7 @@ Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).
 - Subcommands: `hex`, `id`, `scope`, `type`, `withdraw`
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

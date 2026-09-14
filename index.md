@@ -23,9 +23,9 @@ Ze's command and configuration declarations also feed its reference pages. That 
 
  Recently shipped
 
-### [Week of 2026-08-31](https://ze-software.net/project/changes/2026-08-31/)
+### [Week of 2026-09-07](https://ze-software.net/project/changes/2026-09-07/)
 
-Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and…
+Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an…
 
  RFC compliance progress
 
@@ -37,17 +37,17 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**29,800+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**29,900+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,834 of 3,047 RFC MUSTs**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,892 of 3,057 RFC MUSTs**
 
-- 60.2% tested
-- 146 RFCs Ze claims support for
-- 181 RFCs with requirements extracted
+- 61.9% tested
+- 147 RFCs Ze claims support for
+- 182 RFCs with requirements extracted
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,000+ end to end tests**
 
@@ -225,6 +225,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-09-07
+
+### [Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.](https://ze-software.net/project/changes/2026-09-07/)
+
+ BGP Interfaces Security PPPoE
+
+**Update**
+
+ 02
+
 Week of 2026-08-31
 
 ### [Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.](https://ze-software.net/project/changes/2026-08-31/)
@@ -233,23 +243,13 @@ Week of 2026-08-31
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-08-24
 
 ### [Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.](https://ze-software.net/project/changes/2026-08-24/)
 
- CLI BGP PPPoE IPsec
-
-**Update**
-
- 03
-
-Week of 2026-08-17
-
-### [The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.](https://ze-software.net/project/changes/2026-08-17/)
-
- BGP CLI API Flow Export - [See all updates](https://ze-software.net/project/changes/)
+ CLI BGP PPPoE IPsec - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.

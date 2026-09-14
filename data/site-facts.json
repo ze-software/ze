@@ -18,15 +18,15 @@
     "tests": "internal/le/testhealth.Render, over the tree this build read"
   },
   "blog_articles": 7,
-  "changes": 39,
-  "cli_commands": 466,
+  "changes": 40,
+  "cli_commands": 467,
   "config_sections": 36,
   "dependencies": 49,
   "features": {
     "core_experimental": 52,
     "planned": 4
   },
-  "generated_at": "2026-09-12",
+  "generated_at": "2026-09-14",
   "github_stars": 53,
   "interop": {
     "scenario_dirs_raw": 151,
@@ -35,7 +35,7 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-09-12T15:48:33Z",
+  "published_at": "2026-09-14T09:56:49Z",
   "repo": {
     "design_comments": 4867,
     "design_comments_display": "4,800+",
@@ -45,34 +45,34 @@
     "go_packages_display": "780+"
   },
   "rfc": {
-    "enrolled": 183,
-    "enrolled_display": "183",
-    "gated_implemented": 3047,
-    "gated_implemented_display": "3,047",
-    "gated_must": 3309,
-    "gated_must_display": "3,309",
-    "implemented": 146,
-    "implemented_display": "146",
-    "inspected": 181,
-    "inspected_display": "181",
-    "must": 3586,
-    "must_display": "3,586",
-    "proven": 1834,
-    "proven_display": "1,834",
-    "proven_percent": "60.2",
-    "requirements": 5450,
-    "requirements_display": "5,450",
-    "summaries": 194,
-    "summaries_display": "194"
+    "enrolled": 184,
+    "enrolled_display": "184",
+    "gated_implemented": 3057,
+    "gated_implemented_display": "3,057",
+    "gated_must": 3319,
+    "gated_must_display": "3,319",
+    "implemented": 147,
+    "implemented_display": "147",
+    "inspected": 182,
+    "inspected_display": "182",
+    "must": 3596,
+    "must_display": "3,596",
+    "proven": 1892,
+    "proven_display": "1,892",
+    "proven_percent": "61.9",
+    "requirements": 5468,
+    "requirements_display": "5,468",
+    "summaries": 195,
+    "summaries_display": "195"
   },
   "tests": {
-    "e2e": 2029,
+    "e2e": 2030,
     "e2e_display": "2,000+",
     "editor": 170,
     "editor_display": "170",
     "fuzz": 83,
     "fuzz_display": "83",
-    "unit": 29830,
-    "unit_display": "29,800+"
+    "unit": 29914,
+    "unit_display": "29,900+"
   }
 }

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3748 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 0 declared gaps, 15 with no test." />
+        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 0 declared gaps, 15 with no test." />
+        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 0 declared gaps, 15 with no test." />
+        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,10 +115,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>54.1%</strong><b>33 of 61 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.0%</strong><b>47 of 61 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.2%</strong><b>5 of 61 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 61 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>36.4%</strong><b>28 of 77 tagged units, 0 escaped and 6 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>46.8%</strong><b>52 of 111 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>24.6%</strong><b>15 of 61 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>1.6%</strong><b>1 of 61 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 61 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -211,25 +211,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>15</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>77</td>
+<td>111</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>77</td>
+<td>111</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>34</td>
+<td>52</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3748.md</code></td>
@@ -253,7 +253,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Section 4.2 discards that stop a rogue authenticator bypassing the method: the peer reads an EAP-Success only once the method conversation concluded, drops an EAP-Failure once both ends indicated success, and both roles drop a Code outside 1-4 (<code>PeerSession.Process</code> and <code>Session.Process</code>, <code>internal/core/eap</code>). The peer answers Type 1 (Identity), Type 2 (Notification) and Type 3 (Nak): a Notification Request draws a five-octet Notification Response and its message reaches the operator log, and a Request for an authentication Type ze does not run draws a six-octet legacy Nak naming the configured method, until the peer has answered a method Request and Section 2.1 closes the Nak (<code>PeerSession.handleRequest</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer.go" target="_blank" rel="noopener"><code>internal/core/eap/peer.go</code></a>). A Type-254 Request draws the same legacy Nak, which is what Section 5.7 prescribes for a peer not equipped to interpret an Expanded Type. Type 4 (MD5-Challenge) runs on both roles and is the <code>authentication { mode eap-md5 }</code> an operator selects. It is never a default, and adopting a configuration that names it writes one warning quoting the RFC 7296 Section 2.16 sentence that discourages a method establishing no shared key (<code>warnKeylessEAPModes</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/eap_auth.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/eap_auth.go</code></a>).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze&#39;s authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option (&#34;An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method&#34;) and which the owner declined on 2026-09-01; Ze&#39;s peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze&#39;s authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says &#34;Support for pass-through is optional&#34;. Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation (&#34;Implementations MAY support other Types defined here or in future RFCs&#34;). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it.
+<p>One MUST is unmet.</p>
+<p class="rfc-prose"><strong>Ze derives no Extended Master Session Key:</strong> <code>exportEAPTLSMSK</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls.go" target="_blank" rel="noopener"><code>internal/core/eap/eap_tls.go</code></a>) keeps the MSK half of the RFC 9190 Section 2.3 key material and drops the EMSK half, and <code>DeriveMSK</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2.go" target="_blank" rel="noopener"><code>internal/core/eap/mschapv2.go</code></a>) returns an MSK alone. Section 7.10 requires a key-deriving method to export both, so <code>RFC3748-7.10-6</code>, which confines the EMSK to the peer and the server that derived it, has no key to confine and stays open. Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze&#39;s authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option (&#34;An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method&#34;) and which the owner declined on 2026-09-01; Ze&#39;s peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze&#39;s authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says &#34;Support for pass-through is optional&#34;. Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation (&#34;Implementations MAY support other Types defined here or in future RFCs&#34;). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,11 +263,11 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>33</strong></td>
+<td><strong>47</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>13</strong></td>
+<td><strong>14</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -274,7 +275,7 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>15</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -285,9 +286,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (33):</strong> <a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a>, <a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a>, <a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a>, <a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a>, <a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a>, <a href="#rfc3748-2.1-3"><code>RFC3748-2.1-3</code></a>, <a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a>, <a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a>, <a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a>, <a href="#rfc3748-4.1-4"><code>RFC3748-4.1-4</code></a>, <a href="#rfc3748-4.1-5"><code>RFC3748-4.1-5</code></a>, <a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a>, <a href="#rfc3748-4.2-6"><code>RFC3748-4.2-6</code></a>, <a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a>, <a href="#rfc3748-4.2-7"><code>RFC3748-4.2-7</code></a>, <a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a>, <a href="#rfc3748-4.2-9"><code>RFC3748-4.2-9</code></a>, <a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a>, <a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a>, <a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a>, <a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a>, <a href="#rfc3748-5-2"><code>RFC3748-5-2</code></a>, <a href="#rfc3748-5.2-1"><code>RFC3748-5.2-1</code></a>, <a href="#rfc3748-5.2-2"><code>RFC3748-5.2-2</code></a>, <a href="#rfc3748-5.3.1-1"><code>RFC3748-5.3.1-1</code></a>, <a href="#rfc3748-5.3.1-2"><code>RFC3748-5.3.1-2</code></a>, <a href="#rfc3748-5.3.1-3"><code>RFC3748-5.3.1-3</code></a>, <a href="#rfc3748-5.3.1-4"><code>RFC3748-5.3.1-4</code></a>, <a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a>, <a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a>, <a href="#rfc3748-5.1-2"><code>RFC3748-5.1-2</code></a>, <a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a>, <a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (13):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-3.1-4"><code>RFC3748-3.1-4</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a>, <a href="#rfc3748-7.10-1"><code>RFC3748-7.10-1</code></a>, <a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (15):</strong> <a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a>, <a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a>, <a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a>, <a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a>, <a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a>, <a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a>, <a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a>, <a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a>, <a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a>, <a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a>, <a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a>, <a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a>, <a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a>, <a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a>, <a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (47):</strong> <a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a>, <a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a>, <a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a>, <a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a>, <a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a>, <a href="#rfc3748-2.1-3"><code>RFC3748-2.1-3</code></a>, <a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a>, <a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a>, <a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a>, <a href="#rfc3748-4.1-4"><code>RFC3748-4.1-4</code></a>, <a href="#rfc3748-4.1-5"><code>RFC3748-4.1-5</code></a>, <a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a>, <a href="#rfc3748-4.2-6"><code>RFC3748-4.2-6</code></a>, <a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a>, <a href="#rfc3748-4.2-7"><code>RFC3748-4.2-7</code></a>, <a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a>, <a href="#rfc3748-4.2-9"><code>RFC3748-4.2-9</code></a>, <a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a>, <a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a>, <a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a>, <a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a>, <a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a>, <a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a>, <a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a>, <a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a>, <a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a>, <a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a>, <a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a>, <a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a>, <a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a>, <a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a>, <a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a>, <a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a>, <a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a>, <a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a>, <a href="#rfc3748-5-2"><code>RFC3748-5-2</code></a>, <a href="#rfc3748-5.2-1"><code>RFC3748-5.2-1</code></a>, <a href="#rfc3748-5.2-2"><code>RFC3748-5.2-2</code></a>, <a href="#rfc3748-5.3.1-1"><code>RFC3748-5.3.1-1</code></a>, <a href="#rfc3748-5.3.1-2"><code>RFC3748-5.3.1-2</code></a>, <a href="#rfc3748-5.3.1-3"><code>RFC3748-5.3.1-3</code></a>, <a href="#rfc3748-5.3.1-4"><code>RFC3748-5.3.1-4</code></a>, <a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a>, <a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a>, <a href="#rfc3748-5.1-2"><code>RFC3748-5.1-2</code></a>, <a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a>, <a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-3.1-4"><code>RFC3748-3.1-4</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a>, <a href="#rfc3748-7.10-1"><code>RFC3748-7.10-1</code></a>, <a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a>, <a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -581,8 +581,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L33" title="internal/core/eap/rfc3748_retransmission_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketWhileTheRequestStands</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L86" title="internal/core/eap/rfc3748_retransmission_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketWhileTheRequestStands</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-2.2-1">RFC3748-2.2-1</code></td><td colspan="3"><span class="rfc-subject">The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2)</span></td></tr>
@@ -590,8 +590,10 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L292" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L181" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-6">RFC3748-4.1-6</code></td><td colspan="3"><span class="rfc-subject">Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1)</span></td></tr>
@@ -599,8 +601,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L126" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OutstandingRequestStandsUntilAValidResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L141" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OutstandingRequestStandsUntilAValidResponse</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-7">RFC3748-4.1-7</code></td><td colspan="3"><span class="rfc-subject">The peer MUST send a Response packet in reply to a valid Request packet (S4.1)</span></td></tr>
@@ -608,8 +610,10 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L100" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L163" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersOnlyAValidRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L117" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L179" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersOnlyAValidRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-8">RFC3748-4.1-8</code></td><td colspan="3"><span class="rfc-subject">Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1)</span></td></tr>
@@ -617,8 +621,10 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L140" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerReadsEachRequestAgainstItsPredecessors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L208" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748RequestsAreProcessedInOrderToCompletion</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L157" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerReadsEachRequestAgainstItsPredecessors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L225" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748RequestsAreProcessedInOrderToCompletion</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-9">RFC3748-4.1-9</code></td><td colspan="3"><span class="rfc-subject">A single Type MUST be specified for each EAP Request or Response (S4.1)</span></td></tr>
@@ -626,8 +632,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.1-9">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L248" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OnePacketCarriesOneType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L274" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OnePacketCarriesOneType</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.1-10">RFC3748-4.1-10</code></td><td colspan="3"><span class="rfc-subject">An authenticator receiving a Response whose Identifier value does not match that of the currently outstanding Request MUST silently discard the Response (S4.1)</span></td></tr>
@@ -662,8 +668,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-15">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L316" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L341" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-10">RFC3748-4.2-10</code></td><td colspan="3"><span class="rfc-subject">Success and Failure packets MUST NOT be sent by an EAP authenticator if the specification of the given method does not explicitly permit the method to finish at that point (S4.2)</span></td></tr>
@@ -671,8 +677,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L94" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketLeavesMidMethod</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L110" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketLeavesMidMethod</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-11">RFC3748-4.2-11</code></td><td colspan="3"><span class="rfc-subject">A peer MUST allow for the circumstance that a Success or Failure packet, being unacknowledged, can be lost (S4.2)</span></td></tr>
@@ -680,8 +686,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-11">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L284" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L255" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-12">RFC3748-4.2-12</code></td><td colspan="3"><span class="rfc-subject">After the authenticator sends a failure result indication to the peer, regardless of the response from the peer, it MUST subsequently send a Failure packet (S4.2)</span></td></tr>
@@ -689,8 +695,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L129" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailureFollowsTheFailureIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L155" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailureFollowsTheFailureIndication</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-13">RFC3748-4.2-13</code></td><td colspan="3"><span class="rfc-subject">After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2)</span></td></tr>
@@ -698,8 +704,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-13">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L177" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFollowsBothSuccessIndications</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L196" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFollowsBothSuccessIndications</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-4.2-14">RFC3748-4.2-14</code></td><td colspan="3"><span class="rfc-subject">If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2)</span></td></tr>
@@ -707,8 +713,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-4.2-14">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L215" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailedAuthenticationIsRefusedNotGranted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L231" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailedAuthenticationIsRefusedNotGranted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-5">RFC3748-7.10-5</code></td><td colspan="3"><span class="rfc-subject">The MSK and EMSK MUST NOT be used directly to protect data (S7.10)</span></td></tr>
@@ -716,8 +722,8 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>MUST NOT</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L114" title="internal/component/ike/engine/rfc3748_msk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEAPMSKNeverKeysTheDataItProtects</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L148" title="internal/component/ike/engine/rfc3748_msk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEAPMSKNeverKeysTheDataItProtects</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-6">RFC3748-7.10-6</code></td><td colspan="3"><span class="rfc-subject">The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)</span></td></tr>
@@ -727,15 +733,15 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze derives no EMSK, so the key this obligation confines is never produced and no behavior of ze can be measured against it. exportEAPTLSMSK (internal/core/eap/eap_tls.go) asks the TLS exporter for the 128 octets RFC 9190 Section 2.3 defines and copies only the first 64, the MSK, leaving the EMSK half unread; DeriveMSK (internal/core/eap/mschapv2.go) returns a 64-octet MSK and derives nothing else. Section 7.10 requires a key-deriving method to export both -- &#34;an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets&#34; -- so the missing EMSK is behavior ze owes, and this row stays open until a method derives one and a test proves it stays where it was derived</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-7">RFC3748-7.10-7</code></td><td colspan="3"><span class="rfc-subject">EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L54" title="internal/core/eap/rfc3748_key_state_test.go" target="_blank" rel="noopener"><code>TestRFC3748AnExchangeOutlivesDiscardedKeyState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L40" title="internal/core/eap/rfc3748_key_state_test.go" target="_blank" rel="noopener"><code>TestRFC3748AnExchangeOutlivesDiscardedKeyState</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-5-1">RFC3748-5-1</code></td><td colspan="3"><span class="rfc-subject">NAK (Type 3) and Expanded NAK (Type 254) MUST NOT be sent in a Request (S5)</span></td></tr>
@@ -942,65 +948,9 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze derives only the MSK (exported for the IKEv2 AUTH payload) and never derives or consumes the EMSK -- no EMSK is produced anywhere in internal/core/eap, so there is no EMSK to size-check</td>
 </tr>
-<tr><td><a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a> The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a> The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a> Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a> The peer MUST send a Response packet in reply to a valid Request packet (S4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a> Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a> A single Type MUST be specified for each EAP Request or Response (S4.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a> The peer MUST silently discard a Success packet that arrives after the peer has ended the session (S4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a> Success and Failure packets MUST NOT be sent by an EAP authenticator if the specification of the given method does not explicitly permit the method to finish at that point (S4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a> A peer MUST allow for the circumstance that a Success or Failure packet, being unacknowledged, can be lost (S4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a> After the authenticator sends a failure result indication to the peer, regardless of the response from the peer, it MUST subsequently send a Failure packet (S4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a> After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a> If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a> The MSK and EMSK MUST NOT be used directly to protect data (S7.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a> The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a> EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
+<td>{gap}, no test</td>
+<td>ze derives no EMSK, so the key this obligation confines is never produced and no behavior of ze can be measured against it. exportEAPTLSMSK (internal/core/eap/eap_tls.go) asks the TLS exporter for the 128 octets RFC 9190 Section 2.3 defines and copies only the first 64, the MSK, leaving the EMSK half unread; DeriveMSK (internal/core/eap/mschapv2.go) returns a 64-octet MSK and derives nothing else. Section 7.10 requires a key-deriving method to export both -- &#34;an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets&#34; -- so the missing EMSK is behavior ze owes, and this row stays open until a method derives one and a test proves it stays where it was derived</td>
 </tr>
 </tbody>
 </table>
@@ -1440,12 +1390,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsACannedSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsACannedSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1460,12 +1410,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L132" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1480,12 +1430,12 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L199" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureAfterMutualSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L178" title="internal/core/eap/rfc3748_discard_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsAFailureAfterMutualSuccess</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1493,27 +1443,153 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <h3><a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a></h3>
 <p>The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-2-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L86" title="internal/core/eap/rfc3748_retransmission_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketWhileTheRequestStands</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L33" title="internal/core/eap/rfc3748_retransmission_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketWhileTheRequestStands</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a></h3>
 <p>The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-2.2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L292" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748FrameworkMessagesReachNoMethod</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L181" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoFrameworkMessageReachesAnEAPMethod</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a></h3>
 <p>Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.1-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L141" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OutstandingRequestStandsUntilAValidResponse</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L126" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OutstandingRequestStandsUntilAValidResponse</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a></h3>
 <p>The peer MUST send a Response packet in reply to a valid Request packet (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.1-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L179" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersOnlyAValidRequest</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L117" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L163" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersOnlyAValidRequest</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L100" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a></h3>
 <p>Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.1-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L225" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748RequestsAreProcessedInOrderToCompletion</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L157" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerReadsEachRequestAgainstItsPredecessors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L208" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748RequestsAreProcessedInOrderToCompletion</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L140" title="internal/core/eap/rfc3748_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerReadsEachRequestAgainstItsPredecessors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a></h3>
 <p>A single Type MUST be specified for each EAP Request or Response (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.1-9, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L274" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OnePacketCarriesOneType</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L248" title="internal/core/eap/rfc3748_lockstep_test.go" target="_blank" rel="noopener"><code>TestRFC3748OnePacketCarriesOneType</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a></h3>
 <p>An authenticator receiving a Response whose Identifier value does not match that of the currently outstanding Request MUST silently discard the Response (S4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1577,31 +1653,143 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <h3><a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a></h3>
 <p>The peer MUST silently discard a Success packet that arrives after the peer has ended the session (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.2-15, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L341" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L316" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a></h3>
 <p>Success and Failure packets MUST NOT be sent by an EAP authenticator if the specification of the given method does not explicitly permit the method to finish at that point (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.2-10, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L110" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketLeavesMidMethod</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L94" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoTerminalPacketLeavesMidMethod</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a></h3>
 <p>A peer MUST allow for the circumstance that a Success or Failure packet, being unacknowledged, can be lost (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.2-11, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L255" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L284" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748PeerOutlivesALostTerminalPacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a></h3>
 <p>After the authenticator sends a failure result indication to the peer, regardless of the response from the peer, it MUST subsequently send a Failure packet (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.2-12, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L155" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailureFollowsTheFailureIndication</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L129" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailureFollowsTheFailureIndication</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a></h3>
 <p>After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.2-13, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L196" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFollowsBothSuccessIndications</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L177" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748SuccessFollowsBothSuccessIndications</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a></h3>
 <p>If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-4.2-14, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L231" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailedAuthenticationIsRefusedNotGranted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L215" title="internal/core/eap/rfc3748_result_indication_test.go" target="_blank" rel="noopener"><code>TestRFC3748FailedAuthenticationIsRefusedNotGranted</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a></h3>
 <p>The MSK and EMSK MUST NOT be used directly to protect data (S7.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-7.10-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L148" title="internal/component/ike/engine/rfc3748_msk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEAPMSKNeverKeysTheDataItProtects</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L114" title="internal/component/ike/engine/rfc3748_msk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEAPMSKNeverKeysTheDataItProtects</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a></h3>
 <p>The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1609,7 +1797,23 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
 <h3><a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a></h3>
 <p>EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-7.10-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L40" title="internal/core/eap/rfc3748_key_state_test.go" target="_blank" rel="noopener"><code>TestRFC3748AnExchangeOutlivesDiscardedKeyState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L54" title="internal/core/eap/rfc3748_key_state_test.go" target="_blank" rel="noopener"><code>TestRFC3748AnExchangeOutlivesDiscardedKeyState</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a></h3>
 <p>NAK (Type 3) and Expanded NAK (Type 254) MUST NOT be sent in a Request (S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2555,7 +2759,7 @@ Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

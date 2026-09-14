@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 100.0% | 11 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 86.4% | 19 of 22 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -27,14 +28,6 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 100.0% | 11 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-
 The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -63,12 +56,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 11 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 22 |
+| Tagged units | 22 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 21 |
 | Summary | `rfc/short/draft-abraitis-bgp-version-capability.md` |
 | Requirement shard | `rfc/requirements/draft-abraitis-bgp-version-capability.md` |
 | RFC text | `rfc/drafts/draft-abraitis-bgp-version-capability.txt` |
@@ -95,50 +88,38 @@ Enrolled: Software Version capability for BGP (code 75): eleven MUST-level requi
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
+| Positive and negative tests | 11 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 11 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**No test and no annotation (11):** [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](#draft-abraitis-bgp-version-capability-3-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](#draft-abraitis-bgp-version-capability-3-2), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3`](#draft-abraitis-bgp-version-capability-3-3), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4`](#draft-abraitis-bgp-version-capability-3-4), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5`](#draft-abraitis-bgp-version-capability-3-5), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6`](#draft-abraitis-bgp-version-capability-3-6), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7`](#draft-abraitis-bgp-version-capability-3-7), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8`](#draft-abraitis-bgp-version-capability-3-8), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](#draft-abraitis-bgp-version-capability-3.1-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1`](#draft-abraitis-bgp-version-capability-4-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2)
+**Positive and negative tests (11):** [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](#draft-abraitis-bgp-version-capability-3-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](#draft-abraitis-bgp-version-capability-3-2), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3`](#draft-abraitis-bgp-version-capability-3-3), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4`](#draft-abraitis-bgp-version-capability-3-4), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5`](#draft-abraitis-bgp-version-capability-3-5), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6`](#draft-abraitis-bgp-version-capability-3-6), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7`](#draft-abraitis-bgp-version-capability-3-7), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8`](#draft-abraitis-bgp-version-capability-3-8), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](#draft-abraitis-bgp-version-capability-3.1-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1`](#draft-abraitis-bgp-version-capability-4-1), [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1` | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the configuration option half (§3) | MUST | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2` | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the default-to-disabled half (§3) | MUST | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3` | "The Capability Length for the Software Version Capability MUST be greater than zero" (§3) | MUST | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4` | "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the encoding-error half (§3) | SHALL | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5` | "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the ignore half (§3) | MUST | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6` | "The Version field MUST be encoded using UTF-8" (§3) | MUST | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7` | "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences" (§3) | MUST NOT | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8` | "A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier" -- the MUST NOT half (§3) | MUST NOT | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1` | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the configuration option half (§3) | MUST | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverConfigOptionEnables`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L27). **negative:** `unit/verify` [`TestSoftverConfigOptionDisables`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L37) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2` | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the default-to-disabled half (§3) | MUST | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverDefaultsToDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L46). **negative:** `unit/verify` [`TestSoftverDefaultIsNotABlanketRefusal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L55) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3` | "The Capability Length for the Software Version Capability MUST be greater than zero" (§3) | MUST | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverCapabilityLengthIsGreaterThanZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L65). **negative:** `unit/verify` [`TestSoftverZeroCapabilityLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L77) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4` | "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the encoding-error half (§3) | SHALL | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverZeroValueIsAnEncodingError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L87). **negative:** `unit/verify` [`TestSoftverWellFormedValueIsNotAnEncodingError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L96) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5` | "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the ignore half (§3) | MUST | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverZeroValueCapabilityIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L106). **negative:** `unit/verify` [`TestSoftverWellFormedCapabilityIsNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L122) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6` | "The Version field MUST be encoded using UTF-8" (§3) | MUST | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverVersionFieldIsUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L137). **negative:** `unit/verify` [`TestSoftverNonUTF8VersionFieldIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L149) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7` | "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences" (§3) | MUST NOT | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverInvalidUTF8IsNotInterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L160). **negative:** `unit/verify` [`TestSoftverValidMultiByteUTF8IsInterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L176) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8` | "A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier" -- the MUST NOT half (§3) | MUST NOT | 3 - Software Version Capability | **positive:** `unit/verify` [`TestSoftverProductIdentifierCarriesNothingNonessential`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L211). **negative:** `unit/verify` [`TestSoftverNonessentialProductIdentifiersAreRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L224) |
 | `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-9` | "The Capability Length SHOULD be no greater than 64" (§3) | SHOULD | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-10` | "A sender SHOULD limit generated product identifiers to what is necessary to identify the product" (§3) | SHOULD | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-11` | "A sender SHOULD NOT generate information in product-version that is not a version identifier" (§3) | SHOULD NOT | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
 | `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-12` | "It is NOT RECOMMENDED for use outside a single Autonomous System, or a set of Autonomous Systems under a common administration" (§3) | NOT RECOMMENDED | 3 - Software Version Capability | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1` | "Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]" (§3.1) | REQUIRED | 3.1 - Capabilities Length Overflow | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1` | "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier" (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
-| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2` | "Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability" (§4) | MUST | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1` | "Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]" (§3.1) | REQUIRED | 3.1 - Capabilities Length Overflow | **positive:** `unit/verify` [`TestSoftwareVersionCapabilityUsesExtendedOptionalParameters`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L44). **negative:** `unit/verify` [`TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L66) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1` | "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier" (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L62). **negative:** `unit/verify` [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L39) |
+| `DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2` | "Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability" (§4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestSoftverAdvertisedOnlyAfterExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L241). **negative:** `unit/verify` [`TestSoftverNotAdvertisedWithoutExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L252) |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](#draft-abraitis-bgp-version-capability-3-1) "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the configuration option half (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](#draft-abraitis-bgp-version-capability-3-2) "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the default-to-disabled half (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3`](#draft-abraitis-bgp-version-capability-3-3) "The Capability Length for the Software Version Capability MUST be greater than zero" (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4`](#draft-abraitis-bgp-version-capability-3-4) "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the encoding-error half (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5`](#draft-abraitis-bgp-version-capability-3-5) "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the ignore half (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6`](#draft-abraitis-bgp-version-capability-3-6) "The Version field MUST be encoded using UTF-8" (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7`](#draft-abraitis-bgp-version-capability-3-7) "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences" (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8`](#draft-abraitis-bgp-version-capability-3-8) "A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier" -- the MUST NOT half (§3) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](#draft-abraitis-bgp-version-capability-3.1-1) "Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]" (§3.1) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1`](#draft-abraitis-bgp-version-capability-4-1) "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier" (§4) | no test | no test carries this requirement id |
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2) "Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability" (§4) | no test | no test carries this requirement id |
+DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY declares no gap, and every gated MUST it carries has a test bound to it.
 
 ## Proof state
 
@@ -150,7 +131,10 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverConfigOptionDisables`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L37) | unit/verify | mutant, verified |
+| positive | [`TestSoftverConfigOptionEnables`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L27) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](#draft-abraitis-bgp-version-capability-3-2)
 
@@ -158,7 +142,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverDefaultIsNotABlanketRefusal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L55) | unit/verify | mutant, verified |
+| positive | [`TestSoftverDefaultsToDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L46) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3`](#draft-abraitis-bgp-version-capability-3-3)
 
@@ -166,7 +153,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverZeroCapabilityLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L77) | unit/verify | mutant, verified |
+| positive | [`TestSoftverCapabilityLengthIsGreaterThanZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L65) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4`](#draft-abraitis-bgp-version-capability-3-4)
 
@@ -174,7 +164,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverWellFormedValueIsNotAnEncodingError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L96) | unit/verify | mutant, verified |
+| positive | [`TestSoftverZeroValueIsAnEncodingError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L87) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5`](#draft-abraitis-bgp-version-capability-3-5)
 
@@ -182,7 +175,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverWellFormedCapabilityIsNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L122) | unit/verify | mutant, verified |
+| positive | [`TestSoftverZeroValueCapabilityIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L106) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6`](#draft-abraitis-bgp-version-capability-3-6)
 
@@ -190,7 +186,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverNonUTF8VersionFieldIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L149) | unit/verify | mutant, verified |
+| positive | [`TestSoftverVersionFieldIsUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L137) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7`](#draft-abraitis-bgp-version-capability-3-7)
 
@@ -198,7 +197,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverValidMultiByteUTF8IsInterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L176) | unit/verify | mutant, verified |
+| positive | [`TestSoftverInvalidUTF8IsNotInterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L160) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8`](#draft-abraitis-bgp-version-capability-3-8)
 
@@ -206,7 +208,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverNonessentialProductIdentifiersAreRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L224) | unit/verify | unproven |
+| positive | [`TestSoftverProductIdentifierCarriesNothingNonessential`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L211) | unit/verify | mutant, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](#draft-abraitis-bgp-version-capability-3.1-1)
 
@@ -214,7 +219,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L66) | unit/verify | revert, verified |
+| positive | [`TestSoftwareVersionCapabilityUsesExtendedOptionalParameters`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L44) | unit/verify | revert, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1`](#draft-abraitis-bgp-version-capability-4-1)
 
@@ -222,7 +230,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1, so no unit is bound
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L39) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L62) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2)
 
@@ -230,7 +241,10 @@ No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1, so no unit is bound t
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestSoftverNotAdvertisedWithoutExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L252) | unit/verify | mutant, verified |
+| positive | [`TestSoftverAdvertisedOnlyAfterExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L241) | unit/verify | mutant, verified |
 
 ## Extraction sign-off
 

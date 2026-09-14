@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 33.3% | 3 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 93.3% | 14 of 15 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 15 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -165,7 +165,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC2385FailedConnectDoesNotDisableSigning`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2385_test.go#L134) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2385FailedConnectDoesNotDisableSigning`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2385_test.go#L134) | unit/verify | revert, verified |
 
 ### [`RFC2385-2.0-5`](#rfc2385-2.0-5)
 

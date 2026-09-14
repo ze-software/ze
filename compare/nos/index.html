@@ -593,10 +593,10 @@ comparison. The detailed source evidence remains in the appendices below.</p>
 </tr>
 <tr>
 <td>IPv6 Router Advertisements</td>
-<td class="cell-partial">∿</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td>Ze source evidence is BNG/PPP RA, not a general LAN RA sender.</td>
+<td class="cell-yes">✓</td>
+<td>Ze sends Router Advertisements on an interface unit (RFC 4861), with prefixes, flags, a router lifetime and RDNSS resolvers. The BNG/PPP RA path remains beside it. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/iface/ra/sender_linux.go</code></span><span class="ev-ref"><code>internal/component/iface/yang/ze-iface-conf.yang</code></span></span></td>
 </tr>
 <tr>
 <td>LLDP</td>
@@ -3621,7 +3621,7 @@ about non-BGP router OS breadth.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

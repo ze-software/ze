@@ -2427,9 +2427,15 @@ handles runtime negotiation.</p>
     }
 }
 </code></pre>
-<p>Encryption algorithms: <code>aes128</code>, <code>aes256</code>, <code>aes128gcm</code>, <code>aes256gcm</code>. The schema also names
-<code>chacha20poly1305</code> and <code>3des</code>, and no build carries a transform for either. A proposal
-that names one is refused at commit, and the refusal lists the implemented set.
+<p>Encryption algorithms: <code>aes128</code>, <code>aes256</code>, <code>aes128gcm</code>, <code>aes256gcm</code>, and the AES CCM set
+<code>aes128ccm8</code>, <code>aes256ccm8</code>, <code>aes128ccm12</code>, <code>aes256ccm12</code>, <code>aes128ccm16</code> and <code>aes256ccm16</code>.
+The number after <code>ccm</code> is the ICV size in octets, which RFC 5282 Section 7.2 gives its own
+Transform ID. Section 7.2 recommends the 16 octet ICV for IKE.</p>
+<p>The AES CCM set is for an <code>ike-group</code> only. An <code>esp-group</code> proposal that names one is
+refused at commit, because no dataplane backend installs an AES CCM Security Association.</p>
+<p>The schema also names <code>chacha20poly1305</code> and <code>3des</code>, and no build carries a transform for
+either. A proposal that names one is refused at commit, and the refusal lists the
+implemented set.
 Hash algorithms: <code>sha256</code>, <code>sha384</code>, <code>sha512</code>. The schema also names <code>sha1</code>, and no build
 carries a transform for it, so the same refusal applies.</p>
 <p>An IKE proposal requires <code>hash</code> beside every cipher, because it names the PRF that
@@ -5066,7 +5072,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

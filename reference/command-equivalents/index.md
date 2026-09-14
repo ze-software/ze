@@ -1,6 +1,6 @@
 # Command Equivalents
 
-466 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+467 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -604,6 +604,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
+| `update bgp config` | Daemon | - | - | - | - | [details](update-bgp-config/) |
 | `update bgp irr all` | Daemon | - | - | - | - | [details](update-bgp-irr-all/) |
 | `update bgp irr as-set` | Daemon | - | - | - | - | [details](update-bgp-irr-as-set/) |
 | `update bgp irr asn` | Daemon | - | - | - | - | [details](update-bgp-irr-asn/) |

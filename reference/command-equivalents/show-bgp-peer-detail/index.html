@@ -65,6 +65,7 @@
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
 <div><dt>Address fields</dt><dd>local-ip, next-hop-address</dd></div>
+<div><dt>Column order</dt><dd>name, group, remote-as, local-as, peer-type, router-id, state, uptime, last-notification, local-ip, next-hop, next-hop-address, timer, capabilities</dd></div>
 </dl>
 <h3>Description</h3><p>Each peer row carries the remote and local ASN, the router ID, the peer type,<br>and four timers: receive hold time, send hold time, keepalive, and connect<br>retry. The &#39;connect&#39; and &#39;accept&#39; flags say which directions this session opens.<br>A &#39;messages&#39; map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and<br>End-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear<br>under capabilities.paths-limit, keyed by family: send is the peer&#39;s maximum<br>paths per prefix enforced on our outbound updates; receive is our advertised<br>receive request, not a locally enforced inbound limit. Zero or absent limits<br>are omitted.</p>
 <h3>Arguments</h3>
@@ -137,7 +138,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

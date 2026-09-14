@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 31.8% | 7 of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 22 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 10.3% | 4 of 39 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 12.8% | 5 of 39 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -80,7 +80,7 @@ Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tabl
 
 **What the ledger says remains**
 
-No MUST gap remains gated in [`rfc/short/rfc2516.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2516.md). [`RFC2516-5.2-2`](#rfc2516-5.2-2) (BuildPADO omitting Service-Name under the accept-any config) closed 2026-09-09: BuildPADO and BuildPADS now write the Service-Name tag through AddTagString unconditionally, so an absent or zero-length source value still yields exactly one tag. The receive-side tolerance that remains -- a PADI or PADR with no Service-Name tag is served/admitted rather than refused for count, and a duplicate tag resolves first-wins -- is a deliberate robustness choice recorded in [`docs/architecture/l2tp/bng-5-pppoe.md`](https://github.com/ze-software/ze/blob/main/docs/architecture/l2tp/bng-5-pppoe.md), not an unmet MUST: Sections 5.1 and 5.3 bind the sending host, and no reference AC (accel-ppp, FreeBSD) enforces those counts on receipt either. Status stays `Partial` rather than `Supported` because no [`rfc/extraction/rfc2516.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc2516.json) sign-off exists yet to bound what this summary's extraction may have missed.
+No MUST gap remains gated in [`rfc/short/rfc2516.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2516.md). [`RFC2516-5.2-2`](#rfc2516-5.2-2) (BuildPADO omitting Service-Name under the accept-any config) closed 2026-09-09: BuildPADO and BuildPADS now write the Service-Name tag through AddTagString unconditionally, so an absent or zero-length source value still yields exactly one tag. The receive-side tolerance that remains -- a PADI or PADR with no Service-Name tag is served/admitted rather than refused for count, and a duplicate tag resolves first-wins -- is a deliberate robustness choice recorded in [`docs/architecture/l2tp/bng-5-pppoe.md`](https://github.com/ze-software/ze/blob/main/docs/architecture/l2tp/bng-5-pppoe.md), not an unmet MUST: Sections 5.1 and 5.3 bind the sending host, and no reference AC (accel-ppp, FreeBSD) enforces those counts on receipt either. Status stays `Partial` rather than `Supported` because this RFC has no extraction sign-off yet, under `rfc/extraction/`, to bound what this summary's extraction may have missed.
 
 ## Coverage
 
@@ -318,7 +318,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBuildPADS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/discovery_test.go#L177) | unit/verify | revert, verified |
-| positive | [`TestPADRWithoutServiceNameGetsServiceNameError`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L156) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestPADRWithoutServiceNameGetsServiceNameError`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/server_test.go#L156) | unit/verify | revert, verified |
 
 ### [`RFC2516-x-6`](#rfc2516-x-6)
 

@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*.json`.
 
 ## Gate verdict
 
-RED. 105 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 105 violation(s)`.
+RED. 4 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 4 violation(s)`.
 
 ### Overall
 
@@ -12,8 +12,8 @@ the populations every share below is taken over
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 3,047 | 5,450 extracted from 200 summaries | MUST-level requirements the gate HOLDS, across the 146 RFCs Ze implements, out of 3,309 across the 181 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 637 | of 3,047 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Gated MUSTs | 3,057 | 5,468 extracted from 201 summaries | MUST-level requirements the gate HOLDS, across the 147 RFCs Ze implements, out of 3,319 across the 182 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 639 | of 3,057 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 
 ### Positive
 
@@ -21,10 +21,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Proven by test | 60.2% | 1,834 of 3,047 gated MUSTs across the 146 RFCs Ze implements | the share this site publishes everywhere: Tested both ways and One polarity plus reason added together, two of the five shares that partition the same denominator. That denominator keeps the {not-applicable} obligations, so annotating a requirement away cannot raise it |
-| Tested both ways | 48.5% | 1,478 of 3,047 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 11.7% | 356 of 3,047 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| Proven by a recorded break | 9.9% | 433 of 4,368 tagged units in enrolled RFCs, 2 escaped and 28 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by test | 61.9% | 1,892 of 3,057 gated MUSTs across the 147 RFCs Ze implements | the share this site publishes everywhere: Tested both ways and One polarity plus reason added together, two of the five shares that partition the same denominator. That denominator keeps the {not-applicable} obligations, so annotating a requirement away cannot raise it |
+| Tested both ways | 50.1% | 1,532 of 3,057 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 11.8% | 360 of 3,057 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 3,057 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 12.4% | 556 of 4,482 tagged units in enrolled RFCs, 2 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -32,10 +33,10 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Not applicable | 20.8% | 635 of 3,047 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.9% | 26 of 3,047 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.1% | 2 of 3,047 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 54 | 0 shifted, 2 stale, 3,253 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Not applicable | 20.8% | 635 of 3,057 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.9% | 29 of 3,057 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.1% | 4 of 3,057 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Semantic verdicts | 56 | 0 shifted, 0 stale, 3,263 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -43,11 +44,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| One polarity, unexcused | 0.2% | 7 of 3,047 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 17.8% | 543 of 3,047 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 105 open gate issues | whether ./le rfc check passes over this tree |
+| No test at all | 16.3% | 497 of 3,057 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Gate verdict | RED | 4 open gate issues | whether ./le rfc check passes over this tree |
 
-The 7 shares marked as a part above are the whole of the 3,047 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 3,057 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -58,7 +58,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Proven by test | ok | green at every value: a proven obligation is the outcome this gate exists to produce, and the number under the label is what says how far Ze has got |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | bad | green at zero, RED above it: half a proof with no reason for the other half |
+| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
@@ -69,63 +69,65 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 105 |
-| Gated MUST-level requirements | 3,309 |
-| Enrolled RFCs | 183 |
-| Resolved test tags | 4,560 |
-| Declared gaps | 481 |
-| RFCs with declared gaps | 78 |
-| Fresh semantic audit verdicts | 54 |
+| Gate issues | 4 |
+| Gated MUST-level requirements | 3,319 |
+| Enrolled RFCs | 184 |
+| Resolved test tags | 4,667 |
+| Declared gaps | 493 |
+| RFCs with declared gaps | 81 |
+| Fresh semantic audit verdicts | 56 |
 | Shifted semantic audit verdicts | 0 |
-| Stale semantic audit verdicts | 2 |
+| Stale semantic audit verdicts | 0 |
 
 ## Requirement buckets
 
-The bar is every one of the 3,047 gated MUST-level requirements. 637 of them are {not-applicable} or {feature-declined}: they do not bind Ze, and they are a named segment of the bar rather than an omission from it.
+The bar is every one of the 3,057 gated MUST-level requirements. 639 of them are {not-applicable} or {feature-declined}: they do not bind Ze, and they are a named segment of the bar rather than an omission from it.
 
 | Bucket | Count | Share of gated | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 1,478 | 48.5% | `positive tag + negative tag` |
-| One polarity plus reason | 356 | 11.7% | `{single-polarity} annotation + required tag` |
-| Declared gap | 481 | 15.8% | `{gap} annotation + public ledger disclosure` |
-| One polarity, unexcused | 7 | 0.2% | `tag without annotation` |
-| Missing, unexcused | 62 | 2.0% | `no tag, no annotation` |
+| Positive and negative tests | 1,532 | 50.1% | `positive tag + negative tag` |
+| One polarity plus reason | 360 | 11.8% | `{single-polarity} annotation + required tag` |
+| Declared gap | 493 | 16.1% | `{gap} annotation + public ledger disclosure` |
+| One polarity, unexcused | 0 | 0.0% | `tag without annotation` |
+| Missing, unexcused | 4 | 0.1% | `no tag, no annotation` |
 | Not applicable | 635 | 20.8% | `{not-applicable} annotation`: the obligation does not bind Ze, so it is scope rather than coverage |
-| Met below Ze | 26 | 0.9% | `{lower-layer} annotation + named producer` |
-| Optional feature declined | 2 | 0.1% | `{feature-declined} annotation + quoted RFC sentence`: the obligation does not bind Ze, so it is scope rather than coverage |
-| **Gated MUST-level requirements** | **3,047** | 100.0% | every gated MUST falls in exactly one bucket above, the 637 that do not bind Ze included. This total is the denominator of every share above it |
+| Met below Ze | 29 | 0.9% | `{lower-layer} annotation + named producer` |
+| Optional feature declined | 4 | 0.1% | `{feature-declined} annotation + quoted RFC sentence`: the obligation does not bind Ze, so it is scope rather than coverage |
+| **Gated MUST-level requirements** | **3,057** | 100.0% | every gated MUST falls in exactly one bucket above, the 639 that do not bind Ze included. This total is the denominator of every share above it |
 
 ## Gap disclosure
 
 | Public status for RFCs with gaps | RFCs |
 |---|---:|
-| Partial | 62 |
+| Partial | 64 |
 | Experimental | 12 |
 | Supported | 3 |
 | Not supported | 1 |
+| Supported in IPsec | 1 |
 
 ### Supported rows that still disclose a gap
 
 - **RFC 1350:** RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK.
+- **RFC 3748:** One MUST is unmet. Ze derives no Extended Master Session Key: `exportEAPTLSMSK` (`internal/core/eap/eap_tls.go`) keeps the MSK half of the RFC 9190 Section 2.3 key material and drops the EMSK half, and `DeriveMSK` (`internal/core/eap/mschapv2.go`) returns an MSK alone. Section 7.10 requires a key-deriving method to export both, so `RFC3748-7.10-6`, which confines the EMSK to the peer and the server that derived it, has no key to confine and stays open. Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze's authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option ("An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method") and which the owner declined on 2026-09-01; Ze's peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze's authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says "Support for pass-through is optional". Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation ("Implementations MAY support other Types defined here or in future RFCs"). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it.
 - **RFC 6396:** One MUST gap gated in rfc/short/rfc6396.md [RFC6396-4.4.3-1]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session's negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte).
 - **RFC 7313:** Four MUST-level receive-side gaps annotated in `rfc/short/rfc7313.md`: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance.
 
 ## Exclusion disclosure
 
-A reviewer walks an RFC's own text sentence by sentence and decides which sentences become requirements. One that does not is EXCLUDED, with a kind and a reason, and it never reaches the gated ledger at all. That is a different mechanism from the Out of scope card above, which counts requirements that exist and carry a {not-applicable} annotation. Across the sign-offs done so far, 941 sentences were mapped to a requirement and 536 were declined. 13 of those declines are not scope at all: they are obligations Ze OWES, relocated to a named spec, and they are stated apart below.
+A reviewer walks an RFC's own text sentence by sentence and decides which sentences become requirements. One that does not is EXCLUDED, with a kind and a reason, and it never reaches the gated ledger at all. That is a different mechanism from the Out of scope card above, which counts requirements that exist and carry a {not-applicable} annotation. Across the sign-offs done so far, 949 sentences were mapped to a requirement and 540 were declined. 13 of those declines are not scope at all: they are obligations Ze OWES, relocated to a named spec, and they are stated apart below.
 
-61 of 200 summaries carry an extraction sign-off, 58 of them among the 183 enrolled. The other 139 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.
+62 of 201 summaries carry an extraction sign-off, 59 of them among the 184 enrolled. The other 139 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.
 
 | Excluded kind | Means | Sites | Summaries | What it means |
 |---|---|---|---|---|
 | `binds-another-role` | never bound Ze | 239 | 22 | the obligation is addressed to a role Ze never acts as |
 | `duplicate-of` | never bound Ze | 116 | 24 | the same obligation is already captured under another requirement id |
-| `not-a-requirement` | never bound Ze | 100 | 37 | the sentence states a fact or describes another document, and directs no implementation |
+| `not-a-requirement` | never bound Ze | 104 | 38 | the sentence states a fact or describes another document, and directs no implementation |
 | `feature-out-of-scope` | never bound Ze | 29 | 5 | the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it |
 | `cross-document` | never bound Ze | 26 | 17 | the obligation belongs to another document that this one only cites |
 | `advisory-in-context` | never bound Ze | 13 | 7 | the sentence advises on applying a rule stated elsewhere and adds no obligation of its own |
 | `relocated-to-spec` | Ze owes it | 13 | 2 | the obligation is real and unbuilt, and a named spec owes it |
-| **Sentences declined** | - | **536** | - | 523 say the obligation never bound Ze and 13 say Ze owes it, of 1,477 normative sentences the walks found |
+| **Sentences declined** | - | **540** | - | 527 say the obligation never bound Ze and 13 say Ze owes it, of 1,489 normative sentences the walks found |
 
 **binds-another-role (239):** [`RFC 1035`](rfc1035/index.md), [`RFC 1350`](rfc1350/index.md), [`RFC 1997`](rfc1997/index.md), [`RFC 2545`](rfc2545/index.md), [`RFC 2759`](rfc2759/index.md), [`RFC 2865`](rfc2865/index.md), [`RFC 2866`](rfc2866/index.md), [`RFC 2869`](rfc2869/index.md), [`RFC 3032`](rfc3032/index.md), [`RFC 3579`](rfc3579/index.md), [`RFC 3748`](rfc3748/index.md), [`RFC 4302`](rfc4302/index.md), [`RFC 4303`](rfc4303/index.md), [`RFC 4360`](rfc4360/index.md), [`RFC 4364`](rfc4364/index.md), [`RFC 4456`](rfc4456/index.md), [`RFC 4761`](rfc4761/index.md), [`RFC 5176`](rfc5176/index.md), [`RFC 6396`](rfc6396/index.md), [`RFC 7296`](rfc7296/index.md), [`RFC 7535`](rfc7535/index.md), [`RFC 8654`](rfc8654/index.md)
 
@@ -133,7 +135,7 @@ ai/rules/rfc-compliance.md treats binds-another-role as PRESUMED WRONG until it 
 
 **duplicate-of (116):** [`RFC 1035`](rfc1035/index.md), [`RFC 2759`](rfc2759/index.md), [`RFC 2865`](rfc2865/index.md), [`RFC 2866`](rfc2866/index.md), [`RFC 2869`](rfc2869/index.md), [`RFC 3032`](rfc3032/index.md), [`RFC 3579`](rfc3579/index.md), [`RFC 3748`](rfc3748/index.md), [`RFC 3948`](rfc3948/index.md), [`RFC 4302`](rfc4302/index.md), [`RFC 4303`](rfc4303/index.md), [`RFC 4364`](rfc4364/index.md), [`RFC 4456`](rfc4456/index.md), [`RFC 4760`](rfc4760/index.md), [`RFC 5549`](rfc5549/index.md), [`RFC 5798`](rfc5798/index.md), [`RFC 5880`](rfc5880/index.md), [`RFC 7296`](rfc7296/index.md), [`RFC 8671`](rfc8671/index.md), [`RFC 8950`](rfc8950/index.md), [`RFC 9003`](rfc9003/index.md), [`RFC 9069`](rfc9069/index.md), [`RFC 9190`](rfc9190/index.md), [`RFC 9234`](rfc9234/index.md)
 
-**not-a-requirement (100):** [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY`](draft-abraitis-bgp-version-capability/index.md), [`DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY`](draft-walton-bgp-hostname-capability/index.md), [`RFC 1035`](rfc1035/index.md), [`RFC 1350`](rfc1350/index.md), [`RFC 2347`](rfc2347/index.md), [`RFC 2385`](rfc2385/index.md), [`RFC 2545`](rfc2545/index.md), [`RFC 2759`](rfc2759/index.md), [`RFC 2865`](rfc2865/index.md), [`RFC 2869`](rfc2869/index.md), [`RFC 2918`](rfc2918/index.md), [`RFC 3032`](rfc3032/index.md), [`RFC 3579`](rfc3579/index.md), [`RFC 3748`](rfc3748/index.md), [`RFC 3765`](rfc3765/index.md), [`RFC 3948`](rfc3948/index.md), [`RFC 4303`](rfc4303/index.md), [`RFC 4360`](rfc4360/index.md), [`RFC 4364`](rfc4364/index.md), [`RFC 4456`](rfc4456/index.md), [`RFC 4761`](rfc4761/index.md), [`RFC 5176`](rfc5176/index.md), [`RFC 5282`](rfc5282/index.md), [`RFC 5301`](rfc5301/index.md), [`RFC 5492`](rfc5492/index.md), [`RFC 5798`](rfc5798/index.md), [`RFC 6286`](rfc6286/index.md), [`RFC 6396`](rfc6396/index.md), [`RFC 7296`](rfc7296/index.md), [`RFC 7534`](rfc7534/index.md), [`RFC 7535`](rfc7535/index.md), [`RFC 7911`](rfc7911/index.md), [`RFC 7999`](rfc7999/index.md), [`RFC 8654`](rfc8654/index.md), [`RFC 9190`](rfc9190/index.md), [`RFC 9384`](rfc9384/index.md), [`RFC 9687`](rfc9687/index.md)
+**not-a-requirement (104):** [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY`](draft-abraitis-bgp-version-capability/index.md), [`DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY`](draft-walton-bgp-hostname-capability/index.md), [`RFC 1035`](rfc1035/index.md), [`RFC 1350`](rfc1350/index.md), [`RFC 2347`](rfc2347/index.md), [`RFC 2385`](rfc2385/index.md), [`RFC 2545`](rfc2545/index.md), [`RFC 2759`](rfc2759/index.md), [`RFC 2865`](rfc2865/index.md), [`RFC 2869`](rfc2869/index.md), [`RFC 2918`](rfc2918/index.md), [`RFC 3032`](rfc3032/index.md), [`RFC 3579`](rfc3579/index.md), [`RFC 3748`](rfc3748/index.md), [`RFC 3765`](rfc3765/index.md), [`RFC 3948`](rfc3948/index.md), [`RFC 4303`](rfc4303/index.md), [`RFC 4360`](rfc4360/index.md), [`RFC 4364`](rfc4364/index.md), [`RFC 4456`](rfc4456/index.md), [`RFC 4761`](rfc4761/index.md), [`RFC 5176`](rfc5176/index.md), [`RFC 5282`](rfc5282/index.md), [`RFC 5301`](rfc5301/index.md), [`RFC 5492`](rfc5492/index.md), [`RFC 5798`](rfc5798/index.md), [`RFC 6286`](rfc6286/index.md), [`RFC 6396`](rfc6396/index.md), [`RFC 7296`](rfc7296/index.md), [`RFC 7534`](rfc7534/index.md), [`RFC 7535`](rfc7535/index.md), [`RFC 7705`](rfc7705/index.md), [`RFC 7911`](rfc7911/index.md), [`RFC 7999`](rfc7999/index.md), [`RFC 8654`](rfc8654/index.md), [`RFC 9190`](rfc9190/index.md), [`RFC 9384`](rfc9384/index.md), [`RFC 9687`](rfc9687/index.md)
 
 **feature-out-of-scope (29):** [`RFC 3748`](rfc3748/index.md), [`RFC 5082`](rfc5082/index.md), [`RFC 5176`](rfc5176/index.md), [`RFC 8671`](rfc8671/index.md), [`RFC 9069`](rfc9069/index.md)
 
@@ -185,11 +187,11 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 | Input | Producer | What it answered here |
 |---|---|---|
 | Reproduce it | `./le rfc check` | 1 of 49 full-mode verify stages run it |
-| Requirement source | `rfc/short/*.md` | 3,309 gated MUST-level requirements |
-| Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 183 enrolled RFCs |
-| Test tags | `internal/`, `pkg/`, `test/` | 4,560 resolved tags |
-| Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 78 RFCs with gaps, 3 Supported with Remaining |
-| Semantic audits | `rfc/audit/*.json` | 54 fresh, 0 shifted, 2 stale, 3,253 missing |
+| Requirement source | `rfc/short/*.md` | 3,319 gated MUST-level requirements |
+| Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 184 enrolled RFCs |
+| Test tags | `internal/`, `pkg/`, `test/` | 4,667 resolved tags |
+| Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 81 RFCs with gaps, 4 Supported with Remaining |
+| Semantic audits | `rfc/audit/*.json` | 56 fresh, 0 shifted, 0 stale, 3,263 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 49 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -197,43 +199,20 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 
 | RFC | Requirement | Level | What is wrong | The requirement |
 |---|---|---|---|---|
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:79: unknown RFC requirement: RFC7705-4.2-2 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:82: unknown RFC requirement: RFC7705-4.2-2 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:139: unknown RFC requirement: RFC7705-4.2-3 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:143: unknown RFC requirement: RFC7705-4.2-3 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:219: unknown RFC requirement: RFC7705-4.2-4 | - |
-| - | `-` | - | internal/component/bgp/reactor/session_as_migration_test.go:222: unknown RFC requirement: RFC7705-4.2-4 | - |
-| - | `-` | - | internal/component/tacacs/packet_test.go:161: unknown RFC requirement: RFC8907-10-2 | - |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-1) | MUST | has no test and no annotation | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the configuration option half (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-2) | MUST | has no test and no annotation | "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled" -- the default-to-disabled half (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-3) | MUST | has no test and no annotation | "The Capability Length for the Software Version Capability MUST be greater than zero" (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-4) | SHALL | has no test and no annotation | "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the encoding-error half (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-5) | MUST | has no test and no annotation | "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored" -- the ignore half (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-6) | MUST | has no test and no annotation | "The Version field MUST be encoded using UTF-8" (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-7) | MUST NOT | has no test and no annotation | "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences" (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3-8) | MUST NOT | has no test and no annotation | "A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier" -- the MUST NOT half (§3) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-3.1-1) | REQUIRED | has no test and no annotation | "Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]" (§3.1) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-4-1) | MUST | has no test and no annotation | "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier" (§4) |
-| DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY | [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](draft-abraitis-bgp-version-capability/index.md#draft-abraitis-bgp-version-capability-4-2) | MUST | has no test and no annotation | "Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability" (§4) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-3-1) | MUST | has no test and no annotation | "If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field" (§3) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-3-2) | MUST | has no test and no annotation | "If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field" (§3) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-1) | MUST | has no test and no annotation | "If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer" (§4) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-2) | MUST NOT | has no test and no annotation | "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop" (§4) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-3) | MUST | has no test and no annotation | "If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link-Local IPv6 address" (§4) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-4) | MUST NOT | has no test and no annotation | "If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker" (§4) |
-| DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY | [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5`](draft-ietf-idr-linklocal-capability/index.md#draft-ietf-idr-linklocal-capability-4-5) | MUST NOT | has no test and no annotation | "A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser" (§4) |
-
-80 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+| RFC 4302 | [`RFC4302-3.3.4-1`](rfc4302/index.md#rfc4302-3.3.4-1) | MUST | has no test and no annotation | An AH implementation MUST support generation of ICMP PMTU messages, or the equivalent internal signaling for a native host implementation (§3.3.4) |
+| RFC 4302 | [`RFC4302-5-1`](rfc4302/index.md#rfc4302-5-1) | MUST | has no test and no annotation | An implementation claiming conformance MUST fully implement the AH syntax and processing for unicast traffic, and MUST comply with all requirements of the Security Architecture document (§5) |
+| RFC 4302 | [`RFC4302-5-2`](rfc4302/index.md#rfc4302-5-2) | MUST | has no test and no annotation | An implementation claiming to support multicast traffic MUST comply with the additional requirements specified for such traffic (§5) |
+| RFC 5082 | [`RFC5082-3-2`](rfc5082/index.md#rfc5082-3-2) | MUST | has no test and no annotation | The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1) |
 
 ## Enrolled RFCs
 
 | RFC | Public status | Gated MUSTs | Declared gaps | Gated with no test |
 |---|---|---:|---:|---:|
-| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY`](draft-abraitis-bgp-version-capability/index.md) Software Version Capability for BGP | Partial | 11 | 0 | 11 |
+| [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY`](draft-abraitis-bgp-version-capability/index.md) Software Version Capability for BGP | Partial | 11 | 0 | 0 |
 | [`DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT`](draft-abraitis-idr-addpath-paths-limit/index.md) Scalability Considerations for ADD-PATH with PATHS-LIMIT | Supported | 4 | 0 | 0 |
 | [`DRAFT-IETF-BESS-MUP-SAFI`](draft-ietf-bess-mup-safi/index.md) BGP Extensions for the Mobile User Plane (MUP) SAFI | Partial | 40 | 37 | 0 |
 | [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE`](draft-ietf-idr-bgp-bfd-strict-mode/index.md) BGP BFD Strict-Mode | Supported | 4 | 0 | 0 |
-| [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY`](draft-ietf-idr-linklocal-capability/index.md) Link-Local Next Hop Capability for BGP | Partial | 13 | 0 | 13 |
+| [`DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY`](draft-ietf-idr-linklocal-capability/index.md) Link-Local Next Hop Capability for BGP | Partial | 13 | 5 | 0 |
 | [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION`](draft-ietf-sidrops-aspa-verification/index.md) Verification of AS_PATH Using the Resource Certificate PKI and Autonomous System Provider Authorization | Partial | 8 | 2 | 0 |
 | [`DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY`](draft-walton-bgp-hostname-capability/index.md) Hostname Capability for BGP | Supported | 0 | 0 | 0 |
 | [`RFC 1071`](rfc1071/index.md) Computing the Internet Checksum | No public row declared | 8 | 0 | 0 |
@@ -275,7 +254,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 | [`RFC 3579`](rfc3579/index.md) RADIUS (Remote Authentication Dial In User Service) Support For Extensible Authentication Protocol (EAP) | Partial | 31 | 14 | 0 |
 | [`RFC 3623`](rfc3623/index.md) Graceful OSPF Restart | Experimental | 13 | 2 | 0 |
 | [`RFC 3630`](rfc3630/index.md) Traffic Engineering (TE) Extensions to OSPF Version 2 | Experimental | 5 | 0 | 0 |
-| [`RFC 3748`](rfc3748/index.md) Extensible Authentication Protocol (EAP) | Supported in IPsec | 61 | 0 | 15 |
+| [`RFC 3748`](rfc3748/index.md) Extensible Authentication Protocol (EAP) | Supported in IPsec | 61 | 1 | 0 |
 | [`RFC 3765`](rfc3765/index.md) NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control | Supported | 0 | 0 | 0 |
 | [`RFC 3768`](rfc3768/index.md) Virtual Router Redundancy Protocol (VRRP) | Experimental | 39 | 0 | 0 |
 | [`RFC 3786`](rfc3786/index.md) Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit | No public row declared | 4 | 0 | 0 |
@@ -311,7 +290,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 | [`RFC 5187`](rfc5187/index.md) OSPFv3 Graceful Restart | Experimental | 4 | 0 | 0 |
 | [`RFC 5216`](rfc5216/index.md) The EAP-TLS Authentication Protocol | Partial | 21 | 1 | 0 |
 | [`RFC 5250`](rfc5250/index.md) The OSPF Opaque LSA Option | Experimental | 9 | 0 | 0 |
-| [`RFC 5282`](rfc5282/index.md) Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Supported | 19 | 0 | 4 |
+| [`RFC 5282`](rfc5282/index.md) Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Supported | 19 | 0 | 0 |
 | [`RFC 5286`](rfc5286/index.md) Basic Specification for IP Fast Reroute: Loop-Free Alternates | Experimental | 6 | 2 | 0 |
 | [`RFC 5301`](rfc5301/index.md) Dynamic Hostname Exchange Mechanism for IS-IS | Supported | 7 | 0 | 0 |
 | [`RFC 5303`](rfc5303/index.md) Three-Way Handshake for IS-IS Point-to-Point Adjacencies | Experimental | 18 | 7 | 0 |
@@ -328,7 +307,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 | [`RFC 5575`](rfc5575/index.md) Dissemination of Flow Specification Rules | Partial | 12 | 4 | 0 |
 | [`RFC 5701`](rfc5701/index.md) IPv6 Address Specific BGP Extended Community Attribute | Partial | 4 | 1 | 0 |
 | [`RFC 5709`](rfc5709/index.md) OSPFv2 HMAC-SHA Cryptographic Authentication | Experimental | 15 | 0 | 0 |
-| [`RFC 5798`](rfc5798/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 55 | 0 | 15 |
+| [`RFC 5798`](rfc5798/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 55 | 7 | 0 |
 | [`RFC 5838`](rfc5838/index.md) Support of Address Families in OSPFv3 | Experimental | 16 | 8 | 0 |
 | [`RFC 5880`](rfc5880/index.md) Bidirectional Forwarding Detection (BFD) | Partial | 96 | 14 | 0 |
 | [`RFC 5881`](rfc5881/index.md) Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop) | Partial | 23 | 6 | 0 |
@@ -362,6 +341,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 | [`RFC 7607`](rfc7607/index.md) Codification of AS 0 Processing | Supported | 5 | 0 | 0 |
 | [`RFC 7611`](rfc7611/index.md) BGP ACCEPT_OWN Community Attribute | No public row declared | 5 | 0 | 0 |
 | [`RFC 7684`](rfc7684/index.md) OSPFv2 Prefix/Link Attribute Advertisement | Experimental | 8 | 0 | 0 |
+| [`RFC 7705`](rfc7705/index.md) Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute | Supported | 9 | 0 | 0 |
 | [`RFC 7752`](rfc7752/index.md) North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | Partial | 26 | 4 | 0 |
 | [`RFC 7770`](rfc7770/index.md) Extensions to OSPF for Advertising Optional Router Capabilities | Experimental | 11 | 0 | 0 |
 | [`RFC 7854`](rfc7854/index.md) BGP Monitoring Protocol (BMP) | Partial | 13 | 0 | 0 |
@@ -387,9 +367,9 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 49 
 | [`RFC 8669`](rfc8669/index.md) Segment Routing Prefix Segment Identifier Extensions for BGP | Partial | 25 | 10 | 0 |
 | [`RFC 8671`](rfc8671/index.md) Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Supported within BMP sender scope | 10 | 0 | 0 |
 | [`RFC 8707`](rfc8707/index.md) Resource Indicators for OAuth 2.0 | No public row declared | 7 | 0 | 0 |
-| [`RFC 8907`](rfc8907/index.md) The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol | Partial | 12 | 2 | 0 |
+| [`RFC 8907`](rfc8907/index.md) The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol | Partial | 13 | 2 | 0 |
 | [`RFC 8950`](rfc8950/index.md) Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop | Supported | 6 | 0 | 0 |
-| [`RFC 8955`](rfc8955/index.md) Dissemination of Flow Specification Rules | Partial | 22 | 5 | 0 |
+| [`RFC 8955`](rfc8955/index.md) Dissemination of Flow Specification Rules | Partial | 22 | 4 | 0 |
 | [`RFC 8956`](rfc8956/index.md) Dissemination of Flow Specification Rules for IPv6 | Partial | 9 | 7 | 0 |
 | [`RFC 9003`](rfc9003/index.md) Extended BGP Administrative Shutdown Communication | Supported | 4 | 0 | 0 |
 | [`RFC 9012`](rfc9012/index.md) The BGP Tunnel Encapsulation Attribute | Partial | 75 | 51 | 0 |

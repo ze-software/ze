@@ -13,6 +13,7 @@ Show the startup convergence hold and what it waits for.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
+- Column order: configured, holding, released, reason, expected-peers, peers-held, peers-converged, max-delay-seconds, establish-wait-seconds
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

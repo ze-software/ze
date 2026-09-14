@@ -13,6 +13,7 @@ Show whether the Adj-RIB-In runs, its total route count, and the count for each 
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

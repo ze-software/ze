@@ -13,6 +13,7 @@ Create a Linux bridge for L2 forwarding.
 - Subcommands: `address`, `unit`
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

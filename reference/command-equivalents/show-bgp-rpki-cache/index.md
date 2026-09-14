@@ -13,6 +13,7 @@ Show RTR cache server sessions with protocol details
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: address
+- Column order: address, port, preference, state, synced, version, session-id, serial, refresh-interval, retry-interval, expire-interval
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 75.0% | 3 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 50.0% | 3 of 6 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 6 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -137,8 +137,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGTSMDialerWithoutOutTTLLeavesTheDefault`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L59) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestGTSMDialerSetsOutgoingTTLTo255`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L40) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestGTSMDialerWithoutOutTTLLeavesTheDefault`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L59) | unit/verify | revert, verified |
+| positive | [`TestGTSMDialerSetsOutgoingTTLTo255`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L40) | unit/verify | revert, verified |
 
 ### [`RFC5082-3-2`](#rfc5082-3-2)
 
@@ -167,7 +167,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestGTSMNoFloorDeliversAnUnknownPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestGTSMNoFloorDeliversAnUnknownPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165) | unit/verify | revert, verified |
 | positive | [`TestGTSMFloorDeliversATrustedPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138) | unit/verify | revert, verified |
 
 ## Extraction sign-off

@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 66.7% | 14 of 21 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 28.6% | 6 of 21 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 21 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 15.0% | 6 of 40 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 20.0% | 8 of 40 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -306,7 +306,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L361) | unit/verify | unproven |
-| positive | [`TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L95) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L95) | unit/verify | revert, verified |
 
 ### [`RFC5216-2.1.3-4`](#rfc5216-2.1.3-4)
 
@@ -317,7 +317,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L207) | unit/verify | unproven |
-| positive | [`TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L101) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L101) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls_alert_flight_test.go#L208) | unit/verify | unproven |
 
 ### [`RFC5216-2.1.3-5`](#rfc5216-2.1.3-5)

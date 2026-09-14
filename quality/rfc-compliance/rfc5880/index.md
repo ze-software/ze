@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 76.0% | 73 of 96 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 8.3% | 8 of 96 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 96 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 160 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 0.6% | 1 of 160 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -899,7 +899,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L151) | unit/verify | unproven |
-| positive | [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L356) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestFirstPacketMatchesWhatTheTransportSurfaces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L356) | unit/verify | revert, verified |
 | positive | [`TestRFC5881FirstPacketMatchesByTuple`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L128) | unit/verify | unproven |
 
 ### [`RFC5880-6.8.7-1`](#rfc5880-6.8.7-1)

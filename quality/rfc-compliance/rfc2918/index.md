@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 5.9% | 1 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -61,7 +61,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 17 |
 | Tagged units | 17 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 1 |
 | Summary | `rfc/short/rfc2918.md` |
 | Requirement shard | `rfc/requirements/rfc2918.md` |
 | RFC text | `rfc/full/rfc2918.txt` |
@@ -104,7 +104,7 @@ No tracked gap in current source anchors.
 | `RFC2918-3-2` | ROUTE-REFRESH payload MUST be exactly 4 bytes (AFI 2 + Reserved 1 + SAFI 1) (S3) | MUST | 3 - Route-REFRESH Message | **positive:** `unit/verify` [`TestRouteRefreshPack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L31). **negative:** `unit/verify` [`TestHandleRouteRefresh_InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L381). **negative:** `unit/verify` [`TestRouteRefreshUnpackShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L75) |
 | `RFC2918-4-1` | A BGP speaker MUST NOT send a ROUTE-REFRESH message to a peer unless it has received the Route Refresh Capability from that peer (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestRFC2918SendRouteRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L94). **positive:** `unit/verify` [`TestRFC2918SoftClearPeerSendsRefreshToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L158). **negative:** `unit/verify` [`TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L115). **negative:** `unit/verify` [`TestRFC2918SoftClearPeerSkipsPeerWithoutCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go#L173) |
 | `RFC2918-4-2` | If a ROUTE-REFRESH is received with an AFI/SAFI not advertised by the receiver at session establishment, the receiver SHALL ignore the message (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRouteRefresh_NonNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L466). **negative:** `unit/verify` [`TestRouteRefreshValidLengthDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2418) |
-| `RFC2918-4-3` | Otherwise, the receiver SHALL re-advertise the Adj-RIB-Out of the requested AFI/SAFI based on its outbound route filtering policy (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L986). **negative:** `unit/verify` [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1029) |
+| `RFC2918-4-3` | Otherwise, the receiver SHALL re-advertise the Adj-RIB-Out of the requested AFI/SAFI based on its outbound route filtering policy (S4) | MUST | 4 - Operation | **positive:** `unit/verify` [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995). **negative:** `unit/verify` [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069) |
 | `RFC2918-4-4` | A BGP speaker willing to receive ROUTE-REFRESH SHOULD advertise the Route Refresh Capability to the peer (S4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 | `RFC2918-4-5` | The AFI/SAFI in a ROUTE-REFRESH SHOULD be one the peer advertised at session establishment (S4) | SHOULD | 4 - Operation | **positive:** no positive test. **negative:** no negative test |
 | `RFC2918-3-3` | Reserved field SHOULD be set to 0 by the sender (S3) | SHOULD | 3 - Route-REFRESH Message | **positive:** no positive test. **negative:** no negative test |
@@ -185,8 +185,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1029) | unit/verify | unproven |
-| positive | [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L986) | unit/verify | unproven |
+| negative | [`TestHandleRefresh_PeerNotUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069) | unit/verify | unproven |
+| positive | [`TestHandleRefresh_InternalState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995) | unit/verify | revert, verified |
 
 ### [`RFC2918-3-4`](#rfc2918-3-4)
 

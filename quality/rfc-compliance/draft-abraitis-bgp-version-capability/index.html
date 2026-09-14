@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY requirement ledger - Ze</title>
-        <meta name="description" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY: Software Version Capability for BGP. 11 gated MUST-level requirements, 0 declared gaps, 11 with no test." />
+        <meta name="description" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY: Software Version Capability for BGP. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY requirement ledger - Ze" />
-        <meta property="og:description" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY: Software Version Capability for BGP. 11 gated MUST-level requirements, 0 declared gaps, 11 with no test." />
+        <meta property="og:description" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY: Software Version Capability for BGP. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY requirement ledger - Ze" />
-        <meta name="twitter:description" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY: Software Version Capability for BGP. 11 gated MUST-level requirements, 0 declared gaps, 11 with no test." />
+        <meta name="twitter:description" content="DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY: Software Version Capability for BGP. 11 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,10 +115,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>11 of 11 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>86.4%</strong><b>19 of 22 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -128,11 +129,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 11 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>11 of 11 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -162,7 +158,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -214,22 +210,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>11</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>22</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>0</td>
+<td>22</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>21</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-abraitis-bgp-version-capability.md</code></td>
@@ -264,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -276,7 +272,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>11</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -287,7 +283,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>No test and no annotation (11):</strong> <a href="#draft-abraitis-bgp-version-capability-3-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-3"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-4"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-5"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-6"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-7"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-8"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8</code></a>, <a href="#draft-abraitis-bgp-version-capability-3.1-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1</code></a>, <a href="#draft-abraitis-bgp-version-capability-4-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></a>, <a href="#draft-abraitis-bgp-version-capability-4-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (11):</strong> <a href="#draft-abraitis-bgp-version-capability-3-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-3"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-4"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-5"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-6"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-7"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7</code></a>, <a href="#draft-abraitis-bgp-version-capability-3-8"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8</code></a>, <a href="#draft-abraitis-bgp-version-capability-3.1-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1</code></a>, <a href="#draft-abraitis-bgp-version-capability-4-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></a>, <a href="#draft-abraitis-bgp-version-capability-4-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -299,8 +295,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L27" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverConfigOptionEnables</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L37" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverConfigOptionDisables</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-2">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the default-to-disabled half (§3)</span></td></tr>
@@ -308,8 +304,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L46" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverDefaultsToDisabled</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L55" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverDefaultIsNotABlanketRefusal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-3">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The Capability Length for the Software Version Capability MUST be greater than zero&#34; (§3)</span></td></tr>
@@ -317,8 +313,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L65" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverCapabilityLengthIsGreaterThanZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L77" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverZeroCapabilityLengthIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-4">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4</code></td><td colspan="3"><span class="rfc-subject">&#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the encoding-error half (§3)</span></td></tr>
@@ -326,8 +322,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHALL</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L87" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverZeroValueIsAnEncodingError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L96" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverWellFormedValueIsNotAnEncodingError</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-5">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the ignore half (§3)</span></td></tr>
@@ -335,8 +331,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L106" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverZeroValueCapabilityIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L122" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverWellFormedCapabilityIsNotIgnored</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-6">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6</code></td><td colspan="3"><span class="rfc-subject">&#34;The Version field MUST be encoded using UTF-8&#34; (§3)</span></td></tr>
@@ -344,8 +340,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L137" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverVersionFieldIsUTF8</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L149" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverNonUTF8VersionFieldIsRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-7">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences&#34; (§3)</span></td></tr>
@@ -353,8 +349,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L160" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverInvalidUTF8IsNotInterpreted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L176" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverValidMultiByteUTF8IsInterpreted</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-8">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8</code></td><td colspan="3"><span class="rfc-subject">&#34;A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier&#34; -- the MUST NOT half (§3)</span></td></tr>
@@ -362,8 +358,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>3 - Software Version Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L211" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverProductIdentifierCarriesNothingNonessential</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L224" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverNonessentialProductIdentifiersAreRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-3-9">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-9</code></td><td colspan="3"><span class="rfc-subject">&#34;The Capability Length SHOULD be no greater than 64&#34; (§3)</span></td></tr>
@@ -407,8 +403,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>REQUIRED</td>
 <td>3.1 - Capabilities Length Overflow</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L44" title="internal/component/bgp/message/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityUsesExtendedOptionalParameters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L66" title="internal/component/bgp/message/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-4-1">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The Software Version Capability MUST only be used for displaying the version of a BGP speaker&#39;s router daemon to make troubleshooting easier&#34; (§4)</span></td></tr>
@@ -416,8 +412,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L62" title="internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityIsRecordedForDisplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L39" title="internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityDecidesNothing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-abraitis-bgp-version-capability-4-2">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability&#34; (§4)</span></td></tr>
@@ -425,8 +421,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L241" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverAdvertisedOnlyAfterExplicitConfiguration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L252" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverNotAdvertisedWithoutExplicitConfiguration</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -434,104 +430,230 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1</code></a> &#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the configuration option half (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2</code></a> &#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the default-to-disabled half (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-3"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3</code></a> &#34;The Capability Length for the Software Version Capability MUST be greater than zero&#34; (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-4"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4</code></a> &#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the encoding-error half (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-5"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5</code></a> &#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the ignore half (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-6"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6</code></a> &#34;The Version field MUST be encoded using UTF-8&#34; (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-7"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7</code></a> &#34;A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences&#34; (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3-8"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8</code></a> &#34;A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier&#34; -- the MUST NOT half (§3)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-3.1-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1</code></a> &#34;Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]&#34; (§3.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-4-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></a> &#34;The Software Version Capability MUST only be used for displaying the version of a BGP speaker&#39;s router daemon to make troubleshooting easier&#34; (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#draft-abraitis-bgp-version-capability-4-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></a> &#34;Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability&#34; (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1</code></a></h3>
 <p>&#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the configuration option half (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L37" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverConfigOptionDisables</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L27" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverConfigOptionEnables</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2</code></a></h3>
 <p>&#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the default-to-disabled half (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L55" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverDefaultIsNotABlanketRefusal</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L46" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverDefaultsToDisabled</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-3"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3</code></a></h3>
 <p>&#34;The Capability Length for the Software Version Capability MUST be greater than zero&#34; (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L77" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverZeroCapabilityLengthIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L65" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverCapabilityLengthIsGreaterThanZero</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-4"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4</code></a></h3>
 <p>&#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the encoding-error half (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L96" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverWellFormedValueIsNotAnEncodingError</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L87" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverZeroValueIsAnEncodingError</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-5"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5</code></a></h3>
 <p>&#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the ignore half (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L122" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverWellFormedCapabilityIsNotIgnored</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L106" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverZeroValueCapabilityIsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-6"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6</code></a></h3>
 <p>&#34;The Version field MUST be encoded using UTF-8&#34; (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L149" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverNonUTF8VersionFieldIsRefused</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L137" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverVersionFieldIsUTF8</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-7"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7</code></a></h3>
 <p>&#34;A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences&#34; (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L176" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverValidMultiByteUTF8IsInterpreted</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L160" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverInvalidUTF8IsNotInterpreted</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3-8"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8</code></a></h3>
 <p>&#34;A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier&#34; -- the MUST NOT half (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L224" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverNonessentialProductIdentifiersAreRefused</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L211" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverProductIdentifierCarriesNothingNonessential</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-3.1-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1</code></a></h3>
 <p>&#34;Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]&#34; (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L66" title="internal/component/bgp/message/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc_draft_abraitis_softver_test.go#L44" title="internal/component/bgp/message/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityUsesExtendedOptionalParameters</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-4-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></a></h3>
 <p>&#34;The Software Version Capability MUST only be used for displaying the version of a BGP speaker&#39;s router daemon to make troubleshooting easier&#34; (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L39" title="internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityDecidesNothing</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go#L62" title="internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go" target="_blank" rel="noopener"><code>TestSoftwareVersionCapabilityIsRecordedForDisplay</code></a></td>
+<td>unit/verify</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#draft-abraitis-bgp-version-capability-4-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></a></h3>
 <p>&#34;Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability&#34; (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L252" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverNotAdvertisedWithoutExplicitConfiguration</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go#L241" title="internal/component/bgp/plugins/softver/rfc_draft_abraitis_test.go" target="_blank" rel="noopener"><code>TestSoftverAdvertisedOnlyAfterExplicitConfiguration</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Extraction sign-off</h2>
 <div class="rfc-table-wrap">
@@ -699,7 +821,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

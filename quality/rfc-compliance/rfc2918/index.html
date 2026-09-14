@@ -119,7 +119,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>5.9%</strong><b>1 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -225,7 +225,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2918.md</code></td>
@@ -339,8 +339,8 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L986" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1029" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2918-4-4">RFC2918-4-4</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker willing to receive ROUTE-REFRESH SHOULD advertise the Route Refresh Capability to the peer (S4)</span></td></tr>
@@ -520,14 +520,14 @@ No tracked gap in current source anchors.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1029" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1069" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L986" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L995" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -715,7 +715,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5282 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
+        <meta name="description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 5282 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
+        <meta property="og:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5282 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
+        <meta name="twitter:description" content="RFC 5282: Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol. 19 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -115,10 +115,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>78.9%</strong><b>15 of 19 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>19 of 19 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>30 of 30 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>38 of 38 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -128,11 +129,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 19 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.1%</strong><b>4 of 19 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 19 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -162,7 +158,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -214,22 +210,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>4</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>30</td>
+<td>38</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>30</td>
+<td>38</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>30</td>
+<td>38</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5282.md</code></td>
@@ -245,15 +241,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze speaks one AEAD cipher for the IKE SA, ENCR_AES_GCM_16 (Transform ID 20) at 128 and 256 bits. buildSKMessageAEADWithMsgID (engine/auth.go) seals an 8-octet IV, a salt-then-IV 12-octet nonce and the IKE-header-through-SK-generic-header associated data; decryptSKPayload and crypto.DecryptIKEAEAD (crypto/cipher.go) open it. encKeyMaterialLen (crypto/keys.go) gives SK_ei and SK_er the RFC 4106 KEYMAT layout (cipher key then 4-octet salt) and leaves SK_ai and SK_ar at zero octets. No AES CCM: aeadSaltBytes holds one entry and specifiedEncryption (crypto/proposal.go) accepts no CCM transform off the wire. Of the 19 gated rows, every row that binds an AES GCM implementation now carries a both-polarity tagged test and a discrimination record. The AES CCM rows (RFC5282-3.2-3, RFC5282-3.2-4, RFC5282-4-3, RFC5282-4-4) carry neither test nor annotation: ze implements no AES CCM, so no code produces the behavior, and ai/rules/rfc-compliance.md reserves gap, not-applicable and feature-declined for an owner answer.</p>
+<p>Enrolled: Using AEAD Algorithms with the IKEv2 Encrypted Payload (RFC 5282): ze speaks one AEAD cipher for the IKE SA, ENCR_AES_GCM_16 (Transform ID 20) at 128 and 256 bits. buildSKMessageAEADWithMsgID (engine/auth.go) seals an 8-octet IV, a salt-then-IV 12-octet nonce and the IKE-header-through-SK-generic-header associated data; decryptSKPayload and crypto.DecryptIKEAEAD (crypto/cipher.go) open it. encKeyMaterialLen (crypto/keys.go) gives SK_ei and SK_er the RFC 4106 KEYMAT layout (cipher key then 4-octet salt) and leaves SK_ai and SK_ar at zero octets. AES CCM is implemented too, at all three ICV sizes RFC 5282 Section 7.2 assigns a Transform ID: ENCR_AES_CCM_8 (14), ENCR_AES_CCM_12 (15) and ENCR_AES_CCM_16 (16), at 128 and 256 bits. aeadTransforms (crypto/aead.go) carries the salt, the ICV and the mode of every AEAD transform, SealIKEAEAD and OpenIKEAEAD drive them, and ccm.New (internal/core/ccm) is the CCM mode of RFC 3610, which the Go standard library does not carry. Every one of the 19 gated rows now carries a both-polarity tagged test. AES CCM for ESP is not offered: EncryptionImplementedESP (ipsec/algorithm_support.go) refuses it at config parse, because no dataplane backend installs an AES CCM Security Association.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-AES-GCM IKEv2 AEAD encryption and decryption framing: the eight-octet IV, the salt-then-IV twelve-octet nonce, the full-length sixteen-octet ICV, the associated data from the fixed header through the Encrypted payload&#39;s own generic header, any Padding up to 255 octets on receipt, the KEYMAT layout of SK_ei and SK_er, and the negotiation rules that carry the Key Length attribute and refuse an integrity transform.
+AES GCM and AES CCM IKEv2 AEAD encryption and decryption framing: the eight-octet IV, the salt-then-IV nonce at twelve octets for AES GCM and eleven for AES CCM, the full-length sixteen-octet AES GCM ICV and the eight, twelve and sixteen octet AES CCM ICVs, the associated data from the fixed header through the Encrypted payload&#39;s own generic header, any Padding up to 255 octets on receipt, the KEYMAT layout of SK_ei and SK_er with each cipher&#39;s own salt length, and the negotiation rules that carry the Key Length attribute and refuse an integrity transform.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no CCM transform off the wire and aeadSaltBytes (crypto/transform.go) holds one entry, so the AES CCM rows of the checklist name behavior no layer performs and carry no test. Whether they are conformance debt or an optional feature ze declined is an owner answer, not this summary&#39;s.
+The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal naming one is refused at config parse, because xfrmAEADName (dataplane/xfrm_linux.go) names no kernel AES CCM transform and aeadSaltBytes (dataplane/vpp.go) knows no AES CCM salt. That is an implementation gap in the ESP dataplane, which RFC 4309 governs, and not a conformance gap in this document: every obligation RFC 5282 places on the IKEv2 Encrypted payload is met for both AEAD families.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,7 +258,7 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>15</strong></td>
+<td><strong>19</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -274,7 +270,7 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>4</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -285,8 +281,7 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (15):</strong> <a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a>, <a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a>, <a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a>, <a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a>, <a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a>, <a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a>, <a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a>, <a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a>, <a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a>, <a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a>, <a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a>, <a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a>, <a href="#rfc5282-7.3-2"><code>RFC5282-7.3-2</code></a>, <a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a>, <a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (4):</strong> <a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a>, <a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a>, <a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a>, <a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (19):</strong> <a href="#rfc5282-3-1"><code>RFC5282-3-1</code></a>, <a href="#rfc5282-3.1-1"><code>RFC5282-3.1-1</code></a>, <a href="#rfc5282-3.1-2"><code>RFC5282-3.1-2</code></a>, <a href="#rfc5282-3.2-1"><code>RFC5282-3.2-1</code></a>, <a href="#rfc5282-3.2-2"><code>RFC5282-3.2-2</code></a>, <a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a>, <a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a>, <a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a>, <a href="#rfc5282-4-2"><code>RFC5282-4-2</code></a>, <a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a>, <a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a>, <a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a>, <a href="#rfc5282-5.1-2"><code>RFC5282-5.1-2</code></a>, <a href="#rfc5282-7.1-1"><code>RFC5282-7.1-1</code></a>, <a href="#rfc5282-7.1-2"><code>RFC5282-7.1-2</code></a>, <a href="#rfc5282-7.3-1"><code>RFC5282-7.3-1</code></a>, <a href="#rfc5282-7.3-2"><code>RFC5282-7.3-2</code></a>, <a href="#rfc5282-8-1"><code>RFC5282-8-1</code></a>, <a href="#rfc5282-8-2"><code>RFC5282-8-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -343,8 +338,8 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L195" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMSupportsTheEightAndSixteenOctetICV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L228" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-3.2-4">RFC5282-3.2-4</code></td><td colspan="3"><span class="rfc-subject">AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)</span></td></tr>
@@ -352,8 +347,8 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <td>MUST NOT</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-3.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L25" title="internal/component/ike/crypto/rfc5282_ccm_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesEveryOtherICVLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L90" title="internal/component/ike/crypto/rfc5282_ccm_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMSupportsTheThreePermittedICVLengths</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-1">RFC5282-4-1</code></td><td colspan="3"><span class="rfc-subject">For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</span></td></tr>
@@ -379,8 +374,8 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L256" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMNonceIsSaltThenIV</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L291" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesAReversedNonce</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-4-4">RFC5282-4-4</code></td><td colspan="3"><span class="rfc-subject">For AES CCM an 11 octet nonce MUST be used (§4)</span></td></tr>
@@ -388,8 +383,8 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5282-4-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L312" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMNonceIsElevenOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L339" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesANonceThatIsNotElevenOctets</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5282-5.1-1">RFC5282-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The associated data MUST consist of the message from the first octet of the Fixed IKE Header through the last octet of the Encrypted Payload&#39;s Payload Header, including any payloads between them (§5.1)</span></td></tr>
@@ -568,29 +563,7 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a> AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a> AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a> For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-<tr><td><a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a> For AES CCM an 11 octet nonce MUST be used (§4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 5282 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -697,11 +670,43 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <h3><a href="#rfc5282-3.2-3"><code>RFC5282-3.2-3</code></a></h3>
 <p>AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3.2-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L228" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L195" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMSupportsTheEightAndSixteenOctetICV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-3.2-4"><code>RFC5282-3.2-4</code></a></h3>
 <p>AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-3.2-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L90" title="internal/component/ike/crypto/rfc5282_ccm_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMSupportsTheThreePermittedICVLengths</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L25" title="internal/component/ike/crypto/rfc5282_ccm_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesEveryOtherICVLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-4-1"><code>RFC5282-4-1</code></a></h3>
 <p>For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -745,11 +750,43 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
 <h3><a href="#rfc5282-4-3"><code>RFC5282-4-3</code></a></h3>
 <p>For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-4-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L291" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesAReversedNonce</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L256" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMNonceIsSaltThenIV</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-4-4"><code>RFC5282-4-4</code></a></h3>
 <p>For AES CCM an 11 octet nonce MUST be used (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5282-4-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L339" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMRefusesANonceThatIsNotElevenOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L312" title="internal/component/ike/engine/rfc5282_ccm_sk_test.go" target="_blank" rel="noopener"><code>TestRFC5282CCMNonceIsElevenOctets</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5282-5.1-1"><code>RFC5282-5.1-1</code></a></h3>
 <p>The associated data MUST consist of the message from the first octet of the Fixed IKE Header through the last octet of the Encrypted Payload&#39;s Payload Header, including any payloads between them (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1241,7 +1278,7 @@ AES CCM is not implemented. specifiedEncryption (crypto/proposal.go) accepts no 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

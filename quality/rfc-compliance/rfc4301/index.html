@@ -118,7 +118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.0%</strong><b>6 of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>35.0%</strong><b>7 of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>30.6%</strong><b>11 of 36 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>33.3%</strong><b>12 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -300,7 +300,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L177" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L169" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L149" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAIsWildcardWithOSPFSelector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze projects both modes -- IKE child SAs install tunnel-mode ESP and OSPFv3 RFC 4552 installs transport-mode ESP/AH; a capability-presence MUST has no meaningful negative (internal/component/ike/engine/child.go:224, :253, internal/plugins/ospf/ipsec_install.go:413, :441)</p></td>
@@ -310,7 +310,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L192" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L184" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze (a security gateway) installs tunnel-mode ESP for every IKE-negotiated peer SA and policy (internal/component/ike/engine/child.go:224, :253, :281, :295)</p></td>
 </tr>
@@ -319,7 +319,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L179" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L171" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the IKE child-SA path hardcodes tunnel mode for every peer SA, so a peer SA can never be transport (internal/component/ike/engine/child.go:40, :224, :253)</p></td>
 </tr>
@@ -328,7 +328,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L181" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L173" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the inbound and outbound child SAs of a pair are both built with modeTunnel, so the pair is always same-mode (internal/component/ike/engine/child.go:224, :253)</p></td>
 </tr>
@@ -355,7 +355,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L158" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L150" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze maintains an SPD policy model (SPParams) and installs at least the PROTECT entries into the kernel SPD via both the IKE and OSPFv3 paths (internal/component/ike/dataplane/dataplane.go:145, engine/child.go:276, :290, internal/plugins/ospf/ipsec_install.go:432-452)</p></td>
 </tr>
@@ -382,7 +382,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L420" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L412" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L423" title="internal/component/ike/engine/ts_narrow_test.go" target="_blank" rel="noopener"><code>TestNarrowedSelectorsReachTheInstalledPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze captures the RFC 7296-narrowed negotiated traffic selectors and projects them into the inbound require-policy; the per-packet check against them is kernel-enforced (internal/component/ike/engine/child.go:155-164, :276-288)</p></td>
@@ -392,7 +392,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>MUST</td>
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L152" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L144" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L62" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecInstallOnInterfaceUp</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze implements automated keying via its native IKEv2 engine and manual keying via the OSPFv3 RFC 4552 config, both installing SAs through the same dataplane seam (internal/component/ike/engine/child.go:199-307, internal/plugins/ospf/ipsec_install.go:295-342)</p></td>
@@ -570,7 +570,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L177" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L169" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -590,7 +590,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L192" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L184" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -605,7 +605,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L179" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L171" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -620,7 +620,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L181" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L173" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -659,7 +659,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L158" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L150" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -682,7 +682,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L420" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L412" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -702,7 +702,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L152" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L144" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -855,7 +855,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_discard_linux_test.go#L98" title="internal/component/ike/dataplane/rfc4301_discard_linux_test.go" target="_blank" rel="noopener"><code>TestPolicyReadbackReportsDiscard</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_discard_vpp_test.go#L23" title="internal/component/ike/dataplane/rfc4301_discard_vpp_test.go" target="_blank" rel="noopener"><code>TestVPPSPDActionCarriesEveryDisposition</code></a></td>
@@ -936,7 +936,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

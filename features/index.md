@@ -104,6 +104,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **Single-hop** and **multi-hop**
 - GTSM, jitter, **BGP** integration
 - SHA1/MD5 **auth**, echo mode
+- **Strict mode** holds a BGP peer down until BFD is up
 
 [Learn more](https://ze-software.net/features/bgp-protocol/)
 
@@ -134,6 +135,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - Plugins add **commands**, RPCs, events
 - YANG roots join **CLI** and web
 - Independent, **composable**
+- Each plugin declares what its **failure** means
 
 [Learn more](https://ze-software.net/reference/plugins/)
 
@@ -352,6 +354,7 @@ Implemented and tested, still waiting for production evidence.
 - Full **IKEv2** engine, rekeying, DPD
 - **NAT-T**, keepalive, XFRM interfaces
 - EAP-MSCHAPv2, **EAP-TLS**, road warrior
+- **CRL** and OCSP revocation checks on EAP-TLS
 
 [Learn more](https://ze-software.net/features/)
 
@@ -382,6 +385,7 @@ Implemented and tested, still waiting for production evidence.
 - Ethernet, VLAN, bridge, **WireGuard**
 - 8 tunnel kinds, **DHCP** client
 - NTP sync, **offload** tuning, mirroring
+- **IPv6 Router Advertisements**, the radvd role
 
 [Learn more](https://ze-software.net/features/interfaces/)
 
@@ -433,6 +437,7 @@ Implemented and tested, still waiting for production evidence.
 - One **ospf** engine, IPv4 and IPv6 address families
 - SPF/ABR, **NSSA**, virtual links, NBMA/P2MP
 - Redistribution, **SR**, BFD, graceful restart
+- Interface cost priced from **link speed**
 
 [Learn more](https://ze-software.net/guides/ospf/)
 
@@ -453,6 +458,7 @@ Implemented and tested, still waiting for production evidence.
 - First-hop **gateway redundancy**, IPv4 and IPv6
 - Per-group **virtual-MAC** macvlan for L2 failover
 - **keepalived** interop, compile-out
+- **Interface tracking**, accept-mode
 
 [Learn more](https://ze-software.net/guides/vrrp/)
 

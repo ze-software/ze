@@ -92,7 +92,7 @@ These are the operator-facing feature matrices. Cells intentionally start with `
 | Wireless / WWAN | No | Yes | Partial | freeRtr has CAPWAP wireless-AP provisioning (servCapwap/clntCapwap), not a wireless interface type. |
 | MTU, MAC, addressing | Yes | Yes | Yes | Evidence exists for all three. |
 | DHCP client on interfaces | Yes | Yes | Yes | Evidence exists for all three. |
-| IPv6 Router Advertisements | Partial | Yes | Yes | Ze source evidence is BNG/PPP RA, not a general LAN RA sender. |
+| IPv6 Router Advertisements | Yes | Yes | Yes | Ze sends Router Advertisements on an interface unit (RFC 4861), with prefixes, flags, a router lifetime and RDNSS resolvers: `internal/plugins/iface/ra/sender_linux.go`, `internal/component/iface/yang/ze-iface-conf.yang`. The BNG/PPP RA path remains beside it. |
 | LLDP | No | Yes | Yes | Ze LLDP was not found. |
 | QoS, traffic policy, shaping | Yes | Yes | Yes | Ze supports tc/VPP backends and L2TP shaping; VyOS and freeRtr have broader policy surfaces. |
 | Netns/container interface binding | No | Yes | Partial | VyOS exposes netns/container integration; Ze did not in inspected iface source. |

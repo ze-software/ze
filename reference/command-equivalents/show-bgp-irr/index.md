@@ -13,6 +13,7 @@ Show IRR filter status per ASN.
 - Subcommands: `check`, `prefix`
 - Answer shape: tab
 - Address fields: none
+- Column order: asn, as-set, status, error, ipv4-count, ipv6-count, last-refresh, peers; server, last-refresh, next-refresh, entries
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log

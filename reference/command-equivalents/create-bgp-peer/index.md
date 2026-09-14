@@ -13,6 +13,7 @@ Add a peer to the running daemon.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
+- Column order: peer, remote-as, message
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

@@ -1408,19 +1408,26 @@ encryption and integrity algorithm names, replay window, byte and packet
 counters, and the add and use timestamps. It never renders key material.
 `policy` lists each policy with its selector prefixes and ports, direction,
 priority, upper-layer protocol, if_id, tunnel endpoints, and the peer that
-installed it. A policy Ze did not install reports its owner as unknown.
+installed it. A port reads `any` under a zero mask, a decimal number under mask
+`0xffff`, and `<port>/0x<mask>` under any other mask, so a masked selector never
+appears as one exact port. A policy Ze did not install reports its owner as
+unknown.
 
 `drift` names each expected Child SA identity the kernel does not hold and exits
 non-zero when it finds one. Identity includes SPI, destination, protocol, and
-XFRM interface ID. Extra kernel SAs are permitted during rekey. A failed or
-changing observation returns an error rather than a clean result.
+XFRM interface ID. Extra kernel SAs are permitted during rekey. Engine belief
+and the kernel dump come from one observation, taken under a generation check.
+A failed observation, an install or a removal running across the read, and a
+Child SA whose removal has started each return an error rather than a clean
+result.
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneDrift -->
 <!-- source: internal/component/ike/engine/health_drift.go -- ObserveDataplane, driftingPeersFrom -->
 
 A backend that cannot enumerate the dataplane, VPP and the noop backend among
 them, reports that it cannot rather than rendering an empty table. So does a
-process without CAP_NET_ADMIN. An empty table would answer "nothing is
-installed" to a question nobody asked the kernel.
+process without CAP_NET_ADMIN, and so does a daemon that loaded no dataplane
+backend at all. An empty table would answer "nothing is installed" to a question
+nobody asked the kernel.
 
 RFC 4303 Section 2.1 reserves SPI 0, so the `spi` selector refuses it rather
 than reading it as "every SPI".
@@ -2428,10 +2435,16 @@ are optional: `local-as`, `local-address`, `router-id`, `receive-hold-time`,
 take a comma-separated list. A keyword the command does not take is refused by
 name, and so is a value it cannot use.
 
-The peer lives in the running daemon alone. Nothing is written to the
-configuration, so `show config` does not carry it and a reload removes it. That
-is what `delete bgp peer` mirrors on the way out: it removes the peer from the
-running daemon and leaves the file on disk alone.
+The peer lives in the running daemon. The running configuration carries it, and
+the configuration FILE does not, so `show config` does not carry it and a reload
+removes it. That is what `delete bgp peer` mirrors on the way out: it takes the
+peer out of the running daemon and out of the running configuration, and leaves
+the file on disk alone.
+
+`update bgp config` is what makes either change permanent. It writes the running
+peer set into the file: a peer created here is added to it, and a peer the file
+declares that `delete bgp peer` removed is taken out of it.
+<!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave -->
 
 ### Del Commands
 
@@ -2498,6 +2511,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
 | `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
 | `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
+| `update bgp config` | write | Write the running peer set to the configuration file: a peer `create bgp peer` built is added, and a peer `delete bgp peer` removed is taken out. Takes no selector <!-- source: internal/component/bgp/plugins/cmd/peer/save.go -- handleBgpPeerSave --> |
 
 ### Reject-ASN Filter Commands
 

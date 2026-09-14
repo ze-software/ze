@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-09-07 - Ze</title>
+        <meta name="description" content="Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The" />
+        <meta property="og:title" content="Week of 2026-09-07 - Ze" />
+        <meta property="og:description" content="Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-09-07 - Ze" />
+        <meta name="twitter:description" content="Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-09-07/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-09-07/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Weekly update</span>
+    <h1 id="post-title">Week of 2026-09-07</h1>
+    <p>Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.</p>
+</div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🛰️ BGP">
+                        <div class="md-content">
+                            <h2>🛰️ BGP</h2>
+                            <p>Fixed:</p>
+<ul>
+<li>A route learned from a peer that speaks only 2-byte AS numbers was relayed with 23456 in place of the real AS numbers, and the real ones discarded. Downstream accepted the wrong path and passed it on. Ze now reconciles the two forms once, on receive, and the result is checked against FRR (RFC 6793 Section 4.1).</li>
+<li>A router with a 4-byte AS number originating a route toward a 2-byte peer lost its own AS number. 23456 went on the wire and the real value was carried nowhere (RFC 6793 Section 4.2.2).</li>
+<li>A peer that asked for a limited number of paths per prefix received all of them. The capability was negotiated and displayed, and enforced by nothing. <code>capability add-path limit</code>, and the per-family form beside it, now hold.</li>
+</ul>
+<p>New:</p>
+<ul>
+<li><code>bgp update-delay max-delay</code> holds the first advertisement at startup until the routing table settles, with <code>establish-wait</code> beside it. Off by default.</li>
+<li>An AS number can be typed in any of the three RFC 5396 notations anywhere in the configuration. <code>bgp as-notation asplain|asdot|asdot+</code> picks which one Ze prints.</li>
+<li><code>update bgp config</code> writes the running peer set back to the configuration file, so a peer added at runtime survives a reload.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔀 Convergence and forwarding">
+                        <div class="md-content">
+                            <h2>🔀 Convergence and forwarding</h2>
+                            <p>New:</p>
+<ul>
+<li>BFD strict mode holds a BGP peer down until its BFD session is up, so a session never establishes across a link BFD cannot cross. The leaves are <code>connection { bfd { strict; hold-down; hold-time; } }</code>, and <code>show bgp peer detail</code> carries <code>bfd-sub-state</code>.</li>
+<li>OSPF prices an interface that has no <code>cost</code> from its link speed. <code>ospf { reference-bandwidth &lt;Mbps&gt;; }</code> sets the divisor, default 100000, and it reaches the OSPFv3 address families too.</li>
+<li>A VRRP group lowers the priority it advertises while a tracked interface is down: <code>track { interface &lt;name&gt; { priority-decrement &lt;1..254&gt;; } }</code>. <code>accept-mode</code> lets a non-owner answer on the virtual address (RFC 9568 Section 6.4.3).</li>
+<li><code>rib { fib-withhold [ bgp isis ]; }</code> names the protocols whose winning routes Ze keeps out of the forwarding table. The route still wins its prefix, still appears in <code>show rib</code>, and still redistributes.</li>
+<li>Ze sends IPv6 Router Advertisements on an interface unit, the job radvd does elsewhere: prefixes, flags and resolvers under <code>router-advertisement { ... }</code> (RFC 4861).</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>OSPF and a BGP peer to the same neighbor over the same link opened two BFD sessions instead of sharing one (RFC 5882 Section 4.4).</li>
+<li>Changing an interface cost, or the reference bandwidth, restarted the interface and dropped the adjacency.</li>
+<li>A policy route naming more than one ingress interface matched no packets at all. It asked for a packet whose input interface was both names at once.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Security">
+                        <div class="md-content">
+                            <h2>🔒 Security</h2>
+                            <p>New:</p>
+<ul>
+<li>EAP-TLS checks the certificate chain against a revocation list. The <code>crl</code> leaf-list sits under the <code>ca</code> block, and <code>certificate-status-request</code> asks the authenticator to staple its own status, which today needs a chain with no intermediate. Revocation is checked again after the login, while the tunnel is up (RFC 9190 Section 5.4).</li>
+<li>The EAP-TLS peer identifies itself as <code>anonymous@realm</code>, so the configured username stays off the wire in clear (RFC 9190 Section 2.1.8).</li>
+<li><code>session-resumption</code> gives a TLS 1.3 login a ticket the next exchange redeems. Revocation is re-checked on the resumed handshake.</li>
+<li><code>show vpn ipsec dataplane sa</code>, <code>policy</code> and <code>drift</code> read Ze's security associations back out of the kernel and report where the two disagree. <code>show vpn ipsec sa</code> now carries real kernel byte and packet counters.</li>
+<li><code>max-sessions-per-mac</code> bounds what one MAC address can make the PPPoE server allocate, default 8. A replayed PADR could exhaust the server's file descriptors and orphan sessions.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>A local DDoS mitigation that never cleared left its drop rule installed for the life of the daemon, blackholing the victim prefix. <code>max-mitigation-duration</code> was parsed, validated and enforced by nothing. Four other ways a drop rule outlived what created it are closed with it.</li>
+<li>A rate handed to Ze by RADIUS could overflow when it was scaled, so a subscriber was shaped at a rate nobody configured.</li>
+<li>Two denial of service defects in a dependency were reachable from Ze. One of them is reachable through the daemon's own SSH server, where a peer could deadlock the channel an operator reaches the CLI through.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards programme">
+                        <div class="md-content">
+                            <h2>📚 Standards programme</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work continues.</p>
+<p>Of 5,468 requirements, 3,596 are MUST-level and 3,319 are checked. 237 still owe a test, against 313 last week, and 59 of the 184 documents have been read end to end, against 57.</p>
+<p>The owing number fell this week because the fixing caught up with the reading. One shape kept turning up: a setting an operator can type, that Ze accepts, validates and displays, and that reaches no code at all. The paths limit and the mitigation cap were both that, and so was the plugin <code>respawn</code> leaf, which no producer had ever read.</p>
+<p>A green run proves everything on the list. It does not yet prove the list is complete, which is what reading each document end to end is for: https://ze-software.net/quality/rfc-compliance/</p>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>44 pieces of work were finished and closed this week, and 81 were opened.</p>
+<p>Reading continues, and the 125 documents not yet read end to end are the queue. Closing what the reading finds comes first, then the 237 MUSTs owing a test. SHOULD-level work waits behind all of it.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 14 September 2026 09:54 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -13,6 +13,7 @@ Originate a FlowSpec rule on demand (RFC 8955).
 - Subcommands: `action`, `destination-ipv4`, `destination-ipv6`, `destination-port`, `dscp`, `flow-label`, `for`, `fragment`, `icmp-code`, `icmp-type`, `next-header`, `packet-length`, `port`, `protocol`, `rd`, `source-ipv4`, `source-ipv6`, `source-port`, `tag`, `tcp-flags`
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

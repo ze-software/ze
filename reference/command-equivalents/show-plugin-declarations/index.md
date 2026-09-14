@@ -13,6 +13,7 @@ Show what each plugin declares about its command surface.
 - Subcommands: `config`
 - Answer shape: tab
 - Address fields: none
+- Column order: name, kind, state, commands, pipes, reason
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log

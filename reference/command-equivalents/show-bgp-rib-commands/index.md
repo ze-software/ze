@@ -13,6 +13,7 @@ List RIB commands
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
+- Column order: name, description
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log

@@ -148,6 +148,10 @@ what <code>show | blame</code> reports for the changes the console commits.</p>
 <td>Remove peer</td>
 </tr>
 <tr>
+<td><code>update bgp config</code></td>
+<td>Write the running peer set to the configuration file</td>
+</tr>
+<tr>
 <td><code>request peer &lt;sel&gt; pause</code></td>
 <td>Pause reading from peer (flow control)</td>
 </tr>
@@ -446,6 +450,8 @@ itself.</p>
 <li><strong>Tab completion</strong> for commands, peer names, address families, and log levels</li>
 <li><strong>Pipe operators</strong> with per-command availability. <code>match &lt;text&gt;</code> keeps rows
 containing the text, while a match after a line format reads rendered lines.
+It reads the payload numbers as written, so a 64-bit counter matches on its
+exact digits rather than on a rounded value.
 <code>ze help command --json</code> publishes the exact operator contract for each
 command. Each row also carries the command's one-line summary under
 <code>description</code> and its long explanation under <code>long-help</code>. Neither is derived
@@ -578,7 +584,7 @@ none says so.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

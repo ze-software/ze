@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 7705 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 7705: Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 7705 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 7705: Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 7705 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 7705: Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc7705/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc7705/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 7705 - Autonomous System Migration Mechanisms and Their Effects on the BGP AS_PATH Attribute</h1>
+    <p>Every requirement this repository extracted from RFC 7705, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-feature_declined { background: var(--pink-chip); }
+.rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>9 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>18 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 17 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Not applicable</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Met below Ze</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself</td>
+</tr>
+<tr><td>Optional feature declined</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC&#39;s own status row, as an implementation gap a later scope decision can revisit</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>17</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>9</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>18</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>18</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>18</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc7705.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc7705.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc7705.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Autonomous System migration: the four de facto mechanisms a renumbering speaker runs, all four implemented, and all nine of this document&#39;s MUST-level requirements proven by a tagged test in both polarities. Section 3.3 &#34;Local AS&#34;, &#34;No Prepend Inbound&#34; and &#34;Replace Old AS&#34; reach the AS_PATH through `secondaryPrependAS` and `localASPrependFor` (internal/component/bgp/reactor/peer_forward_facts.go). Section 4.2 &#34;Internal BGP AS Migration&#34; is `setMigrationAS`, `isIBGPWith`, `peerASAccepted`, `openLocalAS` and `noteASMigrationRejection` (internal/component/bgp/reactor/session_as_migration.go). The extraction sign-off is rfc/extraction/rfc7705.json: eight derived sites, all mapped, none excluded.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>All four mechanisms. Configuration is one <code>session &gt; asn</code> container read by <code>parsePeerSettings</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>) out of the peer-fields grouping that a group and a peer both use, so <code>local</code>, <code>local-options</code> and <code>migration</code> are each settable per neighbor and per neighbor group (<a href="#rfc7705-3.3-1"><code>RFC7705-3.3-1</code></a>, <a href="#rfc7705-4.2-1"><code>RFC7705-4.2-1</code></a>). Section 3.3: <code>local-options no-prepend</code> keeps the Local AS value out of the AS_PATH of a route received from that peer, and leaves the globally configured AS number on the path every other external neighbor receives (<a href="#rfc7705-3.3-2"><code>RFC7705-3.3-2</code></a>, <a href="#rfc7705-3.3-3"><code>RFC7705-3.3-3</code></a>)</li>
+<li><code>local-options replace-as</code> sends the Local AS value alone toward that peer, with the globally configured AS number absent from AS_PATH and from AS4_PATH (<a href="#rfc7705-3.3-4"><code>RFC7705-3.3-4</code></a>, <a href="#rfc7705-3.3-5"><code>RFC7705-3.3-5</code></a>). Section 4.2: <code>session &gt; asn &gt; migration</code> widens one iBGP session to exactly two of this speaker&#39;s AS numbers. An OPEN carrying either is accepted and any third AS is answered with OPEN Message Error / Bad Peer AS, which ze originates for the first time (<code>validateOpenPeerAS</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_as.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_open_as.go</code></a>, <a href="#rfc7705-4.2-2"><code>RFC7705-4.2-2</code></a>). The OPEN ze sends carries the globally configured AS number first and the locally configured one after a peer answers Bad Peer AS, in My Autonomous System and in the Four-octet AS capability alike (<code>openLocalAS</code>, <a href="#rfc7705-4.2-3"><code>RFC7705-4.2-3</code></a>, and the Section 4.2 SHOULD <a href="#rfc7705-4.2-5"><code>RFC7705-4.2-5</code></a> through <code>noteASMigrationRejection</code>). The session is internal under either AS number, from one rule every AS-scoped decision reads (<code>isIBGPWith</code>, <a href="#rfc7705-4.2-4"><code>RFC7705-4.2-4</code></a>), so no external AS_PATH prepend runs and the RFC 4456 reflection rules apply. Requirements bound per line below.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Two advisory items, neither of them a MUST. <a href="#rfc7705-3.3-9"><code>RFC7705-3.3-9</code></a>, the Section 3.3 SHOULD that the Local AS value be appended inbound before a route is installed or advertised to an internal neighbor, is not performed by the engine: an operator writes it as policy, and <a href="https://github.com/ze-software/ze/blob/main/plan/spec-bgp-local-as-inbound-append.md" target="_blank" rel="noopener"><code>plan/spec-bgp-local-as-inbound-append.md</code></a> holds the ruling. <a href="#rfc7705-3.3-11"><code>RFC7705-3.3-11</code></a>, the MAY letting an EXTERNAL speaker attempt the session under either AS number, is not offered: the two-AS session is iBGP only, because <code>setMigrationAS</code> refuses a remote AS that is neither of the pair. <a href="#rfc7705-3.3-8"><code>RFC7705-3.3-8</code></a>, the SHOULD NOT that follows from that MAY, is therefore met by the scope decision rather than by a branch: no external session of ze establishes on the globally configured AS number while a Local AS is set for it.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>9</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc7705-3.3-1"><code>RFC7705-3.3-1</code></a>, <a href="#rfc7705-3.3-2"><code>RFC7705-3.3-2</code></a>, <a href="#rfc7705-3.3-3"><code>RFC7705-3.3-3</code></a>, <a href="#rfc7705-3.3-4"><code>RFC7705-3.3-4</code></a>, <a href="#rfc7705-3.3-5"><code>RFC7705-3.3-5</code></a>, <a href="#rfc7705-4.2-1"><code>RFC7705-4.2-1</code></a>, <a href="#rfc7705-4.2-2"><code>RFC7705-4.2-2</code></a>, <a href="#rfc7705-4.2-3"><code>RFC7705-4.2-3</code></a>, <a href="#rfc7705-4.2-4"><code>RFC7705-4.2-4</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-1">RFC7705-3.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility.&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L673" title="internal/component/bgp/config/peers_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L678" title="internal/component/bgp/config/peers_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-2">RFC7705-3.3-2</code></td><td colspan="3"><span class="rfc-subject">With &#34;No Prepend Inbound&#34;, on inbound UPDATEs from the configured eBGP neighbour the router &#34;MUST NOT append the &#39;Local AS&#39; ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L380" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L383" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-3">RFC7705-3.3-3</code></td><td colspan="3"><span class="rfc-subject">With &#34;No Prepend Inbound&#34;, the router &#34;MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L388" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L391" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-4">RFC7705-3.3-4</code></td><td colspan="3"><span class="rfc-subject">With &#34;Replace Old AS&#34;, on outbound UPDATEs toward the configured eBGP neighbour &#34;the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L328" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L331" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-5">RFC7705-3.3-5</code></td><td colspan="3"><span class="rfc-subject">With &#34;Replace Old AS&#34;, &#34;The BGP router MUST append only the configured &#39;Local AS&#39; ASN value to the AS_PATH attribute before sending the BGP UPDATEs outbound to the eBGP neighbor.&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L335" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L338" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-4.2-1">RFC7705-4.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The mechanism introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility.&#34; (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/as_migration_test.go#L27" title="internal/component/bgp/config/as_migration_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_ASMigrationPerNeighborGroup</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/as_migration_test.go#L31" title="internal/component/bgp/config/as_migration_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_ASMigrationPerNeighborGroup</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-4.2-2">RFC7705-4.2-2</code></td><td colspan="3"><span class="rfc-subject">A speaker configured with &#34;Internal BGP AS Migration&#34; &#34;MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in &#39;My Autonomous System&#39; is either the globally configured ASN or a locally configured ASN&#34; (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L79" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L82" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-4.2-3">RFC7705-4.2-3</code></td><td colspan="3"><span class="rfc-subject">A router configured with &#34;Internal BGP AS Migration&#34; &#34;MUST send its own BGP OPEN ... using either the globally configured or the locally configured ASN in &#39;My Autonomous System&#39;&#34; (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L139" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L143" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-4.2-4">RFC7705-4.2-4</code></td><td colspan="3"><span class="rfc-subject">&#34;In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271] and [RFC4456].&#34; (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L219" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationSessionIsIBGP</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L222" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationSessionIsIBGP</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-6">RFC7705-3.3-6</code></td><td colspan="3"><span class="rfc-subject">To implement &#34;Local AS&#34;, &#34;a BGP speaker SHOULD send BGP OPEN ... messages to the configured eBGP peer(s) using the local ASN configured for this session as the value sent in &#39;My Autonomous System&#39;&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-7">RFC7705-3.3-7</code></td><td colspan="3"><span class="rfc-subject">&#34;The BGP router SHOULD NOT use the ASN configured globally within the BGP process as the value sent in &#39;My Autonomous System&#39; in the OPEN message.&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-8">RFC7705-3.3-8</code></td><td colspan="3"><span class="rfc-subject">&#34;If the session is successfully established to the globally configured ASN, then the modifications to AS_PATH described in this document SHOULD NOT be performed, as they are unnecessary.&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-9">RFC7705-3.3-9</code></td><td colspan="3"><span class="rfc-subject">Internal direction: &#34;The router SHOULD append the configured &#39;Local AS&#39; ASN in the AS_PATH attribute before installing the route or advertising the UPDATE to an iBGP neighbor.&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-10">RFC7705-3.3-10</code></td><td colspan="3"><span class="rfc-subject">External direction: &#34;The BGP router SHOULD first append the globally configured ASN to the AS_PATH immediately followed by the &#39;Local AS&#39; value before advertising the UPDATE to an eBGP neighbor.&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-4.2-5">RFC7705-4.2-5</code></td><td colspan="3"><span class="rfc-subject">To avoid deadlock when both speakers run the mechanism, &#34;the speaker SHOULD send BGP OPEN using the globally configured ASN first, and only send a BGP OPEN using the locally configured ASN as a fallback if the remote neighbor responds with the BGP error &#39;Bad Peer AS&#39;&#34; (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-6-1">RFC7705-6-1</code></td><td colspan="3"><span class="rfc-subject">&#34;BGP sessions SHOULD be protected using TCP Authentication Option [RFC5925] and the Generalized TTL Security Mechanism [RFC5082]&#34; (§6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7705-3.3-11">RFC7705-3.3-11</code></td><td colspan="3"><span class="rfc-subject">&#34;Implementations MAY support a more flexible model where the eBGP speaker attempts to open the BGP session using either the ASN configured as &#39;Local AS&#39; or the globally configured AS as discussed in BGP Alias&#34; (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7705-3.3-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 7705 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7705-3.3-1"><code>RFC7705-3.3-1</code></a></h3>
+<p>&#34;The mechanisms introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility.&#34; (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L678" title="internal/component/bgp/config/peers_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/peers_test.go#L673" title="internal/component/bgp/config/peers_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-3.3-2"><code>RFC7705-3.3-2</code></a></h3>
+<p>With &#34;No Prepend Inbound&#34;, on inbound UPDATEs from the configured eBGP neighbour the router &#34;MUST NOT append the &#39;Local AS&#39; ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors&#34; (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L383" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L380" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-3.3-3"><code>RFC7705-3.3-3</code></a></h3>
+<p>With &#34;No Prepend Inbound&#34;, the router &#34;MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors&#34; (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L391" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L388" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASNoPrependLeavesEveryOutboundPathAlone</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-3.3-4"><code>RFC7705-3.3-4</code></a></h3>
+<p>With &#34;Replace Old AS&#34;, on outbound UPDATEs toward the configured eBGP neighbour &#34;the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute&#34; (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L331" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L328" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-3.3-5"><code>RFC7705-3.3-5</code></a></h3>
+<p>With &#34;Replace Old AS&#34;, &#34;The BGP router MUST append only the configured &#39;Local AS&#39; ASN value to the AS_PATH attribute before sending the BGP UPDATEs outbound to the eBGP neighbor.&#34; (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L338" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7705_local_as_test.go#L335" title="internal/component/bgp/reactor/rfc7705_local_as_test.go" target="_blank" rel="noopener"><code>TestLocalASReplaceASSendsOnlyTheLocalAS</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-4.2-1"><code>RFC7705-4.2-1</code></a></h3>
+<p>&#34;The mechanism introduced in this section MUST be configurable on a per-neighbor or per-neighbor-group basis to allow for maximum flexibility.&#34; (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/as_migration_test.go#L31" title="internal/component/bgp/config/as_migration_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_ASMigrationPerNeighborGroup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/as_migration_test.go#L27" title="internal/component/bgp/config/as_migration_test.go" target="_blank" rel="noopener"><code>TestPeersFromConfigTree_ASMigrationPerNeighborGroup</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-4.2-2"><code>RFC7705-4.2-2</code></a></h3>
+<p>A speaker configured with &#34;Internal BGP AS Migration&#34; &#34;MUST accept BGP OPEN and establish an iBGP session from configured iBGP peers if the ASN value in &#39;My Autonomous System&#39; is either the globally configured ASN or a locally configured ASN&#34; (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L82" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L79" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationAcceptsEitherASN</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-4.2-3"><code>RFC7705-4.2-3</code></a></h3>
+<p>A router configured with &#34;Internal BGP AS Migration&#34; &#34;MUST send its own BGP OPEN ... using either the globally configured or the locally configured ASN in &#39;My Autonomous System&#39;&#34; (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L143" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L139" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationOpenCarriesResolvedASN</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7705-4.2-4"><code>RFC7705-4.2-4</code></a></h3>
+<p>&#34;In each case, the BGP speaker MUST treat UPDATEs sent and received to this peer as if this was a natively configured iBGP session, as defined by [RFC4271] and [RFC4456].&#34; (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L222" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationSessionIsIBGP</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_as_migration_test.go#L219" title="internal/component/bgp/reactor/session_as_migration_test.go" target="_blank" rel="noopener"><code>TestMigrationSessionIsIBGP</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-implement agent, plan/immediate/spec-bgp-as-migration.md phase 8, rfc7705 enrolment walk</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-14</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7705.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>f7503ea9d187b305</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7705.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>8</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>4</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and the Table of Contents. It states what the document discusses and under which IETF process it was published, and it binds no implementation.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References. The heading over the two reference lists below it.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>Normative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References. Citation entries for RFC 2119, RFC 4271, RFC 4456, RFC 5082, RFC 5925 and RFC 6793. Each says where a cited document lives and binds nothing.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>Informative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References. Citation entries for RFC 5065, RFC 5398 and the AS migration drafts. Each says where a cited document lives and binds nothing.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>Appendix A, Implementation Report</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Appendix A, Implementation Report. Names the vendors whose shipping implementations the document describes (Cisco, Juniper, Alcatel-Lucent) and says the list is not exhaustive. It records what other implementations do and imposes nothing.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>IETF Trust Legal Provisions boilerplate the splitter did not strip: &#34;Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions&#34;. It binds whoever copies code out of the document into another work, and this document contains no code component. It states nothing a BGP speaker does.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction, describing the base protocol this document then relaxes: &#34;By default, the BGP protocol requires an operator to configure a router to use a single remote ASN for the BGP neighbor, and the ASN must match on both ends of the peering in order to successfully negotiate and establish a BGP session.&#34; Indicative, and about BGP-4 rather than about this document. The obligation it describes is RFC 4271 Section 6.2 Bad Peer AS, which rfc/short/rfc4271.md owns; this document&#39;s own normative sentence about it is site 4.2:2, which carves the migration exception out of that check and is mapped to RFC7705-4.2-2.</td>
+<td>By default, the BGP protocol requires an operator to configure a router to use a single remote ASN for the BGP neighbor, and the ASN must match on both ends of the peering in order to successfully negotiate and establish a BGP session.</td>
+</tr>
+<tr><td><code>1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction, a counterfactual about the world before these mechanisms existed: &#34;Prior to the existence of these migration mechanisms, it would have required an ISP to coordinate an ASN change with, in some cases, tens of thousands of customers.&#34; The word &#39;required&#39; sits inside &#39;it would have required&#39;, a past conditional describing what an ISP would have had to do, and it states no obligation on anybody now.</td>
+<td>Prior to the existence of these migration mechanisms, it would have required an ISP to coordinate an ASN change with, in some cases, tens of thousands of customers.</td>
+</tr>
+<tr><td><code>4.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Step 2 of the section 4.1 migration recipe: &#34;The &#39;Internal BGP AS Migration&#39; mechanism is still required on all RRs for all RR Client iBGP sessions.&#34; It tells the operator carrying out the five-step renumbering which sessions must keep the mechanism configured while the walk is in progress, immediately after saying it &#39;is no longer needed&#39; on the Non-Client sessions. It is a deployment instruction to the person running the migration, not a rule an implementation enforces: section 4.1 states outright that the mechanism &#39;can be enabled independent of the use of Route Reflectors&#39;. The obligation this document places on the implementation is that the mechanism be configurable per neighbor or per neighbor group, which is site 4.2:1, mapped to RFC7705-4.2-1.</td>
+<td>The &#34;Internal BGP AS Migration&#34; mechanism is still required on all RRs for all RR Client iBGP sessions.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 7705, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

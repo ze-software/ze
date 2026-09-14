@@ -13,6 +13,7 @@ Show which handler serves each YANG module.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
+- Column order: handler, module
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log

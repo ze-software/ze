@@ -1,491 +1,18 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 105,
-    "gated-must": 3309,
-    "enrolled-rfcs": 183,
-    "test-tags": 4560,
-    "message": "rfc-requirements: 105 violation(s)",
+    "error-count": 4,
+    "gated-must": 3319,
+    "enrolled-rfcs": 184,
+    "test-tags": 4667,
+    "message": "rfc-requirements: 4 violation(s)",
     "violations": [
-      "internal/component/bgp/reactor/session_as_migration_test.go:79: unknown RFC requirement: RFC7705-4.2-2",
-      "internal/component/bgp/reactor/session_as_migration_test.go:82: unknown RFC requirement: RFC7705-4.2-2",
-      "internal/component/bgp/reactor/session_as_migration_test.go:139: unknown RFC requirement: RFC7705-4.2-3",
-      "internal/component/bgp/reactor/session_as_migration_test.go:143: unknown RFC requirement: RFC7705-4.2-3",
-      "internal/component/bgp/reactor/session_as_migration_test.go:219: unknown RFC requirement: RFC7705-4.2-4",
-      "internal/component/bgp/reactor/session_as_migration_test.go:222: unknown RFC requirement: RFC7705-4.2-4",
-      "internal/component/tacacs/packet_test.go:161: unknown RFC requirement: RFC8907-10-2",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:70: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:71: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:72: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 [MUST] has no test and no annotation: \"The Capability Length for the Software Version Capability MUST be gre",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:73: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4 [SHALL] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:74: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5 [MUST] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:75: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 [MUST] has no test and no annotation: \"The Version field MUST be encoded using UTF-8\" (§3)",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:76: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7 [MUST NOT] has no test and no annotation: \"A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences\" (",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:77: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8 [MUST NOT] has no test and no annotation: \"A sender SHOULD limit generated product identifiers to what is necess",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:82: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 [REQUIRED] has no test and no annotation: \"Implementations of this specification are REQUIRED Extended Optional ",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:83: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 [MUST] has no test and no annotation: \"The Software Version Capability MUST only be used for displaying the ",
-      "rfc/short/draft-abraitis-bgp-version-capability.md:84: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2 [MUST] has no test and no annotation: \"Enabling (i.e., turning on) this capability requires bouncing all exi",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:82: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation intends to send a single IPv6 Link-Local forward",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:83: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation intends to send both a IPv6 Global and Link-Loca",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:84: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1 [MUST] has no test and no annotation: \"If, after completing these procedures, there are no IPv6 next hop add",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:85: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 [MUST NOT] has no test and no annotation: \"If the internal peer is more than one IP hop away, the BGP speaker MU",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:86: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 [MUST] has no test and no annotation: \"If the route is directly connected to the speaker, or if the interfac",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:87: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4 [MUST NOT] has no test and no annotation: \"If, after evaluating the above procedures, there are no IPv6 next hop",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:88: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5 [MUST NOT] has no test and no annotation: \"A Route Reflector (RR) reflecting a route with a link-local-only next",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:89: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6 [MUST] has no test and no annotation: \"For all other clients, the RR MUST either rewrite the next hop to its",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:90: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7 [MUST NOT] has no test and no annotation: \"If no next hops are included, the route MUST NOT be announced (treat-",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:91: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 [MUST NOT] has no test and no annotation: \"Link-Local IPv6 next hops MUST NOT be included\" for an external peer ",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:92: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9 [MUST NOT] has no test and no annotation: \"If a Global IPv6 next hop is not included, the route MUST NOT be adve",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:98: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1 [MUST] has no test and no annotation: \"When this combination has not been negotiated, a sender MUST follow t",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:99: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 [MUST] has no test and no annotation: \"If the Next Hop field is malformed, the implementation MUST handle th",
-      "rfc/short/rfc3748.md:289: RFC3748-2-3 [MUST NOT] has no test and no annotation: The authenticator MUST NOT send a Success or Failure packet when retra",
-      "rfc/short/rfc3748.md:290: RFC3748-2.2-1 [MUST NOT] has no test and no annotation: The Success, Failure, Nak Response and Notification Request/Response m",
-      "rfc/short/rfc3748.md:291: RFC3748-4.1-6 [MUST] has no test and no annotation: Additional Request packets MUST be sent until a valid Response packet ",
-      "rfc/short/rfc3748.md:292: RFC3748-4.1-7 [MUST] has no test and no annotation: The peer MUST send a Response packet in reply to a valid Request packe",
-      "rfc/short/rfc3748.md:293: RFC3748-4.1-8 [MUST] has no test and no annotation: Requests MUST be processed in the order that they are received, and MU",
-      "rfc/short/rfc3748.md:294: RFC3748-4.1-9 [MUST] has no test and no annotation: A single Type MUST be specified for each EAP Request or Response (S4.1",
-      "rfc/short/rfc3748.md:298: RFC3748-4.2-15 [MUST] has no test and no annotation: The peer MUST silently discard a Success packet that arrives after the",
-      "rfc/short/rfc3748.md:299: RFC3748-4.2-10 [MUST NOT] has no test and no annotation: Success and Failure packets MUST NOT be sent by an EAP authenticator i",
-      "rfc/short/rfc3748.md:300: RFC3748-4.2-11 [MUST] has no test and no annotation: A peer MUST allow for the circumstance that a Success or Failure packe",
-      "rfc/short/rfc3748.md:301: RFC3748-4.2-12 [MUST] has no test and no annotation: After the authenticator sends a failure result indication to the peer,",
-      "rfc/short/rfc3748.md:302: RFC3748-4.2-13 [MUST] has no test and no annotation: After the authenticator sends a success result indication to the peer ",
-      "rfc/short/rfc3748.md:303: RFC3748-4.2-14 [MUST] has no test and no annotation: If the peer attempts to authenticate to the authenticator and fails to",
-      "rfc/short/rfc3748.md:304: RFC3748-7.10-5 [MUST NOT] has no test and no annotation: The MSK and EMSK MUST NOT be used directly to protect data (S7.10)",
-      "rfc/short/rfc3748.md:305: RFC3748-7.10-6 [MUST] has no test and no annotation: The EMSK MUST remain on the EAP peer and EAP server where it is derive",
-      "rfc/short/rfc3748.md:306: RFC3748-7.10-7 [MUST] has no test and no annotation: EAP peers, authenticators and authentication servers MUST be prepared ",
       "rfc/short/rfc4302.md:273: RFC4302-3.3.4-1 [MUST] has no test and no annotation: An AH implementation MUST support generation of ICMP PMTU messages, or",
       "rfc/short/rfc4302.md:282: RFC4302-5-1 [MUST] has no test and no annotation: An implementation claiming conformance MUST fully implement the AH syn",
       "rfc/short/rfc4302.md:283: RFC4302-5-2 [MUST] has no test and no annotation: An implementation claiming to support multicast traffic MUST comply wi",
-      "rfc/short/rfc5082.md:189: RFC5082-3-2 [MUST] has no test and no annotation: The TTL 255 transmit and verify rule also applies to the related ICMP ",
-      "rfc/short/rfc5282.md:270: RFC5282-3.2-3 [MUST] has no test and no annotation: AES CCM implementations MUST support ICV sizes of 8 octets and 16 octe",
-      "rfc/short/rfc5282.md:271: RFC5282-3.2-4 [MUST NOT] has no test and no annotation: AES CCM implementations MUST NOT support ICV lengths other than 8, 16 ",
-      "rfc/short/rfc5282.md:274: RFC5282-4-3 [MUST] has no test and no annotation: For AES CCM the default nonce format MUST be used, the salt concatenat",
-      "rfc/short/rfc5282.md:275: RFC5282-4-4 [MUST] has no test and no annotation: For AES CCM an 11 octet nonce MUST be used (§4)",
-      "rfc/short/rfc5798.md:190: RFC5798-5.1.1.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to 224.0.0.18, regardless of its TTL",
-      "rfc/short/rfc5798.md:191: RFC5798-5.1.1.3-1 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:193: RFC5798-5.1.2.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless o",
-      "rfc/short/rfc5798.md:194: RFC5798-5.1.2.3-1 [MUST] has no test and no annotation: Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)",
-      "rfc/short/rfc5798.md:206: RFC5798-6.4.2-3 [MUST NOT] has no test and no annotation: Backup: never send ND Router Advertisement messages for the virtual ro",
-      "rfc/short/rfc5798.md:215: RFC5798-6.4.3-2 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:216: RFC5798-6.4.3-3 [MUST] has no test and no annotation: Master: respond to ND Neighbor Solicitation messages for the IPv6 addr",
-      "rfc/short/rfc5798.md:217: RFC5798-6.4.3-4 [MUST] has no test and no annotation: Master: send ND Router Advertisements for the virtual router (§6.4.3)",
-      "rfc/short/rfc5798.md:228: RFC5798-7.1-3 [MUST] has no test and no annotation: Rx: verify that the VRID is configured on the receiving interface and ",
-      "rfc/short/rfc5798.md:230: RFC5798-7.2-1 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:231: RFC5798-7.2-2 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:232: RFC5798-7.2-3 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:233: RFC5798-7.2-4 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:234: RFC5798-7.4-1 [MUST] has no test and no annotation: Create the Interface Identifiers of an IPv6 router running VRRP in the",
-      "rfc/short/rfc5798.md:235: RFC5798-7.4-2 [MUST NOT] has no test and no annotation: Never use the virtual router MAC address to create the Modified Extend",
-      "rfc/short/rfc5798.md:237: RFC5798-8.1.3-1 [MUST] has no test and no annotation: Advertise the virtual router MAC address in the Proxy ARP message when",
-      "rfc/short/rfc5798.md:238: RFC5798-8.2.2-1 [MUST NOT] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-      "rfc/short/rfc5798.md:239: RFC5798-8.2.2-2 [MUST] has no test and no annotation: Master: include the virtual router MAC address in the source link-laye",
-      "rfc/short/rfc5798.md:240: RFC5798-8.2.2-3 [MUST NOT] has no test and no annotation: Master: never use its physical MAC address in that source link-layer a",
-      "rfc/short/rfc5798.md:242: RFC5798-8.2.3-1 [MUST] has no test and no annotation: Configure Backup routers to send the same Router Advertisement options",
-      "rfc/short/rfc5798.md:243: RFC5798-8.4.2-1 [MUST] has no test and no annotation: Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at th",
-      "rfc/short/rfc5798.md:244: RFC5798-A.2-1 [MUST] has no test and no annotation: Token Ring: implement the functional-address mode of operation when su",
-      "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc7606.md:340: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/discrimination/rfc2385.json: the revert record for RFC2385-2.0-4 positive at internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of NewSession replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/session.go::NewSession. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc2516.json: the revert record for RFC2516-5.4-2 positive at internal/component/l2tp/pppoe/server_test.go::TestPADRWithoutServiceNameGetsServiceNameError no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handlePADR replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/pppoe/server.go::handlePADR. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-7 positive at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-7 negative at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-8 positive at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-8 negative at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-9 positive at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsAFailureAfterMutualSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-9 negative at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsAFailureAfterMutualSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5072.json: the revert record for RFC5072-4.1-4 positive at internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of buildNakOrReject replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/ppp/ncp.go::buildNakOrReject. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5072.json: the revert record for RFC5072-4.1-6 positive at internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of buildNakOrReject replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/ppp/ncp.go::buildNakOrReject. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5082.json: the revert record for RFC5082-3-1 positive at internal/core/network/ttl_gtsm_linux_test.go::TestGTSMDialerSetsOutgoingTTLTo255 no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of setIPTTL replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/network/ttl_linux.go::setIPTTL. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5082.json: the revert record for RFC5082-3-1 negative at internal/core/network/ttl_gtsm_linux_test.go::TestGTSMDialerWithoutOutTTLLeavesTheDefault no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of DialContext replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/network/network.go::DialContext. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5082.json: the revert record for RFC5082-3-4 negative at internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of setIPMinTTL replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/network/ttl_linux.go::setIPMinTTL. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5176.json: the revert record for RFC5176-2.3-6 positive at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5176.json: the revert record for RFC5176-2.3-6 negative at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5176.json: the revert record for RFC5176-3.2-1 positive at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5176.json: the revert record for RFC5176-3.2-1 negative at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-3 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of finalRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::finalRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-4 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of failure replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::failure. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5880.json: the revert record for RFC5880-6.8.6-18 positive at internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of handleInbound replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/engine/loop.go::handleInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of Canonical replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/api/session_identity.go::Canonical. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of toSessionRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/config.go::toSessionRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of bfdRequestFor replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 positive at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendStaleReadvertise replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
-      "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 positive at internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendStaleReadvertise replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      "rfc/short/rfc5082.md:189: RFC5082-3-2 [MUST] has no test and no annotation: The TTL 255 transmit and verify rule also applies to the related ICMP "
     ],
     "findings": [
-      {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:79: unknown RFC requirement: RFC7705-4.2-2"
-      },
-      {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:82: unknown RFC requirement: RFC7705-4.2-2"
-      },
-      {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:139: unknown RFC requirement: RFC7705-4.2-3"
-      },
-      {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:143: unknown RFC requirement: RFC7705-4.2-3"
-      },
-      {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:219: unknown RFC requirement: RFC7705-4.2-4"
-      },
-      {
-        "message": "internal/component/bgp/reactor/session_as_migration_test.go:222: unknown RFC requirement: RFC7705-4.2-4"
-      },
-      {
-        "message": "internal/component/tacacs/packet_test.go:161: unknown RFC requirement: RFC8907-10-2"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:70: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:70",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled\" -- the configuration option half (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:71: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:71",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled\" -- the default-to-disabled half (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:72: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 [MUST] has no test and no annotation: \"The Capability Length for the Software Version Capability MUST be gre",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:72",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"The Capability Length for the Software Version Capability MUST be greater than zero\" (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:73: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4 [SHALL] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:73",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
-        "level": "SHALL",
-        "section": "3",
-        "text": "\"A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored\" -- the encoding-error half (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:74: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5 [MUST] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:74",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored\" -- the ignore half (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:75: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 [MUST] has no test and no annotation: \"The Version field MUST be encoded using UTF-8\" (§3)",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:75",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"The Version field MUST be encoded using UTF-8\" (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:76: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7 [MUST NOT] has no test and no annotation: \"A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences\" (",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:76",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
-        "level": "MUST NOT",
-        "section": "3",
-        "text": "\"A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences\" (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:77: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8 [MUST NOT] has no test and no annotation: \"A sender SHOULD limit generated product identifiers to what is necess",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:77",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8",
-        "level": "MUST NOT",
-        "section": "3",
-        "text": "\"A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier\" -- the MUST NOT half (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:82: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 [REQUIRED] has no test and no annotation: \"Implementations of this specification are REQUIRED Extended Optional ",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:82",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1",
-        "level": "REQUIRED",
-        "section": "3.1",
-        "text": "\"Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]\" (§3.1)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:83: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 [MUST] has no test and no annotation: \"The Software Version Capability MUST only be used for displaying the ",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:83",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
-        "level": "MUST",
-        "section": "4",
-        "text": "\"The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:84: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2 [MUST] has no test and no annotation: \"Enabling (i.e., turning on) this capability requires bouncing all exi",
-        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:84",
-        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
-        "level": "MUST",
-        "section": "4",
-        "text": "\"Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:82: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation intends to send a single IPv6 Link-Local forward",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:82",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field\" (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:83: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation intends to send both a IPv6 Global and Link-Loca",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:83",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
-        "level": "MUST",
-        "section": "3",
-        "text": "\"If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field\" (§3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:84: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1 [MUST] has no test and no annotation: \"If, after completing these procedures, there are no IPv6 next hop add",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:84",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
-        "level": "MUST",
-        "section": "4",
-        "text": "\"If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:85: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 [MUST NOT] has no test and no annotation: \"If the internal peer is more than one IP hop away, the BGP speaker MU",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:85",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
-        "level": "MUST NOT",
-        "section": "4",
-        "text": "\"If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:86: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 [MUST] has no test and no annotation: \"If the route is directly connected to the speaker, or if the interfac",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:86",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
-        "level": "MUST",
-        "section": "4",
-        "text": "\"If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link-Local IPv6 address\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:87: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4 [MUST NOT] has no test and no annotation: \"If, after evaluating the above procedures, there are no IPv6 next hop",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:87",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4",
-        "level": "MUST NOT",
-        "section": "4",
-        "text": "\"If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:88: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5 [MUST NOT] has no test and no annotation: \"A Route Reflector (RR) reflecting a route with a link-local-only next",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:88",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
-        "level": "MUST NOT",
-        "section": "4",
-        "text": "\"A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:89: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6 [MUST] has no test and no annotation: \"For all other clients, the RR MUST either rewrite the next hop to its",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:89",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6",
-        "level": "MUST",
-        "section": "4",
-        "text": "\"For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:90: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7 [MUST NOT] has no test and no annotation: \"If no next hops are included, the route MUST NOT be announced (treat-",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:90",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7",
-        "level": "MUST NOT",
-        "section": "4",
-        "text": "\"If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:91: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 [MUST NOT] has no test and no annotation: \"Link-Local IPv6 next hops MUST NOT be included\" for an external peer ",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:91",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
-        "level": "MUST NOT",
-        "section": "4",
-        "text": "\"Link-Local IPv6 next hops MUST NOT be included\" for an external peer that \"is multiple IP hops away from the speaker (aka \\\"multihop EBGP\\\")\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:92: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9 [MUST NOT] has no test and no annotation: \"If a Global IPv6 next hop is not included, the route MUST NOT be adve",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:92",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9",
-        "level": "MUST NOT",
-        "section": "4",
-        "text": "\"If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw)\" (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:98: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1 [MUST] has no test and no annotation: \"When this combination has not been negotiated, a sender MUST follow t",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:98",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1",
-        "level": "MUST",
-        "section": "5",
-        "text": "\"When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets\" (§5)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:99: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 [MUST] has no test and no annotation: \"If the Next Hop field is malformed, the implementation MUST handle th",
-        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:99",
-        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
-        "level": "MUST",
-        "section": "6",
-        "text": "\"If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \\\"treat-as-withdraw\\\", as described in section 7.3 of [RFC7606]\" (§6)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:289: RFC3748-2-3 [MUST NOT] has no test and no annotation: The authenticator MUST NOT send a Success or Failure packet when retra",
-        "where": "rfc/short/rfc3748.md:289",
-        "rid": "RFC3748-2-3",
-        "level": "MUST NOT",
-        "section": "2",
-        "text": "The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:290: RFC3748-2.2-1 [MUST NOT] has no test and no annotation: The Success, Failure, Nak Response and Notification Request/Response m",
-        "where": "rfc/short/rfc3748.md:290",
-        "rid": "RFC3748-2.2-1",
-        "level": "MUST NOT",
-        "section": "2.2",
-        "text": "The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:291: RFC3748-4.1-6 [MUST] has no test and no annotation: Additional Request packets MUST be sent until a valid Response packet ",
-        "where": "rfc/short/rfc3748.md:291",
-        "rid": "RFC3748-4.1-6",
-        "level": "MUST",
-        "section": "4.1",
-        "text": "Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:292: RFC3748-4.1-7 [MUST] has no test and no annotation: The peer MUST send a Response packet in reply to a valid Request packe",
-        "where": "rfc/short/rfc3748.md:292",
-        "rid": "RFC3748-4.1-7",
-        "level": "MUST",
-        "section": "4.1",
-        "text": "The peer MUST send a Response packet in reply to a valid Request packet (S4.1)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:293: RFC3748-4.1-8 [MUST] has no test and no annotation: Requests MUST be processed in the order that they are received, and MU",
-        "where": "rfc/short/rfc3748.md:293",
-        "rid": "RFC3748-4.1-8",
-        "level": "MUST",
-        "section": "4.1",
-        "text": "Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:294: RFC3748-4.1-9 [MUST] has no test and no annotation: A single Type MUST be specified for each EAP Request or Response (S4.1",
-        "where": "rfc/short/rfc3748.md:294",
-        "rid": "RFC3748-4.1-9",
-        "level": "MUST",
-        "section": "4.1",
-        "text": "A single Type MUST be specified for each EAP Request or Response (S4.1)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:298: RFC3748-4.2-15 [MUST] has no test and no annotation: The peer MUST silently discard a Success packet that arrives after the",
-        "where": "rfc/short/rfc3748.md:298",
-        "rid": "RFC3748-4.2-15",
-        "level": "MUST",
-        "section": "4.2",
-        "text": "The peer MUST silently discard a Success packet that arrives after the peer has ended the session (S4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:299: RFC3748-4.2-10 [MUST NOT] has no test and no annotation: Success and Failure packets MUST NOT be sent by an EAP authenticator i",
-        "where": "rfc/short/rfc3748.md:299",
-        "rid": "RFC3748-4.2-10",
-        "level": "MUST NOT",
-        "section": "4.2",
-        "text": "Success and Failure packets MUST NOT be sent by an EAP authenticator if the specification of the given method does not explicitly permit the method to finish at that point (S4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:300: RFC3748-4.2-11 [MUST] has no test and no annotation: A peer MUST allow for the circumstance that a Success or Failure packe",
-        "where": "rfc/short/rfc3748.md:300",
-        "rid": "RFC3748-4.2-11",
-        "level": "MUST",
-        "section": "4.2",
-        "text": "A peer MUST allow for the circumstance that a Success or Failure packet, being unacknowledged, can be lost (S4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:301: RFC3748-4.2-12 [MUST] has no test and no annotation: After the authenticator sends a failure result indication to the peer,",
-        "where": "rfc/short/rfc3748.md:301",
-        "rid": "RFC3748-4.2-12",
-        "level": "MUST",
-        "section": "4.2",
-        "text": "After the authenticator sends a failure result indication to the peer, regardless of the response from the peer, it MUST subsequently send a Failure packet (S4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:302: RFC3748-4.2-13 [MUST] has no test and no annotation: After the authenticator sends a success result indication to the peer ",
-        "where": "rfc/short/rfc3748.md:302",
-        "rid": "RFC3748-4.2-13",
-        "level": "MUST",
-        "section": "4.2",
-        "text": "After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:303: RFC3748-4.2-14 [MUST] has no test and no annotation: If the peer attempts to authenticate to the authenticator and fails to",
-        "where": "rfc/short/rfc3748.md:303",
-        "rid": "RFC3748-4.2-14",
-        "level": "MUST",
-        "section": "4.2",
-        "text": "If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:304: RFC3748-7.10-5 [MUST NOT] has no test and no annotation: The MSK and EMSK MUST NOT be used directly to protect data (S7.10)",
-        "where": "rfc/short/rfc3748.md:304",
-        "rid": "RFC3748-7.10-5",
-        "level": "MUST NOT",
-        "section": "7.10",
-        "text": "The MSK and EMSK MUST NOT be used directly to protect data (S7.10)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:305: RFC3748-7.10-6 [MUST] has no test and no annotation: The EMSK MUST remain on the EAP peer and EAP server where it is derive",
-        "where": "rfc/short/rfc3748.md:305",
-        "rid": "RFC3748-7.10-6",
-        "level": "MUST",
-        "section": "7.10",
-        "text": "The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc3748.md:306: RFC3748-7.10-7 [MUST] has no test and no annotation: EAP peers, authenticators and authentication servers MUST be prepared ",
-        "where": "rfc/short/rfc3748.md:306",
-        "rid": "RFC3748-7.10-7",
-        "level": "MUST",
-        "section": "7.10",
-        "text": "EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)",
-        "issue": "has no test and no annotation"
-      },
       {
         "message": "rfc/short/rfc4302.md:273: RFC4302-3.3.4-1 [MUST] has no test and no annotation: An AH implementation MUST support generation of ICMP PMTU messages, or",
         "where": "rfc/short/rfc4302.md:273",
@@ -521,358 +48,37 @@
         "section": "3",
         "text": "The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)",
         "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5282.md:270: RFC5282-3.2-3 [MUST] has no test and no annotation: AES CCM implementations MUST support ICV sizes of 8 octets and 16 octe",
-        "where": "rfc/short/rfc5282.md:270",
-        "rid": "RFC5282-3.2-3",
-        "level": "MUST",
-        "section": "3.2",
-        "text": "AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5282.md:271: RFC5282-3.2-4 [MUST NOT] has no test and no annotation: AES CCM implementations MUST NOT support ICV lengths other than 8, 16 ",
-        "where": "rfc/short/rfc5282.md:271",
-        "rid": "RFC5282-3.2-4",
-        "level": "MUST NOT",
-        "section": "3.2",
-        "text": "AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5282.md:274: RFC5282-4-3 [MUST] has no test and no annotation: For AES CCM the default nonce format MUST be used, the salt concatenat",
-        "where": "rfc/short/rfc5282.md:274",
-        "rid": "RFC5282-4-3",
-        "level": "MUST",
-        "section": "4",
-        "text": "For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5282.md:275: RFC5282-4-4 [MUST] has no test and no annotation: For AES CCM an 11 octet nonce MUST be used (§4)",
-        "where": "rfc/short/rfc5282.md:275",
-        "rid": "RFC5282-4-4",
-        "level": "MUST",
-        "section": "4",
-        "text": "For AES CCM an 11 octet nonce MUST be used (§4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:190: RFC5798-5.1.1.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to 224.0.0.18, regardless of its TTL",
-        "where": "rfc/short/rfc5798.md:190",
-        "rid": "RFC5798-5.1.1.2-1",
-        "level": "MUST NOT",
-        "section": "5.1.1.2",
-        "text": "Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:191: RFC5798-5.1.1.3-1 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:191",
-        "rid": "RFC5798-5.1.1.3-1",
-        "level": "MUST",
-        "section": "5.1.1.3",
-        "text": "Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:193: RFC5798-5.1.2.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless o",
-        "where": "rfc/short/rfc5798.md:193",
-        "rid": "RFC5798-5.1.2.2-1",
-        "level": "MUST NOT",
-        "section": "5.1.2.2",
-        "text": "Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:194: RFC5798-5.1.2.3-1 [MUST] has no test and no annotation: Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)",
-        "where": "rfc/short/rfc5798.md:194",
-        "rid": "RFC5798-5.1.2.3-1",
-        "level": "MUST",
-        "section": "5.1.2.3",
-        "text": "Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:206: RFC5798-6.4.2-3 [MUST NOT] has no test and no annotation: Backup: never send ND Router Advertisement messages for the virtual ro",
-        "where": "rfc/short/rfc5798.md:206",
-        "rid": "RFC5798-6.4.2-3",
-        "level": "MUST NOT",
-        "section": "6.4.2",
-        "text": "Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:215: RFC5798-6.4.3-2 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:215",
-        "rid": "RFC5798-6.4.3-2",
-        "level": "MUST",
-        "section": "6.4.3",
-        "text": "Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:216: RFC5798-6.4.3-3 [MUST] has no test and no annotation: Master: respond to ND Neighbor Solicitation messages for the IPv6 addr",
-        "where": "rfc/short/rfc5798.md:216",
-        "rid": "RFC5798-6.4.3-3",
-        "level": "MUST",
-        "section": "6.4.3",
-        "text": "Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:217: RFC5798-6.4.3-4 [MUST] has no test and no annotation: Master: send ND Router Advertisements for the virtual router (§6.4.3)",
-        "where": "rfc/short/rfc5798.md:217",
-        "rid": "RFC5798-6.4.3-4",
-        "level": "MUST",
-        "section": "6.4.3",
-        "text": "Master: send ND Router Advertisements for the virtual router (§6.4.3)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:228: RFC5798-7.1-3 [MUST] has no test and no annotation: Rx: verify that the VRID is configured on the receiving interface and ",
-        "where": "rfc/short/rfc5798.md:228",
-        "rid": "RFC5798-7.1-3",
-        "level": "MUST",
-        "section": "7.1",
-        "text": "Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:230: RFC5798-7.2-1 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:230",
-        "rid": "RFC5798-7.2-1",
-        "level": "MUST",
-        "section": "7.2",
-        "text": "Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:231: RFC5798-7.2-2 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:231",
-        "rid": "RFC5798-7.2-2",
-        "level": "MUST",
-        "section": "7.2",
-        "text": "Tx: set the source MAC address to the virtual router MAC address (§7.2)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:232: RFC5798-7.2-3 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:232",
-        "rid": "RFC5798-7.2-3",
-        "level": "MUST",
-        "section": "7.2",
-        "text": "Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:233: RFC5798-7.2-4 [MUST] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:233",
-        "rid": "RFC5798-7.2-4",
-        "level": "MUST",
-        "section": "7.2",
-        "text": "Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:234: RFC5798-7.4-1 [MUST] has no test and no annotation: Create the Interface Identifiers of an IPv6 router running VRRP in the",
-        "where": "rfc/short/rfc5798.md:234",
-        "rid": "RFC5798-7.4-1",
-        "level": "MUST",
-        "section": "7.4",
-        "text": "Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:235: RFC5798-7.4-2 [MUST NOT] has no test and no annotation: Never use the virtual router MAC address to create the Modified Extend",
-        "where": "rfc/short/rfc5798.md:235",
-        "rid": "RFC5798-7.4-2",
-        "level": "MUST NOT",
-        "section": "7.4",
-        "text": "Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:237: RFC5798-8.1.3-1 [MUST] has no test and no annotation: Advertise the virtual router MAC address in the Proxy ARP message when",
-        "where": "rfc/short/rfc5798.md:237",
-        "rid": "RFC5798-8.1.3-1",
-        "level": "MUST",
-        "section": "8.1.3",
-        "text": "Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase \"must\" in the RFC)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:238: RFC5798-8.2.2-1 [MUST NOT] has no negative test (only positive). A negative-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}",
-        "where": "rfc/short/rfc5798.md:238",
-        "rid": "RFC5798-8.2.2-1",
-        "level": "MUST NOT",
-        "section": "8.2.2",
-        "text": "Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)",
-        "issue": "has no negative test, only positive"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:239: RFC5798-8.2.2-2 [MUST] has no test and no annotation: Master: include the virtual router MAC address in the source link-laye",
-        "where": "rfc/short/rfc5798.md:239",
-        "rid": "RFC5798-8.2.2-2",
-        "level": "MUST",
-        "section": "8.2.2",
-        "text": "Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host's IPv6 address, when it sends that option (§8.2.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:240: RFC5798-8.2.2-3 [MUST NOT] has no test and no annotation: Master: never use its physical MAC address in that source link-layer a",
-        "where": "rfc/short/rfc5798.md:240",
-        "rid": "RFC5798-8.2.2-3",
-        "level": "MUST NOT",
-        "section": "8.2.2",
-        "text": "Master: never use its physical MAC address in that source link-layer address option (§8.2.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:242: RFC5798-8.2.3-1 [MUST] has no test and no annotation: Configure Backup routers to send the same Router Advertisement options",
-        "where": "rfc/short/rfc5798.md:242",
-        "rid": "RFC5798-8.2.3-1",
-        "level": "MUST",
-        "section": "8.2.3",
-        "text": "Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase \"must\" in the RFC)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:243: RFC5798-8.4.2-1 [MUST] has no test and no annotation: Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at th",
-        "where": "rfc/short/rfc5798.md:243",
-        "rid": "RFC5798-8.4.2-1",
-        "level": "MUST",
-        "section": "8.4.2",
-        "text": "Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc5798.md:244: RFC5798-A.2-1 [MUST] has no test and no annotation: Token Ring: implement the functional-address mode of operation when su",
-        "where": "rfc/short/rfc5798.md:244",
-        "rid": "RFC5798-A.2-1",
-        "level": "MUST",
-        "section": "A.2",
-        "text": "Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2)",
-        "issue": "has no test and no annotation"
-      },
-      {
-        "message": "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc7606.md:340: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/discrimination/rfc2385.json: the revert record for RFC2385-2.0-4 positive at internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of NewSession replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/session.go::NewSession. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc2516.json: the revert record for RFC2516-5.4-2 positive at internal/component/l2tp/pppoe/server_test.go::TestPADRWithoutServiceNameGetsServiceNameError no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handlePADR replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/pppoe/server.go::handlePADR. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-7 positive at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-7 negative at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-8 positive at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-8 negative at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-9 positive at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsAFailureAfterMutualSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc3748.json: the revert record for RFC3748-4.2-9 negative at internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsAFailureAfterMutualSuccess no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Process replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/peer.go::Process. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5072.json: the revert record for RFC5072-4.1-4 positive at internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of buildNakOrReject replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/ppp/ncp.go::buildNakOrReject. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5072.json: the revert record for RFC5072-4.1-6 positive at internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of buildNakOrReject replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/ppp/ncp.go::buildNakOrReject. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5082.json: the revert record for RFC5082-3-1 positive at internal/core/network/ttl_gtsm_linux_test.go::TestGTSMDialerSetsOutgoingTTLTo255 no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of setIPTTL replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/network/ttl_linux.go::setIPTTL. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5082.json: the revert record for RFC5082-3-1 negative at internal/core/network/ttl_gtsm_linux_test.go::TestGTSMDialerWithoutOutTTLLeavesTheDefault no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of DialContext replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/network/network.go::DialContext. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5082.json: the revert record for RFC5082-3-4 negative at internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of setIPMinTTL replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/network/ttl_linux.go::setIPMinTTL. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5176.json: the revert record for RFC5176-2.3-6 positive at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5176.json: the revert record for RFC5176-2.3-6 negative at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5176.json: the revert record for RFC5176-3.2-1 positive at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5176.json: the revert record for RFC5176-3.2-1 negative at internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleCoA replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/plugins/authradius/coa.go::handleCoA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-3 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of finalRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::finalRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5216.json: the revert record for RFC5216-2.1.3-4 positive at internal/core/eap/eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of failure replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/eap/eap.go::failure. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5880.json: the revert record for RFC5880-6.8.6-18 positive at internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of handleInbound replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/engine/loop.go::handleInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/api/session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of Canonical replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/api/session_identity.go::Canonical. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bfd/session_identity_test.go::TestPinnedSessionReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of toSessionRequest replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/config.go::toSessionRequest. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc5882.json: the revert record for RFC5882-4.4-1 positive at internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of bfdRequestFor replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 positive at internal/component/bgp/reactor/forward_prefix_sid_announce_rail_test.go::TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break \"body of prefixSIDAllowedTo replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDAllowedTo. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 negative at internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendStaleReadvertise replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
-      },
-      {
-        "message": "rfc/discrimination/rfc8669.json: the revert record for RFC8669-8-1 positive at internal/component/bgp/reactor/forward_prefix_sid_readvertise_rail_test.go::TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendStaleReadvertise replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_api_batch.go::sendStaleReadvertise. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       }
     ]
   },
   "share": {
-    "proven": 1834,
-    "gated": 3047,
-    "rfcs": 146,
-    "inspected": 181,
-    "gated-inspected": 3309,
-    "percent": "60.2"
+    "proven": 1892,
+    "gated": 3057,
+    "rfcs": 147,
+    "inspected": 182,
+    "gated-inspected": 3319,
+    "percent": "61.9"
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 1478
+      "count": 1532
     },
     {
       "key": "single_polarity",
-      "count": 356
+      "count": 360
     },
     {
       "key": "gap",
-      "count": 481
+      "count": 493
     },
     {
       "key": "one_polarity_unexcused",
-      "count": 7
+      "count": 0
     },
     {
       "key": "missing_unexcused",
-      "count": 62
+      "count": 4
     },
     {
       "key": "not_applicable",
@@ -880,20 +86,20 @@
     },
     {
       "key": "lower_layer",
-      "count": 26
+      "count": 29
     },
     {
       "key": "feature_declined",
-      "count": 2
+      "count": 4
     }
   ],
   "gaps": {
-    "requirements": 481,
-    "rfcs": 78,
+    "requirements": 493,
+    "rfcs": 81,
     "status-counts": [
       {
         "status": "Partial",
-        "count": 62
+        "count": 64
       },
       {
         "status": "Experimental",
@@ -906,12 +112,20 @@
       {
         "status": "Not supported",
         "count": 1
+      },
+      {
+        "status": "Supported in IPsec",
+        "count": 1
       }
     ],
     "supported-with-remaining": [
       {
         "rfc": "RFC 1350",
         "remaining": "RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK."
+      },
+      {
+        "rfc": "RFC 3748",
+        "remaining": "One MUST is unmet. Ze derives no Extended Master Session Key: `exportEAPTLSMSK` (`internal/core/eap/eap_tls.go`) keeps the MSK half of the RFC 9190 Section 2.3 key material and drops the EMSK half, and `DeriveMSK` (`internal/core/eap/mschapv2.go`) returns an MSK alone. Section 7.10 requires a key-deriving method to export both, so `RFC3748-7.10-6`, which confines the EMSK to the peer and the server that derived it, has no key to confine and stays open. Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze's authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option (\"An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method\") and which the owner declined on 2026-09-01; Ze's peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze's authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says \"Support for pass-through is optional\". Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation (\"Implementations MAY support other Types defined here or in future RFCs\"). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it."
       },
       {
         "rfc": "RFC 6396",
@@ -987,10 +201,10 @@
   },
   "audit": {
     "verdicts": 56,
-    "fresh": 54,
+    "fresh": 56,
     "shifted": 0,
-    "stale": 2,
-    "missing": 3253
+    "stale": 0,
+    "missing": 3263
   },
   "verify": {
     "command": "./le rfc check",

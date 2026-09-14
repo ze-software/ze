@@ -13,6 +13,7 @@ Enumerate the active OSPFv3 address-family instances (RFC 5838 section 2).
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

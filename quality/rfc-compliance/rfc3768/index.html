@@ -302,7 +302,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>5.2.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-5.2.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L260" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L266" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header unconditionally sets TTL 255 at internal/plugins/vrrp/transport/transport.go:562, so no input yields a different TTL -- the rx TTL!=255 discard is the separate RFC3768-5.2.3-2</p></td>
 </tr>
@@ -592,7 +592,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L385" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L386" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the source MAC is the virtual-router MAC from packet.VirtualMAC internal/plugins/vrrp/packet/packet.go:97 egressed by binding the tx socket to the vMAC macvlan internal/plugins/vrrp/transport/backend_linux.go:133, a deterministic derivation with no input that yields a different MAC</p></td>
 </tr>
@@ -601,7 +601,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.2-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L202" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L208" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the source IP is the parent unit primary IPv4 from resolveParentPrimaryV4 internal/plugins/vrrp/transport/transport.go:573, a deterministic selection re-resolved on address change, with no input that yields a wrong-source advert</p></td>
 </tr>
@@ -610,7 +610,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <td>MUST</td>
 <td>7.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3768-7.2-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L261" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L267" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> buildIPv4Header sets IP protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 at internal/plugins/vrrp/transport/backend_linux.go:256, both constants with no input that changes them</p></td>
 </tr>
@@ -779,7 +779,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L260" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L266" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1419,7 +1419,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L385" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L386" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1434,7 +1434,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L202" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L208" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertUsesParentPrimaryV4Source</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1449,7 +1449,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L261" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L267" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertIPv4HeaderTTLProtoDst</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1777,7 +1777,7 @@ No gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/r
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 September 2026 15:44 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

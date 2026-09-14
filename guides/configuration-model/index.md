@@ -2028,9 +2028,17 @@ vpn {
 }
 ```
 
-Encryption algorithms: `aes128`, `aes256`, `aes128gcm`, `aes256gcm`. The schema also names
-`chacha20poly1305` and `3des`, and no build carries a transform for either. A proposal
-that names one is refused at commit, and the refusal lists the implemented set.
+Encryption algorithms: `aes128`, `aes256`, `aes128gcm`, `aes256gcm`, and the AES CCM set
+`aes128ccm8`, `aes256ccm8`, `aes128ccm12`, `aes256ccm12`, `aes128ccm16` and `aes256ccm16`.
+The number after `ccm` is the ICV size in octets, which RFC 5282 Section 7.2 gives its own
+Transform ID. Section 7.2 recommends the 16 octet ICV for IKE.
+
+The AES CCM set is for an `ike-group` only. An `esp-group` proposal that names one is
+refused at commit, because no dataplane backend installs an AES CCM Security Association.
+
+The schema also names `chacha20poly1305` and `3des`, and no build carries a transform for
+either. A proposal that names one is refused at commit, and the refusal lists the
+implemented set.
 Hash algorithms: `sha256`, `sha384`, `sha512`. The schema also names `sha1`, and no build
 carries a transform for it, so the same refusal applies.
 

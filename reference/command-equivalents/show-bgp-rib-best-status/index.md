@@ -13,6 +13,7 @@ Check whether best-path computation is still running.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
+- Column order: running, peers-with-rib, total-routes
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

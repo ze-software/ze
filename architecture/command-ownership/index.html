@@ -60,6 +60,7 @@
 <ol>
 <li><a href="#yang-as-data-not-code">YANG as Data, Not Code</a></li>
 <li><a href="#how-codegen-enables-the-folder-test">How Codegen Enables the Folder Test</a></li>
+<li><a href="#the-cli-command-owner">The CLI command owner</a></li>
 </ol></li>
 <li><a href="#yang-container-merge">YANG Container Merge</a></li>
 <li><a href="#verb-root-anchors">Verb-Root Anchors</a>
@@ -165,10 +166,49 @@ present in the directory. The only hand-written file is the <code>.yang</code> i
 <ul>
 <li>Packages containing <code>yang.RegisterModule</code> calls -&gt; adds to <code>all.go</code> schema imports</li>
 <li>Packages containing <code>pluginserver.RegisterRPCs</code> calls -&gt; adds to <code>all.go</code> RPC imports</li>
+<li>Packages calling a <code>command/registry</code> registrar -&gt; adds to <code>all.go</code> CLI command imports</li>
 <li><code>yang/</code> directories containing <code>.yang</code> files -&gt; generates <code>embed.go</code> + <code>register.go</code></li>
 </ul>
 <p>Because discovery is directory-based, copying a plugin folder in (or deleting it)
 and re-running codegen is all that's needed to wire (or unwire) the plugin.</p>
+<h3 id="the-cli-command-owner">The CLI command owner</h3>
+<p>A package whose <code>init()</code> calls <code>registry.MustRegisterRootHandler</code>,
+<code>registry.RegisterRoot</code>, <code>registry.MustRegisterLocal</code> or any other
+<code>command/registry</code> registrar owns a command, and nothing else in the product
+imports it. Without a blank import it compiles, links nowhere and registers
+nothing: <code>ze &lt;command&gt;</code> answers "unknown command" while the build, the lint and
+every gate stay green. <code>./le plugin imports check</code> reports such a package, and
+the walk is deliberately NOT scoped by the plugin search roots, because a
+command owner legitimately lives outside every one of them.</p>
+<p>Three reasons stop the composition root from naming a command owner, and
+<code>cmd/ze/ze_core_dispatch.go</code> blank-imports those by hand with the reason beside
+each line:</p>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>How it is recognised</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The package reaches <code>plugin/all</code></td>
+<td>computed from the import graph</td>
+<td><code>internal/component/config/yang/cli</code>, <code>internal/plugins/completion</code></td>
+</tr>
+<tr>
+<td>Another composition root owns it</td>
+<td>the <code>codegen:skip</code> marker and its reason</td>
+<td><code>internal/perf/cli</code> under <code>//go:build ze_perf</code></td>
+</tr>
+<tr>
+<td>The package IS a composition root</td>
+<td>its directory is named <code>all</code></td>
+<td><code>internal/component/aaa/all</code></td>
+</tr>
+</tbody>
+</table>
 <h2 id="yang-container-merge">YANG Container Merge</h2>
 <p>Owners declare their commands by re-stating the path from the verb root:</p>
 <pre><code class="language-yang">module ze-host-cmd {
@@ -231,8 +271,8 @@ inside the plugin's <code>cmd/</code> package:</p>
 </code></pre>
 <p>The package must be blank-imported (directly or transitively) from
 <code>internal/component/plugin/all/all.go</code>. The codegen scans for packages
-containing <code>pluginserver.RegisterRPCs</code> or <code>yang.RegisterModule</code> calls and
-generates the import list.</p>
+containing <code>pluginserver.RegisterRPCs</code> or <code>yang.RegisterModule</code> calls, or a
+<code>command/registry</code> registrar call, and generates the import list.</p>
 <h2 id="what-the-removal-test-forbids">What the Removal Test Forbids</h2>
 <table>
 <thead>
@@ -484,7 +524,7 @@ package holds the matching presence test, such as
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

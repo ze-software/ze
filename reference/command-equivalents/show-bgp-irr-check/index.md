@@ -13,6 +13,7 @@ Check if a prefix is accepted by the IRR filter.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
+- Column order: prefix, asn, accepted, matched-entry
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

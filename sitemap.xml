@@ -556,6 +556,9 @@
     <loc>https://ze-software.net/project/changes/2026-08-31/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/changes/2026-09-07/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
@@ -1013,6 +1016,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7684/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/rfc7705/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/quality/rfc-compliance/rfc7752/</loc>
@@ -2549,6 +2555,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/system-version-software/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/update-bgp-config/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-irr-all/</loc>

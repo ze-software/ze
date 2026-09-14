@@ -65,6 +65,7 @@
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Pipe aliases</dt><dd><code>peers</code>: The peer rows, without the aggregate fields (<code>display peers</code>)<br><code>summary</code>: The aggregate fields, without the peer rows (<code>display router-id local-as uptime peers-configured peers-established</code>)</dd></div>
 <div><dt>Answer shape</dt><dd>doc</dd></div>
+<div><dt>Column order</dt><dd>curated, sources, networks, block; asn, name, contested</dd></div>
 </dl>
 <h3>Description</h3><p>Prints the well-known transit-free ASNs as one `indirect [ ... ];`<br>line to paste directly under `reject-asn NAME { }`, with the sources and<br>the curated date as comments. Ze acts on no ASN it was not configured<br>with, so this command is how the set reaches a config. After the paste<br>the config holds the numbers, and a later change to the curated table<br>cannot alter it.</p>
 <h3>Arguments</h3>
@@ -131,7 +132,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

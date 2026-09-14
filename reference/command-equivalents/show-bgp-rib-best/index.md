@@ -13,6 +13,7 @@ Show the winning route for each prefix.
 - Subcommands: `status`
 - Answer shape: tab
 - Address fields: best-peer, next-hop
+- Column order: family, prefix, best-peer, multipath-peers, attributes
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

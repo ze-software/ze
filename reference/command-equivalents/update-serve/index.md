@@ -12,6 +12,7 @@ Serve this binary and its version manifest for update checks.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: none
 - Pipes, when the answer has rows: none
 - Pipes, while streaming: none

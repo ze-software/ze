@@ -177,8 +177,8 @@
                 </article>
                 <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-08-31/">Week of 2026-08-31</a></h3>
-                    <p>Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and…</p>
+                    <h3><a href="project/changes/2026-09-07/">Week of 2026-09-07</a></h3>
+                    <p>Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an…</p>
                 </article>
                 <article class="whats-new-item tone-pink">
                     <span class="whats-new-label">RFC compliance progress</span>
@@ -209,7 +209,7 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">29,800+</span> <span class="label">unit tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">29,900+</span> <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -220,13 +220,13 @@
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            ><span data-ze-stat="rfc.proven_display">1,834</span>
-                            <span class="label">of <span data-ze-stat="rfc.gated_implemented_display">3,047</span> RFC MUSTs</span></strong
+                            ><span data-ze-stat="rfc.proven_display">1,892</span>
+                            <span class="label">of <span data-ze-stat="rfc.gated_implemented_display">3,057</span> RFC MUSTs</span></strong
                         >
                         <ul>
-                            <li><span data-ze-stat="rfc.proven_percent">60.2</span>% tested</li>
-                            <li><span data-ze-stat="rfc.implemented_display">146</span> RFCs Ze claims support for</li>
-                            <li><span data-ze-stat="rfc.inspected_display">181</span> RFCs with requirements extracted</li>
+                            <li><span data-ze-stat="rfc.proven_percent">61.9</span>% tested</li>
+                            <li><span data-ze-stat="rfc.implemented_display">147</span> RFCs Ze claims support for</li>
+                            <li><span data-ze-stat="rfc.inspected_display">182</span> RFCs with requirements extracted</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
@@ -570,6 +570,20 @@
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
+                        <p class="home-update-date">Week of 2026-09-07</p>
+                        <h3><a href="project/changes/2026-09-07/">Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-routing">BGP</span>
+                            <span class="home-update-tag cat-platform">Interfaces</span>
+                            <span class="home-update-tag cat-secure">Security</span>
+                            <span class="home-update-tag cat-services">PPPoE</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card tone-pink">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
                         <p class="home-update-date">Week of 2026-08-31</p>
                         <h3><a href="project/changes/2026-08-31/">Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.</a></h3>
                         <div class="home-update-tags">
@@ -579,10 +593,10 @@
                             <span class="home-update-tag cat-services">RADIUS</span>
                         </div>
                     </article>
-                    <article class="card card-post home-update-card tone-pink">
+                    <article class="card card-post home-update-card tone-grape">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
                         <p class="home-update-date">Week of 2026-08-24</p>
                         <h3><a href="project/changes/2026-08-24/">Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.</a></h3>
@@ -591,20 +605,6 @@
                             <span class="home-update-tag cat-routing">BGP</span>
                             <span class="home-update-tag cat-services">PPPoE</span>
                             <span class="home-update-tag cat-secure">IPsec</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card tone-grape">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">Week of 2026-08-17</p>
-                        <h3><a href="project/changes/2026-08-17/">The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-routing">BGP</span>
-                            <span class="home-update-tag cat-operate">CLI</span>
-                            <span class="home-update-tag cat-automate">API</span>
-                            <span class="home-update-tag cat-observe">Flow Export</span>
                         </div>
                     </article>
                 </div>
@@ -673,7 +673,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

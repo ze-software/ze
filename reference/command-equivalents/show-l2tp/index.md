@@ -13,6 +13,7 @@ L2TP tunnel, session, and subscriber state.
 - Subcommands: `config`, `cqm`, `echo`, `health`, `listeners`, `observer`, `reliable`, `session`, `sessions`, `statistics`, `tunnel`, `tunnels`
 - Answer shape: not declared
 - Address fields: none
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log

@@ -256,7 +256,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li>malformed-Service-TLV treat-as-withdraw (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/rfc7606.go</code></a>)</li>
 <li>no-valid-SID best-path ineligibility (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_bestchange.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib_bestchange.go</code></a>)</li>
 <li>next-hop-change Prefix-SID strip vs next-hop-unchanged preserve (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_forward_facts.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer_forward_facts.go</code></a>)</li>
-<li>and SRv6 Prefix-SID config encode with zeroed reserved/flags octets (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_prefixsid.go" target="_blank" rel="noopener"><code>internal/component/bgp/config/routeattr_prefixsid.go</code></a>). Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9252.md" target="_blank" rel="noopener"><code>rfc/short/rfc9252.md</code></a>.</li>
+<li>and SRv6 Prefix-SID config encode with zeroed reserved/flags octets (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/prefixsid.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/prefixsid.go</code></a>). Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9252.md" target="_blank" rel="noopener"><code>rfc/short/rfc9252.md</code></a>.</li>
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
@@ -307,7 +307,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L163" title="internal/component/bgp/config/routeattr_test.go" target="_blank" rel="noopener"><code>TestParsePrefixSIDSRv6_ReservedFieldsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes the Service TLV Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/component/bgp/config/routeattr_prefixsid.go:339)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes the Service TLV Reserved octet to 0 on encode and no code path emits a non-zero value, so there is no negative input to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.1-2">RFC9252-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Service TLV Reserved field MUST be ignored by receiver (S3.1)</span></td></tr>
 <tr><td></td>
@@ -325,7 +325,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L164" title="internal/component/bgp/config/routeattr_test.go" target="_blank" rel="noopener"><code>TestParsePrefixSIDSRv6_ReservedFieldsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes RESERVED1 to 0 on encode with no non-zero path to reject (internal/component/bgp/config/routeattr_prefixsid.go:323)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes RESERVED1 to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2-2">RFC9252-3.2-2</code></td><td colspan="3"><span class="rfc-subject">SID Information Sub-TLV Service SID Flags MUST be set to 0 (S3.2)</span></td></tr>
 <tr><td></td>
@@ -334,7 +334,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L165" title="internal/component/bgp/config/routeattr_test.go" target="_blank" rel="noopener"><code>TestParsePrefixSIDSRv6_ReservedFieldsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes the Service SID Flags octet to 0 on encode with no non-zero path to reject (internal/component/bgp/config/routeattr_prefixsid.go:325)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes the Service SID Flags octet to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2-3">RFC9252-3.2-3</code></td><td colspan="3"><span class="rfc-subject">SID Information Sub-TLV RESERVED2 MUST be set to 0 (S3.2)</span></td></tr>
 <tr><td></td>
@@ -343,7 +343,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9252-3.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L166" title="internal/component/bgp/config/routeattr_test.go" target="_blank" rel="noopener"><code>TestParsePrefixSIDSRv6_ReservedFieldsZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes RESERVED2 to 0 on encode with no non-zero path to reject (internal/component/bgp/config/routeattr_prefixsid.go:325)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParsePrefixSIDSRv6 hardcodes RESERVED2 to 0 on encode with no non-zero path to reject (internal/core/bgp/attribute/prefixsid.go)</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9252-3.2.1-1">RFC9252-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Transposition Offset MUST be 0 when Transposition Length is 0 (S3.2.1)</span></td></tr>
 <tr><td></td>
@@ -844,7 +844,7 @@ EVPN transposition is not implemented: Section 6 puts the label field at a diffe
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

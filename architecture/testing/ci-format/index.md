@@ -671,8 +671,21 @@ keep their own default when it does not parse, so it is refused here instead.
 without blocking later steps. Its peers or observer determine when teardown starts.
 **Stop:** Terminates a named background process mid-test (see below).
 
-When an embedded observer sends `request shutdown`, teardown gives that daemon
-its bounded self-stop grace before stopping the other background processes.
+A foreground helper that is the LAST `cmd=` line is the exception, and a file
+that asserts on its output MUST declare `expect=exit:code=`. The runner waits
+for a foreground helper only while another command still follows it; as the last
+line it is classed with the daemons, so it is started and torn down with no
+`Wait`, and its output reaches the accumulators only if it wins that race. The
+exit assertion is what makes the runner wait for it (`fgProc.Wait()`), and the
+code it asserts is that helper's own. Without it an `expect=stdout:contains=`
+over the helper's span reads an empty buffer, and a `reject=` over the same span
+can never fail.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the foreground arm and the ExpectExitCode wait -->
+
+When an embedded observer sends `request shutdown`, teardown waits out that
+daemon's bounded self-stop grace before it stops any other background process,
+whatever order those processes started in. A helper the daemon still talks to
+during its own shutdown stays up for that wait.
 
 <!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, startBackgroundLifetime -->
 <!-- source: internal/test/runner/runner_exec_util.go -- tmpfsRequestsDaemonShutdown, terminateAfterSelfExit -->
@@ -763,42 +776,60 @@ Prefer `exit=` whenever a file runs more than one quick-exit `ze` command. A
 (`hub`, `start`, `cli`, `monitor`) and which has no config-file argument or
 `--web` flag.
 
-#### Every stream assertion is FILE-level, over ONE buffer
+#### Every stream assertion is scoped to the command above it
 
-This section describes the **generic** runner, which is every suite except
-`test/parse`. The parse suite scopes each assertion to one command; see "The
-parse suite reads its own dialect" below.
+`expect=stdout:`, `reject=stdout:`, `expect=stderr:contains=` and
+`reject=stderr:contains=` are checked against the output of the `cmd=` line
+directly above them, and against nothing else. Position is the grammar: the
+line means what its place in the file says it means.
 
-`expect=stdout:`, `expect=stderr:`, `reject=stdout:` and `reject=stderr:contains=`
-all read `Record.ClientOutput`, which the runner builds ONCE at the end of the
-test as the concatenated stdout AND stderr of every command in the file. Two
-consequences, and an author who misses either writes an assertion that cannot
-mean what it says:
+- **A line with no `cmd=` above it is refused at parse time**, naming the file
+  and the line. It named no command's output, so there was nothing for it to
+  assert. Move it below the `cmd=` line that produces what it describes.
+- **A line under a `cmd=stop` is refused for the same reason.** A stop directive
+  terminates a named background process; it runs no program and writes nothing.
+- **The stream name still selects nothing for `contains=`.** A command's span
+  covers both its streams, because a program is free to write a message to
+  either and a test that pins which one is asserting the wrong thing.
+- **`expect=stderr:pattern=` and `reject=stderr:pattern=` are NOT scoped.**
+  Those are the daemon-logging mechanism `validateLogging` owns, over the
+  daemon's relayed stderr, and they stay file-level.
 
-- **There is no per-command scope.** `expect=stdout:contains=` can be satisfied
-  by a different command than the one it sits under, and a reject trips on any
-  command's output. A file that asserts a needle PRESENT for one command and
-  ABSENT for another asserts two contradictory things about one string.
-- **The stream name selects nothing** for `contains=`. Only `pattern=` on
-  `expect=stderr:` / `reject=stderr:` reads stderr alone, through
-  `validateLogging`.
+A command's span is the half-open slice of the run's two accumulators it wrote
+between starting and finishing. A quick-exit `ze` marks both ends around its own
+fold, so its span is exact. A background process is still writing when the test
+ends, and a foreground daemon's bytes arrive throughout its life, so both close
+at the final lengths: a long-running command's span can therefore contain bytes
+a later command wrote. A command the run never reached has an EMPTY span, never
+the whole buffer.
 
-So a negative assertion belongs in a file whose every command may satisfy it.
-Split the file otherwise: `test/plugin/vpp-doctor-hugepages.ci` and
-`vpp-doctor-hugepages-quiet.ci` are one scenario in two files for exactly this
-reason, as are `test/appliance/no-install-appliance.ci` and
-`appliance-help-not-deprecated.ci`, and each says so at the top. Also see
-`test/vrrp/vrrp-doctor-quiet.ci`, a single-command file so its reject is
-meaningful.
-<!-- source: internal/test/runner/runner_exec.go -- rec.ClientOutput = clientStdout.String() + clientStderr.String() -->
-<!-- source: internal/test/runner/runner_output_assert.go -- checkOutputAssertions -->
-<!-- source: internal/test/runner/runner_exec.go -- quickZe branch, per-command exit assertion -->
+**This replaced a file-level check over one combined buffer.** Every assertion
+used to read `Record.ClientOutput`, the concatenated stdout AND stderr of every
+command in the file, so an assertion could be satisfied by a command its author
+never named and a reject could trip on any command's output. Two files did
+exactly that: `test/plugin/kernel-capability-unknown-starts.ci` and
+`kernel-capability-doctor-reports.ci` each asserted that `ze doctor` printed a
+diagnostic code and then ran `ze explain <that code>`, whose output satisfied the
+assertion on a host where the doctor check does not run at all.
+
+So a file no longer needs splitting to make a negative assertion mean something.
+`test/plugin/vpp-doctor-hugepages.ci` and `vpp-doctor-hugepages-quiet.ci`, and
+`test/appliance/no-install-appliance.ci` and `appliance-help-not-deprecated.ci`,
+are each one scenario in two files for a reason that no longer applies; they are
+correct as they stand and splitting a new file for that reason is not.
+
+A failure names the command: `cmd seq=2 (ze config validate -): output does not
+contain "..."`.
+<!-- source: internal/test/runner/record.go -- RunCommand.ExpectStdout, stdoutFrom -->
+<!-- source: internal/test/runner/record_parse.go -- Record.assertionTarget -->
+<!-- source: internal/test/runner/runner_output_assert.go -- checkCommandAssertions, commandSpan, closeOpenSpans -->
+<!-- source: internal/test/runner/runner_exec_util.go -- awaitQuickZe marks the exact span -->
 <!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec, markerExit -->
 <!-- source: internal/test/runner/record.go -- RunCommand.ExitCode -->
 
 <!-- test: internal/test/runner/record_newformat_test.go TestParseCmdExec -- exit= parsing, marker order, 0..255 bounds -->
+<!-- test: internal/test/runner/record_parse_keys_test.go TestNonContainmentBothPolarities -- both polarities over one command's span -->
 <!-- test: test/vrrp/vrrp-config-invalid.ci -- 11 rejections, each asserted via exit=1 -->
-<!-- test: test/vrrp/vrrp-doctor-quiet.ci -- single-command file so reject=stdout is meaningful -->
 
 **Known gap:** 108 quick-exit `ze` commands across 50 `.ci` files predate `exit=`
 and are still unasserted (their `expect=exit:code=` never reaches them). Arming
@@ -809,14 +840,12 @@ them may surface real defects; tracked in `plan/known-failures/`.
 `test/parse` runs under `ParsingTests`, a second parser with its own execution
 model. Two differences are load-bearing for an author.
 
-**Every assertion is scoped to one command.** It is checked against the stdout
-and stderr of the `cmd=` line directly above it, not against a file-level
-buffer. So a needle asserted present under one command and absent under another
-means what it says here, and does not need the file split the section above
-describes. An assertion that appears before the first `cmd=` has nothing to
-assert against and **fails the file**; `expect=stderr:contains=` is the one
-exception, because a `.ci` holding an inline config and no command at all is a
-legacy negative test whose expected error it carries.
+**Every assertion is scoped to one command**, as it is in the generic runner
+(above). This suite has always worked that way and the generic runner now does
+too, so the two dialects no longer disagree about what an assertion's position
+means. One difference survives: here `expect=stderr:contains=` MAY appear before
+the first `cmd=`, because a `.ci` holding an inline config and no command at all
+is a legacy negative test whose expected error it carries.
 
 **The dialect is a subset of the generic vocabulary, and nothing else parses.**
 A directive no arm reads **fails the file at discovery**, naming the directive,

@@ -13,6 +13,7 @@ Show IRR-resolved prefixes for a peer.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: map
 - Address fields: none
+- Column order: asn, as-set, prefixes
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display
 - Pipes, on its rows: none
 - Pipes, while streaming: log

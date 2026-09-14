@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 37.5% | 6 of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 37.5% | 6 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 26.3% | 5 of 19 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 36.8% | 7 of 19 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -221,7 +221,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPv6CPNakOnEqualNonZeroIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1260) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPv6CPNakOnEqualNonZeroIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1260) | unit/verify | revert, verified |
 
 ### [`RFC5072-4.1-5`](#rfc5072-4.1-5)
 
@@ -241,7 +241,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPv6CPBothZeroIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1173) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestIPv6CPBothZeroIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1173) | unit/verify | revert, verified |
 
 ### [`RFC5072-4.1-7`](#rfc5072-4.1-7)
 

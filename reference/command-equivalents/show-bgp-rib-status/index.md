@@ -13,6 +13,7 @@ Get a quick RIB overview without dumping routes.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
+- Column order: running, peers, routes-in, routes-out, stale-routes, route-counts, gr-state
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
 - Pipes, on its rows: none
 - Pipes, while streaming: log

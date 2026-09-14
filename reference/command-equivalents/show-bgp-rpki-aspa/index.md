@@ -13,6 +13,7 @@ Show ASPA cache or lookup providers for a customer AS
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
+- Column order: customer-asn, providers
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log

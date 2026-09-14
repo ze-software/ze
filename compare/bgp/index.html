@@ -449,7 +449,7 @@
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
-<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
@@ -532,6 +532,20 @@
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>AS notation, asplain/asdot/asdot+ (RFC 5396)</td>
+<td class="cell-yes">✓</td>
+<td>?</td>
+<td>?</td>
+<td class="cell-yes">✓</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
 </tr>
 <tr>
 <td>Capability negotiation</td>
@@ -618,6 +632,20 @@
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>Startup convergence hold (<code>update-delay</code>)</td>
+<td class="cell-yes">✓</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
 <td>Add-Path (RFC 7911)</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
@@ -646,13 +674,27 @@
 <td class="cell-no">✕</td>
 </tr>
 <tr>
+<td>BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode)</td>
+<td class="cell-yes">✓</td>
+<td>?</td>
+<td>?</td>
+<td class="cell-yes">✓</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
 <td>Extended Messages (RFC 8654)</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
 <td class="cell-yes">✓</td>
-<td class="cell-no">✕</td>
+<td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
 <td class="cell-yes">✓</td>
 <td class="cell-no">✕</td>
@@ -745,6 +787,14 @@
 </tr>
 </tbody>
 </table>
+<p><strong>AS notation:</strong> an AS number is accepted in any of the three RFC 5396
+notations everywhere in the configuration and in every command, and
+<code>bgp as-notation</code> picks the one Ze prints. FRR carries the same choice as
+<code>bgp asnotation</code>.</p>
+<p><strong>BFD strict mode:</strong> the capability holds a BGP session out of Established
+until the BFD session to that neighbor is Up, so a session never forms across
+a link BFD cannot cross. FRR carries it as <code>neighbor &lt;peer&gt; bfd strict</code>. The
+other daemons here were not checked for it.</p>
 <h2 id="cross-protocol-redistribute">Cross-Protocol Redistribute</h2>
 <p>Ze advertises locally-originated routes from non-BGP protocols (connected,
 static, L2TP, IS-IS, OSPF) into BGP via the <code>redistribute-orchestrator</code>
@@ -2265,7 +2315,7 @@ reading thirteen tables.</p>
 <li><strong>OSPFv3 Extended LSAs (RFC 8362) do not interoperate.</strong> Ze builds 3 of the 7 LSA types and sets the U-bit wrong on all of them, so they stop at the first OSPFv3 router that does not support them. Neither FRR nor BIRD implements RFC 8362 at all.</li>
 <li><strong>BGP confederations (RFC 5065) are missing.</strong> BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr support them.</li>
 <li><strong>Privilege separation is missing.</strong> At least one other implementation in this table has it.</li>
-<li><strong>BFD integration is partial.</strong> Several other implementations here have full support.</li>
+<li><strong>BFD integration is partial.</strong> Several other implementations here have full support. Ze does carry BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode, capability 74), which holds a BGP session out of Established until the BFD session is Up.</li>
 <li><strong>Embeddable library mode is missing.</strong> At least two other implementations in this table offer one.</li>
 <li><strong>Custom filter language is missing.</strong> Ze relies on plugin chains instead.</li>
 <li><strong>Multi-Topology IS-IS (RFC 5120) is missing.</strong> Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.</li>
@@ -2332,7 +2382,7 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">29,800+</span> unit tests,
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">29,900+</span> unit tests,
 <span data-ze-stat="tests.e2e_display">2,000+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">83</span> fuzz targets, and
 interop testing against <span data-ze-stat="interop.target_display">9</span> independent BGP
 implementations. That evidence can be checked. It is not a promise. Ze
@@ -2443,7 +2493,7 @@ embeddable library mode. The full-router comparison belongs on the
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

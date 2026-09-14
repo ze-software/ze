@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8955 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 8955 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8955 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,9 +116,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>40.9%</strong><b>9 of 22 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>31.8%</strong><b>7 of 22 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>36.4%</strong><b>8 of 22 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 22 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 41 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>2.4%</strong><b>1 of 42 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>22.7%</strong><b>5 of 22 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>18.2%</strong><b>4 of 22 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -211,7 +211,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>5</td>
+<td>4</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -220,16 +220,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>41</td>
+<td>42</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>41</td>
+<td>42</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8955.md</code></td>
@@ -256,7 +256,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Five MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md" target="_blank" rel="noopener"><code>rfc/short/rfc8955.md</code></a>: <a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a> -- the MP_REACH next-hop length is taken from the configured next-hop instead of being forced to 0 for SAFI 133/134; <a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a> -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as <code>=</code>; <a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a> -- no feasibility validation of a FlowSpec against the unicast RIB; <a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a> -- no eBGP leftmost-neighbor-AS enforcement; and <a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a> -- no revalidation when unicast routes change.
+Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md" target="_blank" rel="noopener"><code>rfc/short/rfc8955.md</code></a>: <a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a> -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as <code>=</code>; <a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a> -- no feasibility validation of a FlowSpec against the unicast RIB; <a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a> -- no eBGP leftmost-neighbor-AS enforcement; and <a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a> -- no revalidation when unicast routes change.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -320,9 +320,9 @@ Five MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11" title="test/encode/flow-encode.ci" target="_blank" rel="noopener"><code>flow-encode.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> buildMPReachPlugin writes the MP_REACH next-hop length from the configured next-hop with no SAFI 133/134 special case (internal/component/bgp/message/update_build_plugin.go:140,:147), and the FlowSpec config parser passes the operator&#39;s next-hop straight through (internal/component/bgp/plugins/nlri/flowspec/config.go:94 -&gt; internal/component/bgp/reactor/peer_static_routes.go:22), so a FlowSpec route configured with a next-hop encodes a 4- or 16-octet length; buildMPReachFlowSpec does the same (internal/component/bgp/message/update_build_flowspec.go:148,:180)</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the length is a constant rather than a decision, so there is no wrong input the encoder rejects. Both producers the earlier gap named are fixed: buildMPReachFlowSpec writes SAFI 133 and 134 only, so it sets the length to 0 and does not read the next-hop at all, and buildMPReachPlugin asks family.NeedsNextHop, which answers false for both SAFIs (internal/component/bgp/message/update_build_flowspec.go, update_build_plugin.go, internal/core/family/family.go). The API batch rail already asked the same question. The operator&#39;s next-hop is still parsed and still carried; the family is what refuses to put it on the wire</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4-4">RFC8955-4-4</code></td><td colspan="3"><span class="rfc-subject">Network Address of the Next-Hop field MUST be ignored (§4)</span></td></tr>
 <tr><td></td>
@@ -627,10 +627,6 @@ Five MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a> Length of the Next-Hop Network Address MUST be set to 0 (§4)</td>
-<td>{gap}, no test</td>
-<td>buildMPReachPlugin writes the MP_REACH next-hop length from the configured next-hop with no SAFI 133/134 special case (internal/component/bgp/message/update_build_plugin.go:140,:147), and the FlowSpec config parser passes the operator&#39;s next-hop straight through (internal/component/bgp/plugins/nlri/flowspec/config.go:94 -&gt; internal/component/bgp/reactor/peer_static_routes.go:22), so a FlowSpec route configured with a next-hop encodes a 4- or 16-octet length; buildMPReachFlowSpec does the same (internal/component/bgp/message/update_build_flowspec.go:148,:180)</td>
-</tr>
 <tr><td><a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a> Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</td>
 <td>{gap}, no test</td>
 <td>parseNumericComponent masks off only the end-of-list, AND and length bits (op &amp;^ 0xF0), so reserved bit 4 (0x08) survives into FlowMatch.Op and formatWithOperator&#39;s switch then falls through to the &#39;=&#39; default -- a received &#39;&gt;&#39; operator with the reserved bit set decodes as &#39;=&#39; instead of being ignored (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:322, plugin_decode.go:247-265)</td>
@@ -695,7 +691,18 @@ Five MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
 <h3><a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a></h3>
 <p>Length of the Next-Hop Network Address MUST be set to 0 (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8955-4-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/encode/flow-encode.ci#L11" title="test/encode/flow-encode.ci" target="_blank" rel="noopener"><code>flow-encode.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8955-4-4"><code>RFC8955-4-4</code></a></h3>
 <p>Network Address of the Next-Hop field MUST be ignored (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1082,7 +1089,7 @@ Five MUST-level gaps, each annotated in <a href="https://github.com/ze-software/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 11:19 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

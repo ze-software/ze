@@ -1236,6 +1236,7 @@ show bgp peer &lt;selector&gt; history      # Show FSM transition history
 request peer &lt;selector&gt; teardown [&lt;cease-subcode&gt;]  # Disconnect peer
 create bgp peer &lt;address&gt; asn &lt;asn&gt; [...]  # Add a peer to the running daemon
 delete bgp peer &lt;name&gt;             # Remove dynamic peer
+update bgp config                  # Write the running peer set to the config file
 request peer &lt;sel&gt; flush           # Wait for forward pool to drain (barrier)
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
@@ -2855,6 +2856,10 @@ field is cut to the displayed ones. A record that carries none is left whole.
 Without that agreement a nested sub-table and the JSON behind it would answer
 with different fields. Without it a record naming nothing displayed would render
 as a box with no rows.</p>
+<p><code>applyDisplaySelect</code> decodes the payload through <code>decodePipeJSON</code>, the decoder
+every JSON-reading operator shares. It keeps each number as written and refuses
+a payload with trailing data. A uint64 wider than a float64 therefore reaches
+the rendering with its digits intact.</p>
 <p><strong>A kind the <code>foldFilters</code> switch does not name stays in the chain.</strong> The switch
 names the five kinds a command can own as a filter it resolves itself. Its
 <code>default:</code> arm carries every other kind to the chain <code>ApplyPipes</code> runs over the
@@ -3695,7 +3700,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

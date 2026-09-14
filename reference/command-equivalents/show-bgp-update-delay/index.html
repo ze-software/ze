@@ -64,6 +64,7 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Answer shape</dt><dd>doc</dd></div>
+<div><dt>Column order</dt><dd>configured, holding, released, reason, expected-peers, peers-held, peers-converged, max-delay-seconds, establish-wait-seconds</dd></div>
 </dl>
 <h3>Description</h3><p>The command takes no argument, because the hold belongs to the speaker and not to a<br>peer. configured says an operator set bgp update-delay max-delay. holding says this speaker is withholding its<br>first advertisement right now, and released says the hold has ended. reason names the condition that ended it:<br>converged, establish-wait or max-delay. expected-peers, peers-held and peers-converged say what the hold is<br>still waiting for, so you can name the neighbor that has not finished. Read this command when a speaker has come<br>up and advertised nothing: it separates a hold that is working from a daemon that is wedged.</p>
 <h3>Arguments</h3>
@@ -130,7 +131,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 12:21 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
                 </div>
             </div>
         </footer>

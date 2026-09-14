@@ -298,8 +298,8 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST NOT</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L255" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L269" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L247" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L261" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.1-2">RFC3948-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Source and destination ports MUST match the ports used by IKE (port 4500 after port float) (S2.1)</span></td></tr>
@@ -307,7 +307,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>2.1 - UDP-Encapsulated ESP Header Format</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L288" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L280" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Child SA install unconditionally sets both UDP-encap ports to the fixed IKE NAT-T port 4500 (internal/component/ike/engine/child.go:237-238,265-266); no ze code path produces a non-4500 encap port, so there is no mismatched-port case to reject</p></td>
 </tr>
@@ -373,9 +373,9 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>MUST</td>
 <td>1 - Introduction</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L195" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L468" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L509" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L187" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L460" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L501" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3948-2.3-2">RFC3948-2.3-2</code></td><td colspan="3"><span class="rfc-subject">The NAT-keepalive sender MUST use a one-octet-long payload with the value 0xFF (S2.3)</span></td></tr>
@@ -403,7 +403,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <td>3.1.1 - Tunnel Mode Decapsulation NAT Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3948-3.1.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L28" title="internal/component/ike/engine/rfc3948_inner_source_policy_test.go" target="_blank" rel="noopener"><code>TestChildInboundPolicyDefinesTheValidInnerSourceSpace</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L423" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L415" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze takes the first option by installing the inbound policy with the negotiated remote traffic selector as its source selector (childPolicyParams, internal/component/ike/engine/child.go), and the drop of a mismatched inner packet is the kernel&#39;s, so ze holds no rejecting branch</p></td>
 </tr>
@@ -492,12 +492,12 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L269" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L261" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L255" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L247" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -512,7 +512,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L288" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L280" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSANATTEncapPorts</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -641,17 +641,17 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L509" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L501" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L195" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L187" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L468" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L460" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -706,7 +706,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L423" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L415" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -999,7 +999,7 @@ Section 5.1 tunnel mode conflict (<code>RFC3948-5.1-1</code>) is a gap. Ze assig
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 09:59 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

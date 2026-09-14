@@ -118,7 +118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.0%</strong><b>3 of 6 tagged units, 0 escaped and 3 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>6 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -412,12 +412,12 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L59" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDialerWithoutOutTTLLeavesTheDefault</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L40" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDialerSetsOutgoingTTLTo255</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -456,7 +456,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMNoFloorDeliversAnUnknownPacket</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMFloorDeliversATrustedPacket</code></a></td>
@@ -701,7 +701,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
                 </div>
             </div>
         </footer>

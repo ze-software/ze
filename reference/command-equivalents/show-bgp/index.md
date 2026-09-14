@@ -13,6 +13,7 @@ BGP peers, sessions, RIB, and protocol tools.
 - Subcommands: `decode`, `encode`, `health`, `irr`, `peer`, `reject-asn`, `rib`, `update-delay`
 - Answer shape: tab
 - Address fields: address
+- Column order: address, name, description, remote-as, peer-type, state, uptime, state-changed, last-error, routes-received, routes-accepted, routes-sent, updates-received, updates-sent, keepalives-received, keepalives-sent, eor-received, eor-sent, connections-dropped; router-id, local-as, uptime, peers-configured, peers-established, family, peers-in-family, peers
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

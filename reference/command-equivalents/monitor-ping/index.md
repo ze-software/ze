@@ -13,6 +13,7 @@ Continuous ping with live loss and RTT statistics.
 - Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: target
+- Column order: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
 - Pipes, on its rows: none
 - Pipes, while streaming: log

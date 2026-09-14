@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 25.0% | 3 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 50.0% | 6 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 14 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 30.8% | 4 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 46.2% | 6 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 11.8% | 2 of 17 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 8.3% | 1 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 13 | of 17 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 1 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 7.7% | 1 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 16.7% | 2 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 15.4% | 2 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,23 +59,23 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 16 |
-| Gated MUST-level | 12 |
+| Requirements | 17 |
+| Gated MUST-level | 13 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 2 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 14 |
-| Tagged units | 14 |
+| Test tags | 17 |
+| Tagged units | 17 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc8907.md` |
 | Requirement shard | `rfc/requirements/rfc8907.md` |
 | RFC text | `rfc/full/rfc8907.txt` |
 
 ## Enrolment
 
-Enrolled: The TACACS+ Protocol (ze as a TACACS+ client/NAS): eleven MUST-level requirements. Eight are met in internal/component/tacacs: 4-1 (the major version nibble is 0xC, other versions rejected) and 4-2 (the sequence number is client-odd and the reply is request+1) carry positive+negative tags; 4-3 (the session id is drawn from a cryptographic RNG) is {single-polarity: positive} with a new uniqueness test; 4-4 (one session id for the whole session), 4-5 (multi-octet header fields are network byte order), 7-1 and 7-2 (an accounting REQUEST sets only Start or Stop, never the MORE flag), and 10-1 (the Unencrypted flag is never set when a key is configured) are {single-polarity: positive}. 5-1 (sequence-number wrap ends the session) is {not-applicable}: ze runs a single-exchange PAP authentication with no CONTINUE loop, so the sequence never approaches 0xFE. Two are {gap}: 4.6-1 (no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected) and 6-1 (authorization is decided on the response Status alone; mandatory response arguments are never parsed). Disclosed in the docs/features/rfc-status.md RFC 8907 row.
+Enrolled: The TACACS+ Protocol (ze as a TACACS+ client/NAS): thirteen MUST-level requirements. Ten are met in internal/component/tacacs: 4-1 (the major version nibble is 0xC, other versions rejected) and 4-2 (the sequence number is client-odd and the reply is request+1) carry positive+negative tags; 4-3 (the session id is drawn from a cryptographic RNG) is {single-polarity: positive} with a new uniqueness test; 4-4 (one session id for the whole session), 4-5 (multi-octet header fields are network byte order), 7-1 and 7-2 (an accounting REQUEST sets only Start or Stop, never the MORE flag), and 10-1 (the Unencrypted flag is never set when a key is configured) are {single-polarity: positive}. 10.5.2-1 (a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from closes the TCP session and reads as a FAIL) and 10-2 (a client never sets TAC_PLUS_UNENCRYPTED_FLAG) carry positive+negative tags. 5-1 (sequence-number wrap ends the session) is {not-applicable}: ze runs a single-exchange PAP authentication with no CONTINUE loop, so the sequence never approaches 0xFE. Two are {gap}: 4.6-1 (no exact decrypted-body-length check, so a wrong shared secret yielding a plausibly-sized body is not cleanly rejected) and 6-1 (authorization is decided on the response Status alone; mandatory response arguments are never parsed). Disclosed in the docs/features/rfc-status.md RFC 8907 row.
 
 ## What the public ledger says
 
@@ -95,14 +95,14 @@ Two MUST gaps gated in [`rfc/short/rfc8907.md`](https://github.com/ze-software/z
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
+| Positive and negative tests | 4 | one part of the gated population |
 | Annotated instead of tested | 9 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (3):** [`RFC8907-4-1`](#rfc8907-4-1), [`RFC8907-4-2`](#rfc8907-4-2), [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1)
+**Positive and negative tests (4):** [`RFC8907-4-1`](#rfc8907-4-1), [`RFC8907-4-2`](#rfc8907-4-2), [`RFC8907-10-2`](#rfc8907-10-2), [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1)
 
 **Annotated instead of tested (9):** [`RFC8907-4-3`](#rfc8907-4-3), [`RFC8907-4-4`](#rfc8907-4-4), [`RFC8907-4-5`](#rfc8907-4-5), [`RFC8907-4.6-1`](#rfc8907-4.6-1), [`RFC8907-5-1`](#rfc8907-5-1), [`RFC8907-7-1`](#rfc8907-7-1), [`RFC8907-7-2`](#rfc8907-7-2), [`RFC8907-10-1`](#rfc8907-10-1), [`RFC8907-6-1`](#rfc8907-6-1)
 
@@ -119,8 +119,9 @@ Two MUST gaps gated in [`rfc/short/rfc8907.md`](https://github.com/ze-software/z
 | `RFC8907-5-1` | Max sequence number is 0xFE (254); if reached, session MUST abort (§5, Authentication) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze's TACACS+ client performs a single-exchange PAP authentication (internal/component/tacacs/client.go:219 sends seq 1 and expects seq 2, internal/component/tacacs/authen.go NewPAPAuthenStart with no CONTINUE loop), so the sequence number never approaches 0xFE and the ErrSeqOverflow guard (packet.go:99) has no reachable code path |
 | `RFC8907-7-1` | Accounting flag MORE (0x01) is deprecated and MUST NOT be set (§7, Accounting) | MUST NOT | 7 | **positive:** `unit/verify` [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L13). **negative:** no negative test. **{single-polarity}:** ze builds accounting requests with Flags set to AcctFlagStart or AcctFlagStop only (internal/component/tacacs/accounting.go:171 and 198); the deprecated MORE bit is never emitted, so there is no code path that sets it to drive a negative against |
 | `RFC8907-7-2` | START and STOP accounting flags are mutually exclusive (§7, Accounting) | MUST | 7 | **positive:** `unit/verify` [`TestAcctRequestMarshalStartStop`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/acct_test.go#L14). **negative:** no negative test. **{single-polarity}:** ze emits Flags as exactly AcctFlagStart (0x02) or AcctFlagStop (0x04) at internal/component/tacacs/accounting.go:171 and 198, never combined; a Start-plus-Stop combination is unreachable by construction, so there is no negative to test |
-| `RFC8907-10-1` | Unencrypted mode (flag 0x01) MUST only be used with TLS (§10, Security) | MUST | 10 | **positive:** `unit/verify` [`TestPacketMarshalRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128). **positive:** `unit/verify` [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137). **negative:** no negative test. **{single-polarity}:** the client never sets TAC_PLUS_UNENCRYPTED_FLAG and never emits a readable body: MarshalInto (internal/component/tacacs/packet.go MarshalInto) obfuscates whenever a key is configured and the client only ORs FlagSingleConnect (internal/component/tacacs/client.go trySend), so the emission is judged on the octets the client puts on the connection (TestRFC8907ClientNeverSendsUnobfuscatedBody); no configuration reaches an unencrypted send, so there is no negative path |
-| `RFC8907-10.5.2-1` | A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation) | MUST | 10.5.2 | **positive:** `unit/verify` [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L221). **negative:** `unit/verify` [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L194) |
+| `RFC8907-10-1` | §10.5.2: "Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security) | MUST | 10 | **positive:** `unit/verify` [`TestPacketMarshalRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128). **positive:** `unit/verify` [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137). **positive:** `unit/verify` [`TestRFC8907UnencryptedModeIsNotReachableFromConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93). **negative:** no negative test. **{single-polarity}:** ze exposes no configuration that enables TAC_PLUS_UNENCRYPTED_FLAG: the schema declares no leaf for it and makes the shared secret mandatory (internal/component/tacacs/yang/ze-tacacs-conf.yang), the only request flag any producer sets is FlagSingleConnect (internal/component/tacacs/client.go trySend), and (*Packet).MarshalInto (internal/component/tacacs/packet.go) refuses a marshal with no shared secret instead of falling back to an unencrypted send, so there is no enabled state to drive a negative against |
+| `RFC8907-10-2` | "TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security) | MUST NOT | 10 | **positive:** `unit/verify` [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142). **negative:** `unit/verify` [`TestPacketMarshalNoEncryption`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167) |
+| `RFC8907-10.5.2-1` | A client that receives a reply whose obfuscation state disagrees with the shared-secret configuration of the server it came from MUST close the TCP session and process the reply as a FAIL (§10.5.2, Connections and Obfuscation) | MUST | 10.5.2 | **positive:** `unit/verify` [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L225). **negative:** `unit/verify` [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198) |
 | `RFC8907-6-1` | Authorization argument separator `=` (equals): client MUST be able to act on mandatory attributes or reject the authorization (§6, Authorization) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze decides authorization on the response Status alone (internal/component/tacacs/authorizer.go:116-135); AuthorResponse.Args is unmarshalled (author.go:171-175) but never inspected, and no attribute-value =/* separator parsing exists, so a server PASS carrying an unknown mandatory argument is honored rather than rejected |
 | `RFC8907-4.6-2` | Servers SHOULD reject unencrypted packets unless explicitly configured (§4.6, Body Encryption) | SHOULD | 4.6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8907-x-1` | Server SHOULD use a configurable connection timeout (Connection Management) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
@@ -230,7 +231,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC8907-10-1`](#rfc8907-10-1)
 
-Unencrypted mode (flag 0x01) MUST only be used with TLS (§10, Security)
+§10.5.2: "Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -238,6 +239,18 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | positive | [`TestPacketMarshalRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L128) | unit/verify | unproven |
 | positive | [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L137) | unit/verify | unproven |
+| positive | [`TestRFC8907UnencryptedModeIsNotReachableFromConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_unencrypted_config_test.go#L93) | unit/verify | revert, verified |
+
+### [`RFC8907-10-2`](#rfc8907-10-2)
+
+"TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG." (§10, Security)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestPacketMarshalNoEncryption`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/packet_test.go#L167) | unit/verify | unproven |
+| positive | [`TestRFC8907ClientNeverSendsUnobfuscatedBody`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L142) | unit/verify | revert, verified |
 
 ### [`RFC8907-10.5.2-1`](#rfc8907-10.5.2-1)
 
@@ -247,8 +260,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L194) | unit/verify | unproven |
-| positive | [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L221) | unit/verify | unproven |
+| negative | [`TestRFC8907ClientRefusesUnobfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L198) | unit/verify | unproven |
+| positive | [`TestRFC8907ClientAcceptsObfuscatedReply`](https://github.com/ze-software/ze/blob/main/internal/component/tacacs/rfc8907_obfuscation_test.go#L225) | unit/verify | unproven |
 
 ### [`RFC8907-6-1`](#rfc8907-6-1)
 
