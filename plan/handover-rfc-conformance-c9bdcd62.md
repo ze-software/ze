@@ -1,5 +1,51 @@
 # Handover: RFC conformance drive, session c9bdcd62
 
+## Moving to Linux: what changes, and what did not travel
+
+Development is moving to a Linux machine. Three things change for the better and
+one thing has to be carried by hand.
+
+**What gets easier.** Most of what this session could not finish was blocked by the
+workstation being darwin, and none of it is blocked on Linux:
+
+- `./le rfc discriminate-record` refuses a `//go:build linux` unit here, because the
+  coverage profile shows the producer never executed: that code is not in the build
+  at all. On Linux those records are observable natively, and the privileged
+  `golang:1.27` container this session used several times becomes unnecessary.
+- `TestSetIPv6MinHopCountEnforcesTheFloor` (`internal/core/network/`) is committed
+  UNRUN for that reason. Run it first; it is the smallest of the six audit rows and
+  it tells you whether the pattern holds.
+- The loopback address the test suite needs is `ip -6 addr add fd00::2/128 dev lo`
+  on Linux, not the `ifconfig` form. `./le setup check` reports it as
+  `loopback-addresses (fd00::2 (REQUIRED))` when it is absent, and two reactor tests
+  fail correctly without it.
+- The kernel work is native. `internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go`
+  and `TestAHPolicyResolvesToTheSAItNames` need a Linux host with AH, which the
+  rebuilt appliance kernel now has.
+
+**What did not travel, and why.** When this was written the checkout held roughly
+300 uncommitted paths belonging to OTHER sessions working the same tree: the OSPF
+engine, the CLI model, the YANG enum vocabulary, the iface component, the doctor
+and diagnostic registries. This session tried to land them, on the 2026-09-07 owner
+directive that landing is the presumption, and got three answers:
+
+- The documentation and site edits LANDED.
+- The OSPF group was refused by the commit gate: it changes 32 RFC-tagged tests and
+  owes owner-approval rows in `test/rfc-changed/`, which an author may not write for
+  their own change and certainly not for another session's.
+- The component group was refused by the harness as a shared-resource change.
+
+So anything still uncommitted on the darwin workstation is NOT on the Linux machine.
+Check `git log --oneline origin/main..main` there and on the workstation before
+assuming a file exists. `backups/handover-c9bdcd62-*.bundle` carries this session's
+own commits if they were never pushed.
+
+**The one package that must not be carried blind.** `internal/component/doctor` and
+`internal/component/sysctl` were the only two packages in the tree that did not
+build: `procSysWritable`, `probeWritableDir`, `checkRPKIServers` and
+`checkBMPCollectors` are referenced and defined nowhere on disk. That is a refactor
+that was in flight in a live session. Do not adopt those files without their author.
+
 ## Before anything else: a stale staged index is waiting
 
 **The staging area holds a snapshot that would undo work HEAD already carries, and
