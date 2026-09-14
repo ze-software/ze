@@ -1,5 +1,39 @@
 # Handover: RFC conformance drive, session c9bdcd62
 
+## Read this first: how to continue
+
+**The work may not be on your machine.** When this was written, `origin/main` was
+at `7f279b7025` and the branch was 21 commits ahead of it, so everything from the
+link-local capability fix onward existed only in the workstation's local
+repository. `git log --oneline origin/main..main` says whether that is still true.
+If those commits are absent, nothing below is reachable and a push from that
+workstation is the first step. `./le commit create ... push "<authorisation>"` is
+the only route, and the debt gate refuses a push while rows are open (930 when this
+was written), so `./le commit debt-clear all of <m>` comes first and needs a green
+verification run.
+
+**Then, in this order.**
+
+1. `./le setup check`. It reports `loopback-addresses (fd00::2 (REQUIRED))` as
+   MISSING on a fresh host, and two reactor tests fail correctly without it. On
+   macOS the alias does not survive a reboot. The command it wants is
+   `sudo ifconfig lo0 inet6 fd00::2/128 alias`.
+2. `./le rfc check`. It should answer 2 violations, `RFC4302-5-1` and `RFC4302-5-2`,
+   plus anything other sessions have broken. Those two need the owner, and the
+   "Decisions waiting on the owner" section below has the evidence each turns on.
+3. `go vet ./internal/plugins/ospf/`. It must exit 0. If it does not, someone has
+   changed `buildIPsecSA` again.
+4. `./le verify worktree`. It has never run green in this work. Expect it to fail
+   at stage 3 (`rfc/check`) while the two AH rows stand. Budget about 50G of disk
+   and run `./le scratch cache-clean` first; the run was killed once by the disk
+   filling and once by a terminal that consumed 70G of memory rendering its output,
+   so redirect it to a file and do not stream it.
+
+**The single most valuable next piece of work** is not a gate. It is wiring
+`onNeighborSeen` and `onNeighborLost` into the OSPF neighbour state machine, which
+is what makes the unicast half of OSPFv3 IPsec work at all. `golangci-lint` reports
+both as unused, and that report is the specification for the task.
+
 Stopped at 99% of the week's usage budget, not at a natural boundary. Everything
 below is the state a successor needs; nothing here is a plan, only what is true.
 
