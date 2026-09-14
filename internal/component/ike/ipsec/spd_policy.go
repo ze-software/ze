@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // ErrSPDPolicy is the sentinel every refusal in this file wraps, so a caller can tell
@@ -52,6 +53,34 @@ func (d SPDDirection) String() string {
 		return "both"
 	}
 	return "unspecified"
+}
+
+// spdDirections is every direction an operator can name, in the order a refusal
+// lists them. String above carries the spelling of each one, so the parser and
+// the refusal below read the vocabulary from there rather than writing a second
+// copy of it (ai/rules/principles.md).
+var spdDirections = []SPDDirection{SPDDirOut, SPDDirIn, SPDDirBoth}
+
+// parseSPDDirection answers the direction an operator named. The second result
+// reports whether the word names one, and the caller MUST refuse a word it does
+// not. A word read as no direction would install the entry on the side the
+// struct default names rather than on the side the operator wrote.
+func parseSPDDirection(word string) (SPDDirection, bool) {
+	for _, direction := range spdDirections {
+		if direction.String() == word {
+			return direction, true
+		}
+	}
+	return 0, false
+}
+
+// spdDirectionWords lists the accepted spellings for a refusal.
+func spdDirectionWords() string {
+	words := make([]string, 0, len(spdDirections))
+	for _, direction := range spdDirections {
+		words = append(words, direction.String())
+	}
+	return textbuf.Join(words, ", ")
 }
 
 // SPDPolicy is one operator-authored entry of the Security Policy Database.
@@ -164,18 +193,13 @@ func parseSPDPolicy(name string, t *config.Tree) (SPDPolicy, error) {
 	}
 
 	if v, ok := t.Get("direction"); ok {
-		switch v {
-		case "out":
-			p.Direction = SPDDirOut
-		case "in":
-			p.Direction = SPDDirIn
-		case "both":
-			p.Direction = SPDDirBoth
-		default:
+		direction, known := parseSPDDirection(v)
+		if !known {
 			return p, fmt.Errorf(
-				"%w %q: direction %q is not a side of the IPsec boundary; accepted values are out, in and both",
-				ErrSPDPolicy, name, v)
+				"%w %q: direction %q is not a side of the IPsec boundary; accepted values are %s",
+				ErrSPDPolicy, name, v, spdDirectionWords())
 		}
+		p.Direction = direction
 	}
 
 	if v, ok := t.Get("protocol"); ok {

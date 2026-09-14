@@ -10,20 +10,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// readOnlyVerbs are verbs that do not modify state.
-var readOnlyVerbs = map[string]bool{
-	"show":     true,
-	"validate": true,
-	"monitor":  true,
-}
-
-// IsReadOnlyVerb returns true if the verb does not modify state.
-// show, validate, and monitor are read-only.
-// set, clear, request, del, and update are mutating.
-func IsReadOnlyVerb(verb string) bool {
-	return readOnlyVerbs[verb]
-}
-
 // FindNode navigates the tree by the given path and returns the node,
 // or nil if any segment is not found. Returns nil if root is nil.
 func FindNode(root *Node, path []string) *Node {

@@ -897,6 +897,39 @@ func TestIsReadOnlyPathDaemonLifecycle(t *testing.T) {
 	}
 }
 
+// VALIDATES: IsReadOnlyPath answers for a verb exactly what command.Verbs says
+// its role is, for every verb the registry holds.
+// PREVENTS: the second verb list this function held until 2026-09-14, which
+// named eight words where the registry names three reads. A verb added to
+// command.Verbs, or a verb whose role changes there, moves this test with it,
+// so a copy cannot grow back unnoticed
+// (docs/architecture/cli/command-verbs.md, T-8).
+func TestIsReadOnlyPathTracksTheVerbRegistry(t *testing.T) {
+	reads := 0
+	for verb, role := range command.Verbs {
+		want := role == command.RoleRead
+		if want {
+			reads++
+		}
+		assert.Equal(t, want, IsReadOnlyPath(verb+" anything"),
+			"verb %q carries role %d, so IsReadOnlyPath must answer %v", verb, role, want)
+	}
+	assert.Positive(t, reads, "the registry cannot hold zero read verbs")
+	assert.True(t, IsReadOnlyPath("resolve dns a"),
+		"resolve carries command.RoleRead, so a read-only operator reaches it")
+}
+
+// VALIDATES: the legacy noun-first roots stay reads and hold no canonical verb.
+// PREVENTS: a verb being spelled again inside legacyReadRoots, which would put
+// the registry's answer and this map's answer in two places again.
+func TestLegacyReadRootsHoldNoVerb(t *testing.T) {
+	for root := range legacyReadRoots {
+		assert.False(t, command.IsVerb(root),
+			"%q is a canonical verb: its role belongs in command.Verbs, not here", root)
+		assert.True(t, IsReadOnlyPath(root+" anything"), "%q roots a read", root)
+	}
+}
+
 // VALIDATES: AC-11 -- Daemon reload through dispatcher emits an audit record with actor, surface, and action.
 // PREVENTS: Lifecycle operations bypassing the unified audit trail.
 func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {

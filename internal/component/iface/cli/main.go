@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/command"
 	ifacepkg "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/suggest"
@@ -23,11 +24,16 @@ import (
 // Subcommand names. ifaceCommands below and the Run dispatch each list the
 // whole set, and both read from here so neither can grow a name the other
 // does not have.
+//
+// show, create, delete and clear are the canonical CLI verbs, so their spelling
+// comes from the verb registry: create and delete on a live netlink interface
+// are the runtime-resource sense internal/component/command/verbs.go names this
+// CLI for. The rest are nouns this tool owns.
 const (
-	subcmdShow      = "show"
+	subcmdShow      = command.VerbShow
 	subcmdScan      = "scan"
-	subcmdCreate    = "create"
-	subcmdDelete    = "delete"
+	subcmdCreate    = command.VerbCreate
+	subcmdDelete    = command.VerbDelete
 	subcmdUnit      = "unit"
 	subcmdAddr      = "addr"
 	subcmdMigrate   = "migrate"
@@ -37,7 +43,7 @@ const (
 	subcmdMAC       = "mac"
 	subcmdNeighbors = "neighbors"
 	subcmdRoutes    = "routes"
-	subcmdClear     = "clear"
+	subcmdClear     = command.VerbClear
 	subcmdHelp      = "help"
 )
 
@@ -45,15 +51,6 @@ const (
 const (
 	flagHelpShort = "-h"
 	flagHelpLong  = "--help"
-)
-
-// Interface type names an operator types after `create` or `--create`. They
-// spell the same words as the zeType* constants of internal/component/iface,
-// which are unexported and so cannot be shared with this package.
-const (
-	ifaceTypeDummy  = "dummy"
-	ifaceTypeVeth   = "veth"
-	ifaceTypeBridge = "bridge"
 )
 
 // Help page vocabulary shared by every subcommand that takes --json.

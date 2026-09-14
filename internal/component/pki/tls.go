@@ -11,16 +11,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
-)
-
-// Doctor codes this package emits for a configured certificate reference.
-// CodeCertExpired matches the code the file-based DoT/DoH check already uses
-// (internal/core/dnsserver/certcheck.go): an expired certificate has the same
-// operator fix whether it came from a file or from the store.
-const (
-	CodeCertReference = "doctor-tls-reference"
-	CodeCertExpired   = "doctor-tls-expired"
 )
 
 // certExpiryWarnWindow is how far ahead of NotAfter a certificate is reported as
@@ -137,7 +129,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 				tb.Str(" (defined: ").Join(names, ", ").Byte(')')
 			}
 		}
-		return []CertProblem{{Code: CodeCertReference, Severity: severityError, Message: tb.String()}}
+		return []CertProblem{{Code: diagnostic.CodeDoctorTLSReference, Severity: severityError, Message: tb.String()}}
 	}
 
 	var problems []CertProblem
@@ -145,7 +137,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 	if entry.PrivateKey == nil {
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
-			Code:     CodeCertReference,
+			Code:     diagnostic.CodeDoctorTLSReference,
 			Severity: severityError,
 			Message: tb.Str("certificate ").Str(name).
 				Str(" has no private key, so it cannot serve TLS (add private { key ... } to the pki entry)").String(),
@@ -157,7 +149,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 	case now.After(cert.NotAfter) || now.Before(cert.NotBefore):
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
-			Code:     CodeCertExpired,
+			Code:     diagnostic.CodeDoctorTLSExpired,
 			Severity: severityError,
 			Message: tb.Str("certificate ").Str(name).Str(" is outside its validity window (not-before ").
 				Str(cert.NotBefore.UTC().Format(time.RFC3339)).Str(", not-after ").
@@ -170,7 +162,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 		daysLeft := int(cert.NotAfter.Sub(now).Hours() / 24)
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
-			Code:     CodeCertExpired,
+			Code:     diagnostic.CodeDoctorTLSExpired,
 			Severity: severityWarning,
 			Message:  tb.Str("certificate ").Str(name).Str(" expires in ").Int(int64(daysLeft)).Str(" day(s)").String(),
 		})
@@ -179,7 +171,7 @@ func CheckCertReference(cfg *PKIConfig, name string, now time.Time) []CertProble
 	if err := verifyEntryChain(cfg, entry, now); err != nil {
 		var tb textbuf.Buffer
 		problems = append(problems, CertProblem{
-			Code:     CodeCertReference,
+			Code:     diagnostic.CodeDoctorTLSReference,
 			Severity: severityError,
 			Message: tb.Str("certificate ").Str(name).
 				Str(" does not build a chain to a configured ca certificate: ").Err(err).

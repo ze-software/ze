@@ -18,4 +18,14 @@ func init() {
 		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
 		os.Exit(1)
 	}
+
+	// The certificates an operator declares in the pki config block travel with
+	// this package too, so removing pki removes the check that reads them
+	// (doctor_config_certs.go).
+	if err := diagnostic.RegisterDoctorCheck(configCertDoctorCheck); err != nil {
+		var tb textbuf.Buffer
+		tb.Str("pki: configured certificate doctor check registration failed: ").Err(err).Byte('\n')
+		tb.StdErr() //nolint:errcheck // the process is exiting on the next line
+		os.Exit(1)
+	}
 }

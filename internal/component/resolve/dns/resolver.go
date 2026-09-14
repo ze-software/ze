@@ -32,12 +32,24 @@ type ResolverConfig struct {
 	DNSSECValidation string
 }
 
-// DNSSEC validation modes.
+// DNSSEC validation modes. Each word is the one the YANG enumeration at
+// system/dns/dnssec-validation spells, because an operator writes the mode
+// there and `ze resolve dns --dnssec` passes the same word in.
 const (
 	dnssecOff        = "off"
 	dnssecPermissive = "permissive"
 	dnssecStrict     = "strict"
 )
+
+// ValidationModes answers the modes a resolver acts on, weakest first.
+//
+// This is the one place Go names the set: a caller that has to accept, refuse,
+// or describe a mode reads it here rather than spelling the words again
+// (ai/rules/principles.md). validation_yang_test.go holds it to the YANG
+// enumeration an operator configures.
+func ValidationModes() []string {
+	return []string{dnssecOff, dnssecPermissive, dnssecStrict}
+}
 
 // Status is what the answer says about the NAME, separated from what the
 // transport says about the query. A caller that acts on an answer needs both:

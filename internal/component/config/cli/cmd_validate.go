@@ -544,21 +544,21 @@ func yangRepair(t configyang.ErrorType) (*diagnostic.Repair, diagnostic.FixSafet
 func yangErrorCode(t configyang.ErrorType) string {
 	switch t { //nolint:exhaustive // default handles unknown
 	case configyang.ErrTypeMissing:
-		return "config-yang-missing"
+		return diagnostic.CodeConfigYANGMissing
 	case configyang.ErrTypeType:
-		return "config-yang-type"
+		return diagnostic.CodeConfigYANGType
 	case configyang.ErrTypeRange:
-		return "config-yang-range"
+		return diagnostic.CodeConfigYANGRange
 	case configyang.ErrTypePattern:
-		return "config-yang-pattern"
+		return diagnostic.CodeConfigYANGPattern
 	case configyang.ErrTypeEnum:
-		return "config-yang-enum"
+		return diagnostic.CodeConfigYANGEnum
 	case configyang.ErrTypeLength:
-		return "config-yang-length"
+		return diagnostic.CodeConfigYANGLength
 	case configyang.ErrTypeCardinality:
-		return "config-yang-cardinality"
+		return diagnostic.CodeConfigYANGCardinality
 	default:
-		return "config-yang-type"
+		return diagnostic.CodeConfigYANGType
 	}
 }
 

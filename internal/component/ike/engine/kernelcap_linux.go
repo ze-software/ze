@@ -16,6 +16,7 @@ package engine
 
 import (
 	"github.com/ze-software/ze/internal/component/kernelcap"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func init() {
@@ -24,8 +25,8 @@ func init() {
 		Component:   "ike",
 		Kernel:      "CONFIG_XFRM_USER",
 		ConfigLeaf:  "vpn ipsec",
-		CodeAbsent:  diagnosticIPsecXFRMUnavailable,
-		CodeUnknown: diagnosticIPsecXFRMUnknown,
+		CodeAbsent:  diagnostic.CodeDoctorIPsecXFRMUnavailable,
+		CodeUnknown: diagnostic.CodeDoctorIPsecXFRMUnknown,
 		Order:       734,
 		InUse:       kernelcap.IPsecInUse,
 		Probe:       kernelcap.XFRM,

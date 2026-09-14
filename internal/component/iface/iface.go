@@ -281,6 +281,38 @@ const (
 	NeighborFamilyIPv6 = 6
 )
 
+// Neighbor family tokens an operator types. The `family` leaf of
+// ze-iface-show-cmd.yang declares the same four words, and
+// iface_neighbor_family_test.go holds the two together.
+const (
+	neighborTokenIPv4 = "ipv4"
+	neighborTokenIPv6 = "ipv6"
+	neighborTokenAny  = "any"
+	neighborTokenAll  = "all"
+)
+
+// ParseNeighborFamily answers the neighbor family selector for the token an
+// operator typed, and false when the token names no family.
+//
+// This is the only reader of those tokens. `ze interface neighbors` and the
+// `show neighbor` RPC handler both call it, so the two surfaces cannot come to
+// answer differently about one word, which they could while each held its own
+// switch over the same four.
+//
+// The selector that comes back with false is NeighborFamilyAny, which is also a
+// legitimate answer, so a caller MUST read the bool rather than the selector.
+func ParseNeighborFamily(token string) (int, bool) {
+	switch token {
+	case neighborTokenIPv4:
+		return NeighborFamilyIPv4, true
+	case neighborTokenIPv6:
+		return NeighborFamilyIPv6, true
+	case neighborTokenAny, neighborTokenAll:
+		return NeighborFamilyAny, true
+	}
+	return NeighborFamilyAny, false
+}
+
 // KernelRoute describes one entry in the kernel's routing table, dumped
 // by Backend.ListKernelRoutes. Unlike RouteInfo (which is per-interface,
 // used by IPv6 RA default-route cleanup), this shape covers every route

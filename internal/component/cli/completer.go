@@ -80,32 +80,92 @@ func (c *Completer) setTreeInternal(tree *config.Tree) {
 	c.backends = c.deriveBackends(tree)
 }
 
-// backendLeaves maps component root container names to their backend leaf path.
-var backendLeaves = map[string]string{
-	"interface":       leafBackend,
-	"firewall":        leafBackend,
-	"traffic/control": leafBackend,
-}
-
-// deriveBackends reads backend leaf values from the config tree.
+// deriveBackends reads each component's active backend value from the config
+// tree. The containers it reads come from the schema rather than from a list
+// here, so a component that gains a backend leaf is completed with no edit to
+// this file.
 func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
-	if tree == nil {
+	if tree == nil || c.loader == nil {
 		return nil
 	}
 	m := make(map[string]string)
-	for root, leaf := range backendLeaves {
+	for _, root := range c.backendRoots() {
 		container := tree.GetContainerPath(root)
 		if container == nil {
 			continue
 		}
-		if v, ok := container.Get(leaf); ok && v != "" {
-			m[root] = v
+		if value, set := container.Get(leafBackend); set && value != "" {
+			m[root] = value
 		}
 	}
 	if len(m) == 0 {
 		return nil
 	}
 	return m
+}
+
+// backendRoots answers every config container that names a component's active
+// backend, as a path from the top-level container joined with "/".
+//
+// A container qualifies when it declares a `backend` leaf whose type is an
+// open string. The open type is what identifies a COMPONENT backend: those
+// register at run time (firewall.RegisterBackend, traffic.RegisterBackend, the
+// iface backends), so the schema cannot close the set and the leaf has to
+// accept any registered name.
+//
+// The discriminator is load-bearing rather than incidental. environment/log
+// declares the same leaf name over a CLOSED enumeration -- stderr, stdout,
+// syslog -- which names a log destination and no component at all. Every value
+// this function's containers hold reaches backendAllowed, which shows a node
+// annotated ze:backend when some active backend matches it, so admitting the
+// log destination would show a node annotated ze:backend "syslog" to every
+// operator whose log goes there.
+func (c *Completer) backendRoots() []string {
+	var roots []string
+	for _, module := range c.loader.ConfModuleNames() {
+		entry := c.loader.GetEntry(module)
+		if entry == nil {
+			continue
+		}
+		collectBackendRoots(entry, "", &roots)
+	}
+	slices.Sort(roots)
+	return slices.Compact(roots)
+}
+
+// collectBackendRoots appends the path of every container under entry that
+// declares an open-string `backend` leaf. The walk recurses over the YANG model
+// this binary compiled, which is a finite tree fixed at build time: no input an
+// operator or a peer supplies reaches it.
+//
+// A list is not descended. Its entries are keyed, so a leaf inside one names
+// the backend of a single list entry rather than of a component, and the path
+// this function builds could not address it.
+func collectBackendRoots(entry *gyang.Entry, path string, roots *[]string) {
+	var tb textbuf.Buffer
+	for name, child := range entry.Dir {
+		if child.IsLeaf() {
+			if name == leafBackend && path != "" && isOpenString(child) {
+				*roots = append(*roots, path)
+			}
+			continue
+		}
+		if child.IsList() {
+			continue
+		}
+		childPath := name
+		if path != "" {
+			childPath = tb.Reset().Str(path).Byte('/').Str(name).String()
+		}
+		collectBackendRoots(child, childPath, roots)
+	}
+}
+
+// isOpenString reports whether a leaf accepts any string. A leaf whose type is
+// an enumeration accepts a closed set the schema already names, so it is not a
+// component's backend selector.
+func isOpenString(leaf *gyang.Entry) bool {
+	return leaf.Type != nil && leaf.Type.Kind == gyang.Ystring
 }
 
 // commands returns the available editor commands.

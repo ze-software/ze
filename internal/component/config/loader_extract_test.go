@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
+
 	// Blank imports trigger init() registration of service YANG modules so
 	// YANGSchema() picks up environment/{api-server,web,mcp,looking-glass}
 	// used by these tests.
@@ -672,6 +674,47 @@ func TestMCPConfigValidate(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.wantErr)
 		})
+	}
+}
+
+// TestMCPAuthModesMatchTheModel ties the auth modes Validate enforces to the
+// enumeration the model offers an operator.
+//
+// The Go side is the declaration here, and deliberately so: each mode carries
+// its own requirement (bearer needs a token, bearer-list needs identities,
+// oauth needs an authorization server), so a mode Validate merely accepted
+// would be an authenticated listener with nothing to check. Deriving the
+// membership test from the model would accept exactly that. The model is the
+// copy, and this test is what keeps the copy honest.
+//
+// VALIDATES: the set the model declares at environment/mcp/auth-mode and the
+// set Validate recognizes are the same set.
+// PREVENTS: a mode added to the YANG that Validate refuses as unknown, and a
+// mode added here that no operator can reach.
+func TestMCPAuthModesMatchTheModel(t *testing.T) {
+	declared, err := configyang.EnumValues("environment/mcp/auth-mode")
+	require.NoError(t, err)
+	require.NotEmpty(t, declared, "the model declares no MCP auth mode")
+
+	// The constants, never their spellings: the test reads what the code
+	// enforces rather than stating it a second time.
+	enforced := []string{mcpAuthNone, mcpAuthBearer, mcpAuthBearerList, mcpAuthOAuth}
+
+	loopback := []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}}
+	for _, mode := range declared {
+		cfg := MCPListenConfig{Servers: loopback, AuthMode: mode}
+		err := cfg.Validate()
+		if err != nil {
+			assert.NotContains(t, err.Error(), "unknown value",
+				"the model declares auth-mode %q, so Validate must know it", mode)
+		}
+		assert.Contains(t, enforced, mode,
+			"the model declares auth-mode %q, which carries no requirement of its own here", mode)
+	}
+
+	for _, mode := range enforced {
+		assert.Contains(t, declared, mode,
+			"auth-mode %q is enforced here and no operator can reach it: the model does not declare it", mode)
 	}
 }
 

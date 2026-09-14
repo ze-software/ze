@@ -31,7 +31,7 @@ func validateMigrateConfig(cfg MigrateConfig) error {
 	}
 	if cfg.NewIfaceType != "" {
 		switch cfg.NewIfaceType {
-		case zeTypeDummy, zeTypeVeth, zeTypeBridge:
+		case TypeDummy, TypeVeth, TypeBridge:
 		default: // unknown type
 			return fmt.Errorf("migrate: unknown interface type %q (expected dummy, veth, or bridge)", cfg.NewIfaceType)
 		}
@@ -168,12 +168,12 @@ func MigrateInterface(cfg MigrateConfig, eb ze.EventBus, timeout time.Duration) 
 // createByType creates an interface of the given type via the backend.
 func createByType(b Backend, name, ifaceType string) error {
 	switch ifaceType {
-	case zeTypeDummy:
+	case TypeDummy:
 		return b.CreateDummy(name)
-	case zeTypeVeth:
+	case TypeVeth:
 		// Veth requires a peer name; use "<name>-peer" by convention.
 		return b.CreateVeth(name, name+"-peer")
-	case zeTypeBridge:
+	case TypeBridge:
 		return b.CreateBridge(name)
 	default: // unreachable after validateMigrateConfig, but defensive
 		return fmt.Errorf("migrate: unknown interface type %q", ifaceType)

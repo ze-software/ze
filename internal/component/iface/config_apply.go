@@ -171,7 +171,7 @@ func currentIfaceSet(infos []InterfaceInfo) map[string]string {
 // (not physical ethernet or loopback).
 func zeManageable(linkType string) bool {
 	switch linkType {
-	case zeTypeDummy, zeTypeVeth, zeTypeBridge, zeTypeWireguard, "vlan":
+	case TypeDummy, TypeVeth, TypeBridge, zeTypeWireguard, "vlan":
 		return true
 	}
 	return kernelTunnelKinds[linkType]

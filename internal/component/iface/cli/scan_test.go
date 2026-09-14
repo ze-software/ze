@@ -18,7 +18,7 @@ import (
 func scanFixture() []ifacepkg.DiscoveredInterface {
 	return []ifacepkg.DiscoveredInterface{
 		{Name: "eth0", Type: "ethernet", MAC: "02:00:00:00:00:01"},
-		{Name: "ze0", Type: ifaceTypeVeth, MAC: "02:00:00:00:00:02"},
+		{Name: "ze0", Type: ifacepkg.TypeVeth, MAC: "02:00:00:00:00:02"},
 	}
 }
 

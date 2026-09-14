@@ -53,18 +53,16 @@ func cmdNeighbors(args []string) int {
 	case 0:
 		// default: both families
 	case 1:
-		switch strings.ToLower(remaining[0]) {
-		case "ipv4":
-			family = ifacepkg.NeighborFamilyIPv4
-		case "ipv6":
-			family = ifacepkg.NeighborFamilyIPv6
-		case "any", "all":
-			family = ifacepkg.NeighborFamilyAny
-		default:
+		// The token is lowered first: the parser reads the spelling the YANG
+		// leaf declares, and this command has always taken the word in any
+		// case.
+		parsed, known := ifacepkg.ParseNeighborFamily(strings.ToLower(remaining[0]))
+		if !known {
 			fmt.Fprintf(os.Stderr, "error: unknown family %q (expected ipv4, ipv6, or any)\n", remaining[0])
 			fs.Usage()
 			return 1
 		}
+		family = parsed
 	default:
 		fmt.Fprintf(os.Stderr, "error: too many arguments\n")
 		fs.Usage()

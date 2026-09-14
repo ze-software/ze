@@ -35,7 +35,7 @@ func renderSystemPageContent(renderer *Renderer, path []string, viewTree *config
 
 // renderServicePageContent dispatches a service page for a top-level path
 // segment like "ssh", "web", etc. Returns (content, true) if handled.
-func renderServicePageContent(renderer *Renderer, segment string, viewTree *config.Tree) (template.HTML, bool) {
+func renderServicePageContent(renderer *Renderer, segment string, viewTree *config.Tree, schema *config.Schema) (template.HTML, bool) {
 	switch segment {
 	case segSSH:
 		return handleSSHPage(renderer, viewTree), true
@@ -46,7 +46,7 @@ func renderServicePageContent(renderer *Renderer, segment string, viewTree *conf
 	case segTACACS:
 		return handleTACACSPage(renderer, viewTree), true
 	case segMCP:
-		return handleMCPPage(renderer, viewTree), true
+		return handleMCPPage(renderer, viewTree, schema), true
 	case segLG:
 		return handleLookingGlassPage(renderer, viewTree), true
 	case segAPI:

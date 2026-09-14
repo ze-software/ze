@@ -740,7 +740,7 @@ func TestEmitSetConfigXFRM(t *testing.T) {
 
 func TestEmitSetConfigWithDHCPAllEthernet(t *testing.T) {
 	dis := []DiscoveredInterface{
-		{Name: "br0", Type: zeTypeBridge, MAC: "11:22:33:44:55:66"},
+		{Name: "br0", Type: TypeBridge, MAC: "11:22:33:44:55:66"},
 		{Name: "eth0", Type: zeTypeEthernet, MAC: "aa:bb:cc:dd:ee:ff"},
 		{Name: "eth1", Type: zeTypeEthernet, MAC: "bb:cc:dd:ee:ff:00"},
 	}
@@ -767,8 +767,8 @@ func TestEmitSetConfigWithDHCPEmpty(t *testing.T) {
 
 func TestEmitSetConfigWithDHCPNoEthernet(t *testing.T) {
 	dis := []DiscoveredInterface{
-		{Name: "br0", Type: zeTypeBridge},
-		{Name: "dummy0", Type: zeTypeDummy},
+		{Name: "br0", Type: TypeBridge},
+		{Name: "dummy0", Type: TypeDummy},
 	}
 	out := EmitSetConfigWithDHCP(dis)
 
@@ -799,7 +799,7 @@ func TestEmitSetConfigWithoutDHCPFlag(t *testing.T) {
 func TestEmitSetConfigCreatedKindMAC(t *testing.T) {
 	dis := []DiscoveredInterface{{
 		Name: "br0",
-		Type: zeTypeBridge,
+		Type: TypeBridge,
 		MAC:  "aa:bb:cc:dd:ee:ff",
 	}}
 	out := emitSetConfig(dis, false)

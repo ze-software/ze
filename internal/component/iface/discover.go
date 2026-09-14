@@ -9,11 +9,17 @@ import (
 )
 
 // Ze interface type names matching the YANG schema list/container names.
+//
+// TypeBridge, TypeVeth and TypeDummy are exported because they are the types an
+// operator can ask Ze to CREATE, so the `ze interface create` and `ze interface
+// migrate` commands name them too. They read them from here: a second spelling
+// in the CLI package drifts from this one, and the CLI is where an operator
+// meets the difference.
 const (
 	zeTypeEthernet  = "ethernet"
-	zeTypeBridge    = "bridge"
-	zeTypeVeth      = "veth"
-	zeTypeDummy     = "dummy"
+	TypeBridge      = "bridge"
+	TypeVeth        = "veth"
+	TypeDummy       = "dummy"
 	zeTypeLoopback  = "loopback"
 	zeTypeTunnel    = "tunnel"
 	zeTypeWireguard = "wireguard"
@@ -32,9 +38,9 @@ const (
 func SupportedTypes() []string {
 	return []string{
 		zeTypeEthernet,
-		zeTypeBridge,
-		zeTypeVeth,
-		zeTypeDummy,
+		TypeBridge,
+		TypeVeth,
+		TypeDummy,
 		zeTypeTunnel,
 		zeTypeWireguard,
 		zeTypeXFRM,
@@ -152,12 +158,12 @@ func infoToZeType(info *InterfaceInfo) string {
 	switch info.Type {
 	case "device":
 		return zeTypeEthernet
-	case zeTypeBridge:
-		return zeTypeBridge
-	case zeTypeVeth:
-		return zeTypeVeth
-	case zeTypeDummy:
-		return zeTypeDummy
+	case TypeBridge:
+		return TypeBridge
+	case TypeVeth:
+		return TypeVeth
+	case TypeDummy:
+		return TypeDummy
 	}
 	// Non-Linux fallback: interface with a real MAC is likely ethernet.
 	if info.MAC != "" && info.MAC != "00:00:00:00:00:00" {

@@ -502,12 +502,12 @@ func sortedManagedNames(managed map[string]bool) []string {
 func (cfg *ifaceConfig) ifaceType(name string) string {
 	for i := range cfg.Dummy {
 		if cfg.Dummy[i].Name == name {
-			return zeTypeDummy
+			return TypeDummy
 		}
 	}
 	for i := range cfg.Bridge {
 		if cfg.Bridge[i].Name == name {
-			return zeTypeBridge
+			return TypeBridge
 		}
 	}
 	for i := range cfg.Tunnel {
@@ -527,7 +527,7 @@ func (cfg *ifaceConfig) ifaceType(name string) string {
 	}
 	for i := range cfg.Veth {
 		if cfg.Veth[i].Name == name {
-			return zeTypeVeth
+			return TypeVeth
 		}
 	}
 	return ""
@@ -535,7 +535,7 @@ func (cfg *ifaceConfig) ifaceType(name string) string {
 
 func ifaceTypeSupportsOperations(ifType string) bool {
 	switch ifType {
-	case zeTypeDummy, zeTypeBridge, zeTypeVeth:
+	case TypeDummy, TypeBridge, TypeVeth:
 		return true
 	default:
 		return false
@@ -643,11 +643,11 @@ func applyIfaceOperation(op *sdk.ConfigOperation, b Backend) (*sdk.Journal, erro
 
 func createInterfaceByType(b Backend, name, ifType string) error {
 	switch ifType {
-	case zeTypeDummy:
+	case TypeDummy:
 		return b.CreateDummy(name)
-	case zeTypeBridge:
+	case TypeBridge:
 		return b.CreateBridge(name)
-	case zeTypeVeth:
+	case TypeVeth:
 		return b.CreateVeth(name, name+"-peer")
 	default:
 		return fmt.Errorf("interface operation: unsupported type %q for %s", ifType, name)

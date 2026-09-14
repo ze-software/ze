@@ -34,8 +34,8 @@ const (
 
 func wireEnvHints(tree *Node) {
 	for _, path := range [][]string{
-		{verbShow, commandEnv, commandGet},
-		{verbShow, commandEnv, commandRegistered},
+		{VerbShow, commandEnv, commandGet},
+		{VerbShow, commandEnv, commandRegistered},
 		{commandEnv, commandGet},
 		{commandEnv, commandRegistered},
 		{commandGet},

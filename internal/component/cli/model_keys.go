@@ -4,13 +4,13 @@
 package cli
 
 import (
-	"maps"
 	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -721,17 +721,37 @@ func (m Model) handleHistoryDown() tea.Model {
 	return m
 }
 
-var validCLIFormats = map[string]bool{
-	"text": true, "table": true, "json": true, "yaml": true, "ndjson": true,
+// cliFormatLeafPath is the schema leaf an operator sets for the daemon-wide
+// version of the choice `set cli format` makes for one session. That leaf's
+// enumeration declares which formats exist, so this command reads it rather
+// than spelling the set again (ai/rules/principles.md).
+const cliFormatLeafPath = "environment/cli/format/default"
+
+// cliFormatNames answers the formats `set cli format` accepts, sorted.
+//
+// It answers nil when the model carries no schema and when the leaf carries no
+// enumeration. A caller MUST read nil as "the schema did not answer" and refuse
+// every value, never as "every format is valid": the set is the guard, so an
+// unread schema has to close it (ai/rules/principles.md).
+func (m *Model) cliFormatNames() []string {
+	if m.validator == nil || m.validator.schema == nil {
+		return nil
+	}
+	node, err := m.validator.schema.Lookup(cliFormatLeafPath)
+	if err != nil {
+		return nil
+	}
+	leaf, isLeaf := node.(*config.LeafNode)
+	if !isLeaf {
+		return nil
+	}
+	return slices.Sorted(slices.Values(leaf.Enums))
 }
 
-// validCLIFormatNames returns the accepted format names, sorted, for error text.
-// Derived from validCLIFormats so the list is never duplicated (ai/rules/evidence.md).
-func validCLIFormatNames() string {
-	return textbuf.Join(slices.Sorted(maps.Keys(validCLIFormats)), ", ")
-}
-
-func appendCLIFormatCompletions(completions []Completion, input string) []Completion {
+// appendCLIFormatCompletions offers `set cli format` and the formats names
+// holds. An empty names offers the command alone, so a session whose schema did
+// not answer completes nothing rather than completing a format it will refuse.
+func appendCLIFormatCompletions(completions []Completion, input string, names []string) []Completion {
 	const cmd = "set cli format"
 	if input == "" || strings.HasPrefix(cmd, input) {
 		return append(completions, Completion{
@@ -741,7 +761,7 @@ func appendCLIFormatCompletions(completions []Completion, input string) []Comple
 	var tb textbuf.Buffer
 	cmdSpace := tb.Str(cmd).Byte(' ').String()
 	if input == cmd || input == cmdSpace {
-		for name := range validCLIFormats {
+		for _, name := range names {
 			completions = append(completions, Completion{
 				Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
 			})
@@ -750,7 +770,7 @@ func appendCLIFormatCompletions(completions []Completion, input string) []Comple
 	}
 	if strings.HasPrefix(input, cmdSpace) {
 		partial := input[len(cmdSpace):]
-		for name := range validCLIFormats {
+		for _, name := range names {
 			if strings.HasPrefix(name, partial) {
 				completions = append(completions, Completion{
 					Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
@@ -782,9 +802,14 @@ func handleSetCLIFormat(input string, m *Model) bool {
 		return true
 	}
 
-	if !validCLIFormats[rest] {
+	names := m.cliFormatNames()
+	if len(names) == 0 {
+		m.statusMessage = "cli format unavailable: the schema declares no output formats"
+		return true
+	}
+	if !slices.Contains(names, rest) {
 		var tb textbuf.Buffer
-		m.statusMessage = tb.Str("invalid format: ").Str(rest).Str(" (valid: ").Str(validCLIFormatNames()).Byte(')').String()
+		m.statusMessage = tb.Str("invalid format: ").Str(rest).Str(" (valid: ").Str(textbuf.Join(names, ", ")).Byte(')').String()
 		return true
 	}
 

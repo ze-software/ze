@@ -348,10 +348,32 @@ func handleTACACSPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
 
 // --- Services > MCP ---
 
+// mcpAuthModeLeaf is the leaf whose enumeration the auth-mode dropdown offers.
+// The schema declares the modes, so the form reads them there rather than
+// spelling them again (ai/rules/principles.md).
+var mcpAuthModeLeaf = struct {
+	path []string
+	leaf string
+}{path: []string{"environment", "mcp"}, leaf: "auth-mode"}
+
+// mcpAuthModes answers the auth modes the schema declares for the MCP form.
+//
+// It answers nil when the schema is absent or the leaf carries no enumeration.
+// A dropdown with no option offers the operator nothing to submit, which is the
+// closed answer: an unread schema MUST NOT publish a mode the daemon would then
+// refuse (ai/rules/principles.md).
+func mcpAuthModes(schema *config.Schema) []string {
+	leaf := findLeafNode(schema, mcpAuthModeLeaf.path, mcpAuthModeLeaf.leaf)
+	if leaf == nil {
+		return nil
+	}
+	return leaf.Enums
+}
+
 // buildMCPFormData constructs a WorkbenchFormData for the MCP config.
 // Fields match environment/mcp in ze-mcp-conf.yang. Sensitive fields
 // (token, TLS key) use the password type for masking.
-func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
+func buildMCPFormData(tree *config.Tree, schema *config.Schema) WorkbenchFormData {
 	return WorkbenchFormData{
 		Title: "MCP Configuration",
 		Fields: []WorkbenchFormField{
@@ -374,7 +396,7 @@ func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
 				Label:       "Auth Mode",
 				Type:        "dropdown",
 				Value:       getConfigValue(tree, "environment/mcp/auth-mode"),
-				Options:     []string{"none", "bearer", "bearer-list", "oauth"},
+				Options:     mcpAuthModes(schema),
 				Description: "Authentication strategy",
 			},
 			{
@@ -433,8 +455,8 @@ func buildMCPFormData(tree *config.Tree) WorkbenchFormData {
 }
 
 // handleMCPPage renders the MCP service configuration form.
-func handleMCPPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := buildMCPFormData(viewTree)
+func handleMCPPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
+	formData := buildMCPFormData(viewTree, schema)
 	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 

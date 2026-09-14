@@ -125,24 +125,32 @@ func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pat
 	}
 }
 
-// verbRIB is the CLI verb for system RIB commands (e.g., "rib show").
-const verbRIB = "rib"
+// legacyReadRoots are the noun-first tree roots that answer a read and are not
+// canonical verbs. They predate the verb-first grammar and still root commands,
+// so authorization must still call them reads. `event` and `command` were
+// migrated to `show event list` / `show command list`, so neither is here.
+//
+// This is not a verb list and it MUST NOT grow one: a new read command is
+// rooted at a read verb, which command.IsReadOnlyVerb already answers for
+// (docs/architecture/cli/command-verbs.md, "Read verbs and their guarantee").
+var legacyReadRoots = map[string]bool{
+	"validate": true,
+	"help":     true,
+	"system":   true,
+	"plugin":   true,
+	"rib":      true,
+}
 
 // IsReadOnlyPath returns true if the command path starts with a read-only verb.
-// With verb-first grammar, "show", "monitor", and "resolve" are read-only;
-// "clear", "set", "request", "commit", "update" are not.
+// The verb half of the answer comes from command.Verbs, the canonical
+// vocabulary, so a verb whose role changes there changes the authorization
+// section this path lands in. The legacy noun-first roots are the rest.
 func IsReadOnlyPath(path string) bool {
 	verb, _, _ := strings.Cut(path, " ")
-	switch verb {
-	case "show", "monitor", "resolve", "validate",
-		// Legacy noun-first forms still in the YANG tree. `event` and `command`
-		// were migrated to `show event list` / `show command list`, so neither is a
-		// top-level verb here anymore.
-		"help",
-		"system", "plugin", verbRIB:
+	if command.IsReadOnlyVerb(verb) {
 		return true
 	}
-	return false
+	return legacyReadRoots[verb]
 }
 
 // registerDefaultHandlers registers all builtin handlers with the dispatcher.

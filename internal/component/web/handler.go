@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 var (
@@ -60,26 +62,30 @@ type parsedURL struct {
 	Format string
 }
 
-// configVerbs is the set of valid verbs under /config/.
+// configVerbs is the set of valid verbs under /config/. A member that is also a
+// canonical CLI verb takes its spelling from the verb registry
+// (internal/component/command), so one word is declared once whichever surface
+// an operator reaches it through; the rest are editor words the registry holds
+// no entry for.
 var configVerbs = map[string]bool{
-	"edit":     true,
-	"set":      true,
-	"add":      true,
-	"form":     true,
-	"add-form": true,
-	"changes":  true,
-	"delete":   true,
-	"rename":   true,
-	"commit":   true,
-	"discard":  true,
-	"compare":  true,
+	"edit":             true,
+	command.VerbSet:    true,
+	"add":              true,
+	"form":             true,
+	"add-form":         true,
+	"changes":          true,
+	command.VerbDelete: true,
+	"rename":           true,
+	command.VerbCommit: true,
+	"discard":          true,
+	"compare":          true,
 }
 
 // The top-level URL prefixes. Each one is also the verb ParseURL reports for a
 // request under it, so knownPrefixes and the switch in ParseURL name one set.
 const (
-	prefixShow    = "show"
-	prefixMonitor = "monitor"
+	prefixShow    = command.VerbShow
+	prefixMonitor = command.VerbMonitor
 	prefixConfig  = "config"
 	prefixAdmin   = "admin"
 	prefixPortal  = "portal"

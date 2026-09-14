@@ -43,7 +43,7 @@ func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin
 }
 
 // ifTypeVeth is the InterfaceInfo.Type string a veth device reports
-// (internal/component/iface/discover.go zeTypeVeth).
+// (internal/component/iface/discover.go TypeVeth).
 const ifTypeVeth = "veth"
 
 // handleCreateVeth creates a veth PAIR. It routes through handleCreateTyped so it

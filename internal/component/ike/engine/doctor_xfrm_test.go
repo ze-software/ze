@@ -67,8 +67,8 @@ func TestXFRMAbsentIsAStartupError(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("an absent XFRM dataplane produced %d diagnostics, want 1", len(diags))
 	}
-	if diags[0].Code != diagnosticIPsecXFRMUnavailable {
-		t.Errorf("code is %q, want %q", diags[0].Code, diagnosticIPsecXFRMUnavailable)
+	if diags[0].Code != diagnostic.CodeDoctorIPsecXFRMUnavailable {
+		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorIPsecXFRMUnavailable)
 	}
 	// Error, not warning: this severity is what refuses the start, and the probe
 	// used here reports absence only for the errno that means the kernel carries
@@ -94,8 +94,8 @@ func TestXFRMUnknownWarnsRatherThanRefusing(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("an undetermined XFRM dataplane produced %d diagnostics, want 1", len(diags))
 	}
-	if diags[0].Code != diagnosticIPsecXFRMUnknown {
-		t.Errorf("code is %q, want %q", diags[0].Code, diagnosticIPsecXFRMUnknown)
+	if diags[0].Code != diagnostic.CodeDoctorIPsecXFRMUnknown {
+		t.Errorf("code is %q, want %q", diags[0].Code, diagnostic.CodeDoctorIPsecXFRMUnknown)
 	}
 	if diags[0].Severity != diagnostic.SeverityWarning {
 		t.Errorf("severity is %q, want warning", diags[0].Severity)
@@ -157,7 +157,10 @@ func TestIPsecCapabilityEnrolled(t *testing.T) {
 	if check.Check == nil {
 		t.Fatal("kernel-capability-ipsec has a nil Check function")
 	}
-	wanted := map[string]bool{diagnosticIPsecXFRMUnavailable: false, diagnosticIPsecXFRMUnknown: false}
+	wanted := map[string]bool{
+		diagnostic.CodeDoctorIPsecXFRMUnavailable: false,
+		diagnostic.CodeDoctorIPsecXFRMUnknown:     false,
+	}
 	for _, code := range check.Codes {
 		if _, ok := wanted[code]; ok {
 			wanted[code] = true

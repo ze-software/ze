@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 // chainPKIConfig builds a store config holding a root CA, an intermediate it
@@ -292,30 +294,30 @@ func TestCheckCertReferenceDiagnostics(t *testing.T) {
 
 	t.Run("missing entry", func(t *testing.T) {
 		got := CheckCertReference(healthy, "typo", now)
-		requireProblem(t, got, CodeCertReference, "error", "typo")
+		requireProblem(t, got, diagnostic.CodeDoctorTLSReference, "error", "typo")
 	})
 
 	t.Run("nil config with a reference set", func(t *testing.T) {
 		// An operator who wrote `certificate lan` and no pki block at all.
 		got := CheckCertReference(nil, "lan", now)
-		requireProblem(t, got, CodeCertReference, "error", "lan")
+		requireProblem(t, got, diagnostic.CodeDoctorTLSReference, "error", "lan")
 	})
 
 	t.Run("keyless entry", func(t *testing.T) {
 		got := CheckCertReference(healthy, "keyless", now)
-		requireProblem(t, got, CodeCertReference, "error", "private key")
+		requireProblem(t, got, diagnostic.CodeDoctorTLSReference, "error", "private key")
 	})
 
 	t.Run("expired certificate", func(t *testing.T) {
 		expired := chainPKIConfig(t, now.Add(-time.Hour))
 		got := CheckCertReference(expired, "web-cert", now)
-		requireProblem(t, got, CodeCertExpired, "error", "web-cert")
+		requireProblem(t, got, diagnostic.CodeDoctorTLSExpired, "error", "web-cert")
 	})
 
 	t.Run("certificate expiring inside the warning window", func(t *testing.T) {
 		soon := chainPKIConfig(t, now.Add(10*24*time.Hour))
 		got := CheckCertReference(soon, "web-cert", now)
-		requireProblem(t, got, CodeCertExpired, "warning", "day")
+		requireProblem(t, got, diagnostic.CodeDoctorTLSExpired, "warning", "day")
 	})
 
 	t.Run("intermediate that does not issue the leaf", func(t *testing.T) {
@@ -329,7 +331,7 @@ func TestCheckCertReferenceDiagnostics(t *testing.T) {
 		entry.RawIntermediates = otherInter.RawIntermediates
 
 		got := CheckCertReference(broken, "web-cert", now)
-		requireProblem(t, got, CodeCertReference, "error", "chain")
+		requireProblem(t, got, diagnostic.CodeDoctorTLSReference, "error", "chain")
 	})
 }
 

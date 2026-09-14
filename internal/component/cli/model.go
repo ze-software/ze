@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -243,15 +244,18 @@ type PipeFilter struct {
 // Debounce delay for validation after keystroke.
 const validationDebounce = 100 * time.Millisecond
 
-// Command names (used in multiple switch statements).
+// Command names (used in multiple switch statements). A name that is also a
+// canonical CLI verb takes its spelling from the verb registry
+// (internal/component/command), so the word is declared once; the rest are
+// editor-mode words the registry holds no entry for.
 const (
-	cmdSet        = "set"
-	cmdShow       = "show"
+	cmdSet        = command.VerbSet
+	cmdShow       = command.VerbShow
 	cmdOption     = "option"
-	cmdDelete     = "delete"
+	cmdDelete     = command.VerbDelete
 	cmdCompare    = "compare"
 	cmdEdit       = "edit"
-	cmdCommit     = "commit"
+	cmdCommit     = command.VerbCommit
 	cmdConfirm    = "confirm"
 	cmdConfirmed  = "confirmed"
 	cmdAbort      = "abort"
@@ -790,7 +794,7 @@ func (m *Model) updateCompletions() {
 			m.completions = m.commandCompleter.Complete(commandArgs)
 			m.ghostText = m.commandCompleter.GhostText(commandArgs)
 		}
-		m.completions = appendCLIFormatCompletions(m.completions, input)
+		m.completions = appendCLIFormatCompletions(m.completions, input, m.cliFormatNames())
 		if m.hasEditor() && (input == "" || strings.HasPrefix(cmdConfigure, input)) {
 			m.completions = append(m.completions, Completion{
 				Text: cmdConfigure, Description: "Enter config mode", Type: completionCommand,

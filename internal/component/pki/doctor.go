@@ -19,25 +19,6 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-const (
-	// codeCARootMissing says no root is stored. It is distinct from the expiry
-	// code because the operator answer differs: a missing root is regenerated at
-	// the next start and then redistributed, where an expiring one is still
-	// serving.
-	codeCARootMissing = "doctor-pki-ca-root-missing"
-
-	// codeCARootExpiry says the stored root is near its NotAfter, or past it.
-	codeCARootExpiry = "doctor-pki-ca-root-expiry"
-
-	// codeCARootInvalid is what every Ze surface already reports for certificate
-	// material that will not load: internal/core/dnsserver/certcheck.go for a
-	// file pair, and the as112 listener check for a store entry. A stored root
-	// that is not PEM, is not a CA, or does not match its key is the same
-	// finding, so it takes the same code rather than a third spelling of one
-	// concept (ai/rules/writing.md, habit 1).
-	codeCARootInvalid = "doctor-tls-invalid"
-)
-
 // caRootExpiryWarnWindow is how far ahead of NotAfter the root is reported.
 //
 // It is 90 days where certExpiryWarnWindow is 30. A configured certificate is
@@ -63,8 +44,19 @@ var caRootDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "pki",
 	Dependencies: []string{"storage"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{codeCARootMissing, codeCARootExpiry, codeCARootInvalid},
-	Check:        checkCARoot,
+	// A root that is not PEM, is not a CA, or does not match its key reports
+	// CodeDoctorTLSInvalid, the code every Ze surface already reports for
+	// certificate material that will not load. One finding takes one code
+	// rather than a third spelling of one concept (ai/rules/writing.md,
+	// habit 1). The missing and the expiry codes stay distinct because the
+	// operator answer differs: a missing root is regenerated at the next start
+	// and then redistributed, where an expiring one is still serving.
+	Codes: []string{
+		diagnostic.CodeDoctorPKICARootMissing,
+		diagnostic.CodeDoctorPKICARootExpiry,
+		diagnostic.CodeDoctorTLSInvalid,
+	},
+	Check: checkCARoot,
 }
 
 // checkCARoot reports the state of the stored root: absent, unloadable, or near
@@ -73,7 +65,7 @@ var caRootDoctorCheck = diagnostic.DoctorCheck{
 func checkCARoot(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	if ctx.Store == nil {
 		return []diagnostic.Diagnostic{{
-			Code:     codeCARootInvalid,
+			Code:     diagnostic.CodeDoctorTLSInvalid,
 			Severity: diagnostic.SeverityError,
 			Message:  "cannot read the local certificate authority root: this doctor run resolved no storage",
 			Help:     "check the storage diagnostics reported above this one",
@@ -87,7 +79,7 @@ func checkCARoot(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 
 	if !certStored && !keyStored {
 		return []diagnostic.Diagnostic{{
-			Code:     codeCARootMissing,
+			Code:     diagnostic.CodeDoctorPKICARootMissing,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "no local certificate authority root is stored",
 			Help:     "the daemon generates one at its next start. Every copy of the previous root stops working, so export the new one with `show pki local-ca pem` and give it to each client that trusts this node",
@@ -101,7 +93,7 @@ func checkCARoot(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	if err != nil {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     codeCARootInvalid,
+			Code:     diagnostic.CodeDoctorTLSInvalid,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("the stored local certificate authority root does not load: ").Err(err).String(),
 			Help:     "the daemon refuses to start on this root. Remove both stored halves so the next start generates a root, then redistribute it",
@@ -128,7 +120,7 @@ func caRootHalfWritten(certStored bool) diagnostic.Diagnostic {
 	}
 	var tb textbuf.Buffer
 	return diagnostic.Diagnostic{
-		Code:     codeCARootInvalid,
+		Code:     diagnostic.CodeDoctorTLSInvalid,
 		Severity: diagnostic.SeverityError,
 		Message: tb.Str("the stored local certificate authority root holds a ").Str(present).
 			Str(" and no ").Str(absent).String(),
@@ -144,7 +136,7 @@ func caRootExpiry(notAfter time.Time) []diagnostic.Diagnostic {
 	if remaining <= 0 {
 		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
-			Code:     codeCARootExpiry,
+			Code:     diagnostic.CodeDoctorPKICARootExpiry,
 			Severity: diagnostic.SeverityError,
 			Message: tb.Str("the local certificate authority root expired on ").
 				Str(notAfter.UTC().Format(time.RFC3339)).String(),
@@ -157,7 +149,7 @@ func caRootExpiry(notAfter time.Time) []diagnostic.Diagnostic {
 
 	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
-		Code:     codeCARootExpiry,
+		Code:     diagnostic.CodeDoctorPKICARootExpiry,
 		Severity: diagnostic.SeverityWarning,
 		Message: tb.Str("the local certificate authority root expires in ").
 			Int(int64(daysUntil(now, notAfter))).Str(" days").String(),

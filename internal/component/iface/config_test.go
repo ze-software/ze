@@ -92,7 +92,7 @@ func TestReconcileOnVPPReady_NoOpWhenActiveCfgNil(t *testing.T) {
 // PREVENTS: netlink monitor goroutine leak on every vpp lifecycle event.
 func TestReconcileOnVPPReady_NoOpForNonVPPBackend(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
-	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: TypeDummy}
 
 	cfg := testConfigWithAddresses()
 	cfg.Backend = "netlink"
@@ -117,8 +117,8 @@ func TestReconcileOnVPPReady_NoOpForNonVPPBackend(t *testing.T) {
 func TestReconcileOnVPPReady_RunsReconcile(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
 	// Pre-populate backend state with an orphan interface not in config.
-	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
-	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: TypeDummy}
+	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: TypeDummy}
 
 	cfg := testConfigWithAddresses()
 	cfg.previousManaged = map[string]bool{"dum0": true, "orphan-dum": true}
@@ -143,8 +143,8 @@ func TestReconcileOnVPPReady_RunsReconcile(t *testing.T) {
 //	catching it.
 func TestReconcileOnVPPReady_InvokedOnEventConnected(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
-	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
-	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: TypeDummy}
+	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: TypeDummy}
 
 	cfg := testConfigWithAddresses()
 	cfg.previousManaged = map[string]bool{"dum0": true, "orphan-dum": true}
@@ -181,7 +181,7 @@ func TestReconcileOnVPPReady_InvokedOnEventConnected(t *testing.T) {
 //	missing the reconnect path.
 func TestReconcileOnVPPReady_InvokedOnEventReconnected(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
-	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
+	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: TypeDummy}
 
 	var activeCfg atomic.Pointer[ifaceConfig]
 	activeCfg.Store(testConfigWithAddresses())
@@ -211,7 +211,7 @@ func TestReconcileOnVPPReady_InvokedOnEventReconnected(t *testing.T) {
 //	plugin's resources (logger, backend) have been torn down.
 func TestUnsubscribeOnShutdown(t *testing.T) {
 	fb := setupFakeBackendForTest(t)
-	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: TypeDummy}
 
 	var activeCfg atomic.Pointer[ifaceConfig]
 	activeCfg.Store(testConfigWithAddresses())
@@ -275,7 +275,7 @@ func TestReconcileOnVPPReady_ReconcilesToNewBackend(t *testing.T) {
 	var latestBackend *fakeBackend
 	err := RegisterBackend(vppBackendName, func() (Backend, error) {
 		fb := &fakeBackend{ifaces: map[string]fakeIface{
-			"dum0": {name: "dum0", linkType: zeTypeDummy},
+			"dum0": {name: "dum0", linkType: TypeDummy},
 		}}
 		latestBackend = fb
 		return fb, nil
@@ -314,7 +314,7 @@ func TestReconcileOnVPPReady_ClearsStaleState(t *testing.T) {
 	var latestBackend *fakeBackend
 	err := RegisterBackend(vppBackendName, func() (Backend, error) {
 		fb := &fakeBackend{ifaces: map[string]fakeIface{
-			"dum0": {name: "dum0", linkType: zeTypeDummy},
+			"dum0": {name: "dum0", linkType: TypeDummy},
 		}}
 		latestBackend = fb
 		return fb, nil
@@ -362,7 +362,7 @@ func TestReconcileOnVPPReady_FirstConnect(t *testing.T) {
 	err := RegisterBackend(vppBackendName, func() (Backend, error) {
 		factoryCalls++
 		fb := &fakeBackend{ifaces: map[string]fakeIface{
-			"dum0": {name: "dum0", linkType: zeTypeDummy},
+			"dum0": {name: "dum0", linkType: TypeDummy},
 		}}
 		latestBackend = fb
 		return fb, nil
@@ -495,8 +495,8 @@ func TestReconcileOnReady_AddsMissing(t *testing.T) {
 func TestReconcileOnReady_PreservesUnownedManageableInterface(t *testing.T) {
 	fb := &fakeBackend{
 		ifaces: map[string]fakeIface{
-			"dum0":         {name: "dum0", linkType: zeTypeDummy},
-			"operator-dum": {name: "operator-dum", linkType: zeTypeDummy},
+			"dum0":         {name: "dum0", linkType: TypeDummy},
+			"operator-dum": {name: "operator-dum", linkType: TypeDummy},
 		},
 	}
 	cfg := testConfigWithAddresses() // managed set = {dum0}; no previous ownership.
@@ -517,9 +517,9 @@ func TestReconcileOnReady_PreservesUnownedManageableInterface(t *testing.T) {
 func TestReconcileOnReady_PrunesPreviouslyManagedInterface(t *testing.T) {
 	fb := &fakeBackend{
 		ifaces: map[string]fakeIface{
-			"dum0":         {name: "dum0", linkType: zeTypeDummy},
-			"removed-dum":  {name: "removed-dum", linkType: zeTypeDummy},
-			"operator-dum": {name: "operator-dum", linkType: zeTypeDummy},
+			"dum0":         {name: "dum0", linkType: TypeDummy},
+			"removed-dum":  {name: "removed-dum", linkType: TypeDummy},
+			"operator-dum": {name: "operator-dum", linkType: TypeDummy},
 		},
 	}
 	cfg := testConfigWithAddresses() // managed set = {dum0}

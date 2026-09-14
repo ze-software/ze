@@ -16,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -41,15 +42,19 @@ const maxAutocompleteInput = 1024
 // maxCompletionResults caps the number of autocomplete candidates returned.
 const maxCompletionResults = 50
 
-// CLI verb constants matching the SSH CLI command grammar.
+// CLI verb constants matching the SSH CLI command grammar. A word that is also
+// a canonical CLI verb takes its spelling from the verb registry
+// (internal/component/command), so the web bar and the SSH CLI cannot end up
+// spelling one verb two ways; the rest are editor-mode words the registry holds
+// no entry for.
 const (
 	verbEdit       = "edit"
-	verbSet        = "set"
-	verbDelete     = "delete"
-	verbShow       = "show"
+	verbSet        = command.VerbSet
+	verbDelete     = command.VerbDelete
+	verbShow       = command.VerbShow
 	verbTop        = "top"
 	verbUp         = "up"
-	verbCommit     = "commit"
+	verbCommit     = command.VerbCommit
 	verbDiscard    = "discard"
 	verbHelp       = "help"
 	verbWho        = "who"

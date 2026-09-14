@@ -113,8 +113,13 @@ func CLISubcommands() []CLICommand {
 				var tb textbuf.Buffer
 				desc = tb.Str(name).Str(" commands").String()
 			}
+			// The same predicate authorization uses, so the mode this
+			// reference publishes and the section a command lands in cannot
+			// disagree. Reading the verb registry alone answered "daemon" for
+			// the resolve, help, system, plugin and rib roots, which an
+			// operator holding read-only access can run.
 			mode := "daemon"
-			if command.IsReadOnlyVerb(name) {
+			if pluginserver.IsReadOnlyPath(name) {
 				mode = "read-only"
 			}
 			var tb textbuf.Buffer

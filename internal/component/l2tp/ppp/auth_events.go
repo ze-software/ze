@@ -51,17 +51,23 @@ func (m AuthMethod) String() string {
 // access concentrator (`pppoe auth-method`). It lives here because the type
 // does, and because pppoe MUST NOT import the l2tp package (doc.go).
 func ParseAuthMethod(v string) (AuthMethod, error) {
-	switch v {
-	case "none":
-		return AuthMethodNone, nil
-	case "pap":
-		return AuthMethodPAP, nil
-	case "chap-md5":
-		return AuthMethodCHAPMD5, nil
-	case "ms-chap-v2":
-		return AuthMethodMSCHAPv2, nil
+	for _, method := range authMethods {
+		if method.String() == v {
+			return method, nil
+		}
 	}
 	return AuthMethodNone, fmt.Errorf("unsupported method %q", v)
+}
+
+// authMethods is every method the type carries. String above spells each one,
+// so this list holds no second copy of the vocabulary and a method added to the
+// const block without a String arm panics on its first render rather than
+// parsing into silence (ai/rules/principles.md).
+var authMethods = [...]AuthMethod{
+	AuthMethodNone,
+	AuthMethodPAP,
+	AuthMethodCHAPMD5,
+	AuthMethodMSCHAPv2,
 }
 
 // AuthEvent is the sealed sum emitted on Driver.AuthEventsOut(). The

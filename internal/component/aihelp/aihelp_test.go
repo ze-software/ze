@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // TestReferenceJSONShape locks the wire shape of the AI reference so the CLI
@@ -137,4 +139,43 @@ func TestBuildCarriesEveryRegisteredRPCHelpText(t *testing.T) {
 		"the fixture RPC's long form did not reach the reference")
 	assert.Empty(t, published["ze-aihelpfixture:fixture-summary-only"].LongHelp,
 		"an RPC with no ze:help gained a long form from somewhere")
+}
+
+// TestCLISubcommandModeMatchesTheVerbRegistry asserts that the mode this
+// reference publishes for a top-level verb root is the role command.Verbs gives
+// that verb. An agent picks a command by this field, so a read verb published
+// as "daemon" tells it the command needs a running daemon and an operator with
+// edit rights, when a read-only operator reaches it offline.
+//
+// Until 2026-09-14 the mode came from a three-word list that omitted resolve,
+// so the resolve root published "daemon" (docs/architecture/cli/command-verbs.md,
+// T-7). The assertion is against Verbs, so a verb whose role changes there, or
+// a verb added to it, moves this test with it. A verb root the build does not
+// carry is skipped: resolve itself is proven in
+// internal/component/plugin/server, over the pure predicate this reference
+// reads.
+func TestCLISubcommandModeMatchesTheVerbRegistry(t *testing.T) {
+	byName := make(map[string]CLICommand)
+	for _, cmd := range CLISubcommands() {
+		byName[cmd.Name] = cmd
+	}
+	require.NotEmpty(t, byName, "the reference must publish at least one subcommand")
+
+	checked := 0
+	for verb, role := range command.Verbs {
+		cmd, found := byName[verb]
+		if !found {
+			continue // The vocabulary holds verbs no command roots at yet.
+		}
+		checked++
+		want := "daemon"
+		if role == command.RoleRead {
+			want = "read-only"
+		}
+		assert.Equal(t, want, cmd.Mode,
+			"verb %q carries role %d, so `ze help ai` must publish mode %q", verb, role, want)
+		assert.Equal(t, pluginserver.IsReadOnlyPath(verb), cmd.Mode == "read-only",
+			"the mode published for %q must be the answer authorization gives for it", verb)
+	}
+	assert.Positive(t, checked, "no verb root reached the reference; the tree cannot be empty")
 }

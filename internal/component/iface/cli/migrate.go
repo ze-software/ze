@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	ifacepkg "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -49,7 +50,7 @@ var migrateKeywords = []string{
 var migrateRequired = []string{migrateKeywordFrom, migrateKeywordTo, migrateKeywordAddress}
 
 // migrateTypes lists the interface types the destination can be created as.
-var migrateTypes = []string{ifaceTypeDummy, ifaceTypeVeth, ifaceTypeBridge}
+var migrateTypes = []string{ifacepkg.TypeDummy, ifacepkg.TypeVeth, ifacepkg.TypeBridge}
 
 // migrateGrammar is the form every refusal quotes back, so an operator reads
 // what was expected without opening the help page.

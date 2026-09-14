@@ -37,7 +37,7 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 		switch di.Type {
 		case zeTypeLoopback:
 			hasLoopback = true
-		case zeTypeEthernet, zeTypeBridge, zeTypeVeth, zeTypeDummy:
+		case zeTypeEthernet, TypeBridge, TypeVeth, TypeDummy:
 			if !safeEmitName(di.Name) {
 				continue
 			}
@@ -225,7 +225,7 @@ func emitSetConfig(discovered []DiscoveredInterface, dhcpEthernet bool) string {
 		case zeTypeLoopback:
 			// A bare "set interface loopback" with no child is invalid.
 			continue
-		case zeTypeEthernet, zeTypeBridge, zeTypeVeth, zeTypeDummy:
+		case zeTypeEthernet, TypeBridge, TypeVeth, TypeDummy:
 			if !safeEmitName(di.Name) {
 				continue
 			}

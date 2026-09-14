@@ -132,7 +132,8 @@ const (
 )
 
 // Hook names in the config surface: what the `hook` leaf accepts and what
-// String() prints. The two tables below are inverses over this set.
+// String() prints. The table below names each hook once, and the parser is the
+// index of that table.
 const (
 	hookNameInput       = "input"
 	hookNameOutput      = "output"
@@ -153,15 +154,7 @@ var chainHookNames = map[ChainHook]string{
 	HookEgress:      hookNameEgress,
 }
 
-var chainHookByName = map[string]ChainHook{
-	hookNameInput:       HookInput,
-	hookNameOutput:      HookOutput,
-	hookNameForward:     HookForward,
-	hookNamePrerouting:  HookPrerouting,
-	hookNamePostrouting: HookPostrouting,
-	hookNameIngress:     HookIngress,
-	hookNameEgress:      HookEgress,
-}
+var chainHookByName = nameIndex(chainHookNames)
 
 func (h ChainHook) String() string {
 	if name, ok := chainHookNames[h]; ok {
@@ -200,11 +193,7 @@ var chainTypeNames = map[ChainType]string{
 	ChainRoute:  "route",
 }
 
-var chainTypeByName = map[string]ChainType{
-	"filter": ChainFilter,
-	"nat":    ChainNAT,
-	"route":  ChainRoute,
-}
+var chainTypeByName = nameIndex(chainTypeNames)
 
 func (c ChainType) String() string {
 	if name, ok := chainTypeNames[c]; ok {

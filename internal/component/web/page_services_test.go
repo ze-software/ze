@@ -155,17 +155,26 @@ func TestBuildMCPFormData(t *testing.T) {
 	mcp.Set("enabled", "true")
 	mcp.Set("auth-mode", "bearer")
 
-	form := buildMCPFormData(tree)
+	schema, err := config.YANGSchema()
+	require.NoError(t, err, "the YANG schema must load")
+
+	form := buildMCPFormData(tree, schema)
 	assert.Equal(t, "MCP Configuration", form.Title)
 	require.Len(t, form.Fields, 10)
 	assert.Equal(t, "true", form.Fields[0].Value)
 	assert.Equal(t, "bearer", form.Fields[2].Value)
 	assert.Equal(t, "dropdown", form.Fields[2].Type)
-	assert.Equal(t, []string{"none", "bearer", "bearer-list", "oauth"}, form.Fields[2].Options)
+
+	// The dropdown offers what the leaf declares, read from the loaded model
+	// rather than from a second copy of the list.
+	leaf := findLeafNode(schema, mcpAuthModeLeaf.path, mcpAuthModeLeaf.leaf)
+	require.NotNil(t, leaf, "the schema must declare environment/mcp/auth-mode")
+	require.NotEmpty(t, leaf.Enums, "auth-mode must carry an enumeration")
+	assert.Equal(t, leaf.Enums, form.Fields[2].Options)
 }
 
 func TestBuildMCPFormData_SensitiveFields(t *testing.T) {
-	form := buildMCPFormData(nil)
+	form := buildMCPFormData(nil, nil)
 	tokenField := form.Fields[3]
 	assert.Equal(t, "password", tokenField.Type)
 	tlsKeyField := form.Fields[9]
@@ -241,14 +250,14 @@ func TestRenderServicePageContent_KnownServices(t *testing.T) {
 	unknown := []string{"unknown", "dns", "dhcp", "radius", ""}
 	for _, svc := range unknown {
 		t.Run(svc+"_not_dispatched", func(t *testing.T) {
-			_, ok := renderServicePageContent(nil, svc, nil)
+			_, ok := renderServicePageContent(nil, svc, nil, nil)
 			assert.False(t, ok)
 		})
 	}
 }
 
 func TestRenderServicePageContent_Unknown(t *testing.T) {
-	_, ok := renderServicePageContent(nil, "unknown", nil)
+	_, ok := renderServicePageContent(nil, "unknown", nil, nil)
 	assert.False(t, ok)
 }
 
@@ -256,4 +265,13 @@ func TestRenderL2TPPageContent_Dispatch(t *testing.T) {
 	// Only test paths that do not require a renderer (unknown falls through).
 	_, ok := renderL2TPPageContent(nil, []string{"unknown"}, nil)
 	assert.False(t, ok)
+}
+
+// TestMCPAuthModesCloseWithoutASchema proves the dropdown fails closed. The
+// enumeration is what decides which modes an operator can submit, so a page
+// rendered with no schema offers none rather than offering a mode the daemon
+// would refuse (ai/rules/principles.md).
+func TestMCPAuthModesCloseWithoutASchema(t *testing.T) {
+	assert.Empty(t, mcpAuthModes(nil), "no schema means no option")
+	assert.Empty(t, buildMCPFormData(nil, nil).Fields[2].Options, "the form offers nothing when the schema did not answer")
 }

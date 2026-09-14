@@ -229,21 +229,32 @@ func TestUnifiedTreeVerbs(t *testing.T) {
 	}
 }
 
-// VALIDATES: IsReadOnly correctly classifies verbs.
+// VALIDATES: IsReadOnlyVerb classifies each verb the way the registry does.
 // PREVENTS: wrong authorization for commands.
+//
+// The expectation is READ from Verbs rather than written out beside it. The
+// list this test held until 2026-09-14 said show, validate and monitor: it
+// missed resolve, which the registry calls a read, and it kept validate, which
+// the registry holds no entry for. Both are the drift a second list produces
+// (docs/architecture/cli/command-verbs.md, T-7).
 func TestVerbClassification(t *testing.T) {
-	readOnlyVerbs := []string{"show", "validate", "monitor"}
-	mutatingVerbs := []string{"set", "clear", "request", "delete", "update"}
-
-	for _, verb := range readOnlyVerbs {
-		if !IsReadOnlyVerb(verb) {
-			t.Errorf("expected %q to be read-only", verb)
+	reads := 0
+	for verb, role := range Verbs {
+		if role == RoleRead {
+			reads++
+		}
+		if got := IsReadOnlyVerb(verb); got != (role == RoleRead) {
+			t.Errorf("IsReadOnlyVerb(%q) = %v, role %d", verb, got, role)
 		}
 	}
-	for _, verb := range mutatingVerbs {
-		if IsReadOnlyVerb(verb) {
-			t.Errorf("expected %q to be mutating, not read-only", verb)
-		}
+	if reads == 0 {
+		t.Fatal("no verb carries RoleRead; the registry cannot have emptied")
+	}
+	if !IsReadOnlyVerb(VerbResolve) {
+		t.Error("resolve must be read-only: the registry gives it RoleRead")
+	}
+	if IsReadOnlyVerb("validate") {
+		t.Error("validate is not a canonical verb, so it carries no role")
 	}
 }
 

@@ -26,24 +26,6 @@ func init() {
 	)
 }
 
-// parseNeighborFamily maps a user family token (ipv4/ipv6/any/all) to an
-// iface.NeighborFamily. The bool is false for an unrecognized token so the
-// caller can produce a usage error. The CLI is case-sensitive and the
-// dispatcher validates the family enum (lowercase) against the YANG leaf before
-// this handler runs, so the switch only ever sees a valid lowercase token.
-func parseNeighborFamily(s string) (int, bool) {
-	switch s {
-	case "ipv4":
-		return iface.NeighborFamilyIPv4, true
-	case "ipv6":
-		return iface.NeighborFamilyIPv6, true
-	case "any", "all":
-		return iface.NeighborFamilyAny, true
-	default:
-		return iface.NeighborFamilyAny, false
-	}
-}
-
 // handleShowNeighbor returns the kernel neighbor table (IPv4 ARP + IPv6 ND)
 // via the iface component's active backend. Accepts an optional positional
 // "ipv4", "ipv6", or "any" argument to narrow the dump; no argument returns
@@ -63,7 +45,7 @@ func handleShowNeighbor(_ *pluginserver.CommandContext, args []string) (*plugin.
 	case 0:
 		// default: both families
 	case 1:
-		f, ok := parseNeighborFamily(args[0])
+		f, ok := iface.ParseNeighborFamily(args[0])
 		if !ok {
 			return &plugin.Response{
 				Status: plugin.StatusError,

@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -310,7 +311,7 @@ func init() {
 			Order:        730,
 			Dependencies: []string{doctorDepConfigLoaded, "interface"},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnosticIPsecIface},
+			Codes:        []string{diagnostic.CodeDoctorIPsecIface},
 			Check:        checkIPsecInterface,
 		}, {
 			// RFC 7296 Section 2.23 makes receiving UDP-encapsulated ESP a MUST. The
@@ -321,7 +322,7 @@ func init() {
 			Order:        731,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnosticIPsecUDPEncap},
+			Codes:        []string{diagnostic.CodeDoctorIPsecUDPEncap},
 			Check:        checkIPsecUDPEncap,
 		}, {
 			// RFC 7296 Section 3.6's hash-and-url is an outbound network dependency:
@@ -333,7 +334,7 @@ func init() {
 			Order:        732,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnosticIPsecCertURL, diagnosticIPsecCertURLDenied},
+			Codes:        []string{diagnostic.CodeDoctorIPsecCertURL, diagnostic.CodeDoctorIPsecCertURLDenied},
 			Check:        checkIPsecCertURL,
 		}, {
 			// RFC 7296 Section 2.6's COOKIE challenge is gated on a count whose
@@ -344,7 +345,7 @@ func init() {
 			Order:        733,
 			Dependencies: []string{doctorDepConfigLoaded},
 			Platforms:    []string{doctorPlatformAny},
-			Codes:        []string{diagnosticIPsecCookieThreshold},
+			Codes:        []string{diagnostic.CodeDoctorIPsecCookieThreshold},
 			Check:        checkIPsecCookieThreshold,
 		}},
 	}

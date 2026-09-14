@@ -2957,7 +2957,7 @@ func TestSetCLIFormat(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	m := &Model{}
+	m := modelWithSchema(t)
 	ok := handleSetCLIFormat("set cli format json", m)
 	assert.True(t, ok, "should handle set cli format")
 	assert.Equal(t, "cli format set to json", m.statusMessage)
@@ -2977,8 +2977,8 @@ func TestSetCLIFormatIsSessionScoped(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	sessionA := &Model{}
-	sessionB := &Model{}
+	sessionA := modelWithSchema(t)
+	sessionB := modelWithSchema(t)
 
 	require.True(t, handleSetCLIFormat("set cli format json", sessionA))
 
@@ -2993,7 +2993,7 @@ func TestSetCLIFormatInvalid(t *testing.T) {
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	m := &Model{}
+	m := modelWithSchema(t)
 	ok := handleSetCLIFormat("set cli format bogus", m)
 	assert.True(t, ok, "should handle set cli format")
 	assert.Contains(t, m.statusMessage, "invalid format")

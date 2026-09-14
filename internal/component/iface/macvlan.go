@@ -27,7 +27,7 @@ const (
 )
 
 // Wire names for the macvlan delivery modes, as the kernel and `ip link` spell
-// them. Deliberately NOT reusing discover.go's zeTypeBridge, which happens to
+// them. Deliberately NOT reusing discover.go's TypeBridge, which happens to
 // share the spelling: that constant names an interface DEVICE TYPE
 // (ethernet/veth/bridge/...), while these name a macvlan MODE. Coupling them
 // would mean a future rename of the device type silently changed a macvlan

@@ -380,7 +380,7 @@ func TestIfaceConstraintRulesStateOnlyWhatNoPairCan(t *testing.T) {
 		ifaceAddressOperation(operationAddAddress, "dum1", "10.0.0.1/24"),
 		ifaceAddressOperation(operationRemoveAddress, "dum1", "10.0.0.9/24"),
 		ifaceAddressOperation(operationRemoveAddress, "dum0", "10.0.0.1/24"),
-		ifaceInterfaceOperation(operationAddInterface, "dum1", zeTypeDummy),
+		ifaceInterfaceOperation(operationAddInterface, "dum1", TypeDummy),
 		ifaceConfigureOperation(nil),
 	}
 

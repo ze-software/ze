@@ -274,8 +274,8 @@ func TestTheStoredTableNamesTheURLsItWasBuiltFrom(t *testing.T) {
 func TestFetchDelegationTableUnreachable(t *testing.T) {
 	// Every registry is pointed at a closed port through the sources argument,
 	// so the run reaches nothing and no package variable is mutated.
-	unreachable := make(map[string]string, len(registryTokens()))
-	for _, token := range registryTokens() {
+	unreachable := make(map[string]string, len(RegistryTokens()))
+	for _, token := range RegistryTokens() {
 		unreachable[token] = "http://127.0.0.1:1/nonexistent"
 	}
 

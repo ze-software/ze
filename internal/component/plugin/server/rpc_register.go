@@ -171,14 +171,17 @@ func isBGPPeerNode(parent, grandparent string) bool {
 	if parent == "" {
 		return true
 	}
-	if parent == "request" {
+	if parent == command.VerbRequest {
 		return true
 	}
 	if parent != bgpPathKeyword {
 		return false
 	}
+	// The four verb roots a `bgp peer` container hangs from. The words are the
+	// registry's own spellings, so renaming a verb reaches here through the
+	// compiler rather than leaving a string nobody matches.
 	switch grandparent {
-	case "show", "set", "delete", "update":
+	case command.VerbShow, command.VerbSet, command.VerbDelete, command.VerbUpdate:
 		return true
 	}
 	return false

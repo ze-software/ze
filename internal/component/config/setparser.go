@@ -12,14 +12,19 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The keywords a set-format line starts with. set and delete are the canonical
+// CLI verbs in their engine path form, so their spelling comes from the verb
+// registry (internal/component/command). nop and inactive belong to this file
+// format alone.
 const (
-	cmdSet      = "set"
+	cmdSet      = command.VerbSet
 	cmdNop      = "nop"
-	cmdDelete   = "delete"
+	cmdDelete   = command.VerbDelete
 	cmdInactive = "inactive"
 )
 

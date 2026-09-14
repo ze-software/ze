@@ -117,7 +117,7 @@ func delegationSourceURLs(sources map[string]string) ([]string, error) {
 	for token := range sources {
 		if _, known := rirNames[token]; !known {
 			return nil, fmt.Errorf("delegation source names %q, which no registry spells: %s",
-				token, strings.Join(registryTokens(), ", "))
+				token, strings.Join(RegistryTokens(), ", "))
 		}
 	}
 
@@ -132,9 +132,14 @@ func delegationSourceURLs(sources map[string]string) ([]string, error) {
 	return urls, nil
 }
 
-// registryTokens answers the five tokens, sorted, for a message that has to
-// name what a caller could have written instead.
-func registryTokens() []string {
+// RegistryTokens answers the five tokens, sorted: the words an operator writes
+// under system { rir { delegation-source } }, and the words a message has to
+// name when a caller wrote something else.
+//
+// It is derived from publishedDelegation, which is the one place Go names the
+// five, so a caller that needs the set reads it here rather than spelling the
+// tokens again (ai/rules/principles.md).
+func RegistryTokens() []string {
 	tokens := make([]string, 0, len(publishedDelegation))
 	for _, published := range publishedDelegation {
 		tokens = append(tokens, published.token)

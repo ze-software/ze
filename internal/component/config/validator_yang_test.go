@@ -253,13 +253,15 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 // (spec-pppoe-padr-replay-allocates-unbounded-sessions) is refused outside
 // its declared range "1..65535", naming the leaf and the range.
 //
-// "pppoe" carries no entry in MapPrefixToModule (validator.go), so
-// ValidateTree("pppoe", ...) cannot resolve it -- ValidateTreeAllModules is
-// the entry point production validation actually uses for a section with no
-// hardcoded prefix mapping (validate_sections.go), and TestValidateTree_LengthViolation
-// above already established the same route for isis, filtering by error type
-// rather than indexing errs[0] directly for the same reason: several
-// registered conf modules can contribute to one section.
+// ValidateTreeAllModules is the entry point production validation uses
+// (validate_sections.go), and TestValidateTree_LengthViolation above already
+// established the same route for isis, filtering by error type rather than
+// indexing errs[0] directly: several registered conf modules can contribute to
+// one section, and ValidateTree resolves a section to one of them.
+//
+// ValidateTree("pppoe", ...) now resolves the module too. It could not until
+// moduleDeclaring replaced the hand-written prefix switch, which named twelve
+// sections and never gained "pppoe".
 //
 // No RFC requirement tag: this exercises the same generic range-check
 // producer (checkYangRange/validateUnsigned, validator.go) that

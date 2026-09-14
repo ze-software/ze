@@ -95,7 +95,7 @@ func filterManaged(discovered []ifacepkg.DiscoveredInterface) []ifacepkg.Discove
 	filtered := make([]ifacepkg.DiscoveredInterface, 0, len(discovered))
 	for i := range discovered {
 		switch discovered[i].Type {
-		case ifaceTypeDummy, ifaceTypeVeth, ifaceTypeBridge, "tunnel", "wireguard", "xfrm":
+		case ifacepkg.TypeDummy, ifacepkg.TypeVeth, ifacepkg.TypeBridge, "tunnel", "wireguard", "xfrm":
 			filtered = append(filtered, discovered[i])
 		}
 	}

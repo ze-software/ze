@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -925,10 +927,38 @@ var byteRateMultiplier = map[string]uint64{
 	"gbytes": 1024 * 1024 * 1024,
 }
 
-// timeUnits holds the allowed rate time units. Lookup avoids a long
-// switch chain and keeps the valid set derivable from the map.
-var timeUnits = map[string]struct{}{
-	"second": {}, "minute": {}, "hour": {}, "day": {},
+// rateUnitSeconds holds the seconds each rate time unit stands for. It is the
+// one declaration of the units a rate spec accepts, and of what each one means:
+// the membership test below reads it, the nft backend turns the seconds into an
+// nftables LimitTime, and the VPP backend divides by them to reach a per-second
+// policer rate.
+//
+// The pattern of the rate-spec typedef in ze-firewall-conf.yang lists the same
+// four words, because a pattern is the only way YANG can constrain half of a
+// string. That is the copy this table is checked against
+// (config_rate_test.go).
+var rateUnitSeconds = map[string]uint64{
+	"second": 1,
+	"minute": 60,
+	"hour":   3600,
+	"day":    86400,
+}
+
+// RateUnitSeconds answers the seconds unit stands for, and false when unit is
+// not a rate time unit Ze accepts.
+//
+// A backend lowering a Limit MUST use this rather than its own table of the
+// same four words: a second table is a second declaration, and the two disagree
+// the day a unit is added.
+func RateUnitSeconds(unit string) (uint64, bool) {
+	seconds, known := rateUnitSeconds[unit]
+	return seconds, known
+}
+
+// RateUnitNames answers the rate time units Ze accepts, sorted, for an error
+// message that has to tell an operator what to write instead.
+func RateUnitNames() []string {
+	return slices.Sorted(maps.Keys(rateUnitSeconds))
 }
 
 func ParseRateSpec(v string) (Limit, error) {
@@ -936,8 +966,8 @@ func ParseRateSpec(v string) (Limit, error) {
 	if !ok {
 		return Limit{}, fmt.Errorf("invalid rate spec %q (expected N/unit)", v)
 	}
-	if _, known := timeUnits[unit]; !known {
-		return Limit{}, fmt.Errorf("invalid rate unit %q (want second|minute|hour|day)", unit)
+	if _, known := rateUnitSeconds[unit]; !known {
+		return Limit{}, fmt.Errorf("invalid rate unit %q (want %s)", unit, strings.Join(RateUnitNames(), "|"))
 	}
 
 	// Two forms share the leading [0-9]+: plain "<N>" (packet rate) and

@@ -22,11 +22,11 @@ func cmdCreate(args []string) int {
 	case subcmdHelp, flagHelpShort, flagHelpLong:
 		createUsage()
 		return 0
-	case ifaceTypeDummy:
+	case mgr.TypeDummy:
 		return cmdCreateDummy(args[1:])
-	case ifaceTypeVeth:
+	case mgr.TypeVeth:
 		return cmdCreateVeth(args[1:])
-	case ifaceTypeBridge:
+	case mgr.TypeBridge:
 		return cmdCreateBridge(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "error: unknown interface type: %s (expected dummy, veth, or bridge)\n", args[0])

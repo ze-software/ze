@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -63,7 +64,7 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	u, err := url.Parse(auth.CertificateURL)
 	if err != nil {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnosticIPsecCertURL,
+			Code:     diagnostic.CodeDoctorIPsecCertURL,
 			Severity: severityError,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url is not a URL: ").Err(err).String(),
@@ -71,7 +72,7 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	}
 	if u.Scheme != "http" {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnosticIPsecCertURL,
+			Code:     diagnostic.CodeDoctorIPsecCertURL,
 			Severity: severityError,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url uses the ").Str(u.Scheme).
@@ -82,7 +83,7 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	host := u.Hostname()
 	if host == "" {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnosticIPsecCertURL,
+			Code:     diagnostic.CodeDoctorIPsecCertURL,
 			Severity: severityError,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url names no host, so no peer can fetch the certificate").String(),
@@ -102,7 +103,7 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	}
 	if certURLDenied(addr) {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     diagnosticIPsecCertURLDenied,
+			Code:     diagnostic.CodeDoctorIPsecCertURLDenied,
 			Severity: severityWarning,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url names ").Addr(addr).

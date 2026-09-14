@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 
 	resolveDNS "github.com/ze-software/ze/internal/component/resolve/dns"
 	"github.com/ze-software/ze/internal/core/helpfmt"
@@ -21,15 +23,16 @@ func cmdDNS(args []string) int {
 
 	fs := flag.NewFlagSet("ze resolve dns", flag.ContinueOnError)
 	dnsServer := fs.String("server", "", "DNS server (default: system DNS)")
-	dnssec := fs.String("dnssec", "", "DNSSEC validation: off|permissive|strict (default off)")
+	dnssec := fs.String("dnssec", "", "DNSSEC validation: "+strings.Join(resolveDNS.ValidationModes(), "|")+" (default off)")
 	fs.Usage = func() { dnsUsage() }
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
 	}
-	switch *dnssec {
-	case "", "off", "permissive", "strict":
-	default:
+	// The empty flag means the operator named no mode, which the resolver reads
+	// as off. Every other word MUST be one the resolver acts on: an unlisted
+	// one is refused here rather than carried in and ignored.
+	if *dnssec != "" && !slices.Contains(resolveDNS.ValidationModes(), *dnssec) {
 		dnsUsage()
 		return exitError
 	}

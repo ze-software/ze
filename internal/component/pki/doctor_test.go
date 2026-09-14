@@ -51,8 +51,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		store, _ := newRootStore(t)
 
 		diag := caRootDiagnostic(t, store)
-		if diag.Code != codeCARootMissing {
-			t.Fatalf("code = %q, want %q", diag.Code, codeCARootMissing)
+		if diag.Code != diagnostic.CodeDoctorPKICARootMissing {
+			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorPKICARootMissing)
 		}
 		if diag.Severity != diagnostic.SeverityWarning {
 			t.Fatalf("severity = %q, want warning", diag.Severity)
@@ -69,8 +69,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		}
 
 		diag := caRootDiagnostic(t, store)
-		if diag.Code != codeCARootInvalid {
-			t.Fatalf("code = %q, want %q", diag.Code, codeCARootInvalid)
+		if diag.Code != diagnostic.CodeDoctorTLSInvalid {
+			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorTLSInvalid)
 		}
 		if diag.Severity != diagnostic.SeverityError {
 			t.Fatalf("severity = %q, want error", diag.Severity)
@@ -86,8 +86,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		}
 
 		diag := caRootDiagnostic(t, store)
-		if diag.Code != codeCARootInvalid {
-			t.Fatalf("code = %q, want %q", diag.Code, codeCARootInvalid)
+		if diag.Code != diagnostic.CodeDoctorTLSInvalid {
+			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorTLSInvalid)
 		}
 		if diag.Severity != diagnostic.SeverityError {
 			t.Fatalf("severity = %q, want error", diag.Severity)
@@ -122,8 +122,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("check reported %d diagnostics, want 1: %v", len(diags), diags)
 		}
-		if diags[0].Code != codeCARootExpiry {
-			t.Fatalf("code = %q, want %q", diags[0].Code, codeCARootExpiry)
+		if diags[0].Code != diagnostic.CodeDoctorPKICARootExpiry {
+			t.Fatalf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorPKICARootExpiry)
 		}
 		if diags[0].Severity != diagnostic.SeverityWarning {
 			t.Fatalf("severity = %q, want warning", diags[0].Severity)
@@ -137,8 +137,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 		if len(diags) != 1 {
 			t.Fatalf("check reported %d diagnostics, want 1: %v", len(diags), diags)
 		}
-		if diags[0].Code != codeCARootExpiry {
-			t.Fatalf("code = %q, want %q", diags[0].Code, codeCARootExpiry)
+		if diags[0].Code != diagnostic.CodeDoctorPKICARootExpiry {
+			t.Fatalf("code = %q, want %q", diags[0].Code, diagnostic.CodeDoctorPKICARootExpiry)
 		}
 		if diags[0].Severity != diagnostic.SeverityError {
 			t.Fatalf("severity = %q, want error", diags[0].Severity)
@@ -147,8 +147,8 @@ func TestCARootDoctorCheck(t *testing.T) {
 
 	t.Run("no store", func(t *testing.T) {
 		diag := caRootDiagnostic(t, nil)
-		if diag.Code != codeCARootInvalid {
-			t.Fatalf("code = %q, want %q", diag.Code, codeCARootInvalid)
+		if diag.Code != diagnostic.CodeDoctorTLSInvalid {
+			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorTLSInvalid)
 		}
 	})
 }
@@ -169,7 +169,12 @@ func TestCARootDoctorCheckRegistered(t *testing.T) {
 	// The codes are declared in a central table many sessions edit at once, so
 	// assert they are REGISTERED rather than merely spelled here.
 	diagnostic.RegisterBuiltinCodes()
-	for _, code := range []string{codeCARootMissing, codeCARootExpiry, codeCARootInvalid} {
+	codes := []string{
+		diagnostic.CodeDoctorPKICARootMissing,
+		diagnostic.CodeDoctorPKICARootExpiry,
+		diagnostic.CodeDoctorTLSInvalid,
+	}
+	for _, code := range codes {
 		if diagnostic.Lookup(code) == nil {
 			t.Errorf("diagnostic code %q is not registered", code)
 		}

@@ -127,11 +127,9 @@ func (v *Validator) findSchemaNode(path string) (*yang.Entry, error) {
 		return nil, errEmptyPath
 	}
 
-	// First part should be a module prefix (e.g., "bgp")
-	moduleName := v.mapPrefixToModule(parts[0])
-
-	// Get the processed entry tree (has Mandatory properly set)
-	entry := v.loader.GetEntry(moduleName)
+	// The first part names a top-level config section, and the model says which
+	// module declares it. A path that names a module directly still resolves.
+	entry := v.moduleDeclaring(parts[0])
 	if entry == nil {
 		entry = v.loader.GetEntry(parts[0])
 	}
@@ -163,40 +161,33 @@ func (v *Validator) findInEntry(entry *yang.Entry, parts []string) (*yang.Entry,
 	return current, nil
 }
 
-// mapPrefixToModule maps common prefixes to module names.
-func (v *Validator) mapPrefixToModule(prefix string) string {
-	return MapPrefixToModule(prefix)
-}
-
-// MapPrefixToModule maps common config prefixes to YANG module names.
-func MapPrefixToModule(prefix string) string {
-	switch prefix {
-	case "bgp":
-		return "ze-bgp-conf"
-	case "interface":
-		return "ze-iface-conf"
-	case "sysctl":
-		return "ze-sysctl-conf"
-	case "plugin":
-		return "ze-plugin-conf"
-	case "web":
-		return "ze-web-conf"
-	case "ssh":
-		return "ze-ssh-conf"
-	case "telemetry":
-		return "ze-telemetry-conf"
-	case "looking-glass":
-		return "ze-lg-conf"
-	case "mcp":
-		return "ze-mcp-conf"
-	case "fib":
-		return "ze-fib-conf"
-	case "managed":
-		return "ze-managed-conf"
-	case "vpp":
-		return "ze-vpp-conf"
+// moduleDeclaring answers the entry tree of the loaded config module that
+// declares the named top-level section, or nil when no module declares it.
+//
+// The model holds the pairing already: a module's entry tree lists the sections
+// it declares, so nothing else has to state which module owns "bgp". A
+// component or plugin whose YANG registers a new section is therefore resolved
+// the moment it registers.
+//
+// This replaced a switch over twelve prefixes, and the thirteenth is why the
+// switch was a defect rather than a shortcut: "pppoe" was never added, so
+// ValidateTree("pppoe", ...) resolved no module and checked nothing at all
+// (validator_yang_test.go records the workaround it forced).
+//
+// ConfModuleNames is sorted, so a section several modules contribute to always
+// resolves to the same one. ValidateTreeAllModules is the entry point for a
+// caller that needs every contributing module rather than one.
+func (v *Validator) moduleDeclaring(section string) *yang.Entry {
+	for _, module := range v.loader.ConfModuleNames() {
+		entry := v.loader.GetEntry(module)
+		if entry == nil || entry.Dir == nil {
+			continue
+		}
+		if _, declares := entry.Dir[section]; declares {
+			return entry
+		}
 	}
-	return prefix
+	return nil
 }
 
 // stripListKey removes list key from path segment.
