@@ -330,6 +330,9 @@ var integrationPackages = []string{
 	// kernel's own route lookup over the ip rule and the auto route the plugin
 	// installs.
 	"./internal/plugins/policyroute",
+	// Added 2026-09-14 with copp_integration_linux_test.go, which floods the
+	// protected port through the CoPP chain and counts what the kernel accepts.
+	"./internal/plugins/copp",
 	"./internal/plugins/static",
 	"./internal/plugins/trafficusage",
 }

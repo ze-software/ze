@@ -186,13 +186,14 @@ func Table() []Action {
 		{
 			Verb: "fib",
 			Argv: goTest("120s", "./internal/plugins/fib/kernel/..."),
-			Why: "the kernel FIB backend: what a route looks like once netlink has it." +
-				" Needs CAP_NET_ADMIN",
+			Why: "the kernel FIB backend: what a route looks like once netlink has it, and" +
+				" which route the kernel selects for a destination. Needs CAP_NET_ADMIN",
 		},
 		{
 			Verb: "firewall",
-			Argv: goTest("120s", "./internal/plugins/firewall/nft/..."),
-			Why:  "the nft firewall backend against a real nftables ruleset. Needs CAP_NET_ADMIN",
+			Argv: goTest("120s", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
+			Why: "the nft firewall backend against a real nftables ruleset, and the CoPP" +
+				" chain policing a SYN flood through it. Needs CAP_NET_ADMIN",
 		},
 		{
 			Verb: "traffic",
