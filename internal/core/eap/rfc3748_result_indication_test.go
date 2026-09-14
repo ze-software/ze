@@ -91,6 +91,13 @@ func openMSCHAPv2Exchange(t *testing.T, authPassword, peerPassword string) *msch
 func TestRFC3748NoTerminalPacketLeavesMidMethod(t *testing.T) {
 	ex := openMSCHAPv2Exchange(t, "secret", "secret")
 
+	// RFC requirement: RFC3748-4.2-10 positive -- RFC 3748 Section 4.2: "Success
+	// and Failure packets MUST NOT be sent by an EAP authenticator if the
+	// specification of the given method does not explicitly permit the method to
+	// finish at that point." Every packet this authenticator sent up to and
+	// including its answer to the MS-CHAPv2 Response carries Code 1 (Request), and
+	// that answer carries the method's own Type, so neither a Success nor a
+	// Failure left while the MS-CHAPv2 rounds were still running.
 	for i, p := range ex.rounds {
 		if p.Code != CodeRequest {
 			t.Fatalf("packet %d of the method conversation has Code %d, want a Request (%d)", i, p.Code, CodeRequest)
@@ -100,6 +107,12 @@ func TestRFC3748NoTerminalPacketLeavesMidMethod(t *testing.T) {
 		t.Fatalf("the answer to the MS-CHAPv2 Response has Type %d, want the method's own %d", ex.indication.Type, TypeMSCHAPv2)
 	}
 
+	// RFC requirement: RFC3748-4.2-10 negative -- the same exchange, carried one
+	// round further to the point the method DOES permit it to finish, answers
+	// with an EAP-Success. RFC 2759 Section 5 puts that point at the peer's
+	// acknowledgement of the MS-CHAPv2 Success, so the Requests above are a
+	// terminal packet withheld while the method ran rather than an authenticator
+	// that never sends one.
 	ack := ex.peer.Process(ex.indication)
 	if ack.Err != nil || ack.Response == nil {
 		t.Fatalf("the peer did not acknowledge the success indication: %+v", ack)
@@ -113,6 +126,12 @@ func TestRFC3748NoTerminalPacketLeavesMidMethod(t *testing.T) {
 // TestRFC3748FailureFollowsTheFailureIndication answers one failure indication
 // two different ways and reads what the authenticator sends next each time.
 func TestRFC3748FailureFollowsTheFailureIndication(t *testing.T) {
+	// RFC requirement: RFC3748-4.2-12 positive -- RFC 3748 Section 4.2: "After the
+	// authenticator sends a failure result indication to the peer, regardless of
+	// the response from the peer, it MUST subsequently send a Failure packet." The
+	// MS-CHAPv2 Failure packet is that indication (RFC 2759 Section 6), and the
+	// two answers it can draw are both read here: the peer's own acknowledgement
+	// and four octets of nonsense. Each is followed by an EAP-Failure.
 	acknowledged := openMSCHAPv2Exchange(t, "server-secret", "peer-secret")
 	ack := acknowledged.peer.Process(acknowledged.indication)
 	if ack.Response == nil {
@@ -133,6 +152,11 @@ func TestRFC3748FailureFollowsTheFailureIndication(t *testing.T) {
 		t.Fatalf("a failure indication answered with nonsense drew %+v, want an EAP-Failure", got)
 	}
 
+	// RFC requirement: RFC3748-4.2-12 negative -- the duty follows the FAILURE
+	// indication and no other. The same conversation with credentials that agree
+	// sends a success indication in its place, and its last packet is an
+	// EAP-Success, so the two Failures above track the indication rather than
+	// every exchange this authenticator runs.
 	succeeding := openMSCHAPv2Exchange(t, "secret", "secret")
 	goodAck := succeeding.peer.Process(succeeding.indication)
 	if goodAck.Response == nil {
@@ -150,6 +174,12 @@ func TestRFC3748FailureFollowsTheFailureIndication(t *testing.T) {
 // TestRFC3748SuccessFollowsBothSuccessIndications answers the authenticator's
 // success indication with the peer's own, then with a refusal.
 func TestRFC3748SuccessFollowsBothSuccessIndications(t *testing.T) {
+	// RFC requirement: RFC3748-4.2-13 positive -- RFC 3748 Section 4.2: "After the
+	// authenticator sends a success result indication to the peer and receives a
+	// success result indication from the peer, it MUST subsequently send a Success
+	// packet." The MS-CHAPv2 Success Request is the authenticator's indication and
+	// the peer's Success Response (OpCode 3, RFC 2759 Section 5) is the peer's.
+	// Both are read here, and the packet that follows them is the EAP-Success.
 	agreed := openMSCHAPv2Exchange(t, "secret", "secret")
 	ack := agreed.peer.Process(agreed.indication)
 	if ack.Err != nil || ack.Response == nil {
@@ -163,6 +193,10 @@ func TestRFC3748SuccessFollowsBothSuccessIndications(t *testing.T) {
 		t.Fatalf("both success indications drew %+v, want an EAP-Success", terminal)
 	}
 
+	// RFC requirement: RFC3748-4.2-13 negative -- BOTH indications are owed. The
+	// same authenticator, at the same point of the same exchange, is answered with
+	// the MS-CHAPv2 Failure OpCode instead of the Success one, so its own success
+	// indication stands and the peer's does not arrive. No EAP-Success follows.
 	refused := openMSCHAPv2Exchange(t, "secret", "secret")
 	peerRefusal := &Packet{
 		Code:       CodeResponse,
@@ -178,6 +212,12 @@ func TestRFC3748SuccessFollowsBothSuccessIndications(t *testing.T) {
 // TestRFC3748FailedAuthenticationIsRefusedNotGranted drives one conversation the
 // peer cannot pass and one it can, and reads every packet of each.
 func TestRFC3748FailedAuthenticationIsRefusedNotGranted(t *testing.T) {
+	// RFC requirement: RFC3748-4.2-14 positive -- RFC 3748 Section 4.2: "If the
+	// peer attempts to authenticate to the authenticator and fails to do so, the
+	// authenticator MUST send a Failure packet and MUST NOT grant access by
+	// sending a Success packet." The peer here holds a password the authenticator
+	// does not, so its NT-Response cannot verify: the flight ends in an
+	// EAP-Failure and no packet anywhere in it is an EAP-Success.
 	failed := driveMSCHAPv2Flight(t, "server-secret", "peer-secret")
 	if failed.terminal == nil || failed.terminal.Code != CodeFailure {
 		t.Fatalf("a peer that could not authenticate drew %+v, want an EAP-Failure", failed.terminal)
@@ -188,6 +228,11 @@ func TestRFC3748FailedAuthenticationIsRefusedNotGranted(t *testing.T) {
 		}
 	}
 
+	// RFC requirement: RFC3748-4.2-14 negative -- the refusal tracks the
+	// authentication and not the flight. The same conversation driven with a
+	// password the authenticator shares ends in an EAP-Success, so the Failure
+	// above is this peer failing to authenticate rather than an authenticator that
+	// refuses every peer.
 	passed := driveMSCHAPv2Flight(t, "secret", "secret")
 	if passed.terminal == nil || passed.terminal.Code != CodeSuccess {
 		t.Fatalf("a peer that authenticated drew %+v, want an EAP-Success", passed.terminal)
@@ -207,6 +252,13 @@ func TestRFC3748PeerOutlivesALostTerminalPacket(t *testing.T) {
 		t.Fatalf("the acknowledged success indication drew %+v, want an EAP-Success", terminal)
 	}
 
+	// RFC requirement: RFC3748-4.2-11 negative -- allowing for the loss is not
+	// assuming the packet. RFC 3748 Section 4.2 lets a peer take that liberty
+	// ("The peer MAY, in the event that an EAP Success is not received, conclude
+	// that the EAP Success packet was lost and that authentication concluded
+	// successfully"), and this peer does not: with its method complete and the
+	// EAP-Success not yet delivered, it reports no success, and it still reports
+	// none after the two packets that arrived in place of the lost one.
 	if ex.peer.Succeeded() {
 		t.Fatal("the peer concluded success before the EAP-Success reached it")
 	}
@@ -229,6 +281,15 @@ func TestRFC3748PeerOutlivesALostTerminalPacket(t *testing.T) {
 		t.Fatal("the peer concluded success from the packets that arrived in place of the EAP-Success")
 	}
 
+	// RFC requirement: RFC3748-4.2-11 positive -- RFC 3748 Section 4.2:
+	// "Implementation Note: Because the Success and Failure packets are not
+	// acknowledged, they are not retransmitted by the authenticator, and may be
+	// potentially lost.  A peer MUST allow for this circumstance as described in
+	// this note." The interval the loss opens is driven above: two packets the
+	// peer must discard arrive in place of the EAP-Success, and neither ends the
+	// session nor reports an error. The peer keeps its place, so the same
+	// EAP-Success delivered late still completes the exchange and hands out an MSK
+	// that is not all zero.
 	late := ex.peer.Process(terminal)
 	if late.Err != nil {
 		t.Fatalf("the retransmitted EAP-Success was refused: %v", late.Err)
@@ -252,6 +313,15 @@ func TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession(t *testing.T) {
 		t.Fatalf("the EAP-Failure drew %+v, want the session to end", res)
 	}
 
+	// RFC requirement: RFC3748-4.2-15 positive -- RFC 3748 Section 4.2: "On the
+	// peer, once the method completes unsuccessfully (that is, either the
+	// authenticator sends a failure result indication, or the peer decides that it
+	// does not want to continue the conversation, possibly after sending a failure
+	// result indication), the peer MUST terminate the conversation and indicate
+	// failure to the lower layer.  The peer MUST silently discard Success
+	// packets." The EAP-Failure above ended this peer's session, and the Success
+	// that arrives after it is discarded: the exchange does not complete, no MSK
+	// leaves, and the peer still reports no success.
 	rogue := &Packet{Code: CodeSuccess, Identifier: ended.indication.Identifier}
 	res := ended.peer.Process(rogue)
 	if !res.Discarded {
@@ -268,6 +338,11 @@ func TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession(t *testing.T) {
 		t.Fatal("the peer reports success after it ended the session")
 	}
 
+	// RFC requirement: RFC3748-4.2-15 negative -- the discard is the ENDED session
+	// and nothing wider. A peer of the same kind whose method completed reads the
+	// EAP-Success it was waiting for: the exchange completes and the packet is not
+	// discarded, so the silence above is this peer having terminated the
+	// conversation rather than a peer that refuses every Success.
 	completed := driveMSCHAPv2Flight(t, "secret", "secret")
 	if !completed.peerFinal.Done {
 		t.Fatalf("a peer whose method completed refused the EAP-Success: %+v", completed.peerFinal)
