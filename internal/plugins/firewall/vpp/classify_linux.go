@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"strings"
 
 	"go.fd.io/govpp/binapi/interface_types"
 
@@ -199,18 +200,19 @@ func (b *backend) createLimitPolicer(
 	return ops.policerAddDel(name, rate, limit.Burst, isPackets, true)
 }
 
+// limitToRate turns a Limit into the per-second rate a VPP policer takes.
+//
+// The seconds each unit stands for come from firewall.RateUnitSeconds, which is
+// the one declaration of that set. A unit this does not recognize is an error
+// rather than a pass-through: until 2026-09-14 the switch here had no default
+// arm, so an unrecognized unit was policed as though the operator had written
+// "second", which is 86400 times the rate a "day" limit asks for.
 func limitToRate(limit *firewall.Limit) (uint32, error) {
-	rate := limit.Rate
-	switch limit.Unit {
-	case "second":
-		// rate is already per-second
-	case "minute":
-		rate /= 60
-	case "hour":
-		rate /= 3600
-	case "day":
-		rate /= 86400
+	seconds, known := firewall.RateUnitSeconds(limit.Unit)
+	if !known {
+		return 0, fmt.Errorf("unknown limit unit %q (want %s)", limit.Unit, strings.Join(firewall.RateUnitNames(), "|"))
 	}
+	rate := limit.Rate / seconds
 	if limit.Dimension == firewall.RateDimensionBytes {
 		rate = rate * 8 / 1000
 	}

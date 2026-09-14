@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/dnsserver"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -155,8 +156,11 @@ func init() {
 			Order:        724,
 			Dependencies: []string{"fib-kernel"},
 			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-tls-missing", "doctor-tls-expired", "doctor-tls-invalid", "doctor-tls-reference"},
-			Check:        checkAS112TLSCert,
+			Codes: []string{
+				diagnostic.CodeDoctorTLSMissing, diagnostic.CodeDoctorTLSExpired,
+				diagnostic.CodeDoctorTLSInvalid, diagnostic.CodeDoctorTLSReference,
+			},
+			Check: checkAS112TLSCert,
 		},
 	}
 

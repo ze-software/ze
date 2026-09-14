@@ -208,14 +208,13 @@ func disState(c *circuit.Circuit) string {
 	l2 := c.LocalIsDIS(adjacency.Level2)
 	switch {
 	case l1 && l2:
-		return "l1-l2"
+		return LevelL1L2.String()
 	case l1:
-		return "l1"
+		return LevelL1.String()
 	case l2:
-		return "l2"
-	default:
-		return ""
+		return LevelL2.String()
 	}
+	return ""
 }
 
 // spfLogView renders the `show isis spf-log` rows (spec-isis-13 AC-6). It is a

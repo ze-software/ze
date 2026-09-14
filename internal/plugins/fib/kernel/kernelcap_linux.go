@@ -17,13 +17,7 @@ package fibkernel
 
 import (
 	"github.com/ze-software/ze/internal/component/kernelcap"
-)
-
-// MPLS diagnostic codes. Both are declared in
-// internal/core/diagnostic/codes.go, which `ze explain <code>` reads.
-const (
-	diagnosticMPLSUnavailable = "doctor-mpls-unavailable"
-	diagnosticMPLSUnknown     = "doctor-mpls-unknown"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
 func init() {
@@ -32,8 +26,8 @@ func init() {
 		Component:   pluginName,
 		Kernel:      "CONFIG_MPLS_ROUTING",
 		ConfigLeaf:  "a labeled BGP family, ldp, rsvp-te or an interface mpls block on the kernel FIB",
-		CodeAbsent:  diagnosticMPLSUnavailable,
-		CodeUnknown: diagnosticMPLSUnknown,
+		CodeAbsent:  diagnostic.CodeDoctorMPLSUnavailable,
+		CodeUnknown: diagnostic.CodeDoctorMPLSUnknown,
 		Order:       735,
 		InUse:       kernelcap.MPLSInUse,
 		Probe:       kernelcap.MPLS,

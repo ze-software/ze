@@ -88,12 +88,9 @@ func writeCompletionRecord(w io.Writer, candidate, summary string) error {
 	return err
 }
 
-// The two command paths this file names more than once: the read-only verb that
-// roots every show tree, and the BGP RIB the "rib" shorthand expands to.
-const (
-	verbShow = "show"
-	nameRIB  = "rib"
-)
+// nameRIB is the BGP RIB that the "rib" shorthand expands to. The verb this
+// file names more than once is command.VerbShow, the canonical spelling.
+const nameRIB = "rib"
 
 func completionTree(args []string) (*command.Node, []string) {
 	if len(args) == 0 {
@@ -102,8 +99,8 @@ func completionTree(args []string) (*command.Node, []string) {
 	if args[0] == "run" {
 		return runCompletionTree(args[1:])
 	}
-	if args[0] == verbShow {
-		return cli.BuildVerbCommandTree(verbShow), args[1:]
+	if args[0] == command.VerbShow {
+		return cli.BuildVerbCommandTree(command.VerbShow), args[1:]
 	}
 	if tree := rootCommandTree(args[0]); tree != nil {
 		return tree, args[1:]
@@ -145,7 +142,7 @@ func mergeShowDescriptions(name string, root *command.Node) {
 	if root.Children == nil {
 		return
 	}
-	showTree := cli.BuildVerbCommandTree(verbShow)
+	showTree := cli.BuildVerbCommandTree(command.VerbShow)
 	if showTree == nil {
 		return
 	}
@@ -177,16 +174,18 @@ func runCompletionTree(path []string) (*command.Node, []string) {
 	if len(path) == 0 {
 		return cli.BuildCommandTree(false), nil
 	}
-	switch path[0] {
-	case verbShow, "set", "delete", "clear", "request", "monitor", "resolve", "validate":
-		return cli.BuildVerbCommandTree(path[0]), path[1:]
-	case nameRIB:
-		tree := cli.BuildVerbCommandTree(verbShow)
+	if path[0] == nameRIB {
+		tree := cli.BuildVerbCommandTree(command.VerbShow)
 		addRIBRoutesAlias(tree)
 		return tree, append([]string{"bgp", nameRIB}, path[1:]...)
-	default:
-		return cli.BuildCommandTree(false), path
 	}
+	// A canonical verb roots a tree of its own, so completion walks that tree
+	// relative to the verb. The set is command.Verbs rather than a list written
+	// here, so a verb added to the vocabulary completes without a second edit.
+	if command.IsVerb(path[0]) {
+		return cli.BuildVerbCommandTree(path[0]), path[1:]
+	}
+	return cli.BuildCommandTree(false), path
 }
 
 func addRIBRoutesAlias(tree *command.Node) {

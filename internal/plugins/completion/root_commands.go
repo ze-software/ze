@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -32,7 +33,7 @@ func shellRootCommands() []rootEntry {
 	}
 
 	entries = append(entries, rootEntry{
-		Name:        verbShow,
+		Name:        command.VerbShow,
 		Description: "Show daemon state (read-only commands)",
 	})
 

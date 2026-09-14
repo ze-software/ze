@@ -946,18 +946,23 @@ func lowerLimit(l firewall.Limit) ([]expr.Any, error) {
 	}}, nil
 }
 
+// lowerLimitUnit turns a rate time unit into the nftables limit unit.
+//
+// expr.LimitTime IS a second count: LimitTimeSecond is 1, LimitTimeMinute 60,
+// LimitTimeHour 3600 and LimitTimeDay 86400 (vendor/github.com/google/
+// nftables/expr/limit.go). So the seconds firewall.RateUnitSeconds answers ARE
+// the value the kernel takes, and this needs no second table of the same four
+// words to restate what a unit means.
+//
+// The unit set is the one firewall accepts, so every value reaching here is one
+// of the four nftables also knows. A unit firewall did not accept is refused
+// rather than converted.
 func lowerLimitUnit(unit string) (expr.LimitTime, error) {
-	switch unit {
-	case "second":
-		return expr.LimitTimeSecond, nil
-	case "minute":
-		return expr.LimitTimeMinute, nil
-	case "hour":
-		return expr.LimitTimeHour, nil
-	case "day":
-		return expr.LimitTimeDay, nil
+	seconds, known := firewall.RateUnitSeconds(unit)
+	if !known {
+		return 0, fmt.Errorf("unknown limit unit %q (want %s)", unit, strings.Join(firewall.RateUnitNames(), "|"))
 	}
-	return 0, fmt.Errorf("unknown limit unit %q (want second|minute|hour|day)", unit)
+	return expr.LimitTime(seconds), nil
 }
 
 // lowerSetConnMark writes a value into the conntrack mark. The masked

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 func TestWordsShowProducesTabSeparatedOutput(t *testing.T) {
@@ -191,6 +193,51 @@ func TestWordsPipeOperatorsFiltered(t *testing.T) {
 	for _, pipe := range []string{"match\t", "count\t", "table\t", "no-more\t"} {
 		if strings.Contains(output, pipe) {
 			t.Errorf("words output should not contain pipe operator %q", pipe)
+		}
+	}
+}
+
+// TestRunCompletionTreeCoversEveryCanonicalVerb asserts that `ze completion
+// words run <verb>` walks the tree rooted at that verb, for every verb
+// command.Verbs holds, and consumes the verb from the path it returns.
+//
+// The assertion is against the registry rather than a list of words. The eight
+// words this function held until 2026-09-14 left update, commit, create, send,
+// debug and cache walking the absolute tree with the verb still on the path,
+// so a verb added to the vocabulary completed differently from its siblings
+// until somebody noticed.
+func TestRunCompletionTreeCoversEveryCanonicalVerb(t *testing.T) {
+	for verb := range command.Verbs {
+		tree, rest := runCompletionTree([]string{verb, "alpha"})
+		if tree == nil {
+			t.Errorf("runCompletionTree(%q) returned no tree", verb)
+			continue
+		}
+		if len(rest) != 1 || rest[0] != "alpha" {
+			t.Errorf("runCompletionTree(%q) rest = %v, want [alpha]: the verb roots the tree, so it leaves the path", verb, rest)
+		}
+	}
+}
+
+// TestRunCompletionTreeKeepsANonVerbOnThePath asserts the other half: a first
+// word the registry does not hold walks the absolute tree with the whole path
+// intact, so `rib` keeps its shorthand and an unknown word is not silently
+// treated as a verb root.
+func TestRunCompletionTreeKeepsANonVerbOnThePath(t *testing.T) {
+	_, rest := runCompletionTree([]string{"not-a-verb", "alpha"})
+	if len(rest) != 2 || rest[0] != "not-a-verb" {
+		t.Errorf("rest = %v, want the whole path: not-a-verb is no canonical verb", rest)
+	}
+
+	_, ribRest := runCompletionTree([]string{nameRIB, "alpha"})
+	want := []string{"bgp", nameRIB, "alpha"}
+	if len(ribRest) != len(want) {
+		t.Fatalf("rib rest = %v, want %v", ribRest, want)
+	}
+	for i := range want {
+		if ribRest[i] != want[i] {
+			t.Errorf("rib rest = %v, want %v", ribRest, want)
+			break
 		}
 	}
 }

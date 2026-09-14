@@ -104,6 +104,6 @@ func TestMPLSCapabilityEnrolled(t *testing.T) {
 	}
 	require.NotNil(t, found, "no kernel-capability-mpls doctor check was registered")
 	require.NotNil(t, found.Check, "kernel-capability-mpls has a nil Check function")
-	assert.Contains(t, found.Codes, diagnosticMPLSUnavailable)
-	assert.Contains(t, found.Codes, diagnosticMPLSUnknown)
+	assert.Contains(t, found.Codes, diagnostic.CodeDoctorMPLSUnavailable)
+	assert.Contains(t, found.Codes, diagnostic.CodeDoctorMPLSUnknown)
 }
