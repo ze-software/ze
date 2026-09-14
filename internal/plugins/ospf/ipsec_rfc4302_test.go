@@ -46,7 +46,7 @@ func ahIface(spi uint32) interfaceConfig {
 // rather than being one constant: a second interface configured with a different SPI
 // builds a state carrying that SPI, so an installer writing a fixed SPI fails here.
 func TestAHSAIdentifiedBySPIAndProtocol(t *testing.T) {
-	sa := buildIPsecSA(testIfIndex, ahIPsec(0x1000))
+	sa := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ahIPsec(0x1000))
 	if sa.SPI != 0x1000 {
 		t.Errorf("AH SA spi = %#x, want 0x1000: the configured SPI is the SA identifier", sa.SPI)
 	}
@@ -56,7 +56,7 @@ func TestAHSAIdentifiedBySPIAndProtocol(t *testing.T) {
 	if !sa.Dst.Equal(net.IPv6zero) {
 		t.Errorf("AH SA dst = %v, want :: so that the SPI and the protocol resolve it", sa.Dst)
 	}
-	other := buildIPsecSA(testIfIndex, ahIPsec(0x2000))
+	other := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ahIPsec(0x2000))
 	if other.SPI != 0x2000 {
 		t.Errorf("second AH SA spi = %#x, want 0x2000: the SPI is configured, not fixed", other.SPI)
 	}
@@ -75,7 +75,7 @@ func TestAHSAIdentifiedBySPIAndProtocol(t *testing.T) {
 // is not OSPF cannot map to this AH SA, and an installer that left the selector's upper
 // protocol at the 0 wildcard fails here.
 func TestAHSAAddressMatchIndication(t *testing.T) {
-	sa := buildIPsecSA(testIfIndex, ahIPsec(256))
+	sa := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ahIPsec(256))
 	if sa.Sel == nil {
 		t.Fatal("manual AH SA carries no state selector; the address-match indication is unset")
 	}

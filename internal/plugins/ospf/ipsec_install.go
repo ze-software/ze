@@ -9,26 +9,43 @@
 // lifecycle and the ze_ospfv3_ipsec_* metrics; the dataplane owns the netlink mechanics.
 //
 // Selector model (RFC 4552 §6/§7, transport mode only):
-//   - One shared wildcard SA per interface: Src = Dst = :: (wildcard) with a state
-//     selector of {::/0, ::/0, proto 89}, reqid-bound to the policies. OSPFv3 sends
-//     protocol-89 to ff02::5 (AllSPFRouters), ff02::6 (AllDRouters), and neighbor
-//     link-local unicast (DBD / LSU retransmit); a destination-scoped SA cannot cover
-//     all three (the neighbor unicast daddr is unknown at install), so one wildcard SA
-//     matched by the proto-89 selector protects every OSPF flow in BOTH directions.
-//     RFC 4552 §7: IKE cannot key the multicast group, so a single manual key/SPI is
-//     shared for inbound (verify) and outbound (protect); the kernel identifies a state
-//     by (daddr, spi, proto), so the two directions are the SAME wildcard state -- one
-//     install, not two.
+//   - ONE SA PER OSPF DESTINATION, because the kernel resolves a transport-mode state by
+//     the destination address of the flow and nothing else widens that. Outbound,
+//     xfrm_tmpl_resolve_one sets remote = daddr and xfrm_state_find demands the state's
+//     own id.daddr equal it; __xfrm6_state_addr_check wildcards the SOURCE alone.
+//     Inbound, xfrm_state_lookup takes (daddr, spi, proto) with daddr read off the
+//     received packet. A state selector NARROWS that lookup and can never widen it, so a
+//     state installed under :: is reachable by no OSPF flow at all.
+//   - The destinations an interface has: ff02::5 (AllSPFRouters) and ff02::6
+//     (AllDRouters) for what OSPFv3 multicasts and for what arrives addressed to those
+//     groups, this interface's own link-local for the unicast Database Description, Link
+//     State Request, Link State Update and acknowledgement a neighbor sends US, and each
+//     neighbor's link-local for the same exchange in the other direction. The first three
+//     are known when the interface opens; a neighbor's is known from its first Hello, so
+//     its SA is installed then and removed when the interface state machine drops it
+//     (onNeighborSeen / onNeighborLost / clearNeighbors). RFC 4552 §9 sets that pattern
+//     for the virtual link: "the routing module must install the corresponding SPD/SAD
+//     entries before starting these exchanges".
+//   - Every one of them carries the SAME SPI and key (RFC 4552 §7 Figure 3: "the same SA
+//     parameters (SPI, keys, etc.) for both inbound (SAi) and outbound (SAo) SAs"),
+//     because IKE cannot key a multicast group and every router on the link has to read
+//     what any other router sent. They differ only in destination, which is what makes
+//     them distinct kernel states rather than one state installed several times.
+//   - Each state keeps the {::/0, ::/0, proto 89} selector, which narrows it to OSPF
+//     flows so no other traffic can resolve it.
 //   - Policies (out/in/fwd): UpperProto 89 so only OSPF traffic is matched (§5), all
 //     over the ::/0 wildcard, and IfIndex = the interface ifindex so the policy applies
 //     ONLY on the configured interface (§6 interface-based selector). Non-OSPF traffic
-//     (ND/ICMPv6) is untouched.
+//     (ND/ICMPv6) is untouched. One policy per direction still serves every destination:
+//     the template carries the reqid and no address, so the flow's own daddr picks which
+//     of the interface's states resolves it.
 //
 // Because the require-policies are interface-scoped (§6), a plain non-IPsec OSPFv3
 // interface on the SAME node is unaffected -- its inbound OSPF does not match this
 // interface's inbound require-policy. Multiple IPsec interfaces coexist by using
-// distinct per-interface SPIs (the shared wildcard state's identity is (::, spi, proto),
-// so two interfaces sharing an SPI would collide -- configure a unique SPI per interface).
+// distinct per-interface SPIs: a state's identity is (daddr, spi, proto), and two
+// interfaces sharing an SPI would collide on the two multicast groups, which have the
+// same destination on every link.
 
 package ospf
 
@@ -42,12 +59,20 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	ospfv3transport "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 )
 
 // ipsecReqIDBase namespaces the per-interface XFRM reqid (base + ifindex) so the OSPF
 // SAs and policies bind to each other without colliding with IKE child-SA reqids.
 const ipsecReqIDBase uint32 = 0x054F0000
+
+// ipsecSharedDir is the direction a multicast-group state carries: none of its own. The
+// zero SADir names NEITHER direction (dataplane.SAParams.Dir), and RFC 4552 §7 gives the
+// group one manual SPI and key that protects what this router sends and verifies what its
+// neighbors send. Two branches read it: setGauges counts such a state in both directions,
+// and a backend that flags direction per SA refuses it rather than pick one.
+const ipsecSharedDir dataplane.SADir = 0
 
 // kernelDropPollInterval is how often the XFRM error counters are sampled for the
 // ze_ospfv3_ipsec_kernel_drops_total metric.
@@ -89,10 +114,24 @@ type ipsecStatus struct {
 }
 
 type installedIPsec struct {
-	spec     ipsecInterfaceConfig
-	ifindex  int
+	spec    ipsecInterfaceConfig
+	ifindex int
+	// local is the link-local the inbound unicast SA is keyed on. A new link-local on the
+	// same ifindex makes that SA unreachable, so reconcileInterfaceLocked reinstalls.
+	local    netip.Addr
 	policies []dataplane.SPParams
-	sas      []dataplane.SAParams
+	// sas holds the states an interface has for as long as it is protected: the two
+	// multicast groups and local. The per-adjacency ones are in neighbors.
+	sas []dataplane.SAParams
+	// neighbors maps a neighbor's router id to the link-local its outbound SA is keyed
+	// on. The router id is the identity the interface state machine reports a drop under,
+	// and holding the address beside it is what lets a neighbor that changed its
+	// link-local have the stale state removed rather than orphaned.
+	//
+	// The record is held by value in ipsecInstaller.installed and this map is the one
+	// field that changes after the install, so a neighbor event mutates the map in place
+	// rather than writing the record back.
+	neighbors map[types.RouterID]netip.Addr
 }
 
 // ipsecInstaller owns the RFC 4552 kernel-IPsec lifecycle for the OSPFv3 IPv6 family.
@@ -280,28 +319,44 @@ func (i *ipsecInstaller) reconcileInterfaceLocked(ifindex int, name string) {
 	if ifindex == 0 {
 		return // interface not open yet; onInterfaceUp installs when it opens.
 	}
-	if have && cur.ifindex == ifindex && ipsecEqual(&cur.spec, &desired) {
+	local := i.linkLocalLocked(name)
+	if have && cur.ifindex == ifindex && cur.local == local && ipsecEqual(&cur.spec, &desired) {
 		return
 	}
 	if have {
 		i.removeLocked(name)
 	}
-	i.installLocked(ifindex, name, desired)
+	i.installLocked(ifindex, name, local, desired)
 }
 
-// installLocked builds and installs the shared transport-mode SA then the proto-89
-// policies. The SA is installed before the policies so an inbound "require" policy
-// never predates its SA (spec-ospf-ext-16 R-1).
-func (i *ipsecInstaller) installLocked(ifindex int, name string, spec ipsecInterfaceConfig) {
+// linkLocalLocked reports the interface's link-local source address, or the invalid
+// address when the transport has not finished opening the interface. It is the
+// destination of every unicast OSPF packet a neighbor sends this router, so the inbound
+// unicast SA is keyed on it.
+func (i *ipsecInstaller) linkLocalLocked(name string) netip.Addr {
+	if i.source == nil {
+		return netip.Addr{}
+	}
+	local, _, ok := i.source(name)
+	if !ok {
+		return netip.Addr{}
+	}
+	return local
+}
+
+// installLocked builds and installs the interface's destination-scoped transport-mode
+// SAs then the proto-89 policies. The SAs are installed before the policies so an
+// inbound "require" policy never predates its SA (spec-ospf-ext-16 R-1).
+func (i *ipsecInstaller) installLocked(ifindex int, name string, local netip.Addr, spec ipsecInterfaceConfig) {
 	if i.source == nil {
 		i.metrics.failures.With(name, "no-transport-source").Inc()
 		return
 	}
-	// The SA/policy selectors are ::/0 + proto 89 scoped by ifindex, so the link-local
-	// is no longer part of them; but a valid link-local still gates protection -- a
-	// tentative/absent source means the transport has not finished opening the interface.
-	ll, _, ok := i.source(name)
-	if !ok || !ll.IsValid() {
+	// A valid link-local gates protection twice over: a tentative or absent source means
+	// the transport has not finished opening the interface, and it is also the
+	// destination the inbound unicast SA is keyed on, so there is nothing to install
+	// without it.
+	if !local.IsValid() {
 		i.metrics.failures.With(name, "no-link-local").Inc()
 		i.log.Warn("ospf ipsec: no link-local source; interface NOT protected", "interface", name)
 		return
@@ -313,19 +368,22 @@ func (i *ipsecInstaller) installLocked(ifindex int, name string, spec ipsecInter
 		i.log.Error("ospf ipsec: kernel dataplane unavailable; interface NOT protected", "interface", name, "err", err)
 		return
 	}
-	// One shared wildcard SA per interface (RFC 4552 §7): the same (::, spi, proto)
-	// state protects egress and verifies ingress, so it is installed once.
-	sa := buildIPsecSA(ifindex, spec)
+	// One state per destination the interface already has (the two groups and its own
+	// link-local); a neighbor's arrives later through onNeighborSeen.
+	sas := buildIPsecInterfaceSAs(ifindex, local, spec)
 	policies := buildIPsecPolicies(ifindex, spec)
 
-	rec := installedIPsec{spec: spec, ifindex: ifindex}
-	if err := dp.InstallSA(sa); err != nil {
-		i.metrics.failures.With(name, "sa-install").Inc()
-		i.log.Error("ospf ipsec: install SA", "interface", name, "spi", sa.SPI, "err", err)
-		i.rollback(dp, rec)
-		return
+	rec := installedIPsec{spec: spec, ifindex: ifindex, local: local, neighbors: make(map[types.RouterID]netip.Addr)}
+	for index := range sas {
+		sa := &sas[index]
+		if err := dp.InstallSA(*sa); err != nil {
+			i.metrics.failures.With(name, "sa-install").Inc()
+			i.log.Error("ospf ipsec: install SA", "interface", name, "spi", sa.SPI, "dst", sa.Dst.String(), "err", err)
+			i.rollback(dp, rec)
+			return
+		}
+		rec.sas = append(rec.sas, *sa)
 	}
-	rec.sas = append(rec.sas, sa)
 	for _, p := range policies {
 		if err := dp.InstallPolicy(p); err != nil {
 			i.metrics.failures.With(name, "policy-install").Inc()
@@ -336,9 +394,98 @@ func (i *ipsecInstaller) installLocked(ifindex int, name string, spec ipsecInter
 		rec.policies = append(rec.policies, p)
 	}
 	i.installed[name] = rec
-	i.setGauges(name, spec, 1)
+	i.setGauges(name, rec)
 	i.startPoller()
-	i.log.Info("ospf ipsec: installed", "interface", name, "protocol", spec.Protocol, "spi", spec.SPI)
+	i.log.Info("ospf ipsec: installed", "interface", name, "protocol", spec.Protocol, "spi", spec.SPI, "states", len(rec.sas))
+}
+
+// onNeighborSeen installs the outbound SA for one neighbor's unicast address, which is
+// where this router sends its Database Description, Link State Request, Link State
+// Update and acknowledgement. It is called from the interface state machine's Hello
+// handler BEFORE that handler runs the neighbor state machine, because the machine sends
+// the first Database Description inline and the kernel drops any packet whose policy
+// resolves no state (RFC 4552 §9: install the SAD entry before the exchange starts).
+//
+// It is called for every Hello and is idempotent: a neighbor already installed at the
+// same address costs one map lookup.
+func (i *ipsecInstaller) onNeighborSeen(name string, id types.RouterID, addr netip.Addr) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	rec, ok := i.installed[name]
+	if !ok || !addr.IsValid() {
+		return // the interface is not protected, or the Hello carried no source address.
+	}
+	if known, seen := rec.neighbors[id]; seen {
+		if known == addr {
+			return
+		}
+		// The neighbor moved to a different link-local. Its old state would protect
+		// nothing and no later event names that address, so it goes now.
+		i.removeNeighborSALocked(name, rec, id, known)
+	}
+	dp, err := i.dpSource()
+	if err != nil || dp == nil {
+		i.metrics.failures.With(name, "no-dataplane").Inc()
+		i.log.Error("ospf ipsec: kernel dataplane unavailable; neighbor NOT protected", "interface", name, "neighbor", id.String(), "err", err)
+		return
+	}
+	sa := buildIPsecSA(rec.ifindex, addr, dataplane.SADirOut, rec.spec)
+	if err := dp.InstallSA(sa); err != nil {
+		i.metrics.failures.With(name, "neighbor-sa-install").Inc()
+		i.log.Error("ospf ipsec: install neighbor SA", "interface", name, "neighbor", id.String(), "dst", addr.String(), "err", err)
+		return
+	}
+	rec.neighbors[id] = addr
+	i.setGauges(name, rec)
+	i.log.Info("ospf ipsec: neighbor protected", "interface", name, "neighbor", id.String(), "dst", addr.String())
+}
+
+// onNeighborLost removes one neighbor's outbound SA. The interface state machine calls it
+// for every drop it performs, the dead-interval expiry included, so a state outlives the
+// adjacency by nothing.
+func (i *ipsecInstaller) onNeighborLost(name string, id types.RouterID) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	rec, ok := i.installed[name]
+	if !ok {
+		return
+	}
+	addr, seen := rec.neighbors[id]
+	if !seen {
+		return
+	}
+	i.removeNeighborSALocked(name, rec, id, addr)
+	i.setGauges(name, rec)
+}
+
+// clearNeighbors removes every neighbor SA on an interface. The interface state machine
+// drops all its neighbors at once when it stops, and reports that as one event rather
+// than one per neighbor.
+func (i *ipsecInstaller) clearNeighbors(name string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	rec, ok := i.installed[name]
+	if !ok {
+		return
+	}
+	for id, addr := range rec.neighbors {
+		i.removeNeighborSALocked(name, rec, id, addr)
+	}
+	i.setGauges(name, rec)
+}
+
+// removeNeighborSALocked deletes one neighbor's kernel state and forgets it. The caller
+// holds i.mu and owns the gauges, so this stays usable inside a loop over the map.
+func (i *ipsecInstaller) removeNeighborSALocked(name string, rec installedIPsec, id types.RouterID, addr netip.Addr) {
+	delete(rec.neighbors, id)
+	dp, err := i.dpSource()
+	if err != nil || dp == nil {
+		i.log.Error("ospf ipsec: kernel dataplane unavailable; neighbor SA left installed", "interface", name, "neighbor", id.String(), "err", err)
+		return
+	}
+	if err := dp.RemoveSA(rec.spec.SPI, addr.AsSlice(), ipsecProtoNumber(rec.spec.Protocol)); err != nil {
+		i.log.Debug("ospf ipsec: remove neighbor SA", "interface", name, "neighbor", id.String(), "err", err)
+	}
 }
 
 func (i *ipsecInstaller) removeLocked(name string) {
@@ -358,9 +505,15 @@ func (i *ipsecInstaller) removeLocked(name string) {
 				i.log.Debug("ospf ipsec: remove SA", "interface", name, "spi", sa.SPI, "err", err)
 			}
 		}
+		proto := ipsecProtoNumber(cur.spec.Protocol)
+		for id, addr := range cur.neighbors {
+			if err := dp.RemoveSA(cur.spec.SPI, addr.AsSlice(), proto); err != nil {
+				i.log.Debug("ospf ipsec: remove neighbor SA", "interface", name, "neighbor", id.String(), "err", err)
+			}
+		}
 	}
 	delete(i.installed, name)
-	i.setGauges(name, cur.spec, 0)
+	i.clearGauges(name, cur.spec)
 	i.log.Info("ospf ipsec: removed", "interface", name)
 }
 
@@ -374,37 +527,86 @@ func (i *ipsecInstaller) rollback(dp ipsecDataplane, rec installedIPsec) {
 	}
 }
 
-func (i *ipsecInstaller) setGauges(name string, spec ipsecInterfaceConfig, v float64) {
-	// One shared wildcard SA protects both directions (RFC 4552 §7); the in/out labels
-	// report that both directions are covered, not two distinct kernel states.
-	i.metrics.sas.With(name, spec.Protocol, "in").Set(v)
-	i.metrics.sas.With(name, spec.Protocol, "out").Set(v)
-	i.metrics.policies.With(name, "out").Set(v)
-	i.metrics.policies.With(name, "in").Set(v)
-	i.metrics.policies.With(name, "fwd").Set(v)
+// setGauges publishes how many kernel states serve each direction on a protected
+// interface. The two multicast states count in both: RFC 4552 §7 shares one SPI and key,
+// so the state that protects what this router sends to ff02::5 is the state that
+// verifies what a neighbor sent to it.
+func (i *ipsecInstaller) setGauges(name string, rec installedIPsec) {
+	inbound, outbound := 0, len(rec.neighbors)
+	for idx := range rec.sas {
+		switch rec.sas[idx].Dir {
+		case dataplane.SADirIn:
+			inbound++
+		case dataplane.SADirOut:
+			outbound++
+		default: // unset: the shared state of RFC 4552 §7, which serves both directions.
+			inbound++
+			outbound++
+		}
+	}
+	i.metrics.sas.With(name, rec.spec.Protocol, "in").Set(float64(inbound))
+	i.metrics.sas.With(name, rec.spec.Protocol, "out").Set(float64(outbound))
+	i.metrics.policies.With(name, "out").Set(1)
+	i.metrics.policies.With(name, "in").Set(1)
+	i.metrics.policies.With(name, "fwd").Set(1)
 }
 
-// ospfWildcardNet returns a fresh ::/0 IPv6 wildcard prefix. Every OSPFv3 IPsec SA
-// and policy is built over ::/0 so one manually-keyed SA per interface covers ff02::5,
-// ff02::6, and neighbor link-local unicast (RFC 4552 §6/§7); a fresh value per call
-// avoids shared-pointer aliasing between the SA selector and the policies.
+// clearGauges zeroes an interface's series after its IPsec is removed, so a stale value
+// never reads as protection that is no longer installed.
+func (i *ipsecInstaller) clearGauges(name string, spec ipsecInterfaceConfig) {
+	i.metrics.sas.With(name, spec.Protocol, "in").Set(0)
+	i.metrics.sas.With(name, spec.Protocol, "out").Set(0)
+	i.metrics.policies.With(name, "out").Set(0)
+	i.metrics.policies.With(name, "in").Set(0)
+	i.metrics.policies.With(name, "fwd").Set(0)
+}
+
+// ospfWildcardNet returns a fresh ::/0 IPv6 wildcard prefix. The policies and the state
+// selectors are built over ::/0 with the proto-89 upper-layer selector, so one policy per
+// direction covers every OSPF destination on the interface (RFC 4552 §5/§6); a fresh
+// value per call avoids shared-pointer aliasing between the SA selector and the policies.
+//
+// The wildcard belongs to a SELECTOR and never to a state's address. A state under ::
+// is reachable by no flow at all, which is what the header comment records.
 func ospfWildcardNet() *net.IPNet {
 	return &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
 }
 
-// buildIPsecSA builds the single shared wildcard-address transport-mode SA for the
-// interface (RFC 4552 §7). Src = Dst = :: with a {::/0, ::/0, proto 89} state selector
-// so the kernel resolves it for every OSPF destination in both directions, and one
-// manual SPI/key protects egress and verifies ingress. The kernel identifies a state
-// by (daddr, spi, proto): with a wildcard daddr the inbound and outbound SA are the
-// SAME state, so the installer installs it once.
+// buildIPsecInterfaceSAs builds the transport-mode SAs an interface has from the moment
+// it is protected, one per destination (RFC 4552 §7 gives them all the same SPI and key):
 //
-// SAParams.Dir is left unset on purpose. This one state has no single direction.
-// Either SADirIn or SADirOut would claim something RFC 4552 Section 7 does not. A
-// backend that flags direction per SA refuses an unset Dir rather than pick one
-// (vppUnsupportedSA, ike/dataplane/vpp.go). That is the right answer here, because VPP
-// cannot express one bidirectional SA.
-func buildIPsecSA(ifindex int, c ipsecInterfaceConfig) dataplane.SAParams {
+//   - ff02::5 and ff02::6, which carry the Hello and the flooded Link State Update this
+//     router multicasts, and which are also the destination of what its neighbors
+//     multicast, so each of those two states serves both directions.
+//   - local, this interface's own link-local, which is the destination of every unicast
+//     Database Description, Link State Request, Link State Update and acknowledgement a
+//     neighbor sends this router. It is inbound only; the outbound half of that exchange
+//     is keyed on the neighbor's address and installed by onNeighborSeen.
+func buildIPsecInterfaceSAs(ifindex int, local netip.Addr, c ipsecInterfaceConfig) []dataplane.SAParams {
+	return []dataplane.SAParams{
+		buildIPsecSA(ifindex, ospfv3transport.AllSPFRouters, ipsecSharedDir, c),
+		buildIPsecSA(ifindex, ospfv3transport.AllDRouters, ipsecSharedDir, c),
+		buildIPsecSA(ifindex, local, dataplane.SADirIn, c),
+	}
+}
+
+// buildIPsecSA builds one transport-mode SA for one OSPF destination, keyed from the
+// interface's manual SPI and key (RFC 4552 §7). Its state selector is {::/0, ::/0, proto
+// 89}, which narrows it to OSPF flows.
+//
+// dst is the state's identity, with the SPI and the protocol: the kernel resolves an
+// outbound state by the flow's destination address (xfrm_tmpl_resolve_one sets remote =
+// daddr, and xfrm_state_find demands x->id.daddr equal it) and an inbound one by the
+// destination on the received packet. Only the SOURCE is wildcarded, by
+// __xfrm6_state_addr_check, which is why Src stays :: and Dst never does.
+//
+// dir names the direction where the destination has one, and is left unset (0) for the
+// two multicast groups, which have none: the same manual key protects what this router
+// sends to a group and verifies what a neighbor sent to it, and RFC 4552 §7 requires
+// exactly that sharing. A backend that flags direction per SA refuses an unset Dir rather
+// than pick one (vppUnsupportedSA, ike/dataplane/vpp.go), which is the right answer for a
+// state that carries both.
+func buildIPsecSA(ifindex int, dst netip.Addr, dir dataplane.SADir, c ipsecInterfaceConfig) dataplane.SAParams {
 	reqid := ipsecReqIDBase + uint32(ifindex)
 	proto := ipsecProtoNumber(c.Protocol)
 	encAlgo := ipsecEncNull
@@ -412,12 +614,16 @@ func buildIPsecSA(ifindex int, c ipsecInterfaceConfig) dataplane.SAParams {
 		encAlgo = c.EncAlgo
 	}
 	return dataplane.SAParams{
-		SPI:   c.SPI,
-		Src:   net.IPv6zero, // wildcard: one SA covers all OSPFv3 daddrs (RFC 4552 §7)
-		Dst:   net.IPv6zero,
+		SPI: c.SPI,
+		// The source is wildcarded on purpose: __xfrm6_state_addr_check matches a state
+		// whose props.saddr is any, so one state per destination serves the flow whatever
+		// source address the interface picked.
+		Src:   net.IPv6zero,
+		Dst:   dst.AsSlice(),
 		Proto: proto,
 		Mode:  dataplane.ModeTransport, // RFC 4552 §2: transport mode
 		ReqID: reqid,
+		Dir:   dir,
 		Sel: &dataplane.SASelector{
 			Src:        ospfWildcardNet(),
 			Dst:        ospfWildcardNet(),

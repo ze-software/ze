@@ -303,13 +303,13 @@ func TestIPsecDisabledInterfaceBypass(t *testing.T) {
 // RFC requirement: RFC4302-2-1 negative -- 51 is written for AH alone: an esp interface builds
 // an SA carrying 50, so an installer writing a blanket 51 fails this test.
 func TestIPsecSAProtocolNumber(t *testing.T) {
-	esp := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+	esp := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ipsecInterfaceConfig{
 		SPI: 256, Protocol: "esp", AuthAlgo: "sha256", AuthKey: hexKey(32),
 	})
 	if esp.Proto != 50 {
 		t.Errorf("esp SA proto = %d, want 50 (RFC 4303 Section 2)", esp.Proto)
 	}
-	ah := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+	ah := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ipsecInterfaceConfig{
 		SPI: 256, Protocol: "ah", AuthAlgo: "sha256", AuthKey: hexKey(32),
 	})
 	if ah.Proto != 51 {
@@ -327,7 +327,7 @@ func TestIPsecSAProtocolNumber(t *testing.T) {
 // selector names OSPF (upper protocol 89), so traffic other than OSPF cannot map to this SA;
 // an installer that left the selector at the wildcard 0 fails this test.
 func TestIPsecSAAddressMatchIndication(t *testing.T) {
-	sa := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+	sa := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ipsecInterfaceConfig{
 		SPI: 256, Protocol: "esp", AuthAlgo: "sha256", AuthKey: hexKey(32),
 	})
 	if sa.Sel == nil {
@@ -370,14 +370,14 @@ func TestIPsecLoadsXFRMBackend(t *testing.T) {
 // or that ignored the leaf, fails this test.
 func TestIPsecSAReplayWindow(t *testing.T) {
 	for _, proto := range []string{ipsecProtoAH, ipsecProtoESP} {
-		enabled := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+		enabled := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ipsecInterfaceConfig{
 			SPI: 256, Protocol: proto, AuthAlgo: "sha256", AuthKey: hexKey(32), ReplayWindow: 64,
 		})
 		if enabled.ReplayWin != 64 {
 			t.Errorf("%s SA ReplayWin = %d, want 64: the configured window must reach the kernel SA",
 				proto, enabled.ReplayWin)
 		}
-		disabled := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+		disabled := buildIPsecSA(testIfIndex, ospfv3transport.AllSPFRouters, ipsecSharedDir, ipsecInterfaceConfig{
 			SPI: 256, Protocol: proto, AuthAlgo: "sha256", AuthKey: hexKey(32),
 		})
 		if disabled.ReplayWin != 0 {
