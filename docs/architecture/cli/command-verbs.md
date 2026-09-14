@@ -40,8 +40,10 @@ leave the router, and what they change is a peer's state. So a send is not a
 read, and a send is not a request either. L-8 records the decision.
 
 The axis is declared in code rather than here. `verbRole` gives `show`,
-`monitor` and `resolve` the role `VerbRead`, `set` and `delete` the role
-`VerbMutation`, and every other canonical verb the role `VerbAction`.
+`monitor` and `resolve` the role `RoleRead`, `set` and `delete` the role
+`RoleMutation`, and every other canonical verb the role `RoleAction`. A token
+the registry does not hold answers `RoleUnspecified`, so an unknown first word
+never reads as a role.
 <!-- source: internal/component/command/verbs.go -- Verbs, verbRole -->
 
 The per-verb table below refines the second half of the split. It does not
@@ -303,7 +305,18 @@ promise is a security boundary and not a convenience.
 section. A read gets the `run` section, and everything else gets the `edit`
 section, which the read-only profile denies by default. A command rooted at a
 read verb is therefore reachable by every operator holding read-only access.
-<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath -->
+
+The verb half of that answer is `command.IsReadOnlyVerb`, which reads the role
+out of `Verbs`. Giving a verb a new role there moves the authorization section
+every command under it lands in, and no second list has to be edited. The five
+noun-first roots that predate the verb-first grammar (`validate`, `help`,
+`system`, `plugin`, `rib`) are the rest of the answer, and `legacyReadRoots`
+holds them where a test refuses any canonical verb among them. `ze help ai`
+publishes each root's mode from the same predicate, so the mode an agent reads
+and the section a command lands in cannot disagree.
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
+<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsReadOnlyVerb -->
+<!-- source: internal/component/aihelp/aihelp.go -- CLISubcommands -->
 <!-- source: internal/component/authz/authz.go -- Profile.Authorize, Section, builtinReadOnlyProfile -->
 
 One rule governs the whole `show`, `monitor` and `resolve` subtree, and it has
@@ -510,13 +523,10 @@ The read-verb rows are in the section above.
 | T-4 | `peer raw`, `peer update`, `peer announce`, `peer withdraw` | One object has one action root. These four sit at the top-level `peer` root while every other peer action sits under `request peer` | `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang`. Fix: the same spec moves all four to `request peer <sel> <verb>` |
 | T-5 | `peer raw` arguments | Every argument a handler reads MUST be declared. The schema declares `selector` alone, and the handler reads a message type, an encoding and the data | `internal/component/bgp/plugins/cmd/raw/raw.go` `handleRaw` |
 | T-6 | `request peer <sel> clear soft` | One concept carries one name. It sends ROUTE-REFRESH for every negotiated family. `request peer <sel> refresh <family>` sends it for one. The word `clear` is also a root verb, used here as a leaf word | `internal/component/bgp/plugins/route_refresh/handler/clear_soft.go` `handleBgpPeerClearSoft`, beside `refresh.go` `handleRefresh` |
-| T-7 | `readOnlyVerbs` | Every fact is declared once. It holds `show`, `validate` and `monitor`, missing `resolve`, and `validate` is not a canonical verb | `internal/component/command/help.go` `readOnlyVerbs`, against `verbs.go` `Verbs` |
-| T-8 | `IsReadOnlyPath` | The same rule, and this is the copy that gates authorization. It holds eight words where `Verbs` holds three reads | `internal/component/plugin/server/command.go` `IsReadOnlyPath` |
-| T-9 | `classifyVerb` | The same rule, a fourth copy. It knows five verbs, so `./le command list` reports `-` for all 33 `request` commands and all 19 `clear` commands | `internal/le/command/list/commandlist.go` `classifyVerb` |
 | T-10 | `cache` and `commit` | A verb is declared because commands use it. Both are canonical root verbs that no command uses, and both live under `request` instead | `verbs.go` `Verbs`, against `./le command list` |
 | T-11 | `request quiesce` | Ze writes the plain verb rather than the specialist one, and `docs/contributing/writing-style.md` names this exact pair | `./le command list`, `ze-system:quiesce` |
 | T-12 | `ai/patterns/cli-command.md` | A page MUST match the tree. Its Full Command Inventory publishes `cache list`, `commit start <name>`, `command list`, `log set` and `subscribe <type>`, which are the pre-verb-first spellings | The live paths are `request cache retain`, `request commit`, `system command list`, `request log level` and `request subscribe` |
-| T-13 | `set system file-descriptors` | `set` is `VerbMutation`, which `verbs.go` defines as mutating the config YANG tree in engine path form. The one shipped `set` command calls `setrlimit` on the process and touches no config node | `internal/plugins/host-cmd/cmd/set_fd_linux.go` `handleSetSystemFD`, against `verbs.go` `VerbMutation` |
+| T-13 | `set system file-descriptors` | `set` is `RoleMutation`, which `verbs.go` defines as mutating the config YANG tree in engine path form. The one shipped `set` command calls `setrlimit` on the process and touches no config node | `internal/plugins/host-cmd/cmd/set_fd_linux.go` `handleSetSystemFD`, against `verbs.go` `RoleMutation` |
 | T-14 | `docs/guide/command-catalogue.md` | The same rule. Its Naming convention section states "domain-first, verb-second" and reserves a `generate` root verb, and it prints `bgp monitor` | `verbs.go` `Verbs` holds no `generate`, and the live path is `monitor bgp` |
 | T-15 | `request subscribe`, `request config archive`, `request l2tp outgoing-call`, `request bgp rib inject` | `create` answers before the residual is reached. Each one brings something into existence | `subscribe.go` `handleSubscribe` calls `Subscriptions().Add`. `archive.go` `handleArchiveTrigger` writes a named archive entry. `outgoing_call.go` `handleOutgoingCall` calls `PlaceOutgoingCall`. `rib_commands.go` injects into the Adj-RIB-In |
 | T-16 | `request unsubscribe`, `request cache expire`, `request bgp rib withdraw` | `delete` answers first. Each one removes something that existed | `subscribe.go` `handleUnsubscribe` calls `Subscriptions().Remove`. `ze-cli-cache-cmd.yang` `expire` removes a cached message at once. `rib_commands.go` withdraw removes the route. `withdraw` is also RFC 4271's word for the operation, which is the one defense on this row |

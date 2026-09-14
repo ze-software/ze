@@ -182,6 +182,13 @@
       "category": "secure",
       "blog": "2026-08-10",
       "blurb": "Per-peer RFC 7999 policy turns an authorized BLACKHOLE community inside an authorized covering prefix into a discard route. The feature is off by default."
+    },
+    {
+      "date": "2026-09-07",
+      "title": "IPv6 Router Advertisement sender",
+      "category": "services",
+      "blog": "2026-09-07",
+      "blurb": "Ze advertises itself as an IPv6 router on an interface unit (RFC 4861), with prefixes, flags, a router lifetime and RDNSS resolvers, so a host autoconfigures without radvd beside Ze. Sending is per unit and off by default."
     }
   ]
 }

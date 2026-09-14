@@ -49,7 +49,7 @@ A feature comparison of open source BGP daemon implementations. This page keeps 
 | VPN FlowSpec | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | Yes | No | Decode | No | No | Yes |
 | SR Policy | Yes | No | No | No | No | Yes | No | No | No | No | Partial |
-| IPv4/IPv6 MUP | Yes | No | No | No | No | No | No | No | No | No | Yes |
+| IPv4/IPv6 MUP | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | IPv4/IPv6 MVPN | Decode | No | No | No | No | No | No | No | No | No | Yes |
 | IPv4 RTC (RFC 4684) | Decode | No | No | No | No | No | No | Yes | No | No | Yes |
 
@@ -59,21 +59,34 @@ A feature comparison of open source BGP daemon implementations. This page keeps 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | RFC 4271 FSM | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | 4-byte ASN (RFC 6793) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| AS notation, asplain/asdot/asdot+ (RFC 5396) | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? |
 | Capability negotiation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Route Refresh (RFC 2918) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Enhanced Route Refresh (RFC 7313) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
 | Graceful Restart (RFC 4724) | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | No | Yes | Yes |
 | Long-Lived GR (RFC 9494) | Yes | Yes | Yes | Partial | No | Yes | No | No | No | Yes | Yes |
 | Notification GR (RFC 8538) | No | No | No | No | Yes | Yes | No | No | No | Yes | No |
+| Startup convergence hold (`update-delay`) | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
 | Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Rx only | Yes | Yes |
 | Paths-Limit (draft-abraitis) | Yes | No | No | Yes | No | No | No | Yes | No | No | No |
-| Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
+| BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode) | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? |
+| Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Extended Nexthop (RFC 8950) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
 | Confederation (RFC 5065) | No | Yes | Yes | Yes | No | Yes | No | No | No | No | Yes |
 | Admin Shutdown (RFC 8203) | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes | No | Yes | Partial |
 | BGP Roles (RFC 9234) | Yes | Yes | Yes | No | Yes | No | Yes | No | No | No | Partial |
 | Prefix Limit (RFC 4486) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
+
+**AS notation:** an AS number is accepted in any of the three RFC 5396
+notations everywhere in the configuration and in every command, and
+`bgp as-notation` picks the one Ze prints. FRR carries the same choice as
+`bgp asnotation`.
+
+**BFD strict mode:** the capability holds a BGP session out of Established
+until the BFD session to that neighbor is Up, so a session never forms across
+a link BFD cannot cross. FRR carries it as `neighbor <peer> bfd strict`. The
+other daemons here were not checked for it.
 
 ## Cross-Protocol Redistribute
 
@@ -341,7 +354,7 @@ reading thirteen tables.
 - **OSPFv3 Extended LSAs (RFC 8362) do not interoperate.** Ze builds 3 of the 7 LSA types and sets the U-bit wrong on all of them, so they stop at the first OSPFv3 router that does not support them. Neither FRR nor BIRD implements RFC 8362 at all.
 - **BGP confederations (RFC 5065) are missing.** BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr support them.
 - **Privilege separation is missing.** At least one other implementation in this table has it.
-- **BFD integration is partial.** Several other implementations here have full support.
+- **BFD integration is partial.** Several other implementations here have full support. Ze does carry BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode, capability 74), which holds a BGP session out of Established until the BFD session is Up.
 - **Embeddable library mode is missing.** At least two other implementations in this table offer one.
 - **Custom filter language is missing.** Ze relies on plugin chains instead.
 - **Multi-Topology IS-IS (RFC 5120) is missing.** Ze's IS-IS matches the single-topology default other implementations ship, but not their optional multi-topology extension.

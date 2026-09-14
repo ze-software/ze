@@ -150,6 +150,21 @@ and one refused a 4-octet AS in a redirect the others encoded.
 
 `nhop self` resolves to the local address of each destination peer at wire time.
 
+### A Link-Local Next Hop Needs the Capability
+
+A next hop in `fe80::/10` produces a 16-octet Next Hop field holding one
+link-local address. RFC 2545 Section 3 has no such form, and
+draft-ietf-idr-linklocal-capability defines it behind capability 77, so ze sends
+it only toward a peer whose session negotiated that capability. For IPv4 NLRI
+the draft's Section 5 asks for the capability AND RFC 8950 Extended Next Hop
+Encoding.
+
+On any other session the route is left out of the announcement toward that peer
+and the skip is logged, which is what Section 4 asks for when no conformant next
+hop is left: "the BGP route MUST not be advertised to its peer". Enable it with
+`session capability link-local-nexthop` on the peer or its group.
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopPermitted -->
+
 ### A Peer Never Receives Its Own Address as Next Hop
 
 RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be

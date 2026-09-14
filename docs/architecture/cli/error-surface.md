@@ -175,7 +175,9 @@ These are the forms that fail, and what to write instead.
 
 A machine-facing failure carries a registered code from
 `internal/core/diagnostic/codes.go`, holding a title, a description, examples
-and remediation, and `ze explain <code>` prints it. The handler returns the code
+and remediation, and `ze explain <code>` prints it. The code is declared once,
+as an exported constant beside the table, and every surface that emits it
+references that constant rather than the string. The handler returns the code
 and structured fields rather than a finished sentence, which is what makes the
 corrective action machine-readable.
 

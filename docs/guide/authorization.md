@@ -19,11 +19,19 @@ sections:
 
 | Section | Governs | ReadOnly flag |
 |---------|---------|---------------|
-| `run` | Operational (read-only) commands: `show`, `monitor`, `resolve`, `validate`, `help`, `event`, `subscribe` | `true` |
-| `edit` | Configuration (write) commands: `clear`, `set`, `request`, `commit`, `configure`, and everything else | `false` |
+| `run` | Operational (read-only) commands: the read verbs `show`, `monitor` and `resolve`, plus the noun-first roots `validate`, `help`, `system`, `plugin` and `rib` | `true` |
+| `edit` | Configuration (write) commands: `clear`, `set`, `delete`, `request`, `commit`, `update`, `create`, `send`, `debug`, `cache`, and everything else | `false` |
 
 The dispatcher classifies commands automatically by their leading verb.
 You do not choose which section a command falls into.
+
+The read verbs are not listed twice. `IsReadOnlyPath` asks
+`command.IsReadOnlyVerb`, which reads the verb's role out of `command.Verbs`,
+so a verb whose role changes there changes the section its commands land in.
+The five noun-first roots predate the verb-first grammar and are the only names
+this decision holds of its own.
+<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsReadOnlyVerb -->
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 
 ### Entries
 

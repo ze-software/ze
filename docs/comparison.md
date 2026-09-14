@@ -13,7 +13,7 @@ A cell reads `?` when nobody has checked that daemon for that row. It is not a
 `No`: it says the answer is unknown, and it is written rather than left out so a
 reader can see which cells the table has not been verified for.
 
-Last updated: 2026-09-08
+Last updated: 2026-09-14
 
 ## Overview
 
@@ -60,6 +60,7 @@ Last updated: 2026-09-08
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | RFC 4271 FSM | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | 4-byte ASN (RFC 6793) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| AS notation, asplain/asdot/asdot+ (RFC 5396) | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? |
 | Capability negotiation | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Route Refresh (RFC 2918) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Enhanced Route Refresh (RFC 7313) | Yes | Yes | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes |
@@ -69,6 +70,7 @@ Last updated: 2026-09-08
 | Startup convergence hold (`update-delay`) | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
 | Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Rx only | Yes | Yes |
 | Paths-Limit (draft-abraitis) | Yes | No | No | Yes | No | No | No | Yes | No | No | No |
+| BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode) | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? |
 | Extended Messages (RFC 8654) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Extended Nexthop (RFC 8950) | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | No | Yes | Yes |
 | Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | No | Yes | Yes |
@@ -77,7 +79,21 @@ Last updated: 2026-09-08
 | BGP Roles (RFC 9234) | Yes | Yes | Yes | No | Yes | No | Yes | No | No | No | Partial |
 | Prefix Limit (RFC 4486) | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
 
+**AS notation:** an AS number is accepted in any of the three RFC 5396 notations
+everywhere in the configuration and in every command, and `bgp as-notation`
+picks the one Ze prints. FRR carries the same choice as `bgp asnotation`.
+
+**BFD strict mode:** the capability holds a BGP session out of Established
+until the BFD session to that neighbor is Up, so a session never forms across
+a link BFD cannot cross. FRR carries it as `neighbor <peer> bfd strict`. The
+other daemons here were not checked for it.
+
 <!-- source: https://github.com/osrg/gobgp/blob/v4.7.0/pkg/packet/bgp/bgp.go -- CapExtendedMessage, BGPMessage.Serialize -->
+<!-- source: internal/core/bgp/asn/asn.go -- Parse, Text, the three RFC 5396 notations -->
+<!-- source: internal/component/bgp/reactor/session_bfd_strict.go -- bfdStrictHolds, applyBFDStrictNegotiation -->
+<!-- source: https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_vty.c -- bgp asnotation -->
+<!-- source: https://github.com/FRRouting/frr/blob/frr-10.5.3/lib/asn.h -- ASNOTATION_PLAIN, ASNOTATION_DOT, ASNOTATION_DOTPLUS -->
+<!-- source: https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_bfd.c -- neighbor_bfd_strict_cmd -->
 
 ## Cross-Protocol Redistribute
 

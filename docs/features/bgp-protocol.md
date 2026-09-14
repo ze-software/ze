@@ -55,7 +55,7 @@
 | BGP Role | 9 | RFC 9234 | Peer relationship role |
 | Hostname | 73 | RFC 8516 | FQDN capability |
 | Software Version | 75 | draft | Software version advertisement |
-| Link-Local Next Hop | 77 | RFC 2545 + draft | IPv6 link-local as next-hop |
+| Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | A 16-octet next hop holding one IPv6 link-local address, which RFC 2545 has no form for |
 | PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
 
 <!-- source: internal/core/bgp/capability/capability.go -- capability code constants -->
@@ -232,12 +232,16 @@ rail did not.
 | Withdrawals before announces | 4271 Section 4.3 | All withdrawals run before all announces, in the legacy sections and the multiprotocol ones, so one UPDATE naming a prefix in both leaves it reachable. |
 | A relayed withdrawal carries no path attributes | 4271 Sections 4.3 and 6.3 | An UPDATE advertising no reachable NLRI gets no attribute created on it: no next-hop rewrite, no RFC 4456 reflection stamp, no community tag, no policy delta, no AS_PATH prepend. Rewriting an attribute the source already carries stays allowed, which keeps the RFC 6793 Section 4.2.2 width transcode. |
 | One attribute order for every builder | 4271 Section 5 | Path attributes are inserted by type code in ascending order on every rail. MP_UNREACH_NLRI stays first, out of type-code order, so a withdrawal precedes an announcement in one message. |
-| The next-hop wire form matches its length octet | 4760, 2545 Section 3 | The MP_REACH Next Hop length and the bytes written derive from one value. The IPv6 link-local address is appended after the global one only when this speaker shares a locally connected subnet with the peer and with the entity the global next hop names. The `link-local` leaf supplies the address; it does not decide that the address is sent. |
+| The next-hop wire form matches its length octet | 4760, 2545 Section 3 | The MP_REACH Next Hop length and the bytes written derive from one value. The IPv6 link-local address is appended after the global one only when this speaker shares a locally connected subnet with the peer and with the entity the global next hop names. The `link-local` leaf supplies the address; it does not decide that the address is sent. The second address rides on the NEXT HOP being IPv6 rather than on the prefix, so IPv4 NLRI carried behind an IPv6 next hop (RFC 8950 Section 3) gets the same 32-octet field. |
+| A 16-octet link-local next hop needs capability 77 | draft-ietf-idr-linklocal-capability Sections 2, 3 and 5 | The Link-Local-only form is sent only where the session negotiated the capability, and for IPv4 NLRI only where RFC 8950 Extended Next Hop Encoding was negotiated as well. A route whose next hop is link-local is left out of the announcement on any other session, and logged, rather than encoded in a form RFC 2545 Section 3 forbids. |
+| A reflected link-local-only next hop stays on its own segment | draft-ietf-idr-linklocal-capability Section 4 | A route reflector withholds such a route from a client that shares no connected subnet with the original advertiser, and logs the suppression. A client the operator configured next-hop-self for receives it with this speaker's address instead, which is the other answer Section 4 allows. A link-local prefix is never read as evidence of a shared segment. |
 | A modification that cannot be applied suppresses the route | none | The route is withheld from that destination rather than forwarded unmodified. Counted on `ze_bgp_update_modify_failed_total{reason}`. |
 
 <!-- source: internal/component/bgp/reactor/forward_local_pref.go -- localPrefAllowedTo, applyFactsLocalPref -->
 <!-- source: internal/component/bgp/reactor/forward_med.go -- medPropagationAllowedTo, applyFactsMED -->
-<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopIsPeerOwn, originatedNextHopIsPeerOwn, egressNextHopIsLinkLocalOnly -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- sameLinkLayerSegment -->
+<!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopPermitted -->
 <!-- source: internal/component/bgp/plugins/rib/rib_self_nexthop.go -- refreshSelfNextHopsLocked, isSelfNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->

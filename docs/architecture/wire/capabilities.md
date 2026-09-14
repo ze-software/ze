@@ -64,7 +64,7 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 74 | 0x4A | BFD Strict-Mode | draft-ietf-idr-bgp-bfd-strict-mode | 0 | Core parser |
 | 75 | 0x4B | Software Version | draft-abraitis-bgp-version-capability | Variable | Preserved as unknown |
 | 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit-04 | 0 or 5 per family | Core parser |
-| 77 | 0x4D | Link-Local Next Hop | draft-ietf-idr-linklocal-capability | 0 | Preserved as unknown |
+| 77 | 0x4D | Link-Local Next Hop | draft-ietf-idr-linklocal-capability | 0 | Core parser, llnh plugin declares |
 | 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 | Preserved as unknown |
 | 131 | 0x83 | Multisession (Cisco) | Vendor | Variable | Preserved as unknown |
 | 185 | 0xB9 | Operational Message (ExaBGP) | Vendor | 0 | Preserved as unknown |
@@ -325,6 +325,45 @@ The FSM half is `docs/architecture/behavior/fsm.md`. The operator-facing half is
 
 ---
 
+## 9c. Link-Local Next Hop (Code 77)
+
+draft-ietf-idr-linklocal-capability Section 2.
+
+```
+[Empty - Length = 0]
+```
+
+No value field. Advertising it says this speaker is willing to send and to
+receive an MP_REACH_NLRI Next Hop field holding one IPv6 Link-Local address in
+16 octets, which RFC 2545 Section 3 has no form for: there a link-local address
+is only ever the second of two.
+
+Negotiation is the plain RFC 5492 intersection, and it is load-bearing rather
+than informational. Section 2 scopes every procedure of Sections 3 to 6 to a
+session that negotiated it, so `Negotiated.LinkLocalNextHop` is what
+`Peer.linkLocalOnlyNextHopPermitted` reads before ze sends the 16-octet form.
+For IPv4 NLRI carried behind an IPv6 next hop, Section 5 asks for the
+COMBINATION with Extended Next Hop Encoding (code 5): without both, the field is
+encoded as 32 octets.
+
+The llnh plugin declares the capability, from `session capability
+link-local-nexthop`, and the core parses and negotiates it. A route whose next
+hop is link-local is left out of the announcement on a session that did not
+negotiate what it needs, rather than encoded in a form RFC 2545 Section 3
+forbids.
+
+The reflection half is `docs/architecture/core-design.md`: a route with a
+link-local-only next hop is withheld from a route-reflector client that shares no
+link-layer segment with the original advertiser, unless the operator configured
+next-hop-self for that client.
+
+<!-- source: internal/core/bgp/capability/capability.go -- LinkLocalNextHop, CodeLinkLocalNextHop -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, LinkLocalNextHop -->
+<!-- source: internal/core/bgp/attribute/nexthop_form.go -- LinkLocalOnlyNextHopPermitted -->
+<!-- source: internal/component/bgp/reactor/peer.go -- linkLocalOnlyNextHopPermitted -->
+
+---
+
 ## 7b. PATHS-LIMIT (Code 76)
 
 draft-abraitis-idr-addpath-paths-limit-04: receiver-requested path count limit for ADD-PATH.
@@ -472,6 +511,7 @@ type Negotiated struct {
     RouteRefresh         bool
     EnhancedRouteRefresh bool
     BFDStrictMode        bool
+    LinkLocalNextHop     bool
     HoldTime             uint16
     GracefulRestart      *GracefulRestart
 

@@ -38,15 +38,21 @@ identity is injected only by trusted transport wiring.
 Commands follow a **verb-first** convention: `<action> <module> [args...]`.
 The action verb determines the command's behavior; the module implements it.
 
-| Verb | Purpose | Examples |
-|------|---------|---------|
-| `show` | Read-only display (returns data, exits) | `show bgp peer <selector> detail`, `show warnings` |
-| `set` | Create or modify | `set bgp peer X ...` |
-| `create` | Add to the running daemon | `create bgp peer X asn 65001` |
-| `delete` | Remove | `delete bgp peer X` |
-| `update` | Route operations (announce, withdraw, refresh), firmware, prefix data | `update system firmware check`, `update bgp peer * prefix` |
-| `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
+`command.Verbs` is the vocabulary, and it gives each verb one of three roles:
+`RoleRead` for `show`, `monitor` and `resolve`, `RoleMutation` for `set` and
+`delete`, and `RoleAction` for every other verb. A token the map does not hold
+answers `RoleUnspecified`, which is what `IsVerb` reads.
 
+What each verb PROMISES an operator, which selector it takes, and what a new
+command under it must look like are one table on one page, and this page does
+not carry a second copy of it: `docs/architecture/cli/command-verbs.md`.
+
+`IsReadOnlyPath` decides which authorization section a command lands in, and it
+asks `command.IsReadOnlyVerb` for the verb half rather than holding a list of
+read verbs. The five noun-first roots that predate the verb-first grammar are
+the rest of its answer.
+<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsVerb, IsReadOnlyVerb -->
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->
 <!-- source: internal/component/cmd/set/doc.go -- set verb -->
 <!-- source: internal/component/cmd/delete/doc.go -- delete verb -->

@@ -139,8 +139,15 @@ from its component graph, so a page loads only what it reaches.
 
 ### URL Scheme
 
-URLs follow a verb-first three-tier pattern:
+URLs follow a verb-first three-tier pattern. A segment that is also a canonical
+CLI verb (`show`, `monitor`, and `set`, `delete`, `commit` under `/config/`)
+takes its spelling from `command.Verbs`, so the web URL and the CLI command
+cannot drift apart. `config`, `admin`, `portal`, `login`, `assets` and the
+editor words `edit`, `add`, `form`, `add-form`, `changes`, `rename`, `discard`
+and `compare` are this router's own and the verb registry holds none of them.
+
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: internal/component/command/verbs.go -- VerbShow, VerbMonitor, VerbSet, VerbDelete, VerbCommit -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 
 | Tier | URL Pattern | Method | Description |

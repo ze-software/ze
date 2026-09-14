@@ -653,7 +653,7 @@ environment. Go 1.27 removed the `tlsunsafeekm` GODEBUG setting that once lifted
 removed setting carrying its old value is a fatal error that the Go runtime raises before
 the daemon starts, so setting it stops ze rather than reaching the peer.
 
-<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSKeys, eapTLS12ExportRefused -->
 
 ## Denial-of-service protection
 

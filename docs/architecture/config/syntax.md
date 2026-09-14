@@ -219,7 +219,14 @@ In the **set / single-line format**, the `nop` keyword replaces `set`
 on a deactivated line. "nop" means "no operation": the config entry
 exists in the file but produces no operational effect. Toggling
 activation is a 3-byte in-place edit (`set` <-> `nop`):
-<!-- source: internal/component/config/setparser.go -- cmdNop, parseNop -->
+
+`set` and `delete` in this format are the canonical CLI verbs in their engine
+path form, and the parser takes their spelling from `command.Verbs` rather than
+writing the words again, so renaming a verb renames the file keyword with it.
+`nop` and `inactive` belong to this format alone and the verb registry holds
+neither.
+<!-- source: internal/component/config/setparser.go -- cmdNop, cmdSet, cmdDelete, parseNop -->
+<!-- source: internal/component/command/verbs.go -- VerbSet, VerbDelete -->
 
 ```
 nop bgp router-id 10.0.0.1

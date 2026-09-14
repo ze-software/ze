@@ -240,7 +240,8 @@
           "bullets": [
             "**Single-hop** and **multi-hop**",
             "GTSM, jitter, **BGP** integration",
-            "SHA1/MD5 **auth**, echo mode"
+            "SHA1/MD5 **auth**, echo mode",
+            "**Strict mode** holds a BGP peer down until BFD is up"
           ]
         },
         {
@@ -310,7 +311,8 @@
           "bullets": [
             "Plugins add **commands**, RPCs, events",
             "YANG roots join **CLI** and web",
-            "Independent, **composable**"
+            "Independent, **composable**",
+            "Each plugin declares what its **failure** means"
           ]
         },
         {
@@ -810,7 +812,8 @@
           "bullets": [
             "Full **IKEv2** engine, rekeying, DPD",
             "**NAT-T**, keepalive, XFRM interfaces",
-            "EAP-MSCHAPv2, **EAP-TLS**, road warrior"
+            "EAP-MSCHAPv2, **EAP-TLS**, road warrior",
+            "**CRL** and OCSP revocation checks on EAP-TLS"
           ]
         },
         {
@@ -880,7 +883,8 @@
           "bullets": [
             "Ethernet, VLAN, bridge, **WireGuard**",
             "8 tunnel kinds, **DHCP** client",
-            "NTP sync, **offload** tuning, mirroring"
+            "NTP sync, **offload** tuning, mirroring",
+            "**IPv6 Router Advertisements**, the radvd role"
           ]
         },
         {
@@ -995,7 +999,8 @@
           "bullets": [
             "One **ospf** engine, IPv4 and IPv6 address families",
             "SPF/ABR, **NSSA**, virtual links, NBMA/P2MP",
-            "Redistribution, **SR**, BFD, graceful restart"
+            "Redistribution, **SR**, BFD, graceful restart",
+            "Interface cost priced from **link speed**"
           ]
         },
         {
@@ -1043,7 +1048,8 @@
           "bullets": [
             "First-hop **gateway redundancy**, IPv4 and IPv6",
             "Per-group **virtual-MAC** macvlan for L2 failover",
-            "**keepalived** interop, compile-out"
+            "**keepalived** interop, compile-out",
+            "**Interface tracking**, accept-mode"
           ]
         },
         {

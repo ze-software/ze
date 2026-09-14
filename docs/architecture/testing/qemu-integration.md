@@ -273,6 +273,18 @@ Tests tagged `integration && linux` run through the applicable `./le qemu`
 action, which supplies `-tags integration`. Tests tagged only `linux` also run
 in native unit groups on a Linux host.
 
+One case takes the first tag for a test that does need a capability, and it is
+the only one: a unit carrying an `RFC requirement:` tag. `./le rfc
+discriminate-record` runs the tagged unit with an empty build-tag set, so a
+unit behind `integration` matches nothing, `go test` exits 0, and no break can
+ever be observed to redden it
+(`plan/journal/gate-excludes-part-of-its-population.md`). Such a unit carries
+bare `linux`, and it calls `t.Skip` when the capability is absent, so it stays
+silent in the merge gate and runs for real in a privileged guest or container.
+`internal/core/network/ttl_gtsm_linux_test.go` and
+`internal/component/gtsm/gtsm_rfc5082_linux_test.go` are the two files that do
+this, and both say so in their headers.
+
 ### File Naming
 
 ```
@@ -481,7 +493,7 @@ the tracking scenario's work, and the fourth does not copy the pattern.
 | Mistake | Fix |
 |---------|-----|
 | "Needs real hardware, skipping test" | Use the virtual substitute in the table above |
-| `//go:build linux` on a test that needs root | Use `//go:build integration && linux` |
+| `//go:build linux` on a test that needs root | Use `//go:build integration && linux`, unless the unit carries an `RFC requirement:` tag: see Build Tags |
 | A new Linux package absent from `integrationPackages` | The test compiles and never runs. Add it to `internal/le/qemu/alltests.go` |
 | `t.Fatal` for a missing capability | Use `t.Skip`, so the file stays portable |
 | Hardcoding `/dev/ttyS0` | Use `pty.Open()` for a real PTY pair |

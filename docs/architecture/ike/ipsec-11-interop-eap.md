@@ -363,6 +363,6 @@ reported there would leave ze saying nothing but the 30s handshake timeout. The
 scenario asserts both accounts: charon's, which is ze's wire output read by
 another implementation, and ze's own, which is what an operator has.
 
-<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSKeys, eapTLS12ExportRefused -->
 <!-- source: internal/core/eap/peer.go -- naks, nakResponse -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts, checkResponderEAPTLS13RevokedClient -->
