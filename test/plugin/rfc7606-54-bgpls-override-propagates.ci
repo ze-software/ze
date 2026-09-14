@@ -25,10 +25,21 @@ option=conn_map:value=remote-ip
 # Source peer (conn=1, AS 65001) announces two BGP-LS NLRIs in one MP_REACH_NLRI:
 #   ORIGIN:   40010100                 IGP
 #   AS_PATH:  40020602010000FDE9       AS_SEQUENCE[65001], 4-byte ASNs
-#   MP_REACH: 800E20 4004 47 04 01010101 00   AFI 16388 / SAFI 71, next-hop 1.1.1.1
-#     NLRI 1: 0001 000B 020000000000000000000000   NLRI type 1, Node -- ze parses this
-#     NLRI 2: 0063 0004 DEADBEEF                   NLRI type 99 -- ze parses no such type
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702000000304001010040020602010000FDE9800E204004470401010101000001000B020000000000000000000000630004DEADBEEF
+#   MP_REACH: 800E1E 4004 47 04 01010101 00   AFI 16388 / SAFI 71, next-hop 1.1.1.1
+#     NLRI 1: 0001 0009 020000000000000000     NLRI type 1, Node -- ze parses this
+#     NLRI 2: 0063 0004 DEADBEEF               NLRI type 99 -- ze parses no such type
+#
+# NLRI 1 IS WELL FORMED, AND ITS LENGTH SAYS SO. Total NLRI Length 9 covers the
+# Protocol-ID and the Identifier of RFC 9552 Figure 7 and nothing else, so the NLRI
+# holds zero descriptor TLVs and the TLV lengths sum to the length field. A trailing
+# octet the NLRI body cannot frame as a TLV would make the NLRI malformed under RFC
+# 9552 Section 8.2.2 ("The sum of all TLV lengths found in a Link-State NLRI
+# corresponds to the Total NLRI Length field of all its descriptors"), and ze would
+# then be RIGHT to discard it -- which would test the discard rather than the
+# propagation this file exists to assert. `lsNode`
+# (internal/component/bgp/plugins/nlri/ls/unknown_type_skip_test.go) carries the same
+# 13 octets.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020602010000FDE9800E1E4004470401010101000001000902000000000000000000630004DEADBEEF
 
 # Processing fence, exactly as in the positive file: ze reads this connection in TCP order on
 # one goroutine, so the observer seeing 10.0.0.0/24 forwarded proves the BGP-LS UPDATE above
@@ -38,7 +49,7 @@ action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001440010
 # Receiver (conn=2, AS 65002): BOTH NLRIs arrive, the unknown type included and unchanged.
 # Asserting the whole section rather than just the unknown NLRI is deliberate: it pins that
 # the unknown type is preserved IN PLACE, not appended or reordered.
-expect=bgp:conn=2:seq=1:contains=0001000B020000000000000000000000630004DEADBEEF
+expect=bgp:conn=2:seq=1:contains=0001000902000000000000000000630004DEADBEEF
 EOF_PEER
 
 

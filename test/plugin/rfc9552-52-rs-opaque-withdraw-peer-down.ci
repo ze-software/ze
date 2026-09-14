@@ -14,7 +14,7 @@
 #
 # PREVENTS: the defect fixed by 408b8386c. wireu.ParseNLRIs hands a family with
 # no dedicated parser back as one *nlri.WireNLRI, whose String() is a size
-# summary ("wire[bgp-ls/bgp-ls](23 bytes)") carrying none of the bytes. The route
+# summary ("wire[bgp-ls/bgp-ls](21 bytes)") carrying none of the bytes. The route
 # server pasted that summary into "update text nlri bgp-ls/bgp-ls del ...", the
 # text parser answered route.ErrFamilyNotSupported, and every other client kept
 # the departed peer's Link-State routes announced forever.
@@ -83,15 +83,21 @@ expect=bgp:conn=1:seq=1:contains=18C00002
 # seq=2 -- one UPDATE, two Link-State NLRIs.
 #   ORIGIN:   40010100                 IGP
 #   AS_PATH:  40020602010000FDE9       AS_SEQUENCE[65001], 4-byte ASNs
-#   MP_REACH: 800E20 4004 47 04 01010101 00   AFI 16388 / SAFI 71, next-hop 1.1.1.1
-#     NLRI 1: 0001 000B 0200000000000000000000     type 1, the Node type
-#     NLRI 2: 0063 0004 DEADBEEF                   type 99, a type nothing registers
+#   MP_REACH: 800E1E 4004 47 04 01010101 00   AFI 16388 / SAFI 71, next-hop 1.1.1.1
+#     NLRI 1: 0001 0009 020000000000000000       type 1, the Node type
+#     NLRI 2: 0063 0004 DEADBEEF                 type 99, a type nothing registers
+# Total NLRI Length 9 covers the Protocol-ID and the Identifier of RFC 9552 Figure 7
+# and nothing else, so NLRI 1 carries no descriptor TLV and its TLV lengths sum to
+# its length field. A trailing octet the body cannot frame as a 4-octet TLV header
+# would make it malformed under RFC 9552 Section 8.2.2, and the receive path would
+# discard it before the route server ever saw it
+# (RetainWellFormedNLRI, internal/component/bgp/message/rfc7606_bgpls_nlri.go).
 # ze parses NEITHER of them here. The default branch of wireu.ParseNLRIs has no
-# dedicated parser for bgp-ls, so the whole 23-octet section arrives as ONE
+# dedicated parser for bgp-ls, so the whole 21-octet section arrives as ONE
 # *nlri.WireNLRI. The payload carries TWO of them so the fixture covers the SPLIT:
 # appendOpaqueRecords divides that one blob into one record per NLRI with
 # message.GetNLRISizeFunc, and the withdrawal below has to name both.
-action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702000000304001010040020602010000FDE9800E204004470401010101000001000B020000000000000000000000630004DEADBEEF
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020602010000FDE9800E1E4004470401010101000001000902000000000000000000630004DEADBEEF
 # seq=3 -- BARRIER TWO. 198.51.100.0/24 (18 C6 33 64), a DIFFERENT prefix from
 # barrier one so neither can satisfy the other's rule. The observer injects it
 # only after ze has written the receiver the announcement. It is what makes seq=4
@@ -113,21 +119,47 @@ option=linger:value=true
 # seq=1 POSITIVE -- the whole MP_REACH_NLRI arrives byte-identical, the unknown
 # type in place. Asserting from the attribute header rather than from the NLRI
 # section alone is what keeps this rule and seq=2 apart: the withdrawal below
-# carries the same 23 NLRI octets under a different attribute code, and a needle
+# carries the same 21 NLRI octets under a different attribute code, and a needle
 # that named only those octets would be satisfied by either frame.
-expect=bgp:conn=1:seq=1:contains=800E204004470401010101000001000B020000000000000000000000630004DEADBEEF
-# seq=2 NEGATIVE -- the departure withdraws both NLRIs. An EXACT frame, not a
-# substring, because every field of it is part of the claim:
-#   0034        message length 52
-#   0000        withdrawn-routes length 0 -- the withdrawal is not IPv4 unicast
-#   001D        total path attribute length 29
-#   800F 1A     MP_UNREACH_NLRI, optional, 26 octets of value
-#   4004 47     AFI 16388 / SAFI 71
-#   then the SAME 23 octets the source announced, type 99 included and unchanged.
-# Without the fix this frame never arrives at all: the withdrawal command the
-# route server built named "wire[bgp-ls/bgp-ls](23 bytes)" and was refused before
-# any byte reached this peer.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0034020000001D800F1A4004470001000B020000000000000000000000630004DEADBEEF
+expect=bgp:conn=1:seq=1:contains=800E1E4004470401010101000001000902000000000000000000630004DEADBEEF
+# seq=2 and seq=3 NEGATIVE -- the departure withdraws BOTH NLRIs. EXACT frames,
+# not substrings, because every field of each one is part of the claim.
+#
+# TWO frames, not one, and `behavior { group-updates disable }` below is what
+# decides that: nlriUnitLen (internal/component/bgp/reactor/reactor_api_batch.go)
+# answers 1 for a peer whose group-updates leaf is false, so each rail frames one
+# UPDATE per NLRI. Their ORDER is earned, not timed: sendBatchedWithdrawals sorts
+# the hex spellings before it builds the command, so the type-1 NLRI
+# ("00010009...") always precedes the type-99 one ("00630004...").
+#
+# Each frame carries ORIGIN and AS_PATH ahead of the MP_UNREACH_NLRI.
+# buildBatchWithdrawUpdate gives a non-unicast withdrawal the announce rail's
+# attribute block, and RFC 4760 Section 4 permits both shapes: "An UPDATE message
+# that contains the MP_UNREACH_NLRI is not required to carry any other path
+# attributes". The AS_PATH is [65000], ze's own ASN, because ze originates this
+# withdrawal rather than relaying one.
+#
+#   seq=2, the type-1 NLRI
+#     0037        message length 55
+#     0000        withdrawn-routes length 0 -- the withdrawal is not IPv4 unicast
+#     0020        total path attribute length 32
+#     4001 01 00  ORIGIN, IGP
+#     4002 06 ..  AS_PATH, AS_SEQUENCE[65000]
+#     800F 10     MP_UNREACH_NLRI, optional, 16 octets of value
+#     4004 47     AFI 16388 / SAFI 71
+#     then the SAME 13 octets the source announced for NLRI 1.
+#   seq=3, the type-99 NLRI
+#     0032        message length 50
+#     001B        total path attribute length 27
+#     800F 0B     MP_UNREACH_NLRI, optional, 11 octets of value
+#     then the SAME 8 octets the source announced for NLRI 2, unchanged.
+#
+# seq=3 is the rule this file exists for. Without the fix it never arrives at all:
+# the withdrawal command the route server built named
+# "wire[bgp-ls/bgp-ls](21 bytes)" and was refused before any byte reached this
+# peer.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000204001010040020602010000FDE8800F1040044700010009020000000000000000
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0032020000001B4001010040020602010000FDE8800F0B40044700630004DEADBEEF
 EOF_RECEIVER
 
 # Observer: makes the departure and the shutdown wait on STATE, never on a clock.

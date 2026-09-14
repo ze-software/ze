@@ -24,16 +24,25 @@ import (
 
 // bgplsUpdateBody is the UPDATE body (header stripped) of the MP_REACH_NLRI in
 // test/plugin/rfc7606-54-bgpls-override-propagates.ci: ORIGIN, AS_PATH, then
-// AFI 16388 / SAFI 71 with next-hop 1.1.1.1 and a 23-octet NLRI section holding
+// AFI 16388 / SAFI 71 with next-hop 1.1.1.1 and a 21-octet NLRI section holding
 // two Link-State NLRIs -- type 1 (Node), which ze parses, and type 99, which ze
 // does not.
-const bgplsUpdateBody = "000000304001010040020602010000fde9800e2040044704010101010" +
-	"00001000b020000000000000000000000630004deadbeef"
+//
+// The type-1 NLRI declares Total NLRI Length 9, which covers the Protocol-ID and
+// the Identifier of RFC 9552 Figure 7 and no descriptor TLV, so its TLV lengths
+// sum to its length field. A trailing octet the body cannot frame as a 4-octet
+// TLV header would make it malformed under RFC 9552 Section 8.2.2, and the
+// session receive path would discard it before the route server ever saw it
+// (RetainWellFormedNLRI, internal/component/bgp/message/rfc7606_bgpls_nlri.go).
+// These are the bytes the .ci puts on the wire, so the two tests judge one
+// section.
+const bgplsUpdateBody = "0000002e4001010040020602010000fde9800e1e40044704010101010" +
+	"00001000902000000000000000000630004deadbeef"
 
 // The two Link-State NLRIs of that section, each framed by its own Type and
 // Total NLRI Length (RFC 9552 Section 5.1).
 const (
-	bgplsNLRINode    = "0001000b0200000000000000000000"
+	bgplsNLRINode    = "00010009020000000000000000"
 	bgplsNLRIUnknown = "00630004deadbeef"
 )
 
@@ -55,7 +64,7 @@ func bgplsRawMessage(t *testing.T) *bgptypes.RawMessage {
 //
 // VALIDATES: wireu.ParseNLRIs returns the WHOLE NLRI section as one opaque
 // *nlri.WireNLRI for a family with no dedicated parser, and its String() is a
-// size summary ("wire[bgp-ls/bgp-ls](23 bytes)") carrying none of the bytes.
+// size summary ("wire[bgp-ls/bgp-ls](21 bytes)") carrying none of the bytes.
 // appendParsedRecords must record hex instead, and must split the section so
 // each NLRI gets its own key.
 // PREVENTS: a withdrawal-set key that names no route, and one key standing for
@@ -66,7 +75,7 @@ func TestOpaqueNLRIRecordedAsSplitWireBytes(t *testing.T) {
 	require.NotNil(t, records)
 	t.Cleanup(func() { returnNLRIRecords(records) })
 
-	require.Len(t, *records, 2, "the 23-octet section holds two Link-State NLRIs")
+	require.Len(t, *records, 2, "the 21-octet section holds two Link-State NLRIs")
 	for _, rec := range *records {
 		assert.True(t, rec.wireForm, "an unparsed NLRI is recorded in wire form")
 		assert.Equal(t, actionAdd, rec.action)
@@ -84,7 +93,7 @@ func TestOpaqueNLRIRecordedAsSplitWireBytes(t *testing.T) {
 // VALIDATES: sendBatchedWithdrawals picks the command form from the record, so
 // a BGP-LS withdrawal reaches the wire parser instead of the text parser.
 // PREVENTS: the regression this test was written for -- "update text nlri
-// bgp-ls/bgp-ls del wire[bgp-ls/bgp-ls](23 bytes)", rejected with
+// bgp-ls/bgp-ls del wire[bgp-ls/bgp-ls](21 bytes)", rejected with
 // route.ErrFamilyNotSupported, which left every other route-server client
 // holding the departed peer's Link-State routes forever.
 func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
