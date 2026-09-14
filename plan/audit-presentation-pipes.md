@@ -6,7 +6,7 @@
 | Scope | every command Ze registers, read as a matrix of scope against presentation |
 | Question | which commands need `\|` operations of their own FOR PRESENTATION, and what structure generalizes across them |
 | Deliverable | the structure, the views that are missing, and what each one needs the command to emit. No implementation plan |
-| Related | `plan/audit-command-pipe-vs-subcommand.md` (which existing subcommands ARE pipes), `plan/spec-plugin-registers-pipe-operations.md` (the mechanism, closed) |
+| Related | `plan/audit-command-pipe-vs-subcommand.md` (which existing subcommands ARE pipes), `plan/spec-plugin-registers-pipe-operations.md` (the mechanism, closed) | <!-- doc-links: ignore (the spec closed on 2026-09-05 in `80506f5dbd`, and closing a spec removes it from `plan/`) -->
 
 ## What this audit adds
 

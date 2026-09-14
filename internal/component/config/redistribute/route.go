@@ -61,7 +61,7 @@ type ImportRule struct {
 // (`ai/rules/principles.md`).
 //
 // Ze shipped that caller. The `bgp-redistribute` ingress filter
-// (`internal/component/bgp/plugins/redistribute_ingress`, retired 2026-09-04)
+// (`internal/component/bgp/plugins/redistribute_ingress`, retired 2026-09-04)  // <!-- doc-links: ignore (the retirement this paragraph records: `1ec5b741f8` deleted the plugin on 2026-09-04) -->
 // asked this package whether to KEEP a route a peer had just announced. That
 // question holds no importing protocol, so the filter passed "", every rule
 // rejected, and one `redistribute` block anywhere in the config discarded every

@@ -15,7 +15,7 @@ did not verify something, the row says so.
 | Spec | Status | Where its unfinished items went |
 |------|--------|----------------|
 | `spec-cli-show-bgp-answer-shapes` | CLOSED 2026-09-08 and removed from `plan/` | four specs in `plan/immediate/`, listed below |
-| `plan/spec-plugin-declares-answer-shape.md` | in-progress, 5 of 5 phases done | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, and `spec-daemon-backed-command-catalog`, CLOSED 2026-09-08 (`plan/learned/007-declaration-on-the-registration.md`) |
+| `spec-plugin-declares-answer-shape` | CLOSED 2026-09-08 by `2fab385cdb` and removed from `plan/` | `plan/spec-plugin-declaration-names-a-path-it-serves.md`, and `spec-daemon-backed-command-catalog`, CLOSED 2026-09-08 (`plan/learned/007-declaration-on-the-registration.md`) |
 
 Run `/ze-close` on each. It appends `plan/TEMPLATE-CLOSURE.md`, runs the Review
 Gate over the committed diff, records the artifact with `review_gate.py`, and
@@ -120,7 +120,7 @@ through by hand, outside `commit_helper.py`, so it bypassed the debt gate.
 ## Findings left open, all recorded
 
 None blocks closure. Each has a journal row or a spec that owns it.
-`plan/deferrals/` was deleted on 2026-09-05, so nothing here is a deferral row.
+`plan/deferrals/` was deleted on 2026-09-05, so nothing here is a deferral row. <!-- doc-links: ignore (deleted on 2026-09-05 by `6fb9cd8814`; the sentence exists to say no deferral row is possible) -->
 
 | Finding | Where |
 |---------|-------|

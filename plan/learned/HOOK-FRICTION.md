@@ -934,11 +934,13 @@ inverted `reject=`, or an assertion that cannot fail.
 `require`->`assert`, dropped `t.Run` cases, dropped `expect=`/`cmd=`
 lines) is REPORTED at exit 0 and lands.
 
-**Workaround.** Write the row in `test/weakened.md` FIRST, then repeat
-the edit, then name `test/weakened.md` in the commit. The refusal
-message prints the exact row. The hook reads that file from disk, so a
-row written after the refusal buys nothing until you retry, and a row
-naming another test buys nothing at all.
+**Workaround.** Write the row in `test/weakened/<session>.md` FIRST, then
+repeat the edit, then name that shard in the commit. The ledger became a
+directory of per-session shards on 2026-09-06, and `lepath.CommitSession`
+derives the eight hex characters that name yours. The refusal message
+prints the exact row. The hook reads that file from disk, so a row written
+after the refusal buys nothing until you retry, and a row naming another
+test buys nothing at all.
 
 **Do NOT use `Write` to route around it.** The catalog said so for a
 long time and it is now wrong: the check runs on `Write` and
@@ -1333,7 +1335,7 @@ prepositions reads as a gerund clause.
 
 **What it cost.** Two habit-3 findings in this rewrite were false. Each one named
 a pronoun, not an action: `when nothing is removed` in
-`plan/deferrals/mcp2026-1-stateless-core.md`, and `when nothing carries _meta.ui`
+`plan/deferrals/mcp2026-1-stateless-core.md`, and `when nothing carries _meta.ui` <!-- doc-links: ignore (a deferral row the 2026-09-05 deletion of `plan/deferrals/` took with it; the quoted sentence is the evidence here, not the file) -->
 in `ai/digests/mcp.md`. The same regex also matches `without anything`,
 `after everything`, `while something`, and `when string`. The last one is the one
 to watch, because this repository writes about strings, and `when string parsing`

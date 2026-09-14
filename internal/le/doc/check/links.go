@@ -97,6 +97,16 @@ func citationExcludes() []string {
 		// permitted to touch.
 		"test/weakened/",
 		"test/rfc-changed/",
+		// The site fixtures are FROZEN PUBLICATIONS, and they have no
+		// reachable repair either. published-plugin-registry.json is the
+		// registry as gh-pages 2fa8fa2ad published it, and the .md and .html
+		// beside it are what the renderer must turn that input into, compared
+		// byte for byte (internal/le/site/plugins_test.go). A marker fails that
+		// comparison, and rewriting the snapshot makes it claim a publication
+		// that never happened. So a path a later commit deleted, such as the
+		// bgp-redistribute plugin 1ec5b741f8 removed on 2026-09-04, is a fact
+		// about that publication rather than a claim about the tree today.
+		"internal/le/site/testdata/",
 	}
 	buckets := specpath.Dirs()
 	prefixes := make([]string, 0, len(trees)+len(buckets))

@@ -149,9 +149,9 @@ Functional evidence already taken, all in QEMU on the arm64 runtime kernel 7.2,
 none of it a substitute for the native verification the rows ask for:
 
 - `test/l2tp` suite: 23 of 23.
-- `test/plugin/ddos-detect-characterize` and `ddos-incident-confidence`: green,
+- `test/plugin/ddos-detect-characterize.ci` and `ddos-incident-confidence.ci`: green,
   each red before its fix.
-- `test/plugin/iface-link-flap-during-commit`: six green runs across two fixes.
+- `test/plugin/iface-link-flap-during-commit.ci`: six green runs across two fixes.
 - Host `bgp plugin` suite: nine failures, all nine compared BY NAME against a
   clean HEAD worktree. Four fail identically at HEAD; the fifth passes three of
   three in isolation in both trees and fails only under suite parallelism, in

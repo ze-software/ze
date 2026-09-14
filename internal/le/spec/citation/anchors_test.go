@@ -292,7 +292,7 @@ func TestTheAnchorGuardSeesAFileInASmallPackage(t *testing.T) {
 		"internal/small/one.go":   "// Design: docs/small-owner.md -- one\npackage small\n",
 		"internal/small/two.go":   "package small\n",
 		"internal/small/three.go": "package small\n",
-		"plan/spec-small.md":      "## Files to Modify\n- `internal/small/one.go` - one\n",
+		"plan/spec-small.md":      "## Files to Modify\n- `internal/small/one.go` - one\n", // <!-- doc-links: ignore (a fixture path this case writes into its own temporary tree, never into the checkout) -->
 	})
 
 	report, err := AuditAnchors(root, "plan/spec-small.md")

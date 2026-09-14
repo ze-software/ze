@@ -96,8 +96,8 @@ func twoStemLedger() rfcLedger {
 			Coverage: rfcLedgerCoverage{Requirements: 1, Gated: 1, Both: 1},
 			Requirements: []rfcLedgerRequirement{{
 				RID: "RFC9998-2-1", Level: "MUST", Section: "2", Text: "A widget MUST be sent.",
-				Gated: true, Positive: "`internal/a_test.go` `TestWidget` (unit/verify)",
-				Negative: "`internal/a_test.go` `TestNoWidget` (unit/verify)",
+				Gated: true, Positive: "`internal/a_test.go` `TestWidget` (unit/verify)", // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
+				Negative: "`internal/a_test.go` `TestNoWidget` (unit/verify)", // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
 				Covers: []rfcLedgerCover{
 					{Polarity: "positive", Unit: "internal/a_test.go::TestWidget",
 						Carrier: "unit/verify", Tags: 1},

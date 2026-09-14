@@ -44,8 +44,8 @@ func disclosureLedger() rfcLedger {
 			{
 				RID: "RFC9999-2-1", Level: "MUST", Section: "2", Gated: true,
 				Text:     "A widget MUST be rejected when its length is zero.",
-				Positive: "`internal/a_test.go` `TestWidget` (unit/verify)",
-				Negative: "`internal/a_test.go` `TestNoWidget` (unit/verify)",
+				Positive: "`internal/a_test.go` `TestWidget` (unit/verify)",   // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
+				Negative: "`internal/a_test.go` `TestNoWidget` (unit/verify)", // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
 				Note:     "**audit: weak**",
 				Covers: []rfcLedgerCover{
 					{Polarity: "positive", Unit: "internal/a_test.go::TestWidget",
@@ -63,7 +63,7 @@ func disclosureLedger() rfcLedger {
 			{
 				RID: "RFC9999-3-1", Level: "MUST", Section: "3", Gated: true,
 				Text:     "A widget MUST be logged.",
-				Positive: "`internal/b_test.go` `TestLogged` (unit/verify)",
+				Positive: "`internal/b_test.go` `TestLogged` (unit/verify)", // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
 				Negative: "--", Note: "",
 				Covers: []rfcLedgerCover{
 					{Polarity: "positive", Unit: "internal/b_test.go::TestLogged",
@@ -79,8 +79,8 @@ func disclosureLedger() rfcLedger {
 			{
 				RID: "RFC9999-4-1", Level: "MUST", Section: "4", Gated: true,
 				Text:     "A widget MUST NOT be resent.",
-				Positive: "`internal/c_test.go` `TestResend` (interop/nightly)",
-				Negative: "`internal/c_test.go` `TestNoResend` (interop/nightly)",
+				Positive: "`internal/c_test.go` `TestResend` (interop/nightly)",   // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
+				Negative: "`internal/c_test.go` `TestNoResend` (interop/nightly)", // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
 				Note:     "**nightly-only**", NightlyOnly: true,
 				Covers: []rfcLedgerCover{
 					{Polarity: "positive", Unit: "internal/c_test.go::TestResend",
@@ -106,8 +106,8 @@ func disclosureLedger() rfcLedger {
 			{
 				RID: "RFC9999-6-1", Level: "MUST", Section: "6", Gated: true,
 				Text:     "A widget MUST be acknowledged.",
-				Positive: "`internal/d_test.go` `TestAck` (unit/verify)",
-				Negative: "`internal/d_test.go` `TestNoAck` (unit/verify)",
+				Positive: "`internal/d_test.go` `TestAck` (unit/verify)",   // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
+				Negative: "`internal/d_test.go` `TestNoAck` (unit/verify)", // <!-- doc-links: ignore (a test name invented for this ledger fixture; the RFC, the requirement and the tests are built in memory, so no file backs them) -->
 				Covers: []rfcLedgerCover{
 					{Polarity: "positive", Unit: "internal/d_test.go::TestAck",
 						Carrier: "unit/verify", Tags: 1},

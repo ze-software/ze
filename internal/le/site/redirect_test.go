@@ -106,6 +106,6 @@ func TestTheLegacyRewriteReachesEveryPageAndMirror(t *testing.T) {
 // removed on 2026-08-30, with the wiring it asserted. Owner decision: the site
 // maps nothing to an old page before the first release, so neither the redirect
 // stubs nor the rewrite of retired addresses inside published pages runs.
-// `test/weakened.md` carries the row. `rewriteLegacyPublicURLs` keeps its own
+// Commit `c630cf08b6` carries the ledger row. `rewriteLegacyPublicURLs` keeps its own
 // test above, so the transformation itself stays covered and only its place in
 // a build is unasserted.

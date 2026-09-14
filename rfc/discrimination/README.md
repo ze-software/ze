@@ -3,7 +3,7 @@
 One file per RFC, `rfc/discrimination/<stem>.json`. Written by
 `./le rfc discriminate`, re-verified by `./le rfc check` on every run.
 
-Spec: `plan/spec-rfc-tag-claim-discrimination.md`. Page:
+Spec: `plan/spec-rfc-tag-claim-discrimination.md`. Page: <!-- doc-links: ignore (the spec closed on 2026-09-01 in `59830c5e63`; the page named next is what survives it) -->
 `docs/contributing/rfc-conformance-gates.md`, "The discrimination record".
 
 ## What this artifact is

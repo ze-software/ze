@@ -6,7 +6,7 @@ last agent was killed mid-phase.
 
 The previous handover, the spec-closing sweep of 2026-09-07/08, is spent and has
 been removed. Two of its open items resolved themselves: `spec-verification-debt-clearing`
-is closed, and `test/rfc-changed/1bfe298a.md` no longer exists. One survives and is
+is closed, and `test/rfc-changed/1bfe298a.md` no longer exists. One survives and is <!-- doc-links: ignore (the shard this sentence reports as gone: the ledger drops a row once git holds its text at HEAD) -->
 carried in section 5.
 
 ## 1. Where this came from
@@ -87,7 +87,7 @@ path, not a benchmark nobody reads.
 
 **Phase 6.** The functional scenario for AC-1: a socket in a persistently failing
 state leaves CPU low while the log and the counter show it. The spec calls it
-`subscriber-reader-failing-socket`. `test/qemu/` does not exist, so find the right
+`subscriber-reader-failing-socket`. `test/qemu/` does not exist, so find the right <!-- doc-links: ignore (the sentence's own subject: no such suite directory exists, which is why the next step is to pick one) -->
 suite directory, and add the name to `netnsSelections` in
 `internal/le/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
 refuses a named test with no file but never notices a file nobody named, which is how
@@ -107,7 +107,7 @@ is darwin. Do not record them as green.
 | Decision | Why it is blocked |
 |---|---|
 | **The four generated RFC index files, third deferral** | `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `ai/RFC-REQUIREMENTS.md`, `docs/features/rfc-status.md` are held back across three closures. `./le rfc index-update` is whole-tree, so this session's real corrections are mixed with a `Supported` row for `draft-ietf-idr-bgp-bfd-strict-mode`, whose producer is NOT in HEAD. Publishing it would claim conformance for absent code. `spec-bgp-bfd-strict` is `in-progress` and **no live session holds it**, so nothing schedules the refresh. Landing this session's half needs one `./le rfc index-update` in the same commit as that untracked summary, which only that abandoned spec's closure can do. **RESOLVED 2026-09-11 by session `bgp-notation`:** that spec was picked up, implemented to draft-19 and CLOSED (`e756977a67`, `10b270ebc3`), so its producer IS in HEAD and `./le rfc index-update` ran in the closure commit. The four index files no longer carry a claim for absent code, and nothing blocks this deferral now |
-| **A closed spec came back** | `plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` was correctly removed by `3fd87369fb`, then rewritten to disk at 12:22 still reading `in-progress` Phase 5/5. Content is preserved in `fd7cd7b44e`, so nothing is lost, but the backlog now shows a closed spec as open and `/ze-status` counts it. NOT deleted: `ai/rules/never-destroy-work.md` needs your word first |
+| **A closed spec came back** | `plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` was correctly removed by `3fd87369fb`, then rewritten to disk at 12:22 still reading `in-progress` Phase 5/5. Content is preserved in `fd7cd7b44e`, so nothing is lost, but the backlog now shows a closed spec as open and `/ze-status` counts it. NOT deleted: `ai/rules/never-destroy-work.md` needs your word first | <!-- doc-links: ignore (the spec closed and was removed by `3fd87369fb`, and the untracked copy this row asks about is gone too) -->
 | **The fabricated-citation class** | `plan/journal/claim-outlives-the-evidence-it-cites.md` holds 47 rows, three of them fabricated RFC quotations or non-existent section numbers. This session's own agents attributed "MUST NOT be all zeros or all ones" to RFC 5072 Section 4.1 (that sentence is not in the document) and cited "RFC 5072 Section 3.2" eight times (that section does not exist). All corrected, none remain. The class has earned a deliberate pass, plausibly a gate: a citation naming a section number is mechanically checkable against the RFC text, which would have caught all eight |
 | **`RFC5072-4.1-11`** | Ze's own tentative interface identifier does not clear the "u" bit, so Ze sends in its own Configure-Request a value it now refuses to suggest to a peer. Honestly recorded as a `{gap}`. Roughly two lines now that `suggestIPv6CPInterfaceID` owns the machinery, but it changes what Ze puts on the wire and owes a tagged test plus a discrimination record. Wants its own spec |
 | **`plan/spec-liveness-event-tears-down-bgp-peer.md`** | Carried from the previous handover. `design`, 13 ACs, written 2026-09-07, never reviewed by you. Its event naming is proceeding as `liveness` / `peer-down` / `keepalive-expired`; your phrasing was "tcp failure with IP". Renaming before implementation costs three constants and one YANG grouping name |
@@ -412,7 +412,7 @@ of what was asked for.
 
 1. **Phase 6, the functional scenario.** AC-1: a socket held in a persistently
    failing state leaves CPU low while the log line and the counter show the failure.
-   The spec calls it `subscriber-reader-failing-socket`. `test/qemu/` does not exist,
+   The spec calls it `subscriber-reader-failing-socket`. `test/qemu/` does not exist, <!-- doc-links: ignore (the sentence's own subject: no such suite directory exists, which is why the next step is to pick one) -->
    so pick the suite directory from what does, and add the name to `netnsSelections`
    in `internal/le/qemu/netns_linux.go`. That list is explicit: `validateNetnsSelection`
    refuses a named test with no file, but never notices a file nobody named, which is
@@ -441,7 +441,7 @@ is the one that compounds: `docs/features/rfc-status.md` is now three specs stal
 its PPPoE and IPv6CP rows, and the session that could unblock it is gone.
 
 One correction to that section: the resurrected
-`plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` is
+`plan/immediate/spec-ipv6cp-accepts-and-proposes-a-zero-interface-identifier.md` is <!-- doc-links: ignore (the spec closed and was removed by `3fd87369fb`, and the untracked copy this row asks about is gone too) -->
 STILL on disk, untracked, still reading `in-progress` Phase 5/5, for a spec closed at
 `3fd87369fb`. It makes the backlog show a closed spec as open. Its content is
 preserved in `fd7cd7b44e`, so deleting it loses nothing, but it needs Thomas's word

@@ -146,7 +146,7 @@
       "quote": "Future requests for assignment of a Type value must specify whether the Type value is intended for a transitive or a non- transitive Extended Community.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the party filing a future Type value assignment request with IANA, and IANA which records the answer: the sentence directs what such a REQUEST must specify, namely whether the value is for a transitive or a non-transitive Extended Community. Ze consumes allocated type codes and files no assignment request, so it never plays the requester role. The lowercase 'must' is why the site scan sees it only under the prose register. The role is a registry act by a person, so no producer could perform it. Ze CONSUMES the resulting assignment: the extended community codec reads the type octet it is given (`internal/component/bgp/attribute`)."
+      "reason": "Binds the party filing a future Type value assignment request with IANA, and IANA which records the answer: the sentence directs what such a REQUEST must specify, namely whether the value is for a transitive or a non-transitive Extended Community. Ze consumes allocated type codes and files no assignment request, so it never plays the requester role. The lowercase 'must' is why the site scan sees it only under the prose register. The role is a registry act by a person, so no producer could perform it. Ze CONSUMES the resulting assignment: the extended community codec reads the type octet it is given (`internal/core/bgp/attribute`)."
     },
     {
       "id": "8:1",

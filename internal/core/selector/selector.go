@@ -237,8 +237,8 @@ func parsePositive(s string) (*Selector, error) {
 }
 
 // ParseASNSelector reads an `as<N>` peer selector, and is the ONE declaration
-// of that text form. `cmd/policy` matches peers by the same syntax and calls
-// this rather than repeating it.
+// of that text form. `internal/component/bgp/plugins/cmd/policy` matches peers
+// by the same syntax and calls this rather than repeating it.
 //
 // The AS number is read in every RFC 5396 spelling, so `as1.10` selects the
 // peers `as65546` selects. Getting this wrong is silent: ParseDefault turns a

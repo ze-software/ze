@@ -59,7 +59,7 @@ names the spec (`plan/journal/README.md`). There is no `done/` directory.
 
 A spec that cannot finish an item does not park it in a shard. It writes the
 remainder as its own spec in the bucket that item belongs to, and names that spec
-in its own text. `plan/deferrals/` existed until 2026-09-05 and held 103 live rows,
+in its own text. `plan/deferrals/` existed until 2026-09-05 and held 103 live rows, <!-- doc-links: ignore (deleted on 2026-09-05 by `6fb9cd8814`; this section exists to say the directory is gone) -->
 29 of which named no destination at all, so that work was invisible to every count
 above. A row nobody can count is a row nobody schedules. All 29 became specs in the
 same piece of work, and the other 74 were copied into the spec each one named, under
