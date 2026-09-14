@@ -22,6 +22,13 @@
 # session (RFC 4271 Section 5.1.1), so nothing here depends on the choice.
 
 stdin=peer:terminator=EOF_PEER
+# option=linger holds the peer open past its own script. The observer reads the
+# adj-RIB-in AFTER the exchange, and AdjRIBInManager.handleState
+# (internal/component/bgp/plugins/adj_rib_in/rib.go) does `delete(r.ribIn,
+# peerAddr)` the moment the session goes down, so a peer that exits on its last
+# expect leaves the observer reading an empty RIB and reporting a drop that
+# never happened.
+option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=15s
 # The rejected route: ORIGIN incomplete.

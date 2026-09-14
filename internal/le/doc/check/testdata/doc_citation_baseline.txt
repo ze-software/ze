@@ -95,7 +95,6 @@ docs/architecture/rfc-may-decisions.md	internal/component/config/bgp.go
 docs/architecture/system-architecture.md	api/process-protocol.md
 docs/architecture/system-architecture.md	internal/bgp/
 docs/architecture/testing/ci-format.md	plan/spec-editor-testing-framework.md
-docs/architecture/testing/ci-format.md	test/ipsec/ipsec-dpd-timeout.ci
 docs/architecture/testing/interop.md	plan/spec-bgp-plugin-speaker.md
 docs/architecture/testing/interop.md	test/interop/scenarios/NN-description/
 docs/architecture/zefs-format.md	etc/ze/router.conf

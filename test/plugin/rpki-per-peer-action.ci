@@ -5,6 +5,13 @@
 
 # ze-peer: send route 10.0.1.0/24 from AS 65999 (VRP has AS 65001) => Invalid origin
 stdin=peer:terminator=EOF_PEER
+# option=linger holds the peer open past its own script. The observer reads the
+# adj-RIB-in AFTER the exchange, and AdjRIBInManager.handleState
+# (internal/component/bgp/plugins/adj_rib_in/rib.go) does `delete(r.ribIn,
+# peerAddr)` the moment the session goes down, so a peer that exits on its last
+# expect leaves the observer reading an empty RIB and reporting a drop that
+# never happened.
+option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65999:next-hop=10.0.0.1
