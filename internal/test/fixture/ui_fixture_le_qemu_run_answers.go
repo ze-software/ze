@@ -19,6 +19,11 @@ import (
 	"strings"
 )
 
+// uiLeQemuRunAnswersGoRelease is the Go release the stand-in checkout declares.
+// It is NOT this repository's own release: a value that matched would pass
+// whether or not the plan read go.mod at all.
+const uiLeQemuRunAnswersGoRelease = "1.24.3"
+
 func init() {
 	Register("ui/le-qemu-run-answers", uiDriver(leQEMURunAnswers))
 }
@@ -55,7 +60,14 @@ func leQEMURunAnswers(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Join(fixtureRoot, "tmp"), 0o750); err != nil {
 		return fmt.Errorf("FAIL: create fixture root: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(fixtureRoot, "go.mod"), []byte("module fixture\n"), 0o600); err != nil {
+	// The guest installs the Go release go.mod DECLARES, so the stand-in
+	// checkout has to declare one: Run.plan reads it with
+	// goversion.DeclaredRelease and refuses a go.mod with no `go` directive
+	// (internal/le/qemu/run.go, f26969c5cd, 2026-09-05). The release below is
+	// deliberately not this repository's, so the assertion further down proves
+	// the plan READ it rather than matching the host by accident. It is
+	// patch-qualified because a toolchain download names a release.
+	if err := os.WriteFile(filepath.Join(fixtureRoot, "go.mod"), []byte("module fixture\n\ngo "+uiLeQemuRunAnswersGoRelease+"\n"), 0o600); err != nil {
 		return fmt.Errorf("FAIL: write fixture go.mod: %w", err)
 	}
 	if err := os.WriteFile(filepath.Join(fixtureRoot, "feature-gates.txt"), []byte("ze_core internal/core\n"), 0o600); err != nil {
@@ -156,6 +168,9 @@ func leQEMURunAnswers(ctx context.Context) error {
 		if _, exists := plan[key]; !exists {
 			return fmt.Errorf("FAIL: run plan has no %q: %v", key, uiLeQemuRunAnswersSortedKeys(plan))
 		}
+	}
+	if plan["go-version"] != uiLeQemuRunAnswersGoRelease {
+		return fmt.Errorf("FAIL: the plan installs Go %#v, want the %s the stand-in go.mod declares", plan["go-version"], uiLeQemuRunAnswersGoRelease)
 	}
 	if plan["command"] != "printf ui-proof" {
 		return fmt.Errorf("FAIL: command changed: %#v", plan["command"])

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -150,7 +151,7 @@ func leSpecStatusAnswers(ctx context.Context) error {
 }
 
 func checkRecordContract(records []map[string]json.RawMessage, page []byte) error {
-	required := []string{fieldName, fieldStatus, "bucket", fieldUpdated, "git-modified", statusStale}
+	required := []string{fieldName, fieldStatus, "bucket", "category", fieldUpdated, "git-modified", statusStale}
 	lines := strings.Split(string(page), "\n")
 	lineAt := 0
 	section := ""
@@ -174,6 +175,10 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 		bucket, err := stringField(record, "bucket")
 		if err != nil {
 			return uiLeSpecStatusAnswersFailf("record %q has an invalid bucket: %v", name, err)
+		}
+		category, err := stringField(record, "category")
+		if err != nil {
+			return uiLeSpecStatusAnswersFailf("record %q has an invalid category: %v", name, err)
 		}
 		updated, err := stringField(record, "updated")
 		if err != nil {
@@ -205,17 +210,28 @@ func checkRecordContract(records []map[string]json.RawMessage, page []byte) erro
 			return uiLeSpecStatusAnswersFailf("the page has no row for record %q in record order", name)
 		}
 		lineAt = row + 1
+		// The page's SECTIONS are the status-derived CATEGORY, never the release
+		// BUCKET. The two were one field until 6fb9cd8814 (2026-09-05) split
+		// them: `bucket` is now the directory the spec sits in (after,
+		// immediate, pre-release, internal/le/spec/specpath) and `category` is
+		// the backlog / idea / other split the sections print
+		// (specstatus.Category). Reading the section off `bucket` asks the
+		// wrong record for the answer.
 		wantSection := map[string]string{
 			"backlog": "Committed backlog",
 			"idea":    "Idea capture",
 			"other":   "Other",
-		}[bucket]
+		}[category]
 		if wantSection == "" || !strings.Contains(section, wantSection) {
-			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want bucket %q", name, section, bucket)
+			return uiLeSpecStatusAnswersFailf("the page files %q under %q, want category %q", name, section, category)
+		}
+		if !slices.Contains([]string{"after", "immediate", "pre-release"}, bucket) {
+			return uiLeSpecStatusAnswersFailf("record %q carries bucket %q, which names no release bucket", name, bucket)
 		}
 		for key, value := range map[string]string{
 			fieldName:    name,
 			fieldStatus:  status,
+			"bucket":     bucket,
 			fieldUpdated: updated,
 		} {
 			if value != "" && !strings.Contains(lines[row], value) {

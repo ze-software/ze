@@ -99,6 +99,17 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 		return fmt.Errorf("make docker stand-in executable: %w", err)
 	}
 
+	// The hugepage proof refuses to boot an arm64 appliance without aarch64 UEFI
+	// firmware, and answers SKIP rather than an error when the file is absent
+	// (errAarch64Firmware, internal/le/qemu/boot.go). Every other tool this run
+	// needs already has a stand-in above, so the firmware gets one too: without
+	// it the proof never reaches its assertions on an arm64 host, and the report
+	// carries no `cmdline` because nothing was asked of a kernel.
+	firmware := filepath.Join(work, "edk2-aarch64-code.fd")
+	if err := os.WriteFile(firmware, []byte("ui fixture firmware"), 0o600); err != nil {
+		return fmt.Errorf("write aarch64 firmware stand-in: %w", err)
+	}
+
 	runLE := func(args []string, options leOptions) uiLeEvidenceVppAnswersCommandResult {
 		record := options.record
 		if record == "" {
@@ -128,6 +139,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 			"ZE_PLUGINS_EXIT":        pluginsExit,
 			"ZE_VPP_HP_KEEP":         "1",
 			"ZE_VPP_HP_SSH_PORT":     "34122",
+			"ZE_VPP_HP_AARCH64_BIOS": firmware,
 			"ZE_HP_CMDLINE":          cmdline,
 			"ZE_HP_TOTAL":            total,
 		})

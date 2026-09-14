@@ -51,6 +51,26 @@ func leRulesAnswers(ctx context.Context) error {
 	if err := exportHEAD(ctx, sourceRoot, root); err != nil {
 		return fmt.Errorf("FAIL: export HEAD for the rules corpus: %w", err)
 	}
+	// `git archive` unpacks FILES and no history, and the gate-map ratchet reads
+	// its baseline out of git: headSources runs `git rev-parse --verify HEAD`
+	// and answers false when there is none (internal/le/rules/coverage.go). With
+	// no baseline the report's `regressed` is an empty list that was never
+	// computed, which is a zero that says nothing (ai/rules/principles.md) and
+	// is what the assertion below refuses. Committing the export once gives the
+	// ratchet a HEAD to read, as the ste fixture does for the same reason.
+	for _, args := range [][]string{
+		{argInit, argQuiet},
+		{argAdd, "--all"},
+		{"-c", "user.email=test@example.invalid", "-c", "user.name=test", argCommit, argQuiet, "--no-gpg-sign", "-m", directionExport},
+	} {
+		committed, err := uiLeRulesAnswersExecute(ctx, root, os.Environ(), "git", args...)
+		if err != nil {
+			return fmt.Errorf("FAIL: git %s in the rules export: %w", args[0], err)
+		}
+		if committed.code != 0 {
+			return uiLeRulesAnswersFailf("git %s in the rules export exited %d: %s%s", args[0], committed.code, committed.stdout, committed.stderr)
+		}
+	}
 
 	le := func(tree string, args ...string) (uiLeRulesAnswersCommandResult, error) {
 		env := uiLeRulesAnswersSetEnv(os.Environ(), "ZE_REPO_ROOT", tree)

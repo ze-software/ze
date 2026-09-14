@@ -66,9 +66,9 @@ func leSTEAnswers(ctx context.Context) error {
 	}
 
 	gitSteps := [][]string{
-		{argInit, "--quiet"},
+		{argInit, argQuiet},
 		{argAdd, "--all"},
-		{"-c", "user.email=test@example.invalid", "-c", "user.name=test", "commit", "--quiet", "-m", directionExport},
+		{"-c", "user.email=test@example.invalid", "-c", "user.name=test", argCommit, argQuiet, "-m", directionExport},
 	}
 	for _, args := range gitSteps {
 		done := leSTERun(ctx, export, nil, "git", args...)
@@ -315,11 +315,16 @@ func leSTEAnswers(ctx context.Context) error {
 		return leSTEFailf("the path refusal is silent: %q", refused.stderr)
 	}
 
+	// A value with no keyword before it is a GRAMMAR refusal, and every grammar
+	// refusal in le answers 2: leaction.Area.Answer reports the parse failure
+	// and returns 2, which its own test pins for {"run", "unknown"}
+	// (internal/le/leaction/leaction_test.go). 1 is reserved for a gate that ran
+	// and failed, which is the distinction the refusal above rests on too.
 	unknown := le("ste", "check", "docs/guide/quickstart.md")
-	if unknown.code != 1 || unknown.err == nil {
-		return leSTEFailf("a bare path answered %d, want 1", unknown.code)
+	if unknown.code != 2 || unknown.err == nil {
+		return leSTEFailf("a bare path answered %d, want 2", unknown.code)
 	}
-	if !bytes.Contains(unknown.stderr, []byte("unknown keyword")) {
+	if !bytes.Contains(unknown.stderr, []byte("unknown argument keyword")) {
 		return leSTEFailf("the unknown-keyword refusal is silent: %q", unknown.stderr)
 	}
 

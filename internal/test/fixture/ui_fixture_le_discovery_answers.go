@@ -112,10 +112,12 @@ func leDiscoveryAnswers(ctx context.Context) error {
 			return uiLeDiscoveryAnswersFailf("le %s update changed files other than %s", tc.command, tc.output)
 		}
 
-		checked := runLE(tree, tc.command, "check")
-		if checked.code != 0 || checked.err != nil {
-			return uiLeDiscoveryAnswersFailf("le %s check rejected the bytes update just wrote: %s%s", tc.command, checked.stdout, checked.stderr)
-		}
+		// Neither area has a `check` verb. The map is derived and untracked, so
+		// no stored copy exists for a verdict to disagree with: the walk that
+		// would decide it is the walk that writes the answer (7629e90135,
+		// 2026-09-11, internal/le/discoveryindex/actions.go). What that call
+		// asserted -- that the bytes update wrote are the accepted bytes -- is
+		// the byte-for-byte comparison of the second update below.
 		wroteAgain := runLE(tree, tc.command, "update")
 		if wroteAgain.code != 0 || wroteAgain.err != nil {
 			return uiLeDiscoveryAnswersFailf("second le %s update exited %d: %s%s", tc.command, wroteAgain.code, wroteAgain.stdout, wroteAgain.stderr)
@@ -284,10 +286,15 @@ func leDiscoveryAnswers(ctx context.Context) error {
 	if got := runLE("", "docs-to-code", "nonesuch").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("an unknown docs-to-code action answered %d, want 2", got)
 	}
-	if got := runLE("", "doc wiring", "somefile.go").code; got != 1 {
+	// Both are GRAMMAR refusals, and leaction answers 2 for every one of them:
+	// the parse failure is reported and returned as 2 by Area.Answer, pinned by
+	// its own test (internal/le/leaction/leaction_test.go). 1 is what a gate
+	// that ran and failed answers, which is the fact these two must not be
+	// confused with.
+	if got := runLE("", "doc wiring", "somefile.go").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("a bare value was accepted with exit %d", got)
 	}
-	if got := runLE("", "doc wiring", "changed-file").code; got != 1 {
+	if got := runLE("", "doc wiring", "changed-file").code; got != 2 {
 		return uiLeDiscoveryAnswersFailf("a keyword with nothing after it was accepted with exit %d", got)
 	}
 

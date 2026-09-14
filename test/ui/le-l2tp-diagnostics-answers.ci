@@ -1,6 +1,20 @@
 option=timeout:value=300s
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 
+# The diagnostic this fixture drives EXISTS only on Linux. Its producers,
+# executeL2TPPPoXDiagnostic and executeL2TPTunnelDiagnostic, are declared in
+# internal/le/deployment/l2tpdiag_linux.go under `//go:build linux`; every other
+# GOOS compiles internal/le/deployment/l2tpdiag_other.go, whose `//go:build
+# !linux` bodies answer "the L2TP PPPoL2TP diagnostic requires Linux" and run
+# nothing. The recording seam the fixture reads the operation order from,
+# internal/le/deployment/l2tpdiag_linux_record.go, is `//go:build linux &&
+# zetest` for the same reason.
+#
+# No caps= is declared: that seam replaces every syscall with an NDJSON record,
+# so the run creates no tunnel, opens no /dev/ppp and needs no privilege. What
+# it needs is the Linux build of the diagnostic.
+option=needs-linux
+
 cmd=foreground:seq=1:exec=ze-test fixture ui/le-l2tp-diagnostics-answers
 expect=exit:code=0
 expect=stdout:contains=LE_L2TP_DIAGNOSTICS_ANSWERS_OK

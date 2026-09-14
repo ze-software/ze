@@ -14,15 +14,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unsafe"
+
+	"github.com/creack/pty"
 )
 
-const (
-	tioCGPTN    = uintptr(0x80045430)
-	tioCSPTLCK  = uintptr(0x40045431)
-	tioCSWINSZ  = uintptr(0x5414)
-	readQuantum = 100 * time.Millisecond
-)
+const readQuantum = 100 * time.Millisecond
 
 var displayFillANSI = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]|\x1b[()][A-Z0-9]|\x1b[=>]`)
 
@@ -34,13 +30,6 @@ type displayFillProcess struct {
 	cmd     *exec.Cmd
 	done    chan struct{}
 	waitErr error
-}
-
-type displayFillWinsize struct {
-	rows   uint16
-	cols   uint16
-	xpixel uint16
-	ypixel uint16
 }
 
 func displayFillCompletion(ctx context.Context) error {
@@ -340,51 +329,38 @@ func displayFillEnvironment(base []string, updates map[string]string) []string {
 	return env
 }
 
+// displayFillOpenPTY allocates a pseudo-terminal pair and sizes it.
+//
+// The allocation goes through creack/pty because the ioctl numbers that do it
+// are per-kernel. This function open-coded Linux's: TIOCSPTLCK 0x40045431,
+// TIOCGPTN 0x80045430 and TIOCSWINSZ 0x5414, with the slave named
+// /dev/pts/<n>. macOS grants and names its slave through TIOCPTYGRANT,
+// TIOCPTYUNLK and TIOCPTYGNAME instead, so the first ioctl there returned
+// ENOTTY and this whole test failed with "inappropriate ioctl for device" on
+// every darwin host. Nothing it asserts is Linux-only: the completion it reads
+// comes from the column registry, so the fixture owed a portable terminal
+// rather than a platform gate.
 func displayFillOpenPTY(rows, cols uint16) (*os.File, *os.File, error) {
-	masterFD, err := syscall.Open("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
+	master, slave, err := pty.Open()
 	if err != nil {
 		return nil, nil, err
 	}
-	master := os.NewFile(uintptr(masterFD), "/dev/ptmx")
 	fail := func(err error) (*os.File, *os.File, error) {
+		_ = slave.Close()
 		_ = master.Close()
 		return nil, nil, err
 	}
-
-	var unlock int32
-	if err := displayFillIOCTL(masterFD, tioCSPTLCK, unsafe.Pointer(&unlock)); err != nil { //nolint:gosec // an ioctl takes a pointer argument, and the value is this fixture\'s own
+	if err := pty.Setsize(master, &pty.Winsize{Rows: rows, Cols: cols}); err != nil {
 		return fail(err)
 	}
-	var number uint32
-	if err := displayFillIOCTL(masterFD, tioCGPTN, unsafe.Pointer(&number)); err != nil { //nolint:gosec // an ioctl takes a pointer argument, and the value is this fixture\'s own
-		return fail(err)
-	}
-
-	slaveName := "/dev/pts/" + strconv.FormatUint(uint64(number), 10)
-	slaveFD, err := syscall.Open(slaveName, syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
-	if err != nil {
-		return fail(err)
-	}
-	slave := os.NewFile(uintptr(slaveFD), slaveName)
-
-	winsize := displayFillWinsize{rows: rows, cols: cols}
-	if err := displayFillIOCTL(slaveFD, tioCSWINSZ, unsafe.Pointer(&winsize)); err != nil { //nolint:gosec // an ioctl takes a pointer argument, and the value is this fixture\'s own
-		_ = slave.Close()
-		return fail(err)
-	}
-	if err := syscall.SetNonblock(masterFD, true); err != nil {
-		_ = slave.Close()
+	// displayFillReadAvailable polls with a deadline of its own and reads
+	// EAGAIN as "nothing more yet", so the master has to answer that rather
+	// than park inside the runtime. Fd releases the file from Go's poller and
+	// hands back the descriptor SetNonblock then marks.
+	if err := syscall.SetNonblock(int(master.Fd()), true); err != nil {
 		return fail(err)
 	}
 	return master, slave, nil
-}
-
-func displayFillIOCTL(fd int, request uintptr, arg unsafe.Pointer) error {
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), request, uintptr(arg))
-	if errno != 0 {
-		return errno
-	}
-	return nil
 }
 
 func displayFillReadAvailable(ctx context.Context, master *os.File, deadline time.Time) (string, error) {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -71,7 +72,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 		return uiLeFunctionalAnswersFailf("the functional suite table or its ordering changed between answers")
 	}
 
-	gating := 0
+	var gatingNames []string
 	seenNames := make(map[string]struct{}, len(suites))
 	wantFields := []string{fieldName, "gating", "action", fieldRerun, "budget", "budget-variable", fieldCommand, "why"}
 	for i, row := range suites {
@@ -131,7 +132,7 @@ func leFunctionalAnswers(ctx context.Context) error {
 			return uiLeFunctionalAnswersFailf("suite %s omitted budget or purpose metadata", name)
 		}
 		if isGating {
-			gating++
+			gatingNames = append(gatingNames, name)
 		}
 	}
 	firstName, err := requiredString(suites[0], "name", "first suite")
@@ -141,8 +142,39 @@ func leFunctionalAnswers(ctx context.Context) error {
 	if firstName != "encode" {
 		return uiLeFunctionalAnswersFailf("the first functional suite is %q, want encode", firstName)
 	}
-	if gating != 24 {
-		return uiLeFunctionalAnswersFailf("the command marks %d suites gating, want 24", gating)
+
+	// The gating set is DERIVED, never counted here. A literal beside a registry
+	// is the drift this repository records (ai/rules/principles.md): three suites
+	// earned their own names (bfd, dhcp, vrrp) and a hand-written 24 went red for
+	// the tree being right. `le functional select` publishes the run list a
+	// gating run would start, so the two surfaces are cross-checked against each
+	// other, which catches a name moving between them and not only a count.
+	plan, err := uiLeFunctionalAnswersRunCommand(ctx, here, binary, "functional", "select", "|", "json")
+	if err != nil {
+		return err
+	}
+	if plan.exitCode != 0 {
+		return uiLeFunctionalAnswersFailf("`le functional select | json` exited %d", plan.exitCode)
+	}
+	var selection struct {
+		Running  []string `json:"running"`
+		RuledOut []string `json:"ruled-out"`
+		Skipped  []string `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(plan.stdout), &selection); err != nil {
+		return uiLeFunctionalAnswersFailf("`le functional select | json` returned invalid JSON: %v", err)
+	}
+	planned := slices.Concat(selection.Running, selection.RuledOut, selection.Skipped)
+	slices.Sort(planned)
+	wantGating := slices.Clone(gatingNames)
+	slices.Sort(wantGating)
+	if !slices.Equal(planned, wantGating) {
+		return uiLeFunctionalAnswersFailf("`list` marks %v gating and `select` plans %v", wantGating, planned)
+	}
+	// A vacuity floor, not a copy of the count: an empty plan matching an empty
+	// gating set would satisfy the comparison above and prove nothing.
+	if len(gatingNames) <= 20 {
+		return uiLeFunctionalAnswersFailf("the command marks %d suites gating, which is too few to mean anything", len(gatingNames))
 	}
 
 	// One payload through every supported rendering used by this contract.
@@ -204,26 +236,59 @@ func leFunctionalAnswers(ctx context.Context) error {
 	if err := json.Unmarshal(actionsRaw, &actions); err != nil {
 		return uiLeFunctionalAnswersFailf("the integration actions are invalid: %v", err)
 	}
-	if len(actions) != 13 {
-		return uiLeFunctionalAnswersFailf("the integration area listed %d actions, want 13", len(actions))
-	}
-	verbs := make(map[string]struct{}, len(actions))
+	verbs := make([]string, 0, len(actions))
 	for i, action := range actions {
 		verb, err := requiredString(action, "verb", fmt.Sprintf("integration action %d", i))
 		if err != nil {
 			return err
 		}
-		verbs[verb] = struct{}{}
+		verbs = append(verbs, verb)
 	}
-	if _, ok := verbs["iface"]; !ok {
+	if !slices.Contains(verbs, "iface") {
 		return uiLeFunctionalAnswersFailf("the integration area lost iface")
 	}
-	if _, ok := verbs["interop"]; !ok {
+	if !slices.Contains(verbs, "interop") {
 		return uiLeFunctionalAnswersFailf("the integration area lost interop")
+	}
+
+	// The action count is DERIVED from the refusal, never written down here. The
+	// bare command names every gate it would accept, so the hint and the JSON
+	// listing are two publications of one table and a verb that reaches only one
+	// of them is the defect. A literal here goes red for the tree being right,
+	// which is what a count beside a registry always does
+	// (ai/rules/principles.md).
+	offered := uiLeFunctionalAnswersOfferedGates(bare.stderr)
+	if len(offered) <= 10 {
+		return uiLeFunctionalAnswersFailf("the refusal offered %d gates, which is too few to mean anything: %q", len(offered), bare.stderr)
+	}
+	slices.Sort(offered)
+	listed := slices.Clone(verbs)
+	slices.Sort(listed)
+	if !slices.Equal(offered, listed) {
+		return uiLeFunctionalAnswersFailf("the refusal offers %v and the listing carries %v", offered, listed)
 	}
 
 	fmt.Println("OK")
 	return nil
+}
+
+// uiLeFunctionalAnswersOfferedGates reads the gate names out of the refusal
+// `le integration` writes with no action. The names are one comma-separated
+// line under the sentence, which is the only indented line the refusal writes.
+func uiLeFunctionalAnswersOfferedGates(refusal string) []string {
+	var names []string
+	for line := range strings.SplitSeq(refusal, "\n") {
+		if !strings.HasPrefix(line, "  ") {
+			continue
+		}
+		for name := range strings.SplitSeq(strings.TrimSpace(line), ",") {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+	return names
 }
 
 func uiLeFunctionalAnswersRunCommand(ctx context.Context, dir, program string, args ...string) (uiLeFunctionalAnswersCommandResult, error) {

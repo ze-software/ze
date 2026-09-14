@@ -1,5 +1,13 @@
 # Test: ze doctor --json reports service listener readiness failures
 # VALIDATES: AC-8, AC-10, AC-13, AC-14, and AC-17 listener diagnostics are emitted.
+#
+# NOTE: the vpn block below describes a real tunnel because doctor probes the
+#       IKE ports only when one exists. `extractIPsecListeners`
+#       (internal/component/doctor/checks_listener.go) gates on
+#       kernelcap.IPsecInUse, which an empty `vpn { ipsec { } }` answers false:
+#       ze binds neither UDP port for it, so doctor probes neither (owner
+#       decision 6, 2026-08-14; the gate reached this file in 4e25253540,
+#       2026-09-05). The config this test carried predates that gate.
 
 option=env:var=ze.test.doctor.listener-fail-code:value=doctor-bfd-port,doctor-ipsec-listen,doctor-tftp-listen,doctor-image-listen,doctor-ntp-listen
 option=env:var=ze.test.doctor.modules-file:value=modules.ok
@@ -16,6 +24,30 @@ bfd {
 }
 vpn {
     ipsec {
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
     }
 }
 service {
