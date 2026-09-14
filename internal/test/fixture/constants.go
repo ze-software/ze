@@ -8,7 +8,10 @@
 
 package fixture
 
-import "github.com/ze-software/ze/internal/le/featuretags"
+import (
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/le/featuretags"
+)
 
 // Environment variables and build tags.
 const (
@@ -36,6 +39,14 @@ const (
 	envTestBudgetUpper  = "ZE_TEST_BUDGET"
 )
 
+// The two address families these fixtures drive, in the registry's own words.
+// family.MustRegister composed each name from its AFI and SAFI parts
+// (internal/core/family/registry.go), so a fixture never spells one itself.
+var (
+	familyIPv4Unicast = family.IPv4Unicast.String()
+	familyIPv6Unicast = family.IPv6Unicast.String()
+)
+
 // Addresses, prefixes, ports and other network identities.
 const (
 	addrLoopback               = "127.0.0.1"
@@ -50,8 +61,6 @@ const (
 	asnLabel64501              = "AS64501"
 	asnLabel64502              = "AS64502"
 	configPathRouterID         = "bgp.router-id"
-	familyIPv4Unicast          = "ipv4/unicast"
-	familyIPv6Unicast          = "ipv6/unicast"
 	hostnamePyPeer             = "py-peer"
 	metricPeerStateTransitions = "ze_peer_state_transitions_total"
 	metricPoolUsedRatio        = "ze_bgp_pool_used_ratio"

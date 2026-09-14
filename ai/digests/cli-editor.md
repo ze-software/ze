@@ -100,8 +100,11 @@ to in-process registry handlers.
   sender of the bare path (see cli.md "Migrating a Built-in Command's Path").
 - **Command names are constants, not literals.** Editor commands use the `cmd*` block
   (`model.go`); offline YANG verbs use the `yangVerbs` map (`ze_core_dispatch.go`);
-  modes use `ModeConfig`/`ModeOperational` (`model_mode.go`). Read-only status is decided by
-  `command.IsReadOnlyVerb` (offline) and `server.IsReadOnlyPath` (runtime), keep them in sync.
+  modes use `ModeConfig`/`ModeOperational` (`model_mode.go`). A `cmd*` name that is also a
+  canonical verb takes its spelling from `command.Verb*` (`verbs.go`), so the word is written
+  once. Read-only status has one producer: `server.IsReadOnlyPath` calls
+  `command.IsReadOnlyVerb`, which reads the role out of `command.Verbs`, and adds the five
+  legacy noun-first roots. There is nothing to keep in sync.
 - **Completion source of truth is YANG.** Config editor completes from the live `*config.Tree`;
   operational completion from the YANG-built command `Node` tree. A leaf with `ze:validate` +
   `CompleteFn` yields actionable values and takes priority over static `enum` (`cli/completer.go`);

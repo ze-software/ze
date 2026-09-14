@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 var errBuildrouteReturnedNilForProbePrefix = errors.New("BuildRoute returned nil for probe prefix")
@@ -42,10 +43,17 @@ type rawMessage struct {
 // batchRange maps a contiguous slice of prefixes to one UPDATE message.
 type batchRange struct{ start, end int }
 
-// Address family constants for benchmark configuration.
-const (
-	FamilyIPv4Unicast = "ipv4/unicast"
-	FamilyIPv6Unicast = "ipv6/unicast"
+// The address families a benchmark run can drive. Which two is a decision of
+// this tool, whose route builders handle unicast only. What each is CALLED is
+// not: family.MustRegister composed both names from their AFI and SAFI parts
+// (internal/core/family/registry.go), so each is read back from the registry.
+//
+// Resolved once here rather than at each comparison. sender.go compares
+// cfg.Family against these for every route it builds, so the value has to be a
+// string already sitting in memory, not a registry call on the hot path.
+var (
+	FamilyIPv4Unicast = family.IPv4Unicast.String()
+	FamilyIPv6Unicast = family.IPv6Unicast.String()
 )
 
 // BenchmarkConfig holds all parameters for a benchmark run.

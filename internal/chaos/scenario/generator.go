@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"slices"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // GeneratorParams holds all inputs needed to generate a scenario.
@@ -127,13 +129,17 @@ func generateEBGPASNs(rng *rand.Rand, count int, localAS uint32) []uint32 {
 	return available[:count]
 }
 
-// The Ze family strings a generated scenario assigns. familyIPv4Unicast is the
+// The Ze family names a generated scenario assigns. familyIPv4Unicast is the
 // mandatory family present on all peers.
-const (
-	familyIPv4Unicast   = "ipv4/unicast"
-	familyIPv6Unicast   = "ipv6/unicast"
-	familyIPv4Multicast = "ipv4/multicast"
-	familyIPv6Multicast = "ipv6/multicast"
+//
+// Each name is read back from the registry that composed it
+// (internal/core/family/registry.go), so this file chooses WHICH families a
+// scenario exercises without spelling any of them a second time.
+var (
+	familyIPv4Unicast   = family.IPv4Unicast.String()
+	familyIPv6Unicast   = family.IPv6Unicast.String()
+	familyIPv4Multicast = family.IPv4Multicast.String()
+	familyIPv6Multicast = family.IPv6Multicast.String()
 )
 
 // rsFamilies are address families that bgp-rs can fully handle (forward + withdraw).

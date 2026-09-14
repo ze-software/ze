@@ -72,7 +72,10 @@ func resolveRIRConfig(base string) string {
 `)
 	if base != "" {
 		config.Str("\trir {\n")
-		for _, token := range []string{"ripencc", "arin", "apnic", "afrinic", "lacnic"} {
+		// The tokens come from the package under test, so a registry added or
+		// renamed there reaches this config without an edit here
+		// (ai/rules/principles.md).
+		for _, token := range irr.RegistryTokens() {
 			config.Str("\t\tdelegation-source ").Str(token).Str(" { url \"").
 				Str(base).Str("/delegated-").Str(token).Str("-extended-latest\"; }\n")
 		}

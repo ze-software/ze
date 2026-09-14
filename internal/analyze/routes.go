@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/ze-software/ze/internal/core/parse"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
 )
@@ -132,15 +133,13 @@ func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerInd
 		}
 	}
 
+	// parse.OriginString is where Ze spells the three ORIGIN values, so the
+	// dump names them as every other surface does (ai/rules/principles.md). It
+	// answers unknown(N) for a code RFC 4271 Section 5.1.1 does not define,
+	// which the arm here used to report as incomplete: a malformed dump now
+	// says so rather than passing a fourth code off as the third.
 	if origin, ok := mrt.ExtractOrigin(attrs); ok {
-		switch origin {
-		case 0:
-			rec.Origin = "igp"
-		case 1:
-			rec.Origin = "egp"
-		default:
-			rec.Origin = "incomplete"
-		}
+		rec.Origin = parse.OriginString(origin)
 	}
 
 	if lp, ok := mrt.ExtractLocalPref(attrs); ok {

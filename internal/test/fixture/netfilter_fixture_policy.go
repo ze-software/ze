@@ -91,12 +91,75 @@ func policySetTable(ctx context.Context, _ []string) error {
 		return err
 	}
 	fmt.Print(nftOut)
+	var mark string
 	for line := range strings.SplitSeq(rules, "\n") {
 		if strings.Contains(line, "lookup 100") && strings.Contains(line, "fwmark") {
 			fmt.Printf("IP_RULE: %s\n", line)
+			mark = fwmarkOf(line)
 		}
 	}
+	if err := probeMarkedLookup(ctx, mark, "198.51.100.7", "table 100", func() error {
+		// The operator owns the contents of a table their `table N` action
+		// names, so the probe route is the test standing in for them. It goes
+		// in table 100 and nowhere else, which is what makes the rule the only
+		// way a lookup can reach it.
+		_, addErr := netfilterCommandOutput(ctx, "ip", "route", "add", "198.51.100.0/24", "dev", "lo", "table", "100")
+		return addErr
+	}); err != nil {
+		return err
+	}
 	return signalProcess(pid, syscall.SIGTERM)
+}
+
+// fwmarkOf answers with the fwmark an `ip rule show` line selects on, in the
+// hexadecimal form `ip route get` takes back. The mark is allocated at run time
+// from 0x50000 upward, so a test cannot name it and has to read it.
+func fwmarkOf(line string) string {
+	fields := strings.Fields(line)
+	for i, field := range fields {
+		if field != "fwmark" || i+1 >= len(fields) {
+			continue
+		}
+		// A rule carrying a mask prints `fwmark 0x50000/0xfffff`.
+		return strings.SplitN(fields[i+1], "/", 2)[0]
+	}
+	return ""
+}
+
+// probeMarkedLookup asks the KERNEL where a packet carrying the policy's fwmark
+// would go, which is the only question that separates a rule the kernel obeys
+// from a rule that merely exists. Reading `ip rule show` back proves the second
+// and says nothing about the first.
+//
+// The control is the same lookup without the mark. The probe destination is
+// reachable only through the table the rule selects, so an unmarked lookup that
+// resolves means something other than the rule answered, and the marked result
+// would then prove nothing.
+func probeMarkedLookup(ctx context.Context, mark, destination, want string, prepare func() error) error {
+	if mark == "" {
+		return fmt.Errorf("no fwmark on the installed ip rule, so the kernel lookup cannot be driven")
+	}
+	if prepare != nil {
+		if err := prepare(); err != nil {
+			return fmt.Errorf("staging the probe route: %w", err)
+		}
+	}
+
+	marked, err := netfilterCommandOutput(ctx, "ip", "route", "get", destination, "mark", mark)
+	if err != nil {
+		return fmt.Errorf("the marked lookup for %s found no route at all: %w", destination, err)
+	}
+	fmt.Printf("ROUTE_GET_MARKED: %s\n", strings.TrimSpace(strings.SplitN(marked, "\n", 2)[0]))
+	if !strings.Contains(marked, want) {
+		return fmt.Errorf("the marked lookup for %s answered %q, want %q: the ip rule did not steer it", destination, strings.TrimSpace(marked), want)
+	}
+
+	control, err := netfilterCommandOutput(ctx, "ip", "route", "get", destination)
+	if err == nil {
+		return fmt.Errorf("the unmarked lookup for %s resolved to %q; only the marked lookup reaches %q", destination, strings.TrimSpace(control), want)
+	}
+	fmt.Printf("ROUTE_GET_CONTROL: unmarked lookup for %s found no route\n", destination)
+	return nil
 }
 
 func autoTableRule(line string) bool {
@@ -134,10 +197,22 @@ func policyNextHop(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
+	var mark string
 	for line := range strings.SplitSeq(routes, "\n") {
 		if strings.Contains(line, "10.0.0.1") && strings.Contains(line, "proto") {
 			fmt.Printf("AUTO_ROUTE: %s\n", line)
 		}
+	}
+	for line := range strings.SplitSeq(rules, "\n") {
+		if autoTableRule(line) {
+			mark = fwmarkOf(line)
+		}
+	}
+	// Both producers are on this one answer: the rule has to select the auto
+	// table, and the route applyAutoRoutes put in it has to resolve. No probe
+	// route is staged, because the auto route IS the route under test.
+	if err := probeMarkedLookup(ctx, mark, "203.0.113.9", "via 10.0.0.1", nil); err != nil {
+		return err
 	}
 	return signalProcess(pid, syscall.SIGTERM)
 }

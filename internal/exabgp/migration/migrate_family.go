@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 const (
@@ -44,37 +45,44 @@ func convertFamilyToList(src, dst *config.Tree) {
 	}
 }
 
-// convertFamilySyntax converts ExaBGP family format to ZeBGP.
-// Examples: "ipv4 unicast" → "ipv4/unicast", "ipv6 multicast" → "ipv6/multicast".
+// exabgpFamilies maps each ExaBGP family phrase to the Ze family it names.
 //
-// Several ExaBGP SAFI names differ from Ze's canonical names registered via
-// family.MustRegister: ExaBGP "nlri-mpls" → Ze "mpls-label", ExaBGP
-// "mcast-vpn" → Ze "mvpn", ExaBGP "flowspec" → Ze "flow". The replacements
-// table here is the source of truth for ExaBGP→Ze family renames at the
-// migration layer.
-func convertFamilySyntax(family string) string {
-	// Common ExaBGP family formats.
-	replacements := map[string]string{
-		"ipv4 unicast":   "ipv4/unicast",
-		"ipv4 multicast": "ipv4/multicast",
-		"ipv4 nlri-mpls": "ipv4/mpls-label",
-		"ipv4 flowspec":  "ipv4/flow",
-		"ipv4 mcast-vpn": "ipv4/mvpn",
-		"ipv6 unicast":   "ipv6/unicast",
-		"ipv6 multicast": "ipv6/multicast",
-		"ipv6 nlri-mpls": "ipv6/mpls-label",
-		"ipv6 flowspec":  "ipv6/flow",
-		"ipv6 mcast-vpn": "ipv6/mvpn",
-		"l2vpn vpls":     "l2vpn/vpls",
-		"l2vpn evpn":     "l2vpn/evpn",
-	}
+// The ExaBGP vocabulary on the left is external, and no Ze registry holds it:
+// ExaBGP writes "nlri-mpls", "mcast-vpn" and "flowspec" where Ze's registrars
+// write "mpls-label", "mvpn" and "flow". That mapping is this file's own
+// content and it is the source of truth for an ExaBGP to Ze family rename.
+//
+// The Ze NAME is not this file's content. Each entry holds the AFI and SAFI
+// pair, and the family registry renders the name family.MustRegister composed
+// from them, so a renamed SAFI reaches the migrated config without an edit
+// here. TestExaBGPFamiliesAreRegistered holds every entry to a registered
+// family, so a pair that names none cannot reach a config as "afi-1/safi-133".
+var exabgpFamilies = map[string]family.Family{
+	"ipv4 unicast":   {AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+	"ipv4 multicast": {AFI: family.AFIIPv4, SAFI: family.SAFIMulticast},
+	"ipv4 nlri-mpls": {AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
+	"ipv4 flowspec":  {AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
+	"ipv4 mcast-vpn": {AFI: family.AFIIPv4, SAFI: family.SAFIMVPN},
+	"ipv6 unicast":   {AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+	"ipv6 multicast": {AFI: family.AFIIPv6, SAFI: family.SAFIMulticast},
+	"ipv6 nlri-mpls": {AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel},
+	"ipv6 flowspec":  {AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec},
+	"ipv6 mcast-vpn": {AFI: family.AFIIPv6, SAFI: family.SAFIMVPN},
+	"l2vpn vpls":     {AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS},
+	"l2vpn evpn":     {AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
+}
 
-	if converted, ok := replacements[strings.ToLower(family)]; ok {
-		return converted
+// convertFamilySyntax converts an ExaBGP family phrase to its Ze family name.
+// Examples: "ipv4 unicast" becomes "ipv4/unicast", "ipv4 flowspec" becomes
+// "ipv4/flow". A phrase the table does not hold keeps its two words, joined by
+// a slash.
+func convertFamilySyntax(name string) string {
+	if fam, ok := exabgpFamilies[strings.ToLower(name)]; ok {
+		return fam.String()
 	}
 
 	// Fallback: replace first space with slash.
-	return strings.Replace(family, " ", "/", 1)
+	return strings.Replace(name, " ", "/", 1)
 }
 
 // convertNexthopBlock converts ExaBGP nexthop syntax to ZeBGP.

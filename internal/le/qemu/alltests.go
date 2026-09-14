@@ -326,6 +326,10 @@ var integrationPackages = []string{
 	"./internal/plugins/ldp",
 	"./internal/plugins/ntp",
 	"./internal/plugins/ospf",
+	// Added 2026-09-14 with rules_integration_linux_test.go, which asserts the
+	// kernel's own route lookup over the ip rule and the auto route the plugin
+	// installs.
+	"./internal/plugins/policyroute",
 	"./internal/plugins/static",
 	"./internal/plugins/trafficusage",
 }

@@ -190,10 +190,19 @@ func parseFamily(token string) ([]family.Family, error) {
 	switch token {
 	case "both", "":
 		return emitFamilies, nil
-	case "ipv4", "ipv4/unicast", "v4":
+	case "ipv4", "v4":
 		return []family.Family{family.IPv4Unicast}, nil
-	case "ipv6", "ipv6/unicast", "v6":
+	case "ipv6", "v6":
 		return []family.Family{family.IPv6Unicast}, nil
+	}
+
+	// The full afi/safi spelling is accepted too, and the registry is what
+	// spells it: family.MustRegister composed the name from its AFI and SAFI
+	// parts, so no arm above repeats it.
+	if fam, ok := family.LookupFamily(token); ok {
+		if fam == family.IPv4Unicast || fam == family.IPv6Unicast {
+			return []family.Family{fam}, nil
+		}
 	}
 	return nil, fmt.Errorf("invalid family %q (want ipv4|ipv6|both)", token)
 }

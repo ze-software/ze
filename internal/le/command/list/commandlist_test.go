@@ -12,12 +12,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	pluginregistry "github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
-// TestClassifyVerb pins the taxonomy. The verb is the first word when it is one
-// of the five, whatever its case, and "-" when it is not: a path whose first
-// word is unrecognized must not be filed under a verb it does not have.
+// TestClassifyVerb pins the taxonomy. The verb is the first word when
+// command.Verbs holds it, whatever its case, and "-" when it is not: a path
+// whose first word is unrecognized must not be filed under a verb it does not
+// have.
 func TestClassifyVerb(t *testing.T) {
 	cases := []struct {
 		path string
@@ -28,6 +30,8 @@ func TestClassifyVerb(t *testing.T) {
 		{"delete peer", "delete"},
 		{"update policy", "update"},
 		{"monitor bgp", "monitor"},
+		{"request peer 192.0.2.1 teardown", "request"},
+		{"clear bgp counters", "clear"},
 		{"SHOW bgp", "show"},
 		{"peer-list", "-"},
 		{"", "-"},
@@ -317,5 +321,21 @@ func TestRegistrationCarriesTheDeclaredCommands(t *testing.T) {
 
 	if len(started) > 0 {
 		t.Errorf("reading the declarations started %d engine(s): %v", len(started), started)
+	}
+}
+
+// TestClassifyVerbAnswersForEveryCanonicalVerb asserts the taxonomy covers the
+// whole registry, so a verb added to command.Verbs is filed under itself rather
+// than under "-". Written against Verbs, not against a list of words: the five
+// words this function held until 2026-09-14 filed all 33 request commands and
+// all 19 clear commands under "-" (docs/architecture/cli/command-verbs.md, T-9).
+func TestClassifyVerbAnswersForEveryCanonicalVerb(t *testing.T) {
+	for verb := range command.Verbs {
+		if got := classifyVerb(verb + " something"); got != verb {
+			t.Errorf("classifyVerb(%q ...) = %q, want %q: it is a canonical verb", verb, got, verb)
+		}
+	}
+	if got := classifyVerb("validate config"); got != "-" {
+		t.Errorf("classifyVerb(validate config) = %q, want \"-\": validate is not a canonical verb", got)
 	}
 }

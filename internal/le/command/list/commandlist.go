@@ -177,12 +177,17 @@ func hasPath(commands Commands, path string, equal func(a, b string) bool) bool 
 }
 
 // classifyVerb answers the taxonomy verb of a CLI path, which is its first word
-// when that word is one of the five, and "-" when it is not.
+// when command.Verbs holds that word, and "-" when it does not.
+//
+// The set is the canonical vocabulary rather than a list written here. The five
+// words this function held until 2026-09-14 left `./le command list` reporting
+// "-" for every request and clear command, which are two of the canonical verbs
+// (docs/architecture/cli/command-verbs.md, T-9).
 func classifyVerb(path string) string {
 	first, _, _ := strings.Cut(path, " ")
-	switch strings.ToLower(first) {
-	case "show", "set", "delete", "update", "monitor":
-		return strings.ToLower(first)
+	first = strings.ToLower(first)
+	if command.IsVerb(first) {
+		return first
 	}
 	return "-"
 }

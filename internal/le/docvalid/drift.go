@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/stringsx"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/functional"
@@ -158,11 +159,14 @@ func registryFamilyNames() []string {
 	for name := range fam {
 		names[name] = true
 	}
-	for _, builtin := range []string{
-		"ipv4/unicast", "ipv6/unicast",
-		"ipv4/multicast", "ipv6/multicast",
+	// The four the engine holds without a plugin. family.MustRegister composed
+	// each name from its AFI and SAFI parts (internal/core/family/registry.go),
+	// so the registered value answers it rather than a second spelling here.
+	for _, builtin := range []family.Family{
+		family.IPv4Unicast, family.IPv6Unicast,
+		family.IPv4Multicast, family.IPv6Multicast,
 	} {
-		names[builtin] = true
+		names[builtin.String()] = true
 	}
 	result := make([]string, 0, len(names))
 	for name := range names {
@@ -278,29 +282,35 @@ func (c *checker) checkDesignMD(pluginNames, familyNames []string, ciTotal, inte
 	return issues
 }
 
-// comparisonLabels maps a row label in the comparison page to the family name
-// the registry holds it under.
-var comparisonLabels = map[string]string{
-	"ipv4 unicast":             "ipv4/unicast",
-	"ipv6 unicast":             "ipv6/unicast",
-	"ipv4 multicast":           "ipv4/multicast",
-	"ipv6 multicast":           "ipv6/multicast",
-	"ipv4 labeled unicast":     "ipv4/mpls-label",
-	"ipv6 labeled unicast":     "ipv6/mpls-label",
-	"vpnv4 (rfc 4364)":         "ipv4/mpls-vpn",
-	"vpnv4":                    "ipv4/mpls-vpn",
-	"vpnv6":                    "ipv6/mpls-vpn",
-	"l2vpn evpn (rfc 7432)":    "l2vpn/evpn",
-	"l2vpn evpn":               "l2vpn/evpn",
-	"l2vpn vpls":               "l2vpn/vpls",
-	"ipv4 flowspec (rfc 8955)": "ipv4/flow",
-	"ipv4 flowspec":            "ipv4/flow",
-	"ipv6 flowspec":            "ipv6/flow",
-	"vpn flowspec":             "ipv4/flow-vpn",
-	"bgp-ls (rfc 7752)":        "bgp-ls/bgp-ls",
-	"bgp-nlri-ls":              "bgp-ls/bgp-ls",
-	"ipv4/ipv6 mup":            "ipv4/mup",
-	"ipv4/ipv6 mvpn":           "ipv4/mvpn",
+// comparisonLabels maps a row label in the comparison page to the family the
+// row is about.
+//
+// The label on the left is the page's own prose and no registry holds it: the
+// page writes "vpnv4", "labeled unicast" and "flowspec" where the registrars
+// compose "mpls-vpn", "mpls-label" and "flow". Reading that prose is this
+// table's job. Spelling the family is not, so each entry holds the AFI and SAFI
+// pair and the registry renders the name.
+var comparisonLabels = map[string]family.Family{
+	"ipv4 unicast":             {AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+	"ipv6 unicast":             {AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+	"ipv4 multicast":           {AFI: family.AFIIPv4, SAFI: family.SAFIMulticast},
+	"ipv6 multicast":           {AFI: family.AFIIPv6, SAFI: family.SAFIMulticast},
+	"ipv4 labeled unicast":     {AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
+	"ipv6 labeled unicast":     {AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel},
+	"vpnv4 (rfc 4364)":         {AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+	"vpnv4":                    {AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+	"vpnv6":                    {AFI: family.AFIIPv6, SAFI: family.SAFIVPN},
+	"l2vpn evpn (rfc 7432)":    {AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
+	"l2vpn evpn":               {AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
+	"l2vpn vpls":               {AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS},
+	"ipv4 flowspec (rfc 8955)": {AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
+	"ipv4 flowspec":            {AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
+	"ipv6 flowspec":            {AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec},
+	"vpn flowspec":             {AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN},
+	"bgp-ls (rfc 7752)":        {AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState},
+	"bgp-nlri-ls":              {AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState},
+	"ipv4/ipv6 mup":            {AFI: family.AFIIPv4, SAFI: family.SAFIMUP},
+	"ipv4/ipv6 mvpn":           {AFI: family.AFIIPv4, SAFI: family.SAFIMVPN},
 }
 
 func (c *checker) checkComparisonMD(familyNames []string) []Issue {
@@ -343,11 +353,12 @@ func (c *checker) checkComparisonMD(familyNames []string) []Issue {
 		label := strings.TrimSpace(strings.ToLower(cells[0]))
 		zeClaim := strings.TrimSpace(strings.ToLower(cells[1]))
 
-		regFamily, mapped := comparisonLabels[label]
+		fam, mapped := comparisonLabels[label]
 		if !mapped {
 			continue
 		}
 
+		regFamily := fam.String()
 		inRegistry := familySet[regFamily]
 
 		tb.Reset()

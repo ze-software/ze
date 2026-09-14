@@ -28,6 +28,7 @@ internal/plugins/systemd	framework	setup feature package wired by cmd/ze/setup_f
 # Host services and appliance support.
 internal/component/gnmi	host-service	gNMI listener service with gated startup seam
 internal/component/gokrazy	host-service	appliance host support used by web service setup
+internal/component/gtsm	host-service	per-peer kernel state for GTSM related ICMP messages: the route metric and the input filter the BGP reactor publishes
 internal/component/host	host-service	host APIs and doctor platform registration pin this package to component tier
 internal/component/lg	host-service	looking-glass listener service with gated startup seam
 internal/component/mcp	host-service	MCP listener service with gated startup seam

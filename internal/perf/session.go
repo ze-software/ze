@@ -35,16 +35,21 @@ type SessionConfig struct {
 	Family string
 }
 
-// familyPair holds an AFI/SAFI pair for multiprotocol capability construction.
-type familyPair struct {
-	afi  family.AFI
-	safi family.SAFI
-}
+// perfFamilies are the families a benchmark session can negotiate. Which two is
+// a decision of this tool; what each is called comes from the registry that
+// composed the name, so lookupPerfFamily matches on the registered spelling and
+// reads the AFI and SAFI off the registered value.
+var perfFamilies = []family.Family{family.IPv4Unicast, family.IPv6Unicast}
 
-// familyLookup maps family strings to (AFI, SAFI) pairs.
-var familyLookup = map[string]familyPair{
-	"ipv4/unicast": {family.AFIIPv4, family.SAFIUnicast},
-	"ipv6/unicast": {family.AFIIPv6, family.SAFIUnicast},
+// lookupPerfFamily resolves a family name to the family it names, and reports
+// false for a name outside the two this tool drives.
+func lookupPerfFamily(name string) (family.Family, bool) {
+	for _, fam := range perfFamilies {
+		if fam.String() == name {
+			return fam, true
+		}
+	}
+	return family.Family{}, false
 }
 
 // BuildOpen constructs a serialized BGP OPEN message with capabilities:
@@ -52,15 +57,15 @@ var familyLookup = map[string]familyPair{
 func BuildOpen(cfg SessionConfig) []byte {
 	fam := cfg.Family
 	if fam == "" {
-		fam = "ipv4/unicast"
+		fam = family.IPv4Unicast.String()
 	}
 
 	var caps []capability.Capability
 
-	if pair, ok := familyLookup[fam]; ok {
+	if resolved, ok := lookupPerfFamily(fam); ok {
 		caps = append(caps, &capability.Multiprotocol{
-			AFI:  pair.afi,
-			SAFI: pair.safi,
+			AFI:  resolved.AFI,
+			SAFI: resolved.SAFI,
 		})
 	}
 

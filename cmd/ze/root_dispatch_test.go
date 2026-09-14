@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/aihelp"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
@@ -138,5 +139,46 @@ func TestHelpAIUsesOwnerRegistry(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("owner-backed root %q absent from aihelp.CLISubcommands(); help is not registry-derived", name)
+	}
+}
+
+// TestHelpAIPublishesTheRegistryRole proves that the mode `ze help ai` gives a
+// top-level verb root is the role command.Verbs gives that verb, in the binary
+// that carries the whole command tree. An agent reads this field to decide
+// whether a command needs a running daemon and edit rights.
+//
+// The shipped tree roots `resolve` at a verb command.Verbs calls a read, so
+// this is where the defect showed: until 2026-09-14 the mode came from a
+// three-word list in help.go that omitted resolve, and `ze help ai` published
+// `resolve` as daemon-mode (docs/architecture/cli/command-verbs.md, T-7). The
+// aihelp package's own test cannot see it, because that test binary registers
+// no resolve module.
+func TestHelpAIPublishesTheRegistryRole(t *testing.T) {
+	published := make(map[string]string)
+	for _, c := range aihelp.CLISubcommands() {
+		published[c.Name] = c.Mode
+	}
+
+	checked := 0
+	for verb, role := range command.Verbs {
+		mode, found := published[verb]
+		if !found {
+			continue // The vocabulary holds verbs no command roots at yet.
+		}
+		checked++
+		want := "daemon"
+		if role == command.RoleRead {
+			want = "read-only"
+		}
+		if mode != want {
+			t.Errorf("ze help ai publishes mode %q for verb %q, want %q: command.Verbs gives it role %d",
+				mode, verb, want, role)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no canonical verb root reached the reference; the shipped tree cannot be empty")
+	}
+	if mode := published[command.VerbResolve]; mode != "read-only" {
+		t.Errorf("resolve published as %q, want \"read-only\": command.Verbs gives it RoleRead", mode)
 	}
 }

@@ -17,15 +17,19 @@ import (
 	"github.com/ze-software/ze/internal/chaos/scenario"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 var logger = slogutil.Logger("chaos.peer")
 
-// Family string constants used in event tagging and NLRI dispatch.
-const (
-	familyIPv4Unicast = "ipv4/unicast"
-	familyIPv6Unicast = "ipv6/unicast"
+// The family names used in event tagging and NLRI dispatch, read back from the
+// registry that composed them (internal/core/family/registry.go) rather than
+// spelled a second time here. Resolved once: the dispatch switch below compares
+// against them for every family a simulated peer sends.
+var (
+	familyIPv4Unicast = family.IPv4Unicast.String()
+	familyIPv6Unicast = family.IPv6Unicast.String()
 )
 
 // SimProfile holds the peer identity and route parameters for a simulator.

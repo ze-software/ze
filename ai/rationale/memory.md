@@ -12,7 +12,7 @@ Why: `.claude/rules/memory.md`
 - Plugin modules: `internal/plugins/<name>/yang/` (ze-graceful-restart, etc.)
 
 ## Key Mappings
-- `MapPrefixToModule()` in `validator.go`: "bgp" -> "ze-bgp-conf", "plugin" -> "ze-plugin-conf"
+- `Validator.moduleDeclaring()` in `validator.go`: answers which loaded `-conf` module declares a top-level section, by reading the model. It replaced a switch that paired twelve section names with module names by hand
 - `FormatNamespace()`: strips "urn:" prefix, replaces ":" with "." (e.g., "urn:ze:bgp:conf" -> "ze.bgp.conf")
 
 ## Flaky Tests: Mandatory 7-Step Procedure
