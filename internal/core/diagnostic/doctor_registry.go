@@ -120,6 +120,27 @@ func DoctorCheckSupportsPlatform(check DoctorCheck, platform *host.PlatformInfo)
 	return false
 }
 
+// UnregisterDoctorCheckForTest removes one check by name. Test use only.
+//
+// It is the pair of RegisterDoctorCheck for a test that installs a fixture
+// check into the process-wide registry: the test MUST call it from a cleanup,
+// so the next test in the same binary reads the set the binary really carries.
+// ResetDoctorChecksForTest is the wrong tool there, because it also drops every
+// registration the binary's init() functions made.
+func UnregisterDoctorCheckForTest(name string) {
+	doctorCheckRegistry.Lock()
+	defer doctorCheckRegistry.Unlock()
+	delete(doctorCheckRegistry.names, name)
+	kept := doctorCheckRegistry.entries[:0]
+	for i := range doctorCheckRegistry.entries {
+		if doctorCheckRegistry.entries[i].Name == name {
+			continue
+		}
+		kept = append(kept, doctorCheckRegistry.entries[i])
+	}
+	doctorCheckRegistry.entries = kept
+}
+
 // ResetDoctorChecksForTest clears the doctor check registry. Test use only.
 func ResetDoctorChecksForTest() {
 	doctorCheckRegistry.Lock()

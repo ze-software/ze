@@ -10,9 +10,6 @@ func RegisterBuiltinCodes() {
 	}
 }
 
-// The codes that another code's RelatedCodes list names. A cross-reference is
-// checked by the compiler this way, so a renamed code cannot leave a dangling
-// pointer behind in a sibling entry.
 // exampleDoctorJSON is the one command that shows every doctor finding as JSON.
 // Most codes list it as their example, so it is written once.
 const exampleDoctorJSON = "ze doctor --json"
@@ -21,20 +18,70 @@ const exampleDoctorJSON = "ze doctor --json"
 // operator to run, so the three that name it name one string.
 const exampleConfigValidate = "ze config validate ze.conf"
 
+// The spelling of a code, declared once so that no other package writes it out.
+//
+// A code is an operator-facing surface: `ze explain <code>` looks it up by this
+// spelling, and the check that emits it, the doctor check registration that
+// lists it, and the entry below that explains it must all agree. A second
+// spelling in the emitting package is a second declaration of one fact, so the
+// emitter references the constant and the compiler checks the reference
+// (ai/rules/principles.md).
+//
+// Only the codes another package emits are exported. The three under them are
+// named for a RelatedCodes cross-reference inside this file.
 const (
-	codeConfigBGPPeer                 = "config-bgp-peer"
-	codeConfigBGPResolve              = "config-bgp-resolve"
-	codeConfigYANGEnum                = "config-yang-enum"
-	codeConfigYANGMissing             = "config-yang-missing"
-	codeConfigYANGType                = "config-yang-type"
-	codeDoctorConfigClaimsUnavailable = "doctor-config-claims-unavailable"
-	codeDoctorConfigRootUnclaimed     = "doctor-config-root-unclaimed"
-	codeDoctorMPLSUnavailable         = "doctor-mpls-unavailable"
-	codeDoctorMPLSUnknown             = "doctor-mpls-unknown"
-	codeDoctorPKICARootExpiry         = "doctor-pki-ca-root-expiry"
-	codeDoctorPKICARootMissing        = "doctor-pki-ca-root-missing"
-	codeDoctorRIRSourceRefused        = "doctor-rir-source-refused"
-	codeDoctorWriteDestination        = "doctor-write-destination"
+	CodeConfigYANGCardinality                      = "config-yang-cardinality"
+	CodeConfigYANGEnum                             = "config-yang-enum"
+	CodeConfigYANGLength                           = "config-yang-length"
+	CodeConfigYANGMissing                          = "config-yang-missing"
+	CodeConfigYANGPattern                          = "config-yang-pattern"
+	CodeConfigYANGRange                            = "config-yang-range"
+	CodeConfigYANGType                             = "config-yang-type"
+	CodeDoctorAS112GlobalOriginUncoordinated       = "doctor-as112-global-origin-uncoordinated"
+	CodeDoctorAS112RedistributeNotImported         = "doctor-as112-redistribute-not-imported"
+	CodeDoctorAS112RedistributeOriginUncoordinated = "doctor-as112-redistribute-origin-uncoordinated"
+	CodeDoctorAS112WatchdogMissingWithdraw         = "doctor-as112-watchdog-missing-withdraw"
+	CodeDoctorClockSkew                            = "doctor-clock-skew"
+	CodeDoctorMachineIDMissing                     = "doctor-machine-id-missing"
+	CodeDoctorConfigClaimsUnavailable              = "doctor-config-claims-unavailable"
+	CodeDoctorConfigRootUnclaimed                  = "doctor-config-root-unclaimed"
+	CodeDoctorDiskSpace                            = "doctor-disk-space"
+	CodeDoctorIfaceSelectorAmbiguous               = "doctor-iface-selector-ambiguous"
+	CodeDoctorIfaceSelectorUnmatched               = "doctor-iface-selector-unmatched"
+	CodeDoctorL2TPModule                           = "doctor-l2tp-module"
+	CodeDoctorIPsecCertURL                         = "doctor-ipsec-cert-url"
+	CodeDoctorIPsecCertURLDenied                   = "doctor-ipsec-cert-url-denied"
+	CodeDoctorIPsecCookieThreshold                 = "doctor-ipsec-cookie-threshold"
+	CodeDoctorIPsecIface                           = "doctor-ipsec-iface"
+	CodeDoctorIPsecUDPEncap                        = "doctor-ipsec-udp-encap"
+	CodeDoctorIPsecXFRMUnavailable                 = "doctor-ipsec-xfrm-unavailable"
+	CodeDoctorIPsecXFRMUnknown                     = "doctor-ipsec-xfrm-unknown"
+	CodeDoctorMPLSUnavailable                      = "doctor-mpls-unavailable"
+	CodeDoctorMPLSUnknown                          = "doctor-mpls-unknown"
+	CodeDoctorModuleMissing                        = "doctor-module-missing"
+	CodeDoctorPPPoEModule                          = "doctor-pppoe-module"
+	CodeDoctorPKICARootExpiry                      = "doctor-pki-ca-root-expiry"
+	CodeDoctorPKICARootMissing                     = "doctor-pki-ca-root-missing"
+	CodeDoctorPKICert                              = "doctor-pki-cert"
+	CodeDoctorRandomSeed                           = "doctor-random-seed"
+	CodeDoctorStoreIntegrity                       = "doctor-store-integrity"
+	CodeDoctorTLSExpired                           = "doctor-tls-expired"
+	CodeDoctorTLSInvalid                           = "doctor-tls-invalid"
+	CodeDoctorTLSMissing                           = "doctor-tls-missing"
+	CodeDoctorTLSReference                         = "doctor-tls-reference"
+	CodeDoctorVPPLCPNetns                          = "doctor-vpp-lcp-netns"
+	CodeDoctorVPPLCPPlugin                         = "doctor-vpp-lcp-plugin"
+	CodeDoctorVPPWireguard                         = "doctor-vpp-wireguard" //nolint:gosec // G101 reads the "pw" in VPPWireguard as a credential name
+	CodeDoctorWriteDestination                     = "doctor-write-destination"
+)
+
+// The codes that another code's RelatedCodes list names. A cross-reference is
+// checked by the compiler this way, so a renamed code cannot leave a dangling
+// pointer behind in a sibling entry.
+const (
+	codeConfigBGPPeer          = "config-bgp-peer"
+	codeConfigBGPResolve       = "config-bgp-resolve"
+	codeDoctorRIRSourceRefused = "doctor-rir-source-refused"
 )
 
 var builtinCodes = []CodeMeta{
@@ -45,40 +92,40 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{`ze cli -c "validate config bad.conf | json"`, "ze explain config-parse"},
 	},
 	{
-		Code:         codeConfigYANGMissing,
+		Code:         CodeConfigYANGMissing,
 		Title:        "Missing mandatory field",
 		Description:  "A mandatory config field required by the YANG schema is not present.",
-		RelatedCodes: []string{codeConfigYANGType, codeConfigYANGEnum},
+		RelatedCodes: []string{CodeConfigYANGType, CodeConfigYANGEnum},
 	},
 	{
-		Code:         codeConfigYANGType,
+		Code:         CodeConfigYANGType,
 		Title:        "Wrong value type",
 		Description:  "The config value does not match the type expected by the YANG schema.",
-		RelatedCodes: []string{codeConfigYANGMissing, codeConfigYANGEnum},
+		RelatedCodes: []string{CodeConfigYANGMissing, CodeConfigYANGEnum},
 	},
 	{
-		Code:        "config-yang-range",
+		Code:        CodeConfigYANGRange,
 		Title:       "Value outside allowed range",
 		Description: "A numeric config value falls outside the range defined in the YANG schema.",
 	},
 	{
-		Code:        "config-yang-pattern",
+		Code:        CodeConfigYANGPattern,
 		Title:       "Value does not match pattern",
 		Description: "A string config value does not match the regular expression pattern defined in the YANG schema.",
 	},
 	{
-		Code:         codeConfigYANGEnum,
+		Code:         CodeConfigYANGEnum,
 		Title:        "Invalid enumeration value",
 		Description:  "The config value is not one of the allowed enumeration values defined in the YANG schema.",
-		RelatedCodes: []string{codeConfigYANGType},
+		RelatedCodes: []string{CodeConfigYANGType},
 	},
 	{
-		Code:        "config-yang-length",
+		Code:        CodeConfigYANGLength,
 		Title:       "String length outside allowed range",
 		Description: "A string config value has a length outside the range defined in the YANG schema.",
 	},
 	{
-		Code:        "config-yang-cardinality",
+		Code:        CodeConfigYANGCardinality,
 		Title:       "List cardinality violation",
 		Description: "A list or leaf-list in the config has too many or too few entries per the YANG schema.",
 	},
@@ -168,7 +215,7 @@ var builtinCodes = []CodeMeta{
 
 	// Doctor diagnostic codes -- storage and config.
 	{
-		Code:        "doctor-store-integrity",
+		Code:        CodeDoctorStoreIntegrity,
 		Title:       "Store integrity failure",
 		Description: "The zefs database has corrupt entries or a container-level error.",
 		Examples:    []string{exampleDoctorJSON},
@@ -192,7 +239,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-module-missing",
+		Code:        CodeDoctorModuleMissing,
 		Title:       "Kernel module not loaded",
 		Description: "A required kernel module is not loaded.",
 		Examples:    []string{exampleDoctorJSON},
@@ -246,25 +293,25 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-anomaly-shape-armed-no-firewall"},
 	},
 	{
-		Code:        "doctor-tls-missing",
+		Code:        CodeDoctorTLSMissing,
 		Title:       "TLS certificate or key not found",
 		Description: "A TLS certificate or key file referenced in the config does not exist.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-tls-expired",
+		Code:        CodeDoctorTLSExpired,
 		Title:       "TLS certificate expired",
 		Description: "A TLS certificate referenced in the config has expired or is not yet valid.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-tls-invalid",
+		Code:        CodeDoctorTLSInvalid,
 		Title:       "TLS certificate or key cannot be used",
 		Description: "A TLS certificate file is not valid PEM, or the DER content cannot be parsed as an X.509 certificate, or a stored certificate and key do not load as a pair. A listener whose material does not load does not start.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:  "doctor-tls-reference",
+		Code:  CodeDoctorTLSReference,
 		Title: "TLS certificate reference cannot serve",
 		Description: "A listener names a certificate in the PKI store that cannot serve TLS. " +
 			"The pki block defines no certificate with that name, or the entry has no private key, " +
@@ -274,23 +321,23 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-tls-reference", "show pki certificate name <name>"},
 	},
 	{
-		Code:  codeDoctorPKICARootMissing,
+		Code:  CodeDoctorPKICARootMissing,
 		Title: "Local certificate authority root not stored",
 		Description: "Ze issues its own components' certificates from a local certificate authority root it generates once and keeps. " +
 			"No root is stored, so the next daemon start generates one. " +
 			"Every copy of the previous root that an operator distributed stops working at that point, because the leaves the new root issues carry a different issuer. " +
 			"Export the new root with `show pki local-ca pem` and give it to each client configured to trust this node.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pki-ca-root-missing", "show pki local-ca pem"},
-		RelatedCodes: []string{codeDoctorPKICARootExpiry},
+		RelatedCodes: []string{CodeDoctorPKICARootExpiry},
 	},
 	{
-		Code:  codeDoctorPKICARootExpiry,
+		Code:  CodeDoctorPKICARootExpiry,
 		Title: "Local certificate authority root is expiring",
 		Description: "The stored local certificate authority root expires within 90 days, or has expired already. " +
 			"The window is 90 days rather than the 30 a configured certificate gets, because the root has to be replaced on every client that trusts it and Ze distributes it by hand. " +
 			"An expired root is an error: every leaf it issued is refused, so plugin and fleet connections fail.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-pki-ca-root-expiry", "show pki local-ca pem"},
-		RelatedCodes: []string{codeDoctorPKICARootMissing},
+		RelatedCodes: []string{CodeDoctorPKICARootMissing},
 	},
 	{
 		Code:        "doctor-plugin-missing",
@@ -360,13 +407,13 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-iface-selector-unmatched",
+		Code:        CodeDoctorIfaceSelectorUnmatched,
 		Title:       "Interface hardware selector matches no device",
 		Description: "An ethernet interface binds to hardware by mac/match, and no device on this system carries that address. The binding stays deferred until one appears, so the interface is left unconfigured.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-iface-selector-ambiguous",
+		Code:        CodeDoctorIfaceSelectorAmbiguous,
 		Title:       "Interface hardware selector matches several devices",
 		Description: "An ethernet interface binds to hardware by mac/match, and more than one device carries that address. Nothing distinguishes them, so the config apply refuses rather than guessing which port the interface's addresses reach.",
 		Examples:    []string{exampleDoctorJSON},
@@ -384,7 +431,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-disk-space",
+		Code:        CodeDoctorDiskSpace,
 		Title:       "Low disk space on config partition",
 		Description: "The partition containing the config directory has less than 5% free space. The zefs database may fail to write.",
 		Examples:    []string{exampleDoctorJSON},
@@ -402,7 +449,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-clock-skew",
+		Code:        CodeDoctorClockSkew,
 		Title:       "System clock skewed",
 		Description: "The system clock differs from NTP by more than 5 minutes. TLS validation, BGP timers, and log correlation may be affected.",
 		Examples:    []string{exampleDoctorJSON},
@@ -414,19 +461,19 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-vpp-wireguard",
+		Code:        CodeDoctorVPPWireguard,
 		Title:       "VPP wireguard plugin not enabled",
 		Description: "A wireguard interface is configured under the vpp backend, but the VPP wireguard plugin is not enabled (vpp.plugins.wireguard) or not loaded in the running VPP. VPP cannot program wireguard tunnels without it, so the interface will fail at apply.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-wireguard"},
 	},
 	{
-		Code:        "doctor-vpp-lcp-netns",
+		Code:        CodeDoctorVPPLCPNetns,
 		Title:       "LCP netns will not carry the TAPs ze needs",
 		Description: "vpp.lcp.netns carries a value, so VPP resolves it as a network namespace NAME and opens /var/run/netns/<name> for the Linux Control Plane TAPs. ze also passes the same leaf as VPP's global default netns. Three outcomes follow, and this code reports whichever applies. The TAPs land outside the namespace ze runs in, so BGP cannot bind on an LCP-shadowed interface: ze has no netns-aware listener, and netns-aware BGP binding is specced but not implemented. ze's own markers host and root are not exempt, because to VPP they are ordinary names: netns=host asks for a namespace literally called host. And when the namespace is absent from this host, LCP pair creation fails at apply with a raw VPP error; a probe that cannot answer is reported as a probe failure and never as absence. Remedy: leave vpp.lcp.netns empty, which clears VPP's global default and leaves the TAPs in VPP's own namespace where ze runs, or run ze in the namespace the leaf names so BGP binds where the TAPs are.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-lcp-netns"},
 	},
 	{
-		Code:        "doctor-vpp-lcp-plugin",
+		Code:        CodeDoctorVPPLCPPlugin,
 		Title:       "VPP linux_cp plugin not loaded",
 		Description: "vpp.lcp is enabled, so ze writes a startup.conf that enables linux_cp_plugin.so, but the running VPP does not report that plugin as loaded. The linux_cp API is therefore unavailable and the config apply fails at the binapi layer with a raw VPP error that names the failing message rather than the missing plugin. Remedy: run a VPP build that ships linux_cp_plugin.so (and linux_nl_plugin.so), or disable vpp.lcp. When the probe gives no usable answer -- vppctl missing, VPP socket absent, VPP wedged, or a zero exit whose output carries no plugin listing -- this is reported as a WARNING instead, because none of those is evidence about which plugins VPP loaded.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vpp-lcp-plugin"},
@@ -445,25 +492,25 @@ var builtinCodes = []CodeMeta{
 		RelatedCodes: []string{codeConfigBGPPeer, codeConfigBGPResolve},
 	},
 	{
-		Code:         codeDoctorMPLSUnknown,
+		Code:         CodeDoctorMPLSUnknown,
 		Title:        "MPLS kernel support unknown",
 		Description:  "The MPLS capability probe (/proc/sys/net/mpls/platform_labels, under the root named by ze.test.doctor.procfs-root) could not be read, so ze cannot tell whether the kernel holds an AF_MPLS forwarding table. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. It is a WARNING and it does not refuse a start, because refusing on a probe ze could not read would stop a router whose kernel is fine. Remedy: check the permissions on /proc/sys/net/mpls and the path above it. An ABSENT probe is not this code -- it means the kernel holds no AF_MPLS table, it reports doctor-mpls-unavailable, and that one does refuse the start.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unknown"},
-		RelatedCodes: []string{codeDoctorMPLSUnavailable},
+		RelatedCodes: []string{CodeDoctorMPLSUnavailable},
 	},
 	{
 		Code:         "doctor-bgp-capture-directory",
 		Title:        "BGP capture directory not usable",
 		Description:  "A BGP peer sets capture{enabled true} but the configured capture directory cannot be created or written by the ze user. The session will still establish: protocol event capture is a diagnostic aid and never blocks BGP. It will simply record nothing, which is indistinguishable from a quiet peer unless doctor says so. Remedy: create the directory and give the ze user write access, name a writable path in the peer's capture{directory ...}, or set capture{enabled false}.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-bgp-capture-directory"},
-		RelatedCodes: []string{codeDoctorWriteDestination},
+		RelatedCodes: []string{CodeDoctorWriteDestination},
 	},
 	{
-		Code:         codeDoctorMPLSUnavailable,
+		Code:         CodeDoctorMPLSUnavailable,
 		Title:        "MPLS kernel support unavailable",
 		Description:  "The kernel holds no AF_MPLS forwarding table: /proc/sys/net/mpls/platform_labels does not exist, and the configuration asks the kernel FIB to forward MPLS. BGP labeled routes cannot be installed, and neither LDP nor RSVP-TE can program a label. This is an ERROR: `ze` refuses to start on it and `ze config validate` fails on it, because a daemon that advertises label forwarding it cannot perform blackholes the traffic it attracted. Remedy: load mpls_router, or run a kernel built with CONFIG_MPLS_ROUTING and CONFIG_MPLS_IPTUNNEL. ze's own appliance kernel builds both in, so it needs no module. A table that EXISTS with a label space of 0 is not reported at all: ze writes a label space before it programs its first label.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-mpls-unavailable"},
-		RelatedCodes: []string{codeDoctorMPLSUnknown},
+		RelatedCodes: []string{CodeDoctorMPLSUnknown},
 	},
 	{
 		Code:        "doctor-ldp-port-unavailable",
@@ -490,25 +537,25 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-port-unavailable"},
 	},
 	{
-		Code:        "doctor-as112-watchdog-missing-withdraw",
+		Code:        CodeDoctorAS112WatchdogMissingWithdraw,
 		Title:       "AS112 route missing watchdog withdraw marker",
 		Description: "A BGP update block announces an AS112 covering prefix (192.175.48.0/24, 192.31.196.0/24, 2620:4f:8000::/48, or 2001:4:112::/48) without a watchdog{withdraw true} marker. The marker's absence defaults to already-announced, so the route is advertised at startup before AS112 health is confirmed (RFC 7534 Section 3.3).",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-watchdog-missing-withdraw"},
 	},
 	{
-		Code:        "doctor-as112-global-origin-uncoordinated",
+		Code:        CodeDoctorAS112GlobalOriginUncoordinated,
 		Title:       "AS112 global origin override to a public ASN",
 		Description: "A BGP session sets asn.local 112 with the replace-as local-option while eBGP-peering a non-private-use remote ASN (RFC 6996 Section 4), making this node an uncoordinated global AS112 origin. RFC 7534 Section 3.2/Section 5 requires coordination before deploying outside a local-use mirror.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-global-origin-uncoordinated"},
 	},
 	{
-		Code:        "doctor-as112-redistribute-origin-uncoordinated",
+		Code:        CodeDoctorAS112RedistributeOriginUncoordinated,
 		Title:       "AS112 redistribute origin to a public ASN",
 		Description: "The as112 service originates its covering prefixes as AS112 (asn 112, the default) via redistribute { destination bgp { import as112 } } while an eBGP session to a non-private-use remote ASN (RFC 6996 Section 4) exists, making this node an uncoordinated global AS112 origin. RFC 7534 Section 3.2/Section 5 requires coordination; restrict the route with an egress community/prefix filter or set an operator/private asn.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-redistribute-origin-uncoordinated"},
 	},
 	{
-		Code:        "doctor-as112-redistribute-not-imported",
+		Code:        CodeDoctorAS112RedistributeNotImported,
 		Title:       "AS112 redistribute knob set but not imported into BGP",
 		Description: "service as112 is enabled and sets a redistribute-only knob (an explicit asn or a community) but no redistribute { destination bgp { import as112 } } is configured. Those knobs only affect the BGP-originated covering prefixes and are ignored without the import, so the covering prefixes are never originated into BGP -- the common wiring mistake where an operator expects the routes but forgot the import. Add the import, or remove the knob if the node serves DNS only.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-as112-redistribute-not-imported"},
@@ -590,13 +637,13 @@ var builtinCodes = []CodeMeta{
 	// (internal/plugins/isis/codes.go init() via diagnostic.Register), so
 	// deleting the IS-IS component removes them (ai/rules/plugins.md).
 	{
-		Code:        "doctor-l2tp-module",
+		Code:        CodeDoctorL2TPModule,
 		Title:       "L2TP kernel module not loaded",
 		Description: "The L2TP subsystem is configured but neither l2tp_ppp nor pppol2tp is loaded.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-l2tp-module"},
 	},
 	{
-		Code:        "doctor-pppoe-module",
+		Code:        CodeDoctorPPPoEModule,
 		Title:       "PPPoE kernel module not loaded",
 		Description: "The PPPoE subsystem is configured but the pppoe kernel module is not loaded.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-pppoe-module"},
@@ -614,7 +661,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-dhcp-iface"},
 	},
 	{
-		Code:  "doctor-ipsec-iface",
+		Code:  CodeDoctorIPsecIface,
 		Title: "IPsec interface missing",
 		Description: "vpn ipsec interface names an interface that does not exist on the system, " +
 			"or whose name is malformed. IPsec resolves the local address of every peer that has " +
@@ -622,7 +669,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-iface"},
 	},
 	{
-		Code:  "doctor-ipsec-udp-encap",
+		Code:  CodeDoctorIPsecUDPEncap,
 		Title: "IPsec UDP encapsulation not available",
 		Description: "ze cannot receive UDP-encapsulated ESP on the IKE NAT-T port 4500. Either the " +
 			"socket would not bind, so ze does not hold that port, or it bound and does not carry " +
@@ -635,7 +682,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-udp-encap"},
 	},
 	{
-		Code:  "doctor-ipsec-cert-url",
+		Code:  CodeDoctorIPsecCertURL,
 		Title: "IPsec certificate URL unusable",
 		Description: "A peer has hash-and-url set, and its certificate-url is not a URL ze can " +
 			"publish its certificate at. RFC 7296 Section 3.6 requires support for the http scheme " +
@@ -645,7 +692,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-cert-url"},
 	},
 	{
-		Code:  "doctor-ipsec-cert-url-denied",
+		Code:  CodeDoctorIPsecCertURLDenied,
 		Title: "IPsec certificate URL denied by the fetcher",
 		Description: "A peer's certificate-url names a destination the hash-and-url fetcher refuses: " +
 			"a loopback, private, link-local or multicast address, or the cloud metadata address. " +
@@ -657,7 +704,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-cert-url-denied"},
 	},
 	{
-		Code:  "doctor-ipsec-cookie-threshold",
+		Code:  CodeDoctorIPsecCookieThreshold,
 		Title: "IPsec cookie-threshold can never be reached",
 		Description: "cookie-threshold is higher than the number of peers configured to accept an " +
 			"inbound initiation. The responder challenges an IKE_SA_INIT once its count of " +
@@ -670,7 +717,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-cookie-threshold"},
 	},
 	{
-		Code:  "doctor-ipsec-xfrm-unavailable",
+		Code:  CodeDoctorIPsecXFRMUnavailable,
 		Title: "IPsec XFRM dataplane unavailable",
 		Description: "The configuration installs an IPsec Security Association and the kernel holds " +
 			"no XFRM dataplane. Ze installs every Child SA and every IPsec policy through XFRM, so " +
@@ -688,7 +735,7 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{exampleDoctorJSON, "ze explain doctor-ipsec-xfrm-unavailable"},
 	},
 	{
-		Code:  "doctor-ipsec-xfrm-unknown",
+		Code:  CodeDoctorIPsecXFRMUnknown,
 		Title: "IPsec XFRM dataplane undetermined",
 		Description: "The configuration installs an IPsec Security Association and ze could not " +
 			"establish whether the kernel holds an XFRM dataplane: the probe's socket open failed " +
@@ -789,7 +836,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bfd-port"},
 	},
 	{
-		Code:        "doctor-pki-cert",
+		Code:        CodeDoctorPKICert,
 		Title:       "PKI certificate invalid",
 		Description: "A PKI CA or device certificate is missing, malformed, expired, or not yet valid.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-pki-cert"},
@@ -861,7 +908,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-config-platform-mismatch"},
 	},
 	{
-		Code:        "doctor-machine-id-missing",
+		Code:        CodeDoctorMachineIDMissing,
 		Title:       "Machine ID missing",
 		Description: "The platform expects /etc/machine-id to exist and contain a stable machine identifier, but it is missing or empty.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-machine-id-missing"},
@@ -879,7 +926,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-bmp-unreachable"},
 	},
 	{
-		Code:        codeDoctorWriteDestination,
+		Code:        CodeDoctorWriteDestination,
 		Title:       "Write destination not writable",
 		Description: "A configured file write destination (persist path, output directory) is not writable.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-write-destination"},
@@ -921,7 +968,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-archive-unreachable"},
 	},
 	{
-		Code:        "doctor-random-seed",
+		Code:        CodeDoctorRandomSeed,
 		Title:       "No random seed persistence",
 		Description: "The platform has no known random-seed persistence service. On gokrazy, randomd saves to /perm/random.seed; on systemd, systemd-random-seed.service saves to /var/lib/systemd/random-seed. Without seed persistence, early-boot entropy may be poor, weakening cryptographic operations like BGP TCP-AO or TLS key generation.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-random-seed"},
@@ -945,18 +992,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-memlock-rlimit-unknown"},
 	},
 	{
-		Code:         codeDoctorConfigRootUnclaimed,
+		Code:         CodeDoctorConfigRootUnclaimed,
 		Title:        "Config subtree delivered to nobody",
 		Description:  "A config subtree is stored but no plugin and no handler receives it, so it has no effect. The daemon selects plugins for a config change by matching the changed path against the config roots each plugin declares; a path that matches nothing is accepted and logged at Info level only. Either the owning plugin is not built into this binary, or it did not load, or its config root declaration is missing. Check `ze plugin list` for the owning plugin.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-config-root-unclaimed"},
-		RelatedCodes: []string{codeDoctorConfigClaimsUnavailable},
+		RelatedCodes: []string{CodeDoctorConfigClaimsUnavailable},
 	},
 	{
-		Code:         codeDoctorConfigClaimsUnavailable,
+		Code:         CodeDoctorConfigClaimsUnavailable,
 		Title:        "Config delivery could not be checked",
 		Description:  "The doctor could not build the list of config roots this build delivers, so it did not check whether the configured subtrees reach anything. This is reported rather than passed over: a check that cannot see its subject has cleared nothing.",
 		Examples:     []string{exampleDoctorJSON, "ze explain doctor-config-claims-unavailable"},
-		RelatedCodes: []string{codeDoctorConfigRootUnclaimed},
+		RelatedCodes: []string{CodeDoctorConfigRootUnclaimed},
 	},
 	{
 		Code:        codeDoctorRIRSourceRefused,

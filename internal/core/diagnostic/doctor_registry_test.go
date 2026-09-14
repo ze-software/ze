@@ -34,6 +34,37 @@ func TestRegisterDoctorCheck(t *testing.T) {
 	}
 }
 
+// TestRegisterDoctorCheckAcceptsForeignNamespace registers a check that
+// declares the codes another surface already owns.
+//
+// checkSemanticValidation (internal/component/doctor/checks_config.go) returns
+// config.ValidateSemantics verbatim, and that function emits config-mcp-invalid
+// and its three siblings. A doctor- alias for them would be a second code for
+// one fact, so the registry takes the codes the check really emits.
+//
+// VALIDATES: a doctor check declares the code its own output carries, whatever
+// namespace that code belongs to.
+// PREVENTS: a check that cannot be registered at all, leaving it reachable only
+// by a hand-written call in the runner.
+func TestRegisterDoctorCheckAcceptsForeignNamespace(t *testing.T) {
+	ResetDoctorChecksForTest()
+	defer ResetDoctorChecksForTest()
+
+	check := DoctorCheck{
+		Name:         "semantics",
+		Phase:        DoctorPhasePostConfig,
+		Order:        10,
+		Component:    "test",
+		Dependencies: []string{"config"},
+		Platforms:    []string{DoctorPlatformAny},
+		Codes:        []string{"config-mcp-invalid", "config-gnmi-invalid"},
+		Check:        func(DoctorCheckContext) []Diagnostic { return nil },
+	}
+	if err := RegisterDoctorCheck(check); err != nil {
+		t.Fatalf("register a check declaring config- codes: %v", err)
+	}
+}
+
 func TestRegisterDoctorCheckRejectsDuplicate(t *testing.T) {
 	ResetDoctorChecksForTest()
 	defer ResetDoctorChecksForTest()
@@ -84,10 +115,15 @@ func TestRegisterDoctorCheckValidation(t *testing.T) {
 			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny},
 			Check: func(DoctorCheckContext) []Diagnostic { return nil },
 		}},
-		{"bad code prefix", DoctorCheck{
-			Name: "bad-code", Phase: DoctorPhasePreConfig, Component: "test",
+		{"malformed code", DoctorCheck{
+			Name: "malformed-code", Phase: DoctorPhasePreConfig, Component: "test",
 			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny},
-			Codes: []string{"not-doctor"}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
+			Codes: []string{"Doctor Code"}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
+		}},
+		{"empty code", DoctorCheck{
+			Name: "empty-code", Phase: DoctorPhasePreConfig, Component: "test",
+			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny},
+			Codes: []string{""}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
 		}},
 		{"bad platform", DoctorCheck{
 			Name: "bad-platform", Phase: DoctorPhasePreConfig, Component: "test",
