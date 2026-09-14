@@ -3,9 +3,13 @@
 package network
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"net"
+	"os"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -200,6 +204,128 @@ func TestSetIPv6TTLAndMinHopReadback(t *testing.T) {
 	if got := getsockoptInt(t, server, unix.IPPROTO_IPV6, unix.IPV6_MINHOPCOUNT); got != 255 {
 		t.Fatalf("IPV6_MINHOPCOUNT = %d, want 255", got)
 	}
+}
+
+// TestSetIPv6MinHopCountEnforcesTheFloor proves the kernel ACTS on the IPv6
+// minimum hop count ze installs, rather than merely storing it. The readback
+// test above shows getsockopt answers 255, and a socket option the kernel never
+// consulted would answer exactly the same, so the readback alone cannot tell a
+// working floor from a dead one.
+//
+// The method is one socket pair and two segments that differ only in their hop
+// limit. The segment at 255 is delivered and moves no counter. The segment at
+// 254 is discarded before delivery and counted in TCPMinTTLDrop, which
+// tcp_v6_rcv increments on that one comparison. The delivered segment is the
+// positive control: without it, a read timeout would read the same for a
+// working floor and for a path that carries nothing at all.
+//
+// VALIDATES: IPV6_MINHOPCOUNT=255 discards a segment sent at hop limit 254.
+// PREVENTS: IPv6 GTSM inbound enforcement being a no-op behind a successful readback.
+func TestSetIPv6MinHopCountEnforcesTheFloor(t *testing.T) {
+	server, client := tcpPair(t, "tcp6", "[::1]:0")
+	defer closeOrLog(t, server)
+	defer closeOrLog(t, client)
+
+	controlSocket(t, server, func(fd int) error {
+		return setIPMinTTL(fd, net.ParseIP("::1"), 255)
+	})
+
+	// The positive control: at the floor the segment arrives.
+	controlSocket(t, client, func(fd int) error {
+		return setIPTTL(fd, net.ParseIP("::1"), 255)
+	})
+	atFloor := tcpMinTTLDrop(t)
+	if _, err := client.Write([]byte{0x41}); err != nil {
+		t.Fatalf("client write at hop limit 255: %v", err)
+	}
+	if err := server.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	buf := []byte{0}
+	if _, err := server.Read(buf); err != nil {
+		t.Fatalf("server read at hop limit 255: %v", err)
+	}
+	if buf[0] != 0x41 {
+		t.Fatalf("server read 0x%02x, want 0x41", buf[0])
+	}
+	if got := tcpMinTTLDrop(t); got != atFloor {
+		t.Fatalf("TCPMinTTLDrop went from %d to %d, want no change: a segment at the floor is not below it", atFloor, got)
+	}
+
+	// One below the floor, on the same pair.
+	controlSocket(t, client, func(fd int) error {
+		return setIPTTL(fd, net.ParseIP("::1"), 254)
+	})
+	belowFloor := tcpMinTTLDrop(t)
+	if _, err := client.Write([]byte{0x42}); err != nil {
+		t.Fatalf("client write at hop limit 254: %v", err)
+	}
+	if err := server.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	_, err := server.Read(buf)
+	if err == nil {
+		t.Fatalf("server read 0x%02x; the segment below the floor was delivered", buf[0])
+	}
+	var netErr net.Error
+	if !errors.As(err, &netErr) {
+		t.Fatalf("server read error = %v, want a net.Error timeout from the discarded segment", err)
+	}
+	if !netErr.Timeout() {
+		t.Fatalf("server read error = %v, want a timeout from the discarded segment", err)
+	}
+
+	// A floor, not an exact count: TCP retransmits the segment the kernel threw
+	// away, and each retransmission is refused on the same comparison, so the
+	// number the kernel reaches depends on how many retransmission timers fired
+	// inside the read deadline.
+	after := tcpMinTTLDrop(t)
+	if after <= belowFloor {
+		t.Fatalf("TCPMinTTLDrop stayed at %d, want an increase: the segment was lost for some reason other than the hop limit floor", belowFloor)
+	}
+}
+
+// tcpMinTTLDrop reads the counter the kernel increments when it refuses a
+// segment on the socket's minimum TTL or hop limit. It is the one observable
+// that names the comparison, so it separates an enforced floor from a segment
+// that went missing for any other reason.
+func tcpMinTTLDrop(t *testing.T) uint64 {
+	t.Helper()
+
+	file, err := os.Open("/proc/net/netstat")
+	if err != nil {
+		t.Fatalf("open /proc/net/netstat: %v", err)
+	}
+	defer closeOrLog(t, file)
+
+	scanner := bufio.NewScanner(file)
+	var names []string
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) == 0 || fields[0] != "TcpExt:" {
+			continue
+		}
+		if names == nil {
+			names = fields
+			continue
+		}
+		for i, name := range names {
+			if name != "TCPMinTTLDrop" || i >= len(fields) {
+				continue
+			}
+			value, parseErr := strconv.ParseUint(fields[i], 10, 64)
+			if parseErr != nil {
+				t.Fatalf("parse TcpExt TCPMinTTLDrop %q: %v", fields[i], parseErr)
+			}
+			return value
+		}
+		names = nil
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatalf("read /proc/net/netstat: %v", err)
+	}
+	t.Fatal("this kernel reports no TCPMinTTLDrop counter, so the hop limit floor cannot be observed")
+	return 0
 }
 
 func tcpPair(t *testing.T, networkName, address string) (*net.TCPConn, *net.TCPConn) {
