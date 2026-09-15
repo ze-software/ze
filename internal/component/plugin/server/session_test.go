@@ -1,6 +1,7 @@
 package server
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +12,7 @@ import (
 
 // TestPluginSessionPing verifies the plugin session ping command.
 //
-// VALIDATES: Returns pong with daemon information.
+// VALIDATES: Returns the daemon process id under the pid key.
 //
 // PREVENTS: Missing health check endpoint.
 func TestPluginSessionPing(t *testing.T) {
@@ -26,7 +27,7 @@ func TestPluginSessionPing(t *testing.T) {
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "response should contain data map")
-	assert.Contains(t, data, "pong", "response should contain pong field")
+	assert.Equal(t, os.Getpid(), data["pid"], "response should carry this process's pid")
 }
 
 // TestPluginSessionBye verifies the plugin session bye command.

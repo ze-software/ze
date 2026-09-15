@@ -719,7 +719,7 @@ Plugin lifecycle operations:
 | `plugin command help "<cmd>"` | Command details |
 | `plugin command complete "<partial>"` | Completion |
 | `plugin session ready` | Signal plugin init complete |
-| `plugin session ping` | Health check (returns PID) |
+| `plugin session ping` | Health check. The answer carries the daemon process id as `{"pid": N}` |
 | `plugin session bye` | Disconnect |
 <!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- plugin lifecycle RPCs -->
 

@@ -478,7 +478,7 @@ Returns validation errors if any.
 | Command | Description |
 |---------|-------------|
 | `plugin session ready` | Signal plugin init complete |
-| `plugin session ping` | Health check (returns PID) |
+| `plugin session ping` | Health check. The answer carries the daemon process id as `{"pid": N}` |
 | `plugin session bye` | Disconnect |
 | `plugin command list` | List plugin commands |
 | `plugin command help "<cmd>"` | Command details |

@@ -21,13 +21,15 @@ func init() {
 	)
 }
 
-// handlePluginSessionPing returns a pong response for health checking.
-// Returns daemon PID for identification.
+// handlePluginSessionPing answers a health check with the daemon process id,
+// under the `pid` output leaf ze-plugin-api.yang declares as uint32. The id is
+// what a caller reads to tell one daemon from another after a restart; any
+// answer at all says the daemon is alive.
 func handlePluginSessionPing(_ *CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"pong": os.Getpid(),
+			"pid": os.Getpid(),
 		},
 	}, nil
 }

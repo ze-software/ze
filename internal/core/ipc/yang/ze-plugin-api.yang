@@ -120,15 +120,15 @@ accepted and signals nothing.";
     }
 
     rpc session-ping {
-        description "The answer carries the daemon process id under the pong key.
+        description "The answer carries the daemon process id under the pid key.
 A caller reads that id to tell one daemon from another after a restart.";
         ze:help "Answer a health check with the daemon process id.";
         output {
-            leaf pong {
-                type boolean;
+            leaf pid {
+                type uint32;
                 description "The daemon writes its own process id here, so the value changes
 when the daemon restarts. Any answer at all means the daemon is alive.";
-                ze:help "Always true when alive";
+                ze:help "Process id of the daemon that answered";
             }
         }
     }
