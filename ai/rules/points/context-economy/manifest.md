@@ -9,3 +9,4 @@ directives ## Directives
   an-agent-carries-no-repository-rules-unless-its-prompt-does
   an-editing-agent-hands-off-at-one-hundred-tool-calls
   a-subagent-reads-once-and-reads-only-the-lines-it-needs
+  spend-turns-not-tokens

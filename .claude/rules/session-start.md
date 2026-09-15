@@ -151,6 +151,12 @@ When the original task is done (e.g., spec closed), stop and ask "What next?" in
 of picking up other uncommitted work. "Continue what you were doing" means the stated
 goal, not "find more things to do."
 
+**One spec per session, and the next spec in a fresh session.** The main thread
+never compacts under a 1M window, and every call re-feeds all of it: measured
+2026-09-15, one session averaged 375k tokens over 335 calls and the main thread
+was 19% of eight sessions' spend (`ai/rationale/context-economy.md`). The per-spec
+state file is the handoff, so the next session starts from it, not from this one.
+
 The Stop hook knows about this instruction and does not fight it.
 The native `block-premature-stop` action (`./le hook-check block-premature-stop`,
 `hookStop` in `internal/le/hookruntime/lifecycle.go`) holds `what next` and `what

@@ -22,6 +22,17 @@ So the cost of a session is `calls x context at each call`, and neither the
 tokens the model wrote nor the tokens a tool returned move it. Subagents were
 81% of the total, and `ze-work` agents 91% of that.
 
+Of the 10,736 calls, 89% carried exactly one tool call, and the median Bash
+result was 600 tokens: each such call paid its whole context for one small
+answer. That is why the rule counts turns, not tokens, and why a chunked read
+costs more than a whole one past the second slice.
+
+The main thread is the same arithmetic on a smaller share: 19% of the spend,
+one session averaging 375k over 335 calls, because a 1M window never compacts.
+No hook reaches the main thread, so the answer is a habit in
+`.claude/rules/session-start.md`: one spec per session, and the next spec in a
+fresh one.
+
 ## Why an editing agent hands off at 100 tool calls
 
 A `ze-work` agent starts at a 45k floor (system prompt, CLAUDE.md, CORE.md, the
