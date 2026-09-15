@@ -100,3 +100,50 @@ func TestReactorPublishesNoPeerWithoutGTSM(t *testing.T) {
 
 	assert.Empty(t, *published)
 }
+
+// TestGTSMPeersFromResolvedTreeReadsTheConfigAlone is the `ze doctor` half of
+// the wiring: with no reactor running, the same derivation reads the resolved
+// bgp{} tree and answers the set a config apply would publish.
+//
+// VALIDATES: a peer with `connection ttl max 1` is in the set with hop limit
+// 255, floor 255 and the default BGP port; a peer without a ttl block is not;
+// and the seam the gtsm doctor check reads is this function.
+// PREVENTS: a doctor check that reads the configuration through a second,
+// drifting parse of the ttl block.
+func TestGTSMPeersFromResolvedTreeReadsTheConfigAlone(t *testing.T) {
+	tree := map[string]any{
+		"router-id": "10.0.0.1",
+		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
+		"peer": map[string]any{
+			"gtsm": map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{"ip": "192.0.2.1"},
+					"local":  map[string]any{"ip": "auto"},
+					"ttl":    map[string]any{"max": "1"},
+				},
+				"session": map[string]any{"asn": map[string]any{"remote": "65001"}},
+			},
+			"plain": map[string]any{
+				"connection": map[string]any{
+					"remote": map[string]any{"ip": "192.0.2.2"},
+					"local":  map[string]any{"ip": "auto"},
+				},
+				"session": map[string]any{"asn": map[string]any{"remote": "65002"}},
+			},
+		},
+	}
+
+	peers, err := gtsmPeersFromResolvedTree(tree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1, "only the peer with a ttl block owes kernel state")
+	assert.Equal(t, mustParseAddr("192.0.2.1"), peers[0].Addr)
+	assert.Equal(t, uint16(DefaultBGPPort), peers[0].Port)
+	assert.Equal(t, uint8(255), peers[0].HopLimit)
+	assert.Equal(t, uint8(255), peers[0].Floor)
+
+	// A peer section the parse cannot read answers the refusal, never an empty
+	// set: an empty set reads as "no GTSM peer" and would keep the doctor check
+	// silent about a configuration nothing could derive.
+	_, err = gtsmPeersFromResolvedTree(map[string]any{"peer": "not a map"})
+	assert.Error(t, err, "a tree the peer parse refuses answers the refusal, never an empty set")
+}

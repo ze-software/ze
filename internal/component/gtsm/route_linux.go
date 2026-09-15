@@ -179,6 +179,28 @@ func hostRoute(addr netip.Addr) netlink.Route {
 	}
 }
 
+// hopLimitRouteInstalled reports whether the kernel holds ze's host route to
+// the peer carrying the hop limit the peer asks for. A route ze installed
+// without the metric, or a route another producer installed, answers false:
+// neither gives a related ICMP error the hop limit RFC 5082 requires.
+func hopLimitRouteInstalled(p Peer) (bool, error) {
+	installed, found, err := findHopLimitRoute(p.Addr)
+	if err != nil {
+		return false, err
+	}
+	if !found {
+		return false, nil
+	}
+	return installed.Hoplimit == int(p.HopLimit), nil
+}
+
+// peerRouteResolvable reports whether the kernel resolves a route to the peer
+// today, which is what installHopLimitRoute needs before it can install one.
+func peerRouteResolvable(addr netip.Addr) error {
+	_, err := resolveNextHop(addr)
+	return err
+}
+
 // resolveNextHop asks the kernel which route it would use for the peer today.
 func resolveNextHop(addr netip.Addr) (netlink.Route, error) {
 	routes, err := routeResolve(net.IP(addr.AsSlice()))

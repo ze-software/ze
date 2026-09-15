@@ -87,11 +87,19 @@ func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (netip.AddrPort, *Peer, boo
 // until 2026-09-06, so a config naming both listened on the port of the peer
 // rather than the port the operator asked for (peer_settings.go).
 func (r *Reactor) peerListenPort(s *PeerSettings) int {
+	return listenPortFor(s, r.config.Port)
+}
+
+// listenPortFor is peerListenPort with the daemon's port passed in, so the
+// same rule answers for a reactor and for a configuration read with no
+// reactor (gtsmPeersFromResolvedTree). A daemon port of zero means the
+// default.
+func listenPortFor(s *PeerSettings, daemonPort int) int {
 	if s.LocalPort != 0 && s.LocalPort != DefaultBGPPort {
 		return int(s.LocalPort)
 	}
-	if r.config.Port != 0 {
-		return r.config.Port
+	if daemonPort != 0 {
+		return daemonPort
 	}
 	return DefaultBGPPort
 }

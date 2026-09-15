@@ -48,16 +48,56 @@ func (r *Reactor) gtsmPeers() []gtsm.Peer {
 
 	var peers []gtsm.Peer
 	for _, p := range r.peers {
-		s := p.Settings()
-		if s.OutTTL == 0 && s.MinTTL == 0 {
-			continue
+		if gtsmPeer, enabled := gtsmPeerOf(p.Settings(), r.config.Port); enabled {
+			peers = append(peers, gtsmPeer)
 		}
-		peers = append(peers, gtsm.Peer{
-			Addr:     s.Address,
-			Port:     uint16(r.peerListenPort(s)), //nolint:gosec // peerListenPort answers a port, which is a uint16 everywhere it is parsed
-			HopLimit: s.OutTTL,
-			Floor:    s.MinTTL,
-		})
 	}
 	return peers
+}
+
+// gtsmPeerOf is the one reading of a peer's settings as GTSM kernel state,
+// shared by the running reactor and by the configuration-only derivation
+// below. It answers false for a peer whose configuration derived neither
+// TTL value, which is a peer that asked for no GTSM.
+func gtsmPeerOf(s *PeerSettings, daemonPort int) (gtsm.Peer, bool) {
+	if s.OutTTL == 0 && s.MinTTL == 0 {
+		return gtsm.Peer{}, false
+	}
+	return gtsm.Peer{
+		Addr:     s.Address,
+		Port:     uint16(listenPortFor(s, daemonPort)), //nolint:gosec // listenPortFor answers a port, which is a uint16 everywhere it is parsed
+		HopLimit: s.OutTTL,
+		Floor:    s.MinTTL,
+	}, true
+}
+
+// gtsmPeersFromResolvedTree derives the GTSM peer set from a resolved bgp{}
+// tree with no reactor running, for `ze doctor` in an operator's own process
+// (internal/component/gtsm/doctor.go). It runs the same peer parse the
+// reactor's config apply runs, so the set it answers is the set that apply
+// would publish, and it takes the daemon port from the same test override
+// the config loader reads (PortOverrideFromEnv).
+//
+// A dynamic group's members are not in it: they exist once a peer connects,
+// and a configuration names only their range.
+func gtsmPeersFromResolvedTree(bgpTree map[string]any) ([]gtsm.Peer, error) {
+	settings, err := PeersFromTree(bgpTree)
+	if err != nil {
+		return nil, err
+	}
+	daemonPort := 0
+	if port, ok := PortOverrideFromEnv(); ok {
+		daemonPort = int(port)
+	}
+	var peers []gtsm.Peer
+	for _, s := range settings {
+		if gtsmPeer, enabled := gtsmPeerOf(s, daemonPort); enabled {
+			peers = append(peers, gtsmPeer)
+		}
+	}
+	return peers, nil
+}
+
+func init() {
+	gtsm.SetConfigPeers(gtsmPeersFromResolvedTree)
 }

@@ -5,7 +5,11 @@
 
 package gtsm
 
-import "log/slog"
+import (
+	"errors"
+	"log/slog"
+	"net/netip"
+)
 
 // applyHopLimitRoutes reports that the hop-limit route is not installed here.
 //
@@ -26,3 +30,16 @@ func applyHopLimitRoutes(wanted, previous []Peer) error {
 	}
 	return nil
 }
+
+// errNeedsLinux says the hop-limit route is a Linux route attribute, so no
+// kernel this build runs on can hold it.
+var errNeedsLinux = errors.New("the GTSM hop-limit route needs Linux")
+
+// hopLimitRouteInstalled answers false on every other platform: the route
+// above is never installed, so a doctor run here reports what the daemon's
+// own warning says.
+func hopLimitRouteInstalled(Peer) (bool, error) { return false, nil }
+
+// peerRouteResolvable answers the same reason: the route cannot be installed
+// here whatever the kernel resolves.
+func peerRouteResolvable(netip.Addr) error { return errNeedsLinux }

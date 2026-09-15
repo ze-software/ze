@@ -28,7 +28,7 @@ func captureSeams(t *testing.T) *capture {
 	t.Helper()
 
 	c := &capture{}
-	routes, publish, previous := applyRoutes, publishFilter, current
+	routes, publish, previous, wasPublished := applyRoutes, publishFilter, current, published
 
 	applyRoutes = func(wanted, gone []Peer) error {
 		c.routesWanted = append(c.routesWanted, wanted)
@@ -40,9 +40,10 @@ func captureSeams(t *testing.T) *capture {
 		return nil
 	}
 	current = nil
+	published = false
 
 	t.Cleanup(func() {
-		applyRoutes, publishFilter, current = routes, publish, previous
+		applyRoutes, publishFilter, current, published = routes, publish, previous, wasPublished
 	})
 	return c
 }

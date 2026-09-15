@@ -91,6 +91,11 @@ type Peer struct {
 var (
 	mu      sync.Mutex
 	current []Peer
+	// published says SetPeers has run in this process, so current is the
+	// set this daemon asked the kernel for. It stays false in a process that
+	// only reads the kernel, such as `ze doctor`, and the doctor check reads
+	// it to choose which question it can answer (doctor.go).
+	published bool
 )
 
 // SetPeers reconciles the kernel to the GTSM peer set it is given. The caller
@@ -104,6 +109,7 @@ func SetPeers(peers []Peer) error {
 	mu.Lock()
 	defer mu.Unlock()
 
+	published = true
 	wanted := sortedPeers(peers)
 	if slices.Equal(wanted, current) {
 		return nil
@@ -121,6 +127,15 @@ func SetPeers(peers []Peer) error {
 
 	current = wanted
 	return nil
+}
+
+// publishedPeers answers the set this process last asked the kernel for, and
+// whether it ever asked. The slice is a copy, so a caller reads it outside
+// the lock.
+func publishedPeers() ([]Peer, bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	return slices.Clone(current), published
 }
 
 // sortedPeers copies the caller's slice and sorts it by address, so the kernel
