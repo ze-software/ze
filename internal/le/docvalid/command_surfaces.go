@@ -51,9 +51,24 @@ const (
 	localOnlyLabel      = "Local process only"
 
 	pipesAlwaysLabel         = "Pipes, always"
-	pipesOnRowsLabel         = "Pipes, on rows"
 	pipesWhileStreamingLabel = "Pipes, while streaming"
 	pipesLocalOnlyLabel      = "Pipes, local process only"
+
+	// The detail page states a pipe layer's absence under one bare term, and
+	// the mirrors state an absent value in words rather than leaving the line
+	// out. Each spelling is the site's (internal/le/site/equivalentdetail.go,
+	// writeDetailRow, orNotDeclared, orNone), read here as the absence it
+	// states rather than as a value the catalog never held.
+	pipesNoneLabel         = "Pipes"
+	answerShapeNotDeclared = "not declared"
+	absentValueNone        = "none"
+
+	// The primary Markdown mirror's command table opens with this header cell;
+	// the pipe-operator guide on the same page is a table too, and its rows
+	// open with an operator name in a code span, so the header is what tells
+	// a command row from an operator row.
+	commandTableHeaderCell = "Command"
+	fullCatalogHeading     = "## Full live command catalog"
 )
 
 // The HTML element names the published command surfaces are read for.
@@ -68,6 +83,7 @@ const (
 const (
 	pathField        = "path"
 	descriptionField = "description"
+	usageField       = "usage"
 
 	// malformedIdentity stands in for a command identity the surface holds in
 	// a shape the reader could not parse, so a report never names an empty
@@ -2396,8 +2412,16 @@ func primaryHTMLRowIdentity(row *xhtml.Node) (string, bool, bool) {
 
 func primaryMarkdownCommandIdentities(content string) []string {
 	var identities []string
+	inCommandTable := false
 	for _, line := range scanMarkdownLines(content) {
 		if !line.active {
+			continue
+		}
+		if header, isHeader := markdownTableHeaderCell(line.text); isHeader {
+			inCommandTable = header == commandTableHeaderCell
+			continue
+		}
+		if !inCommandTable {
 			continue
 		}
 		cells, valid := markdownTableCells(line.text)
@@ -2454,9 +2478,17 @@ func equivalentHTMLCommandIdentities(
 					cells = append(cells, child)
 				}
 			}
-			var codes []*xhtml.Node
+			// The first cell is a link to the detail page around the path,
+			// then the mode (internal/le/site/equivalents.go,
+			// writeEquivalentIndexRow). The identity is the link's text, and
+			// its href names the same slug the row id does.
+			var link *xhtml.Node
 			if len(cells) != 0 {
-				htmlWalk(cells[0], func(node *xhtml.Node) {
+				link = htmlFirstElement(cells[0])
+			}
+			var codes []*xhtml.Node
+			if link != nil && link.Data == "a" {
+				htmlWalk(link, func(node *xhtml.Node) {
 					if node.Data == codeElement {
 						codes = append(codes, node)
 					}
@@ -2467,9 +2499,10 @@ func equivalentHTMLCommandIdentities(
 				identity.path = normalizeRenderedHTMLText(htmlText(codes[0]))
 			}
 			identity.valid = document.err == nil && idValid && container.closed &&
-				len(cells) != 0 && len(codes) == 1 &&
+				len(codes) == 1 &&
 				htmlVisibleSubtreeClosed(document, container.root) &&
-				normalizeRenderedHTMLText(htmlText(cells[0])) == identity.path
+				normalizeRenderedHTMLText(htmlText(link)) == identity.path &&
+				htmlAttribute(link, "href") == slug+"/"
 			identities = append(identities, identity)
 		}
 	}
@@ -2477,8 +2510,17 @@ func equivalentHTMLCommandIdentities(
 }
 
 func equivalentMarkdownCommandIdentities(content string) []renderedCommandIndexIdentity {
+	// The mirror lists the commands that have a vendor equivalent first, and
+	// every command once more under the full catalog heading
+	// (internal/le/site/equivalents.go, equivalentIndexBody). The full
+	// catalog is the surface with one row per command; a mirror without that
+	// heading, or with two, identifies nothing.
+	section, count := markdownHeadingContent(content, fullCatalogHeading)
+	if count != 1 {
+		return []renderedCommandIndexIdentity{{}}
+	}
 	var identities []renderedCommandIndexIdentity
-	for _, line := range scanMarkdownLines(content) {
+	for _, line := range scanMarkdownLines(section) {
 		if !line.active {
 			continue
 		}
@@ -3069,14 +3111,22 @@ func primaryOperatorRows(document renderedHTMLDocument) ([]renderedOperatorRow, 
 		}
 		var cells []*xhtml.Node
 		valid := operatorHTMLSubtreeClosed(document, node)
+		headerCells := 0
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			switch {
 			case child.Type == xhtml.ElementNode && child.Data == "td":
 				cells = append(cells, child)
+			case child.Type == xhtml.ElementNode && child.Data == "th":
+				headerCells++
 			case child.Type == xhtml.TextNode && strings.TrimSpace(child.Data) == "":
 			default:
 				valid = false
 			}
+		}
+		// The table's header row names the columns and no operator
+		// (internal/le/site/commands.go, renderOperatorGuide).
+		if headerCells != 0 && len(cells) == 0 {
+			return
 		}
 		row := renderedOperatorRow{valid: valid && len(cells) == 4}
 		for index := range min(len(cells), len(row.values)) {
@@ -3499,6 +3549,7 @@ func validatePrimaryCommandContract(
 			{name: pathField, expected: command.Path, actual: visible[0]},
 			{name: "mode", expected: normalizedCommandMode(command.Mode), actual: normalizedCommandMode(visible[1])},
 			{name: descriptionField, expected: command.ShortHelp, actual: visible[2]},
+			{name: usageField, expected: command.Usage, actual: visible[3]},
 		} {
 			expected := normalizeRenderedHTMLText(field.expected)
 			if field.actual != expected {
@@ -3591,8 +3642,8 @@ func validatePrimaryCommandContract(
 func primaryHTMLCommandValues(
 	document renderedHTMLDocument,
 	row *xhtml.Node,
-) ([3]string, bool) {
-	var values [3]string
+) ([4]string, bool) {
+	var values [4]string
 	var cells []*xhtml.Node
 	for child := row.FirstChild; child != nil; child = child.NextSibling {
 		if child.Type == xhtml.ElementNode && child.Data == "td" {
@@ -3621,16 +3672,47 @@ func primaryHTMLCommandValues(
 		return values, false
 	}
 	values[1] = normalizeRenderedHTMLText(htmlText(cells[1]))
-	values[2] = normalizeRenderedHTMLText(htmlText(cells[2]))
+	values[2], values[3] = htmlDescriptionAndUsage(cells[2])
 	return values, true
+}
+
+// htmlDescriptionAndUsage reads the description cell the way the page writes
+// it (internal/le/site/commands.go, writeCommandRow): the summary's text
+// nodes first, then one line break, then the usage line as one code element.
+// The command facts that follow are a block of their own and are not read as
+// part of either. A cell with no line break is the summary alone.
+func htmlDescriptionAndUsage(cell *xhtml.Node) (string, string) {
+	var description textbuf.Buffer
+	child := cell.FirstChild
+	for ; child != nil; child = child.NextSibling {
+		if child.Type == xhtml.ElementNode && child.Data == "br" {
+			break
+		}
+		description.Str(htmlText(child))
+	}
+	usage := ""
+	if child != nil {
+		if code := htmlNextElement(child); code != nil && code.Data == codeElement {
+			usage = normalizeRenderedHTMLText(htmlText(code))
+		}
+	}
+	return normalizeRenderedHTMLText(description.String()), usage
 }
 
 func commandSurfaceMarkdownRow(content, path string) (string, int, bool) {
 	var row string
 	count := 0
 	malformed := false
+	inCommandTable := false
 	for _, scanned := range scanMarkdownLines(content) {
 		if !scanned.active {
+			continue
+		}
+		if header, isHeader := markdownTableHeaderCell(scanned.text); isHeader {
+			inCommandTable = header == commandTableHeaderCell
+			continue
+		}
+		if !inCommandTable {
 			continue
 		}
 		candidate, closed, canonical := markdownTableCodeCell(scanned.text)
@@ -3645,6 +3727,26 @@ func commandSurfaceMarkdownRow(content, path string) (string, int, bool) {
 		}
 	}
 	return row, count, malformed
+}
+
+// markdownTableHeaderCell answers the first cell of a table line that opens no
+// code span, which is what a header row looks like beside the rows it heads.
+// The primary mirror's operator guide and command tables share one page, and
+// the header is what tells them apart (commandTableHeaderCell).
+func markdownTableHeaderCell(line string) (string, bool) {
+	trimmed := strings.TrimLeft(line, " ")
+	if len(line)-len(trimmed) > 3 || !strings.HasPrefix(trimmed, "|") {
+		return "", false
+	}
+	cells, valid := markdownTableCells(trimmed)
+	if !valid || len(cells) == 0 || strings.Contains(cells[0], "`") {
+		return "", false
+	}
+	first := strings.TrimSpace(cells[0])
+	if first == "" || strings.Trim(first, "-: ") == "" {
+		return "", false
+	}
+	return first, true
 }
 
 func markdownTableCodeCell(line string) (string, bool, bool) {
@@ -3734,8 +3836,8 @@ func markdownInlineValue(value string) string {
 	return markdownInlineVisibleText(value)
 }
 
-func primaryMarkdownCommandValues(row string) ([3]string, bool) {
-	var values [3]string
+func primaryMarkdownCommandValues(row string) ([4]string, bool) {
+	var values [4]string
 	cells, valid := markdownTableCells(row)
 	if !valid || len(cells) != 4 {
 		return values, false
@@ -3748,7 +3850,21 @@ func primaryMarkdownCommandValues(row string) ([3]string, bool) {
 		decodeCommandMarkdownTableValue(path),
 	), " ")
 	values[1] = markdownInlineVisibleText(cells[1])
-	values[2] = markdownInlineVisibleText(cells[2])
+	// The mirror writes the summary, then the usage line as a code span,
+	// then the command facts, one line break between each
+	// (internal/le/site/commands.go, commandMirrorDescription).
+	segments, segmentsValid := splitMarkdownOutsideCode(cells[2], "<br>")
+	if !segmentsValid {
+		return values, false
+	}
+	values[2] = markdownInlineVisibleText(segments[0])
+	if len(segments) > 1 {
+		if usage, usageValid := markdownCodeSpan(strings.TrimSpace(segments[1])); usageValid {
+			values[3] = strings.Join(strings.Fields(
+				decodeCommandMarkdownTableValue(usage),
+			), " ")
+		}
+	}
 	return values, true
 }
 
@@ -3809,6 +3925,7 @@ func validatePrimaryMarkdownContract(
 			{name: pathField, expected: strings.Join(strings.Fields(command.Path), " "), actual: visible[0]},
 			{name: "mode", expected: normalizedCommandMode(command.Mode), actual: normalizedCommandMode(visible[1])},
 			{name: descriptionField, expected: markdownInlineVisibleText(markdownLiteralProse(command.ShortHelp)), actual: visible[2]},
+			{name: usageField, expected: strings.Join(strings.Fields(command.Usage), " "), actual: visible[3]},
 		} {
 			if field.actual != field.expected {
 				issues = append(issues, generatedCommandSurfaceValueIssue(
@@ -3842,28 +3959,74 @@ func validatePrimaryMarkdownContract(
 			),
 		)...)
 	}
-	expectedFilters := make([]string, 0, len(command.Pipes))
+	// The two lists are the detail mirror's own (internal/le/site/commands.go,
+	// commandMirrorPipes), so they are read with the detail mirror's parsers.
+	expectedFilters := make([]renderedCommandFilterDetail, 0, len(command.Pipes))
 	for _, filter := range command.Pipes {
 		marker.Reset().Str(filter.Name)
 		if filter.TakesArg {
 			marker.Str(" <value>")
 		}
-		expectedFilters = append(expectedFilters, marker.String())
+		expectedFilters = append(expectedFilters, renderedCommandFilterDetail{
+			identity:    normalizeMarkdownCodeSpan(marker.String()),
+			description: normalizedCommandMarkdownDetailValue(filter.Description),
+		})
 	}
-	issues = append(issues, compareCommandNamedGroups(
-		path, command.Path, "command filter", expectedFilters,
-		commandMarkdownGroups(row, "Command"),
+	actualFilters, filterGroups, filtersValid := markdownEquivalentFilterDetails(
+		commandMarkdownSegmentLines(row), "Command",
+	)
+	expectedFilterGroups := 0
+	if len(expectedFilters) != 0 {
+		expectedFilterGroups = 1
+	}
+	issues = append(issues, compareEquivalentDetailValues(
+		path, command.Path, "command filters",
+		renderedFilterDetailValues(expectedFilters),
+		renderedFilterDetailValues(actualFilters),
+		expectedFilterGroups, filterGroups, filtersValid,
 	)...)
-	expectedAliases := make([]string, 0, len(command.Aliases))
+	expectedAliases := make([]renderedCommandAliasDetail, 0, len(command.Aliases))
 	for _, alias := range command.Aliases {
-		expectedAliases = append(expectedAliases,
-			marker.Reset().Str(alias.Name).Str(" -> ").Str(alias.Expansion).String())
+		expectedAliases = append(expectedAliases, renderedCommandAliasDetail{
+			identity:    normalizeMarkdownCodeSpan(alias.Name),
+			description: normalizedCommandMarkdownDetailValue(alias.Description),
+			expansion:   normalizeMarkdownCodeSpan(alias.Expansion),
+		})
 	}
-	issues = append(issues, compareCommandNamedGroups(
-		path, command.Path, "pipe alias", expectedAliases,
-		commandMarkdownGroups(row, "Aliases"),
+	actualAliases, aliasGroups, aliasesValid := markdownEquivalentAliasDetails(
+		commandMarkdownSegmentLines(row), "Aliases",
+	)
+	expectedAliasGroups := 0
+	if len(expectedAliases) != 0 {
+		expectedAliasGroups = 1
+	}
+	issues = append(issues, compareEquivalentDetailValues(
+		path, command.Path, "pipe aliases",
+		renderedAliasDetailValues(expectedAliases),
+		renderedAliasDetailValues(actualAliases),
+		expectedAliasGroups, aliasGroups, aliasesValid,
 	)...)
 	return issues
+}
+
+// commandMarkdownSegmentLines rewrites one command row's contract cell as the
+// list the detail mirror writes: one "- Label: value" line per segment, so
+// the detail mirror's readers apply to the row unchanged. A row that is not a
+// four-cell table row, or whose cell breaks inside a code span, yields nothing.
+func commandMarkdownSegmentLines(row string) string {
+	cells, valid := markdownTableCells(row)
+	if !valid || len(cells) != 4 {
+		return ""
+	}
+	segments, valid := splitMarkdownOutsideCode(cells[3], "<br>")
+	if !valid {
+		return ""
+	}
+	var lines textbuf.Buffer
+	for _, segment := range segments {
+		lines.Str("- ").Str(decodeCommandMarkdownTableValue(segment)).Byte('\n')
+	}
+	return lines.String()
 }
 func commandMarkdownGroups(row, label string) [][]string {
 	cells, valid := markdownTableCells(row)
@@ -3933,13 +4096,11 @@ func commandOperatorGroupLabel(
 	switch surface {
 	case primaryOperatorGroupSurface:
 		return commandAvailabilityLabel(availability)
-	case equivalentHTMLOperatorGroupSurface:
+	case equivalentHTMLOperatorGroupSurface, equivalentMarkdownOperatorGroupSurface:
+		// The detail page and its mirror share one label set
+		// (internal/le/site/equivalentdetail.go, detailPipeLabel).
 		if availability == availabilityWithRows {
 			return equivalentAvailabilityLabel(availability, declaredShape)
-		}
-	case equivalentMarkdownOperatorGroupSurface:
-		if availability == availabilityWithRows {
-			return pipesOnRowsLabel
 		}
 	}
 	switch availability {
@@ -4761,6 +4922,9 @@ func validateEquivalentHTMLPipeTerms(
 ) []Issue {
 	var issues []Issue
 	for _, term := range equivalentHTMLDirectDefinitionTerms(article) {
+		if term == pipesNoneLabel && commandReachesNoPipeLayer(command) {
+			continue
+		}
 		availability, candidate := classifyCommandOperatorGroupLabel(
 			term,
 			equivalentHTMLOperatorGroupSurface,
@@ -4773,6 +4937,14 @@ func validateEquivalentHTMLPipeTerms(
 			unknownCommandOperatorGroupLabelIssue(path, command.Path, term))
 	}
 	return issues
+}
+
+// commandReachesNoPipeLayer answers whether the detail page states the pipe
+// layer's absence under the bare "Pipes" term: no operator, no command pipe
+// and no alias (internal/le/site/equivalentdetail.go, equivalentZeCard).
+func commandReachesNoPipeLayer(command *publishedCommand) bool {
+	return len(command.Operators) == 0 && len(command.Pipes) == 0 &&
+		len(command.Aliases) == 0
 }
 
 func htmlEquivalentFilterDetails(
@@ -5461,6 +5633,9 @@ func equivalentMarkdownVisibleGroups(content, label string) [][]string {
 			continue
 		}
 		value := strings.TrimPrefix(line.text, prefix)
+		if value == answerShapeNotDeclared {
+			continue
+		}
 		groups = append(groups, []string{
 			strings.Join(strings.Fields(markdownInlineVisibleText(value)), " "),
 		})
@@ -5477,8 +5652,7 @@ func equivalentMarkdownGroups(content, label string) [][]string {
 			continue
 		}
 		values := strings.TrimPrefix(line.text, prefix)
-		if values == "none" {
-			groups = append(groups, nil)
+		if values == absentValueNone {
 			continue
 		}
 		parsed, valid := splitMarkdownOutsideCode(values, ", ")
@@ -5747,6 +5921,10 @@ func validateLLMSCommandContract(
 		path, command.Path, "argument", expectedArgs,
 		commandMetaGroups(meta, "args", parseLLMSCommaValues),
 	)...)
+	issues = append(issues, compareCommandNamedGroups(
+		path, command.Path, "usage", splitNonEmpty(command.Usage, "\x00"),
+		commandMetaGroups(meta, "usage", parseLLMSCodeValues),
+	)...)
 	return issues
 }
 
@@ -5756,7 +5934,7 @@ func validateCommandMetaSegments(
 	segments []string,
 ) []Issue {
 	known := []string{
-		"wire ", "pipes ", "shape ", "address-fields ", "filters ", "aliases ", "args ",
+		"wire ", "pipes ", "shape ", "address-fields ", "filters ", "aliases ", "args ", "usage ",
 	}
 	counts := make(map[string]int, len(known))
 	var issues []Issue

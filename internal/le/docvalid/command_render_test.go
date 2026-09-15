@@ -420,7 +420,7 @@ func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
 		}},
 	}
 	rendered := string(renderPrimaryCommandMarkdown([]publishedCommand{command}))
-	const encoded = "Aliases: `quick -> match up \\| count`"
+	const encoded = "Aliases: `quick`: Quick view (`match up \\| count`)"
 	if !strings.Contains(rendered, encoded) {
 		t.Fatalf("primary Markdown omitted encoded alias metadata %q:\n%s",
 			encoded, rendered)
@@ -443,8 +443,8 @@ func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
 
 	unescaped := strings.Replace(
 		rendered,
-		"quick -> match up \\| count",
-		"quick -> match up | count",
+		"match up \\| count",
+		"match up | count",
 		1,
 	)
 	row, count, malformed = commandSurfaceMarkdownRow(unescaped, command.Path)

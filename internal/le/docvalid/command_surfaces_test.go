@@ -28,7 +28,8 @@ const renderedCommandCatalogFixture = `[{
   ],
   "answer-shape": "tab",
   "address-fields": ["address"],
-  "pipe-aliases": [{"name": "summary", "description": "Show a summary", "expansion": "display address"}]
+  "pipe-aliases": [{"name": "summary", "description": "Show a summary", "expansion": "display address"}],
+  "usage": "show test <family>"
 }]`
 
 func runRenderedCommandDriftFixture(t *testing.T, root, livePath string) (string, error) {
@@ -75,7 +76,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <tr><td><code>log</code></td><td>Streaming</td><td>While streaming</td><td>Append updates</td></tr>
 </tbody></table>
 </section>
-<tr id="cmd-show-test"><td><code>show test</code></td><td>Read-only</td><td>Show test rows</td><td>
+<tr id="cmd-show-test"><td><code>show test</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show test rows<br><code>show test &lt;family&gt;</code><div class="cli-command-facts"><p><span>Arguments</span><code>family</code> enum, required: yes, one of <code>ipv4</code></p></div></td><td>
 <p><span>Answer shape</span><code>tab</code></p>
 <p><span>Address fields</span><code>address</code></p>
 <strong>Command pipes</strong><div class="cli-pipe-chips"><code title="Filter by family">family &lt;value&gt;</code></div>
@@ -99,17 +100,49 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"# CLI Reference",
 			"Always: `catalog-absent`",
 			"",
+			"## Pipe operators (4)",
+			"",
+			"| Operator | Class | Available | Description |",
+			"| --- | --- | --- | --- |",
+			"| `json` | Output and control | Always | JSON output |",
+			"| `save` | Output and control | Always, Local process only | Save output |",
+			"",
+			"## show (1)",
 			"",
 			"| Command | Mode | Description | Pipes |",
 			"| --- | --- | --- | --- |",
-			"| `show test` | Read-only | Show test rows | Answer shape: `tab`<br>Address fields: `address`<br>Command: `family <value>`<br>Aliases: `summary -> display address`<br>Always: `json`, `save`<br>With rows: `match`<br>While streaming: `log`<br>Local process only: `save` |",
+			"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` | Answer shape: `tab`<br>Address fields: `address`<br>Command: `family <value>`: Filter by family<br>Aliases: `summary`: Show a summary (`display address`)<br>Always: `json`, `save`<br>With rows: `match`<br>While streaming: `log`<br>Local process only: `save` |",
 			"",
 		}, "\n"))
+	// The index lists a command with a vendor equivalent twice: once in the
+	// full catalog, anchored, and once in the mapped table, without an
+	// anchor. The full catalog comes first here so a mutation over the first
+	// occurrence lands on the row the gate reads.
 	writeDoc(t, root, "website/reference/command-equivalents/index.html",
-		`<html data-site-postprocessed="true"><body><tr id="cmd-eq-show-test"><td><code>show test</code></td></tr></body></html>
+		`<html data-site-postprocessed="true"><body>
+<table><tbody><tr id="cmd-eq-show-test" class="cmd-eq-has-vendor"><td class="cmd-eq-ze"><a href="show-test/"><code>show test</code></a><span class="cmd-mode">Read-only</span></td><td><a href="show-test/">details</a></td></tr></tbody></table>
+<table><tbody><tr class="cmd-eq-has-vendor"><td class="cmd-eq-ze"><a href="show-test/"><code>show test</code></a><span class="cmd-mode">Read-only</span></td><td><a href="show-test/">details</a></td></tr></tbody></table>
+</body></html>
 `)
 	writeDoc(t, root, "website/reference/command-equivalents/index.md",
-		"# Command Equivalents\n\n| `show test` | Read-only | [details](show-test/) |\n")
+		strings.Join([]string{
+			"# Command Equivalents",
+			"",
+			"## Full live command catalog",
+			"",
+			"### show",
+			"",
+			"| Ze | Mode | Details |",
+			"| --- | --- | --- |",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"",
+			"## Commands with vendor CLI",
+			"",
+			"| Ze | Mode | Details |",
+			"| --- | --- | --- |",
+			"| `show test` | Read-only | [details](show-test/) |",
+			"",
+		}, "\n"))
 	writeDoc(t, root,
 		"website/reference/command-equivalents/show-test/index.html",
 		`<html data-site-postprocessed="true"><body>
@@ -118,6 +151,8 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 <article class="cmd-detail-card cmd-detail-ze">
 <dl>
 <div><dt>Registry path</dt><dd><code>show test</code></dd></div>
+<div><dt>Usage</dt><dd><code>show test &lt;family&gt;</code></dd></div>
+<div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Pipes, always</dt><dd>json, save</dd></div>
 <div><dt>Pipes, on its rows</dt><dd>match</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
@@ -138,10 +173,13 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"## Ze command",
 			"",
 			"- Registry path: `show test`",
+			"- Usage: `show test <family>`",
+			"- Mode: Read-only",
 			"- Answer shape: tab",
 			"- Address fields: address",
+			"- Column order: none",
 			"- Pipes, always: json, save",
-			"- Pipes, on rows: match",
+			"- Pipes, on its rows: match",
 			"- Pipes, while streaming: log",
 			"- Pipes, local process only: save",
 			"- Command pipes: `family <value>`: Filter by family",
@@ -165,7 +203,7 @@ func writePublishedCommandSurfaceFixture(t *testing.T, root string, dropAddress 
 			"Site note: pipes always: catalog-absent",
 			"",
 			"",
-			"- `show test` (read-only; wire ze-show:test; pipes always: json save, with-rows: match, when-streaming: log, local-only: save; shape tab; address-fields address; filters family; aliases summary=display address; args family:enum): Show test rows",
+			"- `show test` (read-only; wire ze-show:test; pipes always: json save, with-rows: match, when-streaming: log, local-only: save; shape tab; address-fields address; filters `family`; aliases `summary`=`display address`; args family:enum; usage `show test <family>`): Show test rows",
 			"",
 		}, "\n"))
 }
@@ -523,12 +561,12 @@ func TestDocDriftRejectsDroppedPrimaryFiltersAndAliases(t *testing.T) {
 		{
 			name: "Markdown filter",
 			path: "reference/cli/index.md",
-			old:  "Command: `family <value>`<br>",
+			old:  "Command: `family <value>`: Filter by family<br>",
 		},
 		{
 			name: "Markdown alias",
 			path: "reference/cli/index.md",
-			old:  "Aliases: `summary -> display address`<br>",
+			old:  "Aliases: `summary`: Show a summary (`display address`)<br>",
 		},
 	}
 	for _, tc := range tests {
@@ -1089,9 +1127,9 @@ func TestDocDriftRejectsDuplicateCommandContainersOnEverySurface(t *testing.T) {
 		{
 			name: "primary Markdown row",
 			path: "reference/cli/index.md",
-			old:  "| `show test` | Read-only | Show test rows |",
+			old:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 			new: "| `show test` | Read-only | Duplicate | Always: `catalog-absent` |\n" +
-				"| `show test` | Read-only | Show test rows |",
+				"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 		},
 		{
 			name: "command-equivalent HTML article",
@@ -1665,7 +1703,9 @@ func TestDocDriftUsesExactCommonMarkCodeSpanIdentity(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			content := "| `show test` | Read-only | Show test rows |\n" +
+			content := "| Command | Mode | Description | Pipes |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |\n" +
 				"| `" + tc.identity + "` | Read-only | Extra command |"
 			identities := primaryMarkdownCommandIdentities(content)
 			if len(identities) != 2 || identities[1] != tc.wantIdentity {
@@ -1689,7 +1729,7 @@ func TestDocDriftUsesExactCommonMarkCodeSpanIdentity(t *testing.T) {
 				t,
 				root,
 				"reference/cli/index.md",
-				"| `show test` | Read-only | Show test rows |",
+				"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 				content,
 			)
 			out, err := runRenderedCommandDriftFixture(t, root, livePath)
@@ -1718,14 +1758,14 @@ func TestDocDriftRejectsMalformedMarkdownCommandOpeners(t *testing.T) {
 		{
 			name: "primary row before canonical",
 			path: "reference/cli/index.md",
-			old:  "| `show test` | Read-only | Show test rows |",
-			new:  "  | `show test` malformed row\n| `show test` | Read-only | Show test rows |",
+			old:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
+			new:  "  | `show test` malformed row\n| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 		},
 		{
 			name: "primary row after canonical",
 			path: "reference/cli/index.md",
-			old:  "| `show test` | Read-only | Show test rows |",
-			new:  "| `show test` | Read-only | Show test rows |\n| `show test | malformed row",
+			old:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
+			new:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |\n| `show test | malformed row",
 		},
 		{
 			name: "Ze heading before canonical",
@@ -1873,8 +1913,8 @@ func TestCommandSurfacesRecognizeMatchingRunMarkdownCodeSpans(t *testing.T) {
 		livePath := writeRenderedCommandCatalogFixture(t, root)
 		writePublishedCommandSurfaceFixture(t, root, false)
 		mutatePublishedCommandSurface(t, root, "reference/cli/index.md",
-			"| `show test` | Read-only | Show test rows |",
-			"| ``show test`` | malformed duplicate |\n| `show test` | Read-only | Show test rows |")
+			"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
+			"| ``show test`` | malformed duplicate |\n| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |")
 		out, err := runRenderedCommandDriftFixture(t, root, livePath)
 		if err == nil || !strings.Contains(out, "primary CLI Markdown command row") {
 			t.Fatalf("two-tick table identity escaped the gate:\n%s", out)
@@ -1985,16 +2025,16 @@ func TestCommandSurfacesRejectExtraAggregateCommands(t *testing.T) {
 		{
 			name: "primary Markdown",
 			path: "reference/cli/index.md",
-			old:  "| `show test` | Read-only | Show test rows |",
+			old:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 			replacement: "| `show removed` | Read-only | Removed command |\n" +
-				"| `show test` | Read-only | Show test rows |",
+				"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 		},
 		{
 			name: "malformed primary Markdown",
 			path: "reference/cli/index.md",
-			old:  "| `show test` | Read-only | Show test rows |",
+			old:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 			replacement: "| ``show removed`` | malformed removed command |\n" +
-				"| `show test` | Read-only | Show test rows |",
+				"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 		},
 		{
 			name: "llms",
@@ -2044,9 +2084,9 @@ func TestCommandSurfacesRejectMultilineCodeSpanIdentities(t *testing.T) {
 		livePath := writeRenderedCommandCatalogFixture(t, root)
 		writePublishedCommandSurfaceFixture(t, root, false)
 		mutatePublishedCommandSurface(t, root, "reference/cli/index.md",
-			"| `show test` | Read-only | Show test rows |",
+			"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
 			"| ``show\n  test`` | malformed duplicate |\n"+
-				"| `show test` | Read-only | Show test rows |")
+				"| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |")
 		out, err := runRenderedCommandDriftFixture(t, root, livePath)
 		if err == nil || !strings.Contains(out, "primary CLI Markdown command row") {
 			t.Fatalf("multiline table identity escaped the gate:\n%s", out)
@@ -2307,8 +2347,8 @@ func TestCommandSurfacesRejectUnclosedRegistryAndValueNodes(t *testing.T) {
 		{
 			name:        "primary description descendant",
 			relative:    "reference/cli/index.html",
-			old:         "<td>Show test rows</td><td>",
-			replacement: "<td><span>Show test rows</td><td>",
+			old:         "<td>Show test rows<br>",
+			replacement: "<td><span>Show test rows<br>",
 		},
 		{
 			name:        "equivalent answer descendant",
@@ -2402,12 +2442,12 @@ func TestCommandSurfacesCompareVisiblePrimaryValues(t *testing.T) {
 	tests := []struct {
 		name, relative, old, replacement string
 	}{
-		{"HTML path", "reference/cli/index.html", "<code>show test</code></td><td>Read-only", "<code>show stale</code></td><td>Read-only"},
-		{"HTML mode", "reference/cli/index.html", "<td>Read-only</td><td>Show test rows", "<td>write-only</td><td>Show test rows"},
-		{"HTML description", "reference/cli/index.html", "<td>Show test rows</td><td>", "<td>Stale description</td><td>"},
+		{"HTML path", "reference/cli/index.html", "<code>show test</code></td><td><span", "<code>show stale</code></td><td><span"},
+		{"HTML mode", "reference/cli/index.html", "Read-only</span></td><td>Show test rows", "write-only</span></td><td>Show test rows"},
+		{"HTML description", "reference/cli/index.html", "<td>Show test rows<br>", "<td>Stale description<br>"},
 		{"Markdown path", "reference/cli/index.md", "| `show test` | Read-only", "| `show stale` | Read-only"},
-		{"Markdown mode", "reference/cli/index.md", "| Read-only | Show test rows |", "| write-only | Show test rows |"},
-		{"Markdown description", "reference/cli/index.md", "| Show test rows | Answer shape:", "| Stale description | Answer shape:"},
+		{"Markdown mode", "reference/cli/index.md", "| Read-only | Show test rows<br>", "| write-only | Show test rows<br>"},
+		{"Markdown description", "reference/cli/index.md", "| Show test rows<br>", "| Stale description<br>"},
 		{"llms path", "llms.txt", "- `show test` (read-only;", "- `show stale` (read-only;"},
 		{"llms mode", "llms.txt", "(read-only; wire", "(write-only; wire"},
 		{"llms description", "llms.txt", "): Show test rows", "): Stale description"},
@@ -2433,12 +2473,12 @@ func TestCommandSurfacesAcceptPostprocessedVisiblePrimaryValues(t *testing.T) {
 	livePath := writeRenderedCommandCatalogFixture(t, root)
 	writePublishedCommandSurfaceFixture(t, root, false)
 	mutatePublishedCommandSurface(t, root, "reference/cli/index.html",
-		"<code>show test</code></td><td>Read-only</td><td>Show test rows</td>",
+		"<code>show test</code></td><td><span class=\"cli-mode cli-mode-read-only\">Read-only</span></td><td>Show test rows<br>",
 		"<code><b>show test</b></code></td><td><em>Read-only</em></td>"+
-			"<td><span>Show test rows</span></td>")
+			"<td><span>Show test rows</span><br>")
 	mutatePublishedCommandSurface(t, root, "reference/cli/index.md",
-		"| Read-only | Show test rows |",
-		"| *Read-only* | [Show test rows](https://example.invalid/) |")
+		"| Read-only | Show test rows<br>",
+		"| *Read-only* | [Show test rows](https://example.invalid/)<br>")
 	mutatePublishedCommandSurface(t, root, "llms.txt",
 		"): Show test rows", "): <strong>Show test rows</strong>")
 	if out, err := runRenderedCommandDriftFixture(t, root, livePath); err != nil {
@@ -2468,7 +2508,7 @@ func TestCommandSurfacesCompareCompleteEquivalentIndexIdentities(t *testing.T) {
 		},
 		{
 			"HTML missing", "reference/command-equivalents/index.html",
-			`<tr id="cmd-eq-show-test"><td><code>show test</code></td></tr>`, "",
+			`<tr id="cmd-eq-show-test" class="cmd-eq-has-vendor"><td class="cmd-eq-ze"><a href="show-test/"><code>show test</code></a><span class="cmd-mode">Read-only</span></td><td><a href="show-test/">details</a></td></tr>`, "",
 		},
 		{
 			"HTML slug mismatch", "reference/command-equivalents/index.html",
@@ -2766,7 +2806,9 @@ func TestCommandSurfacesParseWrappedAggregateIdentities(t *testing.T) {
 		{name: "link", value: "[`show test`](#identity)"},
 	} {
 		t.Run(wrapper.name, func(t *testing.T) {
-			table := "| " + wrapper.value + " | Read-only | Description |"
+			table := "| Command | Mode | Description | Pipes |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| " + wrapper.value + " | Read-only | Description |"
 			if got := primaryMarkdownCommandIdentities(table); len(got) != 1 ||
 				got[0] != "show test" {
 				t.Fatalf("primary wrapped identities = %#v", got)
@@ -2792,8 +2834,8 @@ func TestCommandSurfacesParseWrappedAggregateIdentities(t *testing.T) {
 		{
 			name: "primary Markdown extra",
 			path: "reference/cli/index.md",
-			old:  "| `show test` | Read-only | Show test rows |",
-			replacement: "| `show test` | Read-only | Show test rows |\n" +
+			old:  "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |",
+			replacement: "| `show test` | Read-only | Show test rows<br>`show test <family>`<br>Arguments: `family` enum, required: yes, one of `ipv4` |\n" +
 				"| **`show removed`** | Read-only | Removed |",
 		},
 		{

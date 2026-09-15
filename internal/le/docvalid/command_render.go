@@ -122,12 +122,16 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 		command := &commands[index]
 		fmt.Fprintf(
 			&out,
-			"<tr id=\"cmd-%s\"><td><code>%s</code></td><td>%s</td><td>%s</td><td>",
+			"<tr id=\"cmd-%s\"><td><code>%s</code></td><td>%s</td><td>%s",
 			commandSurfaceSlug(command.Path),
 			html.EscapeString(command.Path),
 			html.EscapeString(command.Mode),
 			html.EscapeString(command.ShortHelp),
 		)
+		if command.Usage != "" {
+			fmt.Fprintf(&out, "<br><code>%s</code>", html.EscapeString(command.Usage))
+		}
+		out.Str("</td><td>")
 		if command.AnswerShape != "" {
 			fmt.Fprintf(&out, "<span>Answer shape</span><code>%s</code>", html.EscapeString(command.AnswerShape))
 		}
@@ -191,18 +195,10 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 			}
 		}
 		if len(command.Pipes) != 0 {
-			names := make([]string, 0, len(command.Pipes))
-			for _, pipe := range command.Pipes {
-				names = append(names, commandPipeDisplayName(pipe))
-			}
-			metadata = append(metadata, "Command: "+markdownTableCodeList(names))
+			metadata = append(metadata, "Command: "+commandMarkdownTableValue(markdownFilterDetailList(command)))
 		}
 		if len(command.Aliases) != 0 {
-			aliases := make([]string, 0, len(command.Aliases))
-			for _, alias := range command.Aliases {
-				aliases = append(aliases, alias.Name+" -> "+alias.Expansion)
-			}
-			metadata = append(metadata, "Aliases: "+markdownTableCodeList(aliases))
+			metadata = append(metadata, "Aliases: "+commandMarkdownTableValue(markdownAliasDetailList(command)))
 		}
 		out.Str("| ")
 		out.Str(markdownTableCodeLiteral(command.Path))
@@ -210,6 +206,9 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 		out.Str(commandMarkdownValue(command.Mode))
 		out.Str(" | ")
 		out.Str(markdownLiteralProse(command.ShortHelp))
+		if command.Usage != "" {
+			out.Str("<br>").Str(markdownTableCodeLiteral(command.Usage))
+		}
 		out.Str(" | ")
 		out.Str(strings.Join(metadata, "<br>"))
 		out.Str(" |\n")
@@ -222,7 +221,8 @@ func renderEquivalentIndexHTML(commands []publishedCommand) []byte {
 	out.Str("<!doctype html><html><body><table><tbody>\n")
 	for index := range commands {
 		command := &commands[index]
-		fmt.Fprintf(&out, "<tr id=\"cmd-eq-%s\"><td><code>%s</code></td></tr>\n", commandSurfaceSlug(command.Path), html.EscapeString(command.Path))
+		slug := commandSurfaceSlug(command.Path)
+		fmt.Fprintf(&out, "<tr id=\"cmd-eq-%s\"><td><a href=\"%s/\"><code>%s</code></a></td></tr>\n", slug, slug, html.EscapeString(command.Path))
 	}
 	out.Str("</tbody></table></body></html>\n")
 	return []byte(out.String())
@@ -230,7 +230,7 @@ func renderEquivalentIndexHTML(commands []publishedCommand) []byte {
 
 func renderEquivalentIndexMarkdown(commands []publishedCommand) []byte {
 	var out textbuf.Buffer
-	out.Str("# Command Equivalents\n\n")
+	out.Str("# Command Equivalents\n\n").Str(fullCatalogHeading).Str("\n\n")
 	for index := range commands {
 		command := &commands[index]
 		fmt.Fprintf(&out, "- [%s](%s/)\n", markdownCodeLiteral(command.Path), commandSurfaceSlug(command.Path))
@@ -351,7 +351,12 @@ func renderEquivalentMarkdown(command *publishedCommand) []byte {
 	if len(command.AddressFields) != 0 {
 		fmt.Fprintf(&out, "- Address fields: %s\n", strings.Join(command.AddressFields, ", "))
 	}
-	for _, group := range []struct{ availability, label string }{{availabilityAlways, pipesAlwaysLabel}, {availabilityWithRows, pipesOnRowsLabel}, {availabilityWhenStreaming, pipesWhileStreamingLabel}, {availabilityLocalOnly, pipesLocalOnlyLabel}} {
+	for _, group := range []struct{ availability, label string }{
+		{availabilityAlways, pipesAlwaysLabel},
+		{availabilityWithRows, equivalentAvailabilityLabel(availabilityWithRows, command.AnswerShape != "")},
+		{availabilityWhenStreaming, pipesWhileStreamingLabel},
+		{availabilityLocalOnly, pipesLocalOnlyLabel},
+	} {
 		if names := commandOperatorNames(command, group.availability); len(names) != 0 {
 			fmt.Fprintf(&out, "- %s: %s\n", group.label, strings.Join(names, ", "))
 		}
@@ -359,34 +364,48 @@ func renderEquivalentMarkdown(command *publishedCommand) []byte {
 	if len(command.Pipes) == 0 {
 		out.Str("- Command pipes: none\n")
 	} else {
-		values := make([]string, 0, len(command.Pipes))
-		for _, pipe := range command.Pipes {
-			value := markdownCodeLiteral(commandPipeDisplayName(pipe))
-			if pipe.Description != "" {
-				value += ": " + markdownLiteralProse(pipe.Description)
-			}
-			values = append(values, value)
-		}
-		fmt.Fprintf(&out, "- Command pipes: %s\n", strings.Join(values, "; "))
+		fmt.Fprintf(&out, "- Command pipes: %s\n", markdownFilterDetailList(command))
 	}
 	if len(command.Aliases) == 0 {
 		out.Str("- Pipe aliases: none\n")
 	} else {
-		values := make([]string, 0, len(command.Aliases))
-		for _, alias := range command.Aliases {
-			value := markdownCodeLiteral(alias.Name)
-			if alias.Description != "" {
-				value += ": " + markdownLiteralProse(alias.Description)
-			}
-			if alias.Expansion != "" {
-				value += " (" + markdownCodeLiteral(alias.Expansion) + ")"
-			}
-			values = append(values, value)
-		}
-		fmt.Fprintf(&out, "- Pipe aliases: %s\n", strings.Join(values, "; "))
+		fmt.Fprintf(&out, "- Pipe aliases: %s\n", markdownAliasDetailList(command))
 	}
 	out.Str("\n## Mapping intents\n")
 	return []byte(out.String())
+}
+
+// markdownFilterDetailList writes a command's own pipes as the detail mirror
+// and the primary mirror both list them: the name as a code span, its
+// description after a colon, one semicolon between entries.
+func markdownFilterDetailList(command *publishedCommand) string {
+	values := make([]string, 0, len(command.Pipes))
+	for _, pipe := range command.Pipes {
+		value := markdownCodeLiteral(commandPipeDisplayName(pipe))
+		if pipe.Description != "" {
+			value += ": " + markdownLiteralProse(pipe.Description)
+		}
+		values = append(values, value)
+	}
+	return strings.Join(values, "; ")
+}
+
+// markdownAliasDetailList writes a command's pipe aliases the way both
+// mirrors list them: the name, its description, and the expansion in
+// parentheses, one semicolon between entries.
+func markdownAliasDetailList(command *publishedCommand) string {
+	values := make([]string, 0, len(command.Aliases))
+	for _, alias := range command.Aliases {
+		value := markdownCodeLiteral(alias.Name)
+		if alias.Description != "" {
+			value += ": " + markdownLiteralProse(alias.Description)
+		}
+		if alias.Expansion != "" {
+			value += " (" + markdownCodeLiteral(alias.Expansion) + ")"
+		}
+		values = append(values, value)
+	}
+	return strings.Join(values, "; ")
 }
 
 func renderCommandLLMS(commands []publishedCommand) []byte {
@@ -434,6 +453,9 @@ func renderCommandLLMS(commands []publishedCommand) []byte {
 				values = append(values, arg.Name+":"+arg.Type)
 			}
 			meta = append(meta, "args "+strings.Join(values, ", "))
+		}
+		if command.Usage != "" {
+			meta = append(meta, "usage "+markdownCodeLiteral(command.Usage))
 		}
 		fmt.Fprintf(&out, "- %s (%s): %s\n", markdownCodeLiteral(command.Path), strings.Join(meta, "; "), markdownLiteralProse(command.ShortHelp))
 	}

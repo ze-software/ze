@@ -86,7 +86,7 @@ producers below read that file and nothing else.
 | `llms.txt` | `internal/le/site/derived.go` -- `renderLLMS` | One line per command, for a machine reader |
 
 A command carries two help texts, and each surface reads the one it has room
-for. `description` is the one-line summary, and all four producers print it
+for. `short-help` is the one-line summary, and all four producers print it
 whole. `description` is the explanation, and only `renderEquivalentDetail` prints
 it, as the detail page body. No producer derives one text from the other, and
 none cuts either one. `docs/architecture/api/commands.md` holds the same table
@@ -94,10 +94,19 @@ for every other surface.
 
 `internal/le/docvalid` publishes no page. Its unexported `renderCommandSurfaces`
 writes a contract fixture into a temporary tree, and the documentation drift
-gate compares each published page against that fixture. The symbol was exported
-until 2026-08-29, and a build that called it overwrote 396 pages with the
-fixture.
+gate reads that fixture and each published page with one reader, so a fixture
+the reader rejects is a reader defect and a page it rejects is a page defect.
+The fixture therefore carries the shape the site writes: the usage line after
+the summary, the command facts after the usage line, the detail page's pipe
+labels on both detail surfaces, the command's own pipes and aliases as the
+detail mirror lists them, and the `usage` segment on the `llms.txt` line. The
+reader reads the mirrors' stated absences (`not declared`, `none`, the bare
+`Pipes` term) as absences, and counts a command's index row once, under the
+full catalog heading, though the index lists a mapped command twice. The symbol
+was exported until 2026-08-29, and a build that called it overwrote 396 pages
+with the fixture.
 <!-- source: internal/le/docvalid/command_render.go -- renderCommandSurfaces -->
+<!-- source: internal/le/docvalid/command_surfaces.go -- validateGeneratedCommandSurfaces, htmlDescriptionAndUsage, equivalentMarkdownCommandIdentities -->
 
 ## Quality pages
 
