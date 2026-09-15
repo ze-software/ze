@@ -1,0 +1,93 @@
+# Test: show ping with do-not-fragment reports the MTU from a daemon without CAP_NET_RAW
+# Spec: spec-probe-do-not-fragment -- user story 2, AC-7 (closed 2026-09-15)
+# VALIDATES: the same operator command as ping-do-not-fragment-reports-mtu.ci,
+#            answered by a daemon whose bounding set holds no CAP_NET_RAW, inside
+#            a namespace whose net.ipv4.ping_group_range admits the daemon's
+#            group. OpenICMP is refused the raw socket, opens the unprivileged
+#            datagram socket instead, installs the DF mode on it and reads the
+#            error queue off it: reply status `too-big`, `next-hop-mtu-reported`
+#            true and `next-hop-mtu` 1400, the same payload the raw socket gives.
+# PREVENTS: a fallback that opens but cannot set IP_MTU_DISCOVER or IP_RECVERR,
+#           and a daemon that answers "requires CAP_NET_RAW" on a host whose
+#           kernel offers the datagram socket.
+#
+# The capability is dropped from the bounding set by capsh (libcap) before the
+# daemon starts, and the script refuses to start the daemon while CapEff still
+# holds cap_net_raw, so a green run cannot come from a daemon that kept the
+# privilege. Same topology and same reasons for the markers as the privileged
+# test: QEMU guest as root, `packages "iproute2 libcap"`.
+
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.storage.blob:value=false
+
+tmpfs=probe.conf:terminator=EOF_CONF
+plugin {
+	external ping-df-test {
+		run "ze-test fixture plugin/ping-do-not-fragment"
+		encoder json
+	}
+}
+EOF_CONF
+
+tmpfs=without-net-raw.sh:mode=755:terminator=EOF_DROP
+#!/bin/sh
+# Runs under capsh with cap_net_raw out of the bounding set: root re-derives
+# its capabilities from that set at exec, so this shell and the daemon hold
+# none. The guard makes the drop a fact the test read, not one it assumed.
+held=$(sed -n 's/^CapEff:[[:space:]]*//p' /proc/self/status)
+if capsh --decode="0x$held" | grep -q cap_net_raw; then
+	echo "GUARD: cap_net_raw is still in CapEff 0x$held, the daemon would open a raw socket" >&2
+	exit 97
+fi
+echo "DROPPED: cap_net_raw absent from CapEff 0x$held" >&2
+exec ze start probe.conf
+EOF_DROP
+
+tmpfs=clamped-path.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+# sender (10.99.1.1) -- 1600 -- router -- 1400 -- far (10.99.2.1). The near link
+# carries the 1528-octet probe, so the router and not the sender refuses it.
+S=zedfu$PORT
+R=zedfv$PORT
+F=zedfw$PORT
+cleanup() {
+	ip netns del "$S" 2>/dev/null
+	ip netns del "$R" 2>/dev/null
+	ip netns del "$F" 2>/dev/null
+}
+trap cleanup EXIT
+set -e
+ip netns add "$S"
+ip netns add "$R"
+ip netns add "$F"
+ip -n "$S" link add sr0 type veth peer name rs0 netns "$R"
+ip -n "$R" link add rf0 type veth peer name fr0 netns "$F"
+ip -n "$S" link set lo up
+ip -n "$R" link set lo up
+ip -n "$F" link set lo up
+ip -n "$S" link set sr0 up mtu 1600
+ip -n "$R" link set rs0 up mtu 1600
+ip -n "$R" link set rf0 up mtu 1400
+ip -n "$F" link set fr0 up mtu 1400
+ip -n "$S" addr add 10.99.1.1/24 dev sr0
+ip -n "$R" addr add 10.99.1.2/24 dev rs0
+ip -n "$R" addr add 10.99.2.2/24 dev rf0
+ip -n "$F" addr add 10.99.2.1/24 dev fr0
+ip -n "$S" route add 10.99.2.0/24 via 10.99.1.2 dev sr0
+ip -n "$F" route add 10.99.1.0/24 via 10.99.2.2 dev fr0
+ip netns exec "$R" sh -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'
+# The datagram ICMP socket is permitted by group, and the range is per
+# namespace, so the sender namespace admits every group.
+ip netns exec "$S" sh -c 'echo "0 65535" > /proc/sys/net/ipv4/ping_group_range'
+set +e
+ip netns exec "$S" capsh --drop=cap_net_raw --shell=/bin/sh -- without-net-raw.sh
+exit $?
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh clamped-path.sh:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=DROPPED: cap_net_raw absent from CapEff
+expect=stderr:contains=OK: a DF probe over the clamp reported next-hop-mtu 1400 in both modes, and one under it was answered
+reject=stderr:contains=GUARD: cap_net_raw is still in CapEff
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

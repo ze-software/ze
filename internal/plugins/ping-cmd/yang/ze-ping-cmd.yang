@@ -8,6 +8,9 @@ module ze-ping-cmd {
     description "The ping command tree: show ping, monitor ping, and resolve ping.";
     // The handler already reads them as keyword pairs. The description spelled
     // them in prose and the model stated nothing.
+    // The probe layer gained a Don't Fragment mode; the keyword is the same
+    // word on ping and on traceroute, and the same word on show and resolve.
+    revision 2026-09-15 { description "Add the do-not-fragment keyword to show ping and resolve ping."; }
     revision 2026-08-29 { description "Declare the target and the three optional values of resolve ping."; }
     // The ICMP engine and resolve ping already supported a payload size, and the
     // web Ping tool offered the field, but show ping had no argument to carry it.
@@ -54,6 +57,19 @@ into the front so a capture still identifies the sender.";
 to 30s. Absent, the value is 5s.";
                 ze:help "Timeout duration.";
             }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Set the DF bit and refuse a probe larger than the kernel's cached path MTU."; }
+                    enum bypass-cache { ze:help "Set the DF bit and ignore the cached path MTU, so the wire answers for itself."; }
+                }
+                description "The keyword takes one of two values. honor-cache sets the Don't Fragment bit
+and honors the kernel's cached path MTU: a probe larger than the cached value is refused at
+send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.";
+                ze:help "Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.";
+            }
         }
     }
 
@@ -81,7 +97,8 @@ running min/avg/max RTT and packet loss.";
             description "The target takes a hostname or an address, and it accepts a zone suffix such as
 fe80::1%eth0. The source binds a local address and takes the same zone suffix.
 The count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show
-ping' declares no source leaf and puts no upper bound on its count.";
+ping' declares no source leaf and puts no upper bound on its count. The
+do-not-fragment keyword is the same word, with the same two values, on both.";
             ze:help "Ping from the router with optional source binding.";
             leaf target {
                 type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; }
@@ -107,6 +124,19 @@ Absent, the value is 4.";
                 description "Ze fills the payload to exactly this many bytes, with its marker copied
 into the front. Absent, Ze sends the small default payload.";
                 ze:help "ICMP echo payload size in bytes.";
+            }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Set the DF bit and refuse a probe larger than the kernel's cached path MTU."; }
+                    enum bypass-cache { ze:help "Set the DF bit and ignore the cached path MTU, so the wire answers for itself."; }
+                }
+                description "The keyword takes one of two values. honor-cache sets the Don't Fragment bit
+and honors the kernel's cached path MTU: a probe larger than the cached value is refused at
+send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.";
+                ze:help "Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.";
             }
         }
     }

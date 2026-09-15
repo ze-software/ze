@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 6/6 |
 | Handoff | - |
-| Updated | 2026-09-11 |
+| Updated | 2026-09-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -110,9 +110,9 @@ landing them separately means writing that construction twice.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Ze ↔ kernel | `setsockopt` on the probe socket, `recvmsg` with `MSG_ERRQUEUE` | No |
-| Component ↔ CLI | the DF keyword on the existing ping and traceroute grammar | No |
-| Component ↔ doctor | a registered check for the ICMP probe dependency | No |
+| Ze ↔ kernel | `setsockopt` on the probe socket, `recvmsg` with `MSG_ERRQUEUE` | Yes: `TestOpenICMPInstallsDFMode` reads the option back with `getsockopt`; `TestProbeErrorQueueReportsNextHopMTU` reads 1400 off the queue (root, native netns) |
+| Component ↔ CLI | the DF keyword on the existing ping and traceroute grammar | Yes: `TestPingDoNotFragmentReachesTheSocketOption`, `TestTracerouteDoNotFragmentReachesTheSocketOption`; `test/plugin/ping-do-not-fragment-reports-mtu.ci` through the daemon |
+| Component ↔ doctor | a registered check for the ICMP probe dependency | Yes: `TestDoctorICMPProbeCheckReportsMissingCapability` finds the check through `diagnostic.DoctorChecksForPhase`; `test/plugin/doctor-icmp-probe-missing.ci` reads the code from `ze doctor` |
 
 ### Integration Points
 - `internal/core/probe` gains the socket construction; ping and traceroute call it instead of opening their own.
@@ -121,22 +121,22 @@ landing them separately means writing that construction twice.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | CLI keyword → `parsePingArgs` / `parseTracerouteArgs` → `probe.DFModeOfValue` → `probe.OpenICMP` (the one socket construction) → `setDFOptions` → kernel → `DrainErrorQueue` → the payload keys. `grep -rn ListenPacket internal/component/ping internal/component/traceroute` returns nothing: every prober opens through `openProbeConn`, which wraps `probe.OpenICMP` (`ping.go`, `traceroute.go`) |
+| No unintended coupling (components stay isolated) | Yes | `internal/core/probe` imports `internal/core/diagnostic` for the doctor check (`./le tier check` OK, precedent `core/dnsserver`); ping and traceroute import `probe` only; neither imports the other. The payload crossing the plugin boundary is `map[string]any` of scalars (`tooBigResult`, `writeRefusedHop`), no pointer fields |
+| No duplicated functionality (extends existing, does not recreate) | Yes | the socket construction existed twice (`doPingCtx`, `doTracerouteCtx`) and now exists once (`probe.OpenICMP`); the PMTU state machine is the kernel's, Ze parses no ICMP error (`errqueue_linux.go` reads `SockExtendedErr`); `dfControl` copies `bfd/transport/udp_linux.go` rather than a new sockopt helper |
+| Zero-copy preserved where applicable (refs, not copies) | Yes | `DrainErrorQueue` reads into a caller-owned `[ErrQueueDrainMax]` bounded drain, `parseExtendedErr` slices the control buffer; `drainRefusals` collects into a stack array of `ErrQueueDrainMax` entries; `BuildICMPEcho` and the receive buffers are unchanged. No `fmt.Sprintf` on a per-packet path (every `fmt.Errorf` in the three packages is on an open or parse failure) |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | no new command: the keyword is a leaf on four existing YANG commands (`ze-ping-cmd.yang`, `ze-traceroute-cmd.yang`), read by the handlers that already own them. The doctor check registers itself from `internal/core/probe/register.go` `init()` through `diagnostic.RegisterDoctorCheck` and is found by `DoctorChecksForPhase`; the two codes are entries in the `codes.go` registry that `ze explain` and `doctor` already read. The `.ci` fixture registers from `internal/test/fixture/register_ping_df.go` `init()` through `fixture.Register` |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | searched `internal/`, `cmd/`, `pkg/` (`.go`, `.yang`, `.json`, `.txt`, tests excluded) for `do-not-fragment`, `doctor-icmp-probe`, `doctor-icmp-probe-unprivileged`, `next-hop-mtu`, `next-hop-mtu-reported`, `too-big`. `do-not-fragment`: the two YANG files (the grammar, from which completion, validation and the wiki catalog derive), `probe/df.go` (`DFKeyword`, the one spelling the handlers switch on), `codes.go` (the prose of the unprivileged code), the fixture pair. `doctor-icmp-probe*`: `probe/doctor.go` and `codes.go` only, the code registry itself. `next-hop-mtu*`: `probe/errqueue.go` (`FieldNextHopMTU`, `FieldNextHopMTUReported`), consumed as constants by `ping/cmd/stream.go` and `traceroute/cmd/traceroute.go`, and the fixture. `too-big`: `ping/cmd/stream.go` (`statusTooBig`), the fixture, and two unrelated firewall hits (`ze-firewall-conf.yang` ICMP type name). No validator, seed map, runner, help string or completion table names any of them: the CLI reads the enumeration from YANG (`./le doc check verify` shows `do-not-fragment` with both values in the live catalog for all four commands) |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Linux delivers the reported next-hop MTU as `ee_info` on the socket error queue when a probe exceeds the path and DF is set | the documented `IP_RECVERR` interface; every constant is present in the vendored `x/sys/unix` | the whole design collapses and Ze must parse ICMP errors itself, restoring the work this spec deleted | a QEMU test that clamps a link, sends an oversized DF probe, and asserts the MTU read back equals the clamp | unvalidated |
-| A-2 | `IP_PMTUDISC_PROBE` bypasses the kernel's cached PMTU, so a forced run measures the wire | the option is what `tracepath` uses for the same purpose | the `force` mode silently returns cached values and reports them as measured, which is the failure the mode exists to prevent | a QEMU test that poisons the cache with a wrong value, then asserts a forced probe disagrees with it | unvalidated |
-| A-3 | The kernel has already matched the queued error to the socket that sent the probe, satisfying the RFC 8899 Section 4.6.1 validation MUST | the error queue is per-socket and the kernel demultiplexes on the quoted packet | Ze must validate the quoted packet itself, and an off-path forged PTB could steer a measurement | read the producing kernel path and assert in QEMU that an error for a different flow never appears on this socket | unvalidated |
-| A-4 | An unprivileged `SOCK_DGRAM` ICMP socket accepts `IP_MTU_DISCOVER` and `IP_RECVERR` | the options are IP-level, not raw-socket-level | the unprivileged fallback cannot measure and the feature needs `CAP_NET_RAW` after all | a QEMU test running as a non-root user inside `ping_group_range` | unvalidated |
+| A-1 | Linux delivers the reported next-hop MTU as `ee_info` on the socket error queue when a probe exceeds the path and DF is set | the documented `IP_RECVERR` interface; every constant is present in the vendored `x/sys/unix` | the whole design collapses and Ze must parse ICMP errors itself, restoring the work this spec deleted | a QEMU test that clamps a link, sends an oversized DF probe, and asserts the MTU read back equals the clamp | confirmed (2026-09-15, native netns run as root: `TestProbeErrorQueueReportsNextHopMTU` and `...IPv6` read one entry with `ee_info` 1400 from the router, quoting the probe; the ordinary read returned `EMSGSIZE` first) |
+| A-2 | `IP_PMTUDISC_PROBE` bypasses the kernel's cached PMTU, so a forced run measures the wire | the option is what `tracepath` uses for the same purpose | the `force` mode silently returns cached values and reports them as measured, which is the failure the mode exists to prevent | a QEMU test that poisons the cache with a wrong value, then asserts a forced probe disagrees with it | confirmed (2026-09-15, `TestProbeBypassCacheDisagreesWithPoisonedCache`: cache poisoned to 1400, clamp lifted to 1500, `IP_MTU` read 1400, honor-cache send of 1478 octets refused with a local entry of 1400, bypass-cache send of 1478 answered) |
+| A-3 | The kernel has already matched the queued error to the socket that sent the probe, satisfying the RFC 8899 Section 4.6.1 validation MUST | the error queue is per-socket and the kernel demultiplexes on the quoted packet | Ze must validate the quoted packet itself, and an off-path forged PTB could steer a measurement | read the producing kernel path and assert in QEMU that an error for a different flow never appears on this socket | broken (2026-09-15, `TestProbeErrorQueueAndAnotherFlow`: the first socket held 1 entry about the other socket's flow. `raw_icmp_error` in `net/ipv4/raw.c` matches a raw socket by protocol, bound address and connected address only, and a probe socket is unconnected because traceroute needs answers from every router. The "if wrong" column is what shipped: every entry carries the quoted echo header, and both receive loops match identifier and sequence before believing the value) |
+| A-4 | An unprivileged `SOCK_DGRAM` ICMP socket accepts `IP_MTU_DISCOVER` and `IP_RECVERR` | the options are IP-level, not raw-socket-level | the unprivileged fallback cannot measure and the feature needs `CAP_NET_RAW` after all | a QEMU test running as a non-root user inside `ping_group_range` | confirmed (2026-09-15, native netns run as root, `TestProbeUnprivilegedSocketReportsNextHopMTU`: with `CAP_NET_RAW` dropped from the thread and `ping_group_range` set to admit the process group, `OpenICMP` answered the datagram kind for both DF modes, the 1500-octet probe was refused at the 1400 clamp, the ordinary read woke with `EMSGSIZE`, and the queue held one entry reporting 1400 from the router, quoting the kernel-assigned identifier `Socket.Identifier` where Ze had written 0x1111. `TestProbeUnprivilegedSocketNeedsThePingGroupRange`: with the range at the disabled default both kinds are refused and the error carries EPERM and EACCES. `TestProbeUnprivilegedSocketIgnoresAnotherFlow`: the datagram kind's queue held 0 entries about another socket's flow, so the kernel matches per identifier there where A-3 found it does not on the raw kind) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -158,10 +158,11 @@ landing them separately means writing that construction twice.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ping <address> do-not-fragment` from the CLI | → | the probe socket sets `IP_MTU_DISCOVER` | `TestPingDoNotFragmentReachesTheSocketOption` |
-| An oversized DF probe on a clamped link | → | the error-queue reader returns the reported MTU | `TestProbeErrorQueueReportsNextHopMTU` |
-| Daemon start with no `CAP_NET_RAW` | → | the registered doctor check | `TestDoctorICMPProbeCheckReportsMissingCapability` |
-| `traceroute <address> do-not-fragment` | → | the same probe socket construction | `TestTracerouteDoNotFragmentReachesTheSocketOption` |
+| `show ping <address> do-not-fragment honor-cache` from the CLI | → | the probe socket sets `IP_MTU_DISCOVER` | `TestPingDoNotFragmentReachesTheSocketOption` (`internal/component/ping/cmd/df_test.go`), with `TestPingDoNotFragmentBypassCacheReachesTheSocketOption` for the second value and `TestPingDoNotFragmentWithoutValueIsRefused` for the bare form |
+| The same command, once its probes have run | → | `readPathMTU` (`probe.KernelPathMTU`) fills the summary's `path-mtu` (AC-6, wired at closure: the function had no non-test caller before) | `TestPingDoNotFragmentSummaryCarriesTheKernelEstimate` (`df_test.go`, through `handleShowPing`); through the daemon, `test/plugin/ping-do-not-fragment-reports-mtu.ci` asserts 1600 before the router answers and 1400 after |
+| An oversized DF probe on a clamped link | → | the error-queue reader returns the reported MTU | `TestProbeErrorQueueReportsNextHopMTU` (`internal/core/probe/errqueue_integration_linux_test.go`, `integration && linux`) |
+| Daemon start with no `CAP_NET_RAW` | → | the registered doctor check | `TestDoctorICMPProbeCheckReportsMissingCapability` (`internal/core/probe/doctor_test.go`) |
+| `show traceroute <address> do-not-fragment honor-cache` | → | the same probe socket construction | `TestTracerouteDoNotFragmentReachesTheSocketOption` (`internal/component/traceroute/cmd/df_test.go`), with `TestTracerouteDoNotFragmentBypassCacheReachesTheSocketOption` and `TestTracerouteDoNotFragmentWithoutValueIsRefused` |
 
 ## Acceptance Criteria
 
@@ -182,20 +183,31 @@ landing them separately means writing that construction twice.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | runs `ping <address> size 1500 do-not-fragment` on a path clamped to 1400 | CLI → probe socket with `IP_MTU_DISCOVER` → error queue → payload naming the reported MTU | `test-ping-do-not-fragment-reports-mtu` |
-| 2 | runs the same on a box with no `CAP_NET_RAW` | CLI → unprivileged `SOCK_DGRAM` socket → same answer | `test-ping-do-not-fragment-unprivileged` |
-| 3 | runs `doctor` on a box that can open no ICMP socket at all | doctor registry → probe dependency check → named diagnostic code | `test-doctor-icmp-probe-missing` |
+| 1 | runs `show ping <address> size 1500 do-not-fragment honor-cache` on a path clamped to 1400 | CLI → probe socket with `IP_MTU_DISCOVER` → error queue → payload naming the reported MTU | `test/plugin/ping-do-not-fragment-reports-mtu.ci` (fixture `plugin/ping-do-not-fragment`, both values) |
+| 2 | runs the same on a box with no `CAP_NET_RAW` | CLI → unprivileged `SOCK_DGRAM` socket → same answer | `test/plugin/ping-do-not-fragment-unprivileged.ci` (same fixture, `capsh --drop=cap_net_raw`) |
+| 3 | runs `doctor` on a box that can open no ICMP socket at all | doctor registry → probe dependency check → named diagnostic code | `test/plugin/doctor-icmp-probe-missing.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestDFModeZeroIsUnspecified` | `internal/core/probe/df_test.go` | the typed mode's zero value is not a valid DF setting | |
-| `TestReportedMTUZeroIsNotAValue` | `internal/core/probe/errqueue_test.go` | a zero next-hop MTU is returned as "no value reported", never as an MTU | |
-| `TestReportedMTUBelowIPv6MinimumIsDiscarded` | `internal/core/probe/errqueue_test.go` | RFC 8201 Section 4: a value below 1280 on an IPv6 path is discarded | |
-| `TestReportedMTUBelowSixtyEightIsNotDiscardedOnIPv4` | `internal/core/probe/errqueue_test.go` | RFC 1191 Section 3 clamps the estimate and does not discard the message | |
-| `TestProbeCapabilityAbsentOffLinux` | `internal/core/probe/probe_other_test.go` | the non-Linux stub reports absence rather than a zero | |
+| `TestDFModeZeroIsUnspecified`, `TestDFModeOfValue` | `internal/core/probe/df_test.go` | the typed mode's zero value is not a valid DF setting; each value word maps to its mode and any other word, the empty one included, is refused with `ErrDFValueUnknown` | green (2026-09-15) |
+| `TestReportedMTUZeroIsNotAValue` | `internal/core/probe/errqueue_linux_test.go` | a zero next-hop MTU is returned as "no value reported", never as an MTU | red under a `// MUTATION-APPLIED` cut of `classifyReportedMTU`, green restored (2026-09-15) |
+| `TestReportedMTUBelowIPv6MinimumIsDiscarded` | `internal/core/probe/errqueue_linux_test.go` | RFC 8201 Section 4: a value below 1280 on an IPv6 path is discarded | red under the same cut, green restored (2026-09-15) |
+| `TestReportedMTUBelowSixtyEightIsNotDiscardedOnIPv4` | `internal/core/probe/errqueue_linux_test.go` | RFC 1191 Section 3 clamps the estimate and does not discard the message | red under the same cut, green restored (2026-09-15) |
+| `TestProbeCapabilityAbsentOffLinux`, `TestErrorQueueAbsentOffLinux`, `TestKernelPathMTUAbsentOffLinux` | `internal/core/probe/probe_other_test.go` | the non-Linux stub reports absence rather than a zero | compiles under `GOOS=darwin go vet`; a darwin host run is owed |
+| `TestPingDoNotFragmentReachesTheSocketOption`, `...BypassCache...`, `TestPingWithoutDoNotFragmentOpensWithDFOff`, `TestPingDoNotFragmentWithoutValueIsRefused` | `internal/component/ping/cmd/df_test.go` | wiring row 1, AC-1 at the constructor, and the bare keyword or an unknown value refused before any socket opens | red before the keyword parse (`socket constructor received DF mode off, want honor-cache`), green after (2026-09-15) |
+| `TestTracerouteDoNotFragmentReachesTheSocketOption`, `...BypassCache...`, `TestTracerouteWithoutDoNotFragmentOpensWithDFOff`, `TestTracerouteDoNotFragmentWithoutValueIsRefused` | `internal/component/traceroute/cmd/df_test.go` | wiring row 4 and the same refusals on the traceroute grammar | same red and green (2026-09-15) |
+| `TestPingRefusedByPathReportsNextHopMTU`, `...WithZeroNextHopMTUReportsNoValue`, `...RefusalQuotingAnotherProbeIsIgnored`, `...RefusedAtSendReportsCachedEstimate`, `TestPingSummaryCountsAndReportsRefusals` | `internal/component/ping/cmd/errqueue_test.go` | AC-3, AC-4, the A-3 defense and the `too-big-cached` row through the session loop with a fake queue | green (2026-09-15); written after the loop code, no separate red |
+| `TestTracerouteRefusedByPathRecordsNextHopMTU`, `...RefusedWithoutValueRecordsNoMTU`, `...RefusalQuotingAnotherProbeIsIgnored`, `...RefusedAtSendRecordsCachedEstimate` | `internal/component/traceroute/cmd/errqueue_test.go` | the same four outcomes on a traceroute hop | green (2026-09-15); written after the loop code, no separate red |
+| `TestOpenICMPInstallsDFMode` | `internal/core/probe/socket_linux_test.go` | `getsockopt` reads back `IP_PMTUDISC_DONT`, `DO` and `PROBE` for the three modes | green as root (2026-09-15); skips without `CAP_NET_RAW` |
+| `TestProbeErrorQueueReportsNextHopMTU`, `...IPv6`, `TestProbeBypassCacheDisagreesWithPoisonedCache`, `TestProbeErrorQueueAndAnotherFlow`, `TestProbeDFBitOnTheWire` | `internal/core/probe/errqueue_integration_linux_test.go` (`integration && linux`) | wiring row 2, A-1, A-2, A-3, AC-5, AC-6, and the DF bit read off an `AF_PACKET` capture | green natively as root (2026-09-15); the QEMU run is owed |
+| `TestOpenICMPFallsBackOnlyOnPrivilegeRefusal` | `internal/core/probe/socket_test.go` | the Security Review guard: a raw refusal that is not EPERM or EACCES reaches no fallback | green (2026-09-15) |
+| `TestOpenICMPFallsBackOnPrivilegeRefusal`, `TestOpenICMPNamesBothRefusals`, `TestSocketTranslatesTheDatagramAddress` | `internal/core/probe/socket_test.go` | the fallback opens on EPERM and EACCES with the opener's identifier; both refusals are wrapped and both fixes named; the datagram kind takes `*net.IPAddr` only | green (2026-09-15) |
+| `TestDoctorICMPProbeCheckReportsMissingCapability` (wiring row 3), `...ReportsTheFallback`, `...SilentWithRawSocket`, `...ReportsANonPrivilegeRefusal` | `internal/core/probe/doctor_test.go` | the check is found through `diagnostic.DoctorChecksForPhase` and answers each outcome by code; the codes resolve through `diagnostic.Lookup` | red before `doctor.go` existed (build failed on the undefined check), green after (2026-09-15) |
+| `TestTracerouteRefusesTheDatagramSocket` | `internal/component/traceroute/cmd/df_test.go` | `show traceroute` and `show probe-round` refuse the datagram kind by name and close it | green (2026-09-15) |
+| `TestProbeUnprivilegedSocketReportsNextHopMTU`, `...NeedsThePingGroupRange`, `...FallbackIsNotTriedForOtherRefusals`, `...IgnoresAnotherFlow` | `internal/core/probe/privilege_integration_linux_test.go` (`integration && linux`) | A-4, AC-7, the guard against the live datagram opener, and per-identifier matching on the datagram kind, each against the kernel | green natively as root (2026-09-15); the QEMU run is owed |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -204,31 +216,33 @@ landing them separately means writing that construction twice.
 | reported next-hop MTU, IPv4 | 68-65535 | 68 | 67 | N/A |
 | reported next-hop MTU, IPv6 | 1280-65535 | 1280 | 1279 | N/A |
 
+Confirmed 2026-09-15: the payload size bound is the existing `maxPingSize` check in `parsePingArgs` (unchanged); 68 and 67 are `TestReportedMTUBelowSixtyEightIsNotDiscardedOnIPv4` (67 raised to 68, 68 kept, 1279 reported on IPv4); 1280 and 1279 are `TestReportedMTUBelowIPv6MinimumIsDiscarded`; a zero is `TestReportedMTUZeroIsNotAValue`.
+
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-ping-do-not-fragment-reports-mtu` | `test/plugin/*.ci` | an operator pings with DF set over a clamped link and is told the reported MTU | |
-| `test-ping-do-not-fragment-unprivileged` | `test/plugin/*.ci` | the same, with no `CAP_NET_RAW` | |
-| `test-doctor-icmp-probe-missing` | `test/plugin/*.ci` | doctor names the missing probe dependency by its diagnostic code | |
+| `ping-do-not-fragment-reports-mtu` | `test/plugin/ping-do-not-fragment-reports-mtu.ci` | an operator pings with DF set over a clamped link and is told the reported MTU | PASS natively as root (2026-09-15, `option=needs-linux:caps=net-admin,net-raw`); red under a cut of `pmtuDiscValue` (`reply status ok, want too-big`); the QEMU run is owed |
+| `ping-do-not-fragment-unprivileged` | `test/plugin/ping-do-not-fragment-unprivileged.ci` | the same, with no `CAP_NET_RAW` | PASS natively as root (2026-09-15); red under a cut of `listenDatagramICMP`; the QEMU run is owed |
+| `doctor-icmp-probe-missing` | `test/plugin/doctor-icmp-probe-missing.ci` | doctor names the missing probe dependency by its diagnostic code | PASS natively as root (2026-09-15, `caps=net-admin`); red under a cut of `checkICMPProbeSocket`; the QEMU run is owed |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `probe-df-clamped-path` | `test/interop/scenarios/` | a Linux router with a deliberately clamped link MTU | a DF probe larger than the clamp is refused and the reported MTU equals the clamp, observed on the wire rather than from Ze's own report | |
+| `probe-df-clamped-path` | `internal/core/probe/errqueue_integration_linux_test.go` (`integration && linux`, run by `./le qemu all-tests`), not `test/interop/scenarios/` | a Linux router with a deliberately clamped link MTU, in the middle of three network namespaces | a DF probe larger than the clamp is refused and the reported MTU equals the clamp, observed on the wire rather than from Ze's own report | green natively as root on 2026-09-15; the QEMU run under the runtime kernel is owed |
 
 ## Files to Modify
 - `internal/component/ping/cmd/ping.go` - the socket construction moves to the probe layer and takes a DF mode
 - `internal/component/ping/cmd/stream.go` - the receive loop gains the error-queue drain beside the echo-reply match
 - `internal/component/traceroute/cmd/traceroute.go` - the same socket construction, and the DF keyword
 - `internal/core/probe/icmp.go` - the probe layer gains the socket construction it does not own today
-- `internal/core/privilege/check_linux.go` - the `CAP_NET_RAW` result gates the socket choice instead of only printing
+- `internal/core/privilege/check_linux.go` - left untouched (phase 5 decision): the socket choice reads the kernel's refusal at open, not a cached `CheckPrivileges` result, see Design Insights
 - `internal/core/diagnostic/codes.go` - the probe dependency's diagnostic code
 - `internal/plugins/ping-cmd/yang/ze-ping-cmd.yang` - the DF keyword on the ping grammar
 - `internal/plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang` - the DF keyword on the traceroute grammar
 - `docs/architecture/diagnostics/active-probes.md` - DF, path MTU and the error queue, and the repair of the false Time Exceeded sentence. Declared by the `// Design:` header of `internal/component/ping/cmd/ping.go` and `internal/component/traceroute/cmd/traceroute.go`
 - `docs/architecture/api/commands.md` - declared by the `// Design:` header of `internal/component/ping/cmd/stream.go` and `internal/core/probe/icmp.go`. The ping payload gains the reported MTU, so this page changes
-- `docs/architecture/system-architecture.md` - declared by the `// Design:` header of `internal/core/privilege/check_linux.go`. The privilege result stops being advisory and starts choosing the socket, which is a behavior this page describes
-- `docs/features/ai-first.md` - declared by the `// Design:` header of `internal/core/diagnostic/codes.go`. Verify at implementation whether it enumerates the codes or only describes the mechanism; an enumeration gains the probe code, a description is named here as unaffected
+- `docs/architecture/system-architecture.md` - unaffected (phase 5): `check_linux.go` is untouched and the page describes privilege dropping under `ze.user`, which this work does not change
+- `docs/features/ai-first.md` - unaffected (phase 5): it describes the doctor mechanism and enumerates no code (`grep doctor-vrrp-raw-socket` finds none there); the two probe codes live in `internal/core/diagnostic/codes.go` and `docs/architecture/diagnostics/active-probes.md`
 - `rfc/short/rfc792.md` - the scope paragraph and the Meta enrolment reason
 - `docs/guide/command-reference.md` - the new keyword on two shipped commands
 - `plan/spec-icmp-probe-privilege.md` - deleted at closure, absorbed here
@@ -237,44 +251,46 @@ landing them separately means writing that construction twice.
 - `internal/core/probe/socket_linux.go` - the DF mode, the error-queue reader, and the kernel estimate
 - `internal/core/probe/socket_other.go` - the stub that reports absence
 - `internal/core/probe/doctor.go` - the registered probe dependency check
-- `test/interop/scenarios/probe-df-clamped-path/` - the clamped-link scenario
+- `test/interop/scenarios/probe-df-clamped-path/` - the clamped-link scenario. Landed as `internal/core/probe/errqueue_integration_linux_test.go` instead, for the reason in Design Insights: that directory is the BGP interop suite's
+- `internal/core/probe/df.go`, `errqueue.go`, `errqueue_linux.go`, `errqueue_other.go`, `register.go` - the mode, the error-queue reader and its stubs, the doctor registration (split out of `socket_linux.go` as the work grew)
+- `internal/test/fixture/plugin_fixture_ping_df.go`, `register_ping_df.go`, and the three `test/plugin/*.ci` in Functional Tests
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `internal/plugins/ping-cmd/yang/ze-ping-cmd.yang` and `internal/plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang` for the DF keyword |
-| YANG validation constraints | Yes | the DF keyword is an `enumeration`, so the grammar rejects an unknown mode before a handler sees it |
+| YANG schema (new RPCs/config) | Yes | done: `leaf do-not-fragment { type enumeration { honor-cache; bypass-cache } }` on `show ping`, `resolve ping` (`internal/plugins/ping-cmd/yang/ze-ping-cmd.yang`) and `show traceroute`, `resolve traceroute` (`internal/plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang`), revision 2026-09-15; `./le yang glue check`: 154 directories current |
+| YANG validation constraints | Yes | done: the enumeration refuses an unknown value at the RPC layer (`invalid value "count", expected one of: honor-cache, bypass-cache`, observed through the daemon in package D), and the handlers refuse it again (`TestPingDoNotFragmentWithoutValueIsRefused`, `TestTracerouteDoNotFragmentWithoutValueIsRefused`) |
 | YANG custom validators | N-A | an enumeration needs no `ze:validate`, and its completion is automatic |
-| CLI commands/flags | Yes | the existing ping and traceroute handlers, no new command |
-| CLI grammar (keyword before value) | Yes | `do-not-fragment` is a bare keyword and takes no value, so the rule is satisfied by construction |
-| Editor autocomplete | Yes | automatic for a YANG enumeration leaf |
-| Functional test for new RPC/API | Yes | `test/plugin/*.ci`, three scenarios listed above |
-| Pipe completeness | Yes | the reported MTU is a payload field, so the existing ping and traceroute pipe handling renders it unchanged |
+| CLI commands/flags | Yes | done: the four existing handlers (`parsePingArgs`, `handleResolvePing`, `parseTracerouteArgs`, `parseResolveTracerouteArgs`) read the keyword; no new command |
+| CLI grammar (keyword before value) | Yes | done: `do-not-fragment` is a keyword followed by one value from a closed set, `honor-cache` or `bypass-cache`, on every grammar that carries it. The bare form the design named was refused by the RPC layer and replaced (Key Design Decisions); `args[0]` on every command is still the target, as before |
+| Editor autocomplete | Yes | done: automatic for a YANG enumeration leaf; the live catalog lists both values under `do-not-fragment` for all four commands (`./le doc check verify`, 2026-09-15) |
+| Functional test for new RPC/API | Yes | done: the three `test/plugin/*.ci` in Functional Tests, fixture `plugin/ping-do-not-fragment` (`internal/test/fixture/plugin_fixture_ping_df.go`) |
+| Pipe completeness | Yes | done: `next-hop-mtu`, `next-hop-mtu-reported` and the `too-big` statuses are fields of the existing reply rows and summary (`tooBigResult`, `summarizePingReplies`, `writeRefusedHop`), so `\| json`, `\| yaml` and `\| table` render them through the unchanged `ApplyPipes` path |
 | Env var registration | N-A | no leaf under `environment/` |
-| Doctor check for runtime dependencies | Yes | the ICMP probe socket is a runtime dependency: `internal/core/probe/doctor.go` plus a code in `internal/core/diagnostic/codes.go`, with unit and functional tests. This is the surface `plan/spec-icmp-probe-privilege.md` existed to add |
+| Doctor check for runtime dependencies | Yes | done: `checkICMPProbeSocket` (`internal/core/probe/doctor.go`), registered from `register.go`; codes `doctor-icmp-probe` and `doctor-icmp-probe-unprivileged` in `internal/core/diagnostic/codes.go`; `doctor_test.go` and `test/plugin/doctor-icmp-probe-missing.ci`. This is the surface `plan/spec-icmp-probe-privilege.md` existed to add |
 | Prometheus counters/metrics | N-A | a diagnostic probe is operator-invoked and holds no continuous state worth a counter |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP surface is touched |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | Yes | `docs/features.md` |
+| 1 | New user-facing feature? | Yes | done: `docs/features.md`, row "Don't Fragment probes" after Core Diagnostics, with a source anchor (package D) |
 | 2 | Config syntax changed? | N-A | no configuration leaf is added; the keyword is operational |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`, ping and traceroute |
-| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`, the payload gains the reported MTU |
+| 3 | CLI command added/changed? | Yes | done: `docs/guide/command-reference.md`, the `do-not-fragment honor-cache` examples on `show ping` and `show traceroute`, the keyword paragraph (two values, bare form refused), the payload paragraphs, and the "Requires CAP_NET_RAW" sentences replaced by the fallback paragraph (packages A, B, C, D) |
+| 4 | API/RPC added/changed? | Yes | done: `docs/architecture/api/commands.md`, the ping and traceroute payload rows carry `next-hop-mtu` and `next-hop-mtu-reported` (package B) |
 | 5 | Plugin added/changed? | N-A | no plugin is added; the YANG halves already exist |
-| 6 | Has a user guide page? | Yes | `docs/architecture/diagnostics/active-probes.md` is the owning page |
+| 6 | Has a user guide page? | Yes | done: `docs/architecture/diagnostics/active-probes.md`, sections "The Don't Fragment mode", "The error queue", "Bounds and privileges", "Reply matching" (packages A, B, C, D) |
 | 7 | Wire format changed? | N-A | Ze constructs no new message; the DF bit is an IP header flag the kernel sets |
 | 8 | Plugin SDK/protocol changed? | N-A | no SDK surface changes |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc792.md` loses its false out-of-scope claim. RFC 1191 and RFC 8201 are NOT enrolled: the kernel implements them and Ze asserts the option it installs (owner decision, 2026-09-11) |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, the clamped-link interop scenario is a new fixture shape |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md`, DF probing is a capability other daemons list |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/diagnostics/active-probes.md`, which is also where the false Time Exceeded sentence is repaired |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | done: `rfc/short/rfc792.md` scope paragraph and Meta enrolment reason rewritten (package D), `./le rfc index-update` regenerated the derived files, which stay untracked. RFC 1191 and RFC 8201 are NOT enrolled: the kernel implements them and Ze asserts the option it installs (owner decision, 2026-09-11) |
+| 10 | Test infrastructure changed? | Yes | done: `docs/functional-tests.md`, subsection "A clamped path built by the test itself" after the caps table (package D) |
+| 11 | Affects daemon comparison? | Yes | done: `docs/comparison.md`, Operations row "Don't Fragment path probing" (package D) |
+| 12 | Internal architecture changed? | Yes | done: `docs/architecture/diagnostics/active-probes.md`, the false Time Exceeded sentence replaced by what `embeddedICMPOffset` and both loops do (package A) |
 | 13 | Route metadata keys added/changed? | N-A | no route metadata |
 | 14 | Prometheus counters added/changed? | N-A | none added |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | a doctor check is registered: `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec citation anchors spec plan/spec-probe-do-not-fragment.md` and name every result here before implementation closes |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify the ping and traceroute examples in `docs/guide/command-reference.md` against the changed grammar |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | done: `docs/guide/status.md`, Infrastructure row "ICMP probe socket check" (package D). The shipping wiki catalog `../wiki/command-catalog.md` regenerated with `./le --name df wiki-catalog update` (the shared `bin/le` embedded the pre-edit YANG); `./le doc check verify` no longer reports the wiki drift |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | done: `./le spec citation anchors spec plan/spec-probe-do-not-fragment.md` named three pages that reach `codes.go` only (`as112-coordination`, `redistribution`, `vpp`), none of which describes the probe codes, so none owed; `./le docs-to-code index-check` reports two stale anchors (`text-format.md` `FamilyIPv4Unicast`, `formatting.md` `validCLIFormats`) that predate this spec and name no file it touched |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | done: the ping and traceroute examples in `docs/guide/command-reference.md` spell `do-not-fragment honor-cache`; the published site under `../gh-pages` (`reference/cli/`, `llms.txt`, `data/cli-commands.json`) is regenerated by `./le site build` at publish and still lists the four usages without the keyword (`./le --name df doc check verify`, 2026-09-15) |
 
 ## Implementation Steps
 
@@ -318,15 +334,33 @@ landing them separately means writing that construction twice.
 
 ## Review Gate
 
-<!-- Filled by /ze-review at implementation time, per .claude/rules/planning.md. -->
+Run inline by the closure agent (2026-09-15), a context that wrote none of the
+diff, over the whole uncommitted diff of the file list in the Deliverables
+Checklist. Pre-checks: `./le commit audit` clean (4 test files, no weakening);
+`./le repository check` named `DrainErrorQueue` as exported with no
+cross-package caller (fixed below) and four traceroute exports that predate
+this spec (`HandleProbeRound`, `StreamProbeRound`, `SetTTL`), not this spec's.
 
-### Run 1
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/probe-do-not-fragment-e9e5e97a-9494-4074-a088-c3bd059b2fb3.md` (55 files, verdict clean; the spec itself is not in the list, so this table could be written after the record) |
+| `review check` | clean |
+| Rounds | 2 |
+| Reviewer lenses used | round 1: logic and wiring (every new exported symbol grepped for a non-test caller, the two receive loops and the drain read as producers), security and edge cases (bounds, the fallback guard, the reported-MTU floors, the `As4` panic path traced to `FamilyOf` on the source address) plus the style pass over every changed Go file; round 2: the three fixes and the call sites they touched |
+
+### Run 1 (scope: the whole diff)
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
+| BLOCKER | `probe.KernelPathMTU` had no non-test caller: AC-6 was a library function reached by nothing an operator types | `internal/core/probe/errqueue_linux.go` | wired: `doPingCtx` reads it after a DF batch through the `readPathMTU` seam and writes `path-mtu` on the summary; absent when the kernel holds no estimate. `TestPingDoNotFragmentSummaryCarriesTheKernelEstimate`; the DF `.ci` fixture asserts 1600 then 1400 through the daemon |
+| ISSUE | the refused-send branch drained the error queue for its own LOCAL entry and discarded every other entry, so a router's answer for probe N queued beside the cache's refusal of probe N+1 was lost and probe N timed out | `internal/component/ping/cmd/stream.go` `runPingSession` | one `drainQueue` for both kinds, called by the sender and by the receiver's wake; `TestPingRefusedSendKeepsTheRouterAnswerAhead`; journal row in `plan/journal/error-path-discards-data-already-received.md` |
+| ISSUE | `DrainErrorQueue` exported with its only caller inside the package (`Socket.DrainErrors`) | `internal/core/probe/errqueue_linux.go`, `errqueue_other.go` | unexported as `drainErrorQueue`; the two pages and `rfc/short/rfc792.md` renamed with it |
+| NOTE | `drainErrorQueue` allocates its 1500-octet read buffer and the control buffer per drain | `errqueue_linux.go` | left: a drain runs once per refusal on a diagnostic path, not per packet |
+| NOTE | the `.ci` fixture asserted the reported MTU but not the kernel estimate | `internal/test/fixture/plugin_fixture_ping_df.go` | `pingDFPathMTU` added with the AC-6 wiring |
 
-### Run 2
+### Run 2 (scope: the three fixes above and the call sites they touched)
 | Severity | Finding | File | Resolution |
 |----------|---------|------|------------|
+| none | `go test -race` over the three packages green (`close-pkgs.log`), darwin and integration vets green, the two DF `.ci` PASS as root on the raw and the datagram socket with the new assertions (`close-df-ci.log`), `ip netns list` clean after | | |
 
 ### Deliverables Checklist
 
@@ -361,6 +395,17 @@ landing them separately means writing that construction twice.
 
 ## Design Insights
 
+- The interop scenario lives as the integration package rather than under `test/interop/scenarios/`: that directory is discovered by the BGP interop suite (`interoplab.Discover`) and every entry there needs a BGP checker, while the peer here is the Linux router in the middle namespace and the assertion is a socket read. The package is named in `integrationPackages` (`internal/le/qemu/alltests.go`) so `./le qemu all-tests` runs it.
+- `DFOff` is an option, not the absence of one. `TestProbeDFBitOnTheWire` read the DF flag off an `AF_PACKET` capture on the router's link and found it SET on a probe opened with no option: Linux's default `IP_PMTUDISC_WANT` sets DF on every datagram that fits the path. So `DFOff` installs `IP_PMTUDISC_DONT`, and AC-1's "DF bit clear" is now true where "exactly as today" was not.
+- The kernel matches a queued ICMP error to an unconnected raw socket by protocol only (A-3 broken), so the reader hands over the quoted echo header and both receive loops match identifier and sequence before believing the value. Connecting the socket would let the kernel match per flow but would stop a traceroute socket receiving Time Exceeded from intermediate routers.
+- A refusal from the network wakes an ordinary read with `EMSGSIZE` once (`raw_err` sets `sk_err`), observed in every integration run; a refusal at send does not (`ip_local_error` queues without `sk_err`). The ping session therefore has one drainer, its main goroutine: the receiver signals on the read error, and the sender drains right after its own failed write, so the two never race for one entry.
+- `KernelPathMTU` reads `IP_MTU` off a throwaway connected UDP socket: the option answers only on a socket holding a route, the estimate belongs to the route rather than the socket, and UDP connect needs no privilege and sends nothing.
+- The socket choice reads the kernel, not `CheckPrivileges`. `OpenICMP` tries the raw socket and falls back on `EPERM` or `EACCES` (`privilegeRefused`, the named guard); a cached capability result would be a second declaration of a fact the open already answers, and could disagree with it after a capability change. So `internal/core/privilege/check_linux.go` stays as it is: it warns at startup, and the doctor check reports the socket state by code.
+- The unprivileged socket is opened with `unix.Socket` + `unix.Bind` + `net.FilePacketConn` (`listenDatagramICMP`), because `net.ListenConfig` knows no datagram ICMP network and `golang.org/x/net/icmp`, whose `udp4` endpoint is this socket, is not vendored. The kernel assigns the echo identifier at bind and rewrites the id field of every echo sent, so `OpenICMP` returns a `*probe.Socket` whose `Identifier` is what a reply or queued error is matched on, and every prober reads it there instead of computing `pid & 0xffff`. The raw kind's identifier is two random octets per socket, so two probers open at once no longer share one identifier and one sequence space.
+- The error queue quotes the echo from its ICMP header on both kinds (`net/ipv4/ping.c ping_err` passes `(u8 *)icmph` to `ip_icmp_error`, as `raw_err` does), so `quotedEcho` needs no kind branch; the integration run confirmed it.
+- Traceroute refuses the datagram kind (`openRawProbeConn`, `errTracerouteNeedsRawSocket`): a ping socket delivers only echo replies to the ordinary read (`ping_rcv`), so Time Exceeded never reaches the trace loops and every hop would time out, which is a silently wrong answer. Serving traceroute on the datagram kind means reading hop answers off the error queue in all three trace loops, with `IP_RECVERR` on for `DFOff` too; that is separable work this spec does not carry. `show ping`, `monitor ping` and `resolve ping` run on both kinds.
+- `Socket` speaks `*net.IPAddr` on both kinds and translates to and from the `*net.UDPAddr` a datagram conn wants, so the probers' destination and source-address checks stay one type. The x/net TTL wrappers take the concrete conn from `Socket.PacketConn`, because `socket.NewConn` type-switches on `*net.IPConn` and `*net.UDPConn`.
+
 ## Key Design Decisions
 
 | Decision | Alternatives Considered | Rationale |
@@ -368,11 +413,20 @@ landing them separately means writing that construction twice.
 | The kernel discovers the path MTU; Ze installs the option and reads the result | Ze parses ICMP Type 3 Code 4 and ICMPv6 Type 2 itself | Linux already runs the RFC 1191 and RFC 8201 state machines and has already matched the error to the sending socket. Writing a second implementation adds a parser, a validation obligation, and a divergence, and `ai/rules/rfc-compliance.md` counts a delegated obligation as met. Owner decision, 2026-09-11 |
 | The privilege work is absorbed rather than sequenced | leave `plan/spec-icmp-probe-privilege.md` standing and land it after | both specs rewrite the same socket construction, so sequencing them means writing it twice and reviewing it twice |
 | A reported MTU of zero is its own outcome | return zero and let callers treat it as absent | RFC 1191 Section 3 makes a zero the old-router signal that a search MUST begin. A caller that reads it as "no information" loses the one message that says to search |
+| An IPv4 value below 68 is reported, raised to 68 | discard it like the IPv6 rule, or report 67 as read | RFC 1191 Section 3 clamps the estimate and discards no message, so the report stands; the value handed on is the floor the RFC sets (RFC 791's 68), so no consumer acts on a number the RFC forbids |
+| Payload keys `next-hop-mtu` and `next-hop-mtu-reported`, statuses `too-big` and `too-big-cached` | one key with zero for absent; one status for both refusals | a zero is never an answer, so presence is a separate boolean; a refusal at send never reached the wire and carries the cache's estimate rather than a router's answer, which the operator needs to tell apart |
+| The fallback is taken on `EPERM` or `EACCES` only | fall back on any raw failure; read `CheckPrivileges` first | a datagram socket opened over a non-privilege failure answers as if the raw one had, on a host whose real defect nobody was told about; the kernel's refusal at open is the fact, and a cached capability result is a copy of it |
+| Two doctor codes, `doctor-icmp-probe` and `doctor-icmp-probe-unprivileged` | one code with two messages | "no probe can run" and "ping runs degraded, traceroute cannot" are two facts an operator acts on differently, and `ze explain` answers by code |
+| Traceroute refuses the datagram kind by name | run the trace and let every hop time out; serve hops off the error queue | the timeout is a silently wrong path; the error-queue trace is three loops of separable work, named in Design Insights, not folded into the DF spec |
+| The identifier is the socket's, `Socket.Identifier` | keep `pid & 0xffff` in every prober | the datagram kind's identifier is the kernel's choice, so the socket is the only place that knows it; making the raw kind per-socket too gives concurrent probers separate identifiers |
+| `do-not-fragment` takes one value, `honor-cache` or `bypass-cache`, and the bare keyword is refused | the design's bare keyword meaning `honor-cache` with an optional value word; a YANG `default` the RPC layer would apply to a keyword with no value | the bare form was written in package A and never reached a handler: the RPC layer (`internal/component/plugin/server/command.go`, keyword-value extraction) reads every declared leaf as keyword-then-value, so a bare keyword before another keyword is refused with `invalid value "count", expected one of: honor-cache, bypass-cache` and a trailing one with `do-not-fragment requires a value`, and Ze's command grammar has no bare-keyword leaf type. Honoring a `default` there is a generic grammar feature nobody asked for. So the grammar is keyword plus value, like every other operational keyword; the handlers refuse the bare form the same way (`DFModeOfValue` answers `ErrDFValueUnknown`), so the offline local parsers agree with the daemon; the YANG descriptions, the pages and the tests spell the value form (main-thread decision, 2026-09-15) |
 
 ## Known Limitations
 
 - The probe is ICMP, so a path that treats UDP or ESP differently is not measured. `plan/spec-ike-padded-path-probe.md` carries the measurement that removes this limitation for a peer with a live IKE SA.
 - RFC 1191 and RFC 8201 are not enrolled in the conformance ledger, because the kernel implements them (owner decision, 2026-09-11). If Ze ever implements its own PMTU state machine, they must be enrolled then.
+- Traceroute runs on the raw socket only. Without `CAP_NET_RAW`, `show traceroute`, `monitor traceroute` and `show probe-round` refuse by name (`errTracerouteNeedsRawSocket`, `openRawProbeConn`) and `doctor-icmp-probe-unprivileged` says so, because the kernel delivers Time Exceeded to a raw socket and a datagram ICMP socket would time out at every hop. Ping runs on both kinds. Serving hops off the error queue on the datagram kind is separable work the main thread has put to the owner.
+- A failed read of the error queue is reported as "no value reported" (`next-hop-mtu-reported` false, or the probe timing out), the same answer as an empty queue: neither prober package holds a logger, so the read failure itself is not surfaced. The row is truthful, and nothing reads a zero as an MTU.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -415,11 +469,60 @@ a comment quoting it keeps the lowercase.
 
 ### TDD
 - [ ] Tests written
+  The Unit Tests, Functional Tests and Interop Tests tables above name each one with its file.
 - [ ] Tests FAIL (paste output)
+  Wiring (package A, before the keyword parse):
+
+  ```
+  socket constructor received DF mode off, want honor-cache
+  ```
+
+  Error queue (package B, `// MUTATION-APPLIED` cut of `classifyReportedMTU`):
+
+  ```
+  --- FAIL: TestReportedMTUZeroIsNotAValue (0.00s)
+      IPv4: zero next-hop MTU outcome = mtu-reported, want mtu-unreported
+  --- FAIL: TestReportedMTUBelowIPv6MinimumIsDiscarded (0.00s)
+      1279 on IPv6 outcome = mtu-reported, want mtu-unreported (RFC 8201 Section 4 discards it)
+  ```
+
+  Doctor (package C, before `doctor.go` existed): the package failed to build on `undefined: doctorCheckName` in `doctor_test.go`.
+  Functional (package D, cut of `pmtuDiscValue`):
+
+  ```
+  1/2  FAIL  10  ping-do-not-fragment-reports-mtu
+  ZE-OBSERVER-FAIL: show ping 10.99.2.1 size 1500 do-not-fragment honor-cache count 1 timeout 3s: reply status ok, want too-big
+  ```
+
 - [ ] Tests PASS (paste output)
+  Scoped `go test -race -count=1`, 2026-09-15, after the value-only grammar:
+
+  ```
+  ok  	github.com/ze-software/ze/internal/core/probe	1.046s
+  ok  	github.com/ze-software/ze/internal/component/ping/cmd	1.117s
+  ok  	github.com/ze-software/ze/internal/component/traceroute/cmd	1.071s
+  ```
+
+  Root integration run (`-tags integration -run 'TestProbe|TestOpenICMP'`, 14 `--- PASS`):
+
+  ```
+  ok  	github.com/ze-software/ze/internal/core/probe	2.217s
+  ```
+
+  Functional, natively as root through the isolated `ze`/`ze-test` pair:
+
+  ```
+  2/2  PASS  11  ping-do-not-fragment-unprivileged
+  1/2  PASS  10  ping-do-not-fragment-reports-mtu
+  1/1  PASS  3  doctor-icmp-probe-missing
+  ```
+
 - [ ] Boundary tests for all numeric inputs
+  The Boundary Tests table names the test for each edge.
 - [ ] Functional `.ci` tests for end-to-end behavior
+  The three `test/plugin/*.ci` in Functional Tests.
 - [ ] Interop tests for protocol features (or N-A with a reason)
+  `probe-df-clamped-path` in Interop Tests, against the Linux router namespace.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
@@ -427,3 +530,139 @@ a comment quoting it keeps the lowercase.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/core/probe`: `DFMode` (`df.go`), `OpenICMP` and `Socket` (`socket.go`), the Linux options and the unprivileged datagram socket (`socket_linux.go`), the error-queue reader with the two RFC floors and `KernelPathMTU` (`errqueue.go`, `errqueue_linux.go`), the non-Linux stubs that report absence (`socket_other.go`, `errqueue_other.go`), the doctor check and its registration (`doctor.go`, `register.go`), codes `doctor-icmp-probe` and `doctor-icmp-probe-unprivileged` in `internal/core/diagnostic/codes.go`.
+- Ping: `do-not-fragment honor-cache|bypass-cache` on `show ping` and `resolve ping`, the receive loop's error-queue drain, the `too-big` and `too-big-cached` rows with `next-hop-mtu-reported` and `next-hop-mtu`, the summary's smallest reported value and `path-mtu` (`ping.go`, `stream.go`, `resolve.go`).
+- Traceroute: the same keyword on `show traceroute` and `resolve traceroute`, the refused hop ending the trace, the datagram-kind refusal by name, and every trace loop reading its identifier from the socket (`traceroute.go`, `stream.go`, `probe_round.go`, `register.go`, `resolve.go`).
+- YANG: the leaf on both modules, revision 2026-09-15. Tests, the fixture `plugin/ping-do-not-fragment` and the three `test/plugin/*.ci` in Functional Tests. `./le qemu all-tests` runs `internal/core/probe` (`internal/le/qemu/alltests.go`).
+
+### Bugs Found/Fixed
+- `DFOff` was the absence of an option and Linux's default set the DF bit on every datagram that fit the path: `DFOff` now installs `IP_PMTUDISC_DONT` (`TestProbeDFBitOnTheWire`).
+- The kernel does not match a queued error to an unconnected raw socket (A-3): both loops match the quoted identifier and sequence (`TestPingRefusalQuotingAnotherProbeIsIgnored`, `TestTracerouteRefusalQuotingAnotherProbeIsIgnored`).
+- Closure review: a refused send's drain discarded a router's answer queued beside it (`TestPingRefusedSendKeepsTheRouterAnswerAhead`).
+
+### Documentation Updates
+- `docs/architecture/diagnostics/active-probes.md` (sections "The Don't Fragment mode", "The error queue", "Bounds and privileges", "Reply matching"; anchors on `socket.go`, `socket_linux.go`, `errqueue_linux.go`, `doctor.go`, `ping.go`), `docs/guide/command-reference.md` (`show ping`, `show traceroute`, the payload paragraphs), `docs/architecture/api/commands.md` (traceroute payload row, already at HEAD), `docs/features.md`, `docs/comparison.md`, `docs/guide/status.md`, `docs/functional-tests.md`, `rfc/short/rfc792.md`.
+- `./le doc check verify` at closure: one drift, the shipping wiki catalog (`../wiki/command-catalog.md`, a sibling checkout regenerated by package D and owed its own commit there) against the live catalog; nothing on the pages above.
+
+### Deviations from Plan
+- The interop scenario is the integration package `internal/core/probe/errqueue_integration_linux_test.go`, not a `test/interop/scenarios/` directory (Design Insights).
+- `do-not-fragment` takes one value and the bare keyword is refused (Key Design Decisions).
+- Traceroute refuses the datagram socket; serving hops off its error queue is `plan/spec-traceroute-unprivileged-socket.md` (Work Not Done).
+- `KernelPathMTU` reaches the operator as the ping summary's `path-mtu` (closure review, BLOCKER 1); the design named the read as step 6 of the data flow and the implementation had left it uncalled.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3: the kernel was assumed to match a queued ICMP error to the socket that sent the probe | `raw_icmp_error` matches a raw socket by protocol and bound address only; an unconnected probe socket receives every flow's errors | `TestProbeErrorQueueAndAnotherFlow` (root, native netns) | both loops match identifier and sequence off the quoted echo before believing a value |
+| approach | the DF keyword was designed and written (package A) as a bare keyword meaning honor-cache | the RPC layer reads every leaf as keyword-then-value and refused the bare form; only the handlers' parsers accepted it | package D's first `.ci` through the daemon | the grammar is keyword plus value; journal row in `plan/journal/documentation-shows-config-the-parser-refuses.md` |
+| approach | `KernelPathMTU` was written and tested as a library function with no caller | an acceptance criterion with no entry point is unreached code | closure review (`grep` for non-test callers) | wired into the DF ping summary as `path-mtu`, with the entry-point test and the `.ci` assertion |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Set the DF bit, honoring or bypassing the kernel's path-MTU cache | Done | `internal/core/probe/socket_linux.go` `pmtuDiscValue`, `dfControl` | `TestOpenICMPInstallsDFMode`, `TestProbeDFBitOnTheWire` |
+| Receive the next-hop MTU a router reports | Done | `internal/core/probe/errqueue_linux.go` `drainErrorQueue`, `classifyReportedMTU` | `TestProbeErrorQueueReportsNextHopMTU` and the ping and traceroute loop tests |
+| Reached by every prober through one socket construction | Done | `internal/core/probe/socket.go` `OpenICMP` | `grep -rn ListenPacket internal/component/ping internal/component/traceroute` returns nothing |
+| Absorb the CAP_NET_RAW doctor check and the unprivileged fallback | Done | `internal/core/probe/doctor.go`, `socket.go` `privilegeRefused` | `TestDoctorICMPProbeCheckReportsMissingCapability`, `TestOpenICMPFallsBackOnlyOnPrivilegeRefusal`, `test/plugin/doctor-icmp-probe-missing.ci` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPingWithoutDoNotFragmentOpensWithDFOff`, `TestOpenICMPInstallsDFMode/v4-off-clears-the-bit`, existing ping and traceroute `.ci` unchanged | `DFOff` installs `IP_PMTUDISC_DONT` |
+| AC-2 | Done | `TestProbeBypassCacheDisagreesWithPoisonedCache`; `pingDFFits` in the `.ci` fixture | |
+| AC-3 | Done | `TestPingRefusedByPathReportsNextHopMTU`, `TestTracerouteRefusedByPathRecordsNextHopMTU`, `TestProbeErrorQueueReportsNextHopMTU`; the two DF `.ci` | |
+| AC-4 | Done | `TestReportedMTUZeroIsNotAValue`, `TestPingRefusedWithZeroNextHopMTUReportsNoValue`, `TestTracerouteRefusedWithoutValueRecordsNoMTU` | |
+| AC-5 | Done | `TestProbeBypassCacheDisagreesWithPoisonedCache`; `pingDFRefused` under `bypass-cache` in the `.ci` | |
+| AC-6 | Done | `TestPingDoNotFragmentSummaryCarriesTheKernelEstimate`; `pingDFPathMTU` 1600 then 1400 in the `.ci`; `TestProbeBypassCacheDisagreesWithPoisonedCache` reads the value as root | wired at closure |
+| AC-7 | Done | `TestProbeUnprivilegedSocketReportsNextHopMTU`, `TestOpenICMPFallsBackOnPrivilegeRefusal`, `test/plugin/ping-do-not-fragment-unprivileged.ci` | |
+| AC-8 | Done | `TestDoctorICMPProbeCheckReportsMissingCapability`, `test/plugin/doctor-icmp-probe-missing.ci` | |
+| AC-9 | Done | `CGO_ENABLED=0 GOOS=darwin go vet ./internal/core/probe/` green at closure; `probe_other_test.go` compiles there | a darwin host run of the three stub tests is owed |
+| AC-10 | Done | `rfc/short/rfc792.md` scope and Meta rows; `rfc/enrolled.txt` regenerated by `./le rfc index-update`, untracked | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Every row of the Unit Tests table | Done | as named there | `go test -race` over the three packages green at closure (`close-pkgs.log`) |
+| `TestPingRefusedSendKeepsTheRouterAnswerAhead`, `TestPingDoNotFragmentSummaryCarriesTheKernelEstimate` | Done | `internal/component/ping/cmd/errqueue_test.go`, `df_test.go` | added at closure for the two review findings |
+| The three Functional Tests rows | Done | `test/plugin/` | the two DF `.ci` re-run as root at closure with the `path-mtu` assertions (`close-df-ci.log`); the doctor `.ci` unchanged since its root run |
+| `probe-df-clamped-path` | Done | `internal/core/probe/errqueue_integration_linux_test.go` | green natively as root and in QEMU under the runtime kernel (main thread, `qemu-probe-int.log`) |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Every file in Files to Modify and Files to Create | Done | `internal/core/privilege/check_linux.go`, `docs/architecture/system-architecture.md`, `docs/features/ai-first.md`: untouched, reasons in Files to Modify; `test/interop/scenarios/probe-df-clamped-path/`: landed as the integration package instead |
+
+### Audit Summary
+- **Total items:** 4 requirements, 10 ACs, 4 test rows, the file lists
+- **Done:** all
+- **Partial:** none
+- **Skipped:** none
+- **Changed:** 4, in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A probe can ask a question about packet size: the DF bit is set on the wire | interop, integration package | `TestProbeDFBitOnTheWire` reads the DF flag off an `AF_PACKET` capture on the router's link, green as root and in QEMU under the runtime kernel |
+| The kernel's cache is honored or bypassed as asked | integration package | `TestProbeBypassCacheDisagreesWithPoisonedCache`: cache poisoned to 1400 with the clamp lifted, honor-cache refused at 1400, bypass-cache answered |
+| The next-hop MTU a router reports reaches the operator | functional | `test/plugin/ping-do-not-fragment-reports-mtu.ci`: `show ping 10.99.2.1 size 1500 do-not-fragment honor-cache` answers `too-big`, `next-hop-mtu` 1400 on the reply and the summary, and `path-mtu` 1400; red under a cut of `pmtuDiscValue` (`reply status ok, want too-big`) |
+| Ze asks the kernel rather than parsing ICMP errors | data correctness | `errqueue_linux.go` parses `SockExtendedErr` only; `grep -rn 'icmpv4FragNeeded' internal/component/traceroute` shows the raw datagram is skipped under DF so the queue records the hop |
+| The privilege work lands with the socket construction | functional, security negative test | `test/plugin/ping-do-not-fragment-unprivileged.ci` under `capsh --drop=cap_net_raw` (red under a cut of `listenDatagramICMP`); `test/plugin/doctor-icmp-probe-missing.ci` (red under a cut of `checkICMPProbeSocket`); `TestProbeUnprivilegedFallbackIsNotTriedForOtherRefusals` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Traceroute on the unprivileged datagram socket: hop answers read off the error queue in the three trace loops, with `IP_RECVERR` on for `DFOff` too, in place of today's refusal by name | the datagram kind delivers only echo replies to the ordinary read, so a trace on it would time out at every hop; serving hops off the queue is three loops of separable work the main thread put to the owner, who had not answered at closure | `plan/spec-traceroute-unprivileged-socket.md` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/probe/{df,socket,socket_linux,socket_other,errqueue,errqueue_linux,errqueue_other,doctor,register}.go` | Yes | `wc -l internal/core/probe/*.go` at closure lists all nine with their tests |
+| `internal/test/fixture/plugin_fixture_ping_df.go`, `register_ping_df.go` | Yes | same listing |
+| `test/plugin/ping-do-not-fragment-reports-mtu.ci`, `ping-do-not-fragment-unprivileged.ci`, `doctor-icmp-probe-missing.ci` | Yes | same listing; the two DF `.ci` ran at closure |
+| `plan/spec-traceroute-unprivileged-socket.md` | Yes | written at closure, status `skeleton` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-5, AC-7, AC-8 | the tests named in the Implementation Audit | `go test -race -count=1` over `internal/core/probe`, `internal/component/ping/cmd`, `internal/component/traceroute/cmd`: ok, ok, ok (closure, `close-pkgs.log`) |
+| AC-6 | `path-mtu` on the DF summary | `TestPingDoNotFragmentSummaryCarriesTheKernelEstimate` in that run; `1/2 PASS ping-do-not-fragment-reports-mtu`, `2/2 PASS ping-do-not-fragment-unprivileged` as root with `pingDFPathMTU` asserting 1600 then 1400 (`close-df-ci.log`) |
+| AC-9 | the darwin build compiles and reports absence | `CGO_ENABLED=0 GOOS=darwin go vet ./internal/core/probe/` ok at closure |
+| AC-10 | the ledger row | `grep -n 'constructs' rfc/short/rfc792.md` finds the rewritten scope sentence; `rfc/enrolled.txt` is ignored by git and regenerated |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `show ping ... do-not-fragment honor-cache` and `bypass-cache` | `test/plugin/ping-do-not-fragment-reports-mtu.ci` | Yes: read; the fixture sends 1300 (answered), then 1500 under each value, and asserts `too-big`, both MTU keys and `path-mtu` |
+| The same without CAP_NET_RAW | `test/plugin/ping-do-not-fragment-unprivileged.ci` | Yes: read; `capsh --drop=cap_net_raw` with a `GUARD:` refusal while CapEff still holds it |
+| `doctor` with no ICMP socket at all | `test/plugin/doctor-icmp-probe-missing.ci` | Yes: read by the package D agent and run as root; asserts the JSON `code` row and `ze explain` |
+| `show traceroute ... do-not-fragment` | unit only (`TestTracerouteDoNotFragmentReachesTheSocketOption`, `TestTracerouteRefusedByPathRecordsNextHopMTU`) | the refused hop through the daemon shares the socket, the drain and the fixture topology with ping; no traceroute `.ci` carries the keyword |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `TestProbeErrorQueueReportsNextHopMTU` (root, native and QEMU) |
+| A-2 | confirmed | `TestProbeBypassCacheDisagreesWithPoisonedCache` |
+| A-3 | broken | `TestProbeErrorQueueAndAnotherFlow`; the "if wrong" column shipped: identifier and sequence matched in both loops (Mistake Log) |
+| A-4 | confirmed | `TestProbeUnprivilegedSocketReportsNextHopMTU`, `...NeedsThePingGroupRange`, `...IgnoresAnotherFlow` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `active-probes.md`: the DF mode, the error queue outcomes, the socket kinds, the traceroute refusal, `path-mtu` | `df.go`, `errqueue.go` `ErrQueueOutcome`, `socket.go` `OpenICMP`, `traceroute.go` `openRawProbeConn`, `ping.go` `doPingCtx` read at closure | Yes |
+| `command-reference.md`: the keyword, the two values, the payload keys | `parsePingArgs`, `parseTracerouteArgs`, `tooBigResult`, `writeRefusedHop`, `summarizePingReplies` | Yes |
+| `features.md`, `comparison.md`, `status.md` rows | `checkICMPProbeSocket`, `codes.go` | Yes |
+| `rfc/short/rfc792.md` scope and Meta | `errqueue_linux.go` parses no ICMP message; `embeddedICMPOffset` matches the quoted echo | Yes |
+| No `docs/architecture/api/commands.md` ping row exists to update | `grep -n 'show ping' docs/architecture/api/commands.md` returns nothing | Yes |

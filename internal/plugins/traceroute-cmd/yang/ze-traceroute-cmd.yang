@@ -3,6 +3,7 @@ module ze-traceroute-cmd {
     prefix traceroutecmd;
     import ze-extensions { prefix ze; }
     description "traceroute command tree (show traceroute, show probe-round, monitor traceroute, resolve traceroute). Owned by the dedicated traceroute feature module so that the whole traceroute surface lives in one place and container-merges onto the show, monitor, and resolve verb roots. See ai/rules/plugin-self-containment.md.";
+    revision 2026-09-15 { description "Add the do-not-fragment keyword to show traceroute and resolve traceroute. The probe layer gained a Don't Fragment mode, and the keyword is the same word on ping."; }
     revision 2026-09-05 { description "Say that the source of resolve traceroute selects the address family the target is resolved in. The handler now reads the source before it resolves the target."; }
     revision 2026-08-29 { description "Declare the target and the four optional values of resolve traceroute. The handler already reads them as keyword pairs; the description spelled them in prose and the model stated nothing."; }
     revision 2026-06-03 { description "Relocate the traceroute command surface out of the central show, monitor, and resolve schemas into the dedicated traceroute module."; }
@@ -43,6 +44,19 @@ to 30s. Absent, the value is 3s.";
                 description "The value is the number of probes Ze sends at each time-to-live, 1 to 10,
 and each probe reports its own round-trip time. Absent, the value is 3.";
                 ze:help "Number of probes per hop.";
+            }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Set the DF bit and refuse a probe larger than the kernel's cached path MTU."; }
+                    enum bypass-cache { ze:help "Set the DF bit and ignore the cached path MTU, so the wire answers for itself."; }
+                }
+                description "The keyword takes one of two values. honor-cache sets the Don't Fragment bit
+and honors the kernel's cached path MTU: a probe larger than the cached value is refused at
+send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.";
+                ze:help "Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.";
             }
         }
 
@@ -103,7 +117,7 @@ path changes and latency shifts over time.";
             config false;
             ze:command "ze-resolve:traceroute";
             description "The options are source, max-hops, timeout and probes, each one a
-keyword and a value. max-hops is 1 to 64 and defaults to 30, probes is 1 to 10 and defaults
+keyword and a value, and do-not-fragment, a keyword with one of two values. max-hops is 1 to 64 and defaults to 30, probes is 1 to 10 and defaults
 to 3, and timeout is 1s to 30s and defaults to 3s. The source also selects the address
 family: a target name is resolved in the family of the source, and a target with no
 address in that family is refused.";
@@ -138,6 +152,19 @@ answer. Absent, the value is 3s.";
                 description "Each probe at one time-to-live reports its own round-trip time. Absent,
 the value is 3.";
                 ze:help "Number of probes per hop.";
+            }
+            leaf do-not-fragment {
+                type enumeration {
+                    enum honor-cache { ze:help "Set the DF bit and refuse a probe larger than the kernel's cached path MTU."; }
+                    enum bypass-cache { ze:help "Set the DF bit and ignore the cached path MTU, so the wire answers for itself."; }
+                }
+                description "The keyword takes one of two values. honor-cache sets the Don't Fragment bit
+and honors the kernel's cached path MTU: a probe larger than the cached value is refused at
+send time, and a router's Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.";
+                ze:help "Set the Don't Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.";
             }
         }
     }

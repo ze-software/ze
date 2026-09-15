@@ -77,8 +77,9 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 | Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
 | Plugin setup results | Working -- each plugin records what its own `init()` achieved, `show plugin list` replays it in the `outcome` and `reason` columns, and the daemon refuses to start on a recorded hard failure. `memlock` is the migrated example; the other plugins record nothing yet and list as `unknown` |
 | Local certificate authority | Working -- ze generates one root at its first start, keeps it in ZeFS, and issues its own components' certificates from it. `show pki local-ca pem` exports the root for an operator to give to each node that must trust this one. `ze doctor` reports the root as absent, unloadable, or within 90 days of expiry |
+| ICMP probe socket check | Working -- `ze doctor` tries the raw ICMP socket and then the unprivileged datagram one, and reports `doctor-icmp-probe` when neither opens or `doctor-icmp-probe-unprivileged` when ping runs on the datagram socket and traceroute cannot |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- YANG config; internal/component/config/cli/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
-<!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot, Root.IssueLeaf; internal/component/pki/doctor.go -- caRootDoctorCheck -->
+<!-- source: internal/component/pki/ca.go -- LoadOrGenerateRoot, Root.IssueLeaf; internal/component/pki/doctor.go -- caRootDoctorCheck; internal/core/probe/doctor.go -- checkICMPProbeSocket -->
 
 ### Test Suite
 

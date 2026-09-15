@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1135,8 +1136,8 @@ func TestArgDefsPopulated(t *testing.T) {
 		"show system kernel-log":       2, // level, count
 		"show system profile":          2, // type, duration
 		"show audit":                   6, // action, actor, surface, since, until, count
-		"show ping":                    4, // dest, count, size, timeout
-		"show traceroute":              4, // dest, max-hops, timeout, probes
+		"show ping":                    5, // dest, count, size, timeout, do-not-fragment
+		"show traceroute":              5, // dest, max-hops, timeout, probes, do-not-fragment
 		"show tcp-check":               4, // host, port, source, timeout
 		"show probe-round":             4, // dest, probes, max-hops, timeout
 		"show dns lookup":              2, // hostname, type
@@ -1161,6 +1162,33 @@ func TestArgDefsPopulated(t *testing.T) {
 		}
 		if len(node.ArgDefs) != wantCount {
 			t.Errorf("command %q: want %d ArgDefs, got %d", path, wantCount, len(node.ArgDefs))
+		}
+	}
+
+	// The count above cannot tell one leaf from another, so the leaf the DF
+	// spec added is asserted by name and by its two enumeration values on
+	// both probe commands.
+	for _, path := range []string{"show ping", "show traceroute"} {
+		node := navigateTree(tree, path)
+		if node == nil {
+			t.Errorf("command %q not found in tree", path)
+			continue
+		}
+		var def *command.ArgDef
+		for i := range node.ArgDefs {
+			if node.ArgDefs[i].Name == "do-not-fragment" {
+				def = &node.ArgDefs[i]
+			}
+		}
+		if def == nil {
+			t.Errorf("command %q: no ArgDef named do-not-fragment", path)
+			continue
+		}
+		if def.Kind != command.ArgEnum {
+			t.Errorf("command %q: do-not-fragment kind = %v, want ArgEnum", path, def.Kind)
+		}
+		if !slices.Equal(def.EnumValues, []string{"honor-cache", "bypass-cache"}) {
+			t.Errorf("command %q: do-not-fragment values = %v, want [honor-cache bypass-cache]", path, def.EnumValues)
 		}
 	}
 }

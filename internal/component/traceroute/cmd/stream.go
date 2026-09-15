@@ -9,15 +9,11 @@ package cmd
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/binary"
 	"net"
 	"net/netip"
 	"strconv"
 	"time"
-
-	"golang.org/x/net/ipv4"
-	"golang.org/x/net/ipv6"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/probe"
@@ -35,8 +31,8 @@ func probeTraceEnabled() bool {
 	return env.GetBool("ze.trace.probe", false)
 }
 
-func pidHex(pid uint16) []byte {
-	return []byte{byte(pid >> 8), byte(pid)}
+func identifierHex(echoID uint16) []byte {
+	return []byte{byte(echoID >> 8), byte(echoID)}
 }
 
 // NewTracerouteSession starts a streaming probe round for the given target.
@@ -55,14 +51,6 @@ func NewTracerouteSession(ctx context.Context, target string, maxHops int) (<-ch
 	return ch, cancel, nil
 }
 
-func randProbeID() uint16 {
-	var b [2]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return 0xBEEF
-	}
-	return binary.BigEndian.Uint16(b[:])
-}
-
 // StreamProbeRound sends all TTL probes simultaneously and writes hop results
 // to out as ICMP responses arrive. After deadline, unanswered hops are sent
 // with addr="*" and rtt-ms=nil. The channel is closed when the round ends.
@@ -74,7 +62,6 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 
 	trace := probeTraceEnabled()
 
-	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -82,7 +69,6 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3
@@ -90,29 +76,27 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 		portUnreach = icmpv6PortUnreach
 	}
 
-	var lc net.ListenConfig
-	rawConn, err := lc.ListenPacket(ctx, network, "")
+	// This surface carries no DF keyword yet, so the mode is named here as off
+	// rather than left to the zero value the probe layer refuses.
+	rawConn, err := openRawProbeConn(ctx, probe.FamilyOf(dest), netip.Addr{}, probe.DFOff)
 	if err != nil {
 		return
 	}
 
-	var conn ttlSetter
-	if isV6 {
-		conn = &ipv6TTLConn{raw: rawConn, pconn: ipv6.NewPacketConn(rawConn)}
-	} else {
-		conn = &ipv4TTLConn{raw: rawConn, pconn: ipv4.NewPacketConn(rawConn)}
-	}
+	conn := newTTLConn(rawConn, isV6)
 	defer func() { _ = conn.Close() }()
 
-	pid := randProbeID()
-	pidBytes := pidHex(pid)
+	// The identifier is the socket's own, so concurrent rounds on one host
+	// answer to different identifiers.
+	echoID := conn.Identifier()
+	identifierBytes := identifierHex(echoID)
 	dst := &net.IPAddr{IP: dest.AsSlice()}
 	sendTimes := make([]time.Time, maxHops)
 
 	if trace {
 		var tb textbuf.Buffer
 		tb.Str("[probe] round start dest=").Str(dest.String())
-		tb.Str(" pid=0x").Hex(pidBytes)
+		tb.Str(" echoID=0x").Hex(identifierBytes)
 		tb.Str(" maxHops=").Int(int64(maxHops)).Byte('\n')
 		tb.StdErr() //nolint:errcheck // trace
 	}
@@ -127,7 +111,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			continue
 		}
 		seq := uint16(ttl - 1)
-		pkt := probe.BuildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
+		pkt := probe.BuildICMPEcho(icmpEcho, echoID, seq, []byte("ze-probe"))
 		sendTimes[ttl-1] = time.Now()
 		if _, writeErr := conn.WriteTo(pkt, dst); writeErr != nil {
 			if trace {
@@ -141,7 +125,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			var tb textbuf.Buffer
 			tb.Str("[probe] send ttl=").Int(int64(ttl))
 			tb.Str(" seq=").Int(int64(seq))
-			tb.Str(" pid=0x").Hex(pidBytes).Byte('\n')
+			tb.Str(" echoID=0x").Hex(identifierBytes).Byte('\n')
 			tb.StdErr() //nolint:errcheck // trace
 		}
 	}
@@ -198,13 +182,13 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			}
 			embID := binary.BigEndian.Uint16(rb[off+4 : off+6])
 			embSeq := binary.BigEndian.Uint16(rb[off+6 : off+8])
-			if embID != pid {
+			if embID != echoID {
 				if trace {
 					var tb textbuf.Buffer
 					tb.Str("[probe] recv type=").Int(int64(msgType))
 					tb.Str(" from=").Str(addr)
-					tb.Str(" embID=0x").Hex(pidHex(embID))
-					tb.Str(" want=0x").Hex(pidBytes)
+					tb.Str(" embID=0x").Hex(identifierHex(embID))
+					tb.Str(" want=0x").Hex(identifierBytes)
 					tb.Str(" FILTERED\n")
 					tb.StdErr() //nolint:errcheck // trace
 				}
@@ -256,12 +240,12 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 		case icmpEchoReply:
 			replyID := binary.BigEndian.Uint16(rb[4:6])
 			replySeq := binary.BigEndian.Uint16(rb[6:8])
-			if replyID != pid {
+			if replyID != echoID {
 				if trace {
 					var tb textbuf.Buffer
 					tb.Str("[probe] recv echo-reply from=").Str(addr)
-					tb.Str(" replyID=0x").Hex(pidHex(replyID))
-					tb.Str(" want=0x").Hex(pidBytes)
+					tb.Str(" replyID=0x").Hex(identifierHex(replyID))
+					tb.Str(" want=0x").Hex(identifierBytes)
 					tb.Str(" FILTERED\n")
 					tb.StdErr() //nolint:errcheck // trace
 				}

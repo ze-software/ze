@@ -81,8 +81,8 @@ func TestUsageRendersTheDeclaredValues(t *testing.T) {
 		{"resolve dns txt", "resolve dns txt <hostname>"},
 		{"resolve peeringdb as-set", "resolve peeringdb as-set <asn>"},
 		{"resolve peeringdb max-prefix", "resolve peeringdb max-prefix <asn>"},
-		{"resolve ping", "resolve ping <target> [source <source>] [count <count>] [size <size>]"},
-		{"resolve traceroute", "resolve traceroute <target> [source <source>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>]"},
+		{"resolve ping", "resolve ping <target> [source <source>] [count <count>] [size <size>] [do-not-fragment <honor-cache|bypass-cache>]"},
+		{"resolve traceroute", "resolve traceroute <target> [source <source>] [max-hops <max-hops>] [timeout <timeout>] [probes <probes>] [do-not-fragment <honor-cache|bypass-cache>]"},
 		{"show config cat", "show config cat <id>"},
 		{"show data cat", "show data cat <key>"},
 		{"show env get", "show env get <name>"},
@@ -655,8 +655,9 @@ func TestAnnounceFlowspecUsageStatesTheComponents(t *testing.T) {
 // VALIDATES: the range each new leaf states is the range its handler already
 // enforced, so declaring the type refuses nothing the handler accepted.
 // PREVENTS: a bound copied from the description rather than from the code. The
-// VLAN id reads 1-4094 in handleUnitAdd and the MTU 68-65535 in
-// handleInterfaceMTU (internal/component/iface/cmd/manage.go); the ping count,
+// VLAN id read 1-4094 in handleUnitAdd until the model became its only
+// statement (parseVID, internal/component/iface/cmd/manage.go), and the MTU
+// reads 68-65535 in handleInterfaceMTU (same file); the ping count,
 // ping size, traceroute hop count and probe count read theirs from
 // internal/component/ping/cmd/resolve.go and
 // internal/component/traceroute/cmd/resolve.go.

@@ -17,9 +17,10 @@ package cmd
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"net"
 	"net/netip"
-	"os"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/clock"
@@ -34,7 +35,41 @@ type pingConn interface {
 	WriteTo(p []byte, addr net.Addr) (int, error)
 	ReadFrom(p []byte) (int, net.Addr, error)
 	Close() error
+	// DrainErrors hands every entry queued on the socket's error queue to
+	// visit, bounded by probe.ErrQueueDrainMax, and never blocks.
+	DrainErrors(visit func(probe.QueuedError)) error
+	// Identifier is the echo identifier every probe on this socket carries,
+	// and the value a reply or a queued error is matched on. The real
+	// pingConn is *probe.Socket, which knows who chose it.
+	Identifier() uint16
 }
+
+// Per-reply status values beside "ok" and "timeout". A probe the path refused
+// for its size is "too-big", and the row carries the reported next-hop MTU
+// when a router put one on the wire. A probe this host's own kernel refused
+// against its cached path MTU, which honor-cache mode asks for, is
+// "too-big-cached": it never reached the wire, and the value on the row is
+// the cache's estimate rather than a router's answer on this run.
+const (
+	statusTooBig       = "too-big"
+	statusTooBigCached = "too-big-cached"
+)
+
+// The payload keys a refused probe carries are the probe layer's, the same
+// two on ping and on traceroute.
+const (
+	fieldNextHopMTU         = probe.FieldNextHopMTU
+	fieldNextHopMTUReported = probe.FieldNextHopMTUReported
+)
+
+// readErrorsMax bounds the receiver's tolerance for consecutive read errors.
+// Under IP_RECVERR a queued refusal makes one ordinary read fail with the
+// refusal's errno, once, and the receiver then asks the main goroutine to
+// drain the queue. A descriptor that fails on every read would otherwise
+// keep the receiver spinning, so after this many failures in a row with no
+// datagram between them it gives up, exactly as it gave up on the first
+// error before the error queue existed.
+const readErrorsMax = 32
 
 // NewPingSession starts a continuous ping stream to the given target.
 // Each reply is sent as a map on the returned channel. The channel is
@@ -58,17 +93,16 @@ func NewPingSession(ctx context.Context, target string, interval, timeout time.D
 }
 
 func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Duration, count, size int, out chan<- map[string]any) {
-	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	if dest.Is6() {
-		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 	}
 
-	var lc net.ListenConfig
-	conn, err := lc.ListenPacket(ctx, network, "")
+	// The stream carries no DF keyword yet, so the mode is named here as off
+	// rather than left to the zero value the probe layer refuses.
+	conn, err := openProbeConn(ctx, probe.FamilyOf(dest), netip.Addr{}, probe.DFOff)
 	if err != nil {
 		// The socket never opened: the session ends immediately. Consumers
 		// detect the end by the channel closing, so close it exactly once here.
@@ -109,7 +143,7 @@ func runPingSession(
 	icmpEcho, icmpEchoReply byte,
 	out chan<- map[string]any,
 ) {
-	pid := uint16(os.Getpid() & 0xffff)
+	echoID := conn.Identifier()
 
 	type reply struct {
 		seq uint16
@@ -117,21 +151,42 @@ func runPingSession(
 	}
 	replies := make(chan reply)
 	expire := make(chan uint16)
+	// queued carries the receiver's "a refusal is on the error queue" wake to
+	// the main goroutine, which is the only drainer. Capacity one and a
+	// non-blocking send: a second wake before the first drain adds nothing,
+	// because one drain reads everything queued.
+	queued := make(chan struct{}, 1)
 	recvDone := make(chan struct{})
 	done := make(chan struct{})
 
 	// Receiver: a pure reader. It blocks in ReadFrom until a packet arrives or
 	// the conn is closed on teardown, applies the same length/type/id/source
 	// checks the serial loop used, and forwards the reply's sequence and arrival
-	// time. It never touches out or the in-flight map.
+	// time. It never touches out or the in-flight map, and it never drains the
+	// error queue: a read that fails with a refusal's errno is the wake, and
+	// the main goroutine reads the queue, so the sender's own drain after a
+	// refused send and this wake can never race for one entry.
 	go func() {
 		defer close(recvDone)
 		rb := make([]byte, max(1500, size+8))
+		readErrors := 0
 		for {
 			n, from, readErr := conn.ReadFrom(rb)
 			if readErr != nil {
-				return
+				if errors.Is(readErr, net.ErrClosed) {
+					return
+				}
+				readErrors++
+				if readErrors > readErrorsMax {
+					return
+				}
+				select {
+				case queued <- struct{}{}:
+				default:
+				}
+				continue
 			}
+			readErrors = 0
 			if n < 8 || rb[0] != icmpEchoReply {
 				continue
 			}
@@ -140,7 +195,7 @@ func runPingSession(
 			// Matching by sequence is exactly the mechanism this fix relies on.
 			replyID := binary.BigEndian.Uint16(rb[4:6])
 			replySeq := binary.BigEndian.Uint16(rb[6:8])
-			if replyID != pid {
+			if replyID != echoID {
 				continue
 			}
 			if from != nil {
@@ -181,6 +236,9 @@ func runPingSession(
 	payload := pingPayload(size)
 	nextSeq := 0
 	stopSending := false
+	// A send the kernel refused is reported by the caller of send, which is
+	// on the select loop and can block on out; send itself never blocks.
+	refusedNum := -1
 
 	// send emits the next probe (if any remain) and registers it in-flight with
 	// a timeout reaper.
@@ -207,8 +265,21 @@ func runPingSession(
 			}
 		})
 		inflight[wire] = &inflightProbe{num: num, sentAt: sentAt, timer: t}
-		pkt := probe.BuildICMPEcho(icmpEcho, pid, wire, payload)
+		pkt := probe.BuildICMPEcho(icmpEcho, echoID, wire, payload)
 		if _, writeErr := conn.WriteTo(pkt, &net.IPAddr{IP: dest.AsSlice()}); writeErr != nil {
+			if errors.Is(writeErr, syscall.EMSGSIZE) {
+				// The kernel refused the send against its cached path MTU,
+				// which is what honor-cache asks for. sendAndReport drains
+				// the queue right after this returns and reports the probe
+				// with the cache's estimate, and sending goes on, because
+				// the operator asked for count probes and each one gets its
+				// own row.
+				t.Stop()
+				delete(inflight, wire)
+				refusedNum = num
+				nextSeq++
+				return
+			}
 			// A write error ends sending; outstanding probes still drain.
 			t.Stop()
 			delete(inflight, wire)
@@ -216,6 +287,17 @@ func runPingSession(
 			return
 		}
 		nextSeq++
+	}
+
+	// emit sends one already-resolved row. Returns false if the context was
+	// canceled while emitting.
+	emit := func(result map[string]any) bool {
+		select {
+		case out <- result:
+			return true
+		case <-ctx.Done():
+			return false
+		}
 	}
 
 	// resolve reports a probe (ok or timeout) and removes it from flight. A
@@ -238,9 +320,80 @@ func runPingSession(
 		}
 	}
 
+	// drainQueue reads the error queue once. Every entry a router queued for
+	// a probe of this socket resolves that probe as too-big, and the first
+	// entry this host's own kernel queued for a refused send is handed back
+	// to the caller, which is the sender when a send was refused. Both kinds
+	// are read in one drain because a drain that kept one kind would drop
+	// the other: under honor-cache a router's answer for probe N and the
+	// cache's refusal of probe N+1 sit on the queue together, since that
+	// answer is what shrank the cache. An entry that quotes no probe of
+	// ours, or is not a size refusal, leaves its probe to time out as it did
+	// before the queue was read. ok is false if the context was canceled
+	// while emitting.
+	drainQueue := func() (local *probe.QueuedError, ok bool) {
+		var entries [probe.ErrQueueDrainMax]probe.QueuedError
+		count := 0
+		drainErr := conn.DrainErrors(func(q probe.QueuedError) {
+			if count < len(entries) {
+				entries[count] = q
+				count++
+			}
+		})
+		if drainErr != nil {
+			// The queue could not be read: the probes it holds time out, which
+			// is the answer the loop gave before the queue existed.
+			return nil, true
+		}
+		for i := range entries[:count] {
+			q := &entries[i]
+			if q.Local {
+				if local == nil {
+					local = q
+				}
+				continue
+			}
+			if !q.Echo.Present {
+				continue
+			}
+			if q.Echo.ID != echoID {
+				continue
+			}
+			if q.Errno != syscall.EMSGSIZE {
+				continue
+			}
+			if !resolve(q.Echo.Seq, tooBigResult(statusTooBig, q)) {
+				return nil, false
+			}
+		}
+		return local, true
+	}
+
+	// sendAndReport is send plus the row for a refused send. The kernel
+	// queued the refusal before WriteTo returned, quoting nothing, and this
+	// goroutine is the only drainer, so the local entry the drain finds is
+	// this probe's. Returns false if the context was canceled while
+	// emitting.
+	sendAndReport := func() bool {
+		send()
+		if refusedNum < 0 {
+			return true
+		}
+		local, ok := drainQueue()
+		if !ok {
+			return false
+		}
+		result := tooBigResult(statusTooBigCached, local)
+		result["seq"] = refusedNum
+		refusedNum = -1
+		return emit(result)
+	}
+
 	// First probe goes out immediately (preserving seq-0-at-once); the ticker
 	// paces the rest at exactly interval, independent of reply latency.
-	send()
+	if !sendAndReport() {
+		return
+	}
 
 	ticker := clk.NewTicker(interval)
 	defer ticker.Stop()
@@ -258,7 +411,16 @@ func runPingSession(
 		case <-ctx.Done():
 			return
 		case <-ticker.C():
-			send()
+			if !sendAndReport() {
+				return
+			}
+		case <-queued:
+			// A local entry found here was left behind by a drain that hit
+			// ErrQueueDrainMax; its probe was already reported without a
+			// value, so it is dropped.
+			if _, ok := drainQueue(); !ok {
+				return
+			}
 		case r := <-replies:
 			p, ok := inflight[r.seq]
 			if !ok {
@@ -282,4 +444,23 @@ func runPingSession(
 			}
 		}
 	}
+}
+
+// tooBigResult is the row for a probe refused for its size. q is the queued
+// entry the refusal came from, or nil when none was readable; the row then
+// says no value was reported rather than carrying a zero.
+func tooBigResult(status string, q *probe.QueuedError) map[string]any {
+	result := map[string]any{
+		fieldStatus:             status,
+		fieldNextHopMTUReported: false,
+	}
+	if q == nil {
+		return result
+	}
+	if q.Outcome != probe.ErrQueueMTUReported {
+		return result
+	}
+	result[fieldNextHopMTUReported] = true
+	result[fieldNextHopMTU] = int(q.MTU)
+	return result
 }

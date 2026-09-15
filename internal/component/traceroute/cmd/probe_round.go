@@ -9,11 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"time"
-
-	"golang.org/x/net/ipv4"
-	"golang.org/x/net/ipv6"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -24,14 +20,15 @@ const defaultProbeMaxHops = 16
 
 // HandleProbeRound runs a single parallel traceroute probe round.
 func HandleProbeRound(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	target, maxHops, _, _, err := parseTracerouteArgs(args)
+	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
+	maxHops := req.maxHops
 	if maxHops == defaultTracerouteMaxHops {
 		maxHops = defaultProbeMaxHops
 	}
-	hops, probeErr := doProbeRound(target, maxHops, time.Second)
+	hops, probeErr := doProbeRound(req.target, maxHops, time.Second)
 	if probeErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: probeErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
@@ -49,7 +46,6 @@ type probeResult struct {
 }
 
 func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[string]any, error) {
-	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -57,7 +53,6 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3
@@ -65,21 +60,17 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 		portUnreach = icmpv6PortUnreach
 	}
 
-	var lc net.ListenConfig
-	rawConn, err := lc.ListenPacket(context.Background(), network, "")
+	// This surface carries no DF keyword yet, so the mode is named here as off
+	// rather than left to the zero value the probe layer refuses.
+	rawConn, err := openRawProbeConn(context.Background(), probe.FamilyOf(dest), netip.Addr{}, probe.DFOff)
 	if err != nil {
-		return nil, fmt.Errorf("probe: %w (requires CAP_NET_RAW)", err)
+		return nil, fmt.Errorf("probe: %w", err)
 	}
 
-	var conn ttlSetter
-	if isV6 {
-		conn = &ipv6TTLConn{raw: rawConn, pconn: ipv6.NewPacketConn(rawConn)}
-	} else {
-		conn = &ipv4TTLConn{raw: rawConn, pconn: ipv4.NewPacketConn(rawConn)}
-	}
+	conn := newTTLConn(rawConn, isV6)
 	defer func() { _ = conn.Close() }()
 
-	pid := uint16(os.Getpid() & 0xffff)
+	echoID := conn.Identifier()
 	dst := &net.IPAddr{IP: dest.AsSlice()}
 	sendTimes := make([]time.Time, maxHops)
 
@@ -88,7 +79,7 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 			return nil, fmt.Errorf("probe: set TTL %d: %w", ttl, setErr)
 		}
 		seq := uint16(ttl - 1)
-		pkt := probe.BuildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
+		pkt := probe.BuildICMPEcho(icmpEcho, echoID, seq, []byte("ze-probe"))
 		sendTimes[ttl-1] = time.Now()
 		if _, writeErr := conn.WriteTo(pkt, dst); writeErr != nil {
 			return nil, fmt.Errorf("probe: write TTL %d: %w", ttl, writeErr)
@@ -134,7 +125,7 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 			}
 			embID := binary.BigEndian.Uint16(rb[off+4 : off+6])
 			embSeq := binary.BigEndian.Uint16(rb[off+6 : off+8])
-			if embID != pid {
+			if embID != echoID {
 				continue
 			}
 			ttl := int(embSeq) + 1
@@ -156,7 +147,7 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 		case icmpEchoReply:
 			replyID := binary.BigEndian.Uint16(rb[4:6])
 			replySeq := binary.BigEndian.Uint16(rb[6:8])
-			if replyID != pid {
+			if replyID != echoID {
 				continue
 			}
 			ttl := int(replySeq) + 1

@@ -44,26 +44,26 @@ func init() {
 }
 
 func showTracerouteLocal(args []string) int {
-	target, maxHops, timeout, probes, err := parseTracerouteArgs(args)
+	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("show traceroute: ").Err(err).Byte('\n')
 		tb.StdErr() //nolint:errcheck // stderr
 		return 1
 	}
-	hops, trErr := doTraceroute(target, maxHops, timeout, probes, tracerouteOpts{})
+	hops, trErr := doTraceroute(req.target, req.maxHops, req.timeout, req.probes, req.opts)
 	if trErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("show traceroute: ").Err(trErr).Byte('\n')
 		tb.StdErr() //nolint:errcheck // stderr
 		return 1
 	}
-	printTracerouteResults(os.Stdout, target.String(), hops)
+	printTracerouteResults(os.Stdout, req.target.String(), hops)
 	return 0
 }
 
 func monitorTracerouteLocal(args []string) int {
-	target, maxHops, _, _, err := parseTracerouteArgs(args)
+	req, err := parseTracerouteArgs(args)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor traceroute: ").Err(err).Byte('\n')
@@ -75,11 +75,11 @@ func monitorTracerouteLocal(args []string) int {
 	defer stop()
 
 	var hdr textbuf.Buffer
-	hdr.Str("traceroute to ").Str(target.String()).Str(" (Ctrl-C to stop)\n")
+	hdr.Str("traceroute to ").Str(req.target.String()).Str(" (Ctrl-C to stop)\n")
 	hdr.StdOut() //nolint:errcheck // stdout
 
 	for round := 1; ; round++ {
-		ch, cancel, sessionErr := NewTracerouteSession(ctx, target.String(), maxHops)
+		ch, cancel, sessionErr := NewTracerouteSession(ctx, req.target.String(), req.maxHops)
 		if sessionErr != nil {
 			if round == 1 {
 				var tb textbuf.Buffer

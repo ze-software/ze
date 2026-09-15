@@ -1189,13 +1189,18 @@ ze show traceroute 8.8.8.8                        # Trace path to target
 ze show traceroute 8.8.8.8 max-hops 10            # Limit to 10 hops (1-64)
 ze show traceroute 8.8.8.8 timeout 2s             # Per-probe timeout (1s-30s)
 ze show traceroute 8.8.8.8 probes 1               # 1 probe per hop (1-10)
+ze show traceroute 8.8.8.8 do-not-fragment honor-cache  # DF bit set (see ping for bypass-cache)
 ze show traceroute 2001:db8::1                     # IPv6 target
 ze show traceroute example.com                     # Hostname (resolved to IP)
 ```
 
 Returns JSON with target and per-hop array. Each hop has: hop (int), addr
-(string or "*" for timeout), rtt-ms (float or null), ttl (int). Requires
-CAP_NET_RAW (root privilege enforced at startup).
+(string or "*" for timeout), rtt-ms (float or null), ttl (int). Under
+`do-not-fragment` a hop that refused the probe's size also carries
+`next-hop-mtu-reported` (bool) and, when true, `next-hop-mtu` (int, octets),
+and the trace ends at that hop. Requires CAP_NET_RAW: the kernel delivers
+Time Exceeded to a raw ICMP socket only, so without the capability the
+command refuses to run and names it.
 
 <!-- source: internal/component/traceroute/cmd/traceroute.go -- handleTraceroute -->
 
@@ -1219,7 +1224,7 @@ In `| log` mode, the hop legend (printed every 25 rounds) is enriched by
 `| resolve` (adds reverse DNS hostnames) or `| origin` (adds ASN name
 or AS number from Team Cymru).
 
-Requires CAP_NET_RAW.
+Requires CAP_NET_RAW, as `show traceroute` does.
 
 <!-- source: internal/component/cli/model_traceroute.go -- traceroute monitor model -->
 
@@ -1239,7 +1244,8 @@ Loss%, Last, Min, Avg, Max, StDev. Esc/q/Ctrl-C to stop.
 
 Default interval: 1s. Default timeout: 5s.
 
-Requires CAP_NET_RAW.
+Runs with CAP_NET_RAW, or without it when the daemon's group is inside
+`net.ipv4.ping_group_range` (see "ping / traceroute").
 
 <!-- source: internal/component/cli/model_ping.go -- ping monitor model -->
 
@@ -1578,6 +1584,8 @@ traceroute` also work offline, streaming results until Ctrl-C.
 ze show ping 8.8.8.8                          # 5 probes, 5s timeout
 ze show ping 8.8.8.8 count 10 timeout 3s      # count 1-100, timeout 1s-30s
 ze show ping 8.8.8.8 size 1400                # ICMP payload bytes (1-65507)
+ze show ping 8.8.8.8 size 1400 do-not-fragment honor-cache   # DF bit set, kernel path-MTU cache honored
+ze show ping 8.8.8.8 size 1400 do-not-fragment bypass-cache  # DF bit set, cached path MTU ignored
 ze monitor ping 8.8.8.8 interval 500ms        # stream until Ctrl-C (100ms-30s)
 ze monitor ping 8.8.8.8 count 5               # stop after 5 probes
 ze monitor ping 8.8.8.8 size 1400 count 20    # 20 probes carrying a 1400-byte payload
@@ -1595,6 +1603,39 @@ ping` streams live statistics. Omitting `count` on `monitor ping` streams until
 Ctrl-C, which is the difference between them; `monitor ping` additionally takes
 `interval` (100ms-30s). The two accept identical arguments whether or not a
 daemon is running.
+
+`do-not-fragment` sets the Don't Fragment bit on every probe, on `show ping`,
+`resolve ping`, `show traceroute` and `resolve traceroute`, and it takes one
+of two values. `do-not-fragment honor-cache` honors the kernel's cached path
+MTU: a probe larger than the cached value is refused at send time.
+`do-not-fragment bypass-cache` ignores the cached value, so the probe is put
+on the wire at its full size and the path answers for itself. The keyword
+without a value is refused, as every keyword of an operational command is.
+Absent, the DF bit is clear and the kernel fragments a probe larger than the
+path, as before. `monitor ping` does not take the keyword. Linux only:
+elsewhere the keyword is refused as unsupported and a probe without it still
+runs.
+
+A probe the path refused for its size is a reply row with `status`
+`too-big`, `next-hop-mtu-reported` (bool) and, when true, `next-hop-mtu`
+(int, the octets the router reported). A probe the kernel refused against
+its cached path MTU, which `honor-cache` asks for, has `status`
+`too-big-cached` with the cache's estimate, never reached the wire, and is
+left out of `sent`. When any probe was refused, the summary carries the same
+two keys with the smallest value reported. A refusal with no usable value
+(RFC 1191's zero from an old router, or an IPv6 value below 1280) says
+`next-hop-mtu-reported: false` and carries no `next-hop-mtu` key. Every run
+with the keyword also carries `path-mtu` (int, octets) on the summary: the
+estimate the kernel holds for the destination once the probes have run. The
+key is absent when the kernel holds no estimate.
+
+Ping runs on a raw ICMP socket when the daemon holds CAP_NET_RAW, and
+otherwise on Linux's unprivileged ICMP socket when the daemon's group is
+inside `net.ipv4.ping_group_range`; `do-not-fragment` and the reported MTU
+work on both. Traceroute needs the raw socket and refuses to run without it.
+`ze doctor` reports the state before the first probe: `doctor-icmp-probe`
+when neither socket opens, naming which of the two fixes applies, and
+`doctor-icmp-probe-unprivileged` when ping runs on the fallback.
 
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
 <!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->

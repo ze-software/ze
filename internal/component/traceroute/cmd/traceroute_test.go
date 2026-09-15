@@ -59,7 +59,7 @@ func TestTracerouteArgsParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, _, _, err := parseTracerouteArgs(tt.args)
+			_, err := parseTracerouteArgs(tt.args)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -70,30 +70,31 @@ func TestTracerouteArgsParser(t *testing.T) {
 }
 
 func TestTracerouteArgsDefaults(t *testing.T) {
-	target, maxHops, timeout, probes, err := parseTracerouteArgs([]string{"127.0.0.1"})
+	req, err := parseTracerouteArgs([]string{"127.0.0.1"})
 	require.NoError(t, err)
-	assert.Equal(t, "127.0.0.1", target.String())
-	assert.Equal(t, defaultTracerouteMaxHops, maxHops)
-	assert.Equal(t, defaultTracerouteTimeout, timeout)
-	assert.Equal(t, defaultTracerouteProbes, probes)
+	assert.Equal(t, "127.0.0.1", req.target.String())
+	assert.Equal(t, defaultTracerouteMaxHops, req.maxHops)
+	assert.Equal(t, defaultTracerouteTimeout, req.timeout)
+	assert.Equal(t, defaultTracerouteProbes, req.probes)
+	assert.Equal(t, probe.DFOff, req.opts.df)
 }
 
 func TestTracerouteArgsWithMaxHops(t *testing.T) {
-	_, maxHops, _, _, err := parseTracerouteArgs([]string{"10.0.0.1", "max-hops", "10"})
+	req, err := parseTracerouteArgs([]string{"10.0.0.1", "max-hops", "10"})
 	require.NoError(t, err)
-	assert.Equal(t, 10, maxHops)
+	assert.Equal(t, 10, req.maxHops)
 }
 
 func TestTracerouteArgsWithTimeout(t *testing.T) {
-	_, _, timeout, _, err := parseTracerouteArgs([]string{"10.0.0.1", "timeout", "2s"})
+	req, err := parseTracerouteArgs([]string{"10.0.0.1", "timeout", "2s"})
 	require.NoError(t, err)
-	assert.Equal(t, 2*time.Second, timeout)
+	assert.Equal(t, 2*time.Second, req.timeout)
 }
 
 func TestTracerouteArgsWithProbes(t *testing.T) {
-	_, _, _, probes, err := parseTracerouteArgs([]string{"10.0.0.1", "probes", "1"})
+	req, err := parseTracerouteArgs([]string{"10.0.0.1", "probes", "1"})
 	require.NoError(t, err)
-	assert.Equal(t, 1, probes)
+	assert.Equal(t, 1, req.probes)
 }
 
 // PREVENTS: garbage targets with shell metacharacters reaching DNS resolution.
@@ -107,7 +108,7 @@ func TestTracerouteParseArgsShellMeta(t *testing.T) {
 	}
 	for _, target := range bad {
 		t.Run(target, func(t *testing.T) {
-			_, _, _, _, err := parseTracerouteArgs([]string{target})
+			_, err := parseTracerouteArgs([]string{target})
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid target")
 		})
@@ -115,9 +116,9 @@ func TestTracerouteParseArgsShellMeta(t *testing.T) {
 }
 
 func TestTracerouteIPv6(t *testing.T) {
-	target, _, _, _, err := parseTracerouteArgs([]string{"::1"})
+	req, err := parseTracerouteArgs([]string{"::1"})
 	require.NoError(t, err)
-	assert.True(t, target.Is6())
+	assert.True(t, req.target.Is6())
 }
 
 func TestTracerouteHopResult(t *testing.T) {

@@ -50,6 +50,11 @@ func icmpChecksum(b []byte) uint16 {
 	return ^uint16(sum)
 }
 
+// nameUnspecified is what every enum in this package answers String for
+// its zero value: a DF mode, an error-queue outcome or a socket kind that
+// nobody set.
+const nameUnspecified = "unspecified"
+
 // Family is the IP address family a target resolution is held to. A probe
 // command derives it from the source address the operator gave, because a
 // source can only be bound on a socket of its own family. The zero value holds

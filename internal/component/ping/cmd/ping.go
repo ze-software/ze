@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -35,6 +34,7 @@ var (
 	errPingCountRequiresAValue       = errors.New("ping: count requires a value")
 	errPingSizeRequiresAValue        = errors.New("ping: size requires a value (bytes)")
 	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
+	errPingDFRequiresAValue          = errors.New("ping: do-not-fragment requires a value (honor-cache or bypass-cache)")
 	errPingIntervalRequiresAValue    = errors.New("monitor ping: interval requires a value (e.g. 500ms)")
 	errPingMissingDestinationAddress = errors.New("ping: missing destination address")
 	// errPingNoProbesSent is returned when a count>0 batch put no probe on the
@@ -176,11 +176,13 @@ func handleShowPing(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 }
 
 // parsePingArgs parses `show ping <dest> [count <n>] [size <bytes>]
-// [timeout <dur>]`. The returned pingOpts carries the optional ICMP payload
-// size; its zero value means the engine picks its default.
+// [timeout <dur>] [do-not-fragment honor-cache|bypass-cache]`. The returned
+// pingOpts carries the optional ICMP payload size, whose zero value means the
+// engine picks its default, and the DF mode, which is DFOff when the keyword
+// is absent.
 func parsePingArgs(args []string) (netip.Addr, int, time.Duration, pingOpts, error) {
 	var dest netip.Addr
-	var opts pingOpts
+	opts := pingOpts{df: probe.DFOff}
 	count := defaultPingCount
 	timeout := defaultPingTimeout
 
@@ -216,6 +218,16 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, pingOpts, err
 			}
 			timeout = d
 			i++
+		case probe.DFKeyword:
+			if i+1 >= len(args) {
+				return dest, 0, 0, opts, errPingDFRequiresAValue
+			}
+			mode, err := probe.DFModeOfValue(args[i+1])
+			if err != nil {
+				return dest, 0, 0, opts, fmt.Errorf("ping: %w", err)
+			}
+			opts.df = mode
+			i++
 		default:
 			if !dest.IsValid() {
 				if err := validateResolveTarget(args[i]); err != nil {
@@ -235,10 +247,40 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, pingOpts, err
 	return dest, count, timeout, opts, nil
 }
 
+// pingOpts carries the optional arguments of one ping run. source is the
+// local address the socket binds to, and the zero Addr leaves it to the
+// kernel. size is the ICMP payload in bytes, and zero sends the default
+// marker. df is the Don't Fragment mode: every constructor names it, because
+// the zero mode is refused by the probe layer rather than read as off.
 type pingOpts struct {
 	source netip.Addr
 	size   int
+	df     probe.DFMode
 }
+
+// openProbeConn is the one socket construction every prober calls, in a
+// variable so a test can stand a recorder in its place and reach the
+// constructor through the real command path without CAP_NET_RAW.
+var openProbeConn = func(ctx context.Context, family probe.Family, bind netip.Addr, df probe.DFMode) (pingConn, error) {
+	sock, err := probe.OpenICMP(ctx, family, bind, df)
+	if err != nil {
+		return nil, err
+	}
+	return sock, nil
+}
+
+// readPathMTU is the kernel's path MTU estimate for a destination, in a
+// variable so a test can stand a fixed answer in its place: the real read
+// connects a UDP socket to the destination, and its answer is the host's
+// route.
+var readPathMTU = probe.KernelPathMTU
+
+// fieldPathMTU is the summary key a DF run carries: the kernel's path MTU
+// estimate for the destination once the probes have run, which is the value
+// the run left in the cache. A router's answer under honor-cache lowers it,
+// and bypass-cache probes the wire without consulting it. The key is absent
+// when the kernel holds no estimate; a zero is never written.
+const fieldPathMTU = "path-mtu"
 
 // pingPayload returns the ICMP echo payload for a requested size. size <= 0
 // yields the small default marker; otherwise the payload is exactly size bytes
@@ -260,31 +302,39 @@ func doPing(dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (m
 }
 
 func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (map[string]any, error) {
-	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	if dest.Is6() {
-		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 	}
 
-	bindAddr := ""
-	if opts.source.IsValid() {
-		bindAddr = opts.source.String()
-	}
-
-	var lc net.ListenConfig
-	conn, err := lc.ListenPacket(ctx, network, bindAddr)
+	conn, err := openProbeConn(ctx, probe.FamilyOf(dest), opts.source, opts.df)
 	if err != nil {
-		return nil, fmt.Errorf("ping: %w (requires CAP_NET_RAW)", err)
+		return nil, fmt.Errorf("ping: %w", err)
 	}
 
 	// runPingBatch takes ownership of conn and closes it exactly once. It returns
 	// an error when a count>0 batch put nothing on the wire (fail closed), which
 	// doPingCtx propagates so the handler reports StatusError rather than a
 	// misleading 0%-loss result.
-	return runPingBatch(ctx, conn, clock.RealClock{}, dest, defaultPingBatchInterval, timeout, count, opts.size, icmpEcho, icmpEchoReply)
+	result, err := runPingBatch(ctx, conn, clock.RealClock{}, dest, defaultPingBatchInterval, timeout, count, opts.size, icmpEcho, icmpEchoReply)
+	if err != nil {
+		return nil, err
+	}
+	if opts.df == probe.DFOff {
+		return result, nil
+	}
+	mtu, mtuErr := readPathMTU(ctx, dest)
+	if mtuErr != nil {
+		// The kernel holds no estimate (no route to the destination, or a
+		// platform with no IP_MTU): the key stays absent rather than zero.
+		// This package holds no logger, so the read failure itself is not
+		// surfaced.
+		return result, nil
+	}
+	result[fieldPathMTU] = int(mtu)
+	return result, nil
 }
 
 // runPingBatch runs a bounded ICMP echo batch over an already-open conn and an
@@ -367,15 +417,35 @@ func runPingBatch(
 
 // summarizePingReplies builds the show-ping result map from the per-probe
 // replies collected from the session, preserving the exact shape the serial
-// engine produced. sent counts every probe that reached the wire (each collected
-// reply is one successful WriteTo), received counts the ok replies, and
-// min/avg/max are present only when at least one probe was answered.
+// engine produced. sent counts every probe that reached the wire (each
+// collected reply is one successful WriteTo, so a probe the kernel refused
+// against its cache is not counted), received counts the ok replies, and
+// min/avg/max are present only when at least one probe was answered. A run
+// in which any probe was refused for its size also carries the two next-hop
+// MTU keys: the smallest value reported, because RFC 1191 Section 3 lets an
+// estimate only decrease on a report, or reported=false when every refusal
+// came without one.
 func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]any {
 	sent := len(replies)
 	received := 0
+	refused := 0
+	var mtuMin int
 	var minMs, maxMs, sumMs float64
 	for _, r := range replies {
-		if status, _ := r[fieldStatus].(string); status != "ok" {
+		status, _ := r[fieldStatus].(string)
+		if status == statusTooBigCached {
+			sent--
+		}
+		if status == statusTooBig || status == statusTooBigCached {
+			refused++
+			if mtu, ok := r[fieldNextHopMTU].(int); ok {
+				if mtuMin == 0 || mtu < mtuMin {
+					mtuMin = mtu
+				}
+			}
+			continue
+		}
+		if status != "ok" {
 			continue
 		}
 		rtt, _ := r["rtt-ms"].(float64)
@@ -405,6 +475,12 @@ func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]
 		result["min-rtt-ms"] = minMs
 		result["avg-rtt-ms"] = sumMs / float64(received)
 		result["max-rtt-ms"] = maxMs
+	}
+	if refused > 0 {
+		result[fieldNextHopMTUReported] = mtuMin > 0
+		if mtuMin > 0 {
+			result[fieldNextHopMTU] = mtuMin
+		}
 	}
 	return result
 }

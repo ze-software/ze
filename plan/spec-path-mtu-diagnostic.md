@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | ready |
 | Scope | cli |
-| Depends | spec-probe-do-not-fragment |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-11 |
@@ -50,7 +50,7 @@ snapshot rather than importing the IKE engine.
   → Constraint: keyword before value, and the handler returns structured data so `| json`, `| yaml` and `| table` each render one payload
   → Constraint: a severity marker is never glued to a name; the verdict is its own field
 - [ ] `docs/architecture/diagnostics/active-probes.md` - the probe layer this depends on
-  → Constraint: probes are in-daemon sockets; `plan/spec-probe-do-not-fragment.md` adds the DF mode and the error-queue read this module consumes
+  → Constraint: probes are in-daemon sockets; the DF mode and the error-queue read this module consumes landed with spec-probe-do-not-fragment (closed 2026-09-15) and are described on this page under "The Don't Fragment mode" and "The error queue"
 - [ ] `docs/contributing/ze-go-style.md` - the working standard
   → Constraint: `netip.Addr` for an address, never a string; a typed enum whose zero means `Unspecified` for the verdict
   → Constraint: state the limit. The probe budget, the follow count and the candidate ladder are bounded and the bound is in the code
@@ -124,7 +124,7 @@ snapshot rather than importing the IKE engine.
 | mtu ↔ ike | a registered snapshot query in a core leaf, value types only | No |
 | mtu ↔ iface | `GetXFRMInfo` and `GetInterface` for the if_id-to-name resolution and the interface MTU | No |
 | mtu ↔ sysctl | an exported read for `tcp_mtu_probing` | No |
-| mtu ↔ probe layer | the DF mode and the error-queue read from `plan/spec-probe-do-not-fragment.md` | No |
+| mtu ↔ probe layer | the DF mode and the error-queue read of `internal/core/probe` (`OpenICMP`, `Socket.DrainErrors`, `KernelPathMTU`; `docs/architecture/diagnostics/active-probes.md`) | No |
 | Component ↔ CLI | `ze-mtu-cmd.yang` and the registered RPC | No |
 
 ### Integration Points
@@ -167,7 +167,7 @@ snapshot rather than importing the IKE engine.
 |----------|--------|
 | What breaks if this is wrong? | An operator applies an MTU derived from a wrong figure and clamps a working tunnel, or leaves an oversized one in place believing it checked. The command changes nothing itself, so the damage is through the advice it prints, which is why a wrong figure must be impossible rather than unlikely |
 | How is it reverted? | Single commit revert for the module. The `PeerInfo` changes and the negotiated-transform fix are separable and worth keeping regardless |
-| Who else touches this path? | `plan/immediate/spec-rfc4301-architecture-gaps.md` phase 7 (the per-SA PMTU), `plan/spec-probe-do-not-fragment.md` (the probe layer this depends on), `plan/spec-ike-padded-path-probe.md` (the later, more accurate prober) |
+| Who else touches this path? | `plan/immediate/spec-rfc4301-architecture-gaps.md` phase 7 (the per-SA PMTU), `internal/core/probe` (the probe layer this depends on, landed by spec-probe-do-not-fragment), `plan/spec-ike-padded-path-probe.md` (the later, more accurate prober) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -294,7 +294,7 @@ snapshot rather than importing the IKE engine.
 | Functional test for new RPC/API | Yes | five `.ci` scenarios listed above |
 | Pipe completeness | Yes | one payload through `ApplyPipes`, proven by AC-19 |
 | Env var registration | Yes | the reference-address leaf needs its `ze.mtu.<leaf>` registration via `env.MustRegister()` |
-| Doctor check for runtime dependencies | Yes | this module reads `/proc/sys` and the SNMP counters, which are runtime dependencies: a check in the owning package plus a code in `internal/core/diagnostic/codes.go`. The ICMP socket dependency is covered by `plan/spec-probe-do-not-fragment.md` and is not duplicated here |
+| Doctor check for runtime dependencies | Yes | this module reads `/proc/sys` and the SNMP counters, which are runtime dependencies: a check in the owning package plus a code in `internal/core/diagnostic/codes.go`. The ICMP socket dependency is covered by `checkICMPProbeSocket` (`internal/core/probe/doctor.go`, codes `doctor-icmp-probe` and `doctor-icmp-probe-unprivileged`) and is not duplicated here |
 | Prometheus counters/metrics | N-A | the command is operator-invoked and holds no continuous state; the fragmentation counters it reports are already collected by telemetry |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP surface is touched |
 
@@ -309,7 +309,7 @@ snapshot rather than importing the IKE engine.
 | 6 | Has a user guide page? | Yes | `docs/architecture/diagnostics/path-mtu.md` is created; `docs/guide/ipsec.md` links to it from the tunnel sizing discussion |
 | 7 | Wire format changed? | N-A | no message format changes; the probes are ICMP echo built by the existing primitive |
 | 8 | Plugin SDK/protocol changed? | N-A | no SDK surface changes |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` if the phase 7 PMTU row moves; RFC 1191, 8201, 4821 and 8899 are cited for the algorithm's shape but not enrolled, per the owner decision recorded in `plan/spec-probe-do-not-fragment.md` |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` if the phase 7 PMTU row moves; RFC 1191, 8201, 4821 and 8899 are cited for the algorithm's shape but not enrolled, per the owner decision of 2026-09-11 recorded in `docs/architecture/diagnostics/active-probes.md` (the kernel runs the state machines, Ze installs the option and reads the result) |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, three new interop scenarios |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`; no other daemon offers tunnel sizing advice from a live measurement |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` gains the new core leaf, and its Component Boundaries table today covers 15 of 44 component directories, so the mtu row is added rather than assumed |

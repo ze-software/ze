@@ -396,6 +396,7 @@ one.
 | Config error diagnostics | Yes | No | No | No | No | No | Partial | No | No | Yes | Partial |
 | Runtime health monitoring | Yes | No | No | No | No | No | No | No | No | No | No |
 | Pre-start readiness checks | Yes | No | No | No | No | No | No | No | No | No | No |
+| Don't Fragment path probing (ping/traceroute with the reported next-hop MTU) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Docker image | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes |
 | netlab lab integration | Yes (daemon, in-repo, unvalidated) | No | Yes (daemon) | Yes (device) | Yes (device) | Not found | Not found | Not found | Not found | Not found | Not found |
 | Fuzz testing | Yes | No | No | No | No | No | Yes | No | No | Yes | No |

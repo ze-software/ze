@@ -37,7 +37,7 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 
 	count := 4
 	timeout := defaultPingTimeout
-	var opts pingOpts
+	opts := pingOpts{df: probe.DFOff}
 
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
@@ -70,6 +70,16 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 			}
 			n, _ := strconv.ParseUint(args[i], 10, 64)
 			opts.size = int(n)
+		case probe.DFKeyword:
+			if i+1 >= len(args) {
+				return errResolveResponse(errPingDFRequiresAValue.Error()), nil
+			}
+			i++
+			mode, err := probe.DFModeOfValue(args[i])
+			if err != nil {
+				return errResolveResponse("ping: " + err.Error()), nil //nolint:nilerr // operational error in Response
+			}
+			opts.df = mode
 		default:
 			var tb textbuf.Buffer
 			tb.Str("ping: unknown option ").Str(strconv.Quote(args[i]))

@@ -616,6 +616,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-vrrp-raw-socket"},
 	},
 	{
+		Code:        "doctor-icmp-probe",
+		Title:       "ICMP probe socket unavailable",
+		Description: "Neither ICMP socket kind can be opened, so ping and traceroute cannot run. The raw ICMP socket needs CAP_NET_RAW or root, and the unprivileged datagram ICMP socket needs the daemon's group inside net.ipv4.ping_group_range. The message carries the refusal of each kind and the group the daemon runs as, so it names which of the two fixes applies. A raw socket refused for a reason other than privilege is reported as itself, and no fallback is tried.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-icmp-probe"},
+	},
+	{
+		Code:        "doctor-icmp-probe-unprivileged",
+		Title:       "ICMP probes run on the unprivileged datagram socket",
+		Description: "The raw ICMP socket is refused for privilege (no CAP_NET_RAW), and the unprivileged datagram ICMP socket stands in because the daemon's group is inside net.ipv4.ping_group_range. Ping runs on it, including the do-not-fragment modes and the reported next-hop MTU. Traceroute does not: the kernel delivers Time Exceeded only to a raw socket, so show traceroute, monitor traceroute and show probe-round refuse to run and name CAP_NET_RAW. Grant CAP_NET_RAW to the daemon to restore them.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-icmp-probe-unprivileged"},
+	},
+	{
 		Code:        "doctor-crash-capture-unarmed",
 		Title:       "Kernel crash capture configured but not armed",
 		Description: "system crash-dump enabled is set, but the running kernel booted without the reserved memory region the capture writes into. A reservation is a kernel boot argument, so a commit records the intent and the next boot arms it: build the appliance image with image.crash-dump and reboot. Until then a kernel panic leaves no record, and the appliance has no shell to diagnose one with.",

@@ -25,6 +25,7 @@ type tracerouteRequest struct {
 	maxHops int
 	timeout time.Duration
 	probes  int
+	df      probe.DFMode
 }
 
 // handleResolveTraceroute is the RPC handler for `resolve traceroute`
@@ -59,7 +60,7 @@ func handleResolveTraceroute(ctx *pluginserver.CommandContext, args []string) (*
 		return errResolveResponse(tb.String()), nil
 	}
 
-	hops, trErr := doTracerouteCtx(ctx.Context(), dest, req.maxHops, req.timeout, req.probes, tracerouteOpts{source: req.source})
+	hops, trErr := doTracerouteCtx(ctx.Context(), dest, req.maxHops, req.timeout, req.probes, tracerouteOpts{source: req.source, df: req.df})
 	if trErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: trErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
@@ -76,6 +77,7 @@ func parseResolveTracerouteArgs(args []string) (tracerouteRequest, *plugin.Respo
 		maxHops: defaultTracerouteMaxHops,
 		timeout: defaultTracerouteTimeout,
 		probes:  defaultTracerouteProbes,
+		df:      probe.DFOff,
 	}
 
 	for i := 1; i < len(args); i++ {
@@ -135,6 +137,16 @@ func parseResolveTracerouteArgs(args []string) (tracerouteRequest, *plugin.Respo
 				return req, errResolveResponse(tb.String())
 			}
 			req.probes = n
+		case probe.DFKeyword:
+			if i+1 >= len(args) {
+				return req, errResolveResponse(errTracerouteDFRequiresVal.Error())
+			}
+			i++
+			mode, err := probe.DFModeOfValue(args[i])
+			if err != nil {
+				return req, errResolveResponse("traceroute: " + err.Error())
+			}
+			req.df = mode
 		default:
 			var tb textbuf.Buffer
 			tb.Str("traceroute: unknown option ").Str(strconv.Quote(args[i]))

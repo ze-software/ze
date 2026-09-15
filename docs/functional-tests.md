@@ -594,6 +594,31 @@ capability bits the probe tests.
 
 <!-- source: internal/test/runner/caps.go -- capsRequired -->
 
+#### A clamped path built by the test itself
+
+A `.ci` that needs a path with a known MTU builds it in a `tmpfs=` shell
+script and runs the daemon inside it: three network namespaces named after
+`$PORT` (sender, router, far) joined by two veth pairs, the router's far link
+set to 1400, forwarding on in the router, and `ip netns exec <sender> ze start
+<conf>` as the script's last command, so the script's exit code is the
+daemon's and its `trap` removes the namespaces on every exit. The near link is
+1600 so a 1528-octet probe leaves the sender and the ROUTER refuses it, which
+is the answer under test. The script runs as the last `cmd=` line under
+`expect=exit:code=0`, so the runner waits for it, and the fixture plugin
+inside the daemon (`ze-test fixture plugin/ping-do-not-fragment`) dispatches
+`show ping` and reads the payload. `capsh --drop=cap_net_raw --shell=/bin/sh`
+in front of the daemon is how the unprivileged variant loses `CAP_NET_RAW`
+while staying root, and it refuses to start the daemon when `CapEff` still
+holds the bit. The doctor variant needs only a fresh namespace, whose
+`ping_group_range` is the kernel default. The three tests are
+`test/plugin/ping-do-not-fragment-reports-mtu.ci`,
+`ping-do-not-fragment-unprivileged.ci` and `doctor-icmp-probe-missing.ci`,
+marked `option=needs-linux:caps=net-admin,net-raw` (the doctor one
+`caps=net-admin`), so their home is the QEMU guest with `iproute2` and
+`libcap` installed.
+<!-- source: test/plugin/ping-do-not-fragment-reports-mtu.ci -- clamped-path.sh -->
+<!-- source: internal/test/fixture/plugin_fixture_ping_df.go -- pingDoNotFragment -->
+
 The `traffic` suite is enrolled
 in `allTestsRun.Run` in `internal/le/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and
 `traffic-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and

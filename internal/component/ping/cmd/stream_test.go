@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/internal/core/probe"
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
@@ -53,6 +54,9 @@ type writeRec struct {
 type injectedPkt struct {
 	data []byte
 	from net.Addr
+	// err, when set, is what ReadFrom answers instead of a datagram: the
+	// one-shot errno a queued refusal makes an ordinary read return.
+	err error
 }
 
 // fakePingConn is a deterministic pingConn. WriteTo hands each send to the test
@@ -69,14 +73,53 @@ type fakePingConn struct {
 
 	mu       sync.Mutex
 	writeErr error
+	// errQueue is the socket error queue the fake stands in for. DrainErrors
+	// hands every entry over and empties it, as the kernel's queue does, and
+	// then signals drained so a test can wait for the drain to have run.
+	errQueue []probe.QueuedError
+	drained  chan struct{}
 }
 
 func newFakePingConn(clk clock.Clock) *fakePingConn {
 	return &fakePingConn{
-		clk:    clk,
-		wrote:  make(chan writeRec),
-		readCh: make(chan injectedPkt),
-		closed: make(chan struct{}),
+		clk:     clk,
+		wrote:   make(chan writeRec),
+		readCh:  make(chan injectedPkt),
+		closed:  make(chan struct{}),
+		drained: make(chan struct{}, 1),
+	}
+}
+
+func (fc *fakePingConn) DrainErrors(visit func(probe.QueuedError)) error {
+	fc.mu.Lock()
+	queued := fc.errQueue
+	fc.errQueue = nil
+	fc.mu.Unlock()
+	for _, q := range queued {
+		visit(q)
+	}
+	select {
+	case fc.drained <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+// queueError puts one entry on the fake's error queue, as the kernel does
+// before it wakes the socket.
+func (fc *fakePingConn) queueError(q probe.QueuedError) {
+	fc.mu.Lock()
+	fc.errQueue = append(fc.errQueue, q)
+	fc.mu.Unlock()
+}
+
+// injectReadErr makes the next ReadFrom fail with err, which is how a queued
+// refusal from the network reaches a reader under IP_RECVERR: the errno once,
+// then reads continue. It blocks until the receiver consumes it.
+func (fc *fakePingConn) injectReadErr(err error) {
+	select {
+	case fc.readCh <- injectedPkt{err: err}:
+	case <-fc.closed:
 	}
 }
 
@@ -104,6 +147,9 @@ func (fc *fakePingConn) WriteTo(p []byte, _ net.Addr) (int, error) {
 func (fc *fakePingConn) ReadFrom(p []byte) (int, net.Addr, error) {
 	select {
 	case ip := <-fc.readCh:
+		if ip.err != nil {
+			return 0, nil, ip.err
+		}
 		n := copy(p, ip.data)
 		return n, ip.from, nil
 	case <-fc.closed:

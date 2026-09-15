@@ -335,6 +335,10 @@ var integrationPackages = []string{
 	"./internal/plugins/copp",
 	"./internal/plugins/static",
 	"./internal/plugins/trafficusage",
+	// Added 2026-09-15 with errqueue_integration_linux_test.go, which proves
+	// the socket error queue, the bypass mode and the DF bit against a Linux
+	// router in a clamped three-namespace path.
+	"./internal/core/probe",
 }
 
 // excludedIntegrationPackages names a package that holds integration tests and
