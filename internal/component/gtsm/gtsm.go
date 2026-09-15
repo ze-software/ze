@@ -29,6 +29,7 @@
 package gtsm
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -91,6 +92,11 @@ type Peer struct {
 var (
 	mu      sync.Mutex
 	current []Peer
+	// routeMissing says the last reconcile left a peer without its host
+	// route, most often because the peer's interface was not up yet. It makes
+	// the next reconcile run even when it names the same peers, which is what
+	// the daemon's warning and the doctor check promise (doctor.go).
+	routeMissing bool
 	// published says SetPeers has run in this process, so current is the
 	// set this daemon asked the kernel for. It stays false in a process that
 	// only reads the kernel, such as `ze doctor`, and the doctor check reads
@@ -105,28 +111,33 @@ var (
 // It is synchronous. The caller's config apply is what waits, and that is
 // deliberate: a filter published after the session it protects is the window
 // the rule exists to close.
+//
+// The error names every peer whose route the kernel refused, and the filter
+// is published whatever the routes answered: a peer short of its route is
+// protected in one direction rather than neither. The reconcile that follows
+// retries the route, even when it names the same peers, because nothing in
+// the configuration changes when the peer's interface comes up.
 func SetPeers(peers []Peer) error {
 	mu.Lock()
 	defer mu.Unlock()
 
 	published = true
 	wanted := sortedPeers(peers)
-	if slices.Equal(wanted, current) {
+	if slices.Equal(wanted, current) && !routeMissing {
 		return nil
 	}
 
-	// The routes go first. A peer that gains a route before its filter is
-	// protected in one direction rather than neither, and the order is fixed
-	// so a failure leaves a state a later reconcile can still reach.
-	if err := applyRoutes(wanted, current); err != nil {
-		return fmt.Errorf("gtsm routes: %w", err)
-	}
+	// The routes go first, so the order is fixed and a failure leaves a state
+	// a later reconcile can still reach.
+	routeErr := applyRoutes(wanted, current)
+	routeMissing = routeErr != nil
 	if err := publishFilter(filterTables(wanted)); err != nil {
-		return fmt.Errorf("gtsm filter: %w", err)
+		// current stays as it was, so the next reconcile republishes.
+		return errors.Join(routeErr, fmt.Errorf("gtsm filter: %w", err))
 	}
 
 	current = wanted
-	return nil
+	return routeErr
 }
 
 // publishedPeers answers the set this process last asked the kernel for, and

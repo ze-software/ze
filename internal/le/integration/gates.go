@@ -203,9 +203,11 @@ func Table() []Action {
 		},
 		{
 			Verb: "gtsm",
-			Argv: goTest("120s", "./internal/core/network/...", "./internal/component/bgp/reactor/..."),
+			Argv: goTest("120s", "./internal/core/network/...", "./internal/component/bgp/reactor/...",
+				"./internal/component/gtsm/..."),
 			Why: "BGP GTSM and TTL-security, which live in a socket option only a Linux" +
-				" kernel can answer for",
+				" kernel can answer for, and the route metric and nftables filter of a" +
+				" GTSM peer's related ICMP messages, whose proofs need CAP_NET_ADMIN",
 		},
 		{
 			Verb: "as112",

@@ -201,6 +201,9 @@ func TestSetDynamicGroups(t *testing.T) {
 func newTestReactor(t *testing.T) *Reactor {
 	t.Helper()
 	return &Reactor{
+		// New never builds a reactor without a config, and a peer reconcile
+		// reads it (gtsmPeers, gtsm.go), so the fixture carries one too.
+		config:    &Config{},
 		peers:     make(map[netip.AddrPort]*Peer),
 		listeners: make(map[string]*Listener),
 		clock:     clock.RealClock{},

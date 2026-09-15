@@ -21,8 +21,8 @@ import (
 // A failure is reported and not returned. The caller is a config apply or a
 // start, and neither can usefully undo a peer set because of it: the sessions
 // themselves are correct, and what is missing is the protection of their
-// related ICMP messages. The gtsm component names the peer in its own line,
-// and the next reconcile tries again.
+// related ICMP messages. The error names each peer whose route the kernel
+// refused, and the next reconcile tries again (gtsm.SetPeers).
 func (r *Reactor) publishGTSMKernelState() {
 	if err := setGTSMPeers(r.gtsmPeers()); err != nil {
 		reactorLogger().Warn("GTSM kernel state not published", "error", err)

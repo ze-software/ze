@@ -15,10 +15,9 @@ import (
 //
 // The route metric is a Linux route attribute (RTAX_HOPLIMIT), and the
 // non-Linux build reaches this only in a development environment: ze's daemon
-// runs on Linux. It says so once for each peer rather than returning an error,
-// for the same reason the Linux path does, and so a config apply on a
-// developer's machine is not refused for a kernel feature that machine has no
-// equivalent of.
+// runs on Linux. It says so once for each peer rather than returning an error:
+// an error would make SetPeers retry on every reconcile, and there is nothing
+// a retry could install here.
 func applyHopLimitRoutes(wanted, previous []Peer) error {
 	_ = previous
 	for _, p := range wanted {

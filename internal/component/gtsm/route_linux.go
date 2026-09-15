@@ -24,20 +24,15 @@ package gtsm
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/netip"
 	"slices"
-	"sync"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/rtproto"
-	"github.com/ze-software/ze/internal/core/slogutil"
 )
-
-var logger = sync.OnceValue(func() *slog.Logger { return slogutil.Logger("gtsm") })
 
 // routeAdd, routeDel and routeResolve are the three netlink calls this file
 // makes. They are vars so a test can drive the reconcile without a kernel; the
@@ -53,20 +48,21 @@ var (
 // for an outgoing hop limit, and removes the route of every peer in previous
 // that wanted no longer names.
 //
-// A peer whose route cannot be installed is reported and the reconcile
-// continues. The peer's address is often unreachable at the moment the config
-// is applied, because the interface carrying it has not come up yet, and a
-// config apply that failed for that reason would take the whole BGP
-// configuration down with it. The next peer reconcile installs the route, and
-// the line below names the peer so an operator can see which half of GTSM is
-// missing meanwhile.
+// A peer whose route cannot be installed does not stop the reconcile: every
+// other peer still gets its route, and the error returned names each one that
+// did not. The peer's address is often unreachable at the moment the config
+// is applied, because the interface carrying it has not come up yet, so the
+// caller (SetPeers) reports the error rather than refusing the configuration,
+// and retries the route on the next reconcile. The error text names the peer
+// so an operator can see which half of GTSM is missing meanwhile.
 func applyHopLimitRoutes(wanted, previous []Peer) error {
+	var errs []error
 	for _, p := range previous {
 		if slices.ContainsFunc(wanted, func(w Peer) bool { return w.Addr == p.Addr }) {
 			continue
 		}
 		if err := withdrawHopLimitRoute(p); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
 
@@ -75,11 +71,10 @@ func applyHopLimitRoutes(wanted, previous []Peer) error {
 			continue
 		}
 		if err := installHopLimitRoute(p); err != nil {
-			logger().Warn("GTSM hop-limit route not installed, ICMP errors to this peer carry the system default TTL",
-				"peer", p.Addr.String(), "hop-limit", p.HopLimit, "error", err)
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // installHopLimitRoute writes the peer's host route, carrying the hop limit as

@@ -9,6 +9,7 @@
 package gtsm
 
 import (
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -28,7 +29,7 @@ func captureSeams(t *testing.T) *capture {
 	t.Helper()
 
 	c := &capture{}
-	routes, publish, previous, wasPublished := applyRoutes, publishFilter, current, published
+	routes, publish, previous, wasPublished, wasMissing := applyRoutes, publishFilter, current, published, routeMissing
 
 	applyRoutes = func(wanted, gone []Peer) error {
 		c.routesWanted = append(c.routesWanted, wanted)
@@ -41,9 +42,10 @@ func captureSeams(t *testing.T) *capture {
 	}
 	current = nil
 	published = false
+	routeMissing = false
 
 	t.Cleanup(func() {
-		applyRoutes, publishFilter, current, published = routes, publish, previous, wasPublished
+		applyRoutes, publishFilter, current, published, routeMissing = routes, publish, previous, wasPublished, wasMissing
 	})
 	return c
 }
@@ -182,6 +184,47 @@ func TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt(t *testing.T) {
 	}
 	if len(c.routesGone) != 2 || len(c.routesGone[1]) != 1 || c.routesGone[1][0].Addr != peer.Addr {
 		t.Errorf("withdraw did not hand the peer's route back for removal: %v", c.routesGone)
+	}
+}
+
+// TestGTSMRetriesARouteTheKernelRefused is the promise the daemon's warning
+// and the doctor check make: a peer whose route the kernel refused at config
+// apply, because its interface was not up yet, gets the route on the next
+// reconcile even though that reconcile names the same peers. The filter is
+// published either way, and once the route is in, an unchanged set is left
+// alone again.
+func TestGTSMRetriesARouteTheKernelRefused(t *testing.T) {
+	c := captureSeams(t)
+	refusals := 1
+	applyRoutes = func(wanted, gone []Peer) error {
+		c.routesWanted = append(c.routesWanted, wanted)
+		if refusals > 0 {
+			refusals--
+			return errors.New("replace host route: network is unreachable")
+		}
+		return nil
+	}
+
+	peers := []Peer{gtsmPeer()}
+	if err := SetPeers(peers); err == nil {
+		t.Fatal("SetPeers reported no error for a route the kernel refused")
+	}
+	if len(c.tables) != 1 {
+		t.Fatalf("the filter was published %d times after the refused route, want 1: the receive half must not wait on the transmit half", len(c.tables))
+	}
+
+	if err := SetPeers(peers); err != nil {
+		t.Fatalf("SetPeers retry: %v", err)
+	}
+	if len(c.routesWanted) != 2 {
+		t.Fatalf("the route was applied %d times, want 2: the same peer set must retry a missing route", len(c.routesWanted))
+	}
+
+	if err := SetPeers(peers); err != nil {
+		t.Fatalf("SetPeers unchanged: %v", err)
+	}
+	if len(c.routesWanted) != 2 {
+		t.Errorf("the route was applied %d times, want 2: an unchanged set with every route installed is left alone", len(c.routesWanted))
 	}
 }
 

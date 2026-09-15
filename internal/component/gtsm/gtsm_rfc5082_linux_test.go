@@ -238,7 +238,7 @@ func TestGTSMDeliversAnICMPErrorNoSessionClaims(t *testing.T) {
 // the ICMPv6 error's OWN hop limit against the socket's min_hopcount, which is
 // the IPV6_MINHOPCOUNT that network.SetIPMinTTL sets.
 //
-// The observable is TCPMinTTLDrop in /proc/net/netstat, the counter the kernel
+// The observable is the testbed namespace's TCPMinTTLDrop, the counter the kernel
 // increments on exactly that comparison.
 //
 // RFC requirement: RFC5082-3-2 positive -- on a socket carrying the
@@ -597,13 +597,14 @@ func awaitICMPInType(t *testing.T, messageType uint8, want uint64) uint64 {
 }
 
 // icmpInType is the kernel's count of the ICMPv4 messages of one type it has
-// RECEIVED, from the IcmpMsg line of /proc/net/snmp. The input hook runs
-// before icmp_rcv, so a message an nftables rule drops is never counted here.
+// RECEIVED, from the IcmpMsg line of the testbed namespace's snmp file. The
+// input hook runs before icmp_rcv, so a message an nftables rule drops is never
+// counted here.
 func icmpInType(t *testing.T, messageType uint8) uint64 {
 	t.Helper()
 
 	column := "InType" + strconv.Itoa(int(messageType))
-	value, found := procNetColumn(t, "/proc/net/snmp", "IcmpMsg:", column)
+	value, found := procNetColumn(t, "/proc/thread-self/net/snmp", "IcmpMsg:", column)
 	if !found {
 		// No message of this type has been received since boot, so the kernel
 		// has not created the column yet. That is a zero, not a missing
@@ -634,16 +635,23 @@ func awaitMinTTLDrop(t *testing.T, want uint64) uint64 {
 func tcpMinTTLDrop(t *testing.T) uint64 {
 	t.Helper()
 
-	value, found := procNetColumn(t, "/proc/net/netstat", "TcpExt:", "TCPMinTTLDrop")
+	value, found := procNetColumn(t, "/proc/thread-self/net/netstat", "TcpExt:", "TCPMinTTLDrop")
 	if !found {
 		t.Fatal("this kernel reports no TCPMinTTLDrop counter, so the receive check cannot be observed")
 	}
 	return value
 }
 
-// procNetColumn reads one named column of one named section of a /proc/net
-// statistics file. Those files carry pairs of lines: a header naming the
-// columns, then the values, both opening with the section name.
+// procNetColumn reads one named column of one named section of a /proc
+// network statistics file. Those files carry pairs of lines: a header naming
+// the columns, then the values, both opening with the section name.
+//
+// The path MUST be under /proc/thread-self/net. /proc/net is /proc/self/net,
+// and /proc/self is the thread-group leader, which stays in the host network
+// namespace: newTestbed unshares the namespace on the locked test thread only,
+// so a counter read through /proc/net counts the host's packets and never the
+// testbed's. /proc/thread-self resolves to the calling thread, which is the
+// one that unshared.
 func procNetColumn(t *testing.T, path, section, column string) (uint64, bool) {
 	t.Helper()
 

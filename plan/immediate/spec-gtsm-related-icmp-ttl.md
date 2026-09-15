@@ -403,3 +403,173 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `internal/component/gtsm`: `SetPeers` reconciles the kernel to the GTSM peer set; `installHopLimitRoute` / `withdrawHopLimitRoute` (`route_linux.go`) carry RTAX_HOPLIMIT 255 on a host route to each peer; `filterTables` / `peerTerms` (`gtsm.go`) publish the `ze_gtsm` inet input table through `firewall.RegisterTables` + `firewall.ApplyAll`, ten drop terms per IPv4 peer.
+- Two daemon-only firewall matches, `MatchIPv4TTLBelow` and `MatchICMPErrorQuotedTCPPort` (`internal/component/firewall/model.go`, `validate.go`), lowered under an nfproto guard by `lowerIPv4TTLBelowMatch` and `lowerICMPErrorQuotedTCPPortMatch` (`internal/plugins/firewall/nft/lower_linux.go`).
+- Reactor wiring: `Reactor.gtsmPeers` derives the set from `PeerSettings.OutTTL` / `MinTTL`, `publishGTSMKernelState` calls `gtsm.SetPeers` at start (`reactor.go`) and at every peer reconcile (`reactor_api.go`); `gtsmPeersFromResolvedTree` feeds `gtsm.SetConfigPeers` for the offline doctor mode.
+- Doctor check `gtsm-kernel-state` (`checkKernelState`, `doctor.go`), code `doctor-gtsm-kernel-state` (`internal/core/diagnostic/codes.go`), row in `docs/guide/health-checks.md`.
+- Proofs: eight tagged RFC5082-3-2 units in `gtsm_rfc5082_linux_test.go` and `internal/core/network/ttl_gtsm_linux_test.go`; functional `test/firewall/gtsm-related-icmp.ci` with driver `netfilter_fixture_gtsm.go`; interop `test/interop/scenarios/gtsm-related-icmp-ttl/` with `checkGTSMRelatedICMPTTL`.
+
+### Bugs Found/Fixed
+- Closure (this session): `SetPeers` wrote `current = wanted` after a route install failed, and the unchanged-set short-circuit then never retried it, contradicting `applyHopLimitRoutes`, `publishGTSMKernelState`, `missingStateDiagnostic` and the `codes.go` description. Fixed: `applyHopLimitRoutes` returns the joined errors, `SetPeers` records `routeMissing` and re-runs an unchanged set while it is set. Test: `TestGTSMRetriesARouteTheKernelRefused`.
+- Closure: `newTestReactor` (`reactor_dynamic_test.go`) built a reactor with no `config`, and `gtsmPeers` reading `r.config.Port` from `reconcilePeersJournaled` panicked `TestReloadRepublishesDeliveryGraph`. The fixture now carries `&Config{}`, as `New` always does.
+- Closure: `./le integration gtsm` did not name `./internal/component/gtsm/...`, so the CAP_NET_ADMIN proofs had no registered runner. Added (`internal/le/integration/gates.go`).
+- Closure: `//nolint:embedlit` named an unknown linter in `netns_linux_test.go`; the veth literal now uses the promoted `Name` field the tree already uses (`internal/plugins/iface/netlink/manage_linux.go`).
+- Implementation (2026-09-14, recorded in Design Insights): IPv4 route delete matched on scope; counters placed before matches.
+
+### Documentation Updates
+- `docs/DESIGN.md` (anchors `internal/component/gtsm/gtsm.go -- SetPeers, peerTerms`, `route_linux.go -- installHopLimitRoute`); `docs/guide/firewall.md` (`gtsm.go -- filterTables, peerTerms`); `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` (`gtsm.go -- filterTableName, filterTables`); `docs/guide/health-checks.md` (`doctor.go -- checkKernelState`); `docs/architecture/testing/interop.md` names the scenario; `rfc/short/rfc5082.md` Support coverage names the producers; `ai/CODE-TO-DOCS.md` maps the package. All landed in `479e9d76a9`, `a45ba3bf45`, `7929e0f69d`, `130c8c54d7`.
+- `./le doc check links`: 2 broken references, both in other sessions' files (`internal/plugins/ospf/yang_vocabulary_test.go`, `plan/handover-rfc-conformance-c9bdcd62.md`); none in this spec's files. `./le docs-to-code index-check`: 2 stale anchors in `docs/architecture/api/text-format.md` and `docs/features/formatting.md`, neither this spec's.
+
+### Deviations from Plan
+- Files to Modify named `internal/component/bgp/reactor/reactor.go` for the derivation; it lives in `reactor/gtsm.go`, with one call each in `reactor.go` and `reactor_api.go`.
+- The interop checker is `internal/le/interoplab/bgp/check_gtsm.go`, not `check_rfc.go` as the Test Plan row says.
+- Documentation checklist row 1 (`docs/features.md`) was answered Yes; the feature is the existing `connection ttl` block, and the user-visible additions live on `docs/guide/firewall.md` and `docs/guide/health-checks.md`, so no `docs/features.md` row was owed or written. Row 12 named `docs/architecture/core-design.md` "where the component list is enumerated"; that page enumerates no component list, and the generated list in `CLAUDE.md` carries `gtsm`.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-5: an IPv4 route delete was assumed to match on the destination alone | The delete matches on the scope as well; a link-scoped route survived a delete naming the default scope | `TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255` read the route back | `withdrawHopLimitRoute` deletes the route the kernel holds (`findHopLimitRoute`) |
+| approach | The receive proofs read one nft term's counter as "this rule matched" | `applyChain` puts the counter before the matches, so it counts packets that reached the rule | Every rule reported the same count for one packet | The proofs read `IcmpMsg InType3`; row in `plan/journal/counter-counts-the-wrong-packets.md` |
+| approach | `SetPeers` recorded the reconcile as done when a route install failed, and every comment promised a retry that the short-circuit prevented | A config apply that changes nothing is what happens when the interface comes up, so the same set must retry | Closure review of `SetPeers` against the comment in `applyHopLimitRoutes` | `routeMissing` re-runs an unchanged set; row in `plan/journal/record-written-before-the-operation-succeeds.md` |
+| escalation | The tagged receive proofs read `/proc/net/snmp` from a locked thread that unshared a namespace | `/proc/net` answers for the thread-group leader's namespace | Three proofs red under `sudo` on this host with host-sized counters | Fixed in the continuation: both reads go through `/proc/thread-self/net/`, all nine proofs green here (`scratch/gtsm-proofs-v2.log`); row in `plan/journal/counter-counts-the-wrong-packets.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Transmit IPv4 and IPv6: a related ICMP error leaves at TTL 255 | Done | `installHopLimitRoute`, `internal/component/gtsm/route_linux.go` | RTAX_HOPLIMIT on a host route; `Route.Hoplimit` |
+| Receive IPv4: an off-link error claiming the session is dropped | Done | `peerTerms`, `internal/component/gtsm/gtsm.go`; `lowerICMPErrorQuotedTCPPortMatch`, `internal/plugins/firewall/nft/lower_linux.go` | Ten terms per peer, quoted BGP port required |
+| Receive IPv6: kernel drop on IPV6_MINHOPCOUNT, owed a tagged test | Done | `TestGTSMMinHopCountDropsALowHopLimitICMPv6Error`, `internal/core/network/ttl_gtsm_linux_test.go` | Producer unchanged: `setIPMinTTL` |
+| Each cell proven in both polarities with a discrimination record | Done | `rfc/discrimination/rfc5082.json`; `./le rfc check` names no rfc5082 row | See Pre-Commit Verification for what this host could observe |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `installHopLimitRoute` (`route_linux.go`); `test/firewall/gtsm-related-icmp.ci` expects `hoplimit 255`; `TestGTSMTransmittedICMPErrorCarriesTTL255` | |
+| AC-2 | Done | `TestGTSMTransmittedICMPErrorCarriesTTL255`, `TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255` read the captured error's TTL; interop `gtsm-related-icmp-ttl` reads it from FRR's kernel | |
+| AC-3 | Done | `peerTerms` (`gtsm.go`); `TestGTSMDropsADangerousQuotedICMPError` | |
+| AC-4 | Done | `MatchIPv4TTLBelow{Floor}` strictly below; `TestGTSMDeliversAQuotedICMPErrorAtTTL255` | |
+| AC-5 | Done | every term carries `MatchICMPErrorQuotedTCPPort`; `TestGTSMEveryDropTermRequiresTheQuotedBGPPort`, `TestGTSMDeliversAnICMPErrorNoSessionClaims` | |
+| AC-6 | Done | `setIPMinTTL` (`internal/core/network/ttl_linux.go`); `TestGTSMMinHopCountDropsALowHopLimitICMPv6Error` | |
+| AC-7 | Done | `applyHopLimitRoutes` withdraws peers absent from `wanted`; `filterTables` returns nil with no terms; `TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt`; `.ci` RELOADED assertions | |
+| AC-8 | Done | `filterTables` returns nil, `SetPeers` publishes nothing; `TestGTSMPublishesNothingWhenItHasNothingToSay` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Portable unit tests (`TestGTSMPublishesTheICMPFilterTableForAPeer`, `...WithdrawsEverything...`, `...PublishesNothing...`, `...BuildsNoFilterTerms...`, `...HandsTheRouteHalfEveryPeer`, `TestGTSMRetriesARouteTheKernelRefused`) | Done | `internal/component/gtsm/gtsm_test.go` | pass in `gtsm-network-pkg.log` |
+| `TestReactorPublishesGTSMPeersFromConfig`, `TestGTSMPeersFromResolvedTreeReadsTheConfigAlone` | Done | `internal/component/bgp/reactor/gtsm_test.go` | pass in `integration-gtsm-2.log` before the package timeout |
+| Lowering tests | Done | `internal/plugins/firewall/nft/lower_linux_test.go` | committed `479e9d76a9` |
+| Transmit tagged tests (4) | Done | `gtsm_rfc5082_linux_test.go` | pass under sudo on this host |
+| Receive tagged tests IPv4 (3) and IPv6 (2) | Done, RED here | `gtsm_rfc5082_linux_test.go`, `ttl_gtsm_linux_test.go` | `internal/core/network` pair passes; the three gtsm-package receive proofs read the leader thread's namespace (Mistake Log) |
+| Doctor tests | Done | `doctor_test.go`, `doctor_linux_test.go` | pass |
+| `TestBespokeCheckerBranches/gtsm-related-icmp-ttl` | Done | `internal/le/interoplab/bgp/bgp_test.go` | committed `a45ba3bf45` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/gtsm/{gtsm,route_linux,route_other,doctor,register}.go` and their tests | Done | ls below |
+| `internal/component/firewall/model.go`, `validate.go`; `internal/plugins/firewall/nft/lower_linux.go` | Done | `479e9d76a9` |
+| `internal/component/bgp/reactor/gtsm.go`, `gtsm_test.go` | Changed | derivation in its own file, not `reactor.go` |
+| `internal/core/rtproto/rtproto.go` | Done | `rtproto.GTSM` |
+| `internal/test/fixture/netfilter_fixture_gtsm.go`, `test/firewall/gtsm-related-icmp.ci` | Done | |
+| `test/interop/scenarios/gtsm-related-icmp-ttl/`, `internal/le/interoplab/bgp/check_gtsm.go` | Changed | checker file named `check_gtsm.go` |
+| `rfc/short/rfc5082.md`, `docs/DESIGN.md`, `docs/architecture/firewall/table-ownership-and-shutdown-flush.md`, `docs/guide/health-checks.md` | Done | |
+
+### Audit Summary
+- **Total items:** 23
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Transmit IPv4 and IPv6 produced by state ze installs | tagged kernel test + interop | `TestGTSMTransmittedICMPErrorCarriesTTL255` and `TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255` capture the error off a veth and read TTL 255, negatives read the system default with the metric withdrawn (pass, `scratch/gtsm-network-pkg.log`); FRR 10.3.1 reads hop limit 255 through its own IPV6_MINHOPCOUNT check, scenario `gtsm-related-icmp-ttl` passed (`scratch/interop-gtsm.log`, `integration: 1 action(s) passed`; RED on the mutated image recorded 2026-09-14) |
+| Receive IPv4 produced by state ze installs, Unknown never dropped | tagged kernel test | `TestGTSMDropsADangerousQuotedICMPError`, `TestGTSMDeliversAQuotedICMPErrorAtTTL255` and `TestGTSMDeliversAnICMPErrorNoSessionClaims` all pass here once the counters are read from the testbed's own namespace (`scratch/gtsm-proofs-v2.log`); records in `rfc/discrimination/rfc5082.json` |
+| Receive IPv6 proven on the state ze installs | tagged kernel test | `TestGTSMMinHopCountDropsALowHopLimitICMPv6Error` and `TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error` (`internal/component/gtsm/gtsm_rfc5082_linux_test.go`) pass under `sudo` in `scratch/gtsm-proofs-v2.log` |
+| Reachable from an operator's configuration | functional | `test/firewall/gtsm-related-icmp.ci` (green 2026-09-14 under `ZE_TEST_NETNS=1`, RED with the metric install removed); not re-run here, see Pre-Commit Verification |
+| `./le rfc check` no longer names RFC5082-3-2 | gate | `scratch/rfc-check.log`: no rfc5082 row; the one red is `rfc4301` (another session) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every in-scope item is implemented; two owner questions are in the closure report (configurable Dangerous policy, RFC 5082 Section 3; IPv4 receive association by outer source address) | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | see `./le spec session review record` output in the closure report |
+| `review check` | clean |
+| Rounds | 2: round 1 found the retry defect, the fixture panic, the gate population and the lint finding; round 2 over the fixes found nothing above NOTE |
+| Reviewer lenses used | logic+wiring, security+edge-cases, RFC 5082 conformance, style pass over every changed Go file |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | A failed route install was recorded as reconciled and never retried while the peer set stayed the same; four comments promised the retry | `SetPeers`, `applyHopLimitRoutes` | `routeMissing`, joined errors, `TestGTSMRetriesARouteTheKernelRefused` |
+| 2 | ISSUE | `reconcilePeersJournaled` now reaches `gtsmPeers`, which reads `r.config.Port`; the reactor test fixture carried no config and `TestReloadRepublishesDeliveryGraph` panicked | `newTestReactor`, `reactor_dynamic_test.go` | `config: &Config{}` |
+| 3 | ISSUE | The CAP_NET_ADMIN proofs had no registered runner: `./le integration gtsm` did not name the package | `internal/le/integration/gates.go` | package added |
+| 4 | ISSUE | `//nolint:embedlit` names no linter; `modernize` reported the literal | `netns_linux_test.go` | promoted-field literal |
+
+NOTEs: the `.ci` driver's withdrawal poll reads any `nft` error as absence (`gtsmRelatedICMP`). Fixed in the continuation, both with a journal row: the receive proofs read their counters from `/proc/thread-self/net/` (the testbed's own namespace), and `waitForIPv6` treats an interrupted address dump as a retry rather than a failure.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/gtsm/` | Yes | `doctor.go doctor_linux_test.go doctor_test.go gtsm.go gtsm_rfc5082_linux_test.go gtsm_test.go netns_linux_test.go packet_linux_test.go register.go route_linux.go route_other.go` |
+| `internal/component/bgp/reactor/gtsm.go`, `gtsm_test.go` | Yes | 4068 and 5978 bytes |
+| `test/firewall/gtsm-related-icmp.ci`, `internal/test/fixture/netfilter_fixture_gtsm.go` | Yes | 69 and 97 lines |
+| `test/interop/scenarios/gtsm-related-icmp-ttl/{frr.conf,ze.conf}`, `internal/le/interoplab/bgp/check_gtsm.go` | Yes | 731, 1246 bytes; 136 lines |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | host route carries hop limit 255 and the captured error leaves at 255 | the four transmit tests pass under `sudo` (`scratch/gtsm-network-pkg.log`); interop passed |
+| AC-3 | a Dangerous quoted error is dropped | `TestGTSMDropsADangerousQuotedICMPError` pass; `peerTerms` builds `MatchIPv4TTLBelow{Floor: p.Floor}` |
+| AC-4, AC-5 | at-floor and unclaimed errors delivered | `TestGTSMEveryDropTermRequiresTheQuotedBGPPort` pass; `TestGTSMDeliversAQuotedICMPErrorAtTTL255` and `TestGTSMDeliversAnICMPErrorNoSessionClaims` pass under `sudo` (`scratch/gtsm-proofs-v2.log`, 27 of 27) |
+| AC-6 | IPv6 kernel drop | `internal/core/network` ok, 5.456s |
+| AC-7, AC-8 | withdrawal, and nothing for no peer | `TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt`, `TestGTSMPublishesNothingWhenItHasNothingToSay` pass |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `connection ttl max N` → `Reactor.gtsmPeers` → `gtsm.SetPeers` | `test/firewall/gtsm-related-icmp.ci` reads `nft list table inet ze_gtsm` and `ip route show ... 192.0.2.2/32` before and after a reload | file read; not re-run here: `./le functional firewall` under `sudo ZE_TEST_NETNS=1` fails every test with `fork/exec .../bin/ze: permission denied` (journal row) |
+| `gtsm.SetPeers` → `filterTables` / withdraw | unit seams | `TestGTSMPublishesTheICMPFilterTableForAPeer`, `TestGTSMWithdrawsEverythingWhenNoPeerEnablesIt` pass |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | transmit proofs read 255 with the metric and the default without |
+| A-2 | confirmed | the 0x45 compare precedes the port read in `lowerICMPErrorQuotedTCPPortMatch` |
+| A-3 | confirmed | `routeHopLimit` reads the metric back off the kernel |
+| A-4 | confirmed | `TestReactorPublishesAPeersOwnListenPort`; both quoted sides carry a term |
+| A-5 | broken | Mistake Log row 1; `withdrawHopLimitRoute` deletes the route the kernel holds |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/DESIGN.md` GTSM paragraph | `SetPeers`, `peerTerms`, `installHopLimitRoute` | Yes |
+| `docs/guide/firewall.md` `ze_gtsm` paragraph | `filterTables`, `peerTerms` | Yes |
+| `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` owner row | `filterTableName` | Yes |
+| `docs/guide/health-checks.md` doctor row | `checkKernelState` | Yes |
+| `rfc/short/rfc5082.md` Support coverage | `Reactor.gtsmPeers`, `internal/component/gtsm` | Yes |
+| No new leaf, command, RPC, plugin, metric | `grep -rn gtsm internal/component/config/yang` finds no leaf; the table is read through the existing `show firewall ruleset` | Yes |
+
+## Core Insight
+
+A reconcile that records "done" before the kernel agrees turns every later reconcile into a no-op, and the comments that promise a retry are then the only place the retry exists.

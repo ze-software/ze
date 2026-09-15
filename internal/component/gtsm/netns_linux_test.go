@@ -21,6 +21,7 @@
 package gtsm
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -105,9 +106,9 @@ func (b *testbed) buildVeth() {
 	b.t.Helper()
 
 	veth := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: "zegtsm0"},
-		PeerName:  "zegtsm1",
-	} //nolint:embedlit // netlink.Veth embeds LinkAttrs, and naming it is how the field is set
+		Name:     "zegtsm0",
+		PeerName: "zegtsm1",
+	}
 	if err := netlink.LinkAdd(veth); err != nil {
 		b.t.Skipf("needs CAP_NET_ADMIN to create a veth pair: %v", err)
 	}
@@ -187,7 +188,13 @@ func (b *testbed) waitForIPv6(addr netip.Addr) {
 	for time.Now().Before(deadline) {
 		addrs, err := netlink.AddrList(link, unix.AF_INET6)
 		if err != nil {
-			b.t.Fatalf("address list: %v", err)
+			// An interrupted dump is this poll's normal condition: the
+			// kernel changed the address set (DAD finishing, autoconf adding
+			// an address) while it was being listed. The addresses it did
+			// return are read, and the next iteration lists again.
+			if !errors.Is(err, netlink.ErrDumpInterrupted) {
+				b.t.Fatalf("address list: %v", err)
+			}
 		}
 		for _, a := range addrs {
 			if !a.IP.Equal(net.IP(addr.AsSlice())) {
