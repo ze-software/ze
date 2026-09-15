@@ -11,28 +11,28 @@ func testCommandTree() *commandNode {
 	return &commandNode{
 		Children: map[string]*commandNode{
 			"peer": {
-				Name:        "peer",
-				Description: "Peer operations",
+				Name:      "peer",
+				ShortHelp: "Peer operations",
 				Children: map[string]*commandNode{
-					"list": {Name: "list", Description: "List all peers"},
-					"show": {Name: "show", Description: "Show peer details", Children: map[string]*commandNode{
-						"capabilities": {Name: "capabilities", Description: "Show peer capabilities"},
-						"statistics":   {Name: "statistics", Description: "Show peer statistics"},
+					"list": {Name: "list", ShortHelp: "List all peers"},
+					"show": {Name: "show", ShortHelp: "Show peer details", Children: map[string]*commandNode{
+						"capabilities": {Name: "capabilities", ShortHelp: "Show peer capabilities"},
+						"statistics":   {Name: "statistics", ShortHelp: "Show peer statistics"},
 					}},
 				},
 			},
 			"daemon": {
-				Name:        "daemon",
-				Description: "Daemon operations",
+				Name:      "daemon",
+				ShortHelp: "Daemon operations",
 				Children: map[string]*commandNode{
-					"status": {Name: "status", Description: "Show daemon status"},
+					"status": {Name: "status", ShortHelp: "Show daemon status"},
 				},
 			},
 			"rib": {
-				Name:        "rib",
-				Description: "RIB operations",
+				Name:      "rib",
+				ShortHelp: "RIB operations",
 				Children: map[string]*commandNode{
-					"show": {Name: "show", Description: "Show RIB entries"},
+					"show": {Name: "show", ShortHelp: "Show RIB entries"},
 				},
 			},
 		},
@@ -146,7 +146,7 @@ func TestCommandModeNilRoot(t *testing.T) {
 // command whose author wrote an empty explanation.
 func TestBothCompleterImplementationsAnswerHelp(t *testing.T) {
 	tree := testCommandTree()
-	tree.Children["peer"].Children["list"].LongHelp = "List every peer, with its state and its uptime."
+	tree.Children["peer"].Children["list"].Description = "List every peer, with its state and its uptime."
 	commands := NewCommandCompleter(tree)
 	methods := newPluginCompleter()
 

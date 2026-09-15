@@ -22,9 +22,9 @@ func cmdImportWithStorage(store storage.Storage, args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config import",
-			Summary: "Import config files from the filesystem into the database",
-			Usage:   []string{"ze config import [--name <name>] <file>..."},
+			Command:   "ze config import",
+			ShortHelp: "Import config files from the filesystem into the database",
+			Usage:     []string{"ze config import [--name <name>] <file>..."},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--name <name>", Desc: "Store under this name instead of the filename"},

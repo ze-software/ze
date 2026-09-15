@@ -58,9 +58,9 @@ func cmdRIR(args []string) int {
 
 func rirUsage() {
 	p := helpfmt.Page{
-		Command: "ze resolve rir",
-		Summary: "which Regional Internet Registry holds an AS number",
-		Usage:   []string{"ze resolve rir <asn>"},
+		Command:   "ze resolve rir",
+		ShortHelp: "which Regional Internet Registry holds an AS number",
+		Usage:     []string{"ze resolve rir <asn>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "<asn>", Desc: "AS number to look up in the RIR delegation table"},

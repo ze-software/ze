@@ -20,12 +20,12 @@ module ze-update-cmd {
             container update {
                 config false;
                 ze:command "ze-bgp:peer-update";
-                description "Send a pre-built BGP UPDATE to a peer.";
-                ze:help "The encoding word says how the rest of the line is read. text is the
+                description "The encoding word says how the rest of the line is read. text is the
 route syntax docs/architecture/api/update-syntax.md states, hex and b64 are wire octets, and
 cursor replays a stored position. 'show bgp encode' builds a hex payload. The tokens after
 the encoding word are that encoding's own grammar, and this model states the encoding
 alone.";
+                ze:help "Send a pre-built BGP UPDATE to a peer.";
                 leaf encoding {
                     type enumeration {
                         enum text;
@@ -34,7 +34,7 @@ alone.";
                         enum cursor;
                     }
                     mandatory true;
-                    description "How the tokens after this word are read.";
+                    ze:help "How the tokens after this word are read.";
                 }
             }
         }

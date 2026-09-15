@@ -11,24 +11,24 @@ module ze-cli-metrics-cmd {
 
         container metrics {
             config false;
-            description "Access Prometheus metrics and internal pool stats.";
-            ze:help "The metrics are the same series the Prometheus endpoint publishes, read here
-                     without an HTTP client. The pool statistics are internal to Ze and are not
-                     exported over that endpoint.";
+            description "The metrics are the same series the Prometheus endpoint publishes, read here
+                         without an HTTP client. The pool statistics are internal to Ze and are not
+                         exported over that endpoint.";
+            ze:help "Access Prometheus metrics and internal pool stats.";
 
             container values {
                 config false;
                 ze:command "ze-bgp:metrics-values";
-                description "Dump all metrics in Prometheus text format.";
-                ze:help "Outputs every registered metric with labels and values. Suitable
+                description "Outputs every registered metric with labels and values. Suitable
 for feeding into Prometheus, Grafana, or curl-based monitoring.";
+                ze:help "Dump all metrics in Prometheus text format.";
             }
 
             container list {
                 config false;
                 ze:command "ze-bgp:metrics-list";
-                description "List all registered metric names (no values).";
-                ze:help "Useful for discovering what metrics exist before querying them.";
+                description "Useful for discovering what metrics exist before querying them.";
+                ze:help "List all registered metric names (no values).";
             }
         }
     }

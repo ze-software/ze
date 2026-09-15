@@ -290,8 +290,8 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "request mrt dump-rib",
-			Description: "Write the current RIB to the MRT table dump file.",
+			Name:      "request mrt dump-rib",
+			ShortHelp: "Write the current RIB to the MRT table dump file.",
 		},
 	}
 }

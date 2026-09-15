@@ -9,24 +9,24 @@ module ze-traffic-feature-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container traffic {
             config false;
-            description "Traffic subsystem: QoS control and byte-usage accounting.";
+            ze:help "Traffic subsystem: QoS control and byte-usage accounting.";
 
             container feature {
                 config false;
                 ze:command "ze-show:traffic-feature";
-                description "Show neutral per-source traffic feature signals.";
-                ze:help "The signals are fan-out (distinct destinations), out/in
+                description "The signals are fan-out (distinct destinations), out/in
 byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto,
 and coarse beaconing.
 Without arguments, shows the top source entities. With 'name <address>',
 filters to one source.";
+                ze:help "Show neutral per-source traffic feature signals.";
                 leaf name {
                     type string;
-                    description "Source address filter";
+                    ze:help "Source address filter";
                 }
             }
         }

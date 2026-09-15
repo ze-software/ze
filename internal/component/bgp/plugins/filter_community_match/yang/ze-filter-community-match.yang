@@ -21,73 +21,73 @@ module ze-filter-community-match {
         list community-match {
             ze:filter;
             key "name";
-            description "Named community match filter instance.";
-            ze:help "Each list holds an ordered set of match entries. Ze reads
-                     the entries in order, and the first match wins. No match is
-                     an implicit deny, so the route is rejected.";
+            description "Each list holds an ordered set of match entries. Ze reads
+                         the entries in order, and the first match wins. No match is
+                         an implicit deny, so the route is rejected.";
+            ze:help "Named community match filter instance.";
 
             leaf name {
                 type string;
-                description "Filter instance name (referenced in peer filter chains
-                             as community-match:NAME).";
-                ze:help "The filter answers accept or reject for the whole UPDATE, and never rewrites it. A chain
+                description "The filter answers accept or reject for the whole UPDATE, and never rewrites it. A chain
                     that names a list Ze does not hold rejects every route of that peer, because the filter fails
                     closed.";
+                ze:help "Filter instance name (referenced in peer filter chains
+                         as community-match:NAME).";
             }
 
             list entry {
                 key "community";
                 ordered-by user;
-                description "Ordered match entry, checked against the route's community attributes.";
-                ze:help "Ze reads the entries in order, and the first match wins.
-                         An entry checks whether the named community value is
-                         present in the route's community attributes.";
+                description "Ze reads the entries in order, and the first match wins.
+                             An entry checks whether the named community value is
+                             present in the route's community attributes.";
+                ze:help "Ordered match entry, checked against the route's community attributes.";
 
                 leaf community {
                     type string;
-                    description "Community value to match.";
-                    ze:help "Standard: ASN:VAL, for example 65001:100, or a
-                             well-known name (no-export, no-advertise,
-                             no-export-subconfed, nopeer, blackhole).
-                             Large: GA:LD1:LD2, for example 65001:100:200.
-                             Extended: a hex string, for example
-                             000200010000000a, or target:ASN:NN, or
-                             origin:ASN:NN.";
+                    description "Standard: ASN:VAL, for example 65001:100, or a
+                                 well-known name (no-export, no-advertise,
+                                 no-export-subconfed, nopeer, blackhole).
+                                 Large: GA:LD1:LD2, for example 65001:100:200.
+                                 Extended: a hex string, for example
+                                 000200010000000a, or target:ASN:NN, or
+                                 origin:ASN:NN.";
+                    ze:help "Community value to match.";
                 }
 
                 leaf type {
                     type enumeration {
                         enum standard {
-                            description "Match in standard community attribute (type 8)";
+                            ze:help "Match in standard community attribute (type 8)";
                         }
                         enum large {
-                            description "Match in large community attribute (type 32)";
+                            ze:help "Match in large community attribute (type 32)";
                         }
                         enum extended {
-                            description "Match in extended community attribute (type 16)";
+                            ze:help "Match in extended community attribute (type 16)";
                         }
                     }
                     default standard;
-                    description "Which community attribute type to check.";
-                    ze:help "Ze reads the one attribute the leaf names. An entry of type standard therefore does
+                    description "Ze reads the one attribute the leaf names. An entry of type standard therefore does
                         not see a value that sits in the LARGE COMMUNITIES attribute. Write one entry for each
                         attribute the route can carry the value in.";
+                    ze:help "Which community attribute type to check.";
                 }
 
                 leaf action {
                     type enumeration {
                         enum accept {
-                            description "Accept routes containing this community";
+                            ze:help "Accept routes containing this community";
                         }
                         enum reject {
-                            description "Reject routes containing this community";
+                            ze:help "Reject routes containing this community";
                         }
                     }
                     default accept;
-                    description "Action applied when this community is found in the route.";
-                    ze:help "The first entry whose community the route carries decides the UPDATE, and no later
+                    description "The first entry whose community the route carries decides the UPDATE, and no later
                         entry is read. A route that carries none of the listed communities is rejected, so a list
                         needs no closing reject entry.";
+                    ze:help "Action applied when this community is found in the route.";
                 }
             }
         }

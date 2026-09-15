@@ -1552,7 +1552,7 @@ select. The RPKI plugin declares the alias on its `registry.Registration`, which
 every reader that links the composition root sees, so `ze help command --json`
 and `./le command list` both list `summary` on the command. Each row carries the
 command's summary under `description` and its long explanation under
-`long-help`. The full RPKI command list is in `docs/guide/rpki.md`.
+`description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
 <!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->

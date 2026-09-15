@@ -13,21 +13,21 @@ module ze-traffic-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container traffic {
             config false;
-            description "Traffic subsystem: QoS control and byte-usage accounting.";
-            ze:help "Two different things share this noun: QoS decides how packets are scheduled, and
-                     usage accounting counts bytes per subscriber. Neither one reads the other.";
+            description "Two different things share this noun: QoS decides how packets are scheduled, and
+                         usage accounting counts bytes per subscriber. Neither one reads the other.";
+            ze:help "Traffic subsystem: QoS control and byte-usage accounting.";
 
             container control {
                 config false;
                 ze:command "ze-show:traffic";
-                description "Show traffic control (QoS) configuration per interface.";
-                ze:help "Without arguments, lists every interface with its qdisc type and class/filter
+                description "Without arguments, lists every interface with its qdisc type and class/filter
 counts. With an interface name, shows the full qdisc and class breakdown. Use
 this to verify your shaping is applied.";
+                ze:help "Show traffic control (QoS) configuration per interface.";
             }
         }
     }

@@ -19,8 +19,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		Description: "what this checkout changed: the test groups it touches, and the packages a scoped verify must cover",
-		Mode:        "offline",
+		ShortHelp: "what this checkout changed: the test groups it touches, and the packages a scoped verify must cover",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

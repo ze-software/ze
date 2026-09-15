@@ -167,9 +167,9 @@ var (
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze appliance",
-		Summary: "Manage gokrazy-based Ze appliance images",
-		Usage:   []string{"ze appliance [--dir <path>] <command> [args...]"},
+		Command:   "ze appliance",
+		ShortHelp: "Manage gokrazy-based Ze appliance images",
+		Usage:     []string{"ze appliance [--dir <path>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: applianceHelpEntries()},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{

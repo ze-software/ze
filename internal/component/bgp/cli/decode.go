@@ -60,8 +60,8 @@ func cmdDecode(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze bgp decode",
-			Summary: "Decode BGP message from hexadecimal and output Ze-format JSON",
+			Command:   "ze bgp decode",
+			ShortHelp: "Decode BGP message from hexadecimal and output Ze-format JSON",
 			Usage: []string{
 				"ze bgp decode [options] <hex-payload>",
 				"ze bgp decode [options] -                Read one hex message for each line of standard input",

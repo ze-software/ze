@@ -42,164 +42,163 @@ module ze-filter-modify {
         list modify {
             ze:filter;
             key "name";
-            description "Named route attribute modifier instance.";
-            ze:help "Ze modifies only the declared leaves, and keeps every undeclared
+            description "Ze modifies only the declared leaves, and keeps every undeclared
 attribute unchanged. One modifier can change several attributes.";
+            ze:help "Named route attribute modifier instance.";
 
             leaf name {
                 type string;
-                description "Modifier instance name, used in a peer filter chain.";
-                ze:help "A peer filter chain names this instance as modify:NAME, where
+                description "A peer filter chain names this instance as modify:NAME, where
 NAME is the value of this leaf.";
+                ze:help "Modifier instance name, used in a peer filter chain.";
             }
 
             container match {
-                description "Condition a route meets before the operations apply.";
-                ze:help "A route that meets none of the stated values passes through
+                description "A route that meets none of the stated values passes through
 unchanged, and Ze does not reject it. The chain drops a rejected route, and a
 conditional modifier exists so that the routes it does not touch keep flowing. An
 absent match container applies the operations to every route that reaches the modifier.
 The values across the three leaf-lists are alternatives, so one value present in the
 route satisfies the condition.";
+                ze:help "Condition a route meets before the operations apply.";
 
                 leaf-list community {
                     type string;
-                    description "Apply only to a route whose COMMUNITIES attribute carries this value.";
-                    ze:help "The COMMUNITIES attribute is RFC 1997, type 8. The value takes
+                    description "The COMMUNITIES attribute is RFC 1997, type 8. The value takes
 the form ASN:VAL, for example 65001:666, or a well-known name. The well-known names are
 blackhole, no-export, no-advertise, no-export-subconfed and nopeer. The two spellings
 of a well-known value are equivalent, so 65535:666 and blackhole select the same
 community. RFC 7999 registers that community, and RFC 7999 Section 4 names it with that
 suggested keyword.";
+                    ze:help "Apply only to a route whose COMMUNITIES attribute carries this value.";
                 }
 
                 leaf-list large-community {
                     type string;
-                    description "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.";
-                    ze:help "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value
+                    description "The LARGE COMMUNITIES attribute is RFC 8092, type 32. The value
 takes the form GA:LD1:LD2, for example 65001:100:200.";
+                    ze:help "Apply only to a route whose LARGE COMMUNITIES attribute carries this value.";
                 }
 
                 leaf-list extended-community {
                     type string;
-                    description "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.";
-                    ze:help "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The
+                    description "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16. The
 value takes the form target:ASN:NN or origin:ASN:NN, or it is a hex string.";
+                    ze:help "Apply only to a route whose EXTENDED COMMUNITIES attribute carries this value.";
                 }
             }
 
             container set {
-                description "Attributes Ze sets on a matching route.";
-                ze:help "Ze applies only the leaves that are present in this container,
+                description "Ze applies only the leaves that are present in this container,
 and keeps every other attribute unchanged.";
+                ze:help "Attributes Ze sets on a matching route.";
 
                 leaf local-preference {
                     type uint32;
-                    description "Set LOCAL_PREF attribute (RFC 4271 type 5).";
-                    ze:help "Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute
+                    description "Ze replaces the value the route carried. RFC 4271 Section 5.1.5 forbids the attribute
                         in an UPDATE to an external peer, so the value serves the local decision process and the
                         internal peers. The leaf is mutually exclusive with increment local-preference and decrement
                         local-preference.";
+                    ze:help "Set LOCAL_PREF attribute (RFC 4271 type 5).";
                 }
 
                 leaf med {
                     type uint32;
-                    description "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).";
-                    ze:help "Ze replaces the metric the route carried, and writes one on a route that carried none.
+                    description "Ze replaces the metric the route carried, and writes one on a route that carried none.
                         The leaf is mutually exclusive with del med, increment med and decrement med, and Ze refuses
                         a modifier that carries two of them.";
+                    ze:help "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).";
                 }
 
                 leaf origin {
                     type enumeration {
                         enum igp {
-                            description "The route started inside the local AS.";
+                            ze:help "The route started inside the local AS.";
                         }
                         enum egp {
-                            description "The route came from the retired EGP protocol.";
+                            ze:help "The route came from the retired EGP protocol.";
                         }
                         enum incomplete {
-                            description "The route came from another source, such as redistribution.";
+                            ze:help "The route came from another source, such as redistribution.";
                         }
                     }
-                    description "Set ORIGIN attribute (RFC 4271 type 1).";
-                    ze:help "The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH
+                    description "The decision process reads the attribute at step 3, after LOCAL_PREF and the AS_PATH
                         length. igp wins over egp, and egp wins over incomplete. Ze replaces whatever the route
                         carried.";
+                    ze:help "Set ORIGIN attribute (RFC 4271 type 1).";
                 }
 
                 leaf next-hop {
                     type zt:ip-address;
-                    description "Set the NEXT_HOP attribute of the route.";
-                    ze:help "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address
+                    description "NEXT_HOP is RFC 4271 type 3, and it carries an IPv4 address
 only. An IPv6 next-hop travels in the MP_REACH attribute instead, so this leaf does not
 set one.";
+                    ze:help "Set the NEXT_HOP attribute of the route.";
                 }
 
                 leaf as-path-prepend {
                     type uint8 {
                         range "1..32";
                     }
-                    description "Prepend the local AS to AS_PATH this many times.";
-                    ze:help "Ze prepends the local-as of the peer, which the session config
+                    description "Ze prepends the local-as of the peer, which the session config
 holds. The range 1 to 32 stops the path from growing without a limit.";
+                    ze:help "Prepend the local AS to AS_PATH this many times.";
                 }
 
                 leaf-list community-add {
                     type string;
-                    description "Standard community values to add (ASN:VAL format).";
-                    ze:help "Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community
+                    description "Ze adds the values to the COMMUNITIES attribute of RFC 1997 and keeps every community
                         already on the route. Ze reads each value at config load, and refuses the modifier when one
                         does not parse.";
+                    ze:help "Standard community values to add (ASN:VAL format).";
                 }
 
                 leaf-list community-remove {
                     type string;
-                    description "Standard community values to remove (ASN:VAL format).";
-                    ze:help "Ze removes only the values named here, and keeps every other community of the route.
+                    description "Ze removes only the values named here, and keeps every other community of the route.
                         A value the route does not carry costs nothing. Ze reads each value at config load, and
                         refuses the modifier when one does not parse.";
+                    ze:help "Standard community values to remove (ASN:VAL format).";
                 }
 
                 leaf-list large-community-add {
                     type string;
-                    description "Large community values to add (GA:LD1:LD2 format).";
-                    ze:help "The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte
+                    description "The LARGE COMMUNITIES attribute is RFC 8092, type 32, and it carries three 4-byte
                         fields. A 4-byte ASN therefore fits, which a standard community cannot hold.";
+                    ze:help "Large community values to add (GA:LD1:LD2 format).";
                 }
 
                 leaf-list large-community-remove {
                     type string;
-                    description "Large community values to remove (GA:LD1:LD2 format).";
-                    ze:help "Ze removes only the values named here, and leaves the standard and extended communities
+                    description "Ze removes only the values named here, and leaves the standard and extended communities
                         of the route untouched. A value the route does not carry costs nothing.";
+                    ze:help "Large community values to remove (GA:LD1:LD2 format).";
                 }
 
                 leaf-list extended-community-add {
                     type string;
-                    description "Extended community values to add (target:ASN:NN or hex).";
-                    ze:help "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes.
+                    description "The EXTENDED COMMUNITIES attribute is RFC 4360, type 16, and each value is 8 bytes.
                         target names a Route Target and origin names a Route Origin. A hex string writes the 8 bytes
                         Ze has no keyword for.";
+                    ze:help "Extended community values to add (target:ASN:NN or hex).";
                 }
 
                 leaf-list extended-community-remove {
                     type string;
-                    description "Extended community values to remove (target:ASN:NN or hex).";
-                    ze:help "Ze removes only the values named here, and leaves the standard and large communities of
+                    description "Ze removes only the values named here, and leaves the standard and large communities of
                         the route untouched. A value the route does not carry costs nothing.";
+                    ze:help "Extended community values to remove (target:ASN:NN or hex).";
                 }
             }
 
             container del {
-                description "Attributes Ze deletes from a matching route.";
-                ze:help "Ze applies only the leaves that are present in this container,
+                description "Ze applies only the leaves that are present in this container,
 and keeps every other attribute unchanged.";
+                ze:help "Attributes Ze deletes from a matching route.";
 
                 leaf med {
                     type empty;
-                    description "Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.";
-                    ze:help "RFC 4271 Section 5.1.4 requires a mechanism, based on local
+                    description "RFC 4271 Section 5.1.4 requires a mechanism, based on local
 configuration, that removes MULTI_EXIT_DISC from a route. The same section requires the
 removal to happen before the route reaches Decision Process phase 1 and phase 2. The
 del med operation is that mechanism, so it applies on an IMPORT chain only, and the
@@ -210,76 +209,77 @@ mutually exclusive with set med, increment med and decrement med. Ze already kee
 metric received from one neighboring AS off another one with no configuration (RFC 4271
 Section 5.1.4), so del med is for the operator who wants the metric removed from the
 route itself.";
+                    ze:help "Remove the MULTI_EXIT_DISC attribute (RFC 4271 type 4) from the route.";
                 }
             }
 
             container increment {
-                description "Attributes to increment on a matching route.";
-                ze:help "Ze adds the stated value to the current value of the attribute.
+                description "Ze adds the stated value to the current value of the attribute.
 The result saturates at the uint32 maximum, 4294967295. increment is mutually exclusive
 with set for the same attribute.";
+                ze:help "Attributes to increment on a matching route.";
 
                 leaf local-preference {
                     type uint32 {
                         range "1..4294967295";
                     }
-                    description "Increment LOCAL_PREF by this value.";
-                    ze:help "A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use
+                    description "A route that carries no LOCAL_PREF counts as 100, which is the value FRR and BIRD use
                         for a route with none. RFC 4271 Section 9.1.1 leaves that number to local policy.";
+                    ze:help "Increment LOCAL_PREF by this value.";
                 }
 
                 leaf med {
                     type uint32 {
                         range "1..4294967295";
                     }
-                    description "Increment MED by this value.";
-                    ze:help "A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2
+                    description "A route that carries no MULTI_EXIT_DISC counts as 0, which RFC 4271 Section 9.1.2.2
                         gives as the value of an absent metric. The result therefore equals the increment.";
+                    ze:help "Increment MED by this value.";
                 }
 
                 leaf aigp {
                     type uint32 {
                         range "1..4294967295";
                     }
-                    description "Increment AIGP metric by this value.";
-                    ze:help "Ze runs the operation only on a route that already carries an AIGP TLV, and creates
+                    description "Ze runs the operation only on a route that already carries an AIGP TLV, and creates
                         none. RFC 7311 Section 3.4.1 forbids a speaker to add the attribute to a route whose path
                         leaves the AIGP domain. Section 4.1 removes a route with no AIGP from the decision rather
                         than scoring it.";
+                    ze:help "Increment AIGP metric by this value.";
                 }
             }
 
             container decrement {
-                description "Attributes to decrement on a matching route.";
-                ze:help "Ze subtracts the stated value from the current value of the
+                description "Ze subtracts the stated value from the current value of the
 attribute. The result floors at 0, so it never underflows. decrement is mutually
 exclusive with set for the same attribute.";
+                ze:help "Attributes to decrement on a matching route.";
 
                 leaf local-preference {
                     type uint32 {
                         range "1..4294967295";
                     }
-                    description "Decrement LOCAL_PREF by this value.";
-                    ze:help "A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement
+                    description "A route that carries no LOCAL_PREF counts as 100 before the subtraction. A decrement
                         larger than the current value writes 0 rather than wrapping.";
+                    ze:help "Decrement LOCAL_PREF by this value.";
                 }
 
                 leaf med {
                     type uint32 {
                         range "1..4294967295";
                     }
-                    description "Decrement MED by this value.";
-                    ze:help "A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a
+                    description "A route that carries no MULTI_EXIT_DISC counts as 0, so the result is 0 and Ze writes a
                         metric the route did not have. Use del med to remove the attribute instead.";
+                    ze:help "Decrement MED by this value.";
                 }
 
                 leaf aigp {
                     type uint32 {
                         range "1..4294967295";
                     }
-                    description "Decrement AIGP metric by this value.";
-                    ze:help "Ze runs the operation only on a route that already carries an AIGP TLV. A route with
+                    description "Ze runs the operation only on a route that already carries an AIGP TLV. A route with
                         none is left alone, because RFC 7311 Section 3.4.1 forbids Ze to add the attribute.";
+                    ze:help "Decrement AIGP metric by this value.";
                 }
             }
         }

@@ -595,11 +595,11 @@ func updateMetricsGauges(plug *irrPlugin) {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: "show bgp irr", Description: "Show IRR filter status per ASN"},
-		{Name: "show bgp irr prefix", Description: "Show IRR-resolved prefixes for a peer", Args: []string{"<peer>"}},
-		{Name: "show bgp irr check", Description: "Check if a prefix is accepted by IRR filter", Args: []string{"<peer>", "<prefix>"}},
-		{Name: "update bgp irr all", Description: "Refresh all IRR prefix-lists immediately"},
-		{Name: "update bgp irr asn", Description: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
-		{Name: "update bgp irr as-set", Description: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
+		{Name: "show bgp irr", ShortHelp: "Show IRR filter status per ASN"},
+		{Name: "show bgp irr prefix", ShortHelp: "Show IRR-resolved prefixes for a peer", Args: []string{"<peer>"}},
+		{Name: "show bgp irr check", ShortHelp: "Check if a prefix is accepted by IRR filter", Args: []string{"<peer>", "<prefix>"}},
+		{Name: "update bgp irr all", ShortHelp: "Refresh all IRR prefix-lists immediately"},
+		{Name: "update bgp irr asn", ShortHelp: "Refresh IRR prefix-list for a specific ASN", Args: []string{"<asn>"}},
+		{Name: "update bgp irr as-set", ShortHelp: "Refresh IRR prefix-list for a specific AS-SET", Args: []string{"<as-set>"}},
 	}
 }

@@ -101,12 +101,12 @@ func forward(ctx *pluginserver.CommandContext, command string, args []string) (*
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        cmdShowVRRP,
-			Description: "Show every virtual router this system runs, with the state of each.",
+			Name:      cmdShowVRRP,
+			ShortHelp: "Show every virtual router this system runs, with the state of each.",
 		},
 		{
-			Name:        cmdShowVRRPInterface,
-			Description: "Show the virtual routers of one interface, named after the selector keyword.",
+			Name:      cmdShowVRRPInterface,
+			ShortHelp: "Show the virtual routers of one interface, named after the selector keyword.",
 			// The selector is MANDATORY: handleCommand answers
 			// errNoInterfaceSelector without it. Both catalogs publish these
 			// tokens verbatim as the invocation form (pluginUsage,
@@ -115,12 +115,12 @@ func commandDecls() []sdk.CommandDecl {
 			Args: []string{selectorKeyword, "<interface>"},
 		},
 		{
-			Name:        cmdShowVRRPStatistics,
-			Description: "Show the advertisement and packet-error counters of each virtual router.",
+			Name:      cmdShowVRRPStatistics,
+			ShortHelp: "Show the advertisement and packet-error counters of each virtual router.",
 		},
 		{
-			Name:        cmdClearVRRPStats,
-			Description: "Set the counters of every virtual router back to zero.",
+			Name:      cmdClearVRRPStats,
+			ShortHelp: "Set the counters of every virtual router back to zero.",
 		},
 	}
 }

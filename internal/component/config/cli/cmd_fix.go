@@ -66,9 +66,9 @@ func resolveFixPlan(configPath string) (any, int) {
 
 func fixUsage() {
 	p := helpfmt.Page{
-		Command: "ze config fix",
-		Summary: "Generate a plan-only repair plan for config diagnostics",
-		Usage:   []string{"ze config fix --plan <config-file>"},
+		Command:   "ze config fix",
+		ShortHelp: "Generate a plan-only repair plan for config diagnostics",
+		Usage:     []string{"ze config fix --plan <config-file>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "--plan", Desc: "Plan-only mode (required, never edits files)"},

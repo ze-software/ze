@@ -76,9 +76,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze resolve",
-		Summary: "query resolution services",
-		Usage:   []string{"ze resolve <service> <operation> [args]"},
+		Command:   "ze resolve",
+		ShortHelp: "query resolution services",
+		Usage:     []string{"ze resolve <service> <operation> [args]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Services", Entries: []helpfmt.HelpEntry{
 				{Name: "dns <op> <name>", Desc: "DNS record queries (a, aaaa, txt, ptr)"},

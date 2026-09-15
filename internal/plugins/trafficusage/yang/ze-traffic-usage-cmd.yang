@@ -8,22 +8,22 @@ module ze-traffic-usage-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container traffic {
             config false;
-            description "Traffic subsystem: QoS control and byte-usage accounting.";
+            ze:help "Traffic subsystem: QoS control and byte-usage accounting.";
 
             container usage {
                 config false;
                 ze:command "ze-show:traffic-usage";
-                description "Show per-interface traffic byte counters captured by eBPF TCX.";
-                ze:help "Per destination/source port and protocol counters are always present; per-IP
+                description "Per destination/source port and protocol counters are always present; per-IP
 top-talker counters appear when track-ip is enabled. Without arguments, lists
 all monitored interfaces. With 'name <interface>', shows that one interface.";
+                ze:help "Show per-interface traffic byte counters captured by eBPF TCX.";
                 leaf name {
                     type string;
-                    description "Interface name (used with 'name <interface>')";
+                    ze:help "Interface name (used with 'name <interface>')";
                 }
             }
         }

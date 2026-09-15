@@ -10,16 +10,16 @@ module ze-config-archive-cmd {
 
         container config {
             config false;
-            description "Configuration snapshot and archiving.";
-            ze:help "A snapshot records the configuration as it stands and does not apply anything.
-                     Restoring one is a separate action.";
+            description "A snapshot records the configuration as it stands and does not apply anything.
+                         Restoring one is a separate action.";
+            ze:help "Configuration snapshot and archiving.";
 
             container archive {
                 config false;
                 ze:command "ze-config-archive:trigger";
-                description "Save a snapshot of the current running configuration.";
-                ze:help "Captures the config into the store for later rollback or comparison. Optional
+                description "Captures the config into the store for later rollback or comparison. Optional
 name labels the snapshot; defaults to a timestamp.";
+                ze:help "Save a snapshot of the current running configuration.";
             }
         }
     }

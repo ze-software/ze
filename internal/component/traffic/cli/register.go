@@ -28,10 +28,10 @@ import (
 
 func init() {
 	registry.MustRegisterRootHandler("traffic", dispatchTraffic, registry.Meta{
-		Description: "Linux tc / VPP policer helpers",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "control",
+		ShortHelp: "Linux tc / VPP policer helpers",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "control",
 	})
 }
 

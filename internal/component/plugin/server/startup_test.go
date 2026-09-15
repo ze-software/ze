@@ -1014,8 +1014,8 @@ func TestPluginHelpDeclarationReachesTheCommandTree(t *testing.T) {
 		err := p.Run(context.Background(), sdk.Registration{
 			Commands: []sdk.CommandDecl{{
 				Name:        commandName,
-				Description: summary,
-				LongHelp:    explanation,
+				ShortHelp:   summary,
+				Description: explanation,
 			}},
 		})
 		if err != nil {
@@ -1035,21 +1035,21 @@ func TestPluginHelpDeclarationReachesTheCommandTree(t *testing.T) {
 	if registered == nil {
 		t.Fatalf("the registry holds no %q", commandName)
 	}
-	if registered.Description != summary {
-		t.Errorf("registered summary = %q, want %q", registered.Description, summary)
+	if registered.ShortHelp != summary {
+		t.Errorf("registered summary = %q, want %q", registered.ShortHelp, summary)
 	}
-	if registered.LongHelp != explanation {
-		t.Errorf("registered explanation = %q, want %q", registered.LongHelp, explanation)
+	if registered.Description != explanation {
+		t.Errorf("registered explanation = %q, want %q", registered.Description, explanation)
 	}
 
 	tree := &command.Node{Children: map[string]*command.Node{}}
 	command.MergeCommandPaths(tree, s.dispatcher.Registry().VisibleCommandEntries())
 	node := tree.Children["show"].Children["lifecycle"].Children["help"]
-	if node.Description != summary {
-		t.Errorf("tree summary = %q, want %q", node.Description, summary)
+	if node.ShortHelp != summary {
+		t.Errorf("tree summary = %q, want %q", node.ShortHelp, summary)
 	}
-	if node.LongHelp != explanation {
-		t.Errorf("tree explanation = %q, want %q", node.LongHelp, explanation)
+	if node.Description != explanation {
+		t.Errorf("tree explanation = %q, want %q", node.Description, explanation)
 	}
 }
 
@@ -1057,7 +1057,7 @@ func TestPluginHelpDeclarationReachesTheCommandTree(t *testing.T) {
 // explanation is the refusal all the way through the boundary, not a blank
 // summary.
 //
-// The method is the declaration a plugin compiled before `long-help` existed
+// The method is the declaration a plugin compiled before `description` existed
 // sends: a summary and nothing else.
 //
 // VALIDATES: AC-7, the zero-value half.
@@ -1077,8 +1077,8 @@ func TestPluginWithNoHelpDeclarationKeepsItsSummary(t *testing.T) {
 		p := sdk.NewWithConn(pluginName, conn)
 		err := p.Run(context.Background(), sdk.Registration{
 			Commands: []sdk.CommandDecl{{
-				Name:        commandName,
-				Description: summary,
+				Name:      commandName,
+				ShortHelp: summary,
 			}},
 		})
 		if err != nil {
@@ -1098,21 +1098,21 @@ func TestPluginWithNoHelpDeclarationKeepsItsSummary(t *testing.T) {
 	if registered == nil {
 		t.Fatalf("the registry holds no %q", commandName)
 	}
-	if registered.Description != summary {
-		t.Errorf("registered summary = %q, want the summary the plugin sent", registered.Description)
+	if registered.ShortHelp != summary {
+		t.Errorf("registered summary = %q, want the summary the plugin sent", registered.ShortHelp)
 	}
-	if registered.LongHelp != "" {
-		t.Errorf("registered explanation = %q, want empty", registered.LongHelp)
+	if registered.Description != "" {
+		t.Errorf("registered explanation = %q, want empty", registered.Description)
 	}
 
 	tree := &command.Node{Children: map[string]*command.Node{}}
 	command.MergeCommandPaths(tree, s.dispatcher.Registry().VisibleCommandEntries())
 	node := tree.Children["show"].Children["lifecycle"].Children["silent"]
-	if node.Description != summary {
-		t.Errorf("tree summary = %q, want the summary the plugin sent", node.Description)
+	if node.ShortHelp != summary {
+		t.Errorf("tree summary = %q, want the summary the plugin sent", node.ShortHelp)
 	}
-	if node.LongHelp != "" {
-		t.Errorf("tree explanation = %q, want empty", node.LongHelp)
+	if node.Description != "" {
+		t.Errorf("tree explanation = %q, want empty", node.Description)
 	}
 }
 
@@ -1133,16 +1133,16 @@ func TestValidateHelpDecls(t *testing.T) {
 		wantErr string
 	}{
 		{name: "both empty", decl: rpc.CommandDecl{Name: "show x"}},
-		{name: "both present", decl: rpc.CommandDecl{Name: "show x", Description: "Show x.", LongHelp: "One line.\nAnother line."}},
-		{name: "summary at the bound", decl: rpc.CommandDecl{Name: "show x", Description: strings.Repeat("a", 256)}},
-		{name: "summary past the bound", decl: rpc.CommandDecl{Name: "show x", Description: strings.Repeat("a", 257)}, wantErr: "257 bytes (max 256)"},
-		{name: "summary with a newline", decl: rpc.CommandDecl{Name: "show x", Description: "Show x.\nAnd more."}, wantErr: "control character 0x0a at byte 7"},
-		{name: "summary with a tab", decl: rpc.CommandDecl{Name: "show x", Description: "Show\tx."}, wantErr: "control character 0x09 at byte 4"},
-		{name: "summary with an escape", decl: rpc.CommandDecl{Name: "show x", Description: "Show \x1b[31mx."}, wantErr: "control character 0x1b at byte 5"},
-		{name: "explanation at the bound", decl: rpc.CommandDecl{Name: "show x", LongHelp: strings.Repeat("a", 4096)}},
-		{name: "explanation past the bound", decl: rpc.CommandDecl{Name: "show x", LongHelp: strings.Repeat("a", 4097)}, wantErr: "4097 bytes (max 4096)"},
-		{name: "explanation with an escape", decl: rpc.CommandDecl{Name: "show x", LongHelp: "Line.\n\x1b[31mLine."}, wantErr: "control character 0x1b at byte 6"},
-		{name: "explanation with a delete", decl: rpc.CommandDecl{Name: "show x", LongHelp: "Line.\x7f"}, wantErr: "control character 0x7f at byte 5"},
+		{name: "both present", decl: rpc.CommandDecl{Name: "show x", ShortHelp: "Show x.", Description: "One line.\nAnother line."}},
+		{name: "summary at the bound", decl: rpc.CommandDecl{Name: "show x", ShortHelp: strings.Repeat("a", 256)}},
+		{name: "summary past the bound", decl: rpc.CommandDecl{Name: "show x", ShortHelp: strings.Repeat("a", 257)}, wantErr: "257 bytes (max 256)"},
+		{name: "summary with a newline", decl: rpc.CommandDecl{Name: "show x", ShortHelp: "Show x.\nAnd more."}, wantErr: "control character 0x0a at byte 7"},
+		{name: "summary with a tab", decl: rpc.CommandDecl{Name: "show x", ShortHelp: "Show\tx."}, wantErr: "control character 0x09 at byte 4"},
+		{name: "summary with an escape", decl: rpc.CommandDecl{Name: "show x", ShortHelp: "Show \x1b[31mx."}, wantErr: "control character 0x1b at byte 5"},
+		{name: "explanation at the bound", decl: rpc.CommandDecl{Name: "show x", Description: strings.Repeat("a", 4096)}},
+		{name: "explanation past the bound", decl: rpc.CommandDecl{Name: "show x", Description: strings.Repeat("a", 4097)}, wantErr: "4097 bytes (max 4096)"},
+		{name: "explanation with an escape", decl: rpc.CommandDecl{Name: "show x", Description: "Line.\n\x1b[31mLine."}, wantErr: "control character 0x1b at byte 6"},
+		{name: "explanation with a delete", decl: rpc.CommandDecl{Name: "show x", Description: "Line.\x7f"}, wantErr: "control character 0x7f at byte 5"},
 	}
 
 	for _, tc := range cases {
@@ -1185,7 +1185,7 @@ func TestValidateHelpDeclsRefusesTheRetiredKey(t *testing.T) {
 	}{
 		{name: "retired key with a value", payload: `{"name":"show x","help":"Show x."}`},
 		{name: "retired key with an empty value", payload: `{"name":"show x","help":""}`},
-		{name: "retired key beside the current one", payload: `{"name":"show x","description":"Show x.","help":"Show x."}`},
+		{name: "retired key beside the current one", payload: `{"name":"show x","short-help":"Show x.","help":"Show x."}`},
 	}
 
 	for _, tc := range cases {
@@ -1206,10 +1206,10 @@ func TestValidateHelpDeclsRefusesTheRetiredKey(t *testing.T) {
 // without it a guard that refused every declaration would pass the test above.
 func TestValidateHelpDeclsAcceptsADeclarationWithNoRetiredKey(t *testing.T) {
 	var decl rpc.CommandDecl
-	require.NoError(t, json.Unmarshal([]byte(`{"name":"show x","description":"Show x.","long-help":"The explanation."}`), &decl))
+	require.NoError(t, json.Unmarshal([]byte(`{"name":"show x","short-help":"Show x.","description":"The explanation."}`), &decl))
 
 	require.NoError(t, validateHelpDecls([]rpc.CommandDecl{decl}))
-	assert.Equal(t, "Show x.", decl.Description)
+	assert.Equal(t, "Show x.", decl.ShortHelp)
 	assert.Nil(t, decl.RetiredHelp, "an absent retired key leaves the field nil")
 }
 

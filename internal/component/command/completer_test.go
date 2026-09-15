@@ -10,28 +10,28 @@ func testCommandTree() *Node {
 	return &Node{
 		Children: map[string]*Node{
 			"peer": {
-				Name:        "peer",
-				Description: "Peer operations",
+				Name:      "peer",
+				ShortHelp: "Peer operations",
 				Children: map[string]*Node{
-					"list": {Name: "list", Description: "List all peers"},
-					"show": {Name: "show", Description: "Show peer details", Children: map[string]*Node{
-						"capabilities": {Name: "capabilities", Description: "Show peer capabilities"},
-						"statistics":   {Name: "statistics", Description: "Show peer statistics"},
+					"list": {Name: "list", ShortHelp: "List all peers"},
+					"show": {Name: "show", ShortHelp: "Show peer details", Children: map[string]*Node{
+						"capabilities": {Name: "capabilities", ShortHelp: "Show peer capabilities"},
+						"statistics":   {Name: "statistics", ShortHelp: "Show peer statistics"},
 					}},
 				},
 			},
 			"daemon": {
-				Name:        "daemon",
-				Description: "Daemon operations",
+				Name:      "daemon",
+				ShortHelp: "Daemon operations",
 				Children: map[string]*Node{
-					"status": {Name: "status", Description: "Show daemon status"},
+					"status": {Name: "status", ShortHelp: "Show daemon status"},
 				},
 			},
 			"rib": {
-				Name:        "rib",
-				Description: "RIB operations",
+				Name:      "rib",
+				ShortHelp: "RIB operations",
 				Children: map[string]*Node{
-					"show": {Name: "show", Description: "Show RIB entries"},
+					"show": {Name: "show", ShortHelp: "Show RIB entries"},
 				},
 			},
 		},
@@ -244,10 +244,10 @@ func TestValueHintsIncludedInMatchChildren(t *testing.T) {
 	tree := &Node{
 		Children: map[string]*Node{
 			"rib": {
-				Name:        "rib",
-				Description: "RIB operations",
+				Name:      "rib",
+				ShortHelp: "RIB operations",
 				Children: map[string]*Node{
-					"show": {Name: "show", Description: "Show RIB entries"},
+					"show": {Name: "show", ShortHelp: "Show RIB entries"},
 				},
 				ValueHints: func() []Suggestion {
 					return []Suggestion{
@@ -338,7 +338,7 @@ func TestDynamicChildrenAndValueHintsCombined(t *testing.T) {
 			"peer": {
 				Name: "peer",
 				Children: map[string]*Node{
-					"list": {Name: "list", Description: "List peers"},
+					"list": {Name: "list", ShortHelp: "List peers"},
 				},
 				DynamicChildren: func() []Suggestion {
 					return []Suggestion{
@@ -383,18 +383,18 @@ func TestCommandCompleterBackendFilter(t *testing.T) {
 	tree := &Node{
 		Children: map[string]*Node{
 			"vpp": {
-				Name:        "vpp",
-				Description: "VPP operations",
-				Backend:     []string{"vpp"},
+				Name:      "vpp",
+				ShortHelp: "VPP operations",
+				Backend:   []string{"vpp"},
 			},
 			"general": {
-				Name:        "general",
-				Description: "General operations",
+				Name:      "general",
+				ShortHelp: "General operations",
 			},
 			"netlink-only": {
-				Name:        "netlink-only",
-				Description: "Netlink operations",
-				Backend:     []string{"netlink"},
+				Name:      "netlink-only",
+				ShortHelp: "Netlink operations",
+				Backend:   []string{"netlink"},
 			},
 		},
 	}
@@ -426,8 +426,8 @@ func TestCommandCompleterBackendUnrestricted(t *testing.T) {
 	tree := &Node{
 		Children: map[string]*Node{
 			"peer": {
-				Name:        "peer",
-				Description: "Peer operations",
+				Name:      "peer",
+				ShortHelp: "Peer operations",
 			},
 		},
 	}
@@ -812,16 +812,16 @@ func TestChoiceGroupCompletesItsWordsNotItsName(t *testing.T) {
 // what shipped while one description carried both halves.
 func TestCompleterSuggestsSummaryNotWholeDescription(t *testing.T) {
 	const (
-		summary  = "Show the BGP RIB."
-		longHelp = "The RIB answers per family.\nAdd a prefix to narrow it."
+		summary     = "Show the BGP RIB."
+		explanation = "The RIB answers per family.\nAdd a prefix to narrow it."
 	)
 	tree := &Node{
 		Children: map[string]*Node{
-			"rib": {Name: "rib", Description: summary, LongHelp: longHelp},
+			"rib": {Name: "rib", ShortHelp: summary, Description: explanation},
 			"family": {
 				Name:        "family",
-				Description: "Pick the address family.",
-				LongHelp:    "The families are the ones this session negotiated.",
+				ShortHelp:   "Pick the address family.",
+				Description: "The families are the ones this session negotiated.",
 				Modifier:    ModifierChoice,
 				ArgDefs:     []ArgDef{{Name: "family", EnumValues: []string{"ipv4"}}},
 			},

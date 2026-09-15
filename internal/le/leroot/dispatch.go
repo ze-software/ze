@@ -300,11 +300,11 @@ func helpNode(program, name string) int {
 		pattern = tb.Str(command).Str(" <action> [| json | yaml | table]").String()
 	}
 	page := helpfmt.Page{
-		Command:  command,
-		Summary:  meta.Description,
-		LongHelp: meta.LongHelp,
-		Usage:    []string{pattern},
-		Sections: sections,
+		Command:     command,
+		ShortHelp:   meta.ShortHelp,
+		Description: meta.Description,
+		Usage:       []string{pattern},
+		Sections:    sections,
 	}
 	page.WriteErr()
 	return 0
@@ -319,7 +319,7 @@ func childEntries(name string) []helpfmt.HelpEntry {
 	entries := make([]helpfmt.HelpEntry, 0, 4)
 	for _, command := range Commands() {
 		if child, ok := strings.CutPrefix(command.Name, prefix); ok {
-			entries = append(entries, helpfmt.HelpEntry{Name: child, Desc: command.Meta.Description})
+			entries = append(entries, helpfmt.HelpEntry{Name: child, Desc: command.Meta.ShortHelp})
 		}
 	}
 	return entries

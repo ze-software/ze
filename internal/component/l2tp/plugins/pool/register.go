@@ -780,8 +780,8 @@ func parseNamedIPv6Pools(entries []configvalue.ListEntry) (map[string]*ipv6Prefi
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show l2tp pool",
-			Description: "Show the IPv4 and IPv6 subscriber address pools and what each has allocated.",
+			Name:      "show l2tp pool",
+			ShortHelp: "Show the IPv4 and IPv6 subscriber address pools and what each has allocated.",
 		},
 	}
 }

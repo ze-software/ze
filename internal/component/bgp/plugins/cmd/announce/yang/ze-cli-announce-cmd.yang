@@ -18,146 +18,146 @@ module ze-cli-announce-cmd {
         container unicast {
             config false;
             ze:command "ze-bgp:announce-unicast";
-            description "Originate a unicast route on demand.";
-            ze:help "The address family follows the prefix, so it is ipv4 unicast or ipv6
+            description "The address family follows the prefix, so it is ipv4 unicast or ipv6
 unicast. The ORIGIN is IGP, and the next hop is this router unless next-hop names one.";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to originate, in CIDR form"; }
+            ze:help "Originate a unicast route on demand.";
+            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "Prefix to originate, in CIDR form"; }
 
             container next-hop {
                 config false;
                 ze:modifier "once";
-                description "The next hop to advertise.";
-                ze:help "It defaults to this router.";
-                leaf address { type string { length "1..46"; } mandatory true; description "An address, or self for this router"; }
+                description "It defaults to this router.";
+                ze:help "The next hop to advertise.";
+                leaf address { type string { length "1..46"; } mandatory true; ze:help "An address, or self for this router"; }
             }
 
             container community {
                 config false;
                 ze:modifier "repeat";
-                description "A community to attach, repeated for each one.";
-                ze:help "The value is a standard community. Naming BLACKHOLE here meets
+                description "The value is a standard community. Naming BLACKHOLE here meets
 RFC 7999 Section 3.1 and its agreement gate. The fan-out then narrows to the sessions that
 recorded the agreement.";
-                leaf value { type string { length "1..32"; } mandatory true; description "Community, as ASN:value or a well-known name"; }
+                ze:help "A community to attach, repeated for each one.";
+                leaf value { type string { length "1..32"; } mandatory true; ze:help "Community, as ASN:value or a well-known name"; }
             }
 
             container tag {
                 config false;
                 ze:modifier "once";
-                description "A key and a value carried with the announcement, so a later withdraw can name it.";
-                ze:help "The tag is what puts the announcement in the registry. Without a
+                description "The tag is what puts the announcement in the registry. Without a
 tag the announcement is not tracked, so show announcements never lists it and withdraw id
 cannot reach it. Each half is 64 characters at most.";
-                leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
-                leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+                ze:help "A key and a value carried with the announcement, so a later withdraw can name it.";
+                leaf key { type string { length "1..64"; } mandatory true; ze:help "Tag key"; }
+                leaf value { type string { length "1..64"; } mandatory true; ze:help "Tag value"; }
             }
 
             container for {
                 config false;
                 ze:modifier "once";
-                description "How long the announcement lives before ze withdraws it.";
-                ze:help "The value is a Go duration such as 300s, or a whole number of
+                description "The value is a Go duration such as 300s, or a whole number of
 seconds. It is read only when the announcement also carries a tag, because the timer lives
 with the registry entry.";
-                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+                ze:help "How long the announcement lives before ze withdraws it.";
+                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; ze:help "Lifetime, in Go duration syntax or in whole seconds"; }
             }
         }
 
         container blackhole {
             config false;
             ze:command "ze-bgp:announce-blackhole";
-            description "Originate a blackhole route on demand.";
-            ze:help "This command attaches the BLACKHOLE community itself, so
+            description "This command attaches the BLACKHOLE community itself, so
 RFC 7999 Section 3.1 narrows the fan-out to the sessions that recorded the
 agreement.";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to blackhole, in CIDR form"; }
+            ze:help "Originate a blackhole route on demand.";
+            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "Prefix to blackhole, in CIDR form"; }
 
             container tag {
                 config false;
                 ze:modifier "once";
-                description "A key and a value carried with the announcement, so a later withdraw can name it.";
-                ze:help "The tag is what puts the announcement in the registry. Without a
+                description "The tag is what puts the announcement in the registry. Without a
 tag the announcement is not tracked, so show announcements never lists it and withdraw id
 cannot reach it. Each half is 64 characters at most.";
-                leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
-                leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+                ze:help "A key and a value carried with the announcement, so a later withdraw can name it.";
+                leaf key { type string { length "1..64"; } mandatory true; ze:help "Tag key"; }
+                leaf value { type string { length "1..64"; } mandatory true; ze:help "Tag value"; }
             }
 
             container for {
                 config false;
                 ze:modifier "once";
-                description "How long the announcement lives before ze withdraws it.";
-                ze:help "The value is a Go duration such as 300s, or a whole number of
+                description "The value is a Go duration such as 300s, or a whole number of
 seconds. It is read only when the announcement also carries a tag, because the timer lives
 with the registry entry.";
-                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+                ze:help "How long the announcement lives before ze withdraws it.";
+                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; ze:help "Lifetime, in Go duration syntax or in whole seconds"; }
             }
         }
 
         container flowspec {
             config false;
             ze:command "ze-bgp:announce-flowspec";
-            description "Originate a FlowSpec rule on demand (RFC 8955).";
-            ze:help "The match components come from ze-flowspec-cmd, which
+            description "The match components come from ze-flowspec-cmd, which
 augments this container. They are the FlowSpec codec vocabulary, and the plugin
 that owns it declares them, so this module never restates another plugin's
 words. An augmented container carries no declaration order, so the components
 sort by name and land in front of the action and the options declared here.";
+            ze:help "Originate a FlowSpec rule on demand (RFC 8955).";
 
             container action {
                 config false;
                 ze:modifier "one-of";
-                description "The traffic action, which every FlowSpec rule must carry.";
-                ze:help "RFC 8955 Section 7 makes it an extended community, so
+                description "RFC 8955 Section 7 makes it an extended community, so
 the three containers below are three spellings of ONE community rather than
 three mechanisms: community is the general case, and rate-limit and discard are
 sugar over it. The operator types one of them and never types this container's
 name.";
+                ze:help "The traffic action, which every FlowSpec rule must carry.";
 
                 container community {
                     config false;
                     ze:modifier "once";
-                    description "The traffic action, as the extended community RFC 8955 Section 7 defines it.";
-                    ze:help "rate-limit and discard are two spellings of this one
+                    description "rate-limit and discard are two spellings of this one
 action.";
-                    leaf value { type string { length "1..64"; } mandatory true; description "Action community, such as traffic-rate or redirect"; }
+                    ze:help "The traffic action, as the extended community RFC 8955 Section 7 defines it.";
+                    leaf value { type string { length "1..64"; } mandatory true; ze:help "Action community, such as traffic-rate or redirect"; }
                 }
 
                 container rate-limit {
                     config false;
                     ze:modifier "once";
-                    description "Rate-limit the matched traffic.";
-                    ze:help "It is sugar for a traffic-rate community.";
-                    leaf bytes-per-second { type string { pattern '[0-9]+'; length "1..20"; } mandatory true; description "Rate in bytes per second"; }
+                    description "It is sugar for a traffic-rate community.";
+                    ze:help "Rate-limit the matched traffic.";
+                    leaf bytes-per-second { type string { pattern '[0-9]+'; length "1..20"; } mandatory true; ze:help "Rate in bytes per second"; }
                 }
 
                 container discard {
                     config false;
                     ze:modifier "once";
-                    description "Discard the matched traffic.";
-                    ze:help "It is sugar for a traffic-rate of zero.";
+                    description "It is sugar for a traffic-rate of zero.";
+                    ze:help "Discard the matched traffic.";
                 }
             }
 
             container tag {
                 config false;
                 ze:modifier "once";
-                description "A key and a value carried with the announcement, so a later withdraw can name it.";
-                ze:help "The tag is what puts the announcement in the registry. Without a
+                description "The tag is what puts the announcement in the registry. Without a
 tag the announcement is not tracked, so show announcements never lists it and withdraw id
 cannot reach it. Each half is 64 characters at most.";
-                leaf key { type string { length "1..64"; } mandatory true; description "Tag key"; }
-                leaf value { type string { length "1..64"; } mandatory true; description "Tag value"; }
+                ze:help "A key and a value carried with the announcement, so a later withdraw can name it.";
+                leaf key { type string { length "1..64"; } mandatory true; ze:help "Tag key"; }
+                leaf value { type string { length "1..64"; } mandatory true; ze:help "Tag value"; }
             }
 
             container for {
                 config false;
                 ze:modifier "once";
-                description "How long the announcement lives before ze withdraws it.";
-                ze:help "The value is a Go duration such as 300s, or a whole number of
+                description "The value is a Go duration such as 300s, or a whole number of
 seconds. It is read only when the announcement also carries a tag, because the timer lives
 with the registry entry.";
-                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; description "Lifetime, in Go duration syntax or in whole seconds"; }
+                ze:help "How long the announcement lives before ze withdraws it.";
+                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; ze:help "Lifetime, in Go duration syntax or in whole seconds"; }
             }
         }
     }
@@ -168,29 +168,29 @@ with the registry entry.";
         container tag {
             config false;
             ze:command "ze-bgp:withdraw-tag";
-            description "Withdraw the announcements carrying a tag.";
-            ze:help "A key of * withdraws every tagged announcement. An absent
+            description "A key of * withdraws every tagged announcement. An absent
 value withdraws every value of the key.";
-            leaf key { type string; mandatory true; description "Tag key, or * for every tagged announcement"; }
-            leaf value { type string; description "Tag value; every value of the key when absent"; }
+            ze:help "Withdraw the announcements carrying a tag.";
+            leaf key { type string; mandatory true; ze:help "Tag key, or * for every tagged announcement"; }
+            leaf value { type string; ze:help "Tag value; every value of the key when absent"; }
         }
 
         container id {
             config false;
             ze:command "ze-bgp:withdraw-id";
-            description "Withdraw one announcement by the id that show announcements reports.";
-            ze:help "Only a tagged announcement carries an id. The withdraw acts
+            description "Only a tagged announcement carries an id. The withdraw acts
 only when the selector typed after bgp is the one the announcement was made with, compared as
 text.";
-            leaf id { type string { length "1..20"; } mandatory true; description "Announcement id, as show announcements reports it"; }
+            ze:help "Withdraw one announcement by the id that show announcements reports.";
+            leaf id { type string { length "1..20"; } mandatory true; ze:help "Announcement id, as show announcements reports it"; }
         }
 
         container all {
             config false;
             ze:command "ze-bgp:withdraw-all";
-            description "Withdraw every on-demand announcement.";
-            ze:help "The selector typed after bgp decides the scope: name a
+            description "The selector typed after bgp decides the scope: name a
 peer to withdraw only the announcements made to it, or * for every one.";
+            ze:help "Withdraw every on-demand announcement.";
         }
     }
 
@@ -213,11 +213,11 @@ peer to withdraw only the announcements made to it, or * for every one.";
 
             container withdraw {
                 config false;
-                description "Withdraw on-demand announcements.";
-                ze:help "Only a tagged announcement can be withdrawn by these forms, because an
+                description "Only a tagged announcement can be withdrawn by these forms, because an
 announcement made without a tag leaves no registry entry. The three forms are tag, id and
 all. The word stays where announce went, because a withdraw is the opposite act rather
 than the same act named twice, and it is the word RFC 4271 and ExaBGP both use.";
+                ze:help "Withdraw on-demand announcements.";
                 uses withdraw-forms;
             }
         }
@@ -229,13 +229,13 @@ than the same act named twice, and it is the word RFC 4271 and ExaBGP both use."
         container announcements {
             config false;
             ze:command "ze-bgp:show-announcements";
-            description "List active on-demand announcements.";
-            ze:help "Each row carries the id, the tag, the family, the peer selector, the
+            description "Each row carries the id, the tag, the family, the peer selector, the
 source and the creation time. An expiry time is present only when the announcement was made
 with for.";
-            leaf tag { type string { length "1..64"; } description "Show only announcements carrying this tag key"; }
-            leaf selector { type string; description "Show only announcements whose peer selector matches this pattern"; }
-            leaf family { type string { length "1..32"; } description "Show only announcements of this address family"; }
+            ze:help "List active on-demand announcements.";
+            leaf tag { type string { length "1..64"; } ze:help "Show only announcements carrying this tag key"; }
+            leaf selector { type string; ze:help "Show only announcements whose peer selector matches this pattern"; }
+            leaf family { type string { length "1..32"; } ze:help "Show only announcements of this address family"; }
         }
     }
 }

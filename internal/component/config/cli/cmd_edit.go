@@ -415,9 +415,9 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config edit",
-			Summary: "Interactive configuration editor with VyOS-like set commands",
-			Usage:   []string{"ze config edit [options] [config-file]"},
+			Command:   "ze config edit",
+			ShortHelp: "Interactive configuration editor with VyOS-like set commands",
+			Usage:     []string{"ze config edit [options] [config-file]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-f", Desc: "Use filesystem directly, bypass blob store"},

@@ -11,16 +11,16 @@ module ze-bgp-cmd-metrics-api {
     }
 
     rpc metrics-show {
-        description "Show Prometheus metrics in text format.";
-        ze:help "The output is what the Prometheus HTTP handler writes for a GET on /metrics. It
+        description "The output is what the Prometheus HTTP handler writes for a GET on /metrics. It
 carries every registered metric with its HELP and TYPE lines. When no Prometheus
 registry is installed the RPC answers 'metrics not available'.";
+        ze:help "Show Prometheus metrics in text format.";
     }
 
     rpc metrics-list {
-        description "List metric names only.";
-        ze:help "The names are sorted, and they carry no sample values beside them. Use
+        description "The names are sorted, and they carry no sample values beside them. Use
 metrics-show for the values. When no Prometheus registry is installed the RPC
 answers 'metrics not available'.";
+        ze:help "List metric names only.";
     }
 }

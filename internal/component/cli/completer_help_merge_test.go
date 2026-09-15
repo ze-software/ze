@@ -1,4 +1,4 @@
-// Detail: completer.go -- mergeAugmentedEntries, mergeHelpExts
+// Detail: completer.go -- mergeAugmentedEntries, mergeDescriptions
 
 package cli
 
@@ -12,16 +12,19 @@ import (
 )
 
 // helpEntry answers one declaration of a node: a container carrying its own
-// ze:help and one child, which is the shape a plugin module writes when it
-// attaches leaves to a node another module also declares.
+// description (the long explanation) and one child, which is the shape a
+// plugin module writes when it attaches leaves to a node another module also
+// declares. The ze:help summary is the same on every declaration, so the test
+// can check that the merge leaves the extension list alone.
 func helpEntry(help, child string) *gyang.Entry {
 	const name = "interface"
 	return &gyang.Entry{
-		Name: name,
+		Name:        name,
+		Description: help,
 		Exts: []*gyang.Statement{{
 			Keyword:     yang.HelpExtensionKeyword,
 			HasArgument: true,
-			Argument:    help,
+			Argument:    "An interface.",
 		}},
 		Dir: map[string]*gyang.Entry{child: {Name: child}},
 	}
@@ -37,7 +40,7 @@ func TestMergeKeepsEveryDeclarationsHelp(t *testing.T) {
 	second := helpEntry("What the QoS plugin attaches here.", "class-of-service")
 
 	merged := mergeAugmentedEntries([]*gyang.Entry{first, second})
-	help := entryLongHelp(merged)
+	help := entryDescription(merged)
 
 	if !strings.Contains(help, "What an interface is.") {
 		t.Errorf("merged help lost the first declaration: %q", help)
@@ -51,8 +54,11 @@ func TestMergeKeepsEveryDeclarationsHelp(t *testing.T) {
 	if _, ok := merged.Dir["class-of-service"]; !ok {
 		t.Error("merged entry lost the second declaration's child")
 	}
-	if got := entryLongHelp(first); got != "What an interface is." {
+	if got := entryDescription(first); got != "What an interface is." {
 		t.Errorf("the input entry was mutated: %q", got)
+	}
+	if got := yang.GetHelpExtension(merged.Exts); got != "An interface." {
+		t.Errorf("merged summary = %q, want the first declaration's ze:help", got)
 	}
 }
 
@@ -66,7 +72,7 @@ func TestMergeRepeatsNoHelpTwice(t *testing.T) {
 		helpEntry(same, "class-of-service"),
 	})
 
-	if got := entryLongHelp(merged); got != same {
+	if got := entryDescription(merged); got != same {
 		t.Errorf("help = %q, want the sentence once", got)
 	}
 }
@@ -90,7 +96,7 @@ func TestMergeKeepsTheHelpOfTheDeclarationThatCarriesOne(t *testing.T) {
 	written := helpEntry("The explanation the operator needs.", "backend")
 
 	merged := mergeAugmentedEntries([]*gyang.Entry{silent, written})
-	if got := entryLongHelp(merged); got != "The explanation the operator needs." {
+	if got := entryDescription(merged); got != "The explanation the operator needs." {
 		t.Errorf("help = %q, want the written explanation", got)
 	}
 }

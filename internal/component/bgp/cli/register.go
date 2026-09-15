@@ -66,10 +66,10 @@ func init() {
 	registry.MustRegisterRootHandler("bgp", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "BGP protocol tools",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        subcommands(),
+		ShortHelp: "BGP protocol tools",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      subcommands(),
 	})
 	registry.MustRegisterLocal("show bgp decode", func(args []string) int {
 		return Run(append([]string{bgpCmdDecode}, args...))

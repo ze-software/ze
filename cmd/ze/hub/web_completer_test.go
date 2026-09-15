@@ -41,7 +41,7 @@ func TestPluginAwareCommandCompleterIsLive(t *testing.T) {
 	}
 
 	// Register: the command appears immediately, no rebuild.
-	live = []command.CommandEntry{{Name: "show myplugin thing", Description: "plugin cmd"}}
+	live = []command.CommandEntry{{Name: "show myplugin thing", ShortHelp: "plugin cmd"}}
 	if comps := c.Complete("show myplugin "); !hasCompletion(comps, "thing") {
 		t.Fatalf("registered plugin command 'thing' missing: %v", comps)
 	}
@@ -62,11 +62,11 @@ func TestPluginAwareCommandCompleterIsLive(t *testing.T) {
 func TestPluginAwareCommandCompleterYANGWins(t *testing.T) {
 	tree := &command.Node{Children: map[string]*command.Node{
 		"show": {Name: "show", Children: map[string]*command.Node{
-			"status": {Name: "status", Description: "YANG status"},
+			"status": {Name: "status", ShortHelp: "YANG status"},
 		}},
 	}}
 	c := newPluginAwareCommandCompleter(tree, func() []command.CommandEntry {
-		return []command.CommandEntry{{Name: "show status", Description: "PLUGIN"}}
+		return []command.CommandEntry{{Name: "show status", ShortHelp: "PLUGIN"}}
 	})
 
 	comps := c.Complete("show ")
@@ -74,8 +74,8 @@ func TestPluginAwareCommandCompleterYANGWins(t *testing.T) {
 	for _, s := range comps {
 		if s.Text == "status" {
 			count++
-			if s.Description != "YANG status" {
-				t.Errorf("YANG description overridden by plugin: %q", s.Description)
+			if s.ShortHelp != "YANG status" {
+				t.Errorf("YANG description overridden by plugin: %q", s.ShortHelp)
 			}
 		}
 	}

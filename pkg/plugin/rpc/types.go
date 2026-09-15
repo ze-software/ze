@@ -457,20 +457,20 @@ type FamilyDecl struct {
 // the shape from the payload in hand, as it always has.
 type CommandDecl struct {
 	Name string `json:"name"`
-	// Description is the one-line SUMMARY of the command. Every surface that
+	// ShortHelp is the one-line SUMMARY of the command. Every surface that
 	// shows the command on one line reads it: a completion candidate, a list
 	// row, a table cell. It carries no newline and no control character, and
 	// the engine refuses a declaration that does (validateHelpDecls).
-	Description string `json:"description,omitempty"`
-	// LongHelp is the explanation the command's OWN help page prints, under
-	// the summary. It is the plugin-side twin of the ze:help extension a YANG
-	// command node declares, and the engine copies it into
-	// command.CommandEntry.LongHelp.
+	ShortHelp string `json:"short-help,omitempty"`
+	// Description is the explanation the command's OWN help page prints, under
+	// the summary. It is the plugin-side twin of the description statement a
+	// YANG command node declares, and the engine copies it into
+	// command.CommandEntry.Description.
 	//
 	// It is optional, and its zero value is the refusal: a plugin that sends
-	// `description` and no `long-help` renders with its summary and an empty
+	// `description` and no `description` renders with its summary and an empty
 	// explanation. Empty here MUST NOT be read as an empty summary.
-	LongHelp string `json:"long-help,omitempty"`
+	Description string `json:"description,omitempty"`
 	// RetiredHelp holds the `help` key when a declaration still carries it.
 	// `help` named the summary on Ze's own daemon-to-CLI answer until
 	// 2026-09-03, so a plugin author who copied that spelling would otherwise

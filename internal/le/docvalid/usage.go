@@ -230,7 +230,7 @@ func collectUsage(node *command.Node, path []string, walk *usageWalk) {
 		if child.WireMethod != "" {
 			walk.generated[cliPath] = command.UsageLine(command.Usage(childPath, child))
 		}
-		if marker, authored := authoredUsage(child.Description); authored != "" {
+		if marker, authored := authoredUsage(child.ShortHelp); authored != "" {
 			walk.authored[cliPath] = true
 			row := UsageRow{
 				Path:      cliPath,

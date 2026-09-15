@@ -480,7 +480,7 @@ func TestCLICompleteOperationalMode(t *testing.T) {
 	mgr, _ := setupCLITest(t)
 	schema, _ := buildTestSchemaAndTree()
 	cmdComp := &fakeCommandCompleter{
-		items: []contract.Completion{{Text: "show", Description: "show command", Type: "command"}},
+		items: []contract.Completion{{Text: "show", ShortHelp: "show command", Type: "command"}},
 	}
 	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cmdComp, mgr, schema)
 
@@ -516,7 +516,7 @@ func TestCLICompleteOperationalIncludesPluginCommand(t *testing.T) {
 		"show": {Name: "show", Children: map[string]*command.Node{}},
 	}}
 	command.MergeCommandPaths(tree, []command.CommandEntry{
-		{Name: "show myplugin thing", Description: "A plugin command"},
+		{Name: "show myplugin thing", ShortHelp: "A plugin command"},
 	})
 	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cli.NewCommandCompleter(tree), mgr, schema)
 
@@ -1103,7 +1103,7 @@ func TestBuildConfigEditURL(t *testing.T) {
 // It drives the production handler over the real command completer, because the
 // JSON payload is built from whatever that completer answers.
 //
-// PREVENTS: a later edit routing Node.LongHelp into the candidate line.
+// PREVENTS: a later edit routing Node.Description into the candidate line.
 func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
 	mgr, _ := setupCLITest(t)
 	schema, _ := buildTestSchemaAndTree()
@@ -1112,8 +1112,8 @@ func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
 		"show": {Name: "show", Children: map[string]*command.Node{
 			"peer": {
 				Name:        "peer",
-				Description: "Show one line for each peer.",
-				LongHelp:    "The state column is the FSM state.\nThe counts are prefixes received.",
+				ShortHelp:   "Show one line for each peer.",
+				Description: "The state column is the FSM state.\nThe counts are prefixes received.",
 			},
 		}},
 	}}

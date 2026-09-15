@@ -13,97 +13,97 @@ module ze-system-api {
     }
 
     rpc help {
-        description "List the subcommands the system verb accepts.";
-        ze:help "The built-in commands come first, then the commands each running plugin
+        description "The built-in commands come first, then the commands each running plugin
 registered. A plugin command marked hidden is left out.";
+        ze:help "List the subcommands the system verb accepts.";
         output {
-            leaf-list subcommands { type string; description "Available subcommands"; }
+            leaf-list subcommands { type string; ze:help "Available subcommands"; }
         }
     }
 
     rpc version-software {
-        description "Show the ze software version.";
-        ze:help "The answer carries the version string and the build date the binary was
+        description "The answer carries the version string and the build date the binary was
 compiled with. Both are set at startup and never change while the daemon runs.";
+        ze:help "Show the ze software version.";
         output {
-            leaf version { type string; description "Software version string"; }
+            leaf version { type string; ze:help "Software version string"; }
         }
     }
 
     rpc version-api {
-        description "Show the IPC protocol version.";
-        ze:help "The number names the IPC protocol between the daemon and its clients, and
+        description "The number names the IPC protocol between the daemon and its clients, and
 it moves apart from the software version. The daemon reads it nowhere else, so the command
 reports the protocol rather than negotiates it.";
+        ze:help "Show the IPC protocol version.";
         output {
-            leaf version { type string; description "API protocol version"; }
+            leaf version { type string; ze:help "API protocol version"; }
         }
     }
 
     // Daemon lifecycle (system-wide operations affecting all plugins)
 
     rpc daemon-shutdown {
-        description "Shut the daemon down gracefully.";
-        ze:help "The daemon answers shutdown initiated first and stops after that answer is
+        description "The daemon answers shutdown initiated first and stops after that answer is
 written, so the connection that asked is never closed before it. A daemon with no BGP
 reactor stops through the same path SIGTERM uses.";
+        ze:help "Shut the daemon down gracefully.";
     }
 
     rpc daemon-reboot {
-        description "Shut the daemon down gracefully, then reboot the system (root is required on Linux).";
-        ze:help "The command needs a running reactor. It fails with reboot not available
+        description "The command needs a running reactor. It fails with reboot not available
 when the daemon wired no reboot action, and the reboot runs after the answer is written.";
+        ze:help "Shut the daemon down gracefully, then reboot the system (root is required on Linux).";
     }
 
     rpc daemon-quit {
-        description "Dump every goroutine stack, then shut the daemon down.";
-        ze:help "The stacks go to the log at warning level, up to 1 MB of them. The daemon
+        description "The stacks go to the log at warning level, up to 1 MB of them. The daemon
 then stops through the same path daemon-shutdown uses.";
+        ze:help "Dump every goroutine stack, then shut the daemon down.";
     }
 
     rpc daemon-status {
-        description "Show the daemon uptime, peer count, and start time.";
-        ze:help "A BGP reactor must be registered, so a daemon that runs without one refuses
+        description "A BGP reactor must be registered, so a daemon that runs without one refuses
 the command. The uptime is truncated to a whole second.";
+        ze:help "Show the daemon uptime, peer count, and start time.";
         output {
-            leaf uptime-seconds { type uint32; description "Seconds since start"; }
-            leaf peer-count { type uint32; description "Number of configured peers"; }
-            leaf start-time { type string; description "ISO 8601 start timestamp"; }
+            leaf uptime-seconds { type uint32; ze:help "Seconds since start"; }
+            leaf peer-count { type uint32; ze:help "Number of configured peers"; }
+            leaf start-time { type string; ze:help "ISO 8601 start timestamp"; }
         }
     }
 
     rpc daemon-reload {
-        description "Reload the configuration.";
-        ze:help "The configuration is read from disk again, every plugin verifies it, and
+        description "The configuration is read from disk again, every plugin verifies it, and
 each one then applies it. A daemon with no config loader reconciles the BGP peers only.";
+        ze:help "Reload the configuration.";
     }
 
     rpc quiesce {
-        description "Block until every subsystem drains its pending async work.";
-        ze:help "It is a test and operator barrier that replaces a fixed sleep.";
+        description "It is a test and operator barrier that replaces a fixed sleep.";
+        ze:help "Block until every subsystem drains its pending async work.";
         output {
-            leaf-list quiesced { type string; description "Subsystems that were asked to drain"; }
-            leaf-list failed { type string; description "Subsystems that failed or timed out"; }
+            leaf-list quiesced { type string; ze:help "Subsystems that were asked to drain"; }
+            leaf-list failed { type string; ze:help "Subsystems that failed or timed out"; }
         }
     }
 
     rpc subsystem-list {
-        description "List the subsystems registered in the daemon.";
-        ze:help "Each row carries the subsystem name, its stage, whether it runs, and how
+        description "Each row carries the subsystem name, its stage, whether it runs, and how
 many commands it registered. The command count is read from the dispatcher registry.";
+        ze:help "List the subsystems registered in the daemon.";
         output {
             list subsystem {
-                leaf name { type string; description "Subsystem name"; }
-                leaf description { type string; description "Subsystem description"; }
+                leaf name { type string; ze:help "Subsystem name"; }
+                leaf description { type string; ze:help "Subsystem description"; }
             }
         }
     }
 
     rpc command-list {
-        description "List every command the daemon knows.";
-        ze:help "The answer is streamed one row for each command, so an operator who pipes
+        description "The answer is streamed one row for each command, so an operator who pipes
 it through first or match pays for the rows they keep. Built-in commands come first, then
 the commands each plugin registered.";
+        ze:help "List every command the daemon knows.";
         output {
             list command {
                 uses zt:command-info;
@@ -112,43 +112,43 @@ the commands each plugin registered.";
     }
 
     rpc command-help {
-        description "Show the detailed help for one command.";
-        ze:help "The name is looked up in the built-in commands first, then in the plugin
+        description "The name is looked up in the built-in commands first, then in the plugin
 registry. A plugin command also answers with its argument form, its source process, and its
 timeout.";
+        ze:help "Show the detailed help for one command.";
         input {
-            leaf name { type string; mandatory true; description "Command name"; }
+            leaf name { type string; mandatory true; ze:help "Command name"; }
         }
         output {
-            leaf help { type string; description "Detailed help text"; }
+            leaf help { type string; ze:help "Detailed help text"; }
         }
     }
 
     rpc command-complete {
-        description "List the completion candidates for a partial command.";
-        ze:help "The candidates match on a case-insensitive prefix. The form args <command>
+        description "The candidates match on a case-insensitive prefix. The form args <command>
 <partial> completes one command's arguments instead, and it answers empty when the plugin
 does not declare that command completable.";
+        ze:help "List the completion candidates for a partial command.";
         input {
-            leaf partial { type string; mandatory true; description "Partial command string"; }
-            leaf arg { type string; description "Current argument being completed"; }
+            leaf partial { type string; mandatory true; ze:help "Partial command string"; }
+            leaf arg { type string; ze:help "Current argument being completed"; }
         }
         output {
-            leaf-list completions { type string; description "Completion candidates"; }
+            leaf-list completions { type string; ze:help "Completion candidates"; }
         }
     }
 
     rpc dispatch {
-        description "Dispatch a text command through the command dispatcher.";
-        ze:help "The words are joined with one space and given to the same dispatcher the
+        description "The words are joined with one space and given to the same dispatcher the
 CLI uses, so a plugin command is reachable too. It fails with missing command when no word
 is given.";
+        ze:help "Dispatch a text command through the command dispatcher.";
         input {
-            leaf-list args { type string; description "Command words to join and dispatch"; }
+            leaf-list args { type string; ze:help "Command words to join and dispatch"; }
         }
         output {
-            leaf status { type string; description "Result status (ok or error)"; }
-            leaf data { type string; description "Response data"; }
+            leaf status { type string; ze:help "Result status (ok or error)"; }
+            leaf data { type string; ze:help "Response data"; }
         }
     }
 }

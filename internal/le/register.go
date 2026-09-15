@@ -105,9 +105,9 @@ import (
 
 func init() {
 	registry.MustRegisterRootHandler("le", run, registry.Meta{
-		Description: "the Ze repository and development commands, in-process",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
+		ShortHelp: "the Ze repository and development commands, in-process",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
 	})
 }
 

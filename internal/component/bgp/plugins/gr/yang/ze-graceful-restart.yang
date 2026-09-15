@@ -18,11 +18,11 @@ module ze-graceful-restart {
     grouping graceful-restart-config {
         container graceful-restart {
             presence "Graceful Restart capability enabled";
-            description "Graceful Restart capability configuration.";
-            ze:help "The container carries presence, so writing it makes Ze send the Graceful Restart capability,
+            description "The container carries presence, so writing it makes Ze send the Graceful Restart capability,
                 code 64, to this peer. Ze lists no address family in that capability, because Ze runs the Receiving
                 Speaker procedures of RFC 4724 and preserves no forwarding state of its own. A container on the peer
                 replaces the container on the group rather than adding to it.";
+            ze:help "Graceful Restart capability configuration.";
 
             leaf restart-time {
                 type uint16 {
@@ -31,11 +31,11 @@ module ze-graceful-restart {
                 units "seconds";
                 default "120";
                 description
-                    "Restart Time in seconds (RFC 4724 Section 3).
-                     Maximum value is 4095 (12-bit field).";
-                ze:help "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer
+                    "The value is what Ze advertises to the peer. It does not set the timer Ze runs when the peer
                     restarts: that timer takes the Restart Time the peer itself advertised. Ze deletes every stale
                     route of the peer when that timer expires, unless the peer also negotiated LLGR.";
+                ze:help "Restart Time in seconds (RFC 4724 Section 3).
+                         Maximum value is 4095 (12-bit field).";
             }
 
             leaf long-lived-stale-time {
@@ -43,10 +43,10 @@ module ze-graceful-restart {
                     range "0..16777215";
                 }
                 units "seconds";
-                description "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).";
-                ze:help "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR
+                description "Long-Lived Stale Time in seconds (RFC 9494 Section 3). When this leaf is set, Ze advertises the LLGR
                     capability (code 71). The maximum value is 16777215, because the field is 24 bits, which is about
                     194 days. Ze applies the value to every negotiated address family of the peer.";
+                ze:help "Long-Lived Stale Time for the peer, in seconds (RFC 9494 Section 3).";
             }
         }
     }

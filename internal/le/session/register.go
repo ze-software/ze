@@ -8,10 +8,10 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		Description: "manage this development session's isolated state",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "manage this development session's isolated state",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)

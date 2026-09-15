@@ -32,15 +32,15 @@ import (
 
 // AnalysisNode is a node in the unified analysis tree.
 type AnalysisNode struct {
-	Name        string
-	Source      string // SourceConfig, SourceCommand, or SourceBoth
-	Type        string // YANG type name (config nodes) or empty
-	Description string
-	NodeKind    string // "container", "list", "leaf", "leaf-list", SourceCommand, "branch"
-	Mandatory   bool   // YANG mandatory constraint
-	Default     string // YANG default value (first element if multiple)
-	Range       string // YANG range constraint (e.g., "0..65535")
-	Children    map[string]*AnalysisNode
+	Name      string
+	Source    string // SourceConfig, SourceCommand, or SourceBoth
+	Type      string // YANG type name (config nodes) or empty
+	ShortHelp string
+	NodeKind  string // "container", "list", "leaf", "leaf-list", SourceCommand, "branch"
+	Mandatory bool   // YANG mandatory constraint
+	Default   string // YANG default value (first element if multiple)
+	Range     string // YANG range constraint (e.g., "0..65535")
+	Children  map[string]*AnalysisNode
 }
 
 // buildUnifiedTree loads YANG schemas and RPC registrations, then merges
@@ -104,23 +104,23 @@ func walkYANGEntry(parent *AnalysisNode, name string, entry *gyang.Entry) {
 		if existing.Type == "" {
 			existing.Type = yangTypeName(entry)
 		}
-		if existing.Description == "" {
-			existing.Description = entry.Description
+		if existing.ShortHelp == "" {
+			existing.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 		}
 		if existing.NodeKind == "" || existing.NodeKind == "branch" || existing.NodeKind == SourceCommand {
 			existing.NodeKind = yangNodeKind(entry)
 		}
 	} else {
 		existing = &AnalysisNode{
-			Name:        name,
-			Source:      SourceConfig,
-			Type:        yangTypeName(entry),
-			Description: entry.Description,
-			NodeKind:    yangNodeKind(entry),
-			Mandatory:   entry.Mandatory == gyang.TSTrue,
-			Default:     yangDefault(entry),
-			Range:       yangRange(entry),
-			Children:    make(map[string]*AnalysisNode),
+			Name:      name,
+			Source:    SourceConfig,
+			Type:      yangTypeName(entry),
+			ShortHelp: yang.GetHelpExtension(entry.Exts), // the ze:help summary
+			NodeKind:  yangNodeKind(entry),
+			Mandatory: entry.Mandatory == gyang.TSTrue,
+			Default:   yangDefault(entry),
+			Range:     yangRange(entry),
+			Children:  make(map[string]*AnalysisNode),
 		}
 		parent.Children[name] = existing
 	}
@@ -160,8 +160,8 @@ func walkCommandNode(parent *AnalysisNode, node *command.Node) {
 			if existing.Source == SourceConfig {
 				existing.Source = SourceBoth
 			}
-			if existing.Description == "" && child.Description != "" {
-				existing.Description = child.Description
+			if existing.ShortHelp == "" && child.ShortHelp != "" {
+				existing.ShortHelp = child.ShortHelp
 			}
 		} else {
 			kind := "branch"
@@ -169,11 +169,11 @@ func walkCommandNode(parent *AnalysisNode, node *command.Node) {
 				kind = SourceCommand
 			}
 			existing = &AnalysisNode{
-				Name:        name,
-				Source:      SourceCommand,
-				Description: child.Description,
-				NodeKind:    kind,
-				Children:    make(map[string]*AnalysisNode),
+				Name:      name,
+				Source:    SourceCommand,
+				ShortHelp: child.ShortHelp,
+				NodeKind:  kind,
+				Children:  make(map[string]*AnalysisNode),
 			}
 			parent.Children[name] = existing
 		}
@@ -200,7 +200,7 @@ func collectCollisionsRecursive(node *AnalysisNode, path []string, minPrefix int
 			Name:        child.Name,
 			Source:      child.Source,
 			Type:        child.Type,
-			Description: child.Description,
+			Description: child.ShortHelp,
 		})
 	}
 
@@ -295,10 +295,10 @@ func AllRPCDocs() ([]rPCDoc, error) {
 			continue
 		}
 		docs = append(docs, rPCDoc{
-			CLICommand:  cliPath,
-			Description: lookupYANGDesc(cmdTree, cliPath),
-			ReadOnly:    pluginserver.IsReadOnlyPath(cliPath),
-			WireMethod:  reg.WireMethod,
+			CLICommand: cliPath,
+			ShortHelp:  lookupYANGDesc(cmdTree, cliPath),
+			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
+			WireMethod: reg.WireMethod,
 		})
 	}
 
@@ -366,15 +366,15 @@ func lookupYANGDesc(root *command.Node, cliPath string) string {
 		}
 		node = child
 	}
-	return node.Description
+	return node.ShortHelp
 }
 
 // rPCDoc holds documentation for a single operational command.
 type rPCDoc struct {
-	CLICommand  string
-	Description string
-	ReadOnly    bool
-	WireMethod  string
-	Input       []yang.LeafMeta // Input parameter leaves from YANG
-	Output      []yang.LeafMeta // Output parameter leaves from YANG
+	CLICommand string
+	ShortHelp  string
+	ReadOnly   bool
+	WireMethod string
+	Input      []yang.LeafMeta // Input parameter leaves from YANG
+	Output     []yang.LeafMeta // Output parameter leaves from YANG
 }

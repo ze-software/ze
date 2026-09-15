@@ -173,7 +173,7 @@ func parseDeclaration(t *testing.T, stdout string) rpc.DeclareRegistrationInput 
 // side effect lives.
 func TestQueryModeAnswersBeforeTheHandler(t *testing.T) {
 	handlerRan := registerQueryFake(t, "query-fake",
-		[]rpc.CommandDecl{{Name: "show fake state", Description: "fake command"}},
+		[]rpc.CommandDecl{{Name: "show fake state", ShortHelp: "fake command"}},
 		[]rpc.PipeDecl{{Command: "show fake state", Name: "brief", Expansion: "fields name"}},
 	)
 	requestQueryMode(t)
@@ -223,7 +223,7 @@ func TestQueryModeEmptyDeclarationIsNotSilence(t *testing.T) {
 // commands and pipes to `ze plugin <name>` and to sdk.RunOrDeclare, captures
 // what each writes to stdout, and compares the bytes.
 func TestQueryAnswerIsTheSameLineFromBothWriters(t *testing.T) {
-	commands := []rpc.CommandDecl{{Name: "show fake state", Description: "fake command"}}
+	commands := []rpc.CommandDecl{{Name: "show fake state", ShortHelp: "fake command"}}
 	pipes := []rpc.PipeDecl{{Command: "show fake state", Name: "brief", Expansion: "fields name"}}
 	registerQueryFake(t, "query-fake-shared", commands, pipes)
 	requestQueryMode(t)

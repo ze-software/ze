@@ -69,8 +69,8 @@ func init() {
 		"plugin/plugin-command-completion": {
 			pluginName: "completion-test",
 			registration: sdk.Registration{Commands: []sdk.CommandDecl{
-				{Name: cmdShowTestCompletionVisible, Description: "Visible command"},
-				{Name: cmdShowTestCompletionHidden, Description: "Hidden command", Hidden: true},
+				{Name: cmdShowTestCompletionVisible, ShortHelp: "Visible command"},
+				{Name: cmdShowTestCompletionHidden, ShortHelp: "Hidden command", Hidden: true},
 			}},
 			setup: fixture10CompletionSetup, scenario: fixture10CommandCompletion,
 		},
@@ -80,8 +80,8 @@ func init() {
 		"plugin/plugin-command-two-texts": {
 			pluginName: "two-texts-test",
 			registration: sdk.Registration{Commands: []sdk.CommandDecl{
-				{Name: cmdShowTestTwoTextsBoth, Description: twoTextsSummary, LongHelp: twoTextsLong},
-				{Name: cmdShowTestTwoTextsSummary, Description: twoTextsSummaryOnly},
+				{Name: cmdShowTestTwoTextsBoth, ShortHelp: twoTextsSummary, Description: twoTextsLong},
+				{Name: cmdShowTestTwoTextsSummary, ShortHelp: twoTextsSummaryOnly},
 			}},
 			setup: fixture10TwoTextsSetup, scenario: fixture10CommandTwoTexts,
 		},
@@ -983,7 +983,7 @@ func fixture10TwoTextsSetup(plugin *sdk.Plugin) {
 // surface that reads them, and that the key retired on 2026-09-03 is gone.
 //
 // VALIDATES: the summary rides under `description` and the explanation under
-// `long-help`, a command declaring no explanation still carries its summary,
+// `description`, a command declaring no explanation still carries its summary,
 // and no row carries the retired `help` key.
 // PREVENTS: the crossing MergeCommandPaths used to copy across, where one field
 // took the other's text, and a silent decode of a retired key to the zero value
@@ -1016,21 +1016,21 @@ func fixture10CommandTwoTexts(ctx context.Context, plugin *sdk.Plugin) error {
 		switch command["value"] {
 		case cmdShowTestTwoTextsBoth:
 			bothSeen++
-			if got, _ := command["description"].(string); got != twoTextsSummary {
+			if got, _ := command["short-help"].(string); got != twoTextsSummary {
 				return fmt.Errorf("description = %q, want the declared summary %q", got, twoTextsSummary)
 			}
-			if got, _ := command["long-help"].(string); got != twoTextsLong {
-				return fmt.Errorf("long-help = %q, want the declared explanation %q", got, twoTextsLong)
+			if got, _ := command["description"].(string); got != twoTextsLong {
+				return fmt.Errorf("description = %q, want the declared explanation %q", got, twoTextsLong)
 			}
 		case cmdShowTestTwoTextsSummary:
 			summarySeen++
-			if got, _ := command["description"].(string); got != twoTextsSummaryOnly {
+			if got, _ := command["short-help"].(string); got != twoTextsSummaryOnly {
 				return fmt.Errorf("description = %q, want the declared summary %q", got, twoTextsSummaryOnly)
 			}
 			// The zero value of the explanation must not be read as an absent
 			// summary: the row keeps its description and simply states none.
-			if got, _ := command["long-help"].(string); got != "" {
-				return fmt.Errorf("long-help = %q, want none for a command that declares none", got)
+			if got, _ := command["description"].(string); got != "" {
+				return fmt.Errorf("description = %q, want none for a command that declares none", got)
 			}
 		}
 	}

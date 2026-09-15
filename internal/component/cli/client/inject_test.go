@@ -20,9 +20,9 @@ func TestInjectPluginCommands(t *testing.T) {
 	}, false)
 
 	commands := []commandEntry{
-		{Value: "show bgp health", Description: "BGP health"},        // already in tree
-		{Value: "show bgp irr", Description: "Show IRR filter data"}, // new plugin command
-		{Value: "update bgp irr", Description: "Update IRR data"},    // new plugin command
+		{Value: "show bgp health", ShortHelp: "BGP health"},        // already in tree
+		{Value: "show bgp irr", ShortHelp: "Show IRR filter data"}, // new plugin command
+		{Value: "update bgp irr", ShortHelp: "Update IRR data"},    // new plugin command
 	}
 
 	injectPluginCommands(tree, commands, nil)
@@ -36,13 +36,13 @@ func TestInjectPluginCommands(t *testing.T) {
 	assert.NotNil(t, tree.Children["show"].Children["bgp"].Children["irr"],
 		"plugin command 'show bgp irr' should be injected")
 	assert.Equal(t, "Show IRR filter data",
-		tree.Children["show"].Children["bgp"].Children["irr"].Description)
+		tree.Children["show"].Children["bgp"].Children["irr"].ShortHelp)
 
 	assert.NotNil(t, tree.Children["update"],
 		"plugin command 'update bgp irr' should create 'update' node")
 	assert.NotNil(t, tree.Children["update"].Children["bgp"].Children["irr"])
 	assert.Equal(t, "Update IRR data",
-		tree.Children["update"].Children["bgp"].Children["irr"].Description)
+		tree.Children["update"].Children["bgp"].Children["irr"].ShortHelp)
 }
 
 // TestInjectPluginCommandsSkipsHidden verifies that hidden commands are not
@@ -54,8 +54,8 @@ func TestInjectPluginCommandsSkipsHidden(t *testing.T) {
 	tree := &cmd.Node{Children: make(map[string]*cmd.Node)}
 
 	commands := []commandEntry{
-		{Value: "show status", Description: "Show status"},
-		{Value: "show internal", Description: "Internal debug", Hidden: true},
+		{Value: "show status", ShortHelp: "Show status"},
+		{Value: "show internal", ShortHelp: "Internal debug", Hidden: true},
 	}
 	hidden := map[string]bool{
 		"show internal": true,
@@ -81,17 +81,17 @@ func TestInjectPluginCommandsPreservesExisting(t *testing.T) {
 		{CLICommand: "show bgp health"},
 	}, false)
 	// Set a YANG-sourced description
-	tree.Children["show"].Children["bgp"].Children["health"].Description = "YANG description"
+	tree.Children["show"].Children["bgp"].Children["health"].ShortHelp = "YANG description"
 
 	commands := []commandEntry{
-		{Value: "show bgp health", Description: "Plugin description"},
+		{Value: "show bgp health", ShortHelp: "Plugin description"},
 	}
 
 	injectPluginCommands(tree, commands, nil)
 
 	// YANG description preserved (not overwritten)
 	assert.Equal(t, "YANG description",
-		tree.Children["show"].Children["bgp"].Children["health"].Description)
+		tree.Children["show"].Children["bgp"].Children["health"].ShortHelp)
 }
 
 // TestInjectPluginCommandsNilTree verifies that injection handles a nil tree

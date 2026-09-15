@@ -89,9 +89,9 @@ func cmdCreateBridge(args []string) int {
 
 func createUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface create",
-		Summary: "Create a new network interface",
-		Usage:   []string{"ze interface create <type> <args>"},
+		Command:   "ze interface create",
+		ShortHelp: "Create a new network interface",
+		Usage:     []string{"ze interface create <type> <args>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Types", Entries: []helpfmt.HelpEntry{
 				{Name: "dummy <name>", Desc: "Create a dummy interface and bring it up"},

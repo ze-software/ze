@@ -55,9 +55,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze completion",
-		Summary: "Generate shell completion scripts",
-		Usage:   []string{"ze completion <shell>"},
+		Command:   "ze completion",
+		ShortHelp: "Generate shell completion scripts",
+		Usage:     []string{"ze completion <shell>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Shells", Entries: []helpfmt.HelpEntry{
 				{Name: shellBash, Desc: "Generate bash completion script"},

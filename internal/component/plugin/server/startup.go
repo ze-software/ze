@@ -687,8 +687,8 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 		for i, name := range reg.Commands {
 			defs[i] = CommandDef{
 				Name:        name,
-				Description: reg.CommandDescriptions[name],
-				LongHelp:    reg.CommandLongHelp[name],
+				ShortHelp:   reg.CommandShortHelp[name],
+				Description: reg.CommandDescription[name],
 				Hidden:      reg.CommandHidden[name],
 				Completable: reg.CommandCompletable[name],
 			}
@@ -907,22 +907,22 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 	for i := range input.Commands {
 		cmd := &input.Commands[i]
 		reg.Commands = append(reg.Commands, cmd.Name)
-		if cmd.Description != "" {
-			if reg.CommandDescriptions == nil {
-				reg.CommandDescriptions = make(map[string]string, len(input.Commands))
+		if cmd.ShortHelp != "" {
+			if reg.CommandShortHelp == nil {
+				reg.CommandShortHelp = make(map[string]string, len(input.Commands))
 			}
-			reg.CommandDescriptions[cmd.Name] = cmd.Description
+			reg.CommandShortHelp[cmd.Name] = cmd.ShortHelp
 		}
 		// The two help texts are carried in two maps. Each entry is written
 		// only when the plugin declared that text. A plugin that declares a
 		// summary and no explanation therefore appears in the first map and
 		// not in the second. That is the reading the empty value owes
 		// (plan/journal/field-carries-two-meanings.md).
-		if cmd.LongHelp != "" {
-			if reg.CommandLongHelp == nil {
-				reg.CommandLongHelp = make(map[string]string, len(input.Commands))
+		if cmd.Description != "" {
+			if reg.CommandDescription == nil {
+				reg.CommandDescription = make(map[string]string, len(input.Commands))
 			}
-			reg.CommandLongHelp[cmd.Name] = cmd.LongHelp
+			reg.CommandDescription[cmd.Name] = cmd.Description
 		}
 		if cmd.Hidden {
 			if reg.CommandHidden == nil {
@@ -1247,10 +1247,10 @@ func validateDeclaredFieldName(command, kind, name string, maxNameLen int) error
 // (docs/contributing/ze-go-style.md, "A limit on everything").
 const (
 	maxSummaryLen = 256
-	// The long-help bound is command.MaxLongHelpBytes rather than a number of
+	// The description bound is command.MaxDescriptionBytes rather than a number of
 	// its own, so this validator and `le docvalid help-shape` cannot disagree
 	// about what a long explanation is allowed to be.
-	maxLongHelpLen = command.MaxLongHelpBytes
+	maxDescriptionLen = command.MaxDescriptionBytes
 )
 
 // textShape says whether a declared text is read as one line or as a
@@ -1286,11 +1286,11 @@ func validateHelpDecls(commands []rpc.CommandDecl) error {
 			return fmt.Errorf("command %q declares the retired key %q; the summary is declared under %q",
 				clampDeclared(c.Name), retiredSummaryKey, summaryKey)
 		}
-		if err := validateDeclaredText(c.Description, maxSummaryLen, textOneLine); err != nil {
+		if err := validateDeclaredText(c.ShortHelp, maxSummaryLen, textOneLine); err != nil {
 			return fmt.Errorf("command %q declares an invalid description: %w", clampDeclared(c.Name), err)
 		}
-		if err := validateDeclaredText(c.LongHelp, maxLongHelpLen, textParagraph); err != nil {
-			return fmt.Errorf("command %q declares an invalid long-help: %w", clampDeclared(c.Name), err)
+		if err := validateDeclaredText(c.Description, maxDescriptionLen, textParagraph); err != nil {
+			return fmt.Errorf("command %q declares an invalid description: %w", clampDeclared(c.Name), err)
 		}
 	}
 	return nil

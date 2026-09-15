@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		Description: "suggest a perf run when BGP data-plane code changed since the last one",
-		Mode:        "offline",
+		ShortHelp: "suggest a perf run when BGP data-plane code changed since the last one",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section:  registry.SectionTest,

@@ -11,9 +11,9 @@ func init() {
 	registry.MustRegisterRootHandler("plugin", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Plugin system",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "<plugin-name> for plugin CLI, test for debugging",
+		ShortHelp: "Plugin system",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      "<plugin-name> for plugin CLI, test for debugging",
 	})
 }

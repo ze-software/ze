@@ -61,8 +61,8 @@ func TestRenderNativeCommandSurfacesRejectsSlugCollision(t *testing.T) {
 func TestRenderNativeCommandSurfacesRendersMultipleCommands(t *testing.T) {
 	root := t.TempDir()
 	commands := []publishedCommand{
-		{Path: "show bgp summary", Description: "BGP summary", Mode: "read-only"},
-		{Path: "show route", Description: "Route table", Mode: "read-only"},
+		{Path: "show bgp summary", ShortHelp: "BGP summary", Mode: "read-only"},
+		{Path: "show route", ShortHelp: "Route table", Mode: "read-only"},
 	}
 
 	if err := renderNativeCommandSurfaces(root, commands); err != nil {
@@ -206,9 +206,9 @@ func TestRenderEquivalentMarkdownEscapesAndRoundTripsDetails(t *testing.T) {
 // PREVENTS: multiline catalog prose creating phantom aggregate rows.
 func TestRenderOneLineDescriptionsRoundTrip(t *testing.T) {
 	command := publishedCommand{
-		Path:        "show test",
-		Mode:        "read-only",
-		Description: "first\r\nsecond\rthird\nfourth  \tkept",
+		Path:      "show test",
+		Mode:      "read-only",
+		ShortHelp: "first\r\nsecond\rthird\nfourth  \tkept",
 	}
 	const visible = "first second third fourth  \tkept"
 
@@ -249,7 +249,7 @@ func TestRenderMarkdownLiteralValuesRoundTripAcrossSurfaces(t *testing.T) {
 	command := publishedCommand{
 		Path: "show test",
 		Mode: "read-only",
-		Description: "Always: literal | *emphasis* [link](target) <tag> \\ path\r\n" +
+		ShortHelp: "Always: literal | *emphasis* [link](target) <tag> \\ path\r\n" +
 			"Aliases: prose",
 		Pipes: []publishedCommandPipe{{
 			Name:        "tick`filter",
@@ -366,9 +366,9 @@ func TestMarkdownCodeLiteralRoundTripsMatchingDelimiters(t *testing.T) {
 // backtick delimiters truncating paths.
 func TestRenderUnicodeBacktickCommandIdentityRoundTrips(t *testing.T) {
 	command := publishedCommand{
-		Path:        "表示 `経路`",
-		Mode:        "read-only",
-		Description: "Unicode route",
+		Path:      "表示 `経路`",
+		Mode:      "read-only",
+		ShortHelp: "Unicode route",
 	}
 	slug := commandSurfaceSlug(command.Path)
 	if other := commandSurfaceSlug("表示 `経路2`"); other == "" || other == slug {
@@ -400,7 +400,7 @@ func TestRenderPrimaryMarkdownEscapesAliasExpansionTablePipe(t *testing.T) {
 	command := publishedCommand{
 		Path:          "show aliases",
 		Mode:          "read-only",
-		Description:   "Show aliases",
+		ShortHelp:     "Show aliases",
 		AnswerShape:   "tab|map",
 		AddressFields: []string{`peer\|address`},
 		Pipes: []publishedCommandPipe{{

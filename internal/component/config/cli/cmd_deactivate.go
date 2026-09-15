@@ -71,9 +71,9 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 		}
 		var tb textbuf.Buffer
 		p := helpfmt.Page{
-			Command: tb.Str("ze config ").Str(verb).String(),
-			Summary: summary,
-			Usage:   []string{tb.Reset().Str("ze config ").Str(verb).Str(" [options] <config-file> <path...>").String()},
+			Command:   tb.Str("ze config ").Str(verb).String(),
+			ShortHelp: summary,
+			Usage:     []string{tb.Reset().Str("ze config ").Str(verb).Str(" [options] <config-file> <path...>").String()},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Targets a leaf, container, list entry, or leaf-list value."},

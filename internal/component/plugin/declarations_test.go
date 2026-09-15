@@ -486,8 +486,8 @@ func stageOneDeclaration() sdk.Registration {
 		Families: []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both", AFI: 1, SAFI: 1}},
 		Commands: []rpc.CommandDecl{{
 			Name:            "show declaration witness",
-			Description:     "What this plugin declares at Stage 1.",
-			LongHelp:        "The command exists so the declaration carries every field a reader compares.",
+			ShortHelp:       "What this plugin declares at Stage 1.",
+			Description:     "The command exists so the declaration carries every field a reader compares.",
 			Args:            []string{"name"},
 			Completable:     true,
 			Hidden:          false,

@@ -77,28 +77,28 @@ func TestHelpShapeIgnoresALongRevisionDescription(t *testing.T) {
 // VALIDATES: an enum on a leaf that KEYS A LIST takes the character cap, and is
 // NOT asked for a long text.
 // PREVENTS: two opposite defects in one statement. `enumKeyVocabulary` puts a
-// list key's enum descriptions on a one-line row, so the cap belongs; nothing
-// anywhere reads a ze:help on an enum, so demanding one would demand a
-// declaration no surface prints.
-func TestHelpShapeCapsAnEnumButDoesNotDemandALongHelp(t *testing.T) {
+// list key's enum ze:help summaries on a one-line row, so the cap belongs;
+// nothing anywhere reads a description on an enum, so demanding one would
+// demand a declaration no surface prints.
+func TestHelpShapeCapsAnEnumButDoesNotDemandADescription(t *testing.T) {
 	report := schemaReport(t, strings.Replace(shapeConfModule(t),
-		`description "Bind the listener to IPv4 only.";`,
-		`description "`+summaryOfLength(command.MaxSummaryChars+1)+`";`, 1))
+		`ze:help "Bind the listener to IPv4 only.";`,
+		`ze:help "`+summaryOfLength(command.MaxSummaryChars+1)+`";`, 1))
 
 	if got := shapeSchemaPaths(report, ruleCharCap); len(got) != 1 ||
 		!strings.HasSuffix(got[0], "sockets/binding/family/ipv4") {
 		t.Fatalf("the char cap names %v, want the enum on the list key", got)
 	}
 	for _, row := range report.Broken {
-		if row.Rule == ruleMissingLongHelp && strings.Contains(row.Path, "family/ipv4") {
+		if row.Rule == ruleMissingDescription && strings.Contains(row.Path, "family/ipv4") {
 			t.Errorf("the gate demands a long help on an enum at %q", row.Path)
 		}
 	}
 }
 
 // VALIDATES: an enum on a leaf that keys no list is not capped, however long
-// its description runs.
-// PREVENTS: the cap reaching 278 enum descriptions of which none renders.
+// its ze:help runs.
+// PREVENTS: the cap reaching 278 enum summaries of which none renders.
 // `getListKeyEntry` answers the key leaf and nil for every other leaf, so an
 // enumeration on an ordinary leaf comes back with no help at all.
 func TestHelpShapeIgnoresAnEnumThatKeysNoList(t *testing.T) {
@@ -116,8 +116,8 @@ func TestHelpShapeIgnoresAnEnumThatKeysNoList(t *testing.T) {
 // PREVENTS: a cap on text that reaches nobody. `argDefFor`
 // (internal/component/config/yang/command.go) builds a command.ArgDef from
 // `leaf.Type` alone, and ArgDef holds no text field, so a command leaf's
-// description is dropped at the tree boundary. A config leaf's description is
-// read by `entryDescription` and put on the completion row.
+// ze:help is dropped at the tree boundary. A config leaf's ze:help is read by
+// `entryDescription` and put on the completion row.
 func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testing.T) {
 	long := summaryOfLength(command.MaxSummaryChars + 1)
 
@@ -126,7 +126,7 @@ func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testi
 		`      ze:command "ze-show:sockets";
       leaf port {
         type uint16;
-        description "`+long+`";
+        ze:help "`+long+`";
       }`, 1)
 
 	loader := shapeLoaderOver(t, cmdModule, shapeAPIModule, shapeConfModule(t))
@@ -137,12 +137,12 @@ func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testi
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
 	if !report.Valid {
-		t.Fatalf("the gate judged a command leaf's description:\n%s", report.Text())
+		t.Fatalf("the gate judged a command leaf's ze:help:\n%s", report.Text())
 	}
 
 	report = schemaReport(t, strings.Replace(shapeConfModule(t),
-		`description "Address family the listener binds.";`,
-		`description "`+long+`";`, 1))
+		`ze:help "Address family the listener binds.";`,
+		`ze:help "`+long+`";`, 1))
 	if got := shapeSchemaPaths(report, ruleCharCap); len(got) != 1 ||
 		!strings.HasSuffix(got[0], "sockets/binding/family") {
 		t.Fatalf("the char cap names %v, want the config leaf", got)
@@ -155,9 +155,9 @@ func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testi
 // types `set bgp router-id ` reads the summary on the message row and presses
 // `?` for the paragraph, and a leaf that declares only the first leaves the box
 // with nothing to show (AC-1, AC-11).
-func TestHelpShapeRefusesAConfigLeafWithNoLongHelp(t *testing.T) {
+func TestHelpShapeRefusesAConfigLeafWithNoDescription(t *testing.T) {
 	conf := withoutText(t, shapeConfModule(t),
-		`      ze:help "The port is the local TCP port the listener accepts connections on.";
+		`      description "The port is the local TCP port the listener accepts connections on.";
 `)
 
 	loader := shapeLoaderOver(t, shapeModule, shapeAPIModule, conf)
@@ -167,9 +167,9 @@ func TestHelpShapeRefusesAConfigLeafWithNoLongHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if got := shapeSchemaPaths(report, ruleMissingLongHelp); len(got) != 1 ||
+	if got := shapeSchemaPaths(report, ruleMissingDescription); len(got) != 1 ||
 		!strings.HasSuffix(got[0], "sockets/binding/port") {
-		t.Fatalf("the long-help rule names %v, want the config leaf", got)
+		t.Fatalf("the description rule names %v, want the config leaf", got)
 	}
 }
 
@@ -207,25 +207,25 @@ func TestHelpShapeJudgesALeafInsideACase(t *testing.T) {
 	const inCase = "ze-fixture-conf:sockets/deadline"
 
 	module := withoutText(t, shapeConfModule(t),
-		`          ze:help "The timer starts when the socket enters the closing state.";
+		`          description "The timer starts when the socket enters the closing state.";
 `)
 	report := schemaReport(t, module)
 
-	if got := shapeSchemaPaths(report, ruleMissingLongHelp); len(got) != 1 || got[0] != inCase {
+	if got := shapeSchemaPaths(report, ruleMissingDescription); len(got) != 1 || got[0] != inCase {
 		t.Fatalf("the gate reports %v, want exactly [%s]", got, inCase)
 	}
 }
 
-// VALIDATES: a config node that declares no description at all is refused under
-// `missing-summary`.
+// VALIDATES: a config node that declares no ze:help at all is refused under
+// `missing-short-help`.
 // PREVENTS: the silent half of this gate. Every shape rule passes over a node
 // with no text to measure, so an unwritten node read as a written one and the
 // coverage count was the only thing that knew (ai/rules/principles.md).
-func TestHelpShapeRefusesAConfigNodeWithNoDescription(t *testing.T) {
+func TestHelpShapeRefusesAConfigNodeWithNoSummary(t *testing.T) {
 	const bare = "ze-fixture-conf:sockets/binding/port"
 
 	module := withoutText(t, shapeConfModule(t),
-		`        description "Port the listener binds.";
+		`        ze:help "Port the listener binds.";
 `)
 	report := schemaReport(t, module)
 

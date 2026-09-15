@@ -31,26 +31,26 @@ import (
 // CLICommand describes a top-level `ze <command>` subcommand. The json tags make
 // it serve both the text renderer and Reference.Commands.
 type CLICommand struct {
-	Name        string `json:"name"`
-	Mode        string `json:"mode"` // "offline"/"read-only", "daemon", or "setup"
-	Description string `json:"description"`
-	Subs        string `json:"subs,omitempty"`
+	Name      string `json:"name"`
+	Mode      string `json:"mode"` // "offline"/"read-only", "daemon", or "setup"
+	ShortHelp string `json:"short-help"`
+	Subs      string `json:"subs,omitempty"`
 }
 
 // ServiceLeaf is one config leaf of a YANG environment service (text rendering).
 type ServiceLeaf struct {
-	Name        string
-	Type        string
-	Default     string
-	Description string
+	Name      string
+	Type      string
+	Default   string
+	ShortHelp string
 }
 
 // Service is a YANG "environment" container, e.g. web, mcp, looking-glass.
 type Service struct {
-	Name        string
-	Description string
-	Leaves      []ServiceLeaf
-	EnvVars     []string // registered ze.* env vars for this service
+	Name      string
+	ShortHelp string
+	Leaves    []ServiceLeaf
+	EnvVars   []string // registered ze.* env vars for this service
 }
 
 // Reference is the machine-readable AI reference (the `ze help ai --json` shape).
@@ -68,8 +68,8 @@ type Reference struct {
 // The keys match the pair `ze help command --json` carries for a command.
 type RPC struct {
 	WireMethod  string `json:"wire-method"`
+	ShortHelp   string `json:"short-help,omitempty"`
 	Description string `json:"description,omitempty"`
-	LongHelp    string `json:"long-help,omitempty"`
 }
 
 // Plugin is one loaded plugin with the address families it handles.
@@ -108,7 +108,7 @@ func CLISubcommands() []CLICommand {
 	if yangTree != nil {
 		for _, name := range sortedChildren(yangTree) {
 			child := yangTree.Children[name]
-			desc := child.Description
+			desc := child.ShortHelp
 			if desc == "" {
 				var tb textbuf.Buffer
 				desc = tb.Str(name).Str(" commands").String()
@@ -124,10 +124,10 @@ func CLISubcommands() []CLICommand {
 			}
 			var tb textbuf.Buffer
 			cmds = append(cmds, CLICommand{
-				Name:        name,
-				Mode:        mode,
-				Description: desc,
-				Subs:        tb.Str("ze ").Str(name).Str(" help").String(),
+				Name:      name,
+				Mode:      mode,
+				ShortHelp: desc,
+				Subs:      tb.Str("ze ").Str(name).Str(" help").String(),
 			})
 			seen[name] = true
 		}
@@ -138,10 +138,10 @@ func CLISubcommands() []CLICommand {
 			continue // YANG verb already covered the slot
 		}
 		cmds = append(cmds, CLICommand{
-			Name:        rc.Name,
-			Mode:        rc.Meta.Mode,
-			Description: rc.Meta.Description,
-			Subs:        rc.Meta.ResolveSubs(),
+			Name:      rc.Name,
+			Mode:      rc.Meta.Mode,
+			ShortHelp: rc.Meta.ShortHelp,
+			Subs:      rc.Meta.ResolveSubs(),
 		})
 	}
 
@@ -258,8 +258,8 @@ func Services() []Service {
 			}
 
 			svc := Service{
-				Name:        svcName,
-				Description: svcEntry.Description,
+				Name:      svcName,
+				ShortHelp: yang.GetHelpExtension(svcEntry.Exts), // the ze:help summary
 			}
 
 			leafNames := make([]string, 0, len(svcEntry.Dir))
@@ -271,8 +271,8 @@ func Services() []Service {
 			for _, leafName := range leafNames {
 				child := svcEntry.Dir[leafName]
 				leaf := ServiceLeaf{
-					Name:        leafName,
-					Description: child.Description,
+					Name:      leafName,
+					ShortHelp: yang.GetHelpExtension(child.Exts), // the ze:help summary
 				}
 				if child.Type != nil {
 					leaf.Type = child.Type.Name
@@ -304,7 +304,7 @@ func Build() Reference {
 
 	schemaReg := SchemaRegistry()
 	for _, rpc := range schemaReg.ListRPCs("") {
-		ref.RPCs = append(ref.RPCs, RPC{WireMethod: rpc.WireMethod, Description: rpc.Description, LongHelp: rpc.LongHelp})
+		ref.RPCs = append(ref.RPCs, RPC{WireMethod: rpc.WireMethod, ShortHelp: rpc.ShortHelp, Description: rpc.Description})
 	}
 	for _, brpc := range pluginserver.AllBuiltinRPCs() {
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})

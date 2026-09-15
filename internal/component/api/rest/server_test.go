@@ -63,13 +63,13 @@ func testEngine() *api.APIEngine {
 	}
 	cmds := func() []api.CommandMeta {
 		return []api.CommandMeta{
-			{Name: "show bgp", Description: "Show BGP summary", ReadOnly: true},
-			{Name: "show status", Description: "Show process status", ReadOnly: true},
-			{Name: "bgp monitor", Description: "Monitor BGP events", ReadOnly: true},
-			{Name: "show bgp rib", Description: "Show routes", ReadOnly: true, Params: []api.ParamMeta{
-				{Name: "family", Type: "string", Description: "Address family"},
+			{Name: "show bgp", ShortHelp: "Show BGP summary", ReadOnly: true},
+			{Name: "show status", ShortHelp: "Show process status", ReadOnly: true},
+			{Name: "bgp monitor", ShortHelp: "Monitor BGP events", ReadOnly: true},
+			{Name: "show bgp rib", ShortHelp: "Show routes", ReadOnly: true, Params: []api.ParamMeta{
+				{Name: "family", Type: "string", ShortHelp: "Address family"},
 			}},
-			{Name: "request reload", Description: "Reload config", ReadOnly: false},
+			{Name: "request reload", ShortHelp: "Reload config", ReadOnly: false},
 		}
 	}
 	auth := func(_, _ string) bool { return true }

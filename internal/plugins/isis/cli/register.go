@@ -32,10 +32,10 @@ import (
 
 func init() {
 	registry.MustRegisterRootHandler("isis", dispatchISIS, registry.Meta{
-		Description: "Offline IS-IS wire tools",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "decode [--pretty]",
+		ShortHelp: "Offline IS-IS wire tools",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "decode [--pretty]",
 	})
 }
 

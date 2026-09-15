@@ -11,44 +11,44 @@ module ze-ddos-flowtriq-conf {
 
   augment "/dd:ddos" {
     container flowtriq {
-      description "Feed detected attacks to the FlowTriq reporting service.";
-      ze:help "It reports and mitigates nothing on its own. The traffic still needs a
-               responder under flowspec or local to be stopped.";
+      description "It reports and mitigates nothing on its own. The traffic still needs a
+                   responder under flowspec or local to be stopped.";
+      ze:help "Feed detected attacks to the FlowTriq reporting service.";
 
       leaf enabled {
         type boolean;
         default false;
-        description "Enable reporting DDoS incidents to the Flowtriq cloud API.";
-        ze:help "false is the default, and the reporter then posts nothing. true makes api-key and
-                 node-uuid required, and Ze refuses the config when either one is empty. The reporter
-                 answers an attack with one HTTP POST, and it stops no traffic.";
+        description "false is the default, and the reporter then posts nothing. true makes api-key and
+                     node-uuid required, and Ze refuses the config when either one is empty. The reporter
+                     answers an attack with one HTTP POST, and it stops no traffic.";
+        ze:help "Enable reporting DDoS incidents to the Flowtriq cloud API.";
       }
       leaf api-key {
         type string { length "1..512"; }
         ze:sensitive;
-        description "Flowtriq API bearer token.";
-        ze:help "Ze sends the value in the Authorization header of each request, as a Bearer token.
-                 The length is 1 to 512 characters. The leaf is required when enabled is true, and Ze
-                 refuses the config without it. The leaf is marked sensitive, so every display path
-                 prints a placeholder in place of the token. A $9$-encoded value written by hand is
-                 decoded on read. Ze does not encode it for you, so a token typed into the editor is
-                 written to the config file as you typed it.";
+        description "Ze sends the value in the Authorization header of each request, as a Bearer token.
+                     The length is 1 to 512 characters. The leaf is required when enabled is true, and Ze
+                     refuses the config without it. The leaf is marked sensitive, so every display path
+                     prints a placeholder in place of the token. A $9$-encoded value written by hand is
+                     decoded on read. Ze does not encode it for you, so a token typed into the editor is
+                     written to the config file as you typed it.";
+        ze:help "Flowtriq API bearer token.";
       }
       leaf node-uuid {
         type string { length "1..128"; }
-        description "Node UUID for Flowtriq agent identification.";
-        ze:help "Ze sends the value in the X-Node-UUID header of each request, which is how the
-                 service tells this router from another. The length is 1 to 128 characters. The leaf
-                 is required when enabled is true.";
+        description "Ze sends the value in the X-Node-UUID header of each request, which is how the
+                     service tells this router from another. The length is 1 to 128 characters. The leaf
+                     is required when enabled is true.";
+        ze:help "Node UUID for Flowtriq agent identification.";
       }
       leaf api-base {
         type string;
         default "https://flowtriq.com/api/v1";
-        description "Flowtriq API base URL.";
-        ze:help "Ze appends a path to this value, so a trailing slash gives a double slash in the
-                 request. /agent/incidents opens and closes an incident, and /agent/heartbeat reports
-                 the baseline. Each request has a timeout of 10 seconds. After 5 failures Ze stops
-                 posting for 60 seconds, then tries again.";
+        description "Ze appends a path to this value, so a trailing slash gives a double slash in the
+                     request. /agent/incidents opens and closes an incident, and /agent/heartbeat reports
+                     the baseline. Each request has a timeout of 10 seconds. After 5 failures Ze stops
+                     posting for 60 seconds, then tries again.";
+        ze:help "Flowtriq API base URL.";
       }
     }
   }

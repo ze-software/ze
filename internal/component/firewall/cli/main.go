@@ -116,9 +116,9 @@ func cmdCounters(b fwpkg.Backend, args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze firewall",
-		Summary: "Firewall table visibility",
-		Usage:   []string{"ze firewall <command> [options]"},
+		Command:   "ze firewall",
+		ShortHelp: "Firewall table visibility",
+		Usage:     []string{"ze firewall <command> [options]"},
 		Sections: []helpfmt.HelpSection{{
 			Title: "Commands",
 			Entries: []helpfmt.HelpEntry{

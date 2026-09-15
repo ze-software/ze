@@ -18,13 +18,13 @@ import (
 // which names no argument the command actually takes.
 func TestHelpPrintsUsageForNodeWithChildren(t *testing.T) {
 	node := &command.Node{
-		Name:        "name",
-		WireMethod:  "ze-iface:interface-create-dummy",
-		Description: "Create a dummy interface.",
-		ArgDefs:     []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
+		Name:       "name",
+		WireMethod: "ze-iface:interface-create-dummy",
+		ShortHelp:  "Create a dummy interface.",
+		ArgDefs:    []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
 		Children: map[string]*command.Node{
-			"unit":    {Name: "unit", Description: "Add a VLAN sub-interface."},
-			"address": {Name: "address", Description: "Add an IP address."},
+			"unit":    {Name: "unit", ShortHelp: "Add a VLAN sub-interface."},
+			"address": {Name: "address", ShortHelp: "Add an IP address."},
 		},
 	}
 	page := commandHelpPage([]string{"create", "interface", "dummy", "name"}, node)
@@ -41,8 +41,8 @@ func TestHelpPrintsUsageForNodeWithChildren(t *testing.T) {
 	if len(page.Sections) != 1 || len(page.Sections[0].Entries) != 2 {
 		t.Fatalf("the page lists %v", page.Sections)
 	}
-	if page.Summary != node.Description {
-		t.Errorf("the page states the summary %q", page.Summary)
+	if page.ShortHelp != node.ShortHelp {
+		t.Errorf("the page states the summary %q", page.ShortHelp)
 	}
 }
 
@@ -51,9 +51,9 @@ func TestHelpPrintsUsageForNodeWithChildren(t *testing.T) {
 // subcommands that do not exist and names none of the three filters.
 func TestHelpPrintsOneUsageForALeafCommand(t *testing.T) {
 	node := &command.Node{
-		Name:        "sockets",
-		WireMethod:  "ze-show:system-sockets",
-		Description: "Show open sockets.",
+		Name:       "sockets",
+		WireMethod: "ze-show:system-sockets",
+		ShortHelp:  "Show open sockets.",
 		ArgDefs: []command.ArgDef{
 			{Name: "protocol", Kind: command.ArgEnum, EnumValues: []string{"tcp", "udp"}},
 			{Name: "port", Kind: command.ArgUint, UintBits: 32},
@@ -99,23 +99,23 @@ func TestHelpPageForAnUnknownPath(t *testing.T) {
 func TestHelpPageCarriesBothDeclaredHelpTexts(t *testing.T) {
 	node := &command.Node{
 		Name:        "bgp",
-		Description: "Inspect the BGP protocol engine.",
-		LongHelp:    "One subtree per session.\nEach answers over the negotiated families.",
+		ShortHelp:   "Inspect the BGP protocol engine.",
+		Description: "One subtree per session.\nEach answers over the negotiated families.",
 		Children: map[string]*command.Node{
-			"rib":  {Name: "rib", Description: "Show the BGP RIB."},
-			"peer": {Name: "peer", Description: "Show the configured peers."},
+			"rib":  {Name: "rib", ShortHelp: "Show the BGP RIB."},
+			"peer": {Name: "peer", ShortHelp: "Show the configured peers."},
 		},
 	}
 	page := commandHelpPage([]string{"show", "bgp"}, node)
 
-	if page.Summary != "Inspect the BGP protocol engine." {
-		t.Errorf("the header summary is %q", page.Summary)
+	if page.ShortHelp != "Inspect the BGP protocol engine." {
+		t.Errorf("the header summary is %q", page.ShortHelp)
 	}
-	if page.LongHelp != "One subtree per session.\nEach answers over the negotiated families." {
-		t.Errorf("the body help is %q", page.LongHelp)
+	if page.Description != "One subtree per session.\nEach answers over the negotiated families." {
+		t.Errorf("the body help is %q", page.Description)
 	}
-	if strings.Contains(page.Summary, "\n") {
-		t.Errorf("the one-line header carries a newline: %q", page.Summary)
+	if strings.Contains(page.ShortHelp, "\n") {
+		t.Errorf("the one-line header carries a newline: %q", page.ShortHelp)
 	}
 
 	var rendered strings.Builder

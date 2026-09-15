@@ -14,8 +14,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree",
-		Mode:        "offline",
+		ShortHelp: "the generated package map in ai/PACKAGE-MAP.md: rewrite it from the tree",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register("consistency", leroot.GroupGate, Answer, registry.Meta{
-		Description: "where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes",
-		Mode:        "offline",
+		ShortHelp: "where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

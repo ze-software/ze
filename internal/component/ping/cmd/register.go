@@ -29,13 +29,13 @@ func init() {
 	)
 
 	registry.MustRegisterLocalMeta("show ping", showPingLocal, registry.Meta{
-		Description: "Ping a target using the internal ICMP engine (works without the daemon)",
-		Mode:        "offline",
+		ShortHelp: "Ping a target using the internal ICMP engine (works without the daemon)",
+		Mode:      "offline",
 	})
 
 	registry.MustRegisterLocalMeta("monitor ping", monitorPingLocal, registry.Meta{
-		Description: "Continuous ping with live statistics (works without the daemon)",
-		Mode:        "offline",
+		ShortHelp: "Continuous ping with live statistics (works without the daemon)",
+		Mode:      "offline",
 	})
 }
 

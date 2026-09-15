@@ -115,7 +115,7 @@ const (
 // Both are spelled here because a refusal has to name them, and the Completion
 // tag below is the declaration they repeat.
 const (
-	summaryKey        = "description"
+	summaryKey        = "short-help"
 	retiredSummaryKey = "help"
 )
 
@@ -123,23 +123,23 @@ const (
 // Used for both command and argument completion.
 type Completion struct {
 	Value string `json:"value"` // The completion text
-	// Description is the one-line SUMMARY of the command. Every surface that
+	// ShortHelp is the one-line SUMMARY of the command. Every surface that
 	// shows the command on one line reads it.
-	Description string `json:"description,omitempty"`
-	Source      string `json:"source,omitempty"` // "builtin" or process name (verbose mode)
-	Hidden      bool   `json:"hidden,omitempty"` // Hidden from completion tree (works when typed in full)
-	// LongHelp is the explanation the command's own help page prints. Empty
+	ShortHelp string `json:"short-help,omitempty"`
+	Source    string `json:"source,omitempty"` // "builtin" or process name (verbose mode)
+	Hidden    bool   `json:"hidden,omitempty"` // Hidden from completion tree (works when typed in full)
+	// Description is the explanation the command's own help page prints. Empty
 	// means the command declares none, and the key is then absent. It is NEVER
 	// read as a summary, and no one-line surface reads it at all.
-	LongHelp string `json:"long-help,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // CommandDef describes a command to register.
 // Passed from process to registry during registration.
 type CommandDef struct {
 	Name        string        // Command name (e.g., "myapp status")
-	Description string        // One-line summary, shown wherever the command appears on one line
-	LongHelp    string        // Long explanation, printed by this command's own help page. Empty = the plugin declared none
+	ShortHelp   string        // One-line summary, shown wherever the command appears on one line
+	Description string        // Long explanation, printed by this command's own help page. Empty = the plugin declared none
 	Args        string        // Usage hint (e.g., "<component>")
 	Completable bool          // Process handles arg completion
 	Hidden      bool          // Hidden from completion and help (works when typed in full)
@@ -155,14 +155,14 @@ type RegisterResult struct {
 
 // RegisteredCommand represents a plugin command in the registry.
 type RegisteredCommand struct {
-	Name        string
-	LowerName   string // Pre-lowercased at registration for dispatch matching (zero alloc per lookup)
-	Description string // One-line summary (CommandDecl.Description)
-	// LongHelp is the explanation this command's own help page prints
-	// (CommandDecl.LongHelp). Empty means the plugin declared none, and the
+	Name      string
+	LowerName string // Pre-lowercased at registration for dispatch matching (zero alloc per lookup)
+	ShortHelp string // One-line summary (CommandDecl.ShortHelp)
+	// Description is the explanation this command's own help page prints
+	// (CommandDecl.Description). Empty means the plugin declared none, and the
 	// help page then prints the summary alone. It is NEVER read as a summary,
 	// and no one-line surface reads it at all.
-	LongHelp     string
+	Description  string
 	Args         string           // Usage hint (e.g., "<component>")
 	Completable  bool             // Process handles arg completion
 	Hidden       bool             // Hidden from completion and help (works when typed in full)
@@ -259,8 +259,8 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 		r.commands[key] = &RegisteredCommand{
 			Name:         def.Name,
 			LowerName:    key,
+			ShortHelp:    def.ShortHelp,
 			Description:  def.Description,
-			LongHelp:     def.LongHelp,
 			Args:         def.Args,
 			Completable:  def.Completable,
 			Hidden:       def.Hidden,
@@ -524,7 +524,7 @@ func (r *CommandRegistry) CommandCountsByProcess() map[string]int {
 // the shell-completion path that already reads Complete().
 //
 // Each entry carries both help texts, under the names both packages spell them
-// with: Description for the summary and LongHelp for the explanation.
+// with: ShortHelp for the summary and Description for the explanation.
 // MergeCommandPaths fills each field on its own, so a command that declared a
 // summary and no explanation fills the summary alone.
 func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
@@ -538,8 +538,8 @@ func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
 		}
 		entries = append(entries, command.CommandEntry{
 			Name:        cmd.Name,
+			ShortHelp:   cmd.ShortHelp,
 			Description: cmd.Description,
-			LongHelp:    cmd.LongHelp,
 		})
 	}
 	return entries
@@ -560,9 +560,9 @@ func (r *CommandRegistry) Complete(partial string) []Completion {
 		}
 		if strings.HasPrefix(key, partial) {
 			completions = append(completions, Completion{
-				Value:       cmd.Name,
-				Description: cmd.Description,
-				Source:      cmd.Process.Config().Name,
+				Value:     cmd.Name,
+				ShortHelp: cmd.ShortHelp,
+				Source:    cmd.Process.Config().Name,
 			})
 		}
 	}

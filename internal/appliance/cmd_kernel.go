@@ -180,9 +180,9 @@ func runKernel(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze appliance kernel",
-			Summary: "Download or build a Ze kernel (installer or runtime target)",
-			Usage:   []string{"ze appliance kernel [options] [<name>]"},
+			Command:   "ze appliance kernel",
+			ShortHelp: "Download or build a Ze kernel (installer or runtime target)",
+			Usage:     []string{"ze appliance kernel [options] [<name>]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--target <target>", Desc: "Kernel target: installer (default, monolithic PXE Image) or runtime (modules + vmlinuz tree for the gokrazy appliance)"},

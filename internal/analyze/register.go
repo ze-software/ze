@@ -40,9 +40,9 @@ func init() {
 		}
 		return Dispatch(args)
 	}, registry.Meta{
-		Description: "BGP MRT analysis tools",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subcommands,
+		ShortHelp: "BGP MRT analysis tools",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subcommands,
 	})
 }

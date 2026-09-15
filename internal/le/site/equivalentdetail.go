@@ -101,8 +101,8 @@ func equivalentZeCard(command *catalogCommand) string {
 	// The summary is the page's lede, so the card explains rather than repeats
 	// it. A command that declares no long form has nothing to explain, and an
 	// empty heading would read as a claim the command model never made.
-	if command.LongHelp != "" {
-		card.Str("<h3>Description</h3><p>").Str(strings.ReplaceAll(html.EscapeString(command.LongHelp), "\n", "<br>")).
+	if command.Description != "" {
+		card.Str("<h3>Description</h3><p>").Str(strings.ReplaceAll(html.EscapeString(command.Description), "\n", "<br>")).
 			Str("</p>\n")
 	}
 	card.Str("<h3>Arguments</h3>\n").Str(equivalentArgumentTable(command)).Str("\n</article>\n")
@@ -219,10 +219,10 @@ func orNone(value string) string {
 // commandLede answers the one line that opens a command's page: the summary the
 // command declares, or a statement that the catalog listed none.
 func commandLede(command *catalogCommand) string {
-	if command.Description == "" {
+	if command.ShortHelp == "" {
 		return "No description listed."
 	}
-	return command.Description
+	return command.ShortHelp
 }
 
 // equivalentArgumentTable renders the command's own arguments.
@@ -356,8 +356,8 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	}
 	out.Str("- Command pipes: ").Str(orNone(commandPipeMirrorList(command))).Byte('\n')
 	out.Str("- Pipe aliases: ").Str(orNone(aliasMirrorList(command))).Str("\n\n")
-	if command.LongHelp != "" {
-		out.Str(markdownCell(command.LongHelp)).Str("\n\n")
+	if command.Description != "" {
+		out.Str(markdownCell(command.Description)).Str("\n\n")
 	}
 	out.Str(argumentMirrorTable(command))
 	out.Str("## Mapping intents\n\n")

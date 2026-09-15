@@ -355,12 +355,12 @@ func (m *Model) revealCandidateExplanation(comp Completion) {
 
 	// The command completer is not the source, so the candidate is a config
 	// path. A config node declares the same two texts a command declares. The
-	// YANG description is the one-line summary the menu row shows. The ze:help
-	// extension is the explanation, and it is often a paragraph. The box takes
+	// ze:help extension is the one-line summary the menu row shows. The YANG
+	// description is the explanation, and it is often a paragraph. The box takes
 	// the explanation alone, so the row and the box never say one thing twice.
-	// A node that declares no ze:help declares no explanation, and
+	// A node that declares no description declares no explanation, and
 	// revealDeclared says so.
-	m.revealDeclared(subjectOf(completedInput(m.textInput.Value(), comp.Text)), comp.LongHelp)
+	m.revealDeclared(subjectOf(completedInput(m.textInput.Value(), comp.Text)), comp.Description)
 }
 
 // subjectOf names the command or the config path an explanation is about. A
@@ -755,7 +755,7 @@ func appendCLIFormatCompletions(completions []Completion, input string, names []
 	const cmd = "set cli format"
 	if input == "" || strings.HasPrefix(cmd, input) {
 		return append(completions, Completion{
-			Text: cmd, Description: "Set default output format", Type: completionCommand,
+			Text: cmd, ShortHelp: "Set default output format", Type: completionCommand,
 		})
 	}
 	var tb textbuf.Buffer
@@ -763,7 +763,7 @@ func appendCLIFormatCompletions(completions []Completion, input string, names []
 	if input == cmd || input == cmdSpace {
 		for _, name := range names {
 			completions = append(completions, Completion{
-				Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
+				Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), ShortHelp: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
 			})
 		}
 		return completions
@@ -773,7 +773,7 @@ func appendCLIFormatCompletions(completions []Completion, input string, names []
 		for _, name := range names {
 			if strings.HasPrefix(name, partial) {
 				completions = append(completions, Completion{
-					Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
+					Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), ShortHelp: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
 				})
 			}
 		}

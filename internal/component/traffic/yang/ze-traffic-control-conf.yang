@@ -22,14 +22,14 @@ module ze-traffic-control-conf {
 
     typedef qdisc-type {
         type enumeration {
-            enum htb { description "The Hierarchical Token Bucket qdisc."; }
-            enum hfsc { description "The Hierarchical Fair Service Curve qdisc."; }
-            enum fq { description "The Fair Queue qdisc."; }
-            enum fq_codel { description "The Fair Queue Controlled Delay qdisc."; }
-            enum sfq { description "The Stochastic Fair Queue qdisc."; }
-            enum tbf { description "The Token Bucket Filter qdisc."; }
-            enum netem { description "The Network Emulator qdisc."; }
-            enum prio { description "The Priority qdisc."; }
+            enum htb { ze:help "The Hierarchical Token Bucket qdisc."; }
+            enum hfsc { ze:help "The Hierarchical Fair Service Curve qdisc."; }
+            enum fq { ze:help "The Fair Queue qdisc."; }
+            enum fq_codel { ze:help "The Fair Queue Controlled Delay qdisc."; }
+            enum sfq { ze:help "The Stochastic Fair Queue qdisc."; }
+            enum tbf { ze:help "The Token Bucket Filter qdisc."; }
+            enum netem { ze:help "The Network Emulator qdisc."; }
+            enum prio { ze:help "The Priority qdisc."; }
         }
         description "Queueing discipline type. The clsact and ingress hooks are
                      not offered: they attach at the ingress hook rather than at
@@ -47,121 +47,121 @@ module ze-traffic-control-conf {
 
     typedef filter-type {
         type enumeration {
-            enum mark { description "Match the packet mark, with the tc fw filter."; }
-            enum dscp { description "Match the DSCP value of the packet."; }
-            enum protocol { description "Match the protocol of the packet."; }
+            enum mark { ze:help "Match the packet mark, with the tc fw filter."; }
+            enum dscp { ze:help "Match the DSCP value of the packet."; }
+            enum protocol { ze:help "Match the protocol of the packet."; }
         }
         description "Traffic filter match type";
     }
 
     container traffic {
-        description "Traffic subsystem: QoS control and byte-usage accounting.";
-        ze:help "Two subtrees sit under it, and they are independent. control programs the
+        description "Two subtrees sit under it, and they are independent. control programs the
 queueing disciplines of each interface, which decides which packet leaves first. usage
 counts bytes with an eBPF program, and it changes no packet. Each subtree comes from its
 own plugin, so removing one plugin removes that subtree alone.";
+        ze:help "Traffic subsystem: QoS control and byte-usage accounting.";
 
         container control {
-            description "Traffic control configuration of each interface.";
-            ze:help "One entry exists for each interface Ze programs. The backend leaf
+            description "One entry exists for each interface Ze programs. The backend leaf
 names the program that applies the entries.";
+            ze:help "Traffic control configuration of each interface.";
 
             leaf backend {
                 type string;
                 default "tc";
-                description "Traffic control backend that programs the queueing disciplines.";
-                ze:help "The default backend is tc, the queueing disciplines of Linux iproute2.
+                description "The default backend is tc, the queueing disciplines of Linux iproute2.
 Another backend declares itself through traffic.RegisterBackend. The ze:backend YANG
 extension on a feature node declares which backend supports that feature. The
 commit-time gate reads that extension and rejects a config that names a qdisc or a
 filter type the backend does not support.";
+                ze:help "Traffic control backend that programs the queueing disciplines.";
             }
 
             list interface {
                 key "name";
-                description "Traffic control of one named interface.";
-                ze:help "The list key is the interface name.";
+                description "The list key is the interface name.";
+                ze:help "Traffic control of one named interface.";
 
                 leaf name {
                     type string;
-                    description "Name of the interface this entry controls.";
-                    ze:help "The interface MUST exist in the interface configuration.";
+                    description "The interface MUST exist in the interface configuration.";
+                    ze:help "Name of the interface this entry controls.";
                 }
 
                 container qdisc {
-                    description "The root queueing discipline of the interface.";
-                    ze:help "Ze attaches this qdisc at the root of the interface, and every
+                    description "Ze attaches this qdisc at the root of the interface, and every
 class hangs beneath it.";
+                    ze:help "The root queueing discipline of the interface.";
 
                     leaf type {
                         type qdisc-type;
                         mandatory true;
-                        description "Type of the queueing discipline.";
-                        ze:help "The commit-time gate rejects a type the configured backend
+                        description "The commit-time gate rejects a type the configured backend
 does not support.";
+                        ze:help "Type of the queueing discipline.";
                     }
 
                     leaf default-class {
                         type string;
-                        description "Name of the class that takes the unclassified traffic.";
-                        ze:help "The value is the name of a class in the class list of this
+                        description "The value is the name of a class in the class list of this
 qdisc.";
+                        ze:help "Name of the class that takes the unclassified traffic.";
                     }
 
                     list class {
                         key "name";
-                        description "One traffic class of the queueing discipline.";
-                        ze:help "The list key is the class name. A class carries a rate, a
+                        description "The list key is the class name. A class carries a rate, a
 ceil, a priority, and the filters that select its traffic.";
+                        ze:help "One traffic class of the queueing discipline.";
 
                         leaf name {
                             type string {
                                 length "1..255";
                             }
-                            description "Name of this class.";
-                            ze:help "The name is the list key, and the default-class leaf
+                            description "The name is the list key, and the default-class leaf
 of the qdisc names one of them.";
+                            ze:help "Name of this class.";
                         }
 
                         leaf rate {
                             type rate-bps;
                             mandatory true;
-                            description "Rate this class is guaranteed.";
-                            ze:help "The value is a number and a unit, for example 10mbit
+                            description "The value is a number and a unit, for example 10mbit
 or 100kbps.";
+                            ze:help "Rate this class is guaranteed.";
                         }
 
                         leaf ceil {
                             type rate-bps;
-                            description "Largest rate this class can reach.";
-                            ze:help "An absent leaf takes the value of the rate leaf.";
+                            description "An absent leaf takes the value of the rate leaf.";
+                            ze:help "Largest rate this class can reach.";
                         }
 
                         leaf priority {
                             type uint8;
-                            description "Scheduling priority of this class.";
-                            ze:help "The value 0 is the highest priority.";
+                            description "The value 0 is the highest priority.";
+                            ze:help "Scheduling priority of this class.";
                         }
 
                         list match {
                             key "type";
-                            description "A filter that classifies a packet into this class.";
-                            ze:help "The list key is the match type, so one class carries at
+                            description "The list key is the match type, so one class carries at
 most one match of each type.";
+                            ze:help "A filter that classifies a packet into this class.";
 
                             leaf type {
                                 type filter-type;
-                                description "Type of the match.";
-                                ze:help "The commit-time gate rejects a filter type the
+                                description "The commit-time gate rejects a filter type the
 configured backend does not support.";
+                                ze:help "Type of the match.";
                             }
 
                             leaf value {
                                 type string;
                                 mandatory true;
-                                description "Value the filter matches.";
-                                ze:help "A mark filter takes a hex value. A dscp filter
+                                description "A mark filter takes a hex value. A dscp filter
 takes a DSCP name. A protocol filter takes a protocol name.";
+                                ze:help "Value the filter matches.";
                             }
                         }
                     }

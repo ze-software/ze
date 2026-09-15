@@ -18,12 +18,13 @@ import (
 const (
 	sourceBuiltin = "builtin"
 	argVerbose    = "verbose"
-	// keyDescription is the response payload key carrying a one-line summary.
+	// keyShortHelp is the response payload key carrying a command's one-line summary.
+	keyShortHelp = "short-help"
+	// keyDescription is the response payload key carrying the long explanation of
+	// one command, and the one-line text of a pipe filter or a pipe alias.
+	// keyShortHelp carries a command's summary beside it, and neither is derived
+	// from the other.
 	keyDescription = "description"
-	// keyLongHelp is the response payload key carrying the long explanation of
-	// one command. keyDescription carries the summary beside it, and neither is
-	// derived from the other.
-	keyLongHelp = "long-help"
 	// keyAnswerShape, keyColumnOrders and keyAddressFields are the response
 	// payload keys describing what a command's ANSWER holds. They are spelled
 	// exactly as `ze help command --json` spells them (cmd/ze/help_command.go,
@@ -57,7 +58,7 @@ func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Respon
 
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			commands = append(commands, cmd.Name+" - "+cmd.Description)
+			commands = append(commands, cmd.Name+" - "+cmd.ShortHelp)
 		}
 	}
 
@@ -77,8 +78,8 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			c := pluginserver.Completion{
-				Value:       cmd.Name,
-				Description: cmd.Description,
+				Value:     cmd.Name,
+				ShortHelp: cmd.ShortHelp,
 			}
 			if verbose {
 				c.Source = sourceBuiltin
@@ -110,8 +111,8 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 	if cmd := dispatcher.Lookup(name); cmd != nil {
 		return commandHelp(commandHelpText{
 			Name:        cmd.Name,
+			ShortHelp:   cmd.ShortHelp,
 			Description: cmd.Description,
-			LongHelp:    cmd.LongHelp,
 			Source:      sourceBuiltin,
 		}), nil
 	}
@@ -123,8 +124,8 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 	if cmd := dispatcher.Registry().Lookup(name); cmd != nil {
 		return commandHelp(commandHelpText{
 			Name:        cmd.Name,
+			ShortHelp:   cmd.ShortHelp,
 			Description: cmd.Description,
-			LongHelp:    cmd.LongHelp,
 			Source:      cmd.Process.Name(),
 			Args:        cmd.Args,
 		}), nil
@@ -136,15 +137,15 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 // commandHelpText is what one command says about itself: its two help texts,
 // who provides it, and the arguments it takes.
 //
-// Description is the one-line SUMMARY and LongHelp is the explanation the
+// ShortHelp is the one-line SUMMARY and Description is the explanation the
 // command's own help page prints. Neither is derived from the other, and an
-// empty LongHelp is a command nobody has written an explanation for. The
+// empty Description is a command nobody has written an explanation for. The
 // answer carries the key either way, beside the summary it is the twin of, so
 // a reader meets one shape rather than two.
 type commandHelpText struct {
 	Name        string
+	ShortHelp   string
 	Description string
-	LongHelp    string
 	Source      string
 	Args        string
 }
@@ -166,8 +167,8 @@ type commandHelpText struct {
 func commandHelp(cmd commandHelpText) *plugin.Response {
 	data := map[string]any{
 		"command":      cmd.Name,
+		keyShortHelp:   cmd.ShortHelp,
 		keyDescription: cmd.Description,
-		keyLongHelp:    cmd.LongHelp,
 		"source":       cmd.Source,
 	}
 	if cmd.Args != "" {
@@ -242,8 +243,8 @@ func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, pluginserver.Completion{
-					Value:       cmd.Name,
-					Description: cmd.Description,
+					Value:     cmd.Name,
+					ShortHelp: cmd.ShortHelp,
 				})
 			}
 		}

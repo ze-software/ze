@@ -49,9 +49,9 @@ func validPort(s string) bool {
 
 func startUsage() {
 	p := helpfmt.Page{
-		Command: "ze start",
-		Summary: "Start the Ze daemon from blob storage, or from an optional config file",
-		Usage:   []string{"ze start [<config-file>] [options]"},
+		Command:   "ze start",
+		ShortHelp: "Start the Ze daemon from blob storage, or from an optional config file",
+		Usage:     []string{"ze start [<config-file>] [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpOptionsSectionTitle, Entries: []helpfmt.HelpEntry{
 				{Name: "--cli", Desc: "Attach interactive CLI after startup"},

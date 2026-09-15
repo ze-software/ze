@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit",
-		Mode:        "offline",
+		ShortHelp: "the tree git holds compiles in every shipped flavor, so a consumer committed without its producer is caught before anybody else builds the commit",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

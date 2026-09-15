@@ -28,7 +28,7 @@ func TestRootDispatchUsesRegisteredOwnerHandler(t *testing.T) {
 		called = true
 		gotArgs = append([]string(nil), args...)
 		return 7
-	}, registry.Meta{Description: "sentinel owner root", Mode: "offline"})
+	}, registry.Meta{ShortHelp: "sentinel owner root", Mode: "offline"})
 
 	code, handled := dispatchRegisteredRoot(name, &registry.RuntimeContext{}, []string{"sub", "x", "y"})
 	if !handled {
@@ -122,14 +122,14 @@ func TestHelpAIUsesOwnerRegistry(t *testing.T) {
 
 	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, _ []string) int {
 		return 0
-	}, registry.Meta{Description: desc, Mode: "offline", Subs: "alpha, beta"})
+	}, registry.Meta{ShortHelp: desc, Mode: "offline", Subs: "alpha, beta"})
 
 	found := false
 	for _, c := range aihelp.CLISubcommands() {
 		if c.Name == name {
 			found = true
-			if c.Description != desc {
-				t.Errorf("help desc = %q, want %q", c.Description, desc)
+			if c.ShortHelp != desc {
+				t.Errorf("help desc = %q, want %q", c.ShortHelp, desc)
 			}
 			if c.Subs != "alpha, beta" {
 				t.Errorf("help subs = %q, want %q", c.Subs, "alpha, beta")

@@ -57,8 +57,8 @@ func CommandSchema(cmd CommandMeta) map[string]any {
 		prop := map[string]any{
 			schemaKeyType: jsonSchemaType(p.Type),
 		}
-		if p.Description != "" {
-			prop[schemaKeyDescription] = p.Description
+		if p.ShortHelp != "" {
+			prop[schemaKeyDescription] = p.ShortHelp
 		}
 		properties[p.Name] = prop
 		if p.Required {
@@ -89,7 +89,7 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 		// from the other. A command with no explanation carries no description
 		// key. An empty one would render as a blank paragraph.
 		operation := map[string]any{
-			"summary":     cmd.Description,
+			"summary":     cmd.ShortHelp,
 			"operationId": operationID(cmd.Name),
 			"tags":        []string{commandTag(cmd.Name)},
 			"responses": map[string]any{
@@ -106,8 +106,8 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 			},
 		}
 
-		if cmd.LongHelp != "" {
-			operation[schemaKeyDescription] = cmd.LongHelp
+		if cmd.Description != "" {
+			operation[schemaKeyDescription] = cmd.Description
 		}
 
 		if len(cmd.Params) > 0 {

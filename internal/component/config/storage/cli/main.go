@@ -336,9 +336,9 @@ func printKeyRow(w *tabwriter.Writer, cols ...string) {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze data",
-		Summary: "Manage ZeFS blob stores",
-		Usage:   []string{"ze data [--path <store>] <command> [args...]"},
+		Command:   "ze data",
+		ShortHelp: "Manage ZeFS blob stores",
+		Usage:     []string{"ze data [--path <store>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},

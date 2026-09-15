@@ -61,7 +61,7 @@ func TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload(t *testing
 	Register(name, GroupReport, func(args []string) (any, int) {
 		got = args
 		return map[string]any{"probe": "ran", "code": 3}, 3
-	}, registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeDoc)
 
 	code := 0
@@ -88,7 +88,7 @@ func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 			"actions":        2,
 			"native-actions": []string{"tier/check", "repository/check"},
 		}, 0
-	}, registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeMap)
 
 	for _, format := range []string{"json", "yaml", "table"} {
@@ -117,7 +117,7 @@ func TestDispatchRefusesTwoFormatOperators(t *testing.T) {
 	const name = "pipe-refusal-local-data-probe"
 	Register(name, GroupReport, func([]string) (any, int) {
 		return map[string]string{"probe": "ran"}, 0
-	}, registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeDoc)
 
 	code := 0
@@ -150,8 +150,8 @@ func TestHelpRendersTheNodeWithoutRunningIt(t *testing.T) {
 		ran++
 		return map[string]string{"probe": "ran"}, 0
 	}, registry.Meta{
-		Description: "a probe that must not run for a help word",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "a probe that must not run for a help word",
+		Mode:      "offline", Section: registry.SectionTest,
 		Subs: "alpha | beta (writes)",
 	})
 	RegisterShape(name, command.ShapeDoc)
@@ -176,7 +176,7 @@ func TestHelpRendersTheNodeWithoutRunningIt(t *testing.T) {
 func TestHelpNamesWhatANamespaceHolds(t *testing.T) {
 	const member = "help-namespace-probe member"
 	Register(member, GroupReport, func([]string) (any, int) { return nil, 0 },
-		registry.Meta{Description: "the member's own summary", Mode: "offline", Section: registry.SectionTest})
+		registry.Meta{ShortHelp: "the member's own summary", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(member, command.ShapeDoc)
 
 	code := 0
@@ -218,7 +218,7 @@ func TestBareRootAnswersTheManifestAsAPayload(t *testing.T) {
 func TestRootManifestRendersThroughTheJSONOperator(t *testing.T) {
 	const name = "manifest-json-probe"
 	Register(name, GroupReport, func([]string) (any, int) { return nil, 0 },
-		registry.Meta{Description: "a probe the manifest names", Mode: "offline", Section: registry.SectionTest})
+		registry.Meta{ShortHelp: "a probe the manifest names", Mode: "offline", Section: registry.SectionTest})
 
 	code := 1
 	out := captureStdout(t, func() { code = Dispatch("le", []string{"|", "json"}) })
@@ -264,8 +264,8 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 		burns++
 		return map[string]string{"probe": "the burn started"}, 0
 	}, registry.Meta{
-		Description: "a probe that starts work from its first argument",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "a probe that starts work from its first argument",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterShape(burner, command.ShapeDoc)
 
@@ -308,8 +308,8 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 		reached++
 		return area.Answer(args)
 	}, registry.Meta{
-		Description: "an area that declares its actions",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "an area that declares its actions",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterActions(area.Name(), area.Actions)
 
@@ -354,8 +354,8 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 		},
 	})
 	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{
-		Description: "an area whose last keyword takes a value",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "an area whose last keyword takes a value",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterActions(area.Name(), area.Actions)
 	RegisterShape(area.Name(), command.ShapeDoc)
@@ -412,8 +412,8 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 		},
 	})
 	Register(area.Name(), GroupReport, area.Answer, registry.Meta{
-		Description: "an area whose only keyword takes a value",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "an area whose only keyword takes a value",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterActions(area.Name(), area.Actions)
 	RegisterShape(area.Name(), command.ShapeDoc)
@@ -474,8 +474,8 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 		},
 	})
 	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{
-		Description: "an area whose keywords take values before the last word",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "an area whose keywords take values before the last word",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterActions(area.Name(), area.Actions)
 	RegisterShape(area.Name(), command.ShapeDoc)
@@ -536,8 +536,8 @@ func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) 
 		carried = args
 		return map[string]int{"argv": len(args)}, 0
 	}, registry.Meta{
-		Description: "an area that hands the words after its keyword to a child",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "an area that hands the words after its keyword to a child",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterShape(forwarder, command.ShapeDoc)
 

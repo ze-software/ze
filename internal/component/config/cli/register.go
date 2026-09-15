@@ -70,10 +70,10 @@ func init() {
 		}
 		return code
 	}, registry.Meta{
-		Description: "Configuration editing, formatting, validation, and history",
-		Mode:        modeOffline,
-		Section:     registry.SectionConfiguration,
-		Subs:        subcommands(),
+		ShortHelp: "Configuration editing, formatting, validation, and history",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      subcommands(),
 	})
 
 	// Non-storage shortcuts: read the candidate/running config without the blob.
@@ -82,39 +82,39 @@ func init() {
 	// returned an exit code before, which is why
 	// `ze cli -c "show config dump x.conf | json"` answered `unknown command`.
 	registry.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
-		Description: "Show the fully resolved config tree. What you see is exactly what the daemon uses.",
-		Mode:        modeOffline,
+		ShortHelp: "Show the fully resolved config tree. What you see is exactly what the daemon uses.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show config diff", dataDiff, registry.Meta{
-		Description: "Show what changed between the running and candidate configurations.",
-		Mode:        modeOffline,
+		ShortHelp: "Show what changed between the running and candidate configurations.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config fmt", func(args []string) int {
 		return Run(append([]string{"fmt"}, args...))
-	}, registry.Meta{Description: "Pretty-print the config with consistent formatting and ordering."})
+	}, registry.Meta{ShortHelp: "Pretty-print the config with consistent formatting and ordering."})
 	registry.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
-		Description: "Check a config for errors without applying it.",
-		LongHelp: "Both the grammar of the file and the meaning of its values are checked, and each " +
+		ShortHelp: "Check a config for errors without applying it.",
+		Description: "Both the grammar of the file and the meaning of its values are checked, and each " +
 			"problem is reported with the diagnostic code that explains it.",
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config graph", func(args []string) int {
 		return Run(append([]string{"graph"}, args...))
 	}, registry.Meta{
-		Description: "Show how components and peers depend on each other, as JSON.",
-		LongHelp: "It takes a config file path, or - to read the file on stdin. Inactive blocks are " +
+		ShortHelp: "Show how components and peers depend on each other, as JSON.",
+		Description: "It takes a config file path, or - to read the file on stdin. Inactive blocks are " +
 			"pruned before the graph is built, so a deactivated peer contributes no edge and the " +
 			"answer describes the config as it would run.",
 	})
 
 	// Storage-backed shortcuts: resolve the blob store lazily at dispatch.
 	registry.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
-		Description: "List config snapshots with timestamps and commit messages.",
-		Mode:        modeOffline,
+		ShortHelp: "List config snapshots with timestamps and commit messages.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show config list", dataList, registry.Meta{
-		Description: "List all config snapshots stored in the blob store.",
-		Mode:        modeOffline,
+		ShortHelp: "List all config snapshots stored in the blob store.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// dump, diff and the validation verdict are each ONE document, so the row
@@ -129,5 +129,5 @@ func init() {
 		command.ColumnOrder{keyRevision, "timestamp", keyPath, "state"})
 	command.RegisterColumns([]string{"show config list"}, command.ColumnOrder{keySource, keyPath})
 	registry.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
-		registry.Meta{Description: "Print the full configuration text for a stored snapshot."})
+		registry.Meta{ShortHelp: "Print the full configuration text for a stored snapshot."})
 }

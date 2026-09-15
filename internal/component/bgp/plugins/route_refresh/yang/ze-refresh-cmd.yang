@@ -17,40 +17,40 @@ module ze-refresh-cmd {
             container refresh {
                 config false;
                 ze:command "ze-bgp:peer-refresh";
-                description "Ask a peer to re-send all routes (RFC 2918).";
-                ze:help "Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
+                description "Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
 peer will re-advertise its entire Adj-RIB-Out.";
+                ze:help "Ask a peer to re-send all routes (RFC 2918).";
             }
 
             container borr {
                 config false;
                 ze:command "ze-bgp:peer-borr";
-                description "Start an Enhanced Route Refresh cycle (RFC 7313).";
-                ze:help "Tells the peer to mark existing routes as stale. After re-sending,
+                description "Tells the peer to mark existing routes as stale. After re-sending,
 send EORR to purge anything not refreshed.";
+                ze:help "Start an Enhanced Route Refresh cycle (RFC 7313).";
             }
 
             container eorr {
                 config false;
                 ze:command "ze-bgp:peer-eorr";
-                description "Finish an Enhanced Route Refresh cycle (RFC 7313).";
-                ze:help "The peer purges any routes not re-advertised since the matching
+                description "The peer purges any routes not re-advertised since the matching
 BORR. Only send this after the peer has finished re-advertising.";
+                ze:help "Finish an Enhanced Route Refresh cycle (RFC 7313).";
             }
 
             container clear {
                 config false;
-                description "Non-disruptive peer refresh.";
-                ze:help "The session stays established, so no route is withdrawn while it runs. RFC 2918
-                         Section 4 permits the request only toward a peer that advertised the Route Refresh
-                         Capability.";
+                description "The session stays established, so no route is withdrawn while it runs. RFC 2918
+                             Section 4 permits the request only toward a peer that advertised the Route Refresh
+                             Capability.";
+                ze:help "Non-disruptive peer refresh.";
 
                 container soft {
                     config false;
                     ze:command "ze-bgp:peer-clear-soft";
-                    description "Soft-clear a peer without dropping the session.";
-                    ze:help "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
+                    description "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
 to re-send all routes. No session bounce, no traffic impact.";
+                    ze:help "Soft-clear a peer without dropping the session.";
                 }
             }
         }

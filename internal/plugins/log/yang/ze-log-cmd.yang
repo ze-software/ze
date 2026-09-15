@@ -8,28 +8,28 @@ module ze-log-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container log {
             config false;
-            description "View log entries and current levels.";
-            ze:help "The entries are what the daemon buffered, so the view starts at the last restart.
-                     The level shown is what is live now, which can differ from the configured one.";
+            description "The entries are what the daemon buffered, so the view starts at the last restart.
+                         The level shown is what is live now, which can differ from the configured one.";
+            ze:help "View log entries and current levels.";
 
             container levels {
                 config false;
                 ze:command "ze-bgp:log-levels";
-                description "Show what log level each subsystem is using.";
-                ze:help "Lists every registered logger with its current level. Use 'request log level'
+                description "Lists every registered logger with its current level. Use 'request log level'
 to change a level at runtime without restarting.";
+                ze:help "Show what log level each subsystem is using.";
             }
 
             container recent {
                 config false;
                 ze:command "ze-bgp:log-recent";
-                description "Show recent log entries from the in-memory ring.";
-                ze:help "Filters (all optional): level <lvl>, component <name>, count <N>. Newest
+                description "Filters (all optional): level <lvl>, component <name>, count <N>. Newest
 entries first. Useful when you cannot access the log file directly.";
+                ze:help "Show recent log entries from the in-memory ring.";
                 leaf level {
                     type enumeration {
                         enum disabled;
@@ -38,15 +38,15 @@ entries first. Useful when you cannot access the log file directly.";
                         enum warn;
                         enum err;
                     }
-                    description "Filter by log level";
+                    ze:help "Filter by log level";
                 }
                 leaf component {
                     type string;
-                    description "Filter by component name";
+                    ze:help "Filter by component name";
                 }
                 leaf count {
                     type uint32;
-                    description "Maximum number of entries";
+                    ze:help "Maximum number of entries";
                 }
             }
         }
@@ -57,20 +57,20 @@ entries first. Useful when you cannot access the log file directly.";
 
         container log {
             config false;
-            description "Runtime log operations.";
-            ze:help "These act on the running daemon. A level set here is lost on restart, and the
-                     configuration decides what a fresh process starts with.";
+            description "These act on the running daemon. A level set here is lost on restart, and the
+                         configuration decides what a fresh process starts with.";
+            ze:help "Runtime log operations.";
 
             container level {
                 config false;
                 ze:command "ze-bgp:log-set";
-                description "Change a subsystem's log level without restarting.";
-                ze:help "Takes effect immediately. Set to debug when troubleshooting, then back to info
+                description "Takes effect immediately. Set to debug when troubleshooting, then back to info
 when you are done.";
+                ze:help "Change a subsystem's log level without restarting.";
                 leaf logger {
                     type string;
                     mandatory true;
-                    description "Logger/subsystem name";
+                    ze:help "Logger/subsystem name";
                 }
                 leaf target {
                     type enumeration {
@@ -81,7 +81,7 @@ when you are done.";
                         enum err;
                     }
                     mandatory true;
-                    description "Target log level";
+                    ze:help "Target log level";
                 }
             }
         }

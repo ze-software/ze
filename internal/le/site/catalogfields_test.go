@@ -22,8 +22,8 @@ import (
 // where each grammar token reaches a reader.
 const enrichedCommandCatalog = `[{
  "path": "show test",
- "description": "Show the rows of the test table.",
- "long-help": "Each row is one entry of the test table, in the order the table holds them.",
+ "short-help": "Show the rows of the test table.",
+ "description": "Each row is one entry of the test table, in the order the table holds them.",
  "mode": "read-only",
  "wire-method": "ze-test:rows",
  "backend": ["netlink", "vpp"],
@@ -75,12 +75,12 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 		Reference: []string{"show test"},
 		Detail:    []string{"show test"},
 	},
-	"description": {
+	"short-help": {
 		Reason:    "the description is what the command model says the command does.",
 		Reference: []string{"Show the rows of the test table."},
 		Detail:    []string{"Show the rows of the test table."},
 	},
-	"long-help": {
+	"description": {
 		Reason: "the long form is what the command's own page explains, and it is the half a " +
 			"list row has no space for. The CLI reference is a table an operator scans, so " +
 			"the long form is published on the detail page alone.",

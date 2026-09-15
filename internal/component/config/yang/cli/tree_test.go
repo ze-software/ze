@@ -271,6 +271,6 @@ func TestUnifiedTreeMergeEnrichesDescription(t *testing.T) {
 	plugin, ok := root.Children["plugin"]
 	require.True(t, ok)
 	// After merge, the plugin node should have a description from YANG (not empty).
-	assert.NotEmpty(t, plugin.Description,
+	assert.NotEmpty(t, plugin.ShortHelp,
 		"merged plugin node should have description from YANG config module")
 }

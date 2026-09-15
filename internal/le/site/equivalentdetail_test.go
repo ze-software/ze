@@ -61,7 +61,7 @@ func TestPublishedCommandDetailUsesBothForms(t *testing.T) {
 func TestPublishedCommandDetailOmitsAnUndeclaredLongForm(t *testing.T) {
 	paths := commandSurfacePaths(t)
 	writeCatalog(t, paths.Output,
-		`[{"path":"show test","description":"Show the rows of the test table.","mode":"read-only"}]`)
+		`[{"path":"show test","short-help":"Show the rows of the test table.","mode":"read-only"}]`)
 	writeEquivalentMapping(t, paths.Output)
 	if _, err := renderCommandEquivalents(paths); err != nil {
 		t.Fatal(err)

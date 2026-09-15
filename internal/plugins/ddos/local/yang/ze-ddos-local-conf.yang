@@ -14,10 +14,10 @@ module ze-ddos-local-conf {
 
   augment "/dd:ddos" {
     container local {
-      description "Answer a detected attack with a firewall rule on this router.";
-      ze:help "The rule drops the traffic where it arrives, so the link into this router
-               still carries the attack. Announce a FlowSpec rule instead to have it
-               dropped upstream.";
+      description "The rule drops the traffic where it arrives, so the link into this router
+                   still carries the attack. Announce a FlowSpec rule instead to have it
+                   dropped upstream.";
+      ze:help "Answer a detected attack with a firewall rule on this router.";
 
       leaf response-level {
         type enumeration {
@@ -25,39 +25,39 @@ module ze-ddos-local-conf {
           enum enforce;
         }
         default alert;
-        description "Action on attack detection: alert (log only) or enforce (install drop rule).";
-        ze:help "alert is the default. The responder then logs the rule it would install, and installs
-                 nothing. enforce is the value that puts a drop rule in nftables, on a base chain at
-                 priority -200. The traffic policy of ddos/detect can still exempt a target from the
-                 action.";
+        description "alert is the default. The responder then logs the rule it would install, and installs
+                     nothing. enforce is the value that puts a drop rule in nftables, on a base chain at
+                     priority -200. The traffic policy of ddos/detect can still exempt a target from the
+                     action.";
+        ze:help "Action on attack detection: alert (log only) or enforce (install drop rule).";
       }
       leaf max-mitigation-duration {
         type uint32 { range "0..86400"; }
         default 3600;
-        description "Maximum seconds a drop rule stays installed (0 = no cap).";
-        ze:help "A drop rule that reaches this age is removed, and the plugin checks the age once a
+        description "A drop rule that reaches this age is removed, and the plugin checks the age once a
             second. The clock starts when the rule goes in and a narrowing of the same rule does not
             restart it. The cap is the second removal trigger: the first is the AttackCleared event,
             and the cap is what bounds a rule when that event never arrives. Set the leaf to 0 for no
             cap, and the rule then stays until the attack clears. The leaf of the same name under ddos
             flowspec caps the upstream announce in the same way.";
+        ze:help "Maximum seconds a drop rule stays installed (0 = no cap).";
       }
       leaf confidence-min {
         type uint8 { range "0..100"; }
         default 0;
-        description "Minimum incident confidence, from 0 to 100, to install a drop rule.";
-        ze:help "Ze installs a drop rule from a characterized attack only when the
+        description "Ze installs a drop rule from a characterized attack only when the
 confidence of the incident reaches this value. The default is 0, which disables the
 check. A higher value stops mitigation on a borderline detection.";
+        ze:help "Minimum incident confidence, from 0 to 100, to install a drop rule.";
       }
       leaf forward-mitigation {
         type boolean;
         default false;
-        description "Drop the traffic of a remote transit victim on the netfilter FORWARD hook.";
-        ze:help "The default is false. The responder then guards only a local victim, one
+        description "The default is false. The responder then guards only a local victim, one
 the box owns, on the netfilter INPUT hook. The responder leaves a remote victim to the
 flowspec upstream announce. Set this leaf to true to protect a downstream host as well.
 The ddos/detect policy makes the exempt decision and the mitigate decision.";
+        ze:help "Drop the traffic of a remote transit victim on the netfilter FORWARD hook.";
       }
     }
   }

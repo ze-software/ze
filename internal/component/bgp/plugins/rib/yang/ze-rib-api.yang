@@ -24,35 +24,35 @@ module ze-rib-api {
     // Introspection
 
     rpc help {
-        description "Show RIB subcommands.";
-        ze:help "The list holds the first word after show bgp rib, clear bgp rib or request
+        description "The list holds the first word after show bgp rib, clear bgp rib or request
 bgp rib. It is read from the RIB command registry and sorted.";
+        ze:help "Show RIB subcommands.";
         output {
-            leaf-list subcommands { type string; description "Available subcommands"; }
+            leaf-list subcommands { type string; ze:help "Available subcommands"; }
         }
     }
 
     rpc command-list {
-        description "List RIB commands.";
-        ze:help "Each row is a full command name and its summary, sorted by name. The rows
+        description "Each row is a full command name and its summary, sorted by name. The rows
 are read from the RIB command registry, so the community and inject commands registered
 after the built-in table are in it.";
+        ze:help "List RIB commands.";
         output {
             list command {
-                leaf name { type string; description "Command name"; }
-                leaf description { type string; description "Command description"; }
+                leaf name { type string; ze:help "Command name"; }
+                leaf description { type string; ze:help "Command description"; }
             }
         }
     }
 
     rpc event-list {
-        description "List RIB event types.";
-        ze:help "The four types are cache, route, peer and memory. The list is a constant of
+        description "The four types are cache, route, peer and memory. The list is a constant of
 the RIB plugin and does not change with the configuration.";
+        ze:help "List RIB event types.";
         output {
             list event {
-                leaf name { type string; description "Event type name"; }
-                leaf description { type string; description "Event description"; }
+                leaf name { type string; ze:help "Event type name"; }
+                leaf description { type string; ze:help "Event description"; }
             }
         }
     }
@@ -60,134 +60,134 @@ the RIB plugin and does not change with the configuration.";
     // RIB operations
 
     rpc status {
-        description "RIB summary: peer count, route counts, GR state.";
-        ze:help "The optional family argument scopes the per-peer route counts to one
+        description "The optional family argument scopes the per-peer route counts to one
 address family. The routes-in and routes-out totals stay all-family counts whatever is
 given.";
+        ze:help "RIB summary: peer count, route counts, GR state.";
         output {
-            leaf running { type boolean; description "RIB plugin is running"; }
-            leaf peers { type uint32; description "Number of peers tracked"; }
-            leaf routes-in { type uint32; description "Total Adj-RIB-In routes"; }
-            leaf routes-out { type uint32; description "Total Adj-RIB-Out routes"; }
-            leaf stale-routes { type uint32; description "Stale routes (GR)"; }
+            leaf running { type boolean; ze:help "RIB plugin is running"; }
+            leaf peers { type uint32; ze:help "Number of peers tracked"; }
+            leaf routes-in { type uint32; ze:help "Total Adj-RIB-In routes"; }
+            leaf routes-out { type uint32; ze:help "Total Adj-RIB-Out routes"; }
+            leaf stale-routes { type uint32; ze:help "Stale routes (GR)"; }
         }
     }
 
     rpc show {
-        description "Show routes with pipeline filters.";
-        ze:help "The scope is sent, received, or sent-received, which is the default.
-                 A filter is path <pattern>, prefix <pattern>, community <value>,
-                 family <afi/safi>, or match <text>.
-                 A terminal is one of four.
-                 count returns metadata only.
-                 json returns serialized output.
-                 histogram returns the per-family prefix-length distribution.
-                 graph returns the AS-path topology as box-drawing text.";
+        description "The scope is sent, received, or sent-received, which is the default.
+                     A filter is path <pattern>, prefix <pattern>, community <value>,
+                     family <afi/safi>, or match <text>.
+                     A terminal is one of four.
+                     count returns metadata only.
+                     json returns serialized output.
+                     histogram returns the per-family prefix-length distribution.
+                     graph returns the AS-path topology as box-drawing text.";
+        ze:help "Show routes with pipeline filters.";
         input {
-            leaf peer { type zt:ip-address; description "Filter by peer"; }
-            leaf-list args { type string; description "Pipeline args: scope, filters, terminal"; }
+            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
+            leaf-list args { type string; ze:help "Pipeline args: scope, filters, terminal"; }
         }
         output {
-            leaf route-count { type uint32; description "Number of routes (count terminal)"; }
+            leaf route-count { type uint32; ze:help "Number of routes (count terminal)"; }
         }
     }
 
     rpc best {
-        description "Show best-path per prefix (RFC 4271 §9.1.2).";
-        ze:help "A filter is path <pattern>, prefix <pattern>, community <value>,
-                 family <afi/safi>, or match <text>.
-                 A terminal is one of four.
-                 count returns metadata only.
-                 json returns serialized output.
-                 histogram returns the per-family prefix-length distribution.
-                 graph returns the AS-path topology as box-drawing text.";
+        description "A filter is path <pattern>, prefix <pattern>, community <value>,
+                     family <afi/safi>, or match <text>.
+                     A terminal is one of four.
+                     count returns metadata only.
+                     json returns serialized output.
+                     histogram returns the per-family prefix-length distribution.
+                     graph returns the AS-path topology as box-drawing text.";
+        ze:help "Show best-path per prefix (RFC 4271 §9.1.2).";
         input {
-            leaf peer { type zt:ip-address; description "Filter by peer"; }
-            leaf-list args { type string; description "Pipeline args: filters, terminal"; }
+            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
+            leaf-list args { type string; ze:help "Pipeline args: filters, terminal"; }
         }
         output {
-            leaf route-count { type uint32; description "Number of best paths"; }
+            leaf route-count { type uint32; ze:help "Number of best paths"; }
         }
     }
 
     rpc best-status {
-        description "Show best-path computation status.";
-        ze:help "The peer count adds the BGP peers to the non-BGP redistribution sources
+        description "The peer count adds the BGP peers to the non-BGP redistribution sources
 that feed the RIB. It can be larger than the BGP peer count, and the route count is the sum
 over both.";
+        ze:help "Show best-path computation status.";
         output {
-            leaf peers-with-rib { type uint32; description "Peers with RIB entries"; }
-            leaf total-routes { type uint32; description "Total route count across peers"; }
+            leaf peers-with-rib { type uint32; ze:help "Peers with RIB entries"; }
+            leaf total-routes { type uint32; ze:help "Total route count across peers"; }
         }
     }
 
     rpc clear-in {
-        description "Clear Adj-RIB-In entries.";
-        ze:help "A peer selector is required, and the command is refused without one. Each
+        description "A peer selector is required, and the command is refused without one. Each
 matching peer loses its Adj-RIB-In and its entry in the peer table, and the best path is
 then computed again.";
+        ze:help "Clear Adj-RIB-In entries.";
         input {
-            leaf peer { type zt:ip-address; description "Filter by peer"; }
-            leaf family { type zt:address-family; description "Filter by address family"; }
+            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
+            leaf family { type zt:address-family; ze:help "Filter by address family"; }
         }
     }
 
     rpc clear-out {
-        description "Resend the Adj-RIB-Out routes to the matching peers.";
-        ze:help "The routes are replayed and nothing is deleted. A peer selector is
+        description "The routes are replayed and nothing is deleted. A peer selector is
 required, and only a peer that is up is resent to. A second argument holding a slash scopes
 the replay to one family.";
+        ze:help "Resend the Adj-RIB-Out routes to the matching peers.";
         input {
-            leaf peer { type zt:ip-address; description "Filter by peer"; }
-            leaf family { type zt:address-family; description "Filter by address family"; }
+            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
+            leaf family { type zt:address-family; ze:help "Filter by address family"; }
         }
     }
 
     rpc inject {
-        description "Insert route into Adj-RIB-In as if received from a peer.";
-        ze:help "The peer address is a label; no live BGP session required.";
+        description "The peer address is a label; no live BGP session required.";
+        ze:help "Insert route into Adj-RIB-In as if received from a peer.";
         input {
-            leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
-            leaf family { type zt:address-family; mandatory true; description "Address family (e.g. ipv4/unicast)"; }
-            leaf prefix { type string; mandatory true; description "CIDR prefix (e.g. 10.0.0.0/24)"; }
-            leaf origin { type string; description "Origin: igp, egp, incomplete (default: igp)"; }
-            leaf nhop { type zt:ip-address; description "Next-hop IP address"; }
-            leaf nexthop { type zt:ip-address; description "Alias for nhop next-hop IP address"; }
-            leaf aspath { type string; description "AS path as comma-separated ASNs (e.g. 64500,64501)"; }
-            leaf localpref { type uint32; description "LOCAL_PREF value"; }
-            leaf med { type uint32; description "MULTI_EXIT_DISC value"; }
+            leaf peer { type zt:ip-address; mandatory true; ze:help "Peer address label"; }
+            leaf family { type zt:address-family; mandatory true; ze:help "Address family (e.g. ipv4/unicast)"; }
+            leaf prefix { type string; mandatory true; ze:help "CIDR prefix (e.g. 10.0.0.0/24)"; }
+            leaf origin { type string; ze:help "Origin: igp, egp, incomplete (default: igp)"; }
+            leaf nhop { type zt:ip-address; ze:help "Next-hop IP address"; }
+            leaf nexthop { type zt:ip-address; ze:help "Alias for nhop next-hop IP address"; }
+            leaf aspath { type string; ze:help "AS path as comma-separated ASNs (e.g. 64500,64501)"; }
+            leaf localpref { type uint32; ze:help "LOCAL_PREF value"; }
+            leaf med { type uint32; ze:help "MULTI_EXIT_DISC value"; }
         }
         output {
-            leaf injected { type string; description "Prefix that was injected"; }
-            leaf peer { type zt:ip-address; description "Peer the route was injected for"; }
-            leaf family { type zt:address-family; description "Address family"; }
+            leaf injected { type string; ze:help "Prefix that was injected"; }
+            leaf peer { type zt:ip-address; ze:help "Peer the route was injected for"; }
+            leaf family { type zt:address-family; ze:help "Address family"; }
         }
     }
 
     rpc withdraw {
-        description "Remove route from Adj-RIB-In.";
-        ze:help "The peer, the family and the prefix are all required. The answer reports
+        description "The peer, the family and the prefix are all required. The answer reports
 whether the route existed, and the best path for that prefix is computed again.";
+        ze:help "Remove route from Adj-RIB-In.";
         input {
-            leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
-            leaf family { type zt:address-family; mandatory true; description "Address family"; }
-            leaf prefix { type string; mandatory true; description "CIDR prefix to withdraw"; }
+            leaf peer { type zt:ip-address; mandatory true; ze:help "Peer address label"; }
+            leaf family { type zt:address-family; mandatory true; ze:help "Address family"; }
+            leaf prefix { type string; mandatory true; ze:help "CIDR prefix to withdraw"; }
         }
         output {
-            leaf withdrawn { type string; description "Prefix that was withdrawn"; }
-            leaf peer { type zt:ip-address; description "Peer the route was withdrawn from"; }
-            leaf family { type zt:address-family; description "Address family"; }
-            leaf existed { type boolean; description "Whether the route existed before withdrawal"; }
+            leaf withdrawn { type string; ze:help "Prefix that was withdrawn"; }
+            leaf peer { type zt:ip-address; ze:help "Peer the route was withdrawn from"; }
+            leaf family { type zt:address-family; ze:help "Address family"; }
+            leaf existed { type boolean; ze:help "Whether the route existed before withdrawal"; }
         }
     }
 
     // Notifications
 
     notification rib-change {
-        description "RIB content changed";
-        leaf peer { type zt:ip-address; description "Affected peer"; }
-        leaf family { type zt:address-family; description "Address family"; }
-        leaf added { type uint32; description "Routes added"; }
-        leaf removed { type uint32; description "Routes removed"; }
+        ze:help "RIB content changed";
+        leaf peer { type zt:ip-address; ze:help "Affected peer"; }
+        leaf family { type zt:address-family; ze:help "Address family"; }
+        leaf added { type uint32; ze:help "Routes added"; }
+        leaf removed { type uint32; ze:help "Routes removed"; }
     }
 }

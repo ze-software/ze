@@ -3,15 +3,15 @@
 // Related: helpshape.go -- judgeCaps and judgePair, the judges this surface calls
 //
 // helpshape_schema.go reads the fourth surface a summary reaches an operator
-// from: the CONFIG tree. A config node declares its summary as the YANG
-// description statement, and `entryDescription`
-// (internal/component/cli/completer.go) puts that text on the one-line row
-// under the completion menu, exactly as a command node's summary reaches the
-// same row.
+// from: the CONFIG tree. A config node declares its summary as the ze:help
+// extension and its long explanation as the YANG description statement, and
+// `entryDescription` (internal/component/cli/completer.go) puts the summary on
+// the one-line row under the completion menu, exactly as a command node's
+// summary reaches the same row.
 //
 // The other three surfaces cannot see it. `BuildCommandTree` walks the
 // `-cmd.yang` modules, `ExtractRPCs` walks the rpc statements, and the offline
-// registry holds Go registrations. Some 2,000 config descriptions are outside
+// registry holds Go registrations. Some 2,000 config summaries are outside
 // all three, which is why 640 of them were over the render bound with no gate
 // saying so (plan/spec-command-help-and-description.md).
 //
@@ -31,7 +31,7 @@
 //   - A leaf reaches an operator only where it lands in the config tree. One
 //     `grouping` in `ze-types` supplies both an rpc payload and a config node,
 //     and only the second renders. A `-cmd` or `-api` leaf becomes a
-//     command.ArgDef, which holds no text field, so its description is dropped
+//     command.ArgDef, which holds no text field, so its ze:help is dropped
 //     at the tree boundary and reaches nobody.
 //   - A node another module AUGMENTS in is in the tree, so `ze-role` and the
 //     other BGP plugin modules are judged under the module they augment,
@@ -136,40 +136,42 @@ func schemaLabel(module string, path []string) string {
 	return tb.String()
 }
 
-// schema judges one config node's two texts and counts it.
+// schema judges one config node's two texts and counts it. The summary is the
+// ze:help extension and the long explanation is the YANG description.
 func (r *HelpShapeReport) schema(label string, entry *gyang.Entry) {
-	long := yang.GetHelpExtension(entry.Exts)
+	summary := yang.GetHelpExtension(entry.Exts)
+	long := entry.Description
 
 	r.Schema++
 	if strings.TrimSpace(long) != "" {
 		r.SchemaWithHelp++
 	}
-	if strings.TrimSpace(entry.Description) == "" {
-		// A config node with no description renders an empty row under the
+	if strings.TrimSpace(summary) == "" {
+		// A config node with no ze:help renders an empty row under the
 		// completion menu, which tells an operator the name exists and nothing
 		// about what it does. Counting it as coverage owed and saying nothing
 		// is the silent answer this gate exists to remove
 		// (ai/rules/principles.md).
 		r.refuse(surfaceSchema, label, ruleMissingSummary,
-			"the config node declares no description", "")
+			"the config node declares no ze:help summary", "")
 		return
 	}
 	r.SchemaWithSummary++
 
 	// The five shape rules a COMMAND summary is held to are not applied here. A
-	// YANG description is written over as many lines as its author needed, and
+	// ze:help argument is written over as many lines as its author needed, and
 	// `entryDescription` collapses the whitespace before it renders, so a
 	// newline in one is the normal spelling rather than a defect. What this
 	// spec brings the config tree under is the two caps and the pair
 	// (plan/spec-command-help-and-description.md, D-4).
-	r.judgeCaps(surfaceSchema, label, entry.Description)
-	r.judgePair(surfaceSchema, label, entry.Description, long)
+	r.judgeCaps(surfaceSchema, label, summary)
+	r.judgePair(surfaceSchema, label, summary, long)
 }
 
 // schemaEnums judges the values of a list whose key is an enumeration.
 //
-// This is the ONE shape in which an enum's description reaches an operator, and
-// the walk mirrors the two producers statement for statement.
+// This is the ONE shape in which an enum's ze:help summary reaches an operator,
+// and the walk mirrors the two producers statement for statement.
 // `listKeyCompletions` is the only caller of `enumKeyVocabulary`, and the entry
 // it hands over comes from `getListKeyEntry`, which answers
 // `listEntry.Dir[listEntry.Key]` and nil for everything else
@@ -179,14 +181,14 @@ func (r *HelpShapeReport) schema(label string, entry *gyang.Entry) {
 // would report a defect that does not exist, which is the repair that cost
 // three earlier passes.
 //
-// None of the 278 enum descriptions in the corpus keys a list today, so this
+// None of the 278 enum summaries in the corpus keys a list today, so this
 // rule refuses nothing over the checkout. It is written for the
 // enumeration-keyed list a later spec adds, and it is written NARROW because a
 // gate that judges the wrong population is the failure this scoping exists to
 // prevent.
 //
-// An enum is never asked for a long text: nothing anywhere reads a ze:help on
-// one, so demanding it would demand a declaration no surface prints.
+// An enum is never asked for a long text: nothing anywhere reads a description
+// on one, so demanding it would demand a declaration no surface prints.
 func (r *HelpShapeReport) schemaEnums(module string, path []string, list *gyang.Entry) {
 	if !list.IsList() || list.Key == "" {
 		return
@@ -201,10 +203,11 @@ func (r *HelpShapeReport) schemaEnums(module string, path []string, list *gyang.
 	}
 
 	for _, declared := range leaf.Type.Enum {
-		if declared == nil || declared.Description == nil {
+		if declared == nil {
 			continue
 		}
-		summary := declared.Description.Name
+		// The enum value's summary is its ze:help extension.
+		summary := yang.GetHelpExtension(declared.Extensions)
 		if strings.TrimSpace(summary) == "" {
 			continue
 		}

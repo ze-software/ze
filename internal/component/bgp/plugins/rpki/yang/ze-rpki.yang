@@ -19,9 +19,9 @@ module ze-rpki {
   // choices stays identical everywhere. Order is display-only.
   typedef validation-action {
     type enumeration {
-      enum reject { description "Exclude the route from the Adj-RIB-In and the decision process."; }
-      enum log-only { description "Keep the route, marked with its state, and write a log line."; }
-      enum accept { description "Keep the route and write no log line."; }
+      enum reject { ze:help "Exclude the route from the Adj-RIB-In and the decision process."; }
+      enum log-only { ze:help "Keep the route, marked with its state, and write a log line."; }
+      enum accept { ze:help "Keep the route and write no log line."; }
     }
     description "RPKI validation-state action (RFC 6811 Section 3: operator-configurable per state)";
   }
@@ -33,32 +33,30 @@ module ze-rpki {
   // validation) are global-only and deliberately absent here.
   grouping rpki-peer-policy {
     container rpki {
-      description "RPKI action overrides of this peer or group.";
-      ze:help "Ze resolves every leaf on its own. A leaf set on the peer wins. A leaf that
+      description "Ze resolves every leaf on its own. A leaf set on the peer wins. A leaf that
 is unset falls through to the group value, then to the global value.";
+      ze:help "RPKI action overrides of this peer or group.";
 
       container action {
-        description "Origin-validation action overrides of this peer or group.";
-        ze:help "A leaf here carries no default, so an unset leaf falls through to the
+        description "A leaf here carries no default, so an unset leaf falls through to the
 group value and then to the global value.";
+        ze:help "Origin-validation action overrides of this peer or group.";
         leaf invalid {
           type validation-action;
-          description "Action Ze applies to a route in the Invalid validation state.";
-          ze:help "An unset leaf inherits the group value, then the global value.";
+          description "An unset leaf inherits the group value, then the global value.";
+          ze:help "Action Ze applies to a route in the Invalid validation state.";
         }
         leaf not-found {
           type validation-action;
-          description "Action Ze applies to a route in the NotFound validation state.";
-          ze:help "An unset leaf inherits the group value, then the global value.";
+          description "An unset leaf inherits the group value, then the global value.";
+          ze:help "Action Ze applies to a route in the NotFound validation state.";
         }
       }
 
       leaf blackhole-exempt {
         type boolean;
         default "false";
-        description "Keep a BLACKHOLE route when its only origin-validation fault is the prefix length.";
-        ze:help
-          "The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a
+        description "The route carries the RFC 7999 BLACKHOLE community, and a covering VRP allows a
 shorter prefix than the route announces.
 
 RFC 7999 Section 3.3 states that an operator MUST ensure origin validation does not
@@ -75,24 +73,26 @@ rather than Invalid, so the exemption never reaches it.
 The default is false. Enable it together with the blackhole honor leaf of the peer, on
 the same session. On its own it accepts a route it would have rejected, and it discards
 nothing.";
+        ze:help
+          "Keep a BLACKHOLE route when its only origin-validation fault is the prefix length.";
       }
 
       container aspa {
-        description "ASPA action overrides for this peer or group.";
-        ze:help "These overrides apply only when ASPA validation is enabled globally.";
+        description "These overrides apply only when ASPA validation is enabled globally.";
+        ze:help "ASPA action overrides for this peer or group.";
         container action {
-          description "ASPA path-state action overrides of this peer or group.";
-          ze:help "invalid names the action of an ASPA Invalid path and unknown that of an ASPA Unknown path.
+          description "invalid names the action of an ASPA Invalid path and unknown that of an ASPA Unknown path.
 Neither leaf carries a default, so an unset leaf falls through to the group value and then to the global value.";
+          ze:help "ASPA path-state action overrides of this peer or group.";
           leaf invalid {
             type validation-action;
-            description "Action Ze applies to a route in the ASPA Invalid path state.";
-            ze:help "An unset leaf inherits the group value, then the global value.";
+            description "An unset leaf inherits the group value, then the global value.";
+            ze:help "Action Ze applies to a route in the ASPA Invalid path state.";
           }
           leaf unknown {
             type validation-action;
-            description "Action Ze applies to a route in the ASPA Unknown path state.";
-            ze:help "An unset leaf inherits the group value, then the global value.";
+            description "An unset leaf inherits the group value, then the global value.";
+            ze:help "Action Ze applies to a route in the ASPA Unknown path state.";
           }
         }
       }
@@ -102,43 +102,43 @@ Neither leaf carries a default, so an unset leaf falls through to the group valu
   grouping rpki-config {
     container rpki {
       presence "RPKI origin validation enabled";
-      description "RPKI origin validation of a received route (RFC 6811).";
-      ze:help "The container carries presence. Ze validates a route only when cache-server holds at least one
+      description "The container carries presence. Ze validates a route only when cache-server holds at least one
 entry, so an empty container validates nothing. The container also holds the validation timeout, the
 origin-validation actions, and the ASPA block. A peer and a group override an action leaf of their own. Neither
 can name a cache server, because the RTR transport is global.";
+      ze:help "RPKI origin validation of a received route (RFC 6811).";
 
       list cache-server {
         key "address";
-        description "RTR cache servers Ze reads the validated ROA and ASPA records from.";
-        ze:help "The list key is the address, which is an IP address or a hostname. Ze opens one RTR session to
+        description "The list key is the address, which is an IP address or a hostname. Ze opens one RTR session to
 every entry at the same time, and merges what the entries send into one cache. A second entry gives redundancy.
 Each entry carries the port, the preference and the source address. An empty list leaves validation off.";
+        ze:help "RTR cache servers Ze reads the validated ROA and ASPA records from.";
         leaf address {
           type string;
-          description "IP address or hostname of the RTR cache server.";
-          ze:help "The address is the list key, so one entry exists for each cache
+          description "The address is the list key, so one entry exists for each cache
 server.";
+          ze:help "IP address or hostname of the RTR cache server.";
         }
         leaf port {
           type uint16;
           default "323";
-          description "TCP port of the RTR cache server.";
-          ze:help "Ze opens a TCP connection to this port on the cache server. The default
+          description "Ze opens a TCP connection to this port on the cache server. The default
 is 323.";
+          ze:help "TCP port of the RTR cache server.";
         }
         leaf preference {
           type uint8;
           default "100";
-          description "Preference of this cache server.";
-          ze:help "Ze runs a session to every cache server at the same time and selects none of them, so the value
+          description "Ze runs a session to every cache server at the same time and selects none of them, so the value
 changes no behavior today. show bgp rpki status reports it for each server.";
+          ze:help "Preference of this cache server.";
         }
         leaf source-address {
           type zt:ip-address;
-          description "Source IP address of an outbound RTR connection.";
-          ze:help "Set this leaf when the RTR connection MUST leave the box from one
+          description "Set this leaf when the RTR connection MUST leave the box from one
 specific local address.";
+          ze:help "Source IP address of an outbound RTR connection.";
         }
       }
 
@@ -146,58 +146,58 @@ specific local address.";
         type uint16;
         default "30";
         units "seconds";
-        description "Fail-open timeout of a route whose validation is pending.";
-        ze:help "The default is 30 seconds. A longer timeout holds a route in the pending
+        description "The default is 30 seconds. A longer timeout holds a route in the pending
 state for longer.";
+        ze:help "Fail-open timeout of a route whose validation is pending.";
       }
 
       container action {
-        description "Global origin-validation actions.";
-        ze:help "RFC 6811 Section 3 makes the action of each validation state
+        description "RFC 6811 Section 3 makes the action of each validation state
 configurable by the operator.";
+        ze:help "Global origin-validation actions.";
         leaf invalid {
           type validation-action;
           default "reject";
-          description "Action Ze applies to a route in the Invalid validation state.";
-          ze:help "The default is reject, which excludes the route from the Adj-RIB-In and
+          description "The default is reject, which excludes the route from the Adj-RIB-In and
 the decision process.";
+          ze:help "Action Ze applies to a route in the Invalid validation state.";
         }
         leaf not-found {
           type validation-action;
           default "accept";
-          description "Action Ze applies to a route in the NotFound validation state.";
-          ze:help "The default is accept, which keeps the route and writes no log line.";
+          description "The default is accept, which keeps the route and writes no log line.";
+          ze:help "Action Ze applies to a route in the NotFound validation state.";
         }
       }
 
       container aspa {
-        description "AS_PATH verification against the ASPA records, and the action of each result.";
-        ze:help "validation turns the verification on and its default is false. Ze reads an ASPA record over
+        description "validation turns the verification on and its default is false. Ze reads an ASPA record over
 version 2 of the RTR protocol alone. A session Ze downgrades to version 1 carries none. Ze refuses an ASPA PDU
 on a version 1 session as a protocol violation. action holds the action of each path state, and a peer or a
 group overrides those two leaves.";
+        ze:help "AS_PATH verification against the ASPA records, and the action of each result.";
         leaf validation {
           type boolean;
           default "false";
-          description "Verify the AS path of a route against the ASPA records.";
-          ze:help "Ze reads the ASPA records over version 2 of the RTR protocol.";
+          description "Ze reads the ASPA records over version 2 of the RTR protocol.";
+          ze:help "Verify the AS path of a route against the ASPA records.";
         }
         container action {
-          description "Global action Ze applies for each ASPA path state.";
-          ze:help "invalid holds the action of an ASPA Invalid path and unknown that of an ASPA Unknown path. Both
+          description "invalid holds the action of an ASPA Invalid path and unknown that of an ASPA Unknown path. Both
 apply only while aspa validation is true. A peer or a group overrides each leaf.";
+          ze:help "Global action Ze applies for each ASPA path state.";
           leaf invalid {
             type validation-action;
             default "log-only";
-            description "Action Ze applies to a route in the ASPA Invalid path state.";
-            ze:help "The default is log-only, which keeps the route, marks it with its
+            description "The default is log-only, which keeps the route, marks it with its
 state, and writes a log line.";
+            ze:help "Action Ze applies to a route in the ASPA Invalid path state.";
           }
           leaf unknown {
             type validation-action;
             default "accept";
-            description "Action Ze applies to a route in the ASPA Unknown path state.";
-            ze:help "The default is accept, which keeps the route and writes no log line.";
+            description "The default is accept, which keeps the route and writes no log line.";
+            ze:help "Action Ze applies to a route in the ASPA Unknown path state.";
           }
         }
       }

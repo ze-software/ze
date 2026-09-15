@@ -13,9 +13,9 @@ module ze-raw-cmd {
         // Each protocol declares its own destination leaf on its own container:
         // nothing central enumerates the protocols, and nothing reads a
         // destination's kind from the shape of its value.
-        description "Put an operator-supplied message on a wire.";
-        ze:help "The protocol keyword picks the wire. The value after it names the
-                 destination, and each protocol states the vocabulary for that value.";
+        description "The protocol keyword picks the wire. The value after it names the
+                     destination, and each protocol states the vocabulary for that value.";
+        ze:help "Put an operator-supplied message on a wire.";
 
         container bgp {
             config false;
@@ -28,28 +28,28 @@ module ze-raw-cmd {
             // ze-update-cmd re-declares the two containers with no description,
             // because mergeYANGEntry warns when two modules describe one node
             // differently.
-            description "Send a message to the BGP peer sessions a selector picks.";
-            ze:help "The selector accepts an address, a configured peer name, an AS pattern,
-                     a glob, a comma-separated list, or *. A selector that matches no
-                     session sends to nothing, and it does not send to every peer.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
+            description "The selector accepts an address, a configured peer name, an AS pattern,
+                         a glob, a comma-separated list, or *. A selector that matches no
+                         session sends to nothing, and it does not send to every peer.";
+            ze:help "Send a message to the BGP peer sessions a selector picks.";
+            leaf selector { type string; mandatory true; ze:help "Peer selector"; }
 
             container raw {
                 config false;
                 ze:command "ze-bgp:peer-raw";
-                description "Send raw bytes into a peer's TCP stream (dangerous).";
-                ze:help "Injects arbitrary bytes with no BGP framing and no validation. It is for
+                description "Injects arbitrary bytes with no BGP framing and no validation. It is for
 conformance testing and fuzzing only, and it will break the session if it is used
 carelessly. With a type keyword ze writes the marker and the header, and the data carries
 the message body alone. Without a type keyword the data carries the whole packet, marker
 and header included.";
+                ze:help "Send raw bytes into a peer's TCP stream (dangerous).";
                 leaf encoding {
                     type enumeration {
                         enum hex;
                         enum b64;
                     }
                     mandatory true;
-                    description "How the data below is encoded.";
+                    ze:help "How the data below is encoded.";
                 }
                 // No length is stated here, and the absence is a decision. raw exists
                 // to put a malformed or oversized frame on one session, and the
@@ -59,7 +59,7 @@ and header included.";
                 leaf data {
                     type string;
                     mandatory true;
-                    description "The bytes to send, in the encoding above.";
+                    ze:help "The bytes to send, in the encoding above.";
                 }
                 leaf type {
                     type enumeration {
@@ -69,7 +69,7 @@ and header included.";
                         enum keepalive;
                         enum route-refresh;
                     }
-                    description "The BGP message type ze writes a header for.";
+                    ze:help "The BGP message type ze writes a header for.";
                 }
             }
         }

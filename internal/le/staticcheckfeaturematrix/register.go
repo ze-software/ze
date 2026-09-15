@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too",
-		Mode:        "offline",
+		ShortHelp: "the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

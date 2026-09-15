@@ -9,60 +9,60 @@ module ze-update-firmware-cmd {
 
     container update {
         config false;
-        description "Pull fresh data from external sources or manage firmware.";
+        ze:help "Pull fresh data from external sources or manage firmware.";
 
         container system {
             config false;
-            description "System firmware lifecycle management.";
-            ze:help "The lifecycle is check, download, apply and rollback. Rollback depends on the
-                     previous binary still being on disk, which apply is what puts there.";
+            description "The lifecycle is check, download, apply and rollback. Rollback depends on the
+                         previous binary still being on disk, which apply is what puts there.";
+            ze:help "System firmware lifecycle management.";
 
             container firmware {
                 config false;
-                description "Check, download, apply, and rollback firmware.";
-                ze:help "Apply hard-links the running binary aside before it renames the new one in, and
-                         that saved copy is exactly what rollback renames back. A rollback after the copy
-                         is gone has nothing to restore.";
+                description "Apply hard-links the running binary aside before it renames the new one in, and
+                             that saved copy is exactly what rollback renames back. A rollback after the copy
+                             is gone has nothing to restore.";
+                ze:help "Check, download, apply, and rollback firmware.";
 
                 container check {
                     config false;
                     ze:command "ze-update:system-firmware-check";
-                    description "Check for a new firmware version right now.";
-                    ze:help "Bypasses the scheduled interval timer and contacts the update server
+                    description "Bypasses the scheduled interval timer and contacts the update server
 immediately. Compare the result with 'show system update'.";
+                    ze:help "Check for a new firmware version right now.";
                 }
 
                 container download {
                     config false;
                     ze:command "ze-update:system-firmware-download";
-                    description "Download the latest firmware image right now.";
-                    ze:help "Bypasses the maintenance window and spread timers. The image is staged but not
+                    description "Bypasses the maintenance window and spread timers. The image is staged but not
 applied. Use 'update system firmware apply' or 'restart' to activate it.";
+                    ze:help "Download the latest firmware image right now.";
                 }
 
                 container apply {
                     config false;
                     ze:command "ze-update:system-firmware-apply";
-                    description "Full upgrade: download, verify, stage, and restart.";
-                    ze:help "Runs the complete update cycle in one command. Only available on platforms
+                    description "Runs the complete update cycle in one command. Only available on platforms
 where Ze owns the update lifecycle (e.g. gokrazy). The box will reboot into
 the new version.";
+                    ze:help "Full upgrade: download, verify, stage, and restart.";
                 }
 
                 container restart {
                     config false;
                     ze:command "ze-update:system-firmware-restart";
-                    description "Reboot into the already-staged firmware.";
-                    ze:help "No download happens. Use this after 'update system firmware download' when you
+                    description "No download happens. Use this after 'update system firmware download' when you
 are ready to activate the new version.";
+                    ze:help "Reboot into the already-staged firmware.";
                 }
 
                 container rollback {
                     config false;
                     ze:command "ze-update:system-firmware-rollback";
-                    description "Roll back to the previous firmware and restart.";
-                    ze:help "Reverts to the prior image. Only available on platforms with A/B partitioning
+                    description "Reverts to the prior image. Only available on platforms with A/B partitioning
 (e.g. gokrazy). Use this if the new version has issues.";
+                    ze:help "Roll back to the previous firmware and restart.";
                 }
             }
         }

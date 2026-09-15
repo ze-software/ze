@@ -1,6 +1,6 @@
 # Test: a plugin's two help texts survive the Stage 1 declaration intact
 #
-# VALIDATES: a CommandDecl carrying description and long-help reaches the
+# VALIDATES: a CommandDecl carrying short-help and description reaches the
 #            registry a plugin can read with each text under its own key, a
 #            command declaring only a summary keeps it, and no entry carries
 #            the key retired on 2026-09-03.
@@ -14,7 +14,7 @@
 # list` from inside the plugin process, and that answer is served from the
 # registry copy `ze-plugin-callback:share-registry` pushed to the plugin at
 # stage 4. It is NOT the answer commandRows (internal/component/plugin/server/
-# system.go) builds for an operator's client: crossing Description and LongHelp
+# system.go) builds for an operator's client: crossing ShortHelp and Description
 # in either branch of commandRows leaves this test green, while changing the
 # text the plugin DECLARES turns it red. So this test binds the declaration to
 # the plugin-visible registry and nothing further.

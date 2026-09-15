@@ -13,60 +13,60 @@ module ze-l2tp-shaper-conf {
         // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
         // so the tree merge does not warn on a mismatch. This module only
         // attaches its own subtree to the shared node.
-        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
-        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
-                 any content implies the subsystem is enabled. Use 'enabled false' to
-                 disable it explicitly, or 'enabled true' as a filler when no other settings
-                 are needed.";
+        description "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
+                     any content implies the subsystem is enabled. Use 'enabled false' to
+                     disable it explicitly, or 'enabled true' as a filler when no other settings
+                     are needed.";
+        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661).";
 
         container shaper {
-            description "Traffic shaping applied to each L2TP subscriber interface.";
-            ze:help "Ze installs the queueing discipline and the ingress policer on the pppN
-                     interface when the session starts. The queueing discipline carries the
-                     download rate and the policer carries the upload rate. A rate changed
-                     here reaches the sessions that start after the change. A running
-                     session keeps the rate it was given, and a RADIUS CoA changes it.";
+            description "Ze installs the queueing discipline and the ingress policer on the pppN
+                         interface when the session starts. The queueing discipline carries the
+                         download rate and the policer carries the upload rate. A rate changed
+                         here reaches the sessions that start after the change. A running
+                         session keeps the rate it was given, and a RADIUS CoA changes it.";
+            ze:help "Traffic shaping applied to each L2TP subscriber interface.";
             leaf qdisc-type {
                 type enumeration {
                     enum tbf {
-                        description "Token Bucket Filter (single rate limiter).";
+                        ze:help "Token Bucket Filter (single rate limiter).";
                     }
                     enum htb {
-                        description "Hierarchical Token Bucket (classful).";
+                        ze:help "Hierarchical Token Bucket (classful).";
                     }
                 }
                 default tbf;
-                description "Queueing discipline type for subscriber interfaces.";
-                ze:help "The default is tbf, and the value reaches every subscriber
-                         interface. With tbf Ze installs one class that carries the rate of
-                         the session. With htb Ze installs one default class whose rate and
-                         ceiling are both that rate, so the class cannot borrow. Ze refuses
-                         a token that is not tbf or htb.";
+                description "The default is tbf, and the value reaches every subscriber
+                             interface. With tbf Ze installs one class that carries the rate of
+                             the session. With htb Ze installs one default class whose rate and
+                             ceiling are both that rate, so the class cannot borrow. Ze refuses
+                             a token that is not tbf or htb.";
+                ze:help "Queueing discipline type for subscriber interfaces.";
             }
             leaf default-rate {
                 type zt:rate;
                 mandatory true;
-                description "Default download rate applied to a new session.";
-                ze:help "Default download rate applied to new sessions. The format is a
-                         number followed by a suffix, for example 10mbit or 100kbit. Ze
-                         enforces it with the queueing discipline it installs on the pppN
-                         interface, which shapes what leaves the interface toward the
-                         subscriber.";
+                description "Default download rate applied to new sessions. The format is a
+                             number followed by a suffix, for example 10mbit or 100kbit. Ze
+                             enforces it with the queueing discipline it installs on the pppN
+                             interface, which shapes what leaves the interface toward the
+                             subscriber.";
+                ze:help "Default download rate applied to a new session.";
             }
             leaf upload-rate {
                 type zt:rate;
                 description
-                    "Default upload rate. When omitted, defaults to default-rate.";
-                ze:help "The format is a number and a suffix, for example 5mbit, and the
-                         suffixes are bit, kbit, mbit, gbit, bps, kbps, mbps and gbps. Ze
-                         enforces it with a policer on the pppN interface ingress hook,
-                         which drops what the subscriber sends above the rate. A queueing
-                         discipline cannot carry this direction, because the ingress hook
-                         holds no queue to delay a packet into. Ze applies default-rate
-                         instead when the leaf is absent. A RADIUS Filter-Id of the form
-                         rate:20mbit/5mbit replaces both this rate and the download rate on
-                         that session, and a RADIUS CoA changes both on a running session.
-                         The 'show l2tp shaper' command reports the rate in force.";
+                    "The format is a number and a suffix, for example 5mbit, and the
+                     suffixes are bit, kbit, mbit, gbit, bps, kbps, mbps and gbps. Ze
+                     enforces it with a policer on the pppN interface ingress hook,
+                     which drops what the subscriber sends above the rate. A queueing
+                     discipline cannot carry this direction, because the ingress hook
+                     holds no queue to delay a packet into. Ze applies default-rate
+                     instead when the leaf is absent. A RADIUS Filter-Id of the form
+                     rate:20mbit/5mbit replaces both this rate and the download rate on
+                     that session, and a RADIUS CoA changes both on a running session.
+                     The 'show l2tp shaper' command reports the rate in force.";
+                ze:help "Default upload rate. When omitted, defaults to default-rate.";
             }
         }
     }

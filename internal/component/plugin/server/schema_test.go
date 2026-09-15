@@ -327,15 +327,15 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 
 	rpcs := []yang.RPCMeta{
 		{
-			Module:      "ze-bgp-api",
-			Name:        "peer-list",
-			Description: "List BGP peers",
-			Input:       []yang.LeafMeta{{Name: "selector", Type: "string"}},
+			Module:    "ze-bgp-api",
+			Name:      "peer-list",
+			ShortHelp: "List BGP peers",
+			Input:     []yang.LeafMeta{{Name: "selector", Type: "string"}},
 		},
 		{
-			Module:      "ze-bgp-api",
-			Name:        "peer-detail",
-			Description: "Show peer details",
+			Module:    "ze-bgp-api",
+			Name:      "peer-detail",
+			ShortHelp: "Show peer details",
 		},
 	}
 
@@ -348,7 +348,7 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 	assert.Equal(t, "ze-bgp-api", rpc.Module)
 	assert.Equal(t, "peer-list", rpc.Name)
 	assert.Equal(t, "ze-bgp:peer-list", rpc.WireMethod)
-	assert.Equal(t, "List BGP peers", rpc.Description)
+	assert.Equal(t, "List BGP peers", rpc.ShortHelp)
 	require.Len(t, rpc.Input, 1)
 	assert.Equal(t, "selector", rpc.Input[0].Name)
 
@@ -366,7 +366,7 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 // TestRegisterRPCsCarriesBothHelpTexts verifies that an RPC's two declared help
 // texts both reach the registry, each on its own field.
 //
-// VALIDATES: RegisterRPCs copies the YANG description AND the ze:help long form.
+// VALIDATES: RegisterRPCs copies the ze:help summary AND the description long form.
 // PREVENTS: the long explanation stopping at the registry, which left it
 // unreadable to every consumer of the schema registry.
 func TestRegisterRPCsCarriesBothHelpTexts(t *testing.T) {
@@ -376,24 +376,24 @@ func TestRegisterRPCsCarriesBothHelpTexts(t *testing.T) {
 		{
 			Module:      "ze-bgp-api",
 			Name:        "peer-list",
-			Description: "List the configured BGP peers.",
-			LongHelp:    "One row per peer.\nThe row carries the negotiated families.",
+			ShortHelp:   "List the configured BGP peers.",
+			Description: "One row per peer.\nThe row carries the negotiated families.",
 		},
-		{Module: "ze-bgp-api", Name: "peer-detail", Description: "Show one peer."},
+		{Module: "ze-bgp-api", Name: "peer-detail", ShortHelp: "Show one peer."},
 	})
 	require.NoError(t, err)
 
 	rpc, err := reg.findRPC("ze-bgp:peer-list")
 	require.NoError(t, err)
-	assert.Equal(t, "List the configured BGP peers.", rpc.Description)
-	assert.Equal(t, "One row per peer.\nThe row carries the negotiated families.", rpc.LongHelp)
+	assert.Equal(t, "List the configured BGP peers.", rpc.ShortHelp)
+	assert.Equal(t, "One row per peer.\nThe row carries the negotiated families.", rpc.Description)
 
 	// An RPC nobody wrote an explanation for carries an empty long form, never
 	// a copy of its summary.
 	rpc, err = reg.findRPC("ze-bgp:peer-detail")
 	require.NoError(t, err)
-	assert.Equal(t, "Show one peer.", rpc.Description)
-	assert.Empty(t, rpc.LongHelp)
+	assert.Equal(t, "Show one peer.", rpc.ShortHelp)
+	assert.Empty(t, rpc.Description)
 }
 
 // TestSchemaRegistry_RegisterRPCs_Duplicate verifies duplicate wire method rejection.
@@ -422,8 +422,8 @@ func TestSchemaRegistry_FindRPCByCommand(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	rpcs := []yang.RPCMeta{
-		{Module: "ze-bgp-api", Name: "peer-list", Description: "List peers"},
-		{Module: "ze-bgp-api", Name: "peer-teardown", Description: "Tear down peer"},
+		{Module: "ze-bgp-api", Name: "peer-list", ShortHelp: "List peers"},
+		{Module: "ze-bgp-api", Name: "peer-teardown", ShortHelp: "Tear down peer"},
 	}
 	require.NoError(t, reg.RegisterRPCs("ze-bgp-api", rpcs))
 
@@ -501,8 +501,8 @@ func TestSchemaRegistry_RegisterNotifications(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	notifs := []yang.NotificationMeta{
-		{Module: "ze-bgp-api", Name: "peer-state-change", Description: "Peer state changed"},
-		{Module: "ze-bgp-api", Name: "route-received", Description: "Route received"},
+		{Module: "ze-bgp-api", Name: "peer-state-change", ShortHelp: "Peer state changed"},
+		{Module: "ze-bgp-api", Name: "route-received", ShortHelp: "Route received"},
 	}
 
 	err := reg.RegisterNotifications("ze-bgp-api", notifs)

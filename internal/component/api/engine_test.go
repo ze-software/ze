@@ -16,13 +16,13 @@ import (
 func fakeCommands() CommandSource {
 	return func() []CommandMeta {
 		return []CommandMeta{
-			{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
-			{Name: "show bgp rib status", Description: "Show RIB status", ReadOnly: true},
-			{Name: "show bgp rib", Description: "Show RIB routes", ReadOnly: true, Params: []ParamMeta{
-				{Name: "family", Type: "string", Description: "Address family", Required: false},
+			{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
+			{Name: "show bgp rib status", ShortHelp: "Show RIB status", ReadOnly: true},
+			{Name: "show bgp rib", ShortHelp: "Show RIB routes", ReadOnly: true, Params: []ParamMeta{
+				{Name: "family", Type: "string", ShortHelp: "Address family", Required: false},
 			}},
-			{Name: "peer list", Description: "List peers", ReadOnly: true},
-			{Name: "daemon reload", Description: "Reload config", ReadOnly: false},
+			{Name: "peer list", ShortHelp: "List peers", ReadOnly: true},
+			{Name: "daemon reload", ShortHelp: "Reload config", ReadOnly: false},
 		}
 	}
 }

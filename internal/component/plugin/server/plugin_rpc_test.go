@@ -23,25 +23,25 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "basic",
 			def: CommandDef{
-				Name:        "show status",
-				Description: "Show status",
-				Timeout:     DefaultCommandTimeout,
+				Name:      "show status",
+				ShortHelp: "Show status",
+				Timeout:   DefaultCommandTimeout,
 			},
 		},
 		{
 			name: "with_args",
 			def: CommandDef{
-				Name:        "request check",
-				Description: "Check component",
-				Args:        "<component>",
-				Timeout:     DefaultCommandTimeout,
+				Name:      "request check",
+				ShortHelp: "Check component",
+				Args:      "<component>",
+				Timeout:   DefaultCommandTimeout,
 			},
 		},
 		{
 			name: "with_completable",
 			def: CommandDef{
 				Name:        "show status",
-				Description: "Show status",
+				ShortHelp:   "Show status",
 				Args:        "<component>",
 				Completable: true,
 				Timeout:     DefaultCommandTimeout,
@@ -50,16 +50,16 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "with_custom_timeout",
 			def: CommandDef{
-				Name:        "request dump",
-				Description: "Dump data",
-				Timeout:     60 * time.Second,
+				Name:      "request dump",
+				ShortHelp: "Dump data",
+				Timeout:   60 * time.Second,
 			},
 		},
 		{
 			name: "all_options",
 			def: CommandDef{
 				Name:        "request full",
-				Description: "Full command",
+				ShortHelp:   "Full command",
 				Args:        "<arg>",
 				Completable: true,
 				Timeout:     120 * time.Second,
@@ -70,7 +70,7 @@ func TestCommandDefConstruction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.NotEmpty(t, tt.def.Name)
-			assert.NotEmpty(t, tt.def.Description)
+			assert.NotEmpty(t, tt.def.ShortHelp)
 			assert.Greater(t, tt.def.Timeout, time.Duration(0))
 		})
 	}
@@ -87,15 +87,15 @@ func TestCommandDefRegistration(t *testing.T) {
 	defs := []CommandDef{
 		{
 			Name:        "show status",
-			Description: "Show status",
+			ShortHelp:   "Show status",
 			Args:        "<component>",
 			Completable: true,
 			Timeout:     DefaultCommandTimeout,
 		},
 		{
-			Name:        "request reload",
-			Description: "Reload config",
-			Timeout:     60 * time.Second,
+			Name:      "request reload",
+			ShortHelp: "Reload config",
+			Timeout:   60 * time.Second,
 		},
 	}
 
@@ -110,7 +110,7 @@ func TestCommandDefRegistration(t *testing.T) {
 	cmd := registry.Lookup("show status")
 	require.NotNil(t, cmd)
 	assert.Equal(t, "show status", cmd.Name)
-	assert.Equal(t, "Show status", cmd.Description)
+	assert.Equal(t, "Show status", cmd.ShortHelp)
 	assert.Equal(t, "<component>", cmd.Args)
 	assert.True(t, cmd.Completable)
 	assert.Equal(t, DefaultCommandTimeout, cmd.Timeout)

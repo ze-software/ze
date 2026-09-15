@@ -100,9 +100,9 @@ func cmdUnitDel(args []string) int {
 
 func unitUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface unit",
-		Summary: "Manage logical units (VLAN subinterfaces) on an interface",
-		Usage:   []string{"ze interface unit <action> <args>"},
+		Command:   "ze interface unit",
+		ShortHelp: "Manage logical units (VLAN subinterfaces) on an interface",
+		Usage:     []string{"ze interface unit <action> <args>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Actions", Entries: []helpfmt.HelpEntry{
 				{Name: "add <name> <id>", Desc: "Add a VLAN unit (creates <name>.<id> subinterface)"},

@@ -52,9 +52,9 @@ func cmdEncode(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze bgp encode",
-			Summary: "Encode API route command to BGP message hex. Route command can be provided as argument or via stdin",
-			Usage:   []string{"ze bgp encode [options] [route-command]"},
+			Command:   "ze bgp encode",
+			ShortHelp: "Encode API route command to BGP message hex. Route command can be provided as argument or via stdin",
+			Usage:     []string{"ze bgp encode [options] [route-command]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-f <family>", Desc: "Address family (default: ipv4/unicast) (e.g., 'ipv4/unicast', 'ipv6/unicast', 'l2vpn/evpn')"},

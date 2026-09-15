@@ -24,9 +24,9 @@ func cmdArchiveImpl(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config archive",
-			Summary: "Trigger a named config archive via the daemon",
-			Usage:   []string{"ze config archive [options] <name>"},
+			Command:   "ze config archive",
+			ShortHelp: "Trigger a named config archive via the daemon",
+			Usage:     []string{"ze config archive [options] <name>"},
 			Examples: []string{
 				"ze config archive local-backup",
 				"ze config archive offsite",

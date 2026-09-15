@@ -66,8 +66,8 @@ func SetLogger(l *slog.Logger) {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show bgp healthcheck",
-			Description: "Show healthcheck probe status",
+			Name:      "show bgp healthcheck",
+			ShortHelp: "Show healthcheck probe status",
 			// handleShow answers rows in both branches, so one declaration
 			// describes the command whichever argument it takes. The shape is
 			// "map" and not "tab" because the two branches carry DIFFERENT row
@@ -78,8 +78,8 @@ func commandDecls() []sdk.CommandDecl {
 			Shape: "map",
 		},
 		{
-			Name:        "clear bgp healthcheck",
-			Description: "Reset healthcheck probe to INIT",
+			Name:      "clear bgp healthcheck",
+			ShortHelp: "Reset healthcheck probe to INIT",
 			// handleReset answers a report of what it did rather than a data
 			// set, and it is outside the population this spec measured, so it
 			// keeps the derived-at-apply-time behavior every undeclared command

@@ -20,117 +20,117 @@ module ze-l2tp-api {
     // -----------------------------------------------------------------
 
     rpc summary {
-        description "Return subsystem summary: tunnel count, session count, listener count, aggregate state.";
-        ze:help "The payload carries tunnel-count, session-count, listener-count, and
+        description "The payload carries tunnel-count, session-count, listener-count, and
 captured-at, which is the UTC time of the snapshot. When the L2TP subsystem is
 not running, the RPC answers an error rather than a row of zeros.";
+        ze:help "Return subsystem summary: tunnel count, session count, listener count, aggregate state.";
         output {
             leaf summary {
                 type string;
-                description "JSON object with aggregate counters.";
+                ze:help "JSON object with aggregate counters.";
             }
         }
     }
 
     rpc tunnels {
-        description "List every live tunnel.";
-        ze:help "Each row is the summary form of one tunnel, and the 'tunnel' RPC returns the
+        description "Each row is the summary form of one tunnel, and the 'tunnel' RPC returns the
 detail form. Every row comes from one snapshot, so the whole table was read at
 the same instant.";
+        ze:help "List every live tunnel.";
         output {
             leaf tunnels {
                 type string;
-                description "JSON array of tunnel summary objects.";
+                ze:help "JSON array of tunnel summary objects.";
             }
         }
     }
 
     rpc tunnel {
-        description "Return one tunnel by local tunnel ID.";
-        ze:help "The ID reaches the handler as the 'id' selector or as a bare argument, and both
+        description "The ID reaches the handler as the 'id' selector or as a bare argument, and both
 forms parse the same way. The answer is the detail form of the tunnel rather
 than the summary form 'tunnels' returns. An unknown ID is refused with 'no
 tunnel with local-tid'.";
+        ze:help "Return one tunnel by local tunnel ID.";
         input {
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
-                description "Local tunnel ID (1..65535).";
+                ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf tunnel {
                 type string;
-                description "JSON object with tunnel detail.";
+                ze:help "JSON object with tunnel detail.";
             }
         }
     }
 
     rpc sessions {
-        description "List every live session across all tunnels.";
-        ze:help "The rows are flattened across every tunnel, so a session's own tunnel is read
+        description "The rows are flattened across every tunnel, so a session's own tunnel is read
 from the row and not from where the row sits. Each row is the summary form, and
 the 'session' RPC returns the detail form.";
+        ze:help "List every live session across all tunnels.";
         output {
             leaf sessions {
                 type string;
-                description "JSON array of session summary objects.";
+                ze:help "JSON array of session summary objects.";
             }
         }
     }
 
     rpc session {
-        description "Return one session by local session ID.";
-        ze:help "The ID reaches the handler as the 'id' selector or as a bare argument. The
+        description "The ID reaches the handler as the 'id' selector or as a bare argument. The
 answer is the detail form of the session. An unknown ID is refused with 'no
 session with local-sid'.";
+        ze:help "Return one session by local session ID.";
         input {
             leaf session-id {
                 type uint16;
                 mandatory true;
-                description "Local session ID (1..65535).";
+                ze:help "Local session ID (1..65535).";
             }
         }
         output {
             leaf session {
                 type string;
-                description "JSON object with session detail.";
+                ze:help "JSON object with session detail.";
             }
         }
     }
 
     rpc statistics {
-        description "Return the L2TP protocol counters.";
-        ze:help "The payload carries tunnels-active and sessions-active. Per-message counters are
+        description "The payload carries tunnels-active and sessions-active. Per-message counters are
 not published here yet. Use 'listeners' for the bind state of each UDP endpoint.";
+        ze:help "Return the L2TP protocol counters.";
         output {
             leaf statistics {
                 type string;
-                description "JSON object with counter values.";
+                ze:help "JSON object with counter values.";
             }
         }
     }
 
     rpc listeners {
-        description "List bound UDP listener endpoints.";
-        ze:help "Each row carries the bound address and the UDP port. An empty array means that
+        description "Each row carries the bound address and the UDP port. An empty array means that
 no listener is bound, which is the state 'summary' reports as a listener-count
 of 0.";
+        ze:help "List bound UDP listener endpoints.";
         output {
             leaf listeners {
                 type string;
-                description "JSON array of listener objects.";
+                ze:help "JSON array of listener objects.";
             }
         }
     }
 
     rpc config {
-        description "Return effective runtime configuration.";
-        ze:help "Shared-secret is redacted to <set>/<unset>.";
+        description "Shared-secret is redacted to <set>/<unset>.";
+        ze:help "Return effective runtime configuration.";
         output {
             leaf config {
                 type string;
-                description "JSON object with effective config.";
+                ze:help "JSON object with effective config.";
             }
         }
     }
@@ -140,117 +140,117 @@ of 0.";
     // -----------------------------------------------------------------
 
     rpc observer {
-        description "Return per-session event ring snapshot.";
-        ze:help "With a session-id argument, returns the full event list. With
+        description "With a session-id argument, returns the full event list. With
 'all', returns a summary of every active session ring.";
+        ze:help "Return per-session event ring snapshot.";
         input {
             leaf session-id {
                 type uint16;
-                description "Local session ID (1..65535), or omit for 'all'.";
+                ze:help "Local session ID (1..65535), or omit for 'all'.";
             }
         }
         output {
             leaf observer {
                 type string;
-                description "JSON array of events or session summaries.";
+                ze:help "JSON array of events or session summaries.";
             }
         }
     }
 
     rpc cqm {
-        description "Return per-login CQM bucket history.";
-        ze:help "With a login argument, returns the bucket list. With 'summary',
+        description "With a login argument, returns the bucket list. With 'summary',
 returns aggregate state across all tracked logins.";
+        ze:help "Return per-login CQM bucket history.";
         input {
             leaf login {
                 type string;
-                description "Login name, or 'summary' for aggregate view.";
+                ze:help "Login name, or 'summary' for aggregate view.";
             }
         }
         output {
             leaf cqm {
                 type string;
-                description "JSON array of CQM buckets or login summaries.";
+                ze:help "JSON array of CQM buckets or login summaries.";
             }
         }
     }
 
     rpc echo {
-        description "Return the current echo state of one login.";
-        ze:help "The state is derived from the CQM buckets and carries the last
+        description "The state is derived from the CQM buckets and carries the last
 RTT, the loss ratio, the echo interval, and the bucket state.";
+        ze:help "Return the current echo state of one login.";
         input {
             leaf login {
                 type string;
                 mandatory true;
-                description "Login name.";
+                ze:help "Login name.";
             }
         }
         output {
             leaf echo {
                 type string;
-                description "JSON object with echo state.";
+                ze:help "JSON object with echo state.";
             }
         }
     }
 
     rpc reliable {
-        description "Return the reliable transport window state of one tunnel.";
-        ze:help "The state carries Ns, Nr, peer-Nr, the outstanding count, the
+        description "The state carries Ns, Nr, peer-Nr, the outstanding count, the
 retransmit count, cwnd, ssthresh, and the peer receive window size.";
+        ze:help "Return the reliable transport window state of one tunnel.";
         input {
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
-                description "Local tunnel ID (1..65535).";
+                ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf reliable {
                 type string;
-                description "JSON object with reliable transport state.";
+                ze:help "JSON object with reliable transport state.";
             }
         }
     }
 
     rpc tunnel-history {
         description
-            "Return FSM transition history for a tunnel.";
-        ze:help "Each transition carries the state it left, the state it reached, and a UTC
+            "Each transition carries the state it left, the state it reached, and a UTC
 timestamp. A tunnel the subsystem holds no history for is refused with 'no
 tunnel with local-tid'.";
+        ze:help "Return FSM transition history for a tunnel.";
         input {
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
-                description "Local tunnel ID (1..65535).";
+                ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf history {
                 type string;
-                description "JSON array of FSM transitions.";
+                ze:help "JSON array of FSM transitions.";
             }
         }
     }
 
     rpc session-history {
         description
-            "Return FSM transition history for a session.";
-        ze:help "Each transition carries the state it left, the state it reached, and a UTC
+            "Each transition carries the state it left, the state it reached, and a UTC
 timestamp. A session the subsystem holds no history for is refused with 'no
 session with local-sid'.";
+        ze:help "Return FSM transition history for a session.";
         input {
             leaf session-id {
                 type uint16;
                 mandatory true;
-                description "Local session ID (1..65535).";
+                ze:help "Local session ID (1..65535).";
             }
         }
         output {
             leaf history {
                 type string;
-                description "JSON array of FSM transitions.";
+                ze:help "JSON array of FSM transitions.";
             }
         }
     }
@@ -262,67 +262,67 @@ session with local-sid'.";
     // -----------------------------------------------------------------
 
     rpc tunnel-teardown {
-        description "Send StopCCN Result Code 6 (administrative) for the tunnel with the given local tunnel ID.";
-        ze:help "The answer carries the tunnel ID and a status of 'sent', which reports that the
+        description "The answer carries the tunnel ID and a status of 'sent', which reports that the
 message left Ze and not that the peer answered. Use 'session-teardown' to stop
 one session and leave the tunnel up.";
+        ze:help "Send StopCCN Result Code 6 (administrative) for the tunnel with the given local tunnel ID.";
         input {
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
-                description "Local tunnel ID (1..65535).";
+                ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf result {
                 type string;
-                description "JSON object describing the teardown outcome.";
+                ze:help "JSON object describing the teardown outcome.";
             }
         }
     }
 
     rpc tunnel-teardown-all {
-        description "Send StopCCN Result Code 6 (administrative) for every live tunnel on every listener.";
-        ze:help "The answer carries 'tunnels-cleared', the number of tunnels the subsystem tore
+        description "The answer carries 'tunnels-cleared', the number of tunnels the subsystem tore
 down. The RPC takes no input, so one named tunnel needs 'tunnel-teardown' with
 its local tunnel ID.";
+        ze:help "Send StopCCN Result Code 6 (administrative) for every live tunnel on every listener.";
         output {
             leaf result {
                 type string;
-                description "JSON object with the number of tunnels torn down.";
+                ze:help "JSON object with the number of tunnels torn down.";
             }
         }
     }
 
     rpc session-teardown {
-        description "Send CDN Result Code 3 (administrative) for the session with the given local session ID.";
-        ze:help "The answer carries the session ID and a status of 'sent', which reports that the
+        description "The answer carries the session ID and a status of 'sent', which reports that the
 message left Ze and not that the peer answered. Optional actor, reason and cause
 keywords are recorded against the session before the CDN goes out, and they are
 echoed in the answer. The tunnel stays up.";
+        ze:help "Send CDN Result Code 3 (administrative) for the session with the given local session ID.";
         input {
             leaf session-id {
                 type uint16;
                 mandatory true;
-                description "Local session ID (1..65535).";
+                ze:help "Local session ID (1..65535).";
             }
         }
         output {
             leaf result {
                 type string;
-                description "JSON object describing the teardown outcome.";
+                ze:help "JSON object describing the teardown outcome.";
             }
         }
     }
 
     rpc session-teardown-all {
-        description "Stop every live session on every tunnel on every listener.";
-        ze:help "The RPC sends CDN Result Code 3 (administrative) for each
+        description "The RPC sends CDN Result Code 3 (administrative) for each
 session. The tunnels stay open.";
+        ze:help "Stop every live session on every tunnel on every listener.";
         output {
             leaf result {
                 type string;
-                description "JSON object with the number of sessions torn down.";
+                ze:help "JSON object with the number of sessions torn down.";
             }
         }
     }
@@ -332,28 +332,28 @@ session. The tunnels stay open.";
     // -----------------------------------------------------------------
 
     rpc outgoing-call {
-        description "Place an LNS-side outgoing call toward a configured remote (RFC 2661 Section 10.4).";
-        ze:help "Dials the remote if no tunnel is up, sends OCRQ, and blocks
+        description "Dials the remote if no tunnel is up, sends OCRQ, and blocks
 until the call establishes or fails. The response reports whether the call came
 up and, on failure, the cause and RFC 2661 Result Code (tunnel authentication
 reject, tie-breaker loss, peer CDN, or timeout). The named remote MUST have
 outgoing-calls enabled.";
+        ze:help "Place an LNS-side outgoing call toward a configured remote (RFC 2661 Section 10.4).";
         input {
             leaf remote {
                 type string;
                 mandatory true;
-                description "Name of a configured l2tp/remote dial target.";
+                ze:help "Name of a configured l2tp/remote dial target.";
             }
             leaf called {
                 type string;
                 mandatory true;
-                description "Called Number placed in the OCRQ (RFC 2661 Section 7.9).";
+                ze:help "Called Number placed in the OCRQ (RFC 2661 Section 7.9).";
             }
         }
         output {
             leaf result {
                 type string;
-                description "JSON object describing the call outcome.";
+                ze:help "JSON object describing the call outcome.";
             }
         }
     }

@@ -15,53 +15,53 @@ module ze-bfd-api {
     }
 
     rpc show-sessions {
-        description "Return every live BFD session.";
-        ze:help "Each row carries the peer, the state and the diagnostic code. It also
+        description "Each row carries the peer, the state and the diagnostic code. It also
 carries the two discriminators, the transmit, receive and detection intervals, the packet
 counters and the recent state changes. The command fails with bfd: plugin not loaded when
 BFD is not running.";
+        ze:help "Return every live BFD session.";
         output {
             leaf sessions {
                 type string;
-                description "JSON array of session objects.";
+                ze:help "JSON array of session objects.";
             }
         }
     }
 
     rpc show-session {
-        description "Return one BFD session by peer address.";
-        ze:help "The peer must be an IP address, and a value that does not parse is refused
+        description "The peer must be an IP address, and a value that does not parse is refused
 before the lookup. A peer with no session is reported as no session for that peer.";
+        ze:help "Return one BFD session by peer address.";
         input {
             leaf peer {
                 type string;
                 mandatory true;
-                description "Peer IPv4 or IPv6 address.";
+                ze:help "Peer IPv4 or IPv6 address.";
             }
         }
         output {
             leaf session {
                 type string;
-                description "JSON object with session detail.";
+                ze:help "JSON object with session detail.";
             }
         }
     }
 
     rpc show-profile {
-        description "Return resolved BFD profile parameters.";
-        ze:help "Without a name every profile is answered. Each one carries the detect
+        description "Without a name every profile is answered. Each one carries the detect
 multiplier, the desired transmit interval and the required receive interval in microseconds,
 and whether the profile is passive.";
+        ze:help "Return resolved BFD profile parameters.";
         input {
             leaf name {
                 type string;
-                description "Profile name (empty returns every profile).";
+                ze:help "Profile name (empty returns every profile).";
             }
         }
         output {
             leaf profiles {
                 type string;
-                description "JSON array of profile objects.";
+                ze:help "JSON array of profile objects.";
             }
         }
     }

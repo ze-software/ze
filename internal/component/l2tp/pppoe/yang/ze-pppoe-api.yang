@@ -14,72 +14,72 @@ module ze-pppoe-api {
     }
 
     rpc summary {
-        description "Return subsystem summary: session count, interface count, aggregate state.";
-        ze:help "The three numbers come from one snapshot, and the answer carries the time
+        description "The three numbers come from one snapshot, and the answer carries the time
 that snapshot was taken. The command fails with pppoe: subsystem not running when PPPoE is
 not started.";
+        ze:help "Return subsystem summary: session count, interface count, aggregate state.";
         output {
             leaf summary {
                 type string;
-                description "JSON object with aggregate counters.";
+                ze:help "JSON object with aggregate counters.";
             }
         }
     }
 
     rpc sessions {
-        description "List every live PPPoE session across all interfaces.";
-        ze:help "One snapshot answers every session. Each row carries the session id, the
+        description "One snapshot answers every session. Each row carries the session id, the
 client MAC address, the access interface, the service name, the state, the PPP unit and the
 creation time.";
+        ze:help "List every live PPPoE session across all interfaces.";
         output {
             leaf sessions {
                 type string;
-                description "JSON array of session objects.";
+                ze:help "JSON array of session objects.";
             }
         }
     }
 
     rpc session {
-        description "Return one session by session ID.";
-        ze:help "The state is discovery, session or teardown. Session id 0 is refused
+        description "The state is discovery, session or teardown. Session id 0 is refused
 because RFC 2516 reserves it, and an id no session holds is reported as no session with that
 sid.";
+        ze:help "Return one session by session ID.";
         input {
             leaf session-id {
                 type uint16;
                 mandatory true;
-                description "PPPoE session ID (1..65535).";
+                ze:help "PPPoE session ID (1..65535).";
             }
         }
         output {
             leaf session {
                 type string;
-                description "JSON object with session detail.";
+                ze:help "JSON object with session detail.";
             }
         }
     }
 
     rpc statistics {
-        description "Return protocol counters: active sessions per interface, discovery packet counts.";
-        ze:help "The answer is the active session count and one row for each access
+        description "The answer is the active session count and one row for each access
 interface. Each row carries the interface name, its live session count and its configured
 maximum.";
+        ze:help "Return protocol counters: active sessions per interface, discovery packet counts.";
         output {
             leaf statistics {
                 type string;
-                description "JSON object with counter values.";
+                ze:help "JSON object with counter values.";
             }
         }
     }
 
     rpc interfaces {
-        description "List configured PPPoE access interfaces.";
-        ze:help "Each row carries the interface name, its kernel index, its live session
+        description "Each row carries the interface name, its kernel index, its live session
 count, its configured maximum and the service names it accepts.";
+        ze:help "List configured PPPoE access interfaces.";
         output {
             leaf interfaces {
                 type string;
-                description "JSON array of interface objects.";
+                ze:help "JSON array of interface objects.";
             }
         }
     }

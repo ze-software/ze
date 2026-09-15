@@ -814,7 +814,7 @@ func webLeafField(inputType string) LeafField {
 		Default:      "90",
 		InputType:    inputType,
 		Placeholder:  "seconds",
-		Description:  "BGP hold timer in seconds",
+		ShortHelp:    "BGP hold timer in seconds",
 		IsConfigured: true,
 	}
 
@@ -882,7 +882,7 @@ func webConfigListData(selected bool) *ConfigViewData {
 func webCommandForm() CommandFormData {
 	return CommandFormData{
 		CommandName: "peer teardown",
-		Description: "Reset a BGP session",
+		ShortHelp:   "Reset a BGP session",
 		ActionURL:   "/admin/bgp/peer/london/teardown",
 		Parameters: []CommandParameter{
 			{Name: "peer", Value: "london", Placeholder: "peer name"},
@@ -893,13 +893,13 @@ func webCommandForm() CommandFormData {
 
 func webFieldMeta(fieldType, value string) FieldMeta {
 	f := FieldMeta{
-		Leaf:        "hold-time",
-		Path:        "bgp/peer/london",
-		Type:        fieldType,
-		Value:       value,
-		Default:     "90",
-		Description: "BGP hold timer in seconds",
-		Decoration:  "Example Transit",
+		Leaf:       "hold-time",
+		Path:       "bgp/peer/london",
+		Type:       fieldType,
+		Value:      value,
+		Default:    "90",
+		ShortHelp:  "BGP hold timer in seconds",
+		Decoration: "Example Transit",
 	}
 
 	switch fieldType {
@@ -944,7 +944,7 @@ func webFieldMetaDottedKey() FieldMeta {
 func webSidebarSections() []SidebarSection {
 	return []SidebarSection{
 		{
-			Name: "peer", Description: "BGP neighbors", URL: "/show/bgp/peer/",
+			Name: "peer", ShortHelp: "BGP neighbors", URL: "/show/bgp/peer/",
 			HxPath: "bgp/peer", IsList: true, AddURL: "/config/add/bgp/peer/",
 			Selected: "london",
 			Entries: []SidebarEntry{

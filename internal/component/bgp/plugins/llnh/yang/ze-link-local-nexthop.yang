@@ -18,10 +18,10 @@ module ze-link-local-nexthop {
         container link-local-nexthop {
             presence "Link-local next-hop capability enabled";
             description
-                "Link-local next-hop capability.";
-            ze:help
                 "The capability advertises that ze accepts IPv6 link-local
                  next-hops in MP_REACH_NLRI (RFC 2545 Section 3).";
+            ze:help
+                "Link-local next-hop capability.";
         }
     }
 

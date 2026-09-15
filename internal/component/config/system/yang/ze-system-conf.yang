@@ -13,45 +13,45 @@ module ze-system-conf {
 
     // System block - global identity and archive settings
     container system {
-        description "System-wide settings including identity and config archival.";
-        ze:help "The container holds the host and domain names, the DNS settings, the
-                 PeeringDB settings, the RIR delegation sources, the hardware tuning,
-                 the console devices, the conntrack settings, the update check and the
-                 config archives.";
+        description "The container holds the host and domain names, the DNS settings, the
+                     PeeringDB settings, the RIR delegation sources, the hardware tuning,
+                     the console devices, the conntrack settings, the update check and the
+                     config archives.";
+        ze:help "System-wide settings including identity and config archival.";
 
         leaf host {
             type string;
-            description "System hostname, supports $ENV_VAR expansion.";
-            ze:help "Ze expands a $ENV_VAR reference in the value when it reads the
-                     config.";
+            description "Ze expands a $ENV_VAR reference in the value when it reads the
+                         config.";
+            ze:help "System hostname, supports $ENV_VAR expansion.";
         }
 
         leaf domain {
             type string;
-            description "System domain, supports $ENV_VAR expansion.";
-            ze:help "Ze expands a $ENV_VAR reference in the value when it reads the
-                     config.";
+            description "Ze expands a $ENV_VAR reference in the value when it reads the
+                         config.";
+            ze:help "System domain, supports $ENV_VAR expansion.";
         }
 
         leaf-list name-server {
             type zt:ip-address;
-            description "Static DNS name servers, written to resolv.conf and used by ze internal resolver.";
-            ze:help "Ze writes each address to the resolv.conf file named by
-                     dns/resolv-conf-path, and its own resolver asks these servers.";
+            description "Ze writes each address to the resolv.conf file named by
+                         dns/resolv-conf-path, and its own resolver asks these servers.";
+            ze:help "Static DNS name servers, written to resolv.conf and used by ze internal resolver.";
         }
 
         container dns {
-            description "DNS resolver tuning and resolv.conf settings.";
-            ze:help "The container holds the resolv.conf path, the query timeout, the
-                     cache bounds and the DNSSEC validation mode.";
+            description "The container holds the resolv.conf path, the query timeout, the
+                         cache bounds and the DNSSEC validation mode.";
+            ze:help "DNS resolver tuning and resolv.conf settings.";
 
             leaf resolv-conf-path {
                 type string;
                 default "/tmp/resolv.conf";
-                description "Path Ze writes the DNS servers to, as a resolv.conf file.";
-                ze:help "The default /tmp/resolv.conf suits gokrazy, whose rootfs is
-                         read-only. Set /etc/resolv.conf on standard Linux. An empty
-                         string stops Ze writing the file.";
+                description "The default /tmp/resolv.conf suits gokrazy, whose rootfs is
+                             read-only. Set /etc/resolv.conf on standard Linux. An empty
+                             string stops Ze writing the file.";
+                ze:help "Path Ze writes the DNS servers to, as a resolv.conf file.";
             }
 
             leaf timeout {
@@ -59,9 +59,9 @@ module ze-system-conf {
                     range "1..60";
                 }
                 default 5;
-                description "Query timeout in seconds.";
-                ze:help "Ze waits this long for an answer before it gives up on a
-                         query. The range is 1 to 60 seconds, and the default is 5.";
+                description "Ze waits this long for an answer before it gives up on a
+                             query. The range is 1 to 60 seconds, and the default is 5.";
+                ze:help "Query timeout in seconds.";
             }
 
             leaf cache-size {
@@ -69,9 +69,9 @@ module ze-system-conf {
                     range "0..1000000";
                 }
                 default 10000;
-                description "Maximum cached entries (0 disables caching).";
-                ze:help "The cache holds this many answers at most, and 0 disables
-                         it. The range is 0 to 1000000, and the default is 10000.";
+                description "The cache holds this many answers at most, and 0 disables
+                             it. The range is 0 to 1000000, and the default is 10000.";
+                ze:help "Maximum cached entries (0 disables caching).";
             }
 
             leaf cache-ttl {
@@ -79,28 +79,26 @@ module ze-system-conf {
                     range "0..604800";
                 }
                 default 86400;
-                description "Maximum cache TTL in seconds (0 uses response TTL only).";
-                ze:help "Ze holds an answer for the TTL the response carries, and
-                         never longer than this value. 0 keeps the response TTL
-                         alone. The default is 86400 seconds.";
+                description "Ze holds an answer for the TTL the response carries, and
+                             never longer than this value. 0 keeps the response TTL
+                             alone. The default is 86400 seconds.";
+                ze:help "Maximum cache TTL in seconds (0 uses response TTL only).";
             }
 
             leaf dnssec-validation {
                 type enumeration {
                     enum off {
-                        description "No DNSSEC handling, and no DO bit. This is the default.";
+                        ze:help "No DNSSEC handling, and no DO bit. This is the default.";
                     }
                     enum permissive {
-                        description "Request DNSSEC, and log a broken chain without failing.";
+                        ze:help "Request DNSSEC, and log a broken chain without failing.";
                     }
                     enum strict {
-                        description "Request DNSSEC, and reject an answer on a broken chain.";
+                        ze:help "Request DNSSEC, and reject an answer on a broken chain.";
                     }
                 }
                 default "off";
                 description
-                    "Upstream-answer DNSSEC validation for the stub resolver.";
-                ze:help
                     "RFC 4035 defines the stub model. off leaves resolution
                      unchanged. permissive and strict set the EDNS0 DO bit, and
                      rely on a validating upstream (CD=0) to answer SERVFAIL on a
@@ -108,62 +106,64 @@ module ze-system-conf {
                      permissive logs it and returns the empty result. An insecure
                      zone and an unsigned zone (NOERROR, AD=0) are always
                      accepted.";
+                ze:help
+                    "Upstream-answer DNSSEC validation for the stub resolver.";
             }
         }
 
         // PeeringDB integration settings
         container peeringdb {
-            description "PeeringDB API configuration for prefix data lookups.";
-            ze:help "The container holds the API base URL and the prefix-limit
-                     margin. Ze asks PeeringDB for the prefix counts of a peer.";
+            description "The container holds the API base URL and the prefix-limit
+                         margin. Ze asks PeeringDB for the prefix counts of a peer.";
+            ze:help "PeeringDB API configuration for prefix data lookups.";
             leaf url {
                 type string;
                 default "https://www.peeringdb.com";
-                description "PeeringDB-compatible API base URL.";
-                ze:help "Ze sends each query to this base URL. The default is
-                         https://www.peeringdb.com. Set another URL to reach a mirror
-                         or a test server.";
+                description "Ze sends each query to this base URL. The default is
+                             https://www.peeringdb.com. Set another URL to reach a mirror
+                             or a test server.";
+                ze:help "PeeringDB-compatible API base URL.";
             }
             leaf margin {
                 type uint8 {
                     range "0..100";
                 }
                 default 10;
-                description "Percentage margin above PeeringDB count for prefix maximum (0-100).";
-                ze:help "Ze multiplies the PeeringDB prefix count by this margin, in
-                         percent, and uses the result as the prefix limit. The range
-                         is 0 to 100, and the default is 10.";
+                description "Ze multiplies the PeeringDB prefix count by this margin, in
+                             percent, and uses the result as the prefix limit. The range
+                             is 0 to 100, and the default is 10.";
+                ze:help "Percentage margin above PeeringDB count for prefix maximum (0-100).";
             }
         }
 
         // Where the RIR delegation table is read from
         container rir {
-            description "Regional Internet Registry delegation table settings.";
-            ze:help "The container holds one delegation-source block per registry.
-                     `update resolve rir` reads the delegation file of every
-                     registry, and a block names where one of the five is read
-                     from.";
+            description "The container holds one delegation-source block per registry.
+                         `update resolve rir` reads the delegation file of every
+                         registry, and a block names where one of the five is read
+                         from.";
+            ze:help "Regional Internet Registry delegation table settings.";
 
             list delegation-source {
                 key "registry";
-                description "Per-registry source of the delegation file.";
-                ze:help "One block names one registry and the URL its delegation
-                         file is read from. A registry with no block is read from
-                         the file that registry publishes, so mirroring one
-                         registry takes one block.";
+                description "One block names one registry and the URL its delegation
+                             file is read from. A registry with no block is read from
+                             the file that registry publishes, so mirroring one
+                             registry takes one block.";
+                ze:help "Per-registry source of the delegation file.";
 
                 leaf registry {
                     type enumeration {
-                        enum ripencc { description "RIPE NCC."; }
-                        enum arin { description "ARIN."; }
-                        enum apnic { description "APNIC."; }
-                        enum afrinic { description "AFRINIC."; }
-                        enum lacnic { description "LACNIC."; }
+                        enum ripencc { ze:help "RIPE NCC."; }
+                        enum arin { ze:help "ARIN."; }
+                        enum apnic { ze:help "APNIC."; }
+                        enum afrinic { ze:help "AFRINIC."; }
+                        enum lacnic { ze:help "LACNIC."; }
                     }
-                    description "Registry whose delegation file this block names.";
-                    ze:help "The token is the list key, and it is the name the
-                             delegation files themselves write: ripencc, arin,
-                             apnic, afrinic and lacnic.";
+                    description "The token is the list key, and it is the name the
+                                 delegation files themselves write: ripencc, arin,
+                                 apnic, afrinic and lacnic.";
+                    ze:help "Registry whose delegation file this block names.";
                 }
 
                 leaf url {
@@ -172,101 +172,101 @@ module ze-system-conf {
                         pattern "https?://.+";
                     }
                     ze:validate "delegation-source-url";
-                    description "URL Ze reads this registry's delegation file from.";
-                    ze:help "Ze reads the file with one GET, and the URL carries the
-                             scheme, the host and the path of that one file. A
-                             mirror publishes five files, so it takes five blocks.";
+                    description "Ze reads the file with one GET, and the URL carries the
+                                 scheme, the host and the path of that one file. A
+                                 mirror publishes five files, so it takes five blocks.";
+                    ze:help "URL Ze reads this registry's delegation file from.";
                 }
             }
         }
 
         // Hardware tuning (Linux only, requires root/CAP_SYS_ADMIN)
         container tuning {
-            description "Runtime hardware tuning applied at startup and on config commit.";
-            ze:help "The container holds the CPU governor, the IRQ affinity list and
-                     the ethtool settings. The tuning runs on Linux, and it needs
-                     root or CAP_SYS_ADMIN.";
+            description "The container holds the CPU governor, the IRQ affinity list and
+                         the ethtool settings. The tuning runs on Linux, and it needs
+                         root or CAP_SYS_ADMIN.";
+            ze:help "Runtime hardware tuning applied at startup and on config commit.";
 
             container cpu {
-                description "CPU frequency scaling tuning.";
-                ze:help "The container holds the scaling governor Ze writes to each
-                         core.";
+                description "The container holds the scaling governor Ze writes to each
+                             core.";
+                ze:help "CPU frequency scaling tuning.";
                 leaf governor {
                     type enumeration {
-                        enum performance { description "Maximum frequency."; }
-                        enum powersave { description "Minimum frequency."; }
-                        enum ondemand { description "Dynamic frequency scaling."; }
-                        enum conservative { description "Gradual frequency scaling."; }
-                        enum schedutil { description "Scheduler-driven frequency scaling."; }
+                        enum performance { ze:help "Maximum frequency."; }
+                        enum powersave { ze:help "Minimum frequency."; }
+                        enum ondemand { ze:help "Dynamic frequency scaling."; }
+                        enum conservative { ze:help "Gradual frequency scaling."; }
+                        enum schedutil { ze:help "Scheduler-driven frequency scaling."; }
                     }
-                    description "CPU scaling governor applied to all cores.";
-                    ze:help "Ze writes the governor to every core. The values are
-                             performance, powersave, ondemand, conservative and
-                             schedutil.";
+                    description "Ze writes the governor to every core. The values are
+                                 performance, powersave, ondemand, conservative and
+                                 schedutil.";
+                    ze:help "CPU scaling governor applied to all cores.";
                 }
             }
 
             list irq-affinity {
                 key "interface";
-                description "Pin NIC IRQs to specific CPUs.";
-                ze:help "Each entry names one interface, and Ze pins the IRQs of that
-                         interface to the CPUs the entry lists.";
+                description "Each entry names one interface, and Ze pins the IRQs of that
+                             interface to the CPUs the entry lists.";
+                ze:help "Pin NIC IRQs to specific CPUs.";
 
                 leaf interface {
                     type string {
                         length "1..15";
                     }
-                    description "Network interface name (max 15 chars, kernel IFNAMSIZ-1).";
-                    ze:help "The name is the list key, and it is the kernel interface
-                             name. The kernel bounds it at 15 characters, which is
-                             IFNAMSIZ-1.";
+                    description "The name is the list key, and it is the kernel interface
+                                 name. The kernel bounds it at 15 characters, which is
+                                 IFNAMSIZ-1.";
+                    ze:help "Network interface name (max 15 chars, kernel IFNAMSIZ-1).";
                 }
                 leaf cpus {
                     type string {
                         length "1..256";
                     }
-                    description "CPU list, for example 0,2,4-7.";
-                    ze:help "The list takes a single CPU, a comma-separated set, and
-                             a range with a hyphen.";
+                    description "The list takes a single CPU, a comma-separated set, and
+                                 a range with a hyphen.";
+                    ze:help "CPU list, for example 0,2,4-7.";
                 }
             }
 
             list ethtool {
                 key "interface";
-                description "Per-interface ethtool settings.";
-                ze:help "Each entry names one interface and holds the ethtool
-                         settings Ze applies to it.";
+                description "Each entry names one interface and holds the ethtool
+                             settings Ze applies to it.";
+                ze:help "Per-interface ethtool settings.";
 
                 leaf interface {
                     type string {
                         length "1..15";
                     }
-                    description "Network interface name (max 15 chars, kernel IFNAMSIZ-1).";
-                    ze:help "The name is the list key, and it is the kernel interface
-                             name. The kernel bounds it at 15 characters, which is
-                             IFNAMSIZ-1.";
+                    description "The name is the list key, and it is the kernel interface
+                                 name. The kernel bounds it at 15 characters, which is
+                                 IFNAMSIZ-1.";
+                    ze:help "Network interface name (max 15 chars, kernel IFNAMSIZ-1).";
                 }
                 container ring {
-                    description "Ring buffer sizes.";
-                    ze:help "The container holds the receive ring size and the
-                             transmit ring size of the interface.";
+                    description "The container holds the receive ring size and the
+                                 transmit ring size of the interface.";
+                    ze:help "Ring buffer sizes.";
                     leaf rx {
                         type uint16 {
                             range "1..65535";
                         }
-                        description "Receive ring buffer size.";
-                        ze:help "Ze asks the driver for a receive ring of this many
-                                 descriptors. The range is 1 to 65535, and a driver
-                                 refuses a size it cannot serve.";
+                        description "Ze asks the driver for a receive ring of this many
+                                     descriptors. The range is 1 to 65535, and a driver
+                                     refuses a size it cannot serve.";
+                        ze:help "Receive ring buffer size.";
                     }
                     leaf tx {
                         type uint16 {
                             range "1..65535";
                         }
-                        description "Transmit ring buffer size.";
-                        ze:help "Ze asks the driver for a transmit ring of this many
-                                 descriptors. The range is 1 to 65535, and a driver
-                                 refuses a size it cannot serve.";
+                        description "Ze asks the driver for a transmit ring of this many
+                                     descriptors. The range is 1 to 65535, and a driver
+                                     refuses a size it cannot serve.";
+                        ze:help "Transmit ring buffer size.";
                     }
                 }
             }
@@ -279,22 +279,22 @@ module ze-system-conf {
         // crashlog.MemoryImageMegabytesMin/Max, which the appliance build and
         // the readiness answer enforce from Go.
         container crash-dump {
-            description "Kernel crash capture, kept across a reboot and listed by show crashes.";
-            ze:help "A Go panic is already captured. This container covers the kernel
-                     panic, which leaves no process behind to write a report. The
-                     kernel writes its own record into a reserved memory region, and
-                     Ze reads it on the next boot. The reservation is a kernel boot
-                     argument, so it is armed by the next boot of an image built with
-                     image.crash-dump, not by the commit.";
+            description "A Go panic is already captured. This container covers the kernel
+                         panic, which leaves no process behind to write a report. The
+                         kernel writes its own record into a reserved memory region, and
+                         Ze reads it on the next boot. The reservation is a kernel boot
+                         argument, so it is armed by the next boot of an image built with
+                         image.crash-dump, not by the commit.";
+            ze:help "Kernel crash capture, kept across a reboot and listed by show crashes.";
 
             leaf enabled {
                 type boolean;
                 default "false";
-                description "Store the kernel panic record as a crash report at the next boot.";
-                ze:help "Ze reads the record the kernel left, writes it into the crash
-                         directory as a kernel-kind report, and clears the region so
-                         the next fault has room. Run 'show crashes' to read whether
-                         the running kernel is armed as well as configured.";
+                description "Ze reads the record the kernel left, writes it into the crash
+                             directory as a kernel-kind report, and clears the region so
+                             the next fault has room. Run 'show crashes' to read whether
+                             the running kernel is armed as well as configured.";
+                ze:help "Store the kernel panic record as a crash report at the next boot.";
             }
 
             leaf reserve {
@@ -303,31 +303,31 @@ module ze-system-conf {
                 }
                 units megabytes;
                 default "16";
-                description "Memory the kernel reserves to write its panic record into.";
-                ze:help "The region is taken from RAM on every boot, so it is sized for
-                         a backtrace rather than for a memory image. The range is 4 to
-                         256 megabytes and the default of 16 holds a full backtrace.
-                         The appliance build renders the size onto the kernel command
-                         line, so a change takes effect at the next image build.";
+                description "The region is taken from RAM on every boot, so it is sized for
+                             a backtrace rather than for a memory image. The range is 4 to
+                             256 megabytes and the default of 16 holds a full backtrace.
+                             The appliance build renders the size onto the kernel command
+                             line, so a change takes effect at the next image build.";
+                ze:help "Memory the kernel reserves to write its panic record into.";
             }
 
             container memory-image {
-                description "Full memory image capture, for a fault a backtrace does not explain.";
-                ze:help "A backtrace names the faulting subsystem, which is what a bug
-                         report needs. A memory image is sized to RAM and costs the
-                         write time while the router is down, so it is off by default
-                         and reported as unarmed until the target has room for it.";
+                description "A backtrace names the faulting subsystem, which is what a bug
+                             report needs. A memory image is sized to RAM and costs the
+                             write time while the router is down, so it is off by default
+                             and reported as unarmed until the target has room for it.";
+                ze:help "Full memory image capture, for a fault a backtrace does not explain.";
 
                 leaf enabled {
                     type boolean;
                     default "false";
                     ze:validate "crash-memory-image";
-                    description "Capture a full memory image as well as the panic backtrace.";
-                    ze:help "Refused on a build that cannot stage a capture kernel,
-                             which today means anything other than amd64. Reported as
-                             configured but not armed when the crash directory has
-                             less free space than the image needs, with the shortfall
-                             in bytes.";
+                    description "Refused on a build that cannot stage a capture kernel,
+                                 which today means anything other than amd64. Reported as
+                                 configured but not armed when the crash directory has
+                                 less free space than the image needs, with the shortfall
+                                 in bytes.";
+                    ze:help "Capture a full memory image as well as the panic backtrace.";
                 }
 
                 leaf reserve {
@@ -336,484 +336,484 @@ module ze-system-conf {
                     }
                     units megabytes;
                     default "256";
-                    description "Memory reserved for the capture kernel that writes the image.";
-                    ze:help "The capture kernel runs after the fault and needs its own
-                             memory, separate from the region holding the backtrace.
-                             The range is 64 to 1024 megabytes. It is a floor on the
-                             space estimate: the image itself is sized to RAM.";
+                    description "The capture kernel runs after the fault and needs its own
+                                 memory, separate from the region holding the backtrace.
+                                 The range is 64 to 1024 megabytes. It is a floor on the
+                                 space estimate: the image itself is sized to RAM.";
+                    ze:help "Memory reserved for the capture kernel that writes the image.";
                 }
             }
         }
 
         // Serial console devices for out-of-band management
         container console {
-            description "Serial console configuration for headless CPE devices.";
-            ze:help "The container holds the serial devices Ze runs a console on. A
-                     headless device has no other way in when the network is down.";
+            description "The container holds the serial devices Ze runs a console on. A
+                         headless device has no other way in when the network is down.";
+            ze:help "Serial console configuration for headless CPE devices.";
 
             list device {
                 key "name";
-                description "Serial device to configure as console.";
-                ze:help "Each entry names one serial device, and it carries the baud
-                         rate of that device.";
+                description "Each entry names one serial device, and it carries the baud
+                             rate of that device.";
+                ze:help "Serial device to configure as console.";
 
                 leaf name {
                     type string {
                         length "1..32";
                     }
-                    description "Serial device name, for example ttyS0 or ttyUSB0. Give the bare name.";
-                    ze:help "The name is the list key. Write ttyS0, and not
-                             /dev/ttyS0.";
+                    description "The name is the list key. Write ttyS0, and not
+                                 /dev/ttyS0.";
+                    ze:help "Serial device name, for example ttyS0 or ttyUSB0. Give the bare name.";
                 }
 
                 leaf speed {
                     type enumeration {
-                        enum 9600 { description "9600 baud."; }
-                        enum 19200 { description "19200 baud."; }
-                        enum 38400 { description "38400 baud."; }
-                        enum 57600 { description "57600 baud."; }
-                        enum 115200 { description "115200 baud."; }
+                        enum 9600 { ze:help "9600 baud."; }
+                        enum 19200 { ze:help "19200 baud."; }
+                        enum 38400 { ze:help "38400 baud."; }
+                        enum 57600 { ze:help "57600 baud."; }
+                        enum 115200 { ze:help "115200 baud."; }
                     }
                     default "115200";
-                    description "Baud rate (default 115200).";
-                    ze:help "The rates are 9600, 19200, 38400, 57600 and 115200 baud.
-                             The default is 115200.";
+                    description "The rates are 9600, 19200, 38400, 57600 and 115200 baud.
+                                 The default is 115200.";
+                    ze:help "Baud rate (default 115200).";
                 }
             }
         }
 
         // Connection tracking management
         container conntrack {
-            description "Connection tracking (conntrack) module loading, table tuning, and timeout configuration.";
-            ze:help "The container holds the helper modules to load, the table
-                     bounds, the protocol timeouts and the TCP behavior flags. Ze
-                     writes each one to its net.netfilter sysctl key.";
+            description "The container holds the helper modules to load, the table
+                         bounds, the protocol timeouts and the TCP behavior flags. Ze
+                         writes each one to its net.netfilter sysctl key.";
+            ze:help "Connection tracking (conntrack) module loading, table tuning, and timeout configuration.";
 
             leaf-list module {
                 type enumeration {
-                    enum ftp { description "FTP helper (nf_conntrack_ftp)."; }
-                    enum h323 { description "H.323 helper (nf_conntrack_h323)."; }
-                    enum sip { description "SIP helper (nf_conntrack_sip). May break VoIP NAT traversal."; }
-                    enum pptp { description "PPTP helper (nf_conntrack_pptp)."; }
-                    enum tftp { description "TFTP helper (nf_conntrack_tftp)."; }
-                    enum sane { description "SANE helper (nf_conntrack_sane)."; }
-                    enum irc { description "IRC helper (nf_conntrack_irc)."; }
-                    enum amanda { description "Amanda helper (nf_conntrack_amanda)."; }
-                    enum nfs { description "NFS helper (nf_conntrack_nfs)."; }
-                    enum netbios-ns { description "NetBIOS-NS helper (nf_conntrack_netbios_ns)."; }
-                    enum snmp { description "SNMP helper (nf_conntrack_snmp)."; }
-                    enum sqlnet { description "SQLnet/TNS helper (nf_conntrack_sqlnet)."; }
+                    enum ftp { ze:help "FTP helper (nf_conntrack_ftp)."; }
+                    enum h323 { ze:help "H.323 helper (nf_conntrack_h323)."; }
+                    enum sip { ze:help "SIP helper (nf_conntrack_sip). May break VoIP NAT traversal."; }
+                    enum pptp { ze:help "PPTP helper (nf_conntrack_pptp)."; }
+                    enum tftp { ze:help "TFTP helper (nf_conntrack_tftp)."; }
+                    enum sane { ze:help "SANE helper (nf_conntrack_sane)."; }
+                    enum irc { ze:help "IRC helper (nf_conntrack_irc)."; }
+                    enum amanda { ze:help "Amanda helper (nf_conntrack_amanda)."; }
+                    enum nfs { ze:help "NFS helper (nf_conntrack_nfs)."; }
+                    enum netbios-ns { ze:help "NetBIOS-NS helper (nf_conntrack_netbios_ns)."; }
+                    enum snmp { ze:help "SNMP helper (nf_conntrack_snmp)."; }
+                    enum sqlnet { ze:help "SQLnet/TNS helper (nf_conntrack_sqlnet)."; }
                 }
-                description "Conntrack helper modules to load.";
-                ze:help "The leaf-list only loads a module. Removing a module from
-                         the list stops the load on the next boot, and it does not
-                         unload the module at runtime.";
+                description "The leaf-list only loads a module. Removing a module from
+                             the list stops the load on the next boot, and it does not
+                             unload the module at runtime.";
+                ze:help "Conntrack helper modules to load.";
             }
 
             leaf table-size {
                 type uint32 {
                     range "1..2097152";
                 }
-                description "Maximum conntrack table entries (nf_conntrack_max).";
-                ze:help "Ze writes the value to net.netfilter.nf_conntrack_max. The
-                         table holds no more flows than this, and a new flow past the
-                         bound is dropped.";
+                description "Ze writes the value to net.netfilter.nf_conntrack_max. The
+                             table holds no more flows than this, and a new flow past the
+                             bound is dropped.";
+                ze:help "Maximum conntrack table entries (nf_conntrack_max).";
             }
 
             leaf hash-size {
                 type uint32 {
                     range "1..2097152";
                 }
-                description "Conntrack hash table buckets (nf_conntrack_buckets).";
-                ze:help "Ze writes the value to net.netfilter.nf_conntrack_buckets.
-                         More buckets shorten each hash chain, and cost more memory.";
+                description "Ze writes the value to net.netfilter.nf_conntrack_buckets.
+                             More buckets shorten each hash chain, and cost more memory.";
+                ze:help "Conntrack hash table buckets (nf_conntrack_buckets).";
             }
 
             leaf expect-max {
                 type uint16 {
                     range "1..65535";
                 }
-                description "Maximum expected connections (nf_conntrack_expect_max).";
-                ze:help "Ze writes the value to
-                         net.netfilter.nf_conntrack_expect_max. An expectation is the
-                         second flow a helper predicts, such as an FTP data
-                         connection.";
+                description "Ze writes the value to
+                             net.netfilter.nf_conntrack_expect_max. An expectation is the
+                             second flow a helper predicts, such as an FTP data
+                             connection.";
+                ze:help "Maximum expected connections (nf_conntrack_expect_max).";
             }
 
             leaf accounting {
                 type empty;
-                description "Enable per-connection byte/packet counters (nf_conntrack_acct).";
-                ze:help "Ze writes the value to net.netfilter.nf_conntrack_acct. The
-                         counters cost memory per flow, so the kernel keeps them off
-                         until they are asked for.";
+                description "Ze writes the value to net.netfilter.nf_conntrack_acct. The
+                             counters cost memory per flow, so the kernel keeps them off
+                             until they are asked for.";
+                ze:help "Enable per-connection byte/packet counters (nf_conntrack_acct).";
             }
 
             leaf timestamp {
                 type empty;
-                description "Enable per-connection timestamps (nf_conntrack_timestamp).";
-                ze:help "Ze writes the value to net.netfilter.nf_conntrack_timestamp.
-                         The kernel then records the start time of each flow.";
+                description "Ze writes the value to net.netfilter.nf_conntrack_timestamp.
+                             The kernel then records the start time of each flow.";
+                ze:help "Enable per-connection timestamps (nf_conntrack_timestamp).";
             }
 
             leaf checksum {
                 type empty;
-                description "Enable conntrack checksum verification (nf_conntrack_checksum).";
-                ze:help "Ze writes the value to net.netfilter.nf_conntrack_checksum.
-                         The kernel then drops a packet whose checksum is wrong
-                         before it tracks the flow.";
+                description "Ze writes the value to net.netfilter.nf_conntrack_checksum.
+                             The kernel then drops a packet whose checksum is wrong
+                             before it tracks the flow.";
+                ze:help "Enable conntrack checksum verification (nf_conntrack_checksum).";
             }
 
             leaf log-invalid {
                 type enumeration {
-                    enum all { description "Log all invalid packets."; }
-                    enum tcp { description "Log invalid TCP packets."; }
-                    enum udp { description "Log invalid UDP packets."; }
-                    enum icmp { description "Log invalid ICMP packets."; }
-                    enum icmpv6 { description "Log invalid ICMPv6 packets."; }
+                    enum all { ze:help "Log all invalid packets."; }
+                    enum tcp { ze:help "Log invalid TCP packets."; }
+                    enum udp { ze:help "Log invalid UDP packets."; }
+                    enum icmp { ze:help "Log invalid ICMP packets."; }
+                    enum icmpv6 { ze:help "Log invalid ICMPv6 packets."; }
                 }
-                description "Log invalid packets for the specified protocol (nf_conntrack_log_invalid).";
-                ze:help "Ze writes the value to
-                         net.netfilter.nf_conntrack_log_invalid. The values are all,
-                         tcp, udp, icmp and icmpv6.";
+                description "Ze writes the value to
+                             net.netfilter.nf_conntrack_log_invalid. The values are all,
+                             tcp, udp, icmp and icmpv6.";
+                ze:help "Log invalid packets for the specified protocol (nf_conntrack_log_invalid).";
             }
 
             container timeout {
-                description "Connection tracking timeouts per protocol.";
-                ze:help "The container holds one sub-container per protocol. Ze
-                         writes each leaf to its own net.netfilter timeout key.";
+                description "The container holds one sub-container per protocol. Ze
+                             writes each leaf to its own net.netfilter timeout key.";
+                ze:help "Connection tracking timeouts per protocol.";
 
                 leaf generic {
                     type uint32 {
                         range "1..604800";
                     }
-                    description "Generic timeout in seconds (nf_conntrack_generic_timeout).";
-                    ze:help "Ze writes the value to
-                             net.netfilter.nf_conntrack_generic_timeout. The kernel
-                             uses it for a protocol that has no timeout of its own.";
+                    description "Ze writes the value to
+                                 net.netfilter.nf_conntrack_generic_timeout. The kernel
+                                 uses it for a protocol that has no timeout of its own.";
+                    ze:help "Generic timeout in seconds (nf_conntrack_generic_timeout).";
                 }
 
                 container tcp {
-                    description "TCP connection tracking timeouts.";
-                    ze:help "The container holds one leaf per TCP state, and Ze
-                             writes each one to its
-                             net.netfilter.nf_conntrack_tcp_timeout_* key.";
+                    description "The container holds one leaf per TCP state, and Ze
+                                 writes each one to its
+                                 net.netfilter.nf_conntrack_tcp_timeout_* key.";
+                    ze:help "TCP connection tracking timeouts.";
                     leaf established {
                         type uint32 { range "1..604800"; }
-                        description "Established timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_established.
-                                 An idle established flow leaves the table after this
-                                 many seconds.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_established.
+                                     An idle established flow leaves the table after this
+                                     many seconds.";
+                        ze:help "Established timeout (seconds).";
                     }
                     leaf syn-sent {
                         type uint32 { range "1..604800"; }
-                        description "SYN-sent timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_syn_sent. It
-                                 bounds a flow whose SYN got no answer.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_syn_sent. It
+                                     bounds a flow whose SYN got no answer.";
+                        ze:help "SYN-sent timeout (seconds).";
                     }
                     leaf syn-recv {
                         type uint32 { range "1..604800"; }
-                        description "SYN-received timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_syn_recv. It
-                                 bounds a half-open flow that got a SYN and no final
-                                 ACK.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_syn_recv. It
+                                     bounds a half-open flow that got a SYN and no final
+                                     ACK.";
+                        ze:help "SYN-received timeout (seconds).";
                     }
                     leaf fin-wait {
                         type uint32 { range "1..604800"; }
-                        description "FIN-wait timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_fin_wait. It
-                                 bounds a flow this end has closed.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_fin_wait. It
+                                     bounds a flow this end has closed.";
+                        ze:help "FIN-wait timeout (seconds).";
                     }
                     leaf close-wait {
                         type uint32 { range "1..604800"; }
-                        description "Close-wait timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_close_wait.
-                                 It bounds a flow the far end has closed.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_close_wait.
+                                     It bounds a flow the far end has closed.";
+                        ze:help "Close-wait timeout (seconds).";
                     }
                     leaf last-ack {
                         type uint32 { range "1..604800"; }
-                        description "Last-ACK timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_last_ack. It
-                                 bounds a flow that waits for the last ACK.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_last_ack. It
+                                     bounds a flow that waits for the last ACK.";
+                        ze:help "Last-ACK timeout (seconds).";
                     }
                     leaf time-wait {
                         type uint32 { range "1..604800"; }
-                        description "Time-wait timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_time_wait. It
-                                 bounds a closed flow the kernel holds against a late
-                                 packet.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_time_wait. It
+                                     bounds a closed flow the kernel holds against a late
+                                     packet.";
+                        ze:help "Time-wait timeout (seconds).";
                     }
                     leaf close {
                         type uint32 { range "1..604800"; }
-                        description "Close timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_close. It
-                                 bounds a flow that a RST closed.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_close. It
+                                     bounds a flow that a RST closed.";
+                        ze:help "Close timeout (seconds).";
                     }
                     leaf unacknowledged {
                         type uint32 { range "1..604800"; }
-                        description "Unacknowledged timeout (seconds).";
-                        ze:help "Ze writes the value to net.netfilter.nf_conntrack_tc
-                                 p_timeout_unacknowledged. It bounds a flow whose
-                                 data no ACK covers.";
+                        description "Ze writes the value to net.netfilter.nf_conntrack_tc
+                                     p_timeout_unacknowledged. It bounds a flow whose
+                                     data no ACK covers.";
+                        ze:help "Unacknowledged timeout (seconds).";
                     }
                     leaf max-retrans {
                         type uint32 { range "1..604800"; }
-                        description "Max retransmission timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_tcp_timeout_max_retrans.
-                                 It bounds a flow that passed the retransmission
-                                 limit.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_tcp_timeout_max_retrans.
+                                     It bounds a flow that passed the retransmission
+                                     limit.";
+                        ze:help "Max retransmission timeout (seconds).";
                     }
                 }
 
                 container udp {
-                    description "UDP connection tracking timeouts.";
-                    ze:help "The container holds the two UDP timeouts, and Ze writes
-                             each one to its net.netfilter key.";
+                    description "The container holds the two UDP timeouts, and Ze writes
+                                 each one to its net.netfilter key.";
+                    ze:help "UDP connection tracking timeouts.";
                     leaf timeout {
                         type uint32 { range "1..604800"; }
-                        description "Default timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_udp_timeout. It bounds a
-                                 UDP flow that has seen traffic in one direction.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_udp_timeout. It bounds a
+                                     UDP flow that has seen traffic in one direction.";
+                        ze:help "Default timeout (seconds).";
                     }
                     leaf stream {
                         type uint32 { range "1..604800"; }
-                        description "Stream timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_udp_timeout_stream. It
-                                 bounds a UDP flow that has seen traffic in both
-                                 directions.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_udp_timeout_stream. It
+                                     bounds a UDP flow that has seen traffic in both
+                                     directions.";
+                        ze:help "Stream timeout (seconds).";
                     }
                 }
 
                 container icmp {
-                    description "ICMP connection tracking timeouts.";
-                    ze:help "The container holds the ICMP timeout, and Ze writes it
-                             to its net.netfilter key.";
+                    description "The container holds the ICMP timeout, and Ze writes it
+                                 to its net.netfilter key.";
+                    ze:help "ICMP connection tracking timeouts.";
                     leaf timeout {
                         type uint32 { range "1..604800"; }
-                        description "Timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_icmp_timeout. It bounds
-                                 an ICMP flow, such as an echo request that waits for
-                                 its reply.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_icmp_timeout. It bounds
+                                     an ICMP flow, such as an echo request that waits for
+                                     its reply.";
+                        ze:help "Timeout (seconds).";
                     }
                 }
 
                 container icmpv6 {
-                    description "ICMPv6 connection tracking timeouts.";
-                    ze:help "The container holds the ICMPv6 timeout, and Ze writes it
-                             to its net.netfilter key.";
+                    description "The container holds the ICMPv6 timeout, and Ze writes it
+                                 to its net.netfilter key.";
+                    ze:help "ICMPv6 connection tracking timeouts.";
                     leaf timeout {
                         type uint32 { range "1..604800"; }
-                        description "Timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_icmpv6_timeout. It bounds
-                                 an ICMPv6 flow, such as an echo request that waits
-                                 for its reply.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_icmpv6_timeout. It bounds
+                                     an ICMPv6 flow, such as an echo request that waits
+                                     for its reply.";
+                        ze:help "Timeout (seconds).";
                     }
                 }
 
                 container gre {
-                    description "GRE connection tracking timeouts.";
-                    ze:help "The container holds the two GRE timeouts, and Ze writes
-                             each one to its net.netfilter key.";
+                    description "The container holds the two GRE timeouts, and Ze writes
+                                 each one to its net.netfilter key.";
+                    ze:help "GRE connection tracking timeouts.";
                     leaf timeout {
                         type uint32 { range "1..604800"; }
-                        description "Default timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_gre_timeout. It bounds a
-                                 GRE flow that has seen traffic in one direction.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_gre_timeout. It bounds a
+                                     GRE flow that has seen traffic in one direction.";
+                        ze:help "Default timeout (seconds).";
                     }
                     leaf stream {
                         type uint32 { range "1..604800"; }
-                        description "Stream timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_gre_timeout_stream. It
-                                 bounds a GRE flow that has seen traffic in both
-                                 directions.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_gre_timeout_stream. It
+                                     bounds a GRE flow that has seen traffic in both
+                                     directions.";
+                        ze:help "Stream timeout (seconds).";
                     }
                 }
 
                 container sctp {
-                    description "SCTP connection tracking timeouts.";
-                    ze:help "The container holds one leaf per SCTP state, and Ze
-                             writes each one to its
-                             net.netfilter.nf_conntrack_sctp_timeout_* key.";
+                    description "The container holds one leaf per SCTP state, and Ze
+                                 writes each one to its
+                                 net.netfilter.nf_conntrack_sctp_timeout_* key.";
+                    ze:help "SCTP connection tracking timeouts.";
                     leaf closed {
                         type uint32 { range "1..604800"; }
-                        description "Closed timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_sctp_timeout_closed. It
-                                 bounds an association in the CLOSED state.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_sctp_timeout_closed. It
+                                     bounds an association in the CLOSED state.";
+                        ze:help "Closed timeout (seconds).";
                     }
                     leaf cookie-wait {
                         type uint32 { range "1..604800"; }
-                        description "Cookie-wait timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_sctp_timeout_cookie_wait.
-                                 It bounds an association that waits for the cookie.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_sctp_timeout_cookie_wait.
+                                     It bounds an association that waits for the cookie.";
+                        ze:help "Cookie-wait timeout (seconds).";
                     }
                     leaf cookie-echoed {
                         type uint32 { range "1..604800"; }
-                        description "Cookie-echoed timeout (seconds).";
-                        ze:help "Ze writes the value to net.netfilter.nf_conntrack_sc
-                                 tp_timeout_cookie_echoed. It bounds an association
-                                 that echoed the cookie.";
+                        description "Ze writes the value to net.netfilter.nf_conntrack_sc
+                                     tp_timeout_cookie_echoed. It bounds an association
+                                     that echoed the cookie.";
+                        ze:help "Cookie-echoed timeout (seconds).";
                     }
                     leaf established {
                         type uint32 { range "1..604800"; }
-                        description "Established timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_sctp_timeout_established.
-                                 An idle established association leaves the table
-                                 after this many seconds.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_sctp_timeout_established.
+                                     An idle established association leaves the table
+                                     after this many seconds.";
+                        ze:help "Established timeout (seconds).";
                     }
                     leaf shutdown-sent {
                         type uint32 { range "1..604800"; }
-                        description "Shutdown-sent timeout (seconds).";
-                        ze:help "Ze writes the value to net.netfilter.nf_conntrack_sc
-                                 tp_timeout_shutdown_sent. It bounds an association
-                                 this end is closing.";
+                        description "Ze writes the value to net.netfilter.nf_conntrack_sc
+                                     tp_timeout_shutdown_sent. It bounds an association
+                                     this end is closing.";
+                        ze:help "Shutdown-sent timeout (seconds).";
                     }
                     leaf shutdown-recd {
                         type uint32 { range "1..604800"; }
-                        description "Shutdown-received timeout (seconds).";
-                        ze:help "Ze writes the value to net.netfilter.nf_conntrack_sc
-                                 tp_timeout_shutdown_recd. It bounds an association
-                                 the far end is closing.";
+                        description "Ze writes the value to net.netfilter.nf_conntrack_sc
+                                     tp_timeout_shutdown_recd. It bounds an association
+                                     the far end is closing.";
+                        ze:help "Shutdown-received timeout (seconds).";
                     }
                     leaf shutdown-ack-sent {
                         type uint32 { range "1..604800"; }
-                        description "Shutdown-ACK-sent timeout (seconds).";
-                        ze:help "Ze writes the value to net.netfilter.nf_conntrack_sc
-                                 tp_timeout_shutdown_ack_sent. It bounds an
-                                 association that waits for the shutdown ACK.";
+                        description "Ze writes the value to net.netfilter.nf_conntrack_sc
+                                     tp_timeout_shutdown_ack_sent. It bounds an
+                                     association that waits for the shutdown ACK.";
+                        ze:help "Shutdown-ACK-sent timeout (seconds).";
                     }
                     leaf heartbeat-sent {
                         type uint32 { range "1..604800"; }
-                        description "Heartbeat-sent timeout (seconds).";
-                        ze:help "Ze writes the value to net.netfilter.nf_conntrack_sc
-                                 tp_timeout_heartbeat_sent. It bounds an association
-                                 that waits for the heartbeat answer.";
+                        description "Ze writes the value to net.netfilter.nf_conntrack_sc
+                                     tp_timeout_heartbeat_sent. It bounds an association
+                                     that waits for the heartbeat answer.";
+                        ze:help "Heartbeat-sent timeout (seconds).";
                     }
                 }
 
                 container dccp {
-                    description "DCCP connection tracking timeouts.";
-                    ze:help "The container holds one leaf per DCCP state, and Ze
-                             writes each one to its
-                             net.netfilter.nf_conntrack_dccp_timeout_* key.";
+                    description "The container holds one leaf per DCCP state, and Ze
+                                 writes each one to its
+                                 net.netfilter.nf_conntrack_dccp_timeout_* key.";
+                    ze:help "DCCP connection tracking timeouts.";
                     leaf request {
                         type uint32 { range "1..604800"; }
-                        description "Request timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_request. It
-                                 bounds a connection whose request got no answer.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_request. It
+                                     bounds a connection whose request got no answer.";
+                        ze:help "Request timeout (seconds).";
                     }
                     leaf respond {
                         type uint32 { range "1..604800"; }
-                        description "Respond timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_respond. It
-                                 bounds a connection that answered the request.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_respond. It
+                                     bounds a connection that answered the request.";
+                        ze:help "Respond timeout (seconds).";
                     }
                     leaf partopen {
                         type uint32 { range "1..604800"; }
-                        description "Partopen timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_partopen. It
-                                 bounds a connection that is half open.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_partopen. It
+                                     bounds a connection that is half open.";
+                        ze:help "Partopen timeout (seconds).";
                     }
                     leaf open {
                         type uint32 { range "1..604800"; }
-                        description "Open timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_open. An
-                                 idle open connection leaves the table after this
-                                 many seconds.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_open. An
+                                     idle open connection leaves the table after this
+                                     many seconds.";
+                        ze:help "Open timeout (seconds).";
                     }
                     leaf closereq {
                         type uint32 { range "1..604800"; }
-                        description "Close-request timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_closereq. It
-                                 bounds a connection the server is closing.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_closereq. It
+                                     bounds a connection the server is closing.";
+                        ze:help "Close-request timeout (seconds).";
                     }
                     leaf closing {
                         type uint32 { range "1..604800"; }
-                        description "Closing timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_closing. It
-                                 bounds a connection that is closing.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_closing. It
+                                     bounds a connection that is closing.";
+                        ze:help "Closing timeout (seconds).";
                     }
                     leaf timewait {
                         type uint32 { range "1..604800"; }
-                        description "Time-wait timeout (seconds).";
-                        ze:help "Ze writes the value to
-                                 net.netfilter.nf_conntrack_dccp_timeout_timewait. It
-                                 bounds a closed connection the kernel holds against
-                                 a late packet.";
+                        description "Ze writes the value to
+                                     net.netfilter.nf_conntrack_dccp_timeout_timewait. It
+                                     bounds a closed connection the kernel holds against
+                                     a late packet.";
+                        ze:help "Time-wait timeout (seconds).";
                     }
                 }
             }
 
             container tcp {
-                description "TCP connection tracking behavior flags.";
-                ze:help "The container holds the four TCP flags, and Ze writes each
-                         one to its net.netfilter key.";
+                description "The container holds the four TCP flags, and Ze writes each
+                             one to its net.netfilter key.";
+                ze:help "TCP connection tracking behavior flags.";
                 leaf be-liberal {
                     type boolean;
-                    description "Accept out-of-window packets for established connections.";
-                    ze:help "Ze writes the value to
-                             net.netfilter.nf_conntrack_tcp_be_liberal. With true the
-                             kernel tracks a packet outside the window rather than
-                             marking it INVALID.";
+                    description "Ze writes the value to
+                                 net.netfilter.nf_conntrack_tcp_be_liberal. With true the
+                                 kernel tracks a packet outside the window rather than
+                                 marking it INVALID.";
+                    ze:help "Accept out-of-window packets for established connections.";
                 }
                 leaf loose {
                     type boolean;
-                    description "Allow tracking connections started before conntrack loaded.";
-                    ze:help "Ze writes the value to
-                             net.netfilter.nf_conntrack_tcp_loose. With true the
-                             kernel picks up a flow whose handshake it never saw.";
+                    description "Ze writes the value to
+                                 net.netfilter.nf_conntrack_tcp_loose. With true the
+                                 kernel picks up a flow whose handshake it never saw.";
+                    ze:help "Allow tracking connections started before conntrack loaded.";
                 }
                 leaf max-retrans {
                     type uint8 { range "1..255"; }
-                    description "Maximum retransmissions before marking connection invalid.";
-                    ze:help "Ze writes the value to
-                             net.netfilter.nf_conntrack_tcp_max_retrans. The kernel
-                             marks the flow INVALID past this many retransmissions.";
+                    description "Ze writes the value to
+                                 net.netfilter.nf_conntrack_tcp_max_retrans. The kernel
+                                 marks the flow INVALID past this many retransmissions.";
+                    ze:help "Maximum retransmissions before marking connection invalid.";
                 }
                 leaf ignore-invalid-rst {
                     type boolean;
-                    description "Ignore RST packets with invalid sequence numbers.";
-                    ze:help "Ze writes the value to
-                             net.netfilter.nf_conntrack_tcp_ignore_invalid_rst. With
-                             true the kernel drops such a RST rather than closing the
-                             flow on it.";
+                    description "Ze writes the value to
+                                 net.netfilter.nf_conntrack_tcp_ignore_invalid_rst. With
+                                 true the kernel drops such a RST rather than closing the
+                                 flow on it.";
+                    ze:help "Ignore RST packets with invalid sequence numbers.";
                 }
             }
         }
 
         // System update check and platform update backend
         container update-check {
-            description "System version check and platform update settings.";
-            ze:help "On gokrazy, gokrazy manages the image updates.";
+            description "On gokrazy, gokrazy manages the image updates.";
+            ze:help "System version check and platform update settings.";
 
             leaf url {
                 type string;
-                description "HTTPS URL that serves a JSON object with a 'version' field.";
-                ze:help "One answer is {\"version\":\"26.05.17\"}. Ze compares that
-                         value against its own release version, in lexicographic
-                         order.";
+                description "One answer is {\"version\":\"26.05.17\"}. Ze compares that
+                             value against its own release version, in lexicographic
+                             order.";
+                ze:help "HTTPS URL that serves a JSON object with a 'version' field.";
             }
 
             leaf interval {
@@ -821,19 +821,19 @@ module ze-system-conf {
                     range "60..604800";
                 }
                 default 86400;
-                description "Check interval in seconds (default 86400 = daily, minimum 60).";
-                ze:help "Ze checks the version once in this interval. The range is 60
-                         to 604800 seconds, and the default is 86400, which is one
-                         day.";
+                description "Ze checks the version once in this interval. The range is 60
+                             to 604800 seconds, and the default is 86400, which is one
+                             day.";
+                ze:help "Check interval in seconds (default 86400 = daily, minimum 60).";
             }
 
             leaf auto-apply {
                 type boolean;
                 default false;
-                description "Download, verify, and stage a Ze binary update without an operator.";
-                ze:help "With true, Ze downloads, verifies and stages a binary
-                         update on a platform Ze manages. With false, Ze only
-                         checks the version and reports it.";
+                description "With true, Ze downloads, verifies and stages a binary
+                             update on a platform Ze manages. With false, Ze only
+                             checks the version and reports it.";
+                ze:help "Download, verify, and stage a Ze binary update without an operator.";
             }
 
             leaf spread {
@@ -841,59 +841,59 @@ module ze-system-conf {
                     range "0..86400";
                 }
                 default 3600;
-                description "Maximum random delay in seconds before the download starts.";
-                ze:help "Ze waits for the delay after it detects a new version, so
-                         that many routers do not download at the same second. 0
-                         disables the spread.";
+                description "Ze waits for the delay after it detects a new version, so
+                             that many routers do not download at the same second. 0
+                             disables the spread.";
+                ze:help "Maximum random delay in seconds before the download starts.";
             }
 
             container maintenance-window {
-                description "Time window when binary replacement may occur. Download and verification proceed at any time.";
-                ze:help "Ze reads the window only when start and end both carry a time. Ze
-                         downloads and verifies at any hour, and it waits for the window
-                         before it replaces the binary. Outside the window Ze reports that
-                         the update waits, and it keeps the verified file.";
+                description "Ze reads the window only when start and end both carry a time. Ze
+                             downloads and verifies at any hour, and it waits for the window
+                             before it replaces the binary. Outside the window Ze reports that
+                             the update waits, and it keeps the verified file.";
+                ze:help "Time window when binary replacement may occur. Download and verification proceed at any time.";
 
                 leaf start {
                     type string;
-                    description "Start time HH:MM in local time.";
-                    ze:help "Ze refuses a value that is not HH:MM, with an hour of 0 to 23
-                             and a minute of 0 to 59. A start later than end makes the
-                             window cross midnight, so 22:00 to 02:00 is four hours.";
+                    description "Ze refuses a value that is not HH:MM, with an hour of 0 to 23
+                                 and a minute of 0 to 59. A start later than end makes the
+                                 window cross midnight, so 22:00 to 02:00 is four hours.";
+                    ze:help "Start time HH:MM in local time.";
                 }
 
                 leaf end {
                     type string;
-                    description "End time HH:MM in local time.";
-                    ze:help "The end is not part of the window: Ze stages at start and at
-                             every minute up to end, and not at end itself. Ze refuses a
-                             value that is not HH:MM.";
+                    description "The end is not part of the window: Ze stages at start and at
+                                 every minute up to end, and not at end itself. Ze refuses a
+                                 value that is not HH:MM.";
+                    ze:help "End time HH:MM in local time.";
                 }
             }
 
             container restart {
-                description "What Ze does after it stages an update.";
-                ze:help "An absent container leaves the restart to the operator.
-                         The container with immediate restarts after a short drain.
-                         The container with time restarts at that time each day.";
+                description "An absent container leaves the restart to the operator.
+                             The container with immediate restarts after a short drain.
+                             The container with time restarts at that time each day.";
+                ze:help "What Ze does after it stages an update.";
 
                 leaf immediate {
                     type empty;
-                    description "Restart automatically after staging (5s drain delay). Mutually exclusive with time.";
-                    ze:help "The leaf is empty, so writing it is the whole instruction. Ze
-                             waits 5 seconds after it stages the binary and then runs the
-                             new one. Ze refuses a configuration that carries both immediate
-                             and time.";
+                    description "The leaf is empty, so writing it is the whole instruction. Ze
+                                 waits 5 seconds after it stages the binary and then runs the
+                                 new one. Ze refuses a configuration that carries both immediate
+                                 and time.";
+                    ze:help "Restart automatically after staging (5s drain delay). Mutually exclusive with time.";
                 }
 
                 leaf time {
                     type string;
-                    description "Daily restart time, HH:MM in local time. Mutually exclusive with immediate.";
-                    ze:help "Ze stages the binary as soon as the maintenance window permits,
-                             then waits for this time of day to run it. A time outside the
-                             maintenance window is permitted, and Ze logs a warning that
-                             names both. Ze refuses a configuration that carries both
-                             immediate and time.";
+                    description "Ze stages the binary as soon as the maintenance window permits,
+                                 then waits for this time of day to run it. A time outside the
+                                 maintenance window is permitted, and Ze logs a warning that
+                                 names both. Ze refuses a configuration that carries both
+                                 immediate and time.";
+                    ze:help "Daily restart time, HH:MM in local time. Mutually exclusive with immediate.";
                 }
             }
         }
@@ -903,68 +903,68 @@ module ze-system-conf {
                 range "0..1000";
             }
             default 0;
-            description "Maximum number of config archive files kept per file:// location.";
-            ze:help "After each archive write, Ze prunes the files beyond this
-                     count, oldest first. 0 disables the pruning and keeps every
-                     file. The count applies to a file:// archive only, and Ze
-                     never prunes an HTTP archive.";
+            description "After each archive write, Ze prunes the files beyond this
+                         count, oldest first. 0 disables the pruning and keeps every
+                         file. The count applies to a file:// archive only, and Ze
+                         never prunes an HTTP archive.";
+            ze:help "Maximum number of config archive files kept per file:// location.";
 
         }
 
         // Named archive blocks
         list archive {
             key "name";
-            description "Named config archive destinations.";
-            ze:help "Each entry names one destination, and Ze writes a copy of the
-                     config to every entry its trigger fires for.";
+            description "Each entry names one destination, and Ze writes a copy of the
+                         config to every entry its trigger fires for.";
+            ze:help "Named config archive destinations.";
 
             leaf name {
                 type string;
-                description "Archive block name (used as key).";
-                ze:help "The name is the list key, and the {archive} token of the
-                         filename format carries it.";
+                description "The name is the list key, and the {archive} token of the
+                             filename format carries it.";
+                ze:help "Archive block name (used as key).";
             }
 
             leaf location {
                 type string;
-                description "Archive destination URL (file://, http://, https://).";
-                ze:help "A file:// URL writes to the local filesystem. An http:// or
-                         https:// URL uploads the config with an HTTP request.";
+                description "A file:// URL writes to the local filesystem. An http:// or
+                             https:// URL uploads the config with an HTTP request.";
+                ze:help "Archive destination URL (file://, http://, https://).";
             }
 
             leaf filename {
                 type string;
-                description "Filename format with token substitution.";
-                ze:help "The tokens are {name} for the config basename, {host},
-                         {domain}, {date} as YYYYMMDD, {time} as HHMMSS, and
-                         {archive} for the block name. Ze appends .conf.";
+                description "The tokens are {name} for the config basename, {host},
+                             {domain}, {date} as YYYYMMDD, {time} as HHMMSS, and
+                             {archive} for the block name. Ze appends .conf.";
+                ze:help "Filename format with token substitution.";
             }
 
             leaf timeout {
                 type string;
-                description "HTTP upload timeout, in Go duration format, for example 30s.";
-                ze:help "Ze gives up on an upload that passes this timeout. The
-                         format is the Go duration format, such as 30s or 2m.";
+                description "Ze gives up on an upload that passes this timeout. The
+                             format is the Go duration format, such as 30s or 2m.";
+                ze:help "HTTP upload timeout, in Go duration format, for example 30s.";
 
             }
 
             leaf trigger {
                 type enumeration {
-                    enum commit { description "Archive on every config commit."; }
-                    enum manual { description "Archive only on explicit request."; }
-                    enum daily { description "Archive once per day."; }
-                    enum hourly { description "Archive once per hour."; }
+                    enum commit { ze:help "Archive on every config commit."; }
+                    enum manual { ze:help "Archive only on explicit request."; }
+                    enum daily { ze:help "Archive once per day."; }
+                    enum hourly { ze:help "Archive once per hour."; }
                 }
-                description "When to archive.";
-                ze:help "The triggers are commit, manual, daily and hourly.";
+                description "The triggers are commit, manual, daily and hourly.";
+                ze:help "When to archive.";
             }
 
             leaf on-change {
                 type boolean;
-                description "Time-based only: skip if config unchanged since last archive.";
-                ze:help "With true, Ze skips a daily or hourly archive when the
-                         config did not change since the last one. The leaf changes
-                         nothing for the commit trigger and the manual trigger.";
+                description "With true, Ze skips a daily or hourly archive when the
+                             config did not change since the last one. The leaf changes
+                             nothing for the commit trigger and the manual trigger.";
+                ze:help "Time-based only: skip if config unchanged since last archive.";
             }
         }
     }

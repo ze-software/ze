@@ -130,8 +130,8 @@ func runFIBP4Plugin(conn net.Conn) int {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show fib p4",
-			Description: "Show the routes this backend programmed into the P4 forwarding pipeline.",
+			Name:      "show fib p4",
+			ShortHelp: "Show the routes this backend programmed into the P4 forwarding pipeline.",
 		},
 	}
 }

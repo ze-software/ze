@@ -115,7 +115,7 @@ func TestCompleterYANGDescription(t *testing.T) {
 		}
 	}
 	require.NotNil(t, sessionComp, "session should be in completions")
-	assert.NotEmpty(t, sessionComp.Description, "should have YANG description")
+	assert.NotEmpty(t, sessionComp.ShortHelp, "should have YANG description")
 }
 
 func TestCompleterYANGMandatory(t *testing.T) {
@@ -139,9 +139,9 @@ func TestCompleterYANGMandatory(t *testing.T) {
 	require.NotNil(t, peer, "peer should be in completions")
 
 	// Container with mandatory child should be indicated
-	assert.NotEmpty(t, sessionComp.Description)
+	assert.NotEmpty(t, sessionComp.ShortHelp)
 	// List is not mandatory
-	assert.NotContains(t, peer.Description, "required")
+	assert.NotContains(t, peer.ShortHelp, "required")
 }
 
 func TestCompleterEnumValues(t *testing.T) {
@@ -831,20 +831,20 @@ func completionTexts(completions []Completion) []string {
 // TestConfigCompletionCarriesBothTexts covers what a config node hands the two
 // help surfaces of the interactive CLI.
 //
-// VALIDATES: AC-11 — a config leaf declaring a description and a ze:help
-// produces a completion whose Description is the summary and whose LongHelp is
+// VALIDATES: AC-11 — a config leaf declaring a ze:help and a description
+// produces a completion whose ShortHelp is the summary and whose Description is
 // the explanation.
-// PREVENTS: the ze:help of a config node staying unread, which left the ? box
+// PREVENTS: the description of a config node staying unread, which left the ? box
 // with nothing the one-line row had not already shown.
 func TestConfigCompletionCarriesBothTexts(t *testing.T) {
 	c := NewCompleter()
 
 	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
 
-	assert.NotEmpty(t, comp.Description, "the menu row reads the summary")
-	assert.Contains(t, comp.LongHelp, "RFC 6286",
-		"the ? box reads the ze:help the leaf declares")
-	assert.NotEqual(t, comp.Description, comp.LongHelp,
+	assert.NotEmpty(t, comp.ShortHelp, "the menu row reads the summary")
+	assert.Contains(t, comp.Description, "RFC 6286",
+		"the ? box reads the description the leaf declares")
+	assert.NotEqual(t, comp.ShortHelp, comp.Description,
 		"neither text is derived from the other")
 }
 
@@ -862,10 +862,10 @@ func TestConfigCompletionRowIsNotTheParagraph(t *testing.T) {
 
 	comp := completionNamed(t, c.Complete("set router-id", []string{"bgp"}), "router-id")
 
-	assert.LessOrEqual(t, len(comp.Description), rowWidthMax,
+	assert.LessOrEqual(t, len(comp.ShortHelp), rowWidthMax,
 		"the row holds the summary, and the summary fits one row")
-	assert.NotContains(t, comp.Description, "\n", "the row is one line")
-	assert.NotContains(t, comp.LongHelp, comp.Description,
+	assert.NotContains(t, comp.ShortHelp, "\n", "the row is one line")
+	assert.NotContains(t, comp.Description, comp.ShortHelp,
 		"the explanation is a separate text, not the row with more after it")
 }
 

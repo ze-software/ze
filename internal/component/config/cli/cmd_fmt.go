@@ -45,9 +45,9 @@ func cmdFmt(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config fmt",
-			Summary: "Format and normalize configuration file",
-			Usage:   []string{"ze config fmt [options] <config-file>"},
+			Command:   "ze config fmt",
+			ShortHelp: "Format and normalize configuration file",
+			Usage:     []string{"ze config fmt [options] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-w", Desc: "Write result to source file"},

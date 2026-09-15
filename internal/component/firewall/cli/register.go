@@ -19,9 +19,9 @@ func init() {
 	registry.MustRegisterRootHandler("firewall", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Firewall management",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "show, apply",
+		ShortHelp: "Firewall management",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "show, apply",
 	})
 }

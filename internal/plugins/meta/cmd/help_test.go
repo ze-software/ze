@@ -94,7 +94,7 @@ func TestCommandHelpReportsShapeColumnsAndAddressFields(t *testing.T) {
 	command.RegisterColumns([]string{path}, command.ColumnOrder{"peer", "state", "uptime"})
 	command.RegisterAddressFields([]string{path}, "peer")
 
-	response := commandHelp(commandHelpText{Name: path, Description: "a fixture"})
+	response := commandHelp(commandHelpText{Name: path, ShortHelp: "a fixture"})
 	data, ok := response.Data.(plugin.Map)
 	if !ok {
 		t.Fatalf("the answer payload is %T, want plugin.Map", response.Data)

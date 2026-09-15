@@ -96,7 +96,7 @@ func dataMethods(args []string) (any, int) {
 		rpcs := reg.ListRPCs(module)
 		entries := make([]schemaEntry, len(rpcs))
 		for i, rpc := range rpcs {
-			entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.Description}
+			entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.ShortHelp}
 		}
 		return entries
 	})
@@ -108,7 +108,7 @@ func dataEvents(args []string) (any, int) {
 		notifs := reg.ListNotifications(module)
 		entries := make([]schemaEntry, len(notifs))
 		for i, notif := range notifs {
-			entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.Description}
+			entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.ShortHelp}
 		}
 		return entries
 	})

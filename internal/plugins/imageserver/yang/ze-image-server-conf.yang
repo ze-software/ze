@@ -11,32 +11,31 @@ module ze-image-server-conf {
     }
 
     container service {
-        description "Service settings";
-        ze:help "Ze merges same-named containers across modules, so the service tree holds
-                 the settings of every service Ze runs, beside the routing configuration.
-                 This module contributes the image-server container alone.";
+        description "Ze merges same-named containers across modules, so the service tree holds
+                     the settings of every service Ze runs, beside the routing configuration.
+                     This module contributes the image-server container alone.";
+        ze:help "Service settings";
 
         container image-server {
-            description "HTTP image server for PXE provisioning";
-            ze:help "The server answers three paths under /install: the disk image, the boot
-                     files of the installer, and the zefs database the target starts with.
-                     Ze registers a path only when the leaves that feed it are set, so a
-                     path with nothing behind it answers 404.";
+            description "The server answers three paths under /install: the disk image, the boot
+                         files of the installer, and the zefs database the target starts with.
+                         Ze registers a path only when the leaves that feed it are set, so a
+                         path with nothing behind it answers 404.";
+            ze:help "HTTP image server for PXE provisioning";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable image server";
-                ze:help "The default is false. When the leaf is true, Ze refuses the
-                         configuration unless image-directory or boot-directory names a
-                         directory. The plugin binds the port when the configuration is
-                         applied, and a bind that fails is reported in the log.";
+                description "The default is false. When the leaf is true, Ze refuses the
+                             configuration unless image-directory or boot-directory names a
+                             directory. The plugin binds the port when the configuration is
+                             applied, and a bind that fails is reported in the log.";
+                ze:help "Enable image server";
             }
 
             leaf-list listen-interface {
                 type string;
-                description "Interfaces to serve on";
-                ze:help "Ze resolves the IPv4 address of EVERY interface named here and binds
+                description "Ze resolves the IPv4 address of EVERY interface named here and binds
                     listen-port on each one, as the TFTP server and the DHCP server do with the same
                     leaf. With no interface named, Ze binds the port on every address of the host. An
                     interface that does not resolve is named in the log and skipped, and the interfaces
@@ -44,6 +43,7 @@ module ze-image-server-conf {
                     bound' and the image server serves nothing. Ze builds /install/boot/boot.ipxe only
                     for a listener bound to an interface address, and the script names the address the
                     client reached.";
+                ze:help "Interfaces to serve on";
             }
 
             leaf listen-port {
@@ -51,61 +51,61 @@ module ze-image-server-conf {
                     range "1..65535";
                 }
                 default 80;
-                description "HTTP listen port";
-                ze:help "The default is 80 and the range is 1 to 65535. Ze binds this port
-                         on the IPv4 address of each listen-interface. With no interface
-                         named, Ze binds the port on every address of the host.";
+                description "The default is 80 and the range is 1 to 65535. Ze binds this port
+                             on the IPv4 address of each listen-interface. With no interface
+                             named, Ze binds the port on every address of the host.";
+                ze:help "HTTP listen port";
             }
 
             leaf image-directory {
                 type string;
-                description "Directory containing gokrazy disk images";
-                ze:help "Ze serves the files of this directory under /install/image/. An
-                         empty leaf registers no such path, and a client then gets 404. A
-                         request that reaches the path while the directory holds no image
-                         gets 503.";
+                description "Ze serves the files of this directory under /install/image/. An
+                             empty leaf registers no such path, and a client then gets 404. A
+                             request that reaches the path while the directory holds no image
+                             gets 503.";
+                ze:help "Directory containing gokrazy disk images";
             }
 
             leaf boot-directory {
                 type string;
-                description "Directory containing installer kernel, initrd, iPXE config";
-                ze:help "Ze serves the files of this directory under /install/boot/. An
-                         empty leaf registers no such path, and a client then gets 404. Ze
-                         builds /install/boot/boot.ipxe itself, and only when
-                         listen-interface names an interface whose address it can resolve.";
+                description "Ze serves the files of this directory under /install/boot/. An
+                             empty leaf registers no such path, and a client then gets 404. Ze
+                             builds /install/boot/boot.ipxe itself, and only when
+                             listen-interface names an interface whose address it can resolve.";
+                ze:help "Directory containing installer kernel, initrd, iPXE config";
             }
 
             leaf ssh-username {
                 type string;
-                description "Admin username for installed target (written to served zefs)";
-                ze:help "Ze writes this name and the password hash into a zefs database, and
-                         serves that database at /install/database.zefs. The target reads it
-                         and gets its first administrator. Write ssh-username and
-                         ssh-password-hash together, because Ze refuses one without the
-                         other.";
+                description "Ze writes this name and the password hash into a zefs database, and
+                             serves that database at /install/database.zefs. The target reads it
+                             and gets its first administrator. Write ssh-username and
+                             ssh-password-hash together, because Ze refuses one without the
+                             other.";
+                ze:help "Admin username for installed target (written to served zefs)";
             }
 
             leaf ssh-password-hash {
                 type string;
-                description "Bcrypt hash of admin password (written to served zefs)";
-                ze:help "Ze refuses a value that bcrypt cannot read, so the target never
-                         gets a database with an unusable password. Only the hash reaches
-                         the served zefs database, so the cleartext password does not cross
-                         the PXE network.";
+                description "Ze refuses a value that bcrypt cannot read, so the target never
+                             gets a database with an unusable password. Only the hash reaches
+                             the served zefs database, so the cleartext password does not cross
+                             the PXE network.";
+                ze:help "Bcrypt hash of admin password (written to served zefs)";
             }
 
             leaf rescue-auth {
                 type string {
                     pattern '[0-9a-f]{32}:[0-9a-f]{64}';
                 }
-                description "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'.";
-                ze:help "Ze emits the value on the installer kernel cmdline, as
-                         ze.rescue-auth, and the installer checks it before it
-                         opens the rescue shell. An empty value makes the
-                         installer fail closed, so a fatal error opens no shell.
-                         The PXE network carries this value unauthenticated,
-                         so it MUST commit only to a dedicated rescue token, and
-                         never to the admin password.";
+                description "Ze emits the value on the installer kernel cmdline, as
+                             ze.rescue-auth, and the installer checks it before it
+                             opens the rescue shell. An empty value makes the
+                             installer fail closed, so a fatal error opens no shell.
+                             The PXE network carries this value unauthenticated,
+                             so it MUST commit only to a dedicated rescue token, and
+                             never to the admin password.";
+                ze:help "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'.";
             }
         }
     }

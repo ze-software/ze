@@ -13,180 +13,180 @@ module ze-ddos-detect-conf {
   revision 2026-07-02 { description "Nest under ddos/detect; the container now owns the shared ddos parent that the other ddos plugins augment."; }
 
   container ddos {
-    description "Distributed denial-of-service detection and mitigation subsystem.";
-    ze:help "Distributed denial-of-service detection and mitigation subsystem. This module declares the container,
-             and the flowtriq, observe, local and flowspec plugins each augment it. The detect subtree decides
-             that an attack is present, and a responder under one of those subtrees acts on the event.";
+    description "Distributed denial-of-service detection and mitigation subsystem. This module declares the container,
+                 and the flowtriq, observe, local and flowspec plugins each augment it. The detect subtree decides
+                 that an attack is present, and a responder under one of those subtrees acts on the event.";
+    ze:help "Distributed denial-of-service detection and mitigation subsystem.";
 
     container detect {
-      description "Detect a volumetric attack from the traffic Ze already sees.";
-      ze:help "Detection is separate from mitigation: this container decides that an
-               attack is happening and emits an event. A responder under flowspec or
-               local is what acts on that event, and none is armed by default.";
+      description "Detection is separate from mitigation: this container decides that an
+                   attack is happening and emits an event. A responder under flowspec or
+                   local is what acts on that event, and none is armed by default.";
+      ze:help "Detect a volumetric attack from the traffic Ze already sees.";
 
     leaf enabled {
       type boolean;
       default false;
-      description "Enable the DDoS detector.";
-      ze:help "Enable the DDoS detector. Left false, the detector subscribes to no rate feed, so it takes no sample
+      description "Enable the DDoS detector. Left false, the detector subscribes to no rate feed, so it takes no sample
           and its baseline stays cold. A commit rebuilds the detector and restores the persisted baseline either
           way, and the subscription is what this leaf controls.";
+      ze:help "Enable the DDoS detector.";
     }
     leaf check-interval {
       type uint16 { range "1..3600"; }
       default 1;
-      description "Seconds between detection evaluations.";
-      ze:help "Seconds between detection evaluations. Both rate feeds publish once a second: the
+      description "Seconds between detection evaluations. Both rate feeds publish once a second: the
           traffic-statistics service, and the interface rate collector Ze falls back to when that service
           is absent. The detector folds this many samples and evaluates their PEAK, so a flood shorter
           than the interval still reaches the threshold. Every leaf that counts ticks against the
           threshold counts evaluations, so its wall-clock meaning is multiplied by this value. The
           default 1 evaluates every second.";
+      ze:help "Seconds between detection evaluations.";
     }
     leaf confirm-duration {
       type uint16 { range "0..3600"; }
       default 3;
-      description "Consecutive evaluations above threshold before triggering.";
-      ze:help "The count of consecutive evaluations over the threshold that arms the detector. One evaluation is
+      description "The count of consecutive evaluations over the threshold that arms the detector. One evaluation is
           check-interval seconds, one second at the default. The default 3 needs three unbroken
           evaluations over the threshold. A value of 0 or 1 triggers on the first one. One evaluation back under the
           threshold returns the detector to idle and restarts the count.";
+      ze:help "Consecutive evaluations above threshold before triggering.";
     }
     leaf clear-consecutive-checks {
       type uint16 { range "1..100"; }
       default 10;
-      description "Consecutive evaluations below threshold before clearing.";
-      ze:help "The count of consecutive evaluations under the threshold that ends an attack. The first one under the
+      description "The count of consecutive evaluations under the threshold that ends an attack. The first one under the
           threshold moves an active detector to the clearing state and counts as the first check. The default 10
           therefore holds the attack live for ten evaluations, which is ten seconds at the default check-interval.
           One evaluation back over the threshold returns the detector to active and drops the count.";
+      ze:help "Consecutive evaluations below threshold before clearing.";
     }
     leaf baseline-window {
       type uint32 { range "10..86400"; }
       default 300;
-      description "Rolling baseline window size in samples.";
-      ze:help "Rolling baseline window size in samples, and one sample is one evaluation, so one check-interval. The
+      description "Rolling baseline window size in samples, and one sample is one evaluation, so one check-interval. The
           window p99 is recalculated every 10 admitted samples, so a cold detector runs on absolute-floor alone for
           its first 10 evaluations. A
           sample taken while the rate is over the threshold is refused, so an attack cannot raise the threshold
           that detects it. One sample in 3600 consecutive refused samples is admitted, which lets a lasting rise
           in traffic move the baseline. A persisted baseline is restored only when it carries 50 samples or
           more.";
+      ze:help "Rolling baseline window size in samples.";
     }
     leaf threshold-multiplier {
       type zt:decimal-2 { range "1.00..100.00"; }
       default "3.00";
-      description "Baseline p99 multiplier for the dynamic threshold.";
-      ze:help "Baseline p99 multiplier for the dynamic threshold. The threshold is the larger of two numbers: the
+      description "Baseline p99 multiplier for the dynamic threshold. The threshold is the larger of two numbers: the
           window p99 multiplied by this leaf, and absolute-floor. The default 3.00 therefore triggers at three
           times the p99 of normal traffic. A changed value reaches the threshold at the next recalculation, which
           is within 10 admitted samples.";
+      ze:help "Baseline p99 multiplier for the dynamic threshold.";
     }
     leaf absolute-floor {
       type uint32 { range "1..max"; }
       default 5000;
-      description "Minimum threshold in PPS regardless of baseline.";
-      ze:help "Minimum threshold in PPS regardless of baseline, default 5000. A quiet link cannot trigger on a small
+      description "Minimum threshold in PPS regardless of baseline, default 5000. A quiet link cannot trigger on a small
           burst, because the threshold never falls under this value. Five times this value is also the packet-rate
           escape from startup-grace, so a rate over 25000 PPS triggers at the default while the grace period
           runs.";
+      ze:help "Minimum threshold in PPS regardless of baseline.";
     }
     leaf startup-grace {
       type uint16 { range "0..3600"; }
       default 90;
-      description "Seconds after startup where only extreme spikes trigger.";
-      ze:help "Seconds after startup where only extreme spikes trigger, default 90. The count follows the rate feed,
+      description "Seconds after startup where only extreme spikes trigger, default 90. The count follows the rate feed,
           one per second, so check-interval does not change it.
           A cold baseline warms during the grace period, and the grace stops that warm-up from firing on itself.
           Two things still trigger: a packet rate over five times absolute-floor, and the bandwidth trigger once
           its own baseline is ready.";
+      ze:help "Seconds after startup where only extreme spikes trigger.";
     }
     leaf bps-trigger-enable {
       type boolean;
       default true;
-      description "Enable the bandwidth (BPS) trigger beside the PPS threshold.";
-      ze:help "Enable the bandwidth (BPS) trigger alongside the PPS threshold. When this leaf is false, only the
+      description "Enable the bandwidth (BPS) trigger alongside the PPS threshold. When this leaf is false, only the
           packet-rate threshold can trigger detection.";
+      ze:help "Enable the bandwidth (BPS) trigger beside the PPS threshold.";
     }
     leaf bps-threshold-multiplier {
       type zt:decimal-2 { range "1.00..100.00"; }
       default "3.00";
-      description "Baseline p99 multiplier for the bandwidth (BPS) trigger.";
-      ze:help "Baseline p99 multiplier for the bandwidth (BPS) trigger. The trigger catches low-PPS, high-bandwidth
+      description "Baseline p99 multiplier for the bandwidth (BPS) trigger. The trigger catches low-PPS, high-bandwidth
           amplification, such as NTP, memcached and CLDAP, that the packet-rate threshold misses.";
+      ze:help "Baseline p99 multiplier for the bandwidth (BPS) trigger.";
     }
     leaf bps-floor {
       type uint64 { range "1..max"; }
       default 50000000;
-      description "Minimum bandwidth in bits/sec below which the BPS trigger is inert.";
-      ze:help "Minimum bandwidth in bits/sec below which the BPS trigger is inert. The default is 50 Mbps. The
+      description "Minimum bandwidth in bits/sec below which the BPS trigger is inert. The default is 50 Mbps. The
           value is expressed in bits/sec, which is the operator unit. The detector's internal rate is
           bytes/sec, and it converts the value.";
+      ze:help "Minimum bandwidth in bits/sec below which the BPS trigger is inert.";
     }
     leaf characterize-enable {
       type boolean;
       default true;
-      description "Run Stage-2 flow characterization on a detected attack.";
-      ze:help "Run Stage-2 flow characterization. The stage classifies the family and the narrowest vector from the
+      description "Run Stage-2 flow characterization. The stage classifies the family and the narrowest vector from the
           flow-export recent-flow ring, and emits AttackCharacterized. When this leaf is false, the detector
           still emits the coarse AttackDetected target from traffic-usage.";
+      ze:help "Run Stage-2 flow characterization on a detected attack.";
     }
     leaf top-n-sources {
       type uint16 { range "1..100"; }
       default 10;
-      description "Maximum number of attacker source addresses ranked into TopSources by packet volume.";
-      ze:help "Maximum number of attacker source addresses ranked into TopSources by packet volume, default 10. Ties
+      description "Maximum number of attacker source addresses ranked into TopSources by packet volume, default 10. Ties
           are broken by address. The same ranked list is what a source-matching policy rule reads, and every
           address in it has to fall inside the rule prefix before that rule matches.";
+      ze:help "Maximum number of attacker source addresses ranked into TopSources by packet volume.";
     }
     leaf characterize-window {
       type uint16 { range "1..60"; }
       default 10;
-      description "Seconds of recent flows to consider when characterizing an attack.";
-      ze:help "Seconds of recent flows to consider when characterizing. Flows last seen before this window are
+      description "Seconds of recent flows to consider when characterizing. Flows last seen before this window are
           ignored. Flows with no timestamp are always kept.";
+      ze:help "Seconds of recent flows to consider when characterizing an attack.";
     }
     leaf characterize-timeout {
       type uint16 { range "50..5000"; }
       default 2000;
-      description "Milliseconds budget for the on-trigger queries.";
-      ze:help "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries. On timeout, the
+      description "Milliseconds budget for the on-trigger traffic-usage and flow-recent queries. On timeout, the
           detector falls back to the best available target.";
+      ze:help "Milliseconds budget for the on-trigger queries.";
     }
     leaf entropy-threshold {
       type zt:decimal-2 { range "0.00..16.00"; }
       default "2.00";
-      description "Source-address Shannon entropy in bits that marks an attack distributed.";
-      ze:help "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed or
+      description "Source-address Shannon entropy (bits) at or above which an attack is logged as distributed or
           spoofed. A value of 0 is a single source, and a higher value is more sources.";
+      ze:help "Source-address Shannon entropy in bits that marks an attack distributed.";
     }
     container policy {
-      description "Allow and deny traffic policy applied to a detected attack.";
-      ze:help "Allow/deny traffic policy applied to detected attacks, indexed by prefix. Ze evaluates the policy by
+      description "Allow/deny traffic policy applied to detected attacks, indexed by prefix. Ze evaluates the policy by
           longest-prefix match, where the most specific rule wins, and not by config order. The policy
           replaces the removed per-responder allowlists. The detector enforces it once and encodes the exempt
           or mitigate decision on the emitted event, so the responders obey it with no config read.";
+      ze:help "Allow and deny traffic policy applied to a detected attack.";
       leaf default-action {
         type enumeration {
           enum allow;
           enum deny;
         }
         default deny;
-        description "Disposition when no rule matches the attack.";
-        ze:help "Disposition when no rule matches. deny means defend, which is detection plus mitigation. allow means
+        description "Disposition when no rule matches. deny means defend, which is detection plus mitigation. allow means
             exempt from detection entirely.";
+        ze:help "Disposition when no rule matches the attack.";
       }
       list rule {
         key "prefix";
-        description "One allow or deny rule matched against an attack, keyed by prefix.";
-        ze:help "One allow/deny rule matched against an attack, keyed by prefix. Precedence is longest-prefix match,
+        description "One allow/deny rule matched against an attack, keyed by prefix. Precedence is longest-prefix match,
             so a /24 rule beats a covering /16 with no ordering.";
+        ze:help "One allow or deny rule matched against an attack, keyed by prefix.";
         leaf prefix {
           type zt:ip-prefix;
-          description "IPv4/IPv6 prefix this rule matches (the rule's identity).";
-          ze:help "IPv4 or IPv6 prefix this rule matches, and the key of the list. The prefix length sets the
+          description "IPv4 or IPv6 prefix this rule matches, and the key of the list. The prefix length sets the
               precedence, so a /24 rule wins over a covering /16 whatever the config order. Two matching rules of
               equal length are broken toward deny, so an allow cannot hide a deny by accident.";
+          ze:help "IPv4/IPv6 prefix this rule matches (the rule's identity).";
         }
         leaf action {
           type enumeration {
@@ -194,11 +194,11 @@ module ze-ddos-detect-conf {
             enum deny;
           }
           default deny;
-          description "allow exempts matching traffic and deny subjects it to DDoS handling.";
-          ze:help "allow exempts the matched traffic and deny subjects it to DDoS handling. The scope leaf decides how
+          description "allow exempts the matched traffic and deny subjects it to DDoS handling. The scope leaf decides how
               far each one reaches. allow at mitigation scope records the incident and installs no block, and allow
               at detection scope suppresses the incident. deny at detection scope also records without a block, and
               deny at mitigation scope is full handling.";
+          ze:help "allow exempts matching traffic and deny subjects it to DDoS handling.";
         }
         leaf match {
           type enumeration {
@@ -207,9 +207,9 @@ module ze-ddos-detect-conf {
             enum any;
           }
           default any;
-          description "Whether the prefix matches the attack source, the destination, or either.";
-          ze:help "Whether the prefix matches the attack source, the victim destination, or either. A source rule takes
+          description "Whether the prefix matches the attack source, the victim destination, or either. A source rule takes
               effect once the attack sources are characterized.";
+          ze:help "Whether the prefix matches the attack source, the destination, or either.";
         }
         leaf scope {
           type enumeration {
@@ -217,9 +217,9 @@ module ze-ddos-detect-conf {
             enum mitigation;
           }
           default mitigation;
-          description "Stage the action governs, mitigation or detection.";
-          ze:help "Stage the action governs. mitigation means detect and record, and for allow it does not block.
+          description "Stage the action governs. mitigation means detect and record, and for allow it does not block.
               detection means that for allow the incident is suppressed entirely.";
+          ze:help "Stage the action governs, mitigation or detection.";
         }
       }
     }

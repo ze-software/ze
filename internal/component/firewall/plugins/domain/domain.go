@@ -763,8 +763,8 @@ func (plug *domainPlugin) updateMetricsGauges(cfg *domainConfig) {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: cmdShowDomainGroup, Description: "Show what each configured domain group's DNS names resolve to", Args: []string{"[<name>]"}},
-		{Name: cmdUpdateDomainGroup, Description: "Resolve a domain group's DNS names now and program its set", Args: []string{"<name>"}},
-		{Name: cmdClearDomainGroup, Description: "Remove the addresses cached for a domain group", Args: []string{"<name>"}},
+		{Name: cmdShowDomainGroup, ShortHelp: "Show what each configured domain group's DNS names resolve to", Args: []string{"[<name>]"}},
+		{Name: cmdUpdateDomainGroup, ShortHelp: "Resolve a domain group's DNS names now and program its set", Args: []string{"<name>"}},
+		{Name: cmdClearDomainGroup, ShortHelp: "Remove the addresses cached for a domain group", Args: []string{"<name>"}},
 	}
 }

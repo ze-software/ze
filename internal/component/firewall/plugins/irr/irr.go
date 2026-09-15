@@ -626,12 +626,12 @@ func extractIfaceRefs(root map[string]any) []irrRef {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: cmdShowIRR, Description: "Show IRR filter status for all cached entries"},
-		{Name: "show firewall irr prefix", Description: "Show IRR-resolved prefixes for a cached entry", Args: []string{"<asn-or-as-set>"}},
-		{Name: "update firewall irr all", Description: "Refresh all cached IRR prefix-lists"},
-		{Name: "update firewall irr asn", Description: "Fetch/refresh IRR prefix-list for an ASN", Args: []string{"<asn>"}},
-		{Name: "update firewall irr as-set", Description: "Fetch/refresh IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
-		{Name: "clear firewall irr asn", Description: "Remove the cached IRR prefix-list for an ASN", Args: []string{"<asn>"}},
-		{Name: "clear firewall irr as-set", Description: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
+		{Name: cmdShowIRR, ShortHelp: "Show IRR filter status for all cached entries"},
+		{Name: "show firewall irr prefix", ShortHelp: "Show IRR-resolved prefixes for a cached entry", Args: []string{"<asn-or-as-set>"}},
+		{Name: "update firewall irr all", ShortHelp: "Refresh all cached IRR prefix-lists"},
+		{Name: "update firewall irr asn", ShortHelp: "Fetch/refresh IRR prefix-list for an ASN", Args: []string{"<asn>"}},
+		{Name: "update firewall irr as-set", ShortHelp: "Fetch/refresh IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
+		{Name: "clear firewall irr asn", ShortHelp: "Remove the cached IRR prefix-list for an ASN", Args: []string{"<asn>"}},
+		{Name: "clear firewall irr as-set", ShortHelp: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
 	}
 }

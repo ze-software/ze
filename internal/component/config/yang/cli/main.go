@@ -53,9 +53,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze yang",
-		Summary: "YANG analysis and documentation",
-		Usage:   []string{"ze yang <command> [options]"},
+		Command:   "ze yang",
+		ShortHelp: "YANG analysis and documentation",
+		Usage:     []string{"ze yang <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: subCompletion, Desc: "Detect prefix collisions in config and command trees"},
@@ -129,9 +129,9 @@ func parseCompletionOptions(args []string) (completionOptions, error) {
 
 func completionUsage() {
 	p := helpfmt.Page{
-		Command: "ze yang completion",
-		Summary: "Detect prefix collisions in config and command trees",
-		Usage:   []string{"ze yang completion [--min-prefix N]"},
+		Command:   "ze yang completion",
+		ShortHelp: "Detect prefix collisions in config and command trees",
+		Usage:     []string{"ze yang completion [--min-prefix N]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "--min-prefix N", Desc: "Minimum disambiguation depth to report (1-10)"},
@@ -196,9 +196,9 @@ func parseTreeOptions(args []string) (treeOptions, error) {
 
 func treeUsage() {
 	p := helpfmt.Page{
-		Command: "ze yang tree",
-		Summary: "Print unified config + command tree",
-		Usage:   []string{"ze yang tree [--commands] [--config]"},
+		Command:   "ze yang tree",
+		ShortHelp: "Print unified config + command tree",
+		Usage:     []string{"ze yang tree [--commands] [--config]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "--commands", Desc: "Show command nodes only"},
@@ -222,9 +222,9 @@ func cmdDoc(args []string) int {
 	list := fs.Bool("list", false, "list all commands")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze yang doc",
-			Summary: "Command documentation",
-			Usage:   []string{"ze yang doc [--list] [<command>]"},
+			Command:   "ze yang doc",
+			ShortHelp: "Command documentation",
+			Usage:     []string{"ze yang doc [--list] [<command>]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--list", Desc: "List all commands"},

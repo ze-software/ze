@@ -11,8 +11,8 @@ package web
 templ configCommandForm(v CommandFormData) {
 	<div class="command-form">
 		<h3 class="command-form-title">{ v.CommandName }</h3>
-		if v.Description != "" {
-			<p class="command-form-description">{ v.Description }</p>
+		if v.ShortHelp != "" {
+			<p class="command-form-description">{ v.ShortHelp }</p>
 		}
 		<form
 			method="post"

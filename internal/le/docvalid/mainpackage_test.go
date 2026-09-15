@@ -30,10 +30,10 @@ func TestBuiltinsAgreeWithTheMainPackage(t *testing.T) {
 	}
 
 	registered := make(map[string]string, len(declared))
-	longHelp := make(map[string]string, len(declared))
+	explanation := make(map[string]string, len(declared))
 	for _, entry := range declared {
-		registered[entry.Path] = entry.Meta.Description
-		longHelp[entry.Path] = entry.Meta.LongHelp
+		registered[entry.Path] = entry.Meta.ShortHelp
+		explanation[entry.Path] = entry.Meta.Description
 	}
 
 	published := map[string]bool{}
@@ -49,12 +49,12 @@ func TestBuiltinsAgreeWithTheMainPackage(t *testing.T) {
 		if entry.WireMethod != "" {
 			continue
 		}
-		if entry.Description != want {
-			t.Errorf("%s publishes %q, cmd/ze registers %q", entry.Path, entry.Description, want)
+		if entry.ShortHelp != want {
+			t.Errorf("%s publishes %q, cmd/ze registers %q", entry.Path, entry.ShortHelp, want)
 		}
-		if entry.LongHelp != longHelp[entry.Path] {
+		if entry.Description != explanation[entry.Path] {
 			t.Errorf("%s publishes the long help %q, cmd/ze registers %q",
-				entry.Path, entry.LongHelp, longHelp[entry.Path])
+				entry.Path, entry.Description, explanation[entry.Path])
 		}
 	}
 	for path := range registered {

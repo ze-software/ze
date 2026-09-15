@@ -31,9 +31,9 @@ func init() {
 	registry.MustRegisterRootHandler("completion", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Shell completion scripts",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        subcommands(),
+		ShortHelp: "Shell completion scripts",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      subcommands(),
 	})
 }

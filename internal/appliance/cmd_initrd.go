@@ -47,9 +47,9 @@ func runInitrd(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: initrdCommand,
-			Summary: "Download or build the installer initrd",
-			Usage:   []string{initrdCommand},
+			Command:   initrdCommand,
+			ShortHelp: "Download or build the installer initrd",
+			Usage:     []string{initrdCommand},
 			Examples: []string{
 				initrdCommand,
 			},

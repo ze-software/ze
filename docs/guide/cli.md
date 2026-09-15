@@ -183,7 +183,7 @@ In `ze cli` interactive mode:
   exact digits rather than on a rounded value.
   `ze help command --json` publishes the exact operator contract for each
   command. Each row also carries the command's one-line summary under
-  `description` and its long explanation under `long-help`. Neither is derived
+  `short-help` and its long explanation under `description`. Neither is derived
   from the other, and no row is cut at a sentence or a newline.
   <!-- source: internal/component/command/pipe.go -- applyMatch, applyMatchLines -->
   <!-- source: cmd/ze/help_command.go -- operatorsFor, collectCommands -->

@@ -285,10 +285,10 @@ func (c *TreeCompleter) Explain(input string) (string, bool) {
 	if node == nil {
 		return "", false
 	}
-	if node.LongHelp == "" {
+	if node.Description == "" {
 		return "", false
 	}
-	return node.LongHelp, true
+	return node.Description, true
 }
 
 // GhostText returns the best single completion for inline display.
@@ -360,7 +360,7 @@ func choiceSuggestions(node *Node, prefix string) []Suggestion {
 			if prefix != "" && !strings.HasPrefix(value, prefix) {
 				continue
 			}
-			out = append(out, Suggestion{Text: value, Description: node.Description, Type: SuggestionValue})
+			out = append(out, Suggestion{Text: value, Description: node.ShortHelp, Type: SuggestionValue})
 		}
 	}
 	return out
@@ -389,7 +389,7 @@ func (c *TreeCompleter) oneOfSuggestions(node *Node, prefix string) []Suggestion
 		if prefix != "" && !strings.HasPrefix(name, prefix) {
 			continue
 		}
-		out = append(out, Suggestion{Text: name, Description: member.Description, Type: SuggestionCommand})
+		out = append(out, Suggestion{Text: name, Description: member.ShortHelp, Type: SuggestionCommand})
 	}
 	return out
 }
@@ -433,7 +433,7 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 			if prefix == "" || strings.HasPrefix(name, prefix) {
 				completions = append(completions, Suggestion{
 					Text:        name,
-					Description: child.Description,
+					Description: child.ShortHelp,
 					Type:        SuggestionCommand,
 				})
 			}

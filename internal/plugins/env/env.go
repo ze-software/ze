@@ -243,9 +243,9 @@ func writeErr(s string) {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze env",
-		Summary: "List and inspect Ze environment variables",
-		Usage:   []string{"ze env <command> [args...]"},
+		Command:   "ze env",
+		ShortHelp: "List and inspect Ze environment variables",
+		Usage:     []string{"ze env <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "registered [key]", Desc: "List all registered env vars, or show one by key"},

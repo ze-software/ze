@@ -378,7 +378,7 @@ func TestRenderDecoratedLeaf(t *testing.T) {
 		Path:          "bgp/peer/upstream/remote",
 		Type:          "uint32",
 		Value:         "13335",
-		Description:   "Peer ASN",
+		ShortHelp:     "Peer ASN",
 		Min:           "0",
 		Max:           "4294967295",
 		DecoratorName: "asn-name",

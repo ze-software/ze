@@ -28,15 +28,16 @@ const catalogFile = "data/cli-commands.json"
 // package instead of following the producer in silence. It is the same reason
 // internal/le/docvalid spells it a third time for its drift fixture.
 type catalogCommand struct {
-	Path        string `json:"path"`
-	Description string `json:"description,omitempty"`
-	// LongHelp is the command's own explanation, from ze:help. Description is
-	// the one-line summary beside it: two declarations, never one authored
+	Path      string `json:"path"`
+	ShortHelp string `json:"short-help,omitempty"`
+	// Description is the command's own explanation, from the YANG description.
+	// Description is the one-line summary from the ze:help beside it: two
+	// declarations, never one authored
 	// string cut in two. A list row takes the summary and the per-command
 	// detail page takes the long form, so neither surface guesses a split.
-	LongHelp   string `json:"long-help,omitempty"`
-	Mode       string `json:"mode"`
-	WireMethod string `json:"wire-method,omitempty"`
+	Description string `json:"description,omitempty"`
+	Mode        string `json:"mode"`
+	WireMethod  string `json:"wire-method,omitempty"`
 	// Backend names the data planes that implement the command. It is empty
 	// when the command model restricts it to none, which means every backend
 	// implements it (internal/component/command/node.go, Node.Backend).

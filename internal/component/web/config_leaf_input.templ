@@ -15,7 +15,7 @@ templ leafInput(f LeafField) {
 			title={ "Changed from: " + f.OldValue }
 		}
 	>
-		<label class="config-label" for={ "field-" + f.Name } title={ f.Description }>{ f.Name }</label>
+		<label class="config-label" for={ "field-" + f.Name } title={ f.ShortHelp }>{ f.Name }</label>
 		// templ writes no whitespace before a switch, and the label and the
 		// editor are both inline, so the space between them is an expression.
 		{ " " }
@@ -29,14 +29,14 @@ templ leafInput(f LeafField) {
 					if f.Value != "" {
 						checked
 					}
-					title={ f.Description }
+					title={ f.ShortHelp }
 				>
 			case leafInputSelect:
 				<select
 					class={ leafSelectClass(f.IsConfigured) }
 					id={ "field-" + f.Name }
 					name={ f.Name }
-					title={ f.Description }
+					title={ f.ShortHelp }
 				>
 					if f.Value == "" {
 						<option value="" selected>{ enumBlankLabel(f.Default) }</option>
@@ -67,7 +67,7 @@ templ leafInput(f LeafField) {
 					if !f.IsConfigured && f.Default != "" {
 						placeholder={ f.Default }
 					}
-					title={ f.Description }
+					title={ f.ShortHelp }
 				>
 			default:
 				<input
@@ -85,7 +85,7 @@ templ leafInput(f LeafField) {
 					if f.Placeholder != "" {
 						placeholder={ f.Placeholder }
 					}
-					title={ f.Description }
+					title={ f.ShortHelp }
 				>
 		}
 	</div>

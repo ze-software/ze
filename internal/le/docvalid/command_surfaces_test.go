@@ -15,7 +15,7 @@ import (
 
 const renderedCommandCatalogFixture = `[{
   "path": "show test",
-  "description": "Show test rows",
+  "short-help": "Show test rows",
   "mode": "read-only",
   "wire-method": "ze-show:test",
   "args": [{"name": "family", "type": "enum", "values": ["ipv4"], "mandatory": true}],
@@ -979,9 +979,9 @@ func TestDocDriftRejectsUnknownPrimaryOperatorLabels(t *testing.T) {
 // unknown-label finding.
 func TestPrimaryOperatorLabelsIgnoreDescriptionMarkup(t *testing.T) {
 	command := publishedCommand{
-		Path:        "show prose",
-		Mode:        "read-only",
-		Description: "Always, legacy prose",
+		Path:      "show prose",
+		Mode:      "read-only",
+		ShortHelp: "Always, legacy prose",
 	}
 	renderedHTML := string(renderPrimaryCommandHTML([]publishedCommand{command}))
 	mutatedHTML := strings.Replace(
@@ -2356,7 +2356,7 @@ func TestCommandSurfacesRejectUnclosedRegistryAndValueNodes(t *testing.T) {
 func TestCommandSurfacesEnforceMetadataCardinality(t *testing.T) {
 	t.Run("absent answer shape", func(t *testing.T) {
 		command := publishedCommand{
-			Path: "show test", Mode: "read-only", Description: "Show test rows",
+			Path: "show test", Mode: "read-only", ShortHelp: "Show test rows",
 		}
 		issues := validateLLMSCommandContract(
 			"llms.txt", "show test", "read-only; shape tab", "Show test rows", &command,
@@ -2935,9 +2935,9 @@ func TestNestedCommonMarkEmphasisCannotImpersonateLiteralMarkers(t *testing.T) {
 	}
 
 	command := publishedCommand{
-		Path:        "show emphasis",
-		Mode:        "read-only",
-		Description: mutation,
+		Path:      "show emphasis",
+		Mode:      "read-only",
+		ShortHelp: mutation,
 	}
 	rendered := string(renderPrimaryCommandMarkdown([]publishedCommand{command}))
 	drifted := strings.Replace(
@@ -2973,9 +2973,9 @@ func TestCrossingCommonMarkEmphasisCannotImpersonatePlainText(t *testing.T) {
 	}
 
 	command := publishedCommand{
-		Path:        "show emphasis",
-		Mode:        "read-only",
-		Description: "foo bar baz",
+		Path:      "show emphasis",
+		Mode:      "read-only",
+		ShortHelp: "foo bar baz",
 	}
 	row := "| `show emphasis` | read-only | " + mutation + " |  |"
 	if issues := validatePrimaryMarkdownContract(
@@ -2991,7 +2991,7 @@ func TestCrossingCommonMarkEmphasisCannotImpersonatePlainText(t *testing.T) {
 func TestParseCommandCatalogRejectsDuplicateOwnedIdentities(t *testing.T) {
 	const catalog = `[{
   "path": "show unique",
-  "description": "show unique values",
+  "short-help": "show unique values",
   "mode": "read-only",
   "args": [{"name": "family", "type": "enum"}],
   "pipes": [{"name": "family", "description": "family filter"}],
@@ -3099,20 +3099,20 @@ func TestWikiValidatorRejectsCatalogStructureMutations(t *testing.T) {
 func TestWikiValidatorRoundTripsCanonicalEmptyPipeSupport(t *testing.T) {
 	live := []publishedCommand{
 		{
-			Path:        "clear minimal",
-			Mode:        "offline",
-			Description: "Minimal offline command",
+			Path:      "clear minimal",
+			Mode:      "offline",
+			ShortHelp: "Minimal offline command",
 		},
 		{
-			Path:        "show wire-backed",
-			Mode:        "daemon",
-			Description: "Wire-backed command",
-			WireMethod:  "show_wire_backed",
+			Path:       "show wire-backed",
+			Mode:       "daemon",
+			ShortHelp:  "Wire-backed command",
+			WireMethod: "show_wire_backed",
 		},
 		{
-			Path:        "show supported",
-			Mode:        "read-only",
-			Description: "Supported command",
+			Path:      "show supported",
+			Mode:      "read-only",
+			ShortHelp: "Supported command",
 			Operators: []publishedCommandOperator{{
 				Name: "json", Available: "always", Description: "JSON output",
 			}},
@@ -3181,12 +3181,12 @@ func TestWikiValidatorRoundTripsCanonicalEmptyPipeSupport(t *testing.T) {
 // PREVENTS: raw Markdown syntax changing the visible verb or breaking its link.
 func TestWikiValidatorAcceptsLiteralVerbAnchors(t *testing.T) {
 	const catalog = `[
-  {"path": "` + "`show`" + ` route", "description": "backtick", "mode": "read-only"},
-  {"path": "contents route", "description": "reserved", "mode": "read-only"},
-  {"path": "show! route", "description": "punctuation", "mode": "read-only"},
-  {"path": "show-1 route", "description": "slug collision", "mode": "read-only"},
-  {"path": "show? route", "description": "collision", "mode": "read-only"},
-  {"path": "表示 route", "description": "unicode", "mode": "read-only"}
+  {"path": "` + "`show`" + ` route", "short-help": "backtick", "mode": "read-only"},
+  {"path": "contents route", "short-help": "reserved", "mode": "read-only"},
+  {"path": "show! route", "short-help": "punctuation", "mode": "read-only"},
+  {"path": "show-1 route", "short-help": "slug collision", "mode": "read-only"},
+  {"path": "show? route", "short-help": "collision", "mode": "read-only"},
+  {"path": "表示 route", "short-help": "unicode", "mode": "read-only"}
 ]`
 	live, err := parseCommandCatalog("literal verb fixture", []byte(catalog))
 	if err != nil {
@@ -3291,9 +3291,9 @@ func installCommandRendererMutation(
 
 func TestWikiValidatorAcceptsReservedEmptyHeadingAnchors(t *testing.T) {
 	live := []publishedCommand{
-		{Path: "!!! route", Mode: "read-only", Description: "ASCII punctuation"},
-		{Path: "u--212121 route", Mode: "read-only", Description: "Reserved collision"},
-		{Path: "！！！ route", Mode: "read-only", Description: "Unicode punctuation"},
+		{Path: "!!! route", Mode: "read-only", ShortHelp: "ASCII punctuation"},
+		{Path: "u--212121 route", Mode: "read-only", ShortHelp: "Reserved collision"},
+		{Path: "！！！ route", Mode: "read-only", ShortHelp: "Unicode punctuation"},
 	}
 	raw, err := json.Marshal(live)
 	if err != nil {
@@ -3330,9 +3330,9 @@ func TestWikiValidatorAcceptsReservedEmptyHeadingAnchors(t *testing.T) {
 // because a Markdown table cell cannot hold a line break.
 func TestWikiValidatorRoundTripsNormalizedDescriptionBreaks(t *testing.T) {
 	live := []publishedCommand{
-		{Path: "show crlf", Mode: "read-only", Description: "one line", LongHelp: "first\r\nsecond"},
-		{Path: "clear cr", Mode: "offline", Description: "one line", LongHelp: "first\rsecond"},
-		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond", LongHelp: "third\nfourth"},
+		{Path: "show crlf", Mode: "read-only", ShortHelp: "one line", Description: "first\r\nsecond"},
+		{Path: "clear cr", Mode: "offline", ShortHelp: "one line", Description: "first\rsecond"},
+		{Path: "set mixed", Mode: "offline", ShortHelp: "first\r\nsecond", Description: "third\nfourth"},
 	}
 	raw, err := json.Marshal(live)
 	if err != nil {

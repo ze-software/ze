@@ -50,9 +50,9 @@ func (m *Model) searchConfig(query string) []Completion {
 				continue
 			}
 			results = append(results, Completion{
-				Text:        line,
-				Description: textbuf.Join(words[1:], " "),
-				Type:        "search",
+				Text:      line,
+				ShortHelp: textbuf.Join(words[1:], " "),
+				Type:      "search",
 			})
 			if len(results) >= searchMaxResults {
 				break

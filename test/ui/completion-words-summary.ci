@@ -9,7 +9,7 @@
 #       of every command in the file, so the format reject below is meaningful
 #       only while this is the only command.
 # NOTE: `show bgp rib` is the path because three of its children declare a
-#       summary AND a separate multi-line `ze:help`
+#       `ze:help` summary AND a separate multi-line `description`
 #       (internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang), so the
 #       two texts are distinguishable in the record.
 

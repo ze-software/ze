@@ -87,7 +87,7 @@ producers below read that file and nothing else.
 
 A command carries two help texts, and each surface reads the one it has room
 for. `description` is the one-line summary, and all four producers print it
-whole. `long-help` is the explanation, and only `renderEquivalentDetail` prints
+whole. `description` is the explanation, and only `renderEquivalentDetail` prints
 it, as the detail page body. No producer derives one text from the other, and
 none cuts either one. `docs/architecture/api/commands.md` holds the same table
 for every other surface.

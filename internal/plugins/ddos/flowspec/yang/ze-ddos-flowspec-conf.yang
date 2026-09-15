@@ -14,10 +14,10 @@ module ze-ddos-flowspec-conf {
 
   augment "/dd:ddos" {
     container flowspec {
-      description "Answer a detected attack by announcing a BGP FlowSpec rule.";
-      ze:help "The rule is announced to a peer, so the traffic is dropped upstream and
-               never reaches this router. It needs a peer that accepts FlowSpec, which
-               is what separates it from the local responder.";
+      description "The rule is announced to a peer, so the traffic is dropped upstream and
+                   never reaches this router. It needs a peer that accepts FlowSpec, which
+                   is what separates it from the local responder.";
+      ze:help "Answer a detected attack by announcing a BGP FlowSpec rule.";
 
       leaf response-level {
         type enumeration {
@@ -25,10 +25,10 @@ module ze-ddos-flowspec-conf {
           enum enforce;
         }
         default alert;
-        description "Action on attack detection: alert (log only) or enforce (announce FlowSpec).";
-        ze:help "alert is the default. The responder then logs the announcement it would make, and
-                 announces nothing. enforce is the value that puts a rule on the wire. The leaf gates
-                 every announce path, the blackhole-fallback fast path included.";
+        description "alert is the default. The responder then logs the announcement it would make, and
+                     announces nothing. enforce is the value that puts a rule on the wire. The leaf gates
+                     every announce path, the blackhole-fallback fast path included.";
+        ze:help "Action on attack detection: alert (log only) or enforce (announce FlowSpec).";
       }
       leaf action {
         type enumeration {
@@ -36,106 +36,106 @@ module ze-ddos-flowspec-conf {
           enum discard;
         }
         mandatory true;
-        description "FlowSpec traffic-action: discard or rate-limit. Mandatory, with no default.";
-        ze:help "Neither discard nor rate-limit is universally safe, so this leaf
-                 has no default. discard announces an RFC 8955 traffic-rate of 0,
-                 which drops the characterized attack flow. rate-limit announces
-                 a byte rate, and it requires an explicit rate-limit-bytes. A
-                 rate-limit-bytes of 0 is a valid choice, and it is equivalent to
-                 discard on the wire.";
+        description "Neither discard nor rate-limit is universally safe, so this leaf
+                     has no default. discard announces an RFC 8955 traffic-rate of 0,
+                     which drops the characterized attack flow. rate-limit announces
+                     a byte rate, and it requires an explicit rate-limit-bytes. A
+                     rate-limit-bytes of 0 is a valid choice, and it is equivalent to
+                     discard on the wire.";
+        ze:help "FlowSpec traffic-action: discard or rate-limit. Mandatory, with no default.";
       }
       leaf rate-limit-bytes {
         type uint64 { range "0..max"; }
-        description "Bytes per second announced in the RFC 8955 traffic-rate extended community.";
-        ze:help "This leaf is required, and validated, when action is rate-limit.
-                 It has no default, because no rate is universally safe. A value
-                 of 0 is valid, and it encodes the same traffic-rate-0 as
-                 discard. Ze does not read the leaf when action is discard. Set
-                 it to the per-flow rate you accept toward the victim during
-                 mitigation.";
+        description "This leaf is required, and validated, when action is rate-limit.
+                     It has no default, because no rate is universally safe. A value
+                     of 0 is valid, and it encodes the same traffic-rate-0 as
+                     discard. Ze does not read the leaf when action is discard. Set
+                     it to the per-flow rate you accept toward the victim during
+                     mitigation.";
+        ze:help "Bytes per second announced in the RFC 8955 traffic-rate extended community.";
       }
       leaf hold-down {
         type uint32 { range "1..86400"; }
         default 300;
-        description "Minimum seconds before the first leak-probe after announcement.";
-        ze:help "The responder counts one second for each AttackOngoing event the detector emits, and
-                 the detector emits one for each traffic sample. The rule stays at full strength for
-                 this long, and the first leak-probe follows. A probe that saturates doubles the wait,
-                 up to backoff-cap. The range is 1 to 86400 seconds, and 300 is the default.";
+        description "The responder counts one second for each AttackOngoing event the detector emits, and
+                     the detector emits one for each traffic sample. The rule stays at full strength for
+                     this long, and the first leak-probe follows. A probe that saturates doubles the wait,
+                     up to backoff-cap. The range is 1 to 86400 seconds, and 300 is the default.";
+        ze:help "Minimum seconds before the first leak-probe after announcement.";
       }
       leaf probe-interval {
         type uint16 { range "1..3600"; }
         default 60;
-        description "Seconds between leak-probe attempts after hold-down.";
-        ze:help "After the hold-down ends the responder waits this long. It then narrows the rule to
-                 probe-rate and watches what arrives. 60 is the default, and the range is 1 to 3600
-                 seconds. A shorter interval finds the end of an attack sooner, and it also lets more
-                 attack traffic through each time.";
+        description "After the hold-down ends the responder waits this long. It then narrows the rule to
+                     probe-rate and watches what arrives. 60 is the default, and the range is 1 to 3600
+                     seconds. A shorter interval finds the end of an attack sooner, and it also lets more
+                     attack traffic through each time.";
+        ze:help "Seconds between leak-probe attempts after hold-down.";
       }
       leaf probe-window {
         type uint16 { range "1..300"; }
         default 10;
-        description "Seconds to observe leaked traffic during a probe.";
-        ze:help "The responder withdraws the rule when the observed rate stays under probe-rate for
-                 this whole window. One second at or above probe-rate ends the probe at once, and the
-                 rule goes back to full strength. 10 is the default, and the range is 1 to 300
-                 seconds.";
+        description "The responder withdraws the rule when the observed rate stays under probe-rate for
+                     this whole window. One second at or above probe-rate ends the probe at once, and the
+                     rule goes back to full strength. 10 is the default, and the range is 1 to 300
+                     seconds.";
+        ze:help "Seconds to observe leaked traffic during a probe.";
       }
       leaf probe-rate {
         type uint32 { range "1..max"; }
         default 1000000;
-        description "Bits per second to allow during a leak-probe.";
-        ze:help "The responder compares the rate it measures behind the filter against this value. At
-                 or above it, the attack still runs: the rule is tightened again and the hold-down
-                 doubles. Under it for a whole probe-window, the rule is withdrawn. 1000000 bits per
-                 second is the default, and the value must be 1 or more.";
+        description "The responder compares the rate it measures behind the filter against this value. At
+                     or above it, the attack still runs: the rule is tightened again and the hold-down
+                     doubles. Under it for a whole probe-window, the rule is withdrawn. 1000000 bits per
+                     second is the default, and the value must be 1 or more.";
+        ze:help "Bits per second to allow during a leak-probe.";
       }
       leaf announce-rate-limit {
         type uint16 { range "1..600"; }
         default 10;
-        description "Maximum FlowSpec announcements per minute.";
-        ze:help "The most FlowSpec announcements Ze sends in any 60 second window. An announcement over
-                 the limit is refused and logged, and the responder stays idle, so the next attack
-                 characterization inside the window announces nothing upstream and the one after the
-                 window rolls does. The limit protects the BGP sessions the rule goes to: a peer that
-                 drops the session over announce churn loses every rule it holds. 10 is the default, and
-                 the range is 1 to 600.";
+        description "The most FlowSpec announcements Ze sends in any 60 second window. An announcement over
+                     the limit is refused and logged, and the responder stays idle, so the next attack
+                     characterization inside the window announces nothing upstream and the one after the
+                     window rolls does. The limit protects the BGP sessions the rule goes to: a peer that
+                     drops the session over announce churn loses every rule it holds. 10 is the default, and
+                     the range is 1 to 600.";
+        ze:help "Maximum FlowSpec announcements per minute.";
       }
       leaf max-mitigation-duration {
         type uint32 { range "0..604800"; }
         default 3600;
-        description "Maximum seconds a FlowSpec rule stays announced (0 = no cap).";
-        ze:help "The responder measures this against the wall clock, and not against the probe. An
-                 attack that goes quiet stops the AttackOngoing events the probe counts, which is the
-                 case the probe cannot see. 0 removes the cap, so the rule then stays until a probe
-                 withdraws it. 3600 is the default, and the range is 0 to 604800 seconds.";
+        description "The responder measures this against the wall clock, and not against the probe. An
+                     attack that goes quiet stops the AttackOngoing events the probe counts, which is the
+                     case the probe cannot see. 0 removes the cap, so the rule then stays until a probe
+                     withdraws it. 3600 is the default, and the range is 0 to 604800 seconds.";
+        ze:help "Maximum seconds a FlowSpec rule stays announced (0 = no cap).";
       }
       leaf backoff-cap {
         type uint32 { range "1..604800"; }
         default 3600;
-        description "Maximum hold-down after exponential backoff.";
-        ze:help "Each probe that saturates doubles the current hold-down, and this value stops the
-                 doubling. Ze refuses a backoff-cap under hold-down, and the upper bound is 604800
-                 seconds. 3600 is the default, which stops the wait at one hour.";
+        description "Each probe that saturates doubles the current hold-down, and this value stops the
+                     doubling. Ze refuses a backoff-cap under hold-down, and the upper bound is 604800
+                     seconds. 3600 is the default, which stops the wait at one hour.";
+        ze:help "Maximum hold-down after exponential backoff.";
       }
       leaf blackhole-fallback {
         type boolean;
         default false;
-        description "Announce an immediate upstream discard on a critical-severity AttackDetected.";
-        ze:help "When true, a critical-severity AttackDetected (a peak of 5x the
-                 threshold or more) engages an immediate upstream discard, in the
-                 style of RTBH, and it does not wait for characterization. When
-                 false, the default, ze announces the upstream rule only from
-                 AttackCharacterized. The rule is then precise before the box
-                 goes blind behind the filter.";
+        description "When true, a critical-severity AttackDetected (a peak of 5x the
+                     threshold or more) engages an immediate upstream discard, in the
+                     style of RTBH, and it does not wait for characterization. When
+                     false, the default, ze announces the upstream rule only from
+                     AttackCharacterized. The rule is then precise before the box
+                     goes blind behind the filter.";
+        ze:help "Announce an immediate upstream discard on a critical-severity AttackDetected.";
       }
       leaf confidence-min {
         type uint8 { range "0..100"; }
         default 0;
-        description "Minimum incident confidence (0-100) to announce an upstream rule from a characterized attack.";
-        ze:help "The default is 0, which accepts any confidence. The
-                 blackhole-fallback fast path never applies this minimum,
-                 because AttackDetected carries no confidence.";
+        description "The default is 0, which accepts any confidence. The
+                     blackhole-fallback fast path never applies this minimum,
+                     because AttackDetected carries no confidence.";
+        ze:help "Minimum incident confidence (0-100) to announce an upstream rule from a characterized attack.";
       }
     }
   }

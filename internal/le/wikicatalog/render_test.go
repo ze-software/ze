@@ -20,8 +20,8 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 			entries: []Entry{
 				{
 					Path:          "show zeta",
-					Description:   "Zeta | first",
-					LongHelp:      "Zeta details\nZeta second line",
+					ShortHelp:     "Zeta | first",
+					Description:   "Zeta details\nZeta second line",
 					Mode:          "read-only",
 					WireMethod:    "show_zeta",
 					AnswerShape:   "tab",
@@ -45,19 +45,19 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 					},
 					Subcommands: []string{"brief", "detail"},
 				},
-				{Path: "clear beta", Description: "Clear | beta", Mode: "offline"},
-				{Path: "show alpha", Description: "Alpha", Mode: "daemon", WireMethod: "show_alpha"},
+				{Path: "clear beta", ShortHelp: "Clear | beta", Mode: "offline"},
+				{Path: "show alpha", ShortHelp: "Alpha", Mode: "daemon", WireMethod: "show_alpha"},
 			},
 			golden: "multi.md",
 		},
 		{
 			name: "literal verb labels and anchors",
 			entries: []Entry{
-				{Path: "`show` route", Mode: "read-only", Description: "Backtick"},
-				{Path: "contents route", Mode: "read-only", Description: "Reserved"},
-				{Path: "show! route", Mode: "read-only", Description: "Punctuation"},
-				{Path: "show? route", Mode: "read-only", Description: "Collision"},
-				{Path: "表示 route", Mode: "read-only", Description: "Unicode"},
+				{Path: "`show` route", Mode: "read-only", ShortHelp: "Backtick"},
+				{Path: "contents route", Mode: "read-only", ShortHelp: "Reserved"},
+				{Path: "show! route", Mode: "read-only", ShortHelp: "Punctuation"},
+				{Path: "show? route", Mode: "read-only", ShortHelp: "Collision"},
+				{Path: "表示 route", Mode: "read-only", ShortHelp: "Unicode"},
 			},
 			golden: "literal-verbs.md",
 		},
@@ -94,8 +94,8 @@ func TestRenderLiteralProseAndDynamicCodeSpans(t *testing.T) {
 	rendered, err := Render([]Entry{{
 		Path:          "show `tick`",
 		Mode:          "read-only",
-		Description:   "*summary* | literal",
-		LongHelp:      "_detail_\n**second**",
+		ShortHelp:     "*summary* | literal",
+		Description:   "_detail_\n**second**",
 		WireMethod:    "`wire`",
 		AnswerShape:   "`shape`",
 		AddressFields: []string{"`address`"},
@@ -127,15 +127,15 @@ func TestRenderLiteralProseAndDynamicCodeSpans(t *testing.T) {
 func TestRenderZeroSupportCommandsHaveCanonicalPipeVerdict(t *testing.T) {
 	rendered, err := Render([]Entry{
 		{
-			Path:        "clear minimal",
-			Mode:        "offline",
-			Description: "Minimal offline command",
+			Path:      "clear minimal",
+			Mode:      "offline",
+			ShortHelp: "Minimal offline command",
 		},
 		{
-			Path:        "show wire-backed",
-			Mode:        "daemon",
-			Description: "Wire-backed command",
-			WireMethod:  "show_wire_backed",
+			Path:       "show wire-backed",
+			Mode:       "daemon",
+			ShortHelp:  "Wire-backed command",
+			WireMethod: "show_wire_backed",
 		},
 	})
 	if err != nil {
@@ -183,9 +183,9 @@ func TestRenderCurrentCatalogAnswersPipeSupportForEveryCommand(t *testing.T) {
 
 func TestRenderAliasOnlyEntryIncludesDetail(t *testing.T) {
 	rendered, err := Render([]Entry{{
-		Path:        "show alias",
-		Mode:        "read-only",
-		Description: "Alias command",
+		Path:      "show alias",
+		Mode:      "read-only",
+		ShortHelp: "Alias command",
 		Aliases: []Alias{{
 			Name:        "summary",
 			Description: "Show a summary",
@@ -208,15 +208,15 @@ func TestRenderAliasOnlyEntryIncludesDetail(t *testing.T) {
 
 func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
 	rendered, err := Render([]Entry{
-		{Path: "!!! route", Mode: "read-only", Description: "Empty ASCII anchor"},
-		{Path: "`show` route", Mode: "read-only", Description: "Backtick"},
-		{Path: "contents route", Mode: "read-only", Description: "Reserved"},
-		{Path: "show! route", Mode: "read-only", Description: "Punctuation"},
-		{Path: "show? route", Mode: "read-only", Description: "Collision"},
-		{Path: "show-1 route", Mode: "read-only", Description: "Slug collision"},
-		{Path: "表示 route", Mode: "read-only", Description: "Unicode"},
-		{Path: "u--212121 route", Mode: "read-only", Description: "Reserved collision"},
-		{Path: "！！！ route", Mode: "read-only", Description: "Empty Unicode anchor"},
+		{Path: "!!! route", Mode: "read-only", ShortHelp: "Empty ASCII anchor"},
+		{Path: "`show` route", Mode: "read-only", ShortHelp: "Backtick"},
+		{Path: "contents route", Mode: "read-only", ShortHelp: "Reserved"},
+		{Path: "show! route", Mode: "read-only", ShortHelp: "Punctuation"},
+		{Path: "show? route", Mode: "read-only", ShortHelp: "Collision"},
+		{Path: "show-1 route", Mode: "read-only", ShortHelp: "Slug collision"},
+		{Path: "表示 route", Mode: "read-only", ShortHelp: "Unicode"},
+		{Path: "u--212121 route", Mode: "read-only", ShortHelp: "Reserved collision"},
+		{Path: "！！！ route", Mode: "read-only", ShortHelp: "Empty Unicode anchor"},
 	})
 	if err != nil {
 		t.Fatalf("Render() error: %v", err)
@@ -253,9 +253,9 @@ func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
 // because a Markdown table cell cannot hold a line break.
 func TestRenderNormalizesDescriptionLineBreaks(t *testing.T) {
 	entries := []Entry{
-		{Path: "show crlf", Mode: "read-only", Description: "one line", LongHelp: "first\r\nsecond"},
-		{Path: "clear cr", Mode: "offline", Description: "one line", LongHelp: "first\rsecond"},
-		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond", LongHelp: "third\nfourth"},
+		{Path: "show crlf", Mode: "read-only", ShortHelp: "one line", Description: "first\r\nsecond"},
+		{Path: "clear cr", Mode: "offline", ShortHelp: "one line", Description: "first\rsecond"},
+		{Path: "set mixed", Mode: "offline", ShortHelp: "first\r\nsecond", Description: "third\nfourth"},
 	}
 	rendered, err := Render(entries)
 	if err != nil {
@@ -277,8 +277,8 @@ func TestRenderNormalizesDescriptionLineBreaks(t *testing.T) {
 	if strings.ContainsRune(content, '\r') {
 		t.Fatalf("normalized catalog retained carriage returns:\n%q", content)
 	}
-	if entries[0].LongHelp != "first\r\nsecond" {
-		t.Fatalf("Render() mutated caller-owned entries: %q", entries[0].LongHelp)
+	if entries[0].Description != "first\r\nsecond" {
+		t.Fatalf("Render() mutated caller-owned entries: %q", entries[0].Description)
 	}
 }
 
@@ -294,13 +294,13 @@ func TestWikiCatalogRendersDeclaredSummary(t *testing.T) {
 		{
 			Path:        "show declared",
 			Mode:        "read-only",
-			Description: "Show what the node declares as its summary.",
-			LongHelp:    "The explanation runs over two lines.\nIt reaches the detail block alone.",
+			ShortHelp:   "Show what the node declares as its summary.",
+			Description: "The explanation runs over two lines.\nIt reaches the detail block alone.",
 		},
 		{
-			Path:        "show terse",
-			Mode:        "read-only",
-			Description: "Show a node that declares no long form.",
+			Path:      "show terse",
+			Mode:      "read-only",
+			ShortHelp: "Show a node that declares no long form.",
 		},
 	}
 	rendered, err := Render(entries)

@@ -179,8 +179,8 @@ func TestLLMSCommandLineCarriesWholeSummary(t *testing.T) {
 		"the number of answers it has produced since the last clear, and the peer that " +
 		"originated it, in the order the table holds them."
 	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only",
-		"wire-method":"ze-test:rows","description":"`+summary+`",
-		"long-help":"The count column never restarts on its own."}]`)
+		"wire-method":"ze-test:rows","short-help":"`+summary+`",
+		"description":"The count column never restarts on its own."}]`)
 
 	if _, err := renderLLMS(paths); err != nil {
 		t.Fatal(err)

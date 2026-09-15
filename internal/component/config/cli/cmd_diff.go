@@ -31,8 +31,8 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config diff", flag.ExitOnError)
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config diff",
-			Summary: "Compare two configuration files and show differences",
+			Command:   "ze config diff",
+			ShortHelp: "Compare two configuration files and show differences",
 			Usage: []string{
 				"ze config diff <file1> <file2>",
 				"ze config diff <N> <file>",

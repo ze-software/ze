@@ -24,9 +24,9 @@ func cmdMigrate(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config migrate",
-			Summary: "Convert configuration to current format",
-			Usage:   []string{"ze config migrate [options] [format <form>] <config-file>"},
+			Command:   "ze config migrate",
+			ShortHelp: "Convert configuration to current format",
+			Usage:     []string{"ze config migrate [options] [format <form>] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Default output is set format. Use - to read from stdin."},

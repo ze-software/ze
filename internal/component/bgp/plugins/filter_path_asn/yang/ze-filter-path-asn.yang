@@ -25,88 +25,88 @@ module ze-filter-path-asn {
         list reject-asn {
             ze:filter;
             key "name";
-            description "Named list of ASNs rejected by their position in the AS_PATH.";
-            ze:help "Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it
+            description "Every ASN written under the list is looked for in the AS_PATH of the route. The keyword it
                 sits under decides which positions reject it. The list is an unordered reject set, so any keyword
                 that matches rejects the route and no keyword wins over another. Ze reads the positions first and
                 the patterns after them.";
+            ze:help "Named list of ASNs rejected by their position in the AS_PATH.";
 
             leaf name {
                 type string {
                     length "1..256";
                 }
-                description "Filter instance name, referenced from a peer filter chain.";
-                ze:help "A chain entry reaches this list as the bare NAME, as reject-asn:NAME, or as
+                description "A chain entry reaches this list as the bare NAME, as reject-asn:NAME, or as
                     bgp-filter-path-asn:NAME. A chain that names a list Ze does not hold rejects every route of
                     that peer, because the filter fails closed.";
+                ze:help "Filter instance name, referenced from a peer filter chain.";
             }
 
             leaf-list direct {
                 type zt:asn;
                 ze:validate "transit-asn";
-                description "Reject these ASNs where they are the peer we are talking to, prepends collapsed.";
-                ze:help "The position is the leading run of tokens equal to the ASN of the sending peer, so four
+                description "The position is the leading run of tokens equal to the ASN of the sending peer, so four
                     prepends are one direct position. On export no ASN is direct, because the filter input carries
                     the destination peer rather than the sender. A path that starts with another ASN is a leak, and
                     direct does not catch it.";
+                ze:help "Reject these ASNs where they are the peer we are talking to, prepends collapsed.";
             }
 
             leaf-list indirect {
                 type zt:asn;
                 ze:validate "transit-asn";
-                description "Reject these ASNs anywhere they are NOT the peer we are talking to.";
-                ze:help "The keyword covers transit and origin together. It is the leaf an operator writes for RFC
+                description "The keyword covers transit and origin together. It is the leaf an operator writes for RFC
                     7454 Section 9. The route reached you through the ASN, and a direct session with that ASN is
                     still fine. On export the sender is unknown, so indirect covers the whole path.";
+                ze:help "Reject these ASNs anywhere they are NOT the peer we are talking to.";
             }
 
             leaf-list transit {
                 type zt:asn;
                 ze:validate "transit-asn";
-                description "Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.";
-                ze:help "A token is transit when it sits neither inside the leading run of the sender nor at the
+                description "A token is transit when it sits neither inside the leading run of the sender nor at the
                     end of the path. Ze gives every token exactly one of direct, transit and origin.";
+                ze:help "Reject these ASNs where they sit past the peer and are not the last ASN of the AS_PATH.";
             }
 
             leaf-list origin {
                 type zt:asn;
                 ze:validate "transit-asn";
-                description "Reject these ASNs where they are the last ASN of the AS_PATH.";
-                ze:help "The last ASN of the path announced the route. The leading run of the sender wins over that
+                description "The last ASN of the path announced the route. The leading run of the sender wins over that
                     last position, so a lone ASN sent by the peer that owns it is direct rather than the origin.";
+                ze:help "Reject these ASNs where they are the last ASN of the AS_PATH.";
             }
 
             leaf-list anywhere {
                 type zt:asn;
                 ze:validate "transit-asn";
-                description "Reject these ASNs at any position: direct, transit and origin together.";
-                ze:help "The keyword is the union of the other three, so it rejects the ASN wherever it sits. The
+                description "The keyword is the union of the other three, so it rejects the ASN wherever it sits. The
                     reject log line still names which of the three caught the route.";
+                ze:help "Reject these ASNs at any position: direct, transit and origin together.";
             }
 
             list nth {
                 key "index";
-                description "Reject the listed ASNs at one collapsed position of the AS_PATH.";
-                ze:help "Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive
+                description "Ze counts the positions from us, and 1 is the ASN we are talking to. A run of consecutive
                     identical ASNs counts once, so a peer cannot move your rule by a prepend. The keyword cuts
                     across the other five, because an ASN at position 2 CAN also be transit.";
+                ze:help "Reject the listed ASNs at one collapsed position of the AS_PATH.";
 
                 leaf index {
                     type uint8 {
                         range "1..255";
                     }
-                    description "The collapsed position, counted from us. 1 is the ASN we are talking to.";
-                    ze:help "The index is the list key, so one entry holds every ASN rejected at that position. Ze
+                    description "The index is the list key, so one entry holds every ASN rejected at that position. Ze
                         judges 255 positions at most, and a token past that position matches no nth rule.";
+                    ze:help "The collapsed position, counted from us. 1 is the ASN we are talking to.";
                 }
 
                 leaf-list asn {
                     type zt:asn;
                     ze:validate "transit-asn";
-                    description "The ASNs this position rejects.";
-                    ze:help "The completion of the leaf offers a curated table of transit-free networks, and that
+                    description "The completion of the leaf offers a curated table of transit-free networks, and that
                         table constrains nothing. Every ASN the type admits stays valid, and an ASN the table never
                         held is accepted with no warning. show bgp reject-asn known transit-free prints the table.";
+                    ze:help "The ASNs this position rejects.";
                 }
             }
 
@@ -114,10 +114,10 @@ module ze-filter-path-asn {
                 type string {
                     length "1..512";
                 }
-                description "Go RE2 patterns matched against the whole space-separated AS_PATH string.";
-                ze:help "No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches
+                description "No position applies to a pattern. Ze matches it against the flat path, so a pattern reaches
                     an ASN inside an AS_SET and meets no bracket. The 512-character bound is the bound
                     bgp-filter-aspath applies to a regex. Ze reads the patterns only when no position matched.";
+                ze:help "Go RE2 patterns matched against the whole space-separated AS_PATH string.";
             }
         }
     }

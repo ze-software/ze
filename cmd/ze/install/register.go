@@ -8,9 +8,9 @@ func init() {
 	registry.MustRegisterRootHandler("install", func(_ *registry.RuntimeContext, args []string) int {
 		return Dispatch(args)
 	}, registry.Meta{
-		Description: "Install ze binary, systemd service, or provision remote devices",
-		Mode:        "setup",
-		Section:     registry.SectionSystem,
-		SubsFunc:    Subcommands,
+		ShortHelp: "Install ze binary, systemd service, or provision remote devices",
+		Mode:      "setup",
+		Section:   registry.SectionSystem,
+		SubsFunc:  Subcommands,
 	})
 }

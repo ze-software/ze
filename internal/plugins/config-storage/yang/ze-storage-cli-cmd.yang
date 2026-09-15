@@ -9,35 +9,35 @@ module ze-storage-cli-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container data {
             config false;
-            description "ZeFS blob store keys and content.";
-            ze:help "This is the raw store the daemon persists into, keyed by blob rather than by
-                     config path. Use show config to read the configuration itself.";
+            description "This is the raw store the daemon persists into, keyed by blob rather than by
+                         config path. Use show config to read the configuration itself.";
+            ze:help "ZeFS blob store keys and content.";
 
             container list {
                 config false;
                 ze:command "ze-show:data-list";
-                description "List everything stored in the ZeFS blob store.";
-                ze:help "Shows all keys and their sizes. Use 'show data cat <key>' to see the content
+                description "Shows all keys and their sizes. Use 'show data cat <key>' to see the content
 of a specific entry.";
+                ze:help "List everything stored in the ZeFS blob store.";
             }
 
             container cat {
                 config false;
                 ze:command "ze-show:data-cat";
-                description "Print the raw content of a blob store entry.";
-                ze:help "Outputs the value for the given key, like 'cat' for ZeFS.";
-                leaf key { type string { length "1..512"; } mandatory true; description "Blob store key to print"; }
+                description "Outputs the value for the given key, like 'cat' for ZeFS.";
+                ze:help "Print the raw content of a blob store entry.";
+                leaf key { type string { length "1..512"; } mandatory true; ze:help "Blob store key to print"; }
             }
 
             container registered {
                 config false;
                 ze:command "ze-show:data-registered";
-                description "List the key patterns registered by all subsystems.";
-                ze:help "Shows you what types of data ZeFS knows about.";
+                description "Shows you what types of data ZeFS knows about.";
+                ze:help "List the key patterns registered by all subsystems.";
             }
         }
     }

@@ -21,38 +21,38 @@ module ze-filter-aspath-length {
         list as-path-length {
             ze:filter;
             key "name";
-            description "Named AS-path length filter instance.";
-            ze:help "Ze rejects a route whose AS-path length falls outside the
-                     configured min..max range. Both min and max are optional,
-                     and an omitted bound is open.";
+            description "Ze rejects a route whose AS-path length falls outside the
+                         configured min..max range. Both min and max are optional,
+                         and an omitted bound is open.";
+            ze:help "Named AS-path length filter instance.";
 
             leaf name {
                 type string;
-                description "Filter instance name (referenced in peer filter
-                             chains as as-path-length:NAME).";
-                ze:help "The filter answers accept or reject for the whole UPDATE, and never rewrites it. A chain
+                description "The filter answers accept or reject for the whole UPDATE, and never rewrites it. A chain
                     that names a filter Ze does not hold rejects every route of that peer.";
+                ze:help "Filter instance name (referenced in peer filter
+                         chains as as-path-length:NAME).";
             }
 
             leaf max {
                 type uint16 {
                     range "1..65535";
                 }
-                description "Maximum allowed AS-path length (inclusive).
-                             Routes with longer paths are rejected.";
-                ze:help "An absent leaf leaves the upper bound open, so a filter that states neither bound accepts
+                description "An absent leaf leaves the upper bound open, so a filter that states neither bound accepts
                     every route. Ze counts every ASN of the path, so a member of an AS_SET counts as one hop.";
+                ze:help "Maximum allowed AS-path length (inclusive).
+                         Routes with longer paths are rejected.";
             }
 
             leaf min {
                 type uint16 {
                     range "0..65535";
                 }
-                description "Minimum required AS-path length (inclusive).
-                             Routes with shorter paths are rejected.";
-                ze:help "An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0
+                description "An absent leaf leaves the lower bound open. A route that carries no AS_PATH counts 0
                     hops. min 1 therefore rejects a route Ze originated, and a route an iBGP peer sent with an
                     empty path.";
+                ze:help "Minimum required AS-path length (inclusive).
+                         Routes with shorter paths are rejected.";
             }
         }
     }

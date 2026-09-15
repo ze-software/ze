@@ -12,9 +12,9 @@ func init() {
 	registry.MustRegisterRootHandler("sysctl", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Kernel sysctl helpers",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "",
+		ShortHelp: "Kernel sysctl helpers",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "",
 	})
 }

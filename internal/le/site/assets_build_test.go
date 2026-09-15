@@ -16,7 +16,7 @@ import (
 // ABSENT, so the seeded bundle survived every build and no stylesheet edit ever
 // reached a reader.
 func TestAnAssetEditReachesTheArtifact(t *testing.T) {
-	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	stubProducers(t)
 	root, output := siteFixture(t)
 
@@ -60,7 +60,7 @@ func TestAnAssetEditReachesTheArtifact(t *testing.T) {
 // page producers stubbed out and checks that NOTHING in the build's own stages
 // wrote a command page.
 func TestNoBuildStagePublishesTheCommandFixture(t *testing.T) {
-	catalog := `[{"path":"show test","description":"Show rows","mode":"read-only"}]`
+	catalog := `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`
 	stubLiveInputs(t, catalog)
 	stubProducers(t)
 	root, output := siteFixture(t)

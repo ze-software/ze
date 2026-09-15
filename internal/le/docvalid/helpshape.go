@@ -6,8 +6,8 @@
 // the summary it declares the one short sentence that every one-line surface
 // can render?
 //
-// A command declares its summary as the YANG description statement and its long
-// explanation as the ze:help beside it. No renderer derives one from the other
+// A command declares its summary as the ze:help extension and its long
+// explanation as the YANG description beside it. No renderer derives one from the other
 // any more, so nothing except this gate keeps a summary short enough for a list
 // row, a completion candidate or a table cell
 // (plan/spec-yang-short-and-long-command-help.md, AC-3).
@@ -20,7 +20,7 @@
 // Three surfaces declare a command's help, and all three are judged by the same
 // seven rules. A `-cmd.yang` node declares the CLI path an operator types. An
 // `-api.yang` rpc declares the wire method that path reaches, and its own
-// description is what `ze help` and the schema registry answer for it. An
+// ze:help is what `ze help` and the schema registry answer for it. An
 // offline local command declares its summary as a registry.Meta beside its
 // handler, and it reaches no YANG module at all. Gating one and not the others
 // would leave part of the corpus with no shape to satisfy (AC-16).
@@ -59,7 +59,7 @@ import (
 // reported on its own so the author is told what to change rather than that
 // something is wrong.
 const (
-	ruleMissingSummary = "missing-summary"
+	ruleMissingSummary = "missing-short-help"
 	ruleOneSentence    = "one-sentence"
 	ruleWordCap        = "word-cap"
 	ruleCharCap        = "char-cap"
@@ -73,14 +73,14 @@ const (
 // The rules the PAIR is held to: the summary and the long explanation beside
 // it. Each names one clause of D-4 (plan/spec-command-help-and-description.md).
 //
-// Every one of them is absolute. missing-long-help was scoped to what the
+// Every one of them is absolute. missing-description was scoped to what the
 // commit under test added or changed for as long as the corpus carried a
 // summary alone on 193 declarations; those are written now, so the rule holds
 // over the whole tree and the HEAD baseline that scoped it is gone.
 const (
-	ruleMissingLongHelp = "missing-long-help"
-	ruleLongCap         = "long-cap"
-	ruleLongRestates    = "long-restates-summary"
+	ruleMissingDescription  = "missing-description"
+	ruleDescriptionCap      = "description-cap"
+	ruleDescriptionRestates = "description-restates-short-help"
 )
 
 // The three surfaces that declare a command's help. A refusal names one,
@@ -138,14 +138,14 @@ func (r *HelpShapeReport) node(cliPath string, node *command.Node) {
 	if node.WireMethod != "" {
 		r.Commands++
 	}
-	if strings.TrimSpace(node.LongHelp) != "" {
+	if strings.TrimSpace(node.Description) != "" {
 		r.WithHelp++
 	}
-	if !r.judgeSummary(surfaceCommand, cliPath, node.Description) {
+	if !r.judgeSummary(surfaceCommand, cliPath, node.ShortHelp) {
 		return
 	}
 	r.WithSummary++
-	r.judgePair(surfaceCommand, cliPath, node.Description, node.LongHelp)
+	r.judgePair(surfaceCommand, cliPath, node.ShortHelp, node.Description)
 }
 
 // rpc judges one RPC's summary and counts it.
@@ -155,14 +155,14 @@ func (r *HelpShapeReport) node(cliPath string, node *command.Node) {
 // the module (ai/rules/evidence.md -- name the producer, not a caller of it).
 func (r *HelpShapeReport) rpc(label string, meta yang.RPCMeta) {
 	r.RPCs++
-	if strings.TrimSpace(meta.LongHelp) != "" {
+	if strings.TrimSpace(meta.Description) != "" {
 		r.RPCsWithHelp++
 	}
-	if !r.judgeSummary(surfaceRPC, label, meta.Description) {
+	if !r.judgeSummary(surfaceRPC, label, meta.ShortHelp) {
 		return
 	}
 	r.RPCsWithSummary++
-	r.judgePair(surfaceRPC, label, meta.Description, meta.LongHelp)
+	r.judgePair(surfaceRPC, label, meta.ShortHelp, meta.Description)
 }
 
 // local judges one offline local command's summary and counts it.
@@ -171,14 +171,14 @@ func (r *HelpShapeReport) rpc(label string, meta yang.RPCMeta) {
 // of the registration the author has to open.
 func (r *HelpShapeReport) local(entry registry.LocalCommandEntry) {
 	r.Locals++
-	if strings.TrimSpace(entry.Meta.LongHelp) != "" {
+	if strings.TrimSpace(entry.Meta.Description) != "" {
 		r.LocalsWithHelp++
 	}
-	if !r.judgeSummary(surfaceLocal, entry.Path, entry.Meta.Description) {
+	if !r.judgeSummary(surfaceLocal, entry.Path, entry.Meta.ShortHelp) {
 		return
 	}
 	r.LocalsWithSummary++
-	r.judgePair(surfaceLocal, entry.Path, entry.Meta.Description, entry.Meta.LongHelp)
+	r.judgePair(surfaceLocal, entry.Path, entry.Meta.ShortHelp, entry.Meta.Description)
 }
 
 // judgeSummary judges one authored summary against the seven rules of AC-3 and
@@ -194,7 +194,7 @@ func (r *HelpShapeReport) judgeSummary(surface, label, description string) bool 
 	if summary == "" {
 		var detail textbuf.Buffer
 		r.refuse(surface, label, ruleMissingSummary,
-			detail.Str("the ").Str(surface).Str(" declares no description").String(), "")
+			detail.Str("the ").Str(surface).Str(" declares no summary").String(), "")
 		return false
 	}
 
@@ -229,7 +229,7 @@ func (r *HelpShapeReport) judgeSummary(surface, label, description string) bool 
 //
 // It is also the form an operator reads. `entryDescription` and
 // `enumKeyVocabulary` (internal/component/cli/completer.go) each join
-// strings.Fields with a space before the text reaches the row, so a description
+// strings.Fields with a space before the text reaches the row, so a ze:help
 // rewrapped over different lines is the same summary to a reader and must be
 // the same summary here.
 func flattenSummary(text string) string {
@@ -242,7 +242,7 @@ func flattenSummary(text string) string {
 // Both are measured on the FLATTENED text, because that is what a reader is
 // shown. `entryDescription` and `enumKeyVocabulary`
 // (internal/component/cli/completer.go) each join strings.Fields with a space
-// before the summary reaches the row, so a description rewrapped over three
+// before the summary reaches the row, so a ze:help rewrapped over three
 // lines is one length to an operator and must be one length here.
 //
 // One judge for the caps, called by every surface. A second copy would let a
@@ -268,36 +268,37 @@ func (r *HelpShapeReport) judgeCaps(surface, label, description string) {
 // pair rather than about either text alone.
 //
 // Every caller is a declaration that OWES an explanation. An enum does not, and
-// it reaches judgeCaps alone for that reason: nothing anywhere reads a ze:help
-// on an enum, so demanding one would demand a declaration no surface prints
+// it reaches judgeCaps alone for that reason: nothing anywhere reads a
+// description on an enum, so demanding one would demand a declaration no
+// surface prints
 // (helpshape_schema.go, schemaEnums).
 //
 // All three rules are absolute. A declaration an operator can reach owes both
 // texts wherever it was written, and a long text that repeats its summary or
 // runs past the byte bound is a defect on the day it lands.
-func (r *HelpShapeReport) judgePair(surface, label, description, longHelp string) {
+func (r *HelpShapeReport) judgePair(surface, label, description, explanation string) {
 	summary := strings.TrimSpace(description)
-	long := strings.TrimSpace(longHelp)
+	long := strings.TrimSpace(explanation)
 	// The row PRINTS the summary on one line, which is the form an operator
 	// reads it in. The comparison below is over the TRIMMED text, because AC-3
-	// asks whether the two declarations are byte-equal, and a config
-	// description rewrapped over four lines would otherwise never be equal to
-	// the long text that copies it.
+	// asks whether the two declarations are byte-equal, and a config ze:help
+	// rewrapped over four lines would otherwise never be equal to the long
+	// description that copies it.
 	shown := flattenSummary(summary)
 
 	if long == "" {
-		r.refuse(surface, label, ruleMissingLongHelp,
+		r.refuse(surface, label, ruleMissingDescription,
 			"the declaration carries a summary and no long text beside it", shown)
 		return
 	}
 	if long == summary {
-		r.refuse(surface, label, ruleLongRestates,
+		r.refuse(surface, label, ruleDescriptionRestates,
 			"the long text repeats the summary word for word", shown)
 	}
-	if size := len(long); size > command.MaxLongHelpBytes {
+	if size := len(long); size > command.MaxDescriptionBytes {
 		var detail textbuf.Buffer
-		r.refuse(surface, label, ruleLongCap, detail.Str("the long text is ").Int(int64(size)).
-			Str(" bytes (the bound is ").Int(int64(command.MaxLongHelpBytes)).Byte(')').String(), shown)
+		r.refuse(surface, label, ruleDescriptionCap, detail.Str("the long text is ").Int(int64(size)).
+			Str(" bytes (the bound is ").Int(int64(command.MaxDescriptionBytes)).Byte(')').String(), shown)
 	}
 }
 
@@ -580,10 +581,10 @@ func metaLiteral(args []ast.Expr) registry.Meta {
 				continue
 			}
 			switch key.Name {
+			case "ShortHelp":
+				meta.ShortHelp = value
 			case "Description":
 				meta.Description = value
-			case "LongHelp":
-				meta.LongHelp = value
 			}
 		}
 	}

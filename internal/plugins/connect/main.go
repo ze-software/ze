@@ -403,8 +403,8 @@ func readPassword() string {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze connect",
-		Summary: "Manage SSH credentials for remote ze daemons",
+		Command:   "ze connect",
+		ShortHelp: "Manage SSH credentials for remote ze daemons",
 		Usage: []string{
 			"ze connect add <host> [--port N] [--user name]",
 			"ze connect list",

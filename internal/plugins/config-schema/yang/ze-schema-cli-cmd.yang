@@ -7,47 +7,47 @@ module ze-schema-cli-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container schema {
             config false;
-            description "Discover registered YANG schemas, RPCs, and events.";
-            ze:help "What is listed comes from the registries this binary links, so the answer depends
-                     on the build and on which plugins loaded.";
+            description "What is listed comes from the registries this binary links, so the answer depends
+                         on the build and on which plugins loaded.";
+            ze:help "Discover registered YANG schemas, RPCs, and events.";
 
             container list {
                 config false;
                 ze:command "ze-show:schema-list";
-                description "List all YANG schemas loaded by the daemon.";
-                ze:help "Shows module name, namespace, and revision for each schema.";
+                description "Shows module name, namespace, and revision for each schema.";
+                ze:help "List all YANG schemas loaded by the daemon.";
             }
 
             container methods {
                 config false;
                 ze:command "ze-show:schema-methods";
-                description "List all RPC methods defined in YANG API modules.";
-                ze:help "Useful for plugin developers to discover available operations.";
+                description "Useful for plugin developers to discover available operations.";
+                ze:help "List all RPC methods defined in YANG API modules.";
             }
 
             container events {
                 config false;
                 ze:command "ze-show:schema-events";
-                description "List all notification types defined in YANG API modules.";
-                ze:help "Shows which events a plugin can subscribe to.";
+                description "Shows which events a plugin can subscribe to.";
+                ze:help "List all notification types defined in YANG API modules.";
             }
 
             container handlers {
                 config false;
                 ze:command "ze-show:schema-handlers";
-                description "Show which handler serves each YANG module.";
-                ze:help "Maps module names to their implementing Go handler.";
+                description "Maps module names to their implementing Go handler.";
+                ze:help "Show which handler serves each YANG module.";
             }
 
             container protocol {
                 config false;
                 ze:command "ze-show:schema-protocol";
-                description "Show the wire protocol version and format details.";
-                ze:help "Useful for checking compatibility between Ze versions.";
+                description "Useful for checking compatibility between Ze versions.";
+                ze:help "Show the wire protocol version and format details.";
             }
         }
     }

@@ -40,7 +40,7 @@ func TestHelpCommandKeepsTheModelHelpOfAPluginCommand(t *testing.T) {
 		if entry.Path != path {
 			continue
 		}
-		assert.NotEmpty(t, entry.LongHelp, "%q lost the long help its node declares", path)
+		assert.NotEmpty(t, entry.Description, "%q lost the long help its node declares", path)
 		assert.Equal(t, "show vrrp interface name <interface>", entry.Usage,
 			"%q published a usage line the command does not answer to", path)
 		return

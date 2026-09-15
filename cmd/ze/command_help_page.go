@@ -42,8 +42,8 @@ func commandHelpPage(path []string, node *command.Node) helpfmt.Page {
 	// page exists to remove: a parent that printed only its children left its
 	// authored text unreachable to the operator who asked about that exact
 	// path, which is what the retired writeHelp renderer did.
-	page.Summary = node.Description
-	page.LongHelp = node.LongHelp
+	page.ShortHelp = node.ShortHelp
+	page.Description = node.Description
 
 	if tokens := command.Usage(path, node); len(tokens) > 0 {
 		tb.Reset()

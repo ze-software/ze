@@ -16,50 +16,48 @@ module ze-fib-vpp-conf {
 
     augment "/fib:fib" {
         container vpp {
-            description "VPP FIB programming via GoVPP binary API.";
+            description "Ze writes each best route from the system RIB into the VPP FIB
+                         with the GoVPP call IPRouteAddDel. The plugin needs a live VPP
+                         connector. With none it falls back to a backend that programs
+                         nothing and writes a warning. Ze asks the system RIB to replay
+                         the whole table each time VPP connects, so a VPP restart
+                         reprograms every route.";
             ze:help
-                "Ze writes each best route from the system RIB into the VPP FIB
-                 with the GoVPP call IPRouteAddDel. The plugin needs a live VPP
-                 connector. With none it falls back to a backend that programs
-                 nothing and writes a warning. Ze asks the system RIB to replay
-                 the whole table each time VPP connects, so a VPP restart
-                 reprograms every route.";
+                "VPP FIB programming via GoVPP binary API.";
 
             leaf enabled {
                 type boolean;
                 default false;
                 description
-                    "Enable VPP FIB programming. Routes from system RIB
-                     are programmed directly into VPP's FIB.";
-                ze:help
                     "The plugin programs the VPP FIB for as long as it runs, and
                      it does not read this leaf. The config parser accepts the
                      name and stores no value. Programming starts when the
                      plugin loads and stops when it unloads, so the default
                      false disables nothing. Unload the fib-vpp plugin to stop
                      programming the VPP FIB.";
+                ze:help
+                    "Enable VPP FIB programming. Routes from system RIB
+                     are programmed directly into VPP's FIB.";
             }
 
             leaf table-id {
                 type uint32;
                 default 0;
                 description
-                    "VRF table ID for route programming.
-                     0 is the default VRF.";
-                ze:help
                     "The value names the VPP VRF that Ze programs, and the
                      default 0 is the default VRF. Ze gives it to the IP backend
                      and to the MPLS and SRv6 backends at the moment it builds
                      them. A new value reaches VPP when the plugin builds a
                      backend again, which happens when VPP connects.";
+                ze:help
+                    "VRF table ID for route programming.
+                     0 is the default VRF.";
             }
 
             leaf batch-size {
                 type uint16;
                 default 256;
                 description
-                    "Maximum number of routes per batch dispatch.";
-                ze:help
                     "The leaf declares how many routes one batch dispatch would
                      carry, and the plugin implements no batching. A config that
                      writes this leaf fails to parse, with an error naming
@@ -68,21 +66,23 @@ module ze-fib-vpp-conf {
                      address family, and the VPP call IPRouteAddDel programs one
                      route per call. The plugin programs each route as it
                      arrives.";
+                ze:help
+                    "Maximum number of routes per batch dispatch.";
             }
 
             leaf batch-interval-ms {
                 type uint16;
                 default 10;
                 description
-                    "Maximum time in milliseconds before dispatching
-                     a partial batch.";
-                ze:help
                     "The leaf declares how long a partial batch would wait
                      before dispatch, in milliseconds, and the plugin implements
                      no batching. A config that writes this leaf fails to parse,
                      with an error naming batch-interval-ms as not yet
                      implemented, so the default 10 never applies. The leaf
                      batch-size is deferred for the same reason.";
+                ze:help
+                    "Maximum time in milliseconds before dispatching
+                     a partial batch.";
             }
         }
     }

@@ -42,21 +42,21 @@ func init() {
 	registry.MustRegisterRootHandler("yang", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "YANG tree analysis",
-		Mode:        modeOffline,
-		Section:     registry.SectionConfiguration,
-		Subs:        subcommands(),
+		ShortHelp: "YANG tree analysis",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      subcommands(),
 	})
 	// tree and completion answer with DATA, so their answers reach the pipe
 	// layer. Both printed text and returned an exit code, while YANG declared a
 	// wire method for each that no daemon handler implements.
 	registry.MustRegisterLocalData("show yang tree", dataTree, registry.Meta{
-		Description: "The unified config and command tree. Narrow it with --commands or --config.",
-		Mode:        modeOffline,
+		ShortHelp: "The unified config and command tree. Narrow it with --commands or --config.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show yang completion", dataCompletion, registry.Meta{
-		Description: "Prefix collisions in the config and command trees.",
-		Mode:        modeOffline,
+		ShortHelp: "Prefix collisions in the config and command trees.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// `show yang doc` renders documentation PROSE for a reader, and the same

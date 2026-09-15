@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "every build carrier that copies this module in names the Go minor version go.mod declares",
-		Mode:        "offline",
+		ShortHelp: "every build carrier that copies this module in names the Go minor version go.mod declares",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command.
 		Section: registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the

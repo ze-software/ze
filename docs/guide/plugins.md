@@ -1125,7 +1125,7 @@ waits for the answer, then refuses from what it has in hand.
 ```go
 Commands: []sdk.CommandDecl{{
 	Name:          "my-plugin peers",
-	Description:   "Show the sessions",
+	ShortHelp:     "Show the sessions",
 	Shape:         "tab",
 	Columns:       []string{"address", "state", "up"},
 	AddressFields: []string{"address"},

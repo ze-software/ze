@@ -97,7 +97,7 @@ type LeafField struct {
 	Default      string // YANG default, or ""
 	InputType    string // "text", "checkbox", "number", "select"
 	Placeholder  string
-	Description  string // from YANG, if available
+	ShortHelp    string // from YANG, if available
 	Pattern      string // for text inputs
 	Min          string // for number inputs
 	Max          string // for number inputs

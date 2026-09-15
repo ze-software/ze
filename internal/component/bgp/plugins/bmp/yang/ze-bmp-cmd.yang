@@ -9,44 +9,44 @@ module ze-bmp-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container bmp {
             config false;
-            description "BMP monitoring sessions, peers, and routes.";
-            ze:help "BMP is an outbound feed to a collector, so a session here is Ze reporting to a
-                     station and never a routing peer.";
+            description "BMP is an outbound feed to a collector, so a session here is Ze reporting to a
+                         station and never a routing peer.";
+            ze:help "BMP monitoring sessions, peers, and routes.";
 
             container sessions {
                 config false;
                 ze:command "ze-show:bmp-sessions";
-                description "Show active BMP receiver sessions.";
-                ze:help "Lists each session with connection state and message counters.
+                description "Lists each session with connection state and message counters.
 Check here to confirm your BMP collector is receiving data.";
+                ze:help "Show active BMP receiver sessions.";
             }
 
             container peers {
                 config false;
                 ze:command "ze-show:bmp-peers";
-                description "Show BGP peers as seen through BMP monitoring.";
-                ze:help "Lists peers reported via BMP with their state and route statistics.";
+                description "Lists peers reported via BMP with their state and route statistics.";
+                ze:help "Show BGP peers as seen through BMP monitoring.";
             }
 
             container collectors {
                 config false;
                 ze:command "ze-show:bmp-collectors";
-                description "Show BMP collector connection status.";
-                ze:help "Lists configured collectors with connection state, sent message
+                description "Lists configured collectors with connection state, sent message
 counts, and error statistics. Check here if your collector is
 not receiving data.";
+                ze:help "Show BMP collector connection status.";
             }
 
             container rib {
                 config false;
                 ze:command "ze-show:bmp-rib";
-                description "Show routes received via BMP monitoring sessions.";
-                ze:help "Returns the BMP RIB content. Use this to verify what your
+                description "Returns the BMP RIB content. Use this to verify what your
 collector is seeing from remote peers.";
+                ze:help "Show routes received via BMP monitoring sessions.";
             }
         }
     }

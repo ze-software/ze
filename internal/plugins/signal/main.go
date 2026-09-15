@@ -108,9 +108,9 @@ func Run(args []string) int {
 			cmdEntries[i] = helpfmt.HelpEntry{Name: cmd.Name, Desc: cmd.Description}
 		}
 		p := helpfmt.Page{
-			Command: "ze signal",
-			Summary: "Send commands to a running Ze daemon via SSH",
-			Usage:   []string{"ze signal <command> [options]"},
+			Command:   "ze signal",
+			ShortHelp: "Send commands to a running Ze daemon via SSH",
+			Usage:     []string{"ze signal <command> [options]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Commands", Entries: cmdEntries},
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
@@ -171,9 +171,9 @@ func RunStatus(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze status",
-			Summary: "Check if a Ze daemon is running by dialing the SSH port",
-			Usage:   []string{"ze status [options]"},
+			Command:   "ze status",
+			ShortHelp: "Check if a Ze daemon is running by dialing the SSH port",
+			Usage:     []string{"ze status [options]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: "Daemon is running (SSH port reachable)"},

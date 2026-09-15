@@ -42,9 +42,9 @@ func cmdDelete(args []string) int {
 
 func deleteUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface delete",
-		Summary: "Delete a network interface",
-		Usage:   []string{"ze interface delete <name>"},
+		Command:   "ze interface delete",
+		ShortHelp: "Delete a network interface",
+		Usage:     []string{"ze interface delete <name>"},
 		Examples: []string{
 			"ze interface delete lo1",
 			"ze interface delete ze0",

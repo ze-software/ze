@@ -87,7 +87,7 @@ func buildTopLevel() menuLevel {
 		for _, rc := range se.Commands {
 			cmdItems = append(cmdItems, menuItem{
 				name:     rc.Name,
-				desc:     truncateDesc(rc.Meta.Description),
+				desc:     truncateDesc(rc.Meta.ShortHelp),
 				path:     []string{rc.Name},
 				terminal: true,
 			})
@@ -125,7 +125,7 @@ func buildYANGLevel(path []string) menuLevel {
 
 		items = append(items, menuItem{
 			name:     name,
-			desc:     truncateDesc(child.Description),
+			desc:     truncateDesc(child.ShortHelp),
 			path:     childPath,
 			terminal: len(child.Children) == 0,
 		})

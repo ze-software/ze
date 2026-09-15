@@ -7,50 +7,50 @@ module ze-diag-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";
-            description "Test TCP connectivity to a remote host and port.";
-            ze:help "Tries to open a TCP connection and reports success or failure with the
+            description "Tries to open a TCP connection and reports success or failure with the
 connection time. Use 'source <IP>' to bind a specific local address. Quick way
 to verify a peer's BGP port is reachable.";
+            ze:help "Test TCP connectivity to a remote host and port.";
             leaf host {
                 type string;
                 mandatory true;
-                description "Target host";
+                ze:help "Target host";
             }
             leaf port {
                 type uint16;
                 mandatory true;
-                description "Target port";
+                ze:help "Target port";
             }
             leaf source {
                 type string;
-                description "Source IP address";
+                ze:help "Source IP address";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                description "Connection timeout";
+                ze:help "Connection timeout";
             }
         }
 
         container capture {
             config false;
             ze:command "ze-show:capture";
-            description "Show captured control-plane messages.";
-            ze:help "Returns protocol messages you previously enabled capture for. Without a
+            description "Returns protocol messages you previously enabled capture for. Without a
 protocol keyword, shows all protocols. Use this to debug session establishment
 issues.";
+            ze:help "Show captured control-plane messages.";
             leaf protocol {
                 type enumeration {
                     enum l2tp;
                     enum bgp;
                 }
-                description "Protocol filter";
+                ze:help "Protocol filter";
             }
             leaf tunnel-id {
                 // Identifiers are string-typed (ai/rules/cli-grammar.md "Identifiers
@@ -58,90 +58,90 @@ issues.";
                 type string {
                     pattern '[0-9]{1,5}';
                 }
-                description "L2TP tunnel ID filter";
+                ze:help "L2TP tunnel ID filter";
             }
             leaf count {
                 type uint32;
-                description "Maximum number of messages";
+                ze:help "Maximum number of messages";
             }
             leaf peer {
                 type string;
-                description "Peer address filter";
+                ze:help "Peer address filter";
             }
 
             container raw {
                 config false;
                 ze:command "ze-show:capture-raw";
-                description "Control raw byte capture for protocol debugging.";
-                ze:help "Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols:
+                description "Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols:
 l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>.";
+                ze:help "Control raw byte capture for protocol debugging.";
                 leaf action {
                     type enumeration {
                         enum start;
                         enum stop;
                         enum dump;
                     }
-                    description "Capture action";
+                    ze:help "Capture action";
                 }
                 leaf protocol {
                     type enumeration {
                         enum l2tp;
                         enum bgp;
                     }
-                    description "Protocol to capture";
+                    ze:help "Protocol to capture";
                 }
                 leaf format {
                     type enumeration {
                         enum pcap;
                         enum json;
                     }
-                    description "Output format";
+                    ze:help "Output format";
                 }
                 leaf count {
                     type uint32;
-                    description "Maximum number of messages";
+                    ze:help "Maximum number of messages";
                 }
             }
 
             container interface {
                 config false;
                 ze:command "ze-show:capture-interface";
-                description "Capture live packets on an interface (like tcpdump).";
-                ze:help "Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with
+                description "Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with
 count or duration. Output as pcap (for Wireshark) or text. Snap-len controls
 how many bytes per packet are captured.";
+                ze:help "Capture live packets on an interface (like tcpdump).";
                 leaf iface {
                     type string;
-                    description "Interface name";
+                    ze:help "Interface name";
                 }
                 leaf count {
                     type uint32 {
                         range "1..10000";
                     }
-                    description "Packet count";
+                    ze:help "Packet count";
                 }
                 leaf duration {
                     type string {
                         pattern '\d+[smh]?';
                     }
-                    description "Capture duration";
+                    ze:help "Capture duration";
                 }
                 leaf snap-len {
                     type uint32 {
                         range "64..65535";
                     }
-                    description "Snap length in bytes";
+                    ze:help "Snap length in bytes";
                 }
                 leaf format {
                     type enumeration {
                         enum pcap;
                         enum text;
                     }
-                    description "Output format";
+                    ze:help "Output format";
                 }
                 leaf protocol {
                     type string;
-                    description "Protocol filter";
+                    ze:help "Protocol filter";
                 }
             }
         }

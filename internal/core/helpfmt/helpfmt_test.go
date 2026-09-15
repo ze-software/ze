@@ -14,9 +14,9 @@ import (
 // PREVENTS: Color logic being silently broken.
 func TestPageWriteColored(t *testing.T) {
 	p := Page{
-		Command: "ze bgp",
-		Summary: "BGP protocol tools",
-		Usage:   []string{"ze bgp <command> [options]"},
+		Command:   "ze bgp",
+		ShortHelp: "BGP protocol tools",
+		Usage:     []string{"ze bgp <command> [options]"},
 		Sections: []HelpSection{
 			{Title: "Commands", Entries: []HelpEntry{
 				{Name: "decode", Desc: "Decode BGP message"},
@@ -48,9 +48,9 @@ func TestPageWriteColored(t *testing.T) {
 // PREVENTS: ANSI codes leaking into piped output.
 func TestPageWritePlain(t *testing.T) {
 	p := Page{
-		Command: "ze bgp",
-		Summary: "BGP protocol tools",
-		Usage:   []string{"ze bgp <command> [options]"},
+		Command:   "ze bgp",
+		ShortHelp: "BGP protocol tools",
+		Usage:     []string{"ze bgp <command> [options]"},
 		Sections: []HelpSection{
 			{Title: "Commands", Entries: []HelpEntry{
 				{Name: "decode", Desc: "Decode BGP message"},
@@ -75,8 +75,8 @@ func TestPageWritePlain(t *testing.T) {
 // PREVENTS: Flags rendered in subcommand green.
 func TestFlagDetection(t *testing.T) {
 	p := Page{
-		Command: "ze test",
-		Summary: "test",
+		Command:   "ze test",
+		ShortHelp: "test",
 		Sections: []HelpSection{
 			{Title: "Options", Entries: []HelpEntry{
 				{Name: "-v, --verbose", Desc: "Verbose"},
@@ -101,9 +101,9 @@ func TestFlagDetection(t *testing.T) {
 // PREVENTS: Placeholders blending with literal text.
 func TestArgHighlighting(t *testing.T) {
 	p := Page{
-		Command: "ze test",
-		Summary: "test",
-		Usage:   []string{"ze test <file> [options]"},
+		Command:   "ze test",
+		ShortHelp: "test",
+		Usage:     []string{"ze test <file> [options]"},
 	}
 
 	var buf bytes.Buffer
@@ -120,8 +120,8 @@ func TestArgHighlighting(t *testing.T) {
 // PREVENTS: Orphan section titles in output.
 func TestEmptySection(t *testing.T) {
 	p := Page{
-		Command: "ze test",
-		Summary: "test",
+		Command:   "ze test",
+		ShortHelp: "test",
 		Sections: []HelpSection{
 			{Title: "Empty", Entries: nil},
 			{Title: "Full", Entries: []HelpEntry{{Name: "cmd", Desc: "desc"}}},
@@ -168,9 +168,9 @@ func TestWriteHint(t *testing.T) {
 // PREVENTS: SeeAlso field being silently ignored.
 func TestSeeAlso(t *testing.T) {
 	p := Page{
-		Command: "ze test",
-		Summary: "test",
-		SeeAlso: []string{"ze config validate", "ze schema"},
+		Command:   "ze test",
+		ShortHelp: "test",
+		SeeAlso:   []string{"ze config validate", "ze schema"},
 	}
 
 	var buf bytes.Buffer
@@ -190,9 +190,9 @@ func TestSeeAlso(t *testing.T) {
 // after the first full stop on five shipped help pages.
 func TestPageRendersEachDeclaredHelpTextWhole(t *testing.T) {
 	p := Page{
-		Command:  "ze bgp",
-		Summary:  "Inspect the BGP protocol engine.",
-		LongHelp: "One subtree per session.\nEach answers over the negotiated families.",
+		Command:     "ze bgp",
+		ShortHelp:   "Inspect the BGP protocol engine.",
+		Description: "One subtree per session.\nEach answers over the negotiated families.",
 		Sections: []HelpSection{{Title: "Commands", Entries: []HelpEntry{
 			{Name: "rib", Desc: "Show one row per route. The row carries the next hop."},
 		}}},
@@ -211,7 +211,7 @@ func TestPageRendersEachDeclaredHelpTextWhole(t *testing.T) {
 // TestPageWithoutHelpPrintsNoBodyBlock pins the empty-is-a-floor rule: a
 // command nobody wrote an explanation for prints its summary alone.
 func TestPageWithoutHelpPrintsNoBodyBlock(t *testing.T) {
-	p := Page{Command: "ze bgp", Summary: "Inspect the BGP protocol engine."}
+	p := Page{Command: "ze bgp", ShortHelp: "Inspect the BGP protocol engine."}
 
 	var buf bytes.Buffer
 	p.WriteTo(&buf, false)
@@ -250,9 +250,9 @@ func TestHighlightArgsMultiple(t *testing.T) {
 
 func TestExamplesSection(t *testing.T) {
 	p := Page{
-		Command:  "ze test",
-		Summary:  "test",
-		Examples: []string{"ze test run", "ze test --all"},
+		Command:   "ze test",
+		ShortHelp: "test",
+		Examples:  []string{"ze test run", "ze test --all"},
 	}
 	var buf bytes.Buffer
 	p.WriteTo(&buf, false)
@@ -264,8 +264,8 @@ func TestExamplesSection(t *testing.T) {
 
 func TestNoExamplesNoSection(t *testing.T) {
 	p := Page{
-		Command: "ze test",
-		Summary: "test",
+		Command:   "ze test",
+		ShortHelp: "test",
 	}
 	var buf bytes.Buffer
 	p.WriteTo(&buf, false)
@@ -278,9 +278,9 @@ func TestNoExamplesNoSection(t *testing.T) {
 // PREVENTS: Structural regressions.
 func TestOutputMatchesLayout(t *testing.T) {
 	p := Page{
-		Command: "ze bgp",
-		Summary: "BGP protocol tools",
-		Usage:   []string{"ze bgp <command> [options]"},
+		Command:   "ze bgp",
+		ShortHelp: "BGP protocol tools",
+		Usage:     []string{"ze bgp <command> [options]"},
 		Sections: []HelpSection{
 			{Title: "Commands", Entries: []HelpEntry{
 				{Name: "decode <hex>", Desc: "Decode BGP message from hex to JSON"},

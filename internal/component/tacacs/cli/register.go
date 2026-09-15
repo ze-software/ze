@@ -16,9 +16,9 @@ func init() {
 	registry.MustRegisterRootHandler("tacacs", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "TACACS+ client helpers",
-		Mode:        modeOffline,
-		Section:     registry.SectionConfiguration,
-		Subs:        "show",
+		ShortHelp: "TACACS+ client helpers",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      "show",
 	})
 }

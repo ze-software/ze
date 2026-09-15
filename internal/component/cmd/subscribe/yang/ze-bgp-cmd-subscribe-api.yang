@@ -11,16 +11,16 @@ module ze-bgp-cmd-subscribe-api {
     }
 
     rpc subscribe {
-        description "Subscribe to events matching filter criteria.";
-        ze:help "Ze marks the subscription as a runtime override. The daemon
+        description "Ze marks the subscription as a runtime override. The daemon
 then delivers the events whether or not the config grants that type. The next
 config apply discards the override, so the config document stays the durable
 record of what the daemon feeds.";
+        ze:help "Subscribe to events matching filter criteria.";
     }
     rpc unsubscribe {
-        description "Unsubscribe from event subscriptions.";
-        ze:help "Ze drops the first subscription that matches, whether a
+        description "Ze drops the first subscription that matches, whether a
 runtime subscribe command added it or the config granted it. The answer
 carries a removed field, and that field is false when nothing matched.";
+        ze:help "Unsubscribe from event subscriptions.";
     }
 }

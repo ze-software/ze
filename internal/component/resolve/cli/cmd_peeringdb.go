@@ -88,9 +88,9 @@ func cmdPeeringDB(ctx context.Context, args []string) int {
 
 func peeringDBUsage() {
 	p := helpfmt.Page{
-		Command: "ze resolve peeringdb",
-		Summary: "PeeringDB prefix count and AS-SET queries",
-		Usage:   []string{"ze resolve peeringdb [--url <url>] <operation> <asn>"},
+		Command:   "ze resolve peeringdb",
+		ShortHelp: "PeeringDB prefix count and AS-SET queries",
+		Usage:     []string{"ze resolve peeringdb [--url <url>] <operation> <asn>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "max-prefix <asn>", Desc: "IPv4 and IPv6 prefix counts"},

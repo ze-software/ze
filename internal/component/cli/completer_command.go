@@ -33,7 +33,7 @@ func (c *CommandCompleter) Complete(input string) []Completion {
 	suggestions := c.inner.Complete(input)
 	completions := make([]Completion, len(suggestions))
 	for i, s := range suggestions {
-		completions[i] = Completion{Text: s.Text, Description: s.Description, Type: s.Type}
+		completions[i] = Completion{Text: s.Text, ShortHelp: s.Description, Type: s.Type}
 	}
 	return completions
 }

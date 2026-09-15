@@ -512,9 +512,9 @@ func killAndWait(cmd *exec.Cmd) {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze provision",
-		Summary: "Start DHCP+PXE, TFTP, and HTTP provisioning servers (requires root)",
-		Usage:   []string{"ze provision --interface <name> --network <cidr> --image <path> --ssh-username <user> --ssh-password <pass>"},
+		Command:   "ze provision",
+		ShortHelp: "Start DHCP+PXE, TFTP, and HTTP provisioning servers (requires root)",
+		Usage:     []string{"ze provision --interface <name> --network <cidr> --image <path> --ssh-username <user> --ssh-password <pass>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Required flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--interface", Desc: "Network interface for provisioning"},

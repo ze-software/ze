@@ -363,16 +363,16 @@ func runSysRIBPlugin(conn net.Conn) int {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show rib",
-			Description: "Show each route the system RIB holds, with its family, next hop, protocol and equal-cost paths.",
+			Name:      "show rib",
+			ShortHelp: "Show each route the system RIB holds, with its family, next hop, protocol and equal-cost paths.",
 		},
 		{
-			Name:        "show nexthop-table",
-			Description: "Show each next hop the resolver tracks and the direct next hop it resolves to.",
+			Name:      "show nexthop-table",
+			ShortHelp: "Show each next hop the resolver tracks and the direct next hop it resolves to.",
 		},
 		{
-			Name:        "show ecmp-groups",
-			Description: "Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them.",
+			Name:      "show ecmp-groups",
+			ShortHelp: "Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them.",
 		},
 	}
 }

@@ -9,28 +9,28 @@ module ze-ntp-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container system {
             config false;
 
             container ntp {
                 config false;
-                description "NTP clock synchronization status.";
-                ze:help "The answer carries enabled false alone when NTP is off. It carries the
-                         same when the daemon has recorded no state yet, so the two cases read
-                         alike. An enabled client answers whether it is synced, its source, the
-                         offset, the stratum and the poll interval. The last-sync time is
-                         present only after a synchronization has happened.";
+                description "The answer carries enabled false alone when NTP is off. It carries the
+                             same when the daemon has recorded no state yet, so the two cases read
+                             alike. An enabled client answers whether it is synced, its source, the
+                             offset, the stratum and the poll interval. The last-sync time is
+                             present only after a synchronization has happened.";
+                ze:help "NTP clock synchronization status.";
 
                 ze:command "ze-show:system-ntp";
 
                 container peers {
                     config false;
                     ze:command "ze-show:system-ntp-peers";
-                    description "Show NTP peers with offset, RTT, stratum, and reachability.";
-                    ze:help "Tells you whether your clock is synced and how far off each NTP server thinks
+                    description "Tells you whether your clock is synced and how far off each NTP server thinks
 you are.";
+                    ze:help "Show NTP peers with offset, RTT, stratum, and reachability.";
                 }
             }
         }

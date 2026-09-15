@@ -18,16 +18,16 @@ module ze-loop-detection {
         list loop-detection {
             ze:filter;
             key "name";
-            description "Named loop detection filter instance.";
-            ze:help "The instance configures AS loop detection and cluster-list
-                     loop detection, for each peer that references it.";
+            description "The instance configures AS loop detection and cluster-list
+                         loop detection, for each peer that references it.";
+            ze:help "Named loop detection filter instance.";
 
             leaf name {
                 type string;
-                description "Filter instance name (referenced in peer filter chains)";
-                ze:help "Ze puts the name at the front of the import chain of every peer that does not carry it.
+                description "Ze puts the name at the front of the import chain of every peer that does not carry it.
                     An instance therefore applies with no chain edit. The first instance a peer chain names wins for
                     that peer. Write inactive:NAME in the chain to turn loop detection off for one peer.";
+                ze:help "Filter instance name (referenced in peer filter chains)";
             }
 
             leaf allow-own-as {
@@ -35,16 +35,16 @@ module ze-loop-detection {
                     range "0..10";
                 }
                 default 0;
-                description "Own-AS occurrences permitted in AS_PATH before ze rejects the route.";
-                ze:help "The default is 0, which rejects the route on the first
-                         occurrence (RFC 4271 Section 9).";
+                description "The default is 0, which rejects the route on the first
+                             occurrence (RFC 4271 Section 9).";
+                ze:help "Own-AS occurrences permitted in AS_PATH before ze rejects the route.";
             }
 
             leaf cluster-id {
                 type zt:ipv4-address;
-                description "Override Router ID for CLUSTER_LIST loop detection.";
-                ze:help "When this leaf is unset, ze uses the BGP Router ID
-                         (RFC 4456 Section 7).";
+                description "When this leaf is unset, ze uses the BGP Router ID
+                             (RFC 4456 Section 7).";
+                ze:help "Override Router ID for CLUSTER_LIST loop detection.";
             }
         }
     }

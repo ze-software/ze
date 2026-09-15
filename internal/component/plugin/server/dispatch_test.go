@@ -73,7 +73,7 @@ func registerExecuteCommandTarget(
 	proc.SetConn(ipc.NewMuxPluginConn(engineMux))
 	proc.SetRunning(true)
 
-	results := d.Registry().Register(proc, []CommandDef{{Name: command, Description: "target command"}})
+	results := d.Registry().Register(proc, []CommandDef{{Name: command, ShortHelp: "target command"}})
 	require.Len(t, results, 1)
 	require.True(t, results[0].OK, results[0].Error)
 

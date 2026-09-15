@@ -889,7 +889,7 @@ func TestLooksLikeSelector(t *testing.T) {
 // PREVENTS: garbled help output for group commands.
 func TestDescribeCommand(t *testing.T) {
 	// Leaf with description.
-	leaf := &cli.Command{Description: "Show BGP peers"}
+	leaf := &cli.Command{ShortHelp: "Show BGP peers"}
 	if got := DescribeCommand(leaf); got != "Show BGP peers" {
 		t.Errorf("leaf desc = %q, want %q", got, "Show BGP peers")
 	}
@@ -919,8 +919,8 @@ func TestDescribeCommand(t *testing.T) {
 func TestSuggestFromTree(t *testing.T) {
 	tree := &cli.Command{
 		Children: map[string]*cli.Command{
-			"peer":    {Description: "Peer commands"},
-			"summary": {Description: "Summary"},
+			"peer":    {ShortHelp: "Peer commands"},
+			"summary": {ShortHelp: "Summary"},
 		},
 	}
 

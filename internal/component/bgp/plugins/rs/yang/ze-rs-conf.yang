@@ -20,19 +20,19 @@ module ze-rs-conf {
 
     augment "/bgp:bgp" {
         container route-server {
-            description "Route server plugin tuning parameters";
-            ze:help "The route server forwards an UPDATE from one client to every other client. Each source peer
+            description "The route server forwards an UPDATE from one client to every other client. Each source peer
                 gets its own worker, and the worker stops after 5 seconds with no work. A peer joins the client set
                 with the rs-client leaf of its session, not with this container.";
+            ze:help "Route server plugin tuning parameters";
 
             leaf worker-queue-size {
                 type uint32 {
                     range "1..1000000";
                 }
                 default 4096;
-                description "Worker channel capacity per source peer, overridden by ze.bgp.route-server.worker-queue-size.";
-                ze:help "Per-source-peer worker channel capacity. The ze.bgp.route-server.worker-queue-size environment
+                description "Per-source-peer worker channel capacity. The ze.bgp.route-server.worker-queue-size environment
                     variable overrides this value.";
+                ze:help "Worker channel capacity per source peer, overridden by ze.bgp.route-server.worker-queue-size.";
             }
         }
     }
@@ -45,10 +45,10 @@ module ze-rs-conf {
         leaf rs-client {
             type boolean;
             default false;
-            description "Mark this peer as an RS-client for transparent AS-path forwarding.";
-            ze:help "Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route
+            description "Mark this peer as an RS-client for transparent AS-path forwarding. RFC 7947 Section 2.2.2: the route
                 server MUST NOT modify AS_PATH or any other transitive attribute. When this leaf is true, the
                 reactor skips AS-path prepending for this peer on the forwarding path.";
+            ze:help "Mark this peer as an RS-client for transparent AS-path forwarding.";
         }
     }
 
@@ -59,10 +59,10 @@ module ze-rs-conf {
         leaf rs-fast-path {
             type boolean;
             default false;
-            description "Forward a received UPDATE inside the reactor for an RS-client peer.";
-            ze:help "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin
+            description "Forward received UPDATEs directly inside the reactor for RS-client peers, and bypass the plugin
                 dispatch chain. This path gives lower latency for route server forwarding. A peer with an export
                 filter is excluded and uses the normal path.";
+            ze:help "Forward a received UPDATE inside the reactor for an RS-client peer.";
         }
     }
 

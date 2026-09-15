@@ -12,35 +12,35 @@ module ze-pki-api {
     }
 
     rpc certificates {
-        description "List all loaded certificates (CA and device).";
-        ze:help "Each row carries the name and the type, which is 'ca' or 'device'. The subject
+        description "Each row carries the name and the type, which is 'ca' or 'device'. The subject
 and issuer common names follow, then the not-after date, the key algorithm, and
 a 'valid' flag. The flag compares the not-after date against the clock alone, so
 it does not say that the chain verifies. The rows are sorted by type and then by
 name, and a 'count' comes with them.";
+        ze:help "List all loaded certificates (CA and device).";
         output {
             leaf certificates {
                 type string;
-                description "JSON array of certificate summary objects.";
+                ze:help "JSON array of certificate summary objects.";
             }
         }
     }
 
     rpc certificate {
-        description "Show details, PEM, bundle, or fingerprint of a named certificate.";
-        ze:help "Sub-commands: pem, bundle pem, fingerprint
+        description "Sub-commands: pem, bundle pem, fingerprint
 [sha256|sha384|sha512].";
+        ze:help "Show details, PEM, bundle, or fingerprint of a named certificate.";
         input {
             leaf name {
                 type string;
-                description "Certificate name to look up.";
+                ze:help "Certificate name to look up.";
             }
         }
         output {
             leaf certificate {
                 type string;
-                description "JSON object: certificate details, PEM text, or fingerprint
-                             depending on sub-command.";
+                ze:help "JSON object: certificate details, PEM text, or fingerprint
+                         depending on sub-command.";
             }
         }
     }

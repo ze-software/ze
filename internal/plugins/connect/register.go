@@ -10,9 +10,9 @@ func init() {
 	registry.MustRegisterRootHandler("connect", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Manage SSH credentials for remote ze daemons",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "add <host> [--port] [--user], list, remove <host> [--port], default <host> [--port]",
+		ShortHelp: "Manage SSH credentials for remote ze daemons",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      "add <host> [--port] [--user], list, remove <host> [--port], default <host> [--port]",
 	})
 }

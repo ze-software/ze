@@ -143,7 +143,7 @@ func registerProductRootProbe(name string) *bool {
 	registry.MustRegisterRootHandler(name, func(*registry.RuntimeContext, []string) int {
 		*ran = true
 		return 73
-	}, registry.Meta{Description: "a product-root boundary probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{ShortHelp: "a product-root boundary probe", Mode: "offline", Section: registry.SectionTest})
 	return ran
 }
 

@@ -797,7 +797,7 @@ func (m *Model) updateCompletions() {
 		m.completions = appendCLIFormatCompletions(m.completions, input, m.cliFormatNames())
 		if m.hasEditor() && (input == "" || strings.HasPrefix(cmdConfigure, input)) {
 			m.completions = append(m.completions, Completion{
-				Text: cmdConfigure, Description: "Enter config mode", Type: completionCommand,
+				Text: cmdConfigure, ShortHelp: "Enter config mode", Type: completionCommand,
 			})
 			if m.ghostText == "" && input != "" && strings.HasPrefix(cmdConfigure, input) {
 				m.ghostText = cmdConfigure[len(input):]
@@ -842,11 +842,11 @@ func (m *Model) updateCompletions() {
 	if len(m.completions) == 1 {
 		switch m.completions[0].Type {
 		case "warning":
-			m.completionHint = m.completions[0].Description
+			m.completionHint = m.completions[0].ShortHelp
 			m.completionHintDim = true
 			m.completions = nil
 		case "error":
-			m.completionHint = m.completions[0].Description
+			m.completionHint = m.completions[0].ShortHelp
 			m.completionHintDim = false
 			m.completions = nil
 		}

@@ -28,8 +28,8 @@ func testCommandTree() *command.Node {
 					"raw": {Name: "raw"},
 					"teardown": {
 						Name:        "teardown",
-						Description: testTeardownSummary,
-						LongHelp:    testTeardownHelp,
+						ShortHelp:   testTeardownSummary,
+						Description: testTeardownHelp,
 					},
 				},
 			},
@@ -458,8 +458,8 @@ func TestAdminErrorContentNegotiation(t *testing.T) {
 
 // TestAdminCommandFormShowsHelp drives GET /admin/peer/teardown/ and reads the
 // rendered page. It is the wiring test for AC-8 and user story 4. The form for
-// one command shows the summary the YANG node declares, then the explanation
-// its ze:help declares.
+// one command shows the summary the YANG node's ze:help declares, then the
+// explanation its description declares.
 //
 // The page rendered neither before this spec. CommandFormData.Description was
 // documented as the YANG description, and no producer set it. The template's
@@ -493,15 +493,15 @@ func TestAdminCommandFormShowsHelp(t *testing.T) {
 	// The fragment builder is the producer both halves come from.
 	fragData := buildAdminFragmentData([]string{"peer", "teardown"}, tree)
 	require.NotNil(t, fragData.CommandForm)
-	assert.Equal(t, testTeardownSummary, fragData.CommandForm.Description)
-	assert.Equal(t, testTeardownHelp, fragData.CommandForm.LongHelp)
+	assert.Equal(t, testTeardownSummary, fragData.CommandForm.ShortHelp)
+	assert.Equal(t, testTeardownHelp, fragData.CommandForm.Description)
 
 	// A path no node holds still renders a form, and shows no text it cannot
 	// read. An absent command must not borrow its parent's help.
 	unknown := buildAdminFragmentData([]string{"peer", "nosuchcommand"}, tree)
 	require.NotNil(t, unknown.CommandForm)
+	assert.Empty(t, unknown.CommandForm.ShortHelp)
 	assert.Empty(t, unknown.CommandForm.Description)
-	assert.Empty(t, unknown.CommandForm.LongHelp)
 }
 
 // TestAdminCommandFormEscapesHelp proves the security row of the spec's review
@@ -519,8 +519,8 @@ func TestAdminCommandFormEscapesHelp(t *testing.T) {
 		"peer": {Name: "peer", Children: map[string]*command.Node{
 			"teardown": {
 				Name:        "teardown",
-				Description: `Close <b>one</b> session.`,
-				LongHelp:    `<script>alert("x")</script>`,
+				ShortHelp:   `Close <b>one</b> session.`,
+				Description: `<script>alert("x")</script>`,
 			},
 		}},
 	}}

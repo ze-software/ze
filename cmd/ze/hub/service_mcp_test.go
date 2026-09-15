@@ -82,17 +82,17 @@ func TestMCPCommandLister(t *testing.T) {
 		return []commandMeta{
 			{
 				Name:        "show bgp rib dump",
-				Description: "Dump RIB",
-				LongHelp:    "One row for each prefix.\nThe best path is marked.",
+				ShortHelp:   "Dump RIB",
+				Description: "One row for each prefix.\nThe best path is marked.",
 				ReadOnly:    true,
 				TaskSupport: "required",
 				Params: []commandParam{
-					{Name: "peer", Type: "string", Description: "peer addr", Required: true},
+					{Name: "peer", Type: "string", ShortHelp: "peer addr", Required: true},
 				},
 				UIResource: &commandUIResource{Path: "bgp/index.html", Permissions: "network", CSP: "default-src 'self'"},
 			},
-			{Name: "ping host", Description: "Ping", TaskSupport: "forbidden"},
-			{Name: "show config dump", Description: "Dump config", TaskSupport: ""},
+			{Name: "ping host", ShortHelp: "Ping", TaskSupport: "forbidden"},
+			{Name: "show config dump", ShortHelp: "Dump config", TaskSupport: ""},
 		}
 	}
 
@@ -100,8 +100,8 @@ func TestMCPCommandLister(t *testing.T) {
 	require.Len(t, infos, 3)
 
 	assert.Equal(t, "show bgp rib dump", infos[0].Name)
-	assert.Equal(t, "Dump RIB", infos[0].Description)
-	assert.Equal(t, "One row for each prefix.\nThe best path is marked.", infos[0].LongHelp,
+	assert.Equal(t, "Dump RIB", infos[0].ShortHelp)
+	assert.Equal(t, "One row for each prefix.\nThe best path is marked.", infos[0].Description,
 		"the explanation reaches MCP as its own field, never folded into the summary")
 	assert.True(t, infos[0].ReadOnly)
 	assert.Equal(t, zemcp.TaskSupportRequired, infos[0].TaskSupport)

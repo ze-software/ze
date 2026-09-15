@@ -216,11 +216,11 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: cmdShowRejectASN, Description: "Show every reject-asn list with its ASNs, positions and attached peers"},
-		{Name: cmdShowRejectASNName, Description: "Show one reject-asn list by name", Args: []string{"<name>"}},
+		{Name: cmdShowRejectASN, ShortHelp: "Show every reject-asn list with its ASNs, positions and attached peers"},
+		{Name: cmdShowRejectASNName, ShortHelp: "Show one reject-asn list by name", Args: []string{"<name>"}},
 		// The description says "well-known" rather than naming the table
 		// this command reads: TestCuratedTableDecidesNothing asserts that
 		// no file deciding anything mentions it, and this file decides.
-		{Name: cmdShowRejectASNTransitFree, Description: "Print the well-known transit-free ASNs as a config block"},
+		{Name: cmdShowRejectASNTransitFree, ShortHelp: "Print the well-known transit-free ASNs as a config block"},
 	}
 }

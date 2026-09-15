@@ -308,11 +308,11 @@ func hasGoMarker(body string) bool {
 // yangDescriptionRe finds a `description`, an `error-message` or a `ze:help`
 // string. The leading `\b` is applied by findBounded rather than by the pattern.
 //
-// `ze:help` carries the long explanation of a command node, and the
-// `description` beside it carries the one-line summary
+// `ze:help` carries the one-line summary of a command node, and the
+// `description` beside it carries the long explanation
 // (plan/spec-yang-short-and-long-command-help.md). Both are authored prose, so
 // both are reviewed: a pattern naming the description keyword alone would let
-// a sentence leave STE scope by moving one statement down. The prefix is
+// a sentence leave STE scope by moving one statement up. The prefix is
 // literal because every module in the tree imports the extensions module as
 // `prefix ze`.
 var yangDescriptionRe = mustPattern(`(?s)(?:description|error-message|ze:help){SP}+(?:"(?P<body>[^"]*)"|'(?P<body2>[^']*)')`)

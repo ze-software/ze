@@ -3022,25 +3022,25 @@ func TestSetCLIFormatNotMatched(t *testing.T) {
 
 func TestAppendNewCompletions(t *testing.T) {
 	t.Run("empty extra returns existing unchanged", func(t *testing.T) {
-		existing := []Completion{{Text: "a", Description: "A"}}
+		existing := []Completion{{Text: "a", ShortHelp: "A"}}
 		got := appendNewCompletions(existing, nil)
 		assert.Equal(t, existing, got)
 	})
 
 	t.Run("non-overlapping entries appended", func(t *testing.T) {
-		existing := []Completion{{Text: "a", Description: "A"}}
-		extra := []Completion{{Text: "b", Description: "B"}}
+		existing := []Completion{{Text: "a", ShortHelp: "A"}}
+		extra := []Completion{{Text: "b", ShortHelp: "B"}}
 		got := appendNewCompletions(existing, extra)
 		assert.Len(t, got, 2)
 		assert.Equal(t, "b", got[1].Text)
 	})
 
 	t.Run("duplicate text skipped", func(t *testing.T) {
-		existing := []Completion{{Text: "show", Description: "Operational show"}}
-		extra := []Completion{{Text: "show", Description: "Config show"}, {Text: "set", Description: "Set value"}}
+		existing := []Completion{{Text: "show", ShortHelp: "Operational show"}}
+		extra := []Completion{{Text: "show", ShortHelp: "Config show"}, {Text: "set", ShortHelp: "Set value"}}
 		got := appendNewCompletions(existing, extra)
 		assert.Len(t, got, 2)
-		assert.Equal(t, "Operational show", got[0].Description, "first entry wins")
+		assert.Equal(t, "Operational show", got[0].ShortHelp, "first entry wins")
 		assert.Equal(t, "set", got[1].Text)
 	})
 

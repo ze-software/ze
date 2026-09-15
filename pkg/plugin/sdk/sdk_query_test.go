@@ -19,7 +19,7 @@ import (
 // carries one command and one pipe, so an answer that drops a field is visible.
 func queryDeclaration() Registration {
 	return Registration{
-		Commands: []rpc.CommandDecl{{Name: "show acme state", Description: "Show acme state"}},
+		Commands: []rpc.CommandDecl{{Name: "show acme state", ShortHelp: "Show acme state"}},
 		Pipes: []rpc.PipeDecl{{
 			Command:     "show acme state",
 			Name:        "brief",

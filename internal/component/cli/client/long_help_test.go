@@ -21,7 +21,7 @@ func commandListDispatch(list string) CommandFunc {
 	}
 }
 
-// TestRuntimeTreeCarriesLongHelp: the attached console of `ze start --cli`
+// TestRuntimeTreeCarriesDescription: the attached console of `ze start --cli`
 // answers the `?` key from its own tree. The daemon's command list is the only
 // place that tree reads an explanation from. A YANG-backed command and a
 // plugin-only command reach the tree by different routes, so this test reads
@@ -31,11 +31,11 @@ func commandListDispatch(list string) CommandFunc {
 // the command declares.
 // PREVENTS: `<command>: no explanation is declared` for every command in the
 // attached console.
-func TestRuntimeTreeCarriesLongHelp(t *testing.T) {
+func TestRuntimeTreeCarriesDescription(t *testing.T) {
 	const list = `{"commands":[
-		{"value":"show env get","description":"Read one environment value","long-help":"The explanation a YANG-backed command declares."},
-		{"value":"zz-plugin-explained","description":"A plugin command","long-help":"The explanation a plugin declares."},
-		{"value":"zz-plugin-bare","description":"A plugin command that declares no explanation"}
+		{"value":"show env get","short-help":"Read one environment value","description":"The explanation a YANG-backed command declares."},
+		{"value":"zz-plugin-explained","short-help":"A plugin command","description":"The explanation a plugin declares."},
+		{"value":"zz-plugin-bare","short-help":"A plugin command that declares no explanation"}
 	]}`
 
 	tree := buildRuntimeTreeFromDispatch(commandListDispatch(list))

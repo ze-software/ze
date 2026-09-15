@@ -351,7 +351,7 @@ func TestExtractRPCs(t *testing.T) {
 			for i, r := range rpcs {
 				rpcNames[i] = r.Name
 				assert.Equal(t, tt.module, r.Module, "module name for %s", r.Name)
-				assert.NotEmpty(t, r.Description, "description for %s", r.Name)
+				assert.NotEmpty(t, r.ShortHelp, "description for %s", r.Name)
 			}
 			assert.ElementsMatch(t, tt.wantRPCs, rpcNames)
 		})

@@ -30,15 +30,16 @@ import (
 // adapters convert it to api.CommandMeta / zemcp.CommandInfo.
 type commandMeta struct {
 	Name string // dispatch path, e.g. "show bgp rib status"
-	// Description is the command's one-line summary, from its YANG description
-	// statement or from the plugin's own declaration. Every surface that shows
+	// ShortHelp is the command's one-line summary, from its YANG ze:help
+	// extension or from the plugin's own declaration. Every surface that shows
 	// the command on one line reads it.
-	Description string
-	// LongHelp is the explanation the command declares with ze:help, or that a
-	// plugin sends as CommandDecl.LongHelp. Only a per-command help page reads
+	ShortHelp string
+	// Description is the explanation the command declares with the YANG
+	// description statement, or that a
+	// plugin sends as CommandDecl.Description. Only a per-command help page reads
 	// it: the OpenAPI operation description, and the MCP tool description. It
 	// is NEVER read as a summary. Empty means none was declared.
-	LongHelp    string
+	Description string
 	ReadOnly    bool               // true if a read-only command
 	Params      []commandParam     // input parameters from YANG RPC (nil = none)
 	TaskSupport string             // raw YANG ze:task-support value ("" = optional)
@@ -54,10 +55,10 @@ type commandMeta struct {
 // commandParam is one input parameter, neutral counterpart of zemcp.ParamInfo
 // and api.ParamMeta.
 type commandParam struct {
-	Name        string
-	Type        string
-	Description string
-	Required    bool
+	Name      string
+	Type      string
+	ShortHelp string
+	Required  bool
 }
 
 // commandUIResource is the neutral counterpart of zemcp.UIResourceInfo.
@@ -131,8 +132,8 @@ func buildCommandMeta(
 	for _, cmd := range dispatcherCmds {
 		info := commandMeta{
 			Name:          cmd.Name,
+			ShortHelp:     cmd.ShortHelp,
 			Description:   cmd.Description,
-			LongHelp:      cmd.LongHelp,
 			ReadOnly:      cmd.ReadOnly,
 			Params:        paramsByPath[cmd.Name],
 			TaskSupport:   taskSupportByPath[cmd.Name],
@@ -175,19 +176,19 @@ func buildCommandMeta(
 			continue
 		}
 		if i, dup := byName[strings.ToLower(cmd.Name)]; dup {
+			if infos[i].ShortHelp == "" {
+				infos[i].ShortHelp = cmd.ShortHelp
+			}
 			if infos[i].Description == "" {
 				infos[i].Description = cmd.Description
-			}
-			if infos[i].LongHelp == "" {
-				infos[i].LongHelp = cmd.LongHelp
 			}
 			continue
 		}
 		byName[strings.ToLower(cmd.Name)] = len(infos)
 		infos = append(infos, commandMeta{
 			Name:        cmd.Name,
+			ShortHelp:   cmd.ShortHelp,
 			Description: cmd.Description,
-			LongHelp:    cmd.LongHelp,
 		})
 	}
 
@@ -244,10 +245,10 @@ func buildParamMeta(loader *yangloader.Loader) map[string][]commandParam {
 			params := make([]commandParam, len(rpc.Input))
 			for i, leaf := range rpc.Input {
 				params[i] = commandParam{
-					Name:        leaf.Name,
-					Type:        leaf.Type,
-					Description: leaf.Description,
-					Required:    leaf.Mandatory,
+					Name:      leaf.Name,
+					Type:      leaf.Type,
+					ShortHelp: leaf.ShortHelp,
+					Required:  leaf.Mandatory,
 				}
 			}
 			result[path] = params

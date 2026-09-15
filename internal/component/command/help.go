@@ -70,7 +70,7 @@ func helpEntryFor(name string, node *Node) HelpEntry {
 	if node == nil {
 		return HelpEntry{Name: name}
 	}
-	desc := node.Description
+	desc := node.ShortHelp
 	if desc == "" && len(node.Children) > 0 {
 		desc = describeChildren(node)
 	}

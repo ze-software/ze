@@ -24,8 +24,8 @@ rule. Each fetches the command list from the daemon. `injectPluginCommands`
 drops a hidden command and hands every other one to `MergeCommandPaths`. A
 command therefore enters the client's tree as it enters the SSH and web trees.
 
-That answer carries both texts of every command. The `help` key holds the
-summary, and `long-help` holds the explanation. `applyCommandText` writes the
+That answer carries both texts of every command. The `short-help` key holds
+the summary, and `description` holds the explanation. `applyCommandText` writes the
 pair onto the node a row names, in ONE walk over `nodeAtPath`. The node that
 takes the summary is therefore the node that takes the explanation. A command
 the tree does not hold reaches it through the merge above, with the same
@@ -37,8 +37,8 @@ leaf it creates, or on one whose own copy of that field is empty. The completer
 offers a node on name prefix and `backendAllowed` alone and never reads
 `WireMethod`, so a completion-only node surfaces.
 
-A `command.CommandEntry` carries both fields. `Description` is the one-line
-summary and `Help` is the long explanation the command's own help page prints.
+A `command.CommandEntry` carries both fields. `ShortHelp` is the one-line
+summary and `Description` is the long explanation the command's own help page prints.
 They are decided one at a time, so a plugin that states a summary and no
 explanation fills the summary alone.
 

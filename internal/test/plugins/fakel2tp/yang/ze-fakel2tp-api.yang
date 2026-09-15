@@ -14,13 +14,13 @@ module ze-fakel2tp-api {
   }
 
   rpc fakel2tp-emit {
-    description "Emit one synthetic L2TP route-change batch.";
-    ze:help "Args: <add|remove> <family> <prefix>.";
+    description "Args: <add|remove> <family> <prefix>.";
+    ze:help "Emit one synthetic L2TP route-change batch.";
   }
 
   rpc fakel2tp-help {
-    description "Print the fakel2tp command surface.";
-      ze:help "The answer is the one usage line of the plugin: 'fakel2tp emit add|remove
+    description "The answer is the one usage line of the plugin: 'fakel2tp emit add|remove
 <family> <prefix>'. The plugin declares no other command.";
+      ze:help "Print the fakel2tp command surface.";
   }
 }

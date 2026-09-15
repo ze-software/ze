@@ -170,27 +170,27 @@ func isOpenString(leaf *gyang.Entry) bool {
 
 // commands returns the available editor commands.
 var commands = []Completion{
-	{Text: cmdSet, Description: "Set a configuration value", Type: completionCommand},
-	{Text: cmdDelete, Description: "Delete a configuration value", Type: completionCommand},
-	{Text: cmdEdit, Description: "Enter a subsection context", Type: completionCommand},
-	{Text: cmdShow, Description: "Display configuration", Type: completionCommand},
-	{Text: cmdOption, Description: "Display settings (columns, errors)", Type: completionCommand},
-	{Text: cmdCommit, Description: "Apply config (must be valid)", Type: completionCommand},
-	{Text: cmdSave, Description: "Snapshot work-in-progress", Type: completionCommand},
-	{Text: cmdDiscard, Description: "Revert all changes", Type: completionCommand},
-	{Text: cmdTop, Description: "Return to root context", Type: completionCommand},
-	{Text: cmdUp, Description: "Go up one level", Type: completionCommand},
-	{Text: cmdRollback, Description: "Restore from backup", Type: completionCommand},
-	{Text: cmdExit, Description: "Exit current mode", Type: completionCommand},
-	{Text: cmdHelp, Description: "Show help", Type: completionCommand},
-	{Text: cmdRun, Description: "Run operational command", Type: completionCommand},
-	{Text: cmdWho, Description: "List active editing sessions", Type: completionCommand},
-	{Text: cmdDisconnect, Description: "Remove another session", Type: completionCommand},
-	{Text: cmdDeactivate, Description: "Mark a config block inactive", Type: completionCommand},
-	{Text: cmdActivate, Description: "Reactivate an inactive config block", Type: completionCommand},
-	{Text: cmdRename, Description: "Rename a list entry", Type: completionCommand},
-	{Text: cmdCopy, Description: "Copy a list entry", Type: completionCommand},
-	{Text: cmdInsert, Description: "Insert into a leaf-list at position", Type: completionCommand},
+	{Text: cmdSet, ShortHelp: "Set a configuration value", Type: completionCommand},
+	{Text: cmdDelete, ShortHelp: "Delete a configuration value", Type: completionCommand},
+	{Text: cmdEdit, ShortHelp: "Enter a subsection context", Type: completionCommand},
+	{Text: cmdShow, ShortHelp: "Display configuration", Type: completionCommand},
+	{Text: cmdOption, ShortHelp: "Display settings (columns, errors)", Type: completionCommand},
+	{Text: cmdCommit, ShortHelp: "Apply config (must be valid)", Type: completionCommand},
+	{Text: cmdSave, ShortHelp: "Snapshot work-in-progress", Type: completionCommand},
+	{Text: cmdDiscard, ShortHelp: "Revert all changes", Type: completionCommand},
+	{Text: cmdTop, ShortHelp: "Return to root context", Type: completionCommand},
+	{Text: cmdUp, ShortHelp: "Go up one level", Type: completionCommand},
+	{Text: cmdRollback, ShortHelp: "Restore from backup", Type: completionCommand},
+	{Text: cmdExit, ShortHelp: "Exit current mode", Type: completionCommand},
+	{Text: cmdHelp, ShortHelp: "Show help", Type: completionCommand},
+	{Text: cmdRun, ShortHelp: "Run operational command", Type: completionCommand},
+	{Text: cmdWho, ShortHelp: "List active editing sessions", Type: completionCommand},
+	{Text: cmdDisconnect, ShortHelp: "Remove another session", Type: completionCommand},
+	{Text: cmdDeactivate, ShortHelp: "Mark a config block inactive", Type: completionCommand},
+	{Text: cmdActivate, ShortHelp: "Reactivate an inactive config block", Type: completionCommand},
+	{Text: cmdRename, ShortHelp: "Rename a list entry", Type: completionCommand},
+	{Text: cmdCopy, ShortHelp: "Copy a list entry", Type: completionCommand},
+	{Text: cmdInsert, ShortHelp: "Insert into a leaf-list at position", Type: completionCommand},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -226,9 +226,9 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 					}
 					var tb textbuf.Buffer
 					cmdCompletions = append(cmdCompletions, Completion{
-						Text:        tb.Str(cmdSet).Byte(' ').Str(name).String(),
-						Description: tb.Reset().Str("Set ").Str(name).String(),
-						Type:        completionKeyword,
+						Text:      tb.Str(cmdSet).Byte(' ').Str(name).String(),
+						ShortHelp: tb.Reset().Str("Set ").Str(name).String(),
+						Type:      completionKeyword,
 					})
 				}
 			}
@@ -345,7 +345,7 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 				hint := c.TypeHint(keyEntry.Type)
 				return []Completion{{
 					Text: token,
-					Description: func() string {
+					ShortHelp: func() string {
 						var tb textbuf.Buffer
 						return tb.Str("invalid ").Str(listName).Str(" key (expected ").Str(hint).Byte(')').String()
 					}(),
@@ -449,7 +449,7 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		// Offer schema children (peer, rib, etc.) and pipe.
 		completions := c.matchEditTargets(contextPath, prefix)
 		if prefix == "" || prefix == "|" {
-			completions = append(completions, Completion{Text: "|", Description: "Pipe output through filters", Type: completionKeyword})
+			completions = append(completions, Completion{Text: "|", ShortHelp: "Pipe output through filters", Type: completionKeyword})
 		}
 		return completions
 	}
@@ -466,13 +466,13 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 
 // optionSubcommands are completions offered when typing "option ".
 var optionSubcommands = []Completion{
-	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: completionKeyword},
-	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: completionKeyword},
-	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: completionKeyword},
-	{Text: colChanges, Description: "Toggle changes column (enable/disable)", Type: completionKeyword},
-	{Text: cmdErrors, Description: "Error display (hints/hide)", Type: completionKeyword},
-	{Text: cmdAll, Description: "Enable all display columns", Type: completionKeyword},
-	{Text: cmdNone, Description: "Disable all display columns", Type: completionKeyword},
+	{Text: colAuthor, ShortHelp: "Toggle author column (enable/disable)", Type: completionKeyword},
+	{Text: colDate, ShortHelp: "Toggle date column (enable/disable)", Type: completionKeyword},
+	{Text: colSource, ShortHelp: "Toggle source column (enable/disable)", Type: completionKeyword},
+	{Text: colChanges, ShortHelp: "Toggle changes column (enable/disable)", Type: completionKeyword},
+	{Text: cmdErrors, ShortHelp: "Error display (hints/hide)", Type: completionKeyword},
+	{Text: cmdAll, ShortHelp: "Enable all display columns", Type: completionKeyword},
+	{Text: cmdNone, ShortHelp: "Disable all display columns", Type: completionKeyword},
 }
 
 // completeOptionPath completes paths for option command (display settings).
@@ -488,16 +488,16 @@ func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) [
 	// "option errors " -> offer hints/hide.
 	if len(tokens) == 1 && tokens[0] == cmdErrors && endsWithSpace {
 		return []Completion{
-			{Text: "hints", Description: "Toggle inline diagnostic hints", Type: completionKeyword},
-			{Text: "hide", Description: "Hide error annotations", Type: completionKeyword},
+			{Text: "hints", ShortHelp: "Toggle inline diagnostic hints", Type: completionKeyword},
+			{Text: "hide", ShortHelp: "Hide error annotations", Type: completionKeyword},
 		}
 	}
 
 	// "option <column> " -> offer enable/disable.
 	if len(tokens) == 1 && endsWithSpace && isOptionColumn(tokens[0]) {
 		return []Completion{
-			{Text: cmdEnable, Description: "Enable column", Type: completionKeyword},
-			{Text: cmdDisable, Description: "Disable column", Type: completionKeyword},
+			{Text: cmdEnable, ShortHelp: "Enable column", Type: completionKeyword},
+			{Text: cmdDisable, ShortHelp: "Disable column", Type: completionKeyword},
 		}
 	}
 
@@ -506,21 +506,21 @@ func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) [
 
 // textPipeFilters are basic text filters available to any piped command.
 var textPipeFilters = []Completion{
-	{Text: cmdMatch, Description: "Filter lines matching pattern", Type: completionKeyword},
-	{Text: cmdHead, Description: "Show first N lines", Type: completionKeyword},
-	{Text: cmdTail, Description: "Show last N lines", Type: completionKeyword},
+	{Text: cmdMatch, ShortHelp: "Filter lines matching pattern", Type: completionKeyword},
+	{Text: cmdHead, ShortHelp: "Show first N lines", Type: completionKeyword},
+	{Text: cmdTail, ShortHelp: "Show last N lines", Type: completionKeyword},
 }
 
 // showPipeFilters extend text filters with show-specific pipes.
 var showPipeFilters = append([]Completion{
-	{Text: cmdBlame, Description: "Annotate with authorship", Type: completionKeyword},
-	{Text: cmdChanges, Description: "Pending changes", Type: completionKeyword},
-	{Text: cmdCompare, Description: "Diff against baseline", Type: completionKeyword},
-	{Text: cmdErrors, Description: "Validation issues", Type: completionKeyword},
-	{Text: cmdFormat, Description: "Output format (tree or config)", Type: completionKeyword},
-	{Text: cmdHistory, Description: "Rollback revisions", Type: completionKeyword},
-	{Text: cmdActive, Description: "Show only active nodes (hide inactive)", Type: completionKeyword},
-	{Text: cmdInactive, Description: "Show only inactive nodes", Type: completionKeyword},
+	{Text: cmdBlame, ShortHelp: "Annotate with authorship", Type: completionKeyword},
+	{Text: cmdChanges, ShortHelp: "Pending changes", Type: completionKeyword},
+	{Text: cmdCompare, ShortHelp: "Diff against baseline", Type: completionKeyword},
+	{Text: cmdErrors, ShortHelp: "Validation issues", Type: completionKeyword},
+	{Text: cmdFormat, ShortHelp: "Output format (tree or config)", Type: completionKeyword},
+	{Text: cmdHistory, ShortHelp: "Rollback revisions", Type: completionKeyword},
+	{Text: cmdActive, ShortHelp: "Show only active nodes (hide inactive)", Type: completionKeyword},
+	{Text: cmdInactive, ShortHelp: "Show only inactive nodes", Type: completionKeyword},
 }, textPipeFilters...)
 
 // completePipeFilter completes pipe filter names and their arguments.
@@ -552,8 +552,8 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			prefix = tokens[len(tokens)-1]
 		}
 		return filterCompletions([]Completion{
-			{Text: fmtTree, Description: "Hierarchical tree format", Type: completionKeyword},
-			{Text: fmtConfig, Description: "Flat set-command format", Type: completionKeyword},
+			{Text: fmtTree, ShortHelp: "Hierarchical tree format", Type: completionKeyword},
+			{Text: fmtConfig, ShortHelp: "Flat set-command format", Type: completionKeyword},
 		}, prefix)
 	case cmdCompare:
 		prefix := ""
@@ -561,9 +561,9 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			prefix = tokens[len(tokens)-1]
 		}
 		return filterCompletions([]Completion{
-			{Text: "committed", Description: "Compare with committed config", Type: completionKeyword},
-			{Text: "saved", Description: "Compare with saved draft", Type: completionKeyword},
-			{Text: "rollback", Description: "Compare with rollback N", Type: completionKeyword},
+			{Text: "committed", ShortHelp: "Compare with committed config", Type: completionKeyword},
+			{Text: "saved", ShortHelp: "Compare with saved draft", Type: completionKeyword},
+			{Text: "rollback", ShortHelp: "Compare with rollback N", Type: completionKeyword},
 		}, prefix)
 	case cmdChanges:
 		prefix := ""
@@ -571,7 +571,7 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			prefix = tokens[len(tokens)-1]
 		}
 		return filterCompletions([]Completion{
-			{Text: cmdAll, Description: "All sessions' pending changes", Type: completionKeyword},
+			{Text: cmdAll, ShortHelp: "All sessions' pending changes", Type: completionKeyword},
 		}, prefix)
 	}
 
@@ -587,7 +587,7 @@ func (c *Completer) completeDiscardPath(tokens, contextPath []string, endsWithSp
 			prefix = tokens[0]
 		}
 		results := filterCompletions([]Completion{
-			{Text: cmdAll, Description: "Discard all pending changes", Type: completionKeyword},
+			{Text: cmdAll, ShortHelp: "Discard all pending changes", Type: completionKeyword},
 		}, prefix)
 		results = append(results, c.completeSetPath(tokens, contextPath, endsWithSpace)...)
 		return results
@@ -636,9 +636,9 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	// Add wildcard template option
 	if prefix == "" || prefix == "*" {
 		completions = append(completions, Completion{
-			Text:        "*",
-			Description: "Template for all entries",
-			Type:        completionListKey,
+			Text:      "*",
+			ShortHelp: "Template for all entries",
+			Type:      completionListKey,
 		})
 	}
 
@@ -649,17 +649,17 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 			id := textbuf.StrInt("#", int64(i+1))
 			if prefix == "" || strings.HasPrefix(id, prefix) {
 				completions = append(completions, Completion{
-					Text:        id,
-					Description: listName,
-					Type:        completionListKey,
+					Text:      id,
+					ShortHelp: listName,
+					Type:      completionListKey,
 				})
 			}
 		} else if prefix == "" || strings.HasPrefix(entry.Key, prefix) {
 			// Named entry — show actual key
 			completions = append(completions, Completion{
-				Text:        entry.Key,
-				Description: listName,
-				Type:        completionListKey,
+				Text:      entry.Key,
+				ShortHelp: listName,
+				Type:      completionListKey,
 			})
 		}
 	}
@@ -671,9 +671,9 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 			continue
 		}
 		completions = append(completions, Completion{
-			Text:        option.name,
-			Description: option.help,
-			Type:        completionListKey,
+			Text:      option.name,
+			ShortHelp: option.help,
+			Type:      completionListKey,
 		})
 	}
 
@@ -682,9 +682,9 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		// placeholder hint (display-only, not applicable).
 		var tb textbuf.Buffer
 		completions = append(completions, Completion{
-			Text:        "<value>",
-			Description: tb.Str("New ").Str(listName).Str(" key").String(),
-			Type:        completionHint,
+			Text:      "<value>",
+			ShortHelp: tb.Str("New ").Str(listName).Str(" key").String(),
+			Type:      completionHint,
 		})
 	} else if prefix != "" && len(completions) == 0 {
 		// User typed a value that doesn't match any existing key —
@@ -692,16 +692,16 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		var tb textbuf.Buffer
 		if validateLeafValue(keyEntry, prefix) {
 			completions = append(completions, Completion{
-				Text:        prefix,
-				Description: tb.Str("New ").Str(listName).Str(" key").String(),
-				Type:        completionListKey,
+				Text:      prefix,
+				ShortHelp: tb.Str("New ").Str(listName).Str(" key").String(),
+				Type:      completionListKey,
 			})
 		} else {
 			hint := c.TypeHint(keyEntry.Type)
 			completions = append(completions, Completion{
-				Text:        prefix,
-				Description: tb.Reset().Str("invalid ").Str(listName).Str(" key (expected ").Str(hint).Byte(')').String(),
-				Type:        "warning",
+				Text:      prefix,
+				ShortHelp: tb.Reset().Str("invalid ").Str(listName).Str(" key (expected ").Str(hint).Byte(')').String(),
+				Type:      "warning",
 			})
 		}
 	}
@@ -738,11 +738,16 @@ func enumKeyVocabulary(keyEntry *gyang.Entry, taken map[string]bool) []enumKeyOp
 
 	help := make(map[string]string)
 	if leaf, ok := keyEntry.Node.(*gyang.Leaf); ok && leaf.Type != nil {
+		// The enum value's one-line summary is its ze:help extension.
 		for _, declared := range leaf.Type.Enum {
-			if declared == nil || declared.Description == nil {
+			if declared == nil {
 				continue
 			}
-			help[declared.Name] = textbuf.Join(strings.Fields(declared.Description.Name), " ")
+			summary := yang.GetHelpExtension(declared.Extensions)
+			if summary == "" {
+				continue
+			}
+			help[declared.Name] = textbuf.Join(strings.Fields(summary), " ")
 		}
 	}
 
@@ -856,8 +861,8 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 			}
 			completions = append(completions, Completion{
 				Text:        name,
-				Description: c.entryDescription(child),
-				LongHelp:    entryLongHelp(child),
+				ShortHelp:   c.entryShortHelp(child),
+				Description: entryDescription(child),
 				Type:        completionKeyword,
 			})
 		}
@@ -885,8 +890,8 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 			}
 			completions = append(completions, Completion{
 				Text:        name,
-				Description: c.entryDescription(child),
-				LongHelp:    entryLongHelp(child),
+				ShortHelp:   c.entryShortHelp(child),
+				Description: entryDescription(child),
 				Type:        completionKeyword,
 			})
 		}
@@ -920,7 +925,7 @@ func (c *Completer) backendAllowed(entry *gyang.Entry) bool {
 // valueCompletions returns completions for a leaf value.
 func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Completion {
 	if entry.Type == nil {
-		return []Completion{{Text: "<" + typeHintAny + ">", Description: typeHintAny, Type: completionHint}}
+		return []Completion{{Text: "<" + typeHintAny + ">", ShortHelp: typeHintAny, Type: completionHint}}
 	}
 
 	// Check ze:validate extension for CompleteFn-based completions.
@@ -937,9 +942,9 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 		for _, name := range entry.Type.Enum.Names() {
 			if prefix == "" || strings.HasPrefix(name, prefix) {
 				completions = append(completions, Completion{
-					Text:        name,
-					Description: "enum value",
-					Type:        completionValue,
+					Text:      name,
+					ShortHelp: "enum value",
+					Type:      completionValue,
 				})
 			}
 		}
@@ -949,8 +954,8 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	// Handle booleans
 	if entry.Type.Kind == gyang.Ybool {
 		return filterCompletions([]Completion{
-			{Text: boolTrue, Description: "Enable", Type: completionValue},
-			{Text: boolFalse, Description: "Disable", Type: completionValue},
+			{Text: boolTrue, ShortHelp: "Enable", Type: completionValue},
+			{Text: boolFalse, ShortHelp: "Disable", Type: completionValue},
 		}, prefix)
 	}
 
@@ -962,9 +967,9 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 				for _, name := range t.Enum.Names() {
 					if prefix == "" || strings.HasPrefix(name, prefix) {
 						completions = append(completions, Completion{
-							Text:        name,
-							Description: "enum value",
-							Type:        completionValue,
+							Text:      name,
+							ShortHelp: "enum value",
+							Type:      completionValue,
 						})
 					}
 				}
@@ -978,7 +983,7 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	// Type hint based on YANG type — hint-only, not applicable by Tab
 	hint := c.TypeHint(entry.Type)
 	var tb textbuf.Buffer
-	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), Description: tb.Reset().Str(hint).Str(" value").String(), Type: completionHint}}
+	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), ShortHelp: tb.Reset().Str(hint).Str(" value").String(), Type: completionHint}}
 }
 
 // validateCompletions returns completions from ze:validate CompleteFn if available.
@@ -1033,9 +1038,9 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 			description = "valid value"
 		}
 		completions = append(completions, Completion{
-			Text:        v,
-			Description: description,
-			Type:        completionValue,
+			Text:      v,
+			ShortHelp: description,
+			Type:      completionValue,
 		})
 	}
 	return completions
@@ -1080,24 +1085,25 @@ func (c *Completer) TypeHint(t *gyang.YangType) string {
 	return typeHintAny
 }
 
-// entryLongHelp returns the long explanation a YANG entry declares in its
-// ze:help extension, and the empty string when it declares none. The text is
-// returned whole, newlines included: the ? box is where it is read, and nothing
-// on the one-line menu row reads it.
-func entryLongHelp(entry *gyang.Entry) string {
+// entryDescription returns the long explanation a YANG entry declares in its
+// description statement, and the empty string when it declares none. The text
+// is returned whole, newlines included: the ? box is where it is read, and
+// nothing on the one-line menu row reads it.
+func entryDescription(entry *gyang.Entry) string {
 	if entry == nil {
 		return ""
 	}
-	return yang.GetHelpExtension(entry.Exts)
+	return entry.Description
 }
 
-// entryDescription returns description for a YANG entry.
-func (c *Completer) entryDescription(entry *gyang.Entry) string {
+// entryShortHelp returns the one-line summary a YANG entry declares in its
+// ze:help extension, which is what the dropdown row and the ? box heading show.
+func (c *Completer) entryShortHelp(entry *gyang.Entry) string {
 	if entry == nil {
 		return ""
 	}
-	// YANG descriptions can be multi-line; collapse to single line for dropdown display.
-	desc := textbuf.Join(strings.Fields(entry.Description), " ")
+	// A ze:help argument can span lines; collapse it to one line for the row.
+	desc := textbuf.Join(strings.Fields(yang.GetHelpExtension(entry.Exts)), " ")
 	if entry.Mandatory == gyang.TSTrue && !strings.Contains(desc, "(required)") {
 		if desc != "" {
 			var tb textbuf.Buffer
@@ -1217,21 +1223,23 @@ func (c *Completer) findModuleEntry(name string) *gyang.Entry {
 // container's Kind/Node/etc.). Returns nil for an empty list; returns the
 // single input unchanged when len==1 to avoid wrapping real entries.
 //
-// The one exception to "first entry wins" is the LONG explanation. Ze lets
-// several modules declare the same node so that a plugin can attach its leaves
-// without importing the module that owns the node, and every one of those
-// declarations carries its own ze:help. Taking the first left the explanations
-// of all the others unreachable, and the winner was decided by nothing more
-// than the alphabetical order of the module names. The merged entry therefore
-// carries every declaration's help, joined.
+// The one exception to "first entry wins" is the LONG explanation, which the
+// YANG description statement declares. Ze lets several modules declare the
+// same node so that a plugin can attach its leaves without importing the
+// module that owns the node, and every one of those declarations carries its
+// own description. Taking the first left the explanations of all the others
+// unreachable, and the winner was decided by nothing more than the
+// alphabetical order of the module names. The merged entry therefore carries
+// every declaration's description, joined.
 //
-// Description is NOT an exception, and a one-line row cannot make it one: it
-// shows one text, and nothing in the schema says which module OWNS a shared
-// node. So the row still names the first module in sorted order, which reads
-// wrong wherever a plugin's module sorts before the module that defines the
-// node. `interface` is the measured case (ze-cos-conf before ze-iface-conf).
+// The SUMMARY, which the ze:help extension declares, is NOT an exception, and
+// a one-line row cannot make it one: it shows one text, and nothing in the
+// schema says which module OWNS a shared node. So the row still names the
+// first module in sorted order, which reads wrong wherever a plugin's module
+// sorts before the module that defines the node. `interface` is the measured
+// case (ze-cos-conf before ze-iface-conf).
 //
-// The joined text is not measured against command.MaxLongHelpBytes. That bound
+// The joined text is not measured against command.MaxDescriptionBytes. That bound
 // governs one DECLARATION, and the ? box draws what fits in any case
 // (renderExplanationBox, model_render.go).
 func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
@@ -1247,18 +1255,18 @@ func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 			groups[name] = append(groups[name], child)
 		}
 	}
-	help := mergeHelpExts(entries)
+	explanation, joined := mergeDescriptions(entries)
 	if len(groups) == 0 {
-		if help == nil {
+		if !joined {
 			return entries[0]
 		}
 		merged := *entries[0]
-		merged.Exts = help
+		merged.Description = explanation
 		return &merged
 	}
 	merged := *entries[0]
-	if help != nil {
-		merged.Exts = help
+	if joined {
+		merged.Description = explanation
 	}
 	merged.Dir = make(map[string]*gyang.Entry, len(groups))
 	for name, children := range groups {
@@ -1267,17 +1275,18 @@ func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 	return &merged
 }
 
-// mergeHelpExts answers the extension list a merged entry carries when more
-// than one declaration explains the node, and nil when the first entry's own
-// list already says everything there is to say.
+// mergeDescriptions answers the long explanation a merged entry carries when
+// more than one declaration explains the node. The bool is false when the
+// first entry's own description already says everything there is to say, so
+// the caller keeps the entry the loader parsed.
 //
-// The joined text goes into a NEW ze:help statement. The statements the loader
-// parsed are shared by every reader of the schema tree, so writing to one would
-// change what an unrelated caller sees.
-func mergeHelpExts(entries []*gyang.Entry) []*gyang.Statement {
+// The joined text is written to the merged COPY of the first entry, never to
+// the entry the loader parsed: that one is shared by every reader of the
+// schema tree, so writing to it would change what an unrelated caller sees.
+func mergeDescriptions(entries []*gyang.Entry) (string, bool) {
 	var texts []string
 	for _, e := range entries {
-		text := yang.GetHelpExtension(e.Exts)
+		text := e.Description
 		if text == "" {
 			continue
 		}
@@ -1287,14 +1296,14 @@ func mergeHelpExts(entries []*gyang.Entry) []*gyang.Statement {
 		texts = append(texts, text)
 	}
 	if len(texts) == 0 {
-		return nil
+		return "", false
 	}
-	// One text that the first entry already carries needs no new statement.
-	// One text the first entry does NOT carry does: it belongs to a later
-	// declaration, and the first entry is silent, so returning nil here would
-	// leave the node with no explanation at all.
-	if len(texts) == 1 && yang.GetHelpExtension(entries[0].Exts) == texts[0] {
-		return nil
+	// One text that the first entry already carries needs no copy. One text
+	// the first entry does NOT carry does: it belongs to a later declaration,
+	// and the first entry is silent, so answering false here would leave the
+	// node with no explanation at all.
+	if len(texts) == 1 && entries[0].Description == texts[0] {
+		return "", false
 	}
 	var tb textbuf.Buffer
 	for i, text := range texts {
@@ -1303,20 +1312,7 @@ func mergeHelpExts(entries []*gyang.Entry) []*gyang.Statement {
 		}
 		tb.Str(text)
 	}
-	joined := &gyang.Statement{
-		Keyword:     yang.HelpExtensionKeyword,
-		HasArgument: true,
-		Argument:    tb.String(),
-	}
-	out := make([]*gyang.Statement, 0, len(entries[0].Exts)+1)
-	out = append(out, joined)
-	for _, ext := range entries[0].Exts {
-		if yang.GetHelpExtension([]*gyang.Statement{ext}) != "" {
-			continue
-		}
-		out = append(out, ext)
-	}
-	return out
+	return tb.String(), true
 }
 
 func effectiveChildren(entry *gyang.Entry) map[string]*gyang.Entry {

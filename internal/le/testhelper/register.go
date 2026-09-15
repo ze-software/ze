@@ -9,10 +9,10 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
-		Description: "long-running native protocol test fixture producers",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "long-running native protocol test fixture producers",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterShape(Area, command.ShapeDoc)
 }

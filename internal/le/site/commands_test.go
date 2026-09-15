@@ -234,7 +234,7 @@ func TestTheOperatorGuideReadsAsThePublishedGuide(t *testing.T) {
 func TestTheCatalogPublishesUsageAndNotTheScrapedSyntax(t *testing.T) {
 	paths := commandSurfacePaths(t)
 	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only",
-		"description":"Show the rows of the test table.",
+		"short-help":"Show the rows of the test table.",
 		"usage":"show test [name <name>]","syntax":"show test [name <name>"}]`)
 
 	if _, err := renderCLIReference(paths); err != nil {
@@ -328,8 +328,8 @@ func readFixture(t *testing.T, name string) string {
 // the wrong field would publish an ellipsis this fixture can see.
 const twoFormCommandCatalog = `[{
  "path": "show test",
- "description": "Show the rows of the test table.",
- "long-help": "Each row is one entry of the test table, in the order the table holds them. The count column is what the table has answered since the last clear, and it never restarts on its own.",
+ "short-help": "Show the rows of the test table.",
+ "description": "Each row is one entry of the test table, in the order the table holds them. The count column is what the table has answered since the last clear, and it never restarts on its own.",
  "mode": "read-only",
  "wire-method": "ze-test:rows"
 }]`

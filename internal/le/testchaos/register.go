@@ -13,10 +13,10 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
-		Description: "chaos simulator tests, reduced-tag CLI tests, and lint",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "chaos simulator tests, reduced-tag CLI tests, and lint",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterActions(Area, Actions)
 

@@ -46,7 +46,7 @@ func TestHelpCommandNamesAPluginCommand(t *testing.T) {
 	assert.Equal(t, "tab", entry.AnswerShape)
 	assert.Equal(t, [][]string{{"prefix", "max-length", "asn"}}, entry.ColumnOrders)
 	assert.Equal(t, []string{"prefix"}, entry.AddressFields)
-	assert.NotEmpty(t, entry.Description, "%q publishes no summary", path)
+	assert.NotEmpty(t, entry.ShortHelp, "%q publishes no summary", path)
 	assert.NotEmpty(t, entry.Operators, "%q publishes no operator", path)
 
 	// A hidden declaration stays out. The daemon keeps it out of

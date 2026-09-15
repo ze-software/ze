@@ -792,11 +792,11 @@ func TestAGitThatCannotAnswerIsARefusalRatherThanAnEmptySet(t *testing.T) {
 	}
 }
 
-// VALIDATES: the long explanation a command node declares with ze:help is
+// VALIDATES: the one-line summary a command node declares with ze:help is
 // reviewed as prose, on the same terms as the description beside it, and the
 // finding names the line the extension opens on.
 // PREVENTS: prose leaving STE review by moving one statement. A command's help
-// is split into a one-line description and a long ze:help
+// is split into a one-line ze:help and a long description
 // (plan/spec-yang-short-and-long-command-help.md), so every word that moves
 // into the extension would stop being reviewed by a pattern that matches the
 // description keyword alone (AC-13).
@@ -804,7 +804,7 @@ func TestSTEExtractsHelpExtension(t *testing.T) {
 	body := "module m {\n" +
 		"  container sockets {\n" +
 		"    ze:command \"ze-show:sockets\";\n" +
-		"    description \"List the open sockets.\";\n" +
+		"    description \"One row is written for each socket the daemon holds open.\";\n" +
 		"    ze:help \"The daemon may list a socket twice.\";\n" +
 		"  }\n}\n"
 	found, _ := Review("m.yang", body, SurfaceYANG)

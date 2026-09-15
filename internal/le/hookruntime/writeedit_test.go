@@ -1,8 +1,8 @@
 // Related: writeedit.go -- the proposed-edit guards these cases drive
 //
 // VALIDATES: the write hook reads a proposed YANG file lexically. It warns on a
-// description past the character bound or the word bound, on one that is not a
-// finished sentence, and on a ze:help that only repeats it.
+// ze:help summary past the character bound or the word bound, on one that is
+// not a finished sentence, and on a description that only repeats it.
 // PREVENTS: a summary no overlay can render whole reaching the tree. Also a scan
 // that stopped early reading as a file that broke no rule.
 package hookruntime
@@ -18,15 +18,15 @@ import (
 // every file the write hook judges.
 const yangModulePath = "internal/component/bgp/yang/ze-demo-cmd.yang"
 
-// yangModule writes one command node carrying a summary and a long help. An
-// empty help leaves the extension out, so the module reads as one an author
-// wrote before the explanation existed.
+// yangModule writes one command node carrying a ze:help summary and a long
+// description. An empty help leaves the description out, so the module reads
+// as one an author wrote before the explanation existed.
 func yangModule(summary, help string) string {
 	var module strings.Builder
 	module.WriteString("module ze-demo-cmd {\n  namespace \"urn:ze:demo\";\n  prefix ze-demo;\n\n  container show {\n")
-	module.WriteString("    description\n      \"" + summary + "\";\n")
+	module.WriteString("    ze:help\n      \"" + summary + "\";\n")
 	if help != "" {
-		module.WriteString("    ze:help\n      \"" + help + "\";\n")
+		module.WriteString("    description\n      \"" + help + "\";\n")
 	}
 	module.WriteString("  }\n}\n")
 	return module.String()
@@ -49,7 +49,7 @@ func runYangWriteAt(t *testing.T, path, content string) (int, string) {
 	return code, message
 }
 
-func TestWriteEditWarnsOnAYangDescriptionPastTheCharCap(t *testing.T) {
+func TestWriteEditWarnsOnAYangShortHelpPastTheCharCap(t *testing.T) {
 	summary := strings.Repeat("abcdefghij ", 8) + "abcdefgh."
 	if len(summary) != 97 {
 		t.Fatalf("the fixture summary is %d characters, want 97", len(summary))
@@ -65,7 +65,7 @@ func TestWriteEditWarnsOnAYangDescriptionPastTheCharCap(t *testing.T) {
 	}
 }
 
-func TestWriteEditWarnsOnAYangDescriptionPastTheWordCap(t *testing.T) {
+func TestWriteEditWarnsOnAYangShortHelpPastTheWordCap(t *testing.T) {
 	summary := strings.Repeat("aa ", ste.MaxDescriptiveWords) + "bb."
 	if got := ste.WordCount(summary); got != ste.MaxDescriptiveWords+1 {
 		t.Fatalf("the fixture summary counts %d words, want %d", got, ste.MaxDescriptiveWords+1)
@@ -81,20 +81,20 @@ func TestWriteEditWarnsOnAYangDescriptionPastTheWordCap(t *testing.T) {
 	}
 }
 
-func TestWriteEditWarnsOnAYangHelpThatRestatesItsDescription(t *testing.T) {
+func TestWriteEditWarnsOnAYangDescriptionThatRestatesItsShortHelp(t *testing.T) {
 	summary := "Show the state of every BGP session."
 	code, message := runYangWrite(t, yangModule(summary, summary))
 	if code != 1 {
 		t.Fatalf("code = %d, want 1: %s", code, message)
 	}
-	for _, want := range []string{"container show", "long-restates-summary"} {
+	for _, want := range []string{"container show", "description-restates-short-help"} {
 		if !strings.Contains(message, want) {
 			t.Errorf("message missing %q: %s", want, message)
 		}
 	}
 }
 
-func TestWriteEditWarnsOnAYangDescriptionWithNoFullStop(t *testing.T) {
+func TestWriteEditWarnsOnAYangShortHelpWithNoFullStop(t *testing.T) {
 	code, message := runYangWrite(t, yangModule("Show the state of every BGP session", ""))
 	if code != 1 {
 		t.Fatalf("code = %d, want 1: %s", code, message)
@@ -104,7 +104,7 @@ func TestWriteEditWarnsOnAYangDescriptionWithNoFullStop(t *testing.T) {
 	}
 }
 
-func TestWriteEditWarnsOnAYangDescriptionCarryingASemicolon(t *testing.T) {
+func TestWriteEditWarnsOnAYangShortHelpCarryingASemicolon(t *testing.T) {
 	code, message := runYangWrite(t, yangModule("Show every session; the state of each one.", ""))
 	if code != 1 {
 		t.Fatalf("code = %d, want 1: %s", code, message)
@@ -156,11 +156,11 @@ func TestWriteEditYangSummaryBoundsHoldAtTheirLastValidValue(t *testing.T) {
 // scan that did not finish MUST say so. It MUST NOT answer that the file broke
 // no rule (ai/rules/principles.md).
 func TestWriteEditSaysWhenTheProposedYangDoesNotRead(t *testing.T) {
-	code, message := runYangWrite(t, "  description\n    \"Show the state of every BGP session.\n")
+	code, message := runYangWrite(t, "  ze:help\n    \"Show the state of every BGP session.\n")
 	if code != 1 {
 		t.Fatalf("code = %d, want 1: %s", code, message)
 	}
-	for _, want := range []string{"does not read as YANG", "a quoted string is never closed", "no description in it was judged"} {
+	for _, want := range []string{"does not read as YANG", "a quoted string is never closed", "no ze:help in it was judged"} {
 		if !strings.Contains(message, want) {
 			t.Errorf("message missing %q: %s", want, message)
 		}
@@ -177,14 +177,14 @@ func TestWriteEditSaysWhenAYangEditNamesNoOwningStatement(t *testing.T) {
 		"tool_name": "Edit",
 		"tool_input": map[string]any{
 			"file_path":  yangModulePath,
-			"old_string": "    description\n      \"Show the state of every BGP session.\";\n",
-			"new_string": "    description\n      \"" + long + "\";\n",
+			"old_string": "    ze:help\n      \"Show the state of every BGP session.\";\n",
+			"new_string": "    ze:help\n      \"" + long + "\";\n",
 		},
 	})
 	if code != 1 {
 		t.Fatalf("code = %d, want 1: %s", code, message)
 	}
-	if !strings.Contains(message, "one description was NOT judged") {
+	if !strings.Contains(message, "one ze:help was NOT judged") {
 		t.Errorf("message does not report the unjudged text: %s", message)
 	}
 	if strings.Contains(message, "char-cap") {
@@ -214,14 +214,14 @@ func TestWriteEditIgnoresALongRevisionDescription(t *testing.T) {
 }
 
 // yangArgumentFixture writes one module declaring a single leaf or leaf-list
-// whose description is 97 characters, which is one past the character bound.
+// whose ze:help is 97 characters, which is one past the character bound.
 func yangArgumentFixture(name, keyword string) string {
 	long := strings.Repeat("abcdefghij ", 8) + "abcdefgh."
 	return "module " + name + " {\n  namespace \"urn:ze:demo\";\n  prefix ze-demo;\n\n  " + keyword +
-		" hold-time {\n    type uint16;\n    description\n      \"" + long + "\";\n  }\n}\n"
+		" hold-time {\n    type uint16;\n    ze:help\n      \"" + long + "\";\n  }\n}\n"
 }
 
-// judgedByModuleKind drives one over-long argument description through a
+// judgedByModuleKind drives one over-long argument ze:help through a
 // command module, an API module and a config module. The first two must pass
 // and the third must warn, naming the statement.
 func judgedByModuleKind(t *testing.T, keyword string) {
@@ -247,7 +247,7 @@ func judgedByModuleKind(t *testing.T, keyword string) {
 // TestWriteEditIgnoresALeafInACommandModuleButJudgesOneInAConfigModule holds
 // the module half of the scope. extractArgDefs walks every child of a command
 // container and calls argDefFor, which admits any entry with a type. A leaf
-// becomes a command.ArgDef, which holds no text, so that description reaches no
+// becomes a command.ArgDef, which holds no text, so that ze:help reaches no
 // operator. The same statement in a config module renders on the completion
 // row, through entryDescription.
 //
@@ -261,7 +261,7 @@ func TestWriteEditIgnoresALeafInACommandModuleButJudgesOneInAConfigModule(t *tes
 
 // TestWriteEditIgnoresALeafListInACommandModuleButJudgesOneInAConfigModule is
 // the sibling case. argDefFor never asks whether the child is a leaf or a
-// leaf-list. A leaf-list entry carries a type, so its description dies at the
+// leaf-list. A leaf-list entry carries a type, so its ze:help dies at the
 // same boundary, in the same call.
 func TestWriteEditIgnoresALeafListInACommandModuleButJudgesOneInAConfigModule(t *testing.T) {
 	judgedByModuleKind(t, "leaf-list")
@@ -275,7 +275,7 @@ func TestWriteEditJudgesALeafInsideAGrouping(t *testing.T) {
 	long := strings.Repeat("abcdefghij ", 8) + "abcdefgh."
 	module := "module ze-demo-conf {\n  namespace \"urn:ze:demo\";\n  prefix ze-demo;\n\n  grouping peer-state {\n    description\n      \"" +
 		strings.Repeat("The grouping carries every leaf of one peer row. ", 4) + "\";\n" +
-		"    leaf hold-time {\n      type uint16;\n      description\n        \"" + long + "\";\n    }\n  }\n}\n"
+		"    leaf hold-time {\n      type uint16;\n      ze:help\n        \"" + long + "\";\n    }\n  }\n}\n"
 	code, message := runYangWriteAt(t, "internal/component/bgp/yang/ze-demo-conf.yang", module)
 	if code != 1 {
 		t.Fatalf("code = %d, want 1: %s", code, message)

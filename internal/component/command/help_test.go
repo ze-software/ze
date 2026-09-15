@@ -11,90 +11,90 @@ func testVerbTree() *Node {
 	return &Node{
 		Children: map[string]*Node{
 			"show": {
-				Name:        "show",
-				Description: "Read-only introspection commands",
+				Name:      "show",
+				ShortHelp: "Read-only introspection commands",
 				Children: map[string]*Node{
 					"bgp": {
-						Name:        "bgp",
-						Description: "BGP introspection",
+						Name:      "bgp",
+						ShortHelp: "BGP introspection",
 						Children: map[string]*Node{
-							"peer":   {Name: "peer", Description: "Show peer(s) details", WireMethod: "ze-show:bgp-peer"},
-							"decode": {Name: "decode", Description: "Decode BGP message from hex", WireMethod: "ze-show:bgp-decode"},
+							"peer":   {Name: "peer", ShortHelp: "Show peer(s) details", WireMethod: "ze-show:bgp-peer"},
+							"decode": {Name: "decode", ShortHelp: "Decode BGP message from hex", WireMethod: "ze-show:bgp-decode"},
 						},
 					},
-					"version": {Name: "version", Description: "Show version and build date", WireMethod: "ze-system:version"},
+					"version": {Name: "version", ShortHelp: "Show version and build date", WireMethod: "ze-system:version"},
 				},
 			},
 			"set": {
-				Name:        "set",
-				Description: "Modify configuration",
+				Name:      "set",
+				ShortHelp: "Modify configuration",
 				Children: map[string]*Node{
 					"system": {
 						Name: "system",
 						Children: map[string]*Node{
-							"file-descriptors": {Name: "file-descriptors", Description: "Raise file descriptor limit", WireMethod: "ze-set:system-file-descriptors"},
+							"file-descriptors": {Name: "file-descriptors", ShortHelp: "Raise file descriptor limit", WireMethod: "ze-set:system-file-descriptors"},
 						},
 					},
 				},
 			},
 			"clear": {
-				Name:        "clear",
-				Description: "Reset operational state",
+				Name:      "clear",
+				ShortHelp: "Reset operational state",
 				Children: map[string]*Node{
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"rib": {Name: "rib", Description: "Clear RIB state", WireMethod: "ze-rib-api:clear-in"},
+							"rib": {Name: "rib", ShortHelp: "Clear RIB state", WireMethod: "ze-rib-api:clear-in"},
 						},
 					},
 				},
 			},
 			"delete": {
-				Name:        "delete",
-				Description: "Remove configuration",
+				Name:      "delete",
+				ShortHelp: "Remove configuration",
 				Children: map[string]*Node{
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"peer": {Name: "peer", Description: "Remove a peer dynamically", WireMethod: "ze-delete:bgp-peer"},
+							"peer": {Name: "peer", ShortHelp: "Remove a peer dynamically", WireMethod: "ze-delete:bgp-peer"},
 						},
 					},
 				},
 			},
 			"request": {
-				Name:        "request",
-				Description: "Request an operational action",
+				Name:      "request",
+				ShortHelp: "Request an operational action",
 				Children: map[string]*Node{
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"rib": {Name: "rib", Description: "Request RIB action", WireMethod: "ze-rib-api:inject"},
+							"rib": {Name: "rib", ShortHelp: "Request RIB action", WireMethod: "ze-rib-api:inject"},
 						},
 					},
 				},
 			},
 			"update": {
-				Name:        "update",
-				Description: "Refresh stale data from external sources",
+				Name:      "update",
+				ShortHelp: "Refresh stale data from external sources",
 				Children: map[string]*Node{
-					"peeringdb": {Name: "peeringdb", Description: "Refresh PeeringDB data", WireMethod: "ze-update:peeringdb"},
+					"peeringdb": {Name: "peeringdb", ShortHelp: "Refresh PeeringDB data", WireMethod: "ze-update:peeringdb"},
 				},
 			},
 			"validate": {
-				Name:        "validate",
-				Description: "Check without changing",
+				Name:      "validate",
+				ShortHelp: "Check without changing",
 				Children: map[string]*Node{
-					"config": {Name: "config", Description: "Validate configuration file", WireMethod: "ze-repository-check:config"},
+					"config": {Name: "config", ShortHelp: "Validate configuration file", WireMethod: "ze-repository-check:config"},
 				},
 			},
 			"monitor": {
-				Name:        "monitor",
-				Description: "Streaming, continuous observation",
+				Name:      "monitor",
+				ShortHelp: "Streaming, continuous observation",
 				Children: map[string]*Node{
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"events": {Name: "events", Description: "Stream live BGP events", WireMethod: "ze-bgp:monitor"},
+							"events": {Name: "events", ShortHelp: "Stream live BGP events", WireMethod: "ze-bgp:monitor"},
 						},
 					},
 				},
@@ -197,8 +197,8 @@ func TestHelpEntryUsesSummaryLine(t *testing.T) {
 		Children: map[string]*Node{
 			"audit": {
 				Name:        "audit",
-				Description: "Show who did what and when on this box.",
-				LongHelp:    "Returns audit log entries with timestamps, actors, and actions.",
+				ShortHelp:   "Show who did what and when on this box.",
+				Description: "Returns audit log entries with timestamps, actors, and actions.",
 			},
 		},
 	}
@@ -295,11 +295,11 @@ func TestHelpDescribeChildrenTruncation(t *testing.T) {
 			"big": {
 				Name: "big",
 				Children: map[string]*Node{
-					"alpha":   {Name: "alpha", Description: "a"},
-					"bravo":   {Name: "bravo", Description: "b"},
-					"charlie": {Name: "charlie", Description: "c"},
-					"delta":   {Name: "delta", Description: "d"},
-					"echo":    {Name: "echo", Description: "e"},
+					"alpha":   {Name: "alpha", ShortHelp: "a"},
+					"bravo":   {Name: "bravo", ShortHelp: "b"},
+					"charlie": {Name: "charlie", ShortHelp: "c"},
+					"delta":   {Name: "delta", ShortHelp: "d"},
+					"echo":    {Name: "echo", ShortHelp: "e"},
 				},
 			},
 		},
@@ -390,7 +390,7 @@ func TestHelpListingIsTheDeclaredSummaryByteForByte(t *testing.T) {
 
 	root := func(description string) *Node {
 		return &Node{Children: map[string]*Node{
-			"unit": {Name: "unit", Description: description},
+			"unit": {Name: "unit", ShortHelp: description},
 		}}
 	}
 
@@ -417,9 +417,9 @@ func TestHelpListingIsTheDeclaredSummaryByteForByte(t *testing.T) {
 // TestHelpPageCarriesBothDeclaredHelpTexts (cmd/ze/command_help_page_test.go).
 func TestHelpDoesNotListAChoiceGroupAsASubcommand(t *testing.T) {
 	node := &Node{
-		Name:        "peer",
-		WireMethod:  "ze-show:policy-chain",
-		Description: "Show the import/export filter chain applied to a peer.",
+		Name:       "peer",
+		WireMethod: "ze-show:policy-chain",
+		ShortHelp:  "Show the import/export filter chain applied to a peer.",
 		Children: map[string]*Node{
 			"direction": {
 				Name:     "direction",
@@ -444,7 +444,7 @@ func TestHelpEntriesKeepTheWholeSummary(t *testing.T) {
 	const declared = "Show one row per session. The row carries state and uptime."
 	tree := &Node{
 		Children: map[string]*Node{
-			"summary": {Name: "summary", Description: declared},
+			"summary": {Name: "summary", ShortHelp: declared},
 		},
 	}
 
@@ -462,21 +462,21 @@ func TestHelpEntriesKeepTheWholeSummary(t *testing.T) {
 // and the rendered page in cmd/ze/command_help_page_test.go.
 func TestHelpListsTheOneOfMembersNotTheWrapper(t *testing.T) {
 	node := &Node{
-		Name:        "flowspec",
-		WireMethod:  "ze-bgp:announce-flowspec",
-		Description: "Originate a FlowSpec rule on demand.",
+		Name:       "flowspec",
+		WireMethod: "ze-bgp:announce-flowspec",
+		ShortHelp:  "Originate a FlowSpec rule on demand.",
 		Children: map[string]*Node{
 			"action": {
-				Name:        "action",
-				Modifier:    ModifierOneOf,
-				Description: "The traffic action.",
+				Name:      "action",
+				Modifier:  ModifierOneOf,
+				ShortHelp: "The traffic action.",
 				Children: map[string]*Node{
-					"community":  {Name: "community", Modifier: ModifierOnce, Description: "The action community."},
-					"rate-limit": {Name: "rate-limit", Modifier: ModifierOnce, Description: "Rate-limit the matched traffic."},
-					"discard":    {Name: "discard", Modifier: ModifierOnce, Description: "Discard the matched traffic."},
+					"community":  {Name: "community", Modifier: ModifierOnce, ShortHelp: "The action community."},
+					"rate-limit": {Name: "rate-limit", Modifier: ModifierOnce, ShortHelp: "Rate-limit the matched traffic."},
+					"discard":    {Name: "discard", Modifier: ModifierOnce, ShortHelp: "Discard the matched traffic."},
 				},
 			},
-			"tag": {Name: "tag", Modifier: ModifierOnce, Description: "A key and a value."},
+			"tag": {Name: "tag", Modifier: ModifierOnce, ShortHelp: "A key and a value."},
 		},
 	}
 	root := &Node{Name: "root", Children: map[string]*Node{"announce": {Name: "announce", Children: map[string]*Node{"flowspec": node}}}}

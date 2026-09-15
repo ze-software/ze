@@ -16,26 +16,26 @@ module ze-subscriber-cmd {
         container subscriber {
             config false;
             ze:command "ze-subscriber-api:summary";
-            description "Show a summary of all subscriber sessions.";
-            ze:help "Counts by access type (PPPoE, L2TP, IPoE) with totals. It
+            description "Counts by access type (PPPoE, L2TP, IPoE) with totals. It
 is the quick way to see how many subscribers are online.";
+            ze:help "Show a summary of all subscriber sessions.";
 
             container id {
                 config false;
-                description "Select one subscriber session by ID.";
-                ze:help "The ID names one subscriber session. It is not the L2TP session identifier, which
-                         show l2tp session takes.";
+                description "The ID names one subscriber session. It is not the L2TP session identifier, which
+                             show l2tp session takes.";
+                ze:help "Select one subscriber session by ID.";
 
                 container detail {
                     config false;
                     ze:command "ze-subscriber-api:detail";
-                    description "Show everything about one subscriber session.";
-                    ze:help "Pass the session ID. Returns access type, assigned
+                    description "Pass the session ID. Returns access type, assigned
 addresses, authentication state, uptime, and traffic counters.";
+                    ze:help "Show everything about one subscriber session.";
                     leaf id {
                         type string;
                         mandatory true;
-                        description "Subscriber session ID";
+                        ze:help "Subscriber session ID";
                     }
                 }
             }

@@ -7,27 +7,27 @@ module ze-rr-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container rr {
             config false;
-            description "Route reflector status and client peers.";
-            ze:help "A client is a peer this router reflects for, which is a configured relationship
-                     rather than something negotiated with the peer.";
+            description "A client is a peer this router reflects for, which is a configured relationship
+                         rather than something negotiated with the peer.";
+            ze:help "Route reflector status and client peers.";
 
             container status {
                 config false;
                 ze:command "ze-show:rr-status";
-                description "Show whether the route reflector is active.";
-                ze:help "Returns cluster ID, running state, and summary statistics
+                description "Returns cluster ID, running state, and summary statistics
 (reflected routes, client count).";
+                ze:help "Show whether the route reflector is active.";
             }
 
             container peers {
                 config false;
                 ze:command "ze-show:rr-peers";
-                description "Show route reflector client peers.";
-                ze:help "Lists each RR client with session state and reflected route counts.";
+                description "Lists each RR client with session state and reflected route counts.";
+                ze:help "Show route reflector client peers.";
             }
         }
     }

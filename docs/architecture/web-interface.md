@@ -18,7 +18,7 @@ All source files in `internal/component/web/` reference this document via `// De
 | `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
 | `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `configViewComponent`, breadcrumbs |
-| `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes the merged YANG command tree itself. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `description` summary as the lede, the `ze:help` explanation as the body. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
+| `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes the merged YANG command tree itself. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `ze:help` summary as the lede, the `description` explanation as the body. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
 | `cli.go` | CLI bar (integrated + terminal modes), tab completion |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
 | `render.go` | `Renderer`: embedded assets, decorators, and the entry points the hub calls (`RenderLayout`, `RenderLogin`, `RenderWorkbench`, `RenderField`, `RenderDiffModal`) |
@@ -138,9 +138,10 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 | `LeafNode` type `TypeIP/IPv4/IPv6` | Text input with pattern validation |
 | `LeafNode` type `TypeString` with `Enums` | Select dropdown |
 | `LeafNode` type `TypeString` | Text input |
-| `LeafNode.Description` | Three renderings of one string. The (i) tooltip on hover, on the field label and the sidebar heading. The `title=` attribute of the label and the input. The placeholder of an input whose leaf is unset and has no default (`fieldPlaceholder`, `view.go`). On the workbench editor it is also the editor's `aria-describedby` target, which is the tooltip element itself (`fieldDescriptionID`, `view.go`) |
-| `ContainerNode.Description` | (i) tooltip on sidebar heading |
-| `ListNode.Description` | (i) tooltip on sidebar heading |
+| `LeafNode.ShortHelp` | Three renderings of one string. The (i) tooltip on hover, on the field label and the sidebar heading. The `title=` attribute of the label and the input. The placeholder of an input whose leaf is unset and has no default (`fieldPlaceholder`, `view.go`). On the workbench editor it is also the editor's `aria-describedby` target, which is the tooltip element itself (`fieldDescriptionID`, `view.go`) |
+| `ContainerNode.ShortHelp` | (i) tooltip on sidebar heading |
+| `ListNode.ShortHelp` | (i) tooltip on sidebar heading |
+| `LeafNode.Description`, `ContainerNode.Description`, `ListNode.Description` | Nothing. The config editor renders no long explanation |
 
 <!-- source: internal/component/config/schema.go -- LeafNode, ContainerNode, ListNode -->
 <!-- source: internal/component/web/fragment.go -- buildFieldMeta, nodeDescription -->

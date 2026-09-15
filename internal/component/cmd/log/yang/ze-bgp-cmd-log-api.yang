@@ -11,22 +11,22 @@ module ze-bgp-cmd-log-api {
     }
 
     rpc log-show {
-        description "Show current log levels for all subsystems.";
-        ze:help "The answer is one level for each subsystem that registered a logger, and
+        description "The answer is one level for each subsystem that registered a logger, and
 the count beside it. A subsystem that has registered no logger is not listed.";
+        ze:help "Show current log levels for all subsystems.";
     }
 
     rpc log-set {
-        description "Set log level for a subsystem at runtime.";
-        ze:help "The subsystem name and the level are both required. The new level takes
+        description "The subsystem name and the level are both required. The new level takes
 effect at once and is not written to the configuration, so a restart returns the subsystem
 to its configured level.";
+        ze:help "Set log level for a subsystem at runtime.";
     }
 
     rpc log-recent {
-        description "Show recent log entries from ring buffer with optional level/component/count filters.";
-        ze:help "The buffer holds the entries in memory only, so it is empty after a
+        description "The buffer holds the entries in memory only, so it is empty after a
 restart. The options are level, component and count, each one takes a value, and the count
 must be a positive number.";
+        ze:help "Show recent log entries from ring buffer with optional level/component/count filters.";
     }
 }

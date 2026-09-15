@@ -13,10 +13,10 @@ module ze-cli-cache-cmd {
         container cache {
             config false;
             ze:command "ze-bgp:cache-list";
-            description "List the cached BGP UPDATE message IDs.";
-            ze:help "The answer carries two keys, 'ids' and 'count'. An ID is listed while its entry
+            description "The answer carries two keys, 'ids' and 'count'. An ID is listed while its entry
 is retained, or while that entry has not expired. The IDs come alone, with no
 retain flag and no consumer state beside them.";
+            ze:help "List the cached BGP UPDATE message IDs.";
         }
     }
 
@@ -28,46 +28,46 @@ retain flag and no consumer state beside them.";
         // children come from a dozen owners: as112, bgp, cache, commit,
         // config, interface, l2tp, log, ospf, peer, quiesce and subscribe.
         // A summary naming the cache alone was false for the other eleven.
-        description "Commands that act on the running system.";
-        ze:help "This keyword runs nothing on its own. Thirteen modules merge their own children
+        description "This keyword runs nothing on its own. Thirteen modules merge their own children
 onto it, and this module is the one that describes it.";
+        ze:help "Commands that act on the running system.";
 
         container cache {
             config false;
-            description "Manage cached BGP UPDATE messages.";
-            ze:help "This keyword runs nothing on its own. Its four commands are retain, release,
+            description "This keyword runs nothing on its own. Its four commands are retain, release,
 expire and forward, and each one takes a cache entry ID. 'show cache' is what
 lists the IDs.";
+            ze:help "Manage cached BGP UPDATE messages.";
 
             container retain {
                 config false;
                 ze:command "ze-bgp:cache-retain";
-                description "Prevent eviction of a cached message.";
-                ze:help "A retained entry is not evicted when it expires, so it stays listed until
+                description "A retained entry is not evicted when it expires, so it stays listed until
 'release' undoes the retain or 'expire' removes it. The ID leaf accepts a
 comma-separated list, and each ID is acted on in turn with a failure reported
 per ID.";
-                leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
+                ze:help "Prevent eviction of a cached message.";
+                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
             }
 
             container release {
                 config false;
                 ze:command "ze-bgp:cache-release";
-                description "Ack without forwarding (cache consumer) or undo retain (API).";
-                ze:help "The meaning depends on the caller. A cache consumer acknowledges the message and
+                description "The meaning depends on the caller. A cache consumer acknowledges the message and
 does not forward it. An API caller undoes an earlier retain. The ID leaf
 accepts a comma-separated list, and each ID is acted on in turn.";
-                leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
+                ze:help "Ack without forwarding (cache consumer) or undo retain (API).";
+                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
             }
 
             container expire {
                 config false;
                 ze:command "ze-bgp:cache-expire";
-                description "Remove a cached message immediately.";
-                ze:help "The entry is removed at once rather than when its lifetime ends. The ID leaf
+                description "The entry is removed at once rather than when its lifetime ends. The ID leaf
 accepts a comma-separated list, and each ID is acted on in turn with a failure
 reported per ID.";
-                leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
+                ze:help "Remove a cached message immediately.";
+                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
             }
 
         }
@@ -86,11 +86,11 @@ reported per ID.";
             container cached {
                 config false;
                 ze:command "ze-bgp:cache-forward";
-                description "Send a cached UPDATE to the peers the selector matches.";
-                ze:help "The ID leaf accepts a comma-separated list, and the selector applies to each
+                description "The ID leaf accepts a comma-separated list, and the selector applies to each
 ID in that list. The command sends a message the cache already holds, so it names what
 goes on the wire and not the act of sending it.";
-                leaf id { type string; mandatory true; description "Cache entry ID or comma-separated IDs"; }
+                ze:help "Send a cached UPDATE to the peers the selector matches.";
+                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
             }
         }
     }

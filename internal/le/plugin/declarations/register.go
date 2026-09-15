@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "every command a plugin declares to Stage 1 is also on its registration, so a catalog built from the tree names what the daemon serves",
-		Mode:        "offline",
+		ShortHelp: "every command a plugin declares to Stage 1 is also on its registration, so a catalog built from the tree names what the daemon serves",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

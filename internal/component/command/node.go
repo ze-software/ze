@@ -118,30 +118,31 @@ func (a ArgInherit) String() string {
 // this one, so the number is restated here rather than derived, and a change to
 // overlayInnerWidth changes it here too.
 //
-// MaxLongHelpBytes is a SIZE bound. Only the command's own help page prints the
+// MaxDescriptionBytes is a SIZE bound. Only the command's own help page prints the
 // explanation, and it arrives from another process for a plugin command, so it
 // is bounded before it is stored (docs/contributing/ze-go-style.md, "A limit on
 // everything").
 const (
-	MaxSummaryChars  = 96
-	MaxLongHelpBytes = 4096
+	MaxSummaryChars     = 96
+	MaxDescriptionBytes = 4096
 )
 
 // Node represents a node in the operational command tree.
 // Used for completion and command validation across CLI and editor command mode.
 type Node struct {
 	Name string
-	// Description is the one-line summary of this node, from the YANG
-	// description statement. Every surface that shows a command on one line
+	// ShortHelp is the one-line summary of this node, from the YANG ze:help
+	// extension. Every surface that shows a command on one line
 	// reads it: a list row, a completion candidate, a table cell.
-	Description string
-	// LongHelp is the long explanation of this node, from ze:help. Only the help
+	ShortHelp string
+	// Description is the long explanation of this node, from the YANG description
+	// statement. Only the help
 	// page for this one command reads it, and it holds the newlines its author
 	// wrote. Empty means nobody has written an explanation for this command. The
 	// help page then prints the summary alone, and `le docvalid help-shape`
 	// refuses the empty text on a node the commit under test added or changed
 	// (plan/spec-command-help-and-description.md, AC-1).
-	LongHelp     string
+	Description  string
 	WireMethod   string   // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
 	TaskSupport  string   // MCP task-support level (from ze:task-support). Empty = optional.
 	Backend      []string // Allowed backends (from ze:backend). Nil = unrestricted.
@@ -224,8 +225,8 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 // exist only so the commands surface in completion and help.
 type CommandEntry struct {
 	Name        string // full command path, space-separated (e.g. "show bgp irr")
-	Description string // the one-line summary shown alongside the completion
-	LongHelp    string // the long explanation the command's own help page prints
+	ShortHelp   string // the one-line summary shown alongside the completion
+	Description string // the long explanation the command's own help page prints
 }
 
 // MergeCommandPaths inserts each entry's command path into the tree as
@@ -266,11 +267,11 @@ func MergeCommandPaths(root *Node, entries []CommandEntry) {
 				current.Children[part] = child
 			}
 			if i == len(parts)-1 {
+				if child.ShortHelp == "" {
+					child.ShortHelp = e.ShortHelp
+				}
 				if child.Description == "" {
 					child.Description = e.Description
-				}
-				if child.LongHelp == "" {
-					child.LongHelp = e.LongHelp
 				}
 			}
 			current = child

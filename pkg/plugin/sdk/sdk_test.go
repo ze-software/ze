@@ -119,7 +119,7 @@ func TestSDKStartup(t *testing.T) {
 			{Name: "ipv4/unicast", Mode: "both"},
 		},
 		Commands: []CommandDecl{
-			{Name: "show-routes", Description: "Show routes"},
+			{Name: "show-routes", ShortHelp: "Show routes"},
 		},
 		WantsConfig: []string{"bgp"},
 	}

@@ -10,50 +10,50 @@ module ze-filter-path-asn-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container bgp {
             config false;
-            description "BGP peers, sessions, RIB, and protocol tools.";
+            ze:help "BGP peers, sessions, RIB, and protocol tools.";
 
             container reject-asn {
                 config false;
                 ze:command "ze-show:reject-asn";
-                description "Show every reject-asn list.";
-                ze:help "Lists each configured reject-asn list with every ASN it holds, the
+                description "Lists each configured reject-asn list with every ASN it holds, the
 effective position set for that ASN, the network the curated table
 names for it, and how many peers name the list on import and on
 export. An ASN the curated table does not know prints with no
 annotation.";
+                ze:help "Show every reject-asn list.";
 
                 container name {
                     config false;
                     ze:command "ze-show:reject-asn-name";
-                    description "Show one reject-asn list.";
-                    ze:help "The same answer for a single list, for a config that holds many.";
-                    leaf name { type string; mandatory true; description "Reject-ASN list name"; }
+                    description "The same answer for a single list, for a config that holds many.";
+                    ze:help "Show one reject-asn list.";
+                    leaf name { type string; mandatory true; ze:help "Reject-ASN list name"; }
                 }
 
                 container known {
                     config false;
-                    description "Well-known ASN sets Ze can print for an operator to paste.";
-                    ze:help "This keyword runs nothing on its own. Each child prints one
+                    description "This keyword runs nothing on its own. Each child prints one
 well-known ASN set as a config block, and transit-free is the only child
 today. Ze acts on no ASN it was not configured with, so a set here decides
 nothing until an operator pastes it under `reject-asn NAME { }`. Every set
 is curated in Ze's own source and prints the curated date with its sources,
 because no authority publishes these sets.";
+                    ze:help "Well-known ASN sets Ze can print for an operator to paste.";
 
                     container transit-free {
                         config false;
                         ze:command "ze-show:reject-asn-known-transit-free";
-                        description "Print the curated transit-free ASNs as a config block.";
-                        ze:help "Prints the well-known transit-free ASNs as one `indirect [ ... ];`
+                        description "Prints the well-known transit-free ASNs as one `indirect [ ... ];`
 line to paste directly under `reject-asn NAME { }`, with the sources and
 the curated date as comments. Ze acts on no ASN it was not configured
 with, so this command is how the set reaches a config. After the paste
 the config holds the numbers, and a later change to the curated table
 cannot alter it.";
+                        ze:help "Print the curated transit-free ASNs as a config block.";
                     }
                 }
             }

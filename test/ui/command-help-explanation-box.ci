@@ -1,5 +1,5 @@
 # Test: ? on a highlighted COMMAND candidate opens the box on its explanation
-# VALIDATES: AC-9 and AC-11 for a command -- the box holds the declared ze:help,
+# VALIDATES: AC-9 and AC-11 for a command -- the box holds the declared description,
 #   which is a different text from the summary the row holds. Both are on the
 #   screen at once, and neither repeats the other.
 # PREVENTS: the box repeating the one-line summary, which leaves the long
@@ -34,10 +34,10 @@ input=tab
 expect=dropdown:visible
 expect=explanation:empty
 
-# ? explains the highlighted candidate. The box takes the ze:help of
+# ? explains the highlighted candidate. The box takes the description of
 # clear dns cache record, which states what an unknown type does. Its
-# description says nothing about that, so this sentence can only come from the
-# long text.
+# ze:help summary says nothing about that, so this sentence can only come from
+# the long text.
 input=type:text=?
 expect=explanation:contains=An unknown type is reported inside the answer rather than as an error.
 

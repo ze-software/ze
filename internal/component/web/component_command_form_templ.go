@@ -50,15 +50,15 @@ func commandForm(v *FragmentData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if v.CommandForm.Description != "" {
+		if v.CommandForm.ShortHelp != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"command-form-description\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(v.CommandForm.Description)
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(v.CommandForm.ShortHelp)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_command_form.templ`, Line: 11, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_command_form.templ`, Line: 11, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -69,15 +69,15 @@ func commandForm(v *FragmentData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if v.CommandForm.LongHelp != "" {
+		if v.CommandForm.Description != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"command-form-help\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(v.CommandForm.LongHelp)
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(v.CommandForm.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_command_form.templ`, Line: 14, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `component/web/component_command_form.templ`, Line: 14, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {

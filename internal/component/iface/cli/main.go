@@ -166,9 +166,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze interface",
-		Summary: "manage OS network interfaces",
-		Usage:   []string{"ze interface <command> [options]"},
+		Command:   "ze interface",
+		ShortHelp: "manage OS network interfaces",
+		Usage:     []string{"ze interface <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "show [name]", Desc: "List interfaces or show one"},

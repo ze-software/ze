@@ -125,7 +125,7 @@ func fieldPlaceholder(f FieldMeta) string {
 		return f.Default
 	}
 
-	return f.Description
+	return f.ShortHelp
 }
 
 // configSetURL is the editor endpoint one leaf posts to.
@@ -193,7 +193,7 @@ func fieldDescriptionID(path, leaf string) string {
 // -- which is the defect TestCapturedLabelsNameAnIDTheSameDocumentCarries holds
 // the sibling for= to.
 func fieldDescribedBy(f FieldMeta) string {
-	if f.Description == "" {
+	if f.ShortHelp == "" {
 		return ""
 	}
 

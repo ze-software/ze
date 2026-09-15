@@ -88,9 +88,9 @@ func usage() {
 	)
 
 	p := helpfmt.Page{
-		Command: "ze plugin",
-		Summary: "Plugin subcommands",
-		Usage:   []string{"ze plugin <subcommand>"},
+		Command:   "ze plugin",
+		ShortHelp: "Plugin subcommands",
+		Usage:     []string{"ze plugin <subcommand>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Plugin Subcommands", Entries: pluginEntries},
 		},

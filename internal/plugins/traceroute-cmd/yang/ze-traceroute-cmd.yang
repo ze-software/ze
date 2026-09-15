@@ -9,94 +9,94 @@ module ze-traceroute-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container traceroute {
             config false;
             ze:command "ze-show:traceroute";
-            description "Trace the network path from this router to a target.";
-            ze:help "Shows each hop with its IP and round-trip time. Dest can be an IP or hostname.
+            description "Shows each hop with its IP and round-trip time. Dest can be an IP or hostname.
 Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT
 measurements.";
+            ze:help "Trace the network path from this router to a target.";
             leaf dest {
                 type string;
-                description "Target host or IP address";
+                ze:help "Target host or IP address";
             }
             leaf max-hops {
                 type uint32;
-                description "Maximum number of hops";
+                ze:help "Maximum number of hops";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                description "Timeout duration";
+                ze:help "Timeout duration";
             }
             leaf probes {
                 type uint32;
-                description "Number of probes per hop";
+                ze:help "Number of probes per hop";
             }
         }
 
         container probe-round {
             config false;
             ze:command "ze-show:probe-round";
-            description "Run a parallel traceroute probe round to a target.";
-            ze:help "Sends all probes concurrently for faster results than sequential traceroute.
+            description "Sends all probes concurrently for faster results than sequential traceroute.
 Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.";
+            ze:help "Run a parallel traceroute probe round to a target.";
             leaf dest {
                 type string;
-                description "Target host or IP address";
+                ze:help "Target host or IP address";
             }
             leaf probes {
                 type uint32;
-                description "Number of probes per hop";
+                ze:help "Number of probes per hop";
             }
             leaf max-hops {
                 type uint32;
-                description "Maximum number of hops";
+                ze:help "Maximum number of hops";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                description "Timeout duration";
+                ze:help "Timeout duration";
             }
         }
     }
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop).";
+        ze:help "Continuous monitoring commands (Ctrl-C to stop).";
 
         container traceroute {
             config false;
             ze:command "ze-monitor:traceroute";
             ze:task-support required;
-            description "Live mtr-style traceroute that updates continuously.";
-            ze:help "Shows each hop with running RTT statistics. Keeps probing so you can watch
+            description "Shows each hop with running RTT statistics. Keeps probing so you can watch
 path changes and latency shifts over time.";
+            ze:help "Live mtr-style traceroute that updates continuously.";
         }
     }
 
     container resolve {
         config false;
-        description "DNS, ASN, PeeringDB, and IRR resolution tools.";
+        ze:help "DNS, ASN, PeeringDB, and IRR resolution tools.";
 
         container traceroute {
             config false;
             ze:command "ze-resolve:traceroute";
-            description "Traceroute from the router with optional source binding.";
-            ze:help "The options are source, max-hops, timeout and probes, each one a
+            description "The options are source, max-hops, timeout and probes, each one a
 keyword and a value. max-hops is 1 to 64 and defaults to 30, probes is 1 to 10 and defaults
 to 3, and timeout is 1s to 30s and defaults to 3s. The source also selects the address
 family: a target name is resolved in the family of the source, and a target with no
 address in that family is refused.";
-            leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; description "Host or IP address to trace to"; }
-            leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } description "Source IP address to bind, whose family also selects the family the target is resolved in"; }
-            leaf max-hops { type uint32 { range "1..64"; } description "Largest time-to-live to probe"; }
-            leaf timeout { type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; } description "Per-probe timeout, 1s to 30s, in Go duration syntax"; }
-            leaf probes { type uint32 { range "1..10"; } description "Number of probes per hop"; }
+            ze:help "Traceroute from the router with optional source binding.";
+            leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; ze:help "Host or IP address to trace to"; }
+            leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } ze:help "Source IP address to bind, whose family also selects the family the target is resolved in"; }
+            leaf max-hops { type uint32 { range "1..64"; } ze:help "Largest time-to-live to probe"; }
+            leaf timeout { type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; } ze:help "Per-probe timeout, 1s to 30s, in Go duration syntax"; }
+            leaf probes { type uint32 { range "1..10"; } ze:help "Number of probes per hop"; }
         }
     }
 }

@@ -13,10 +13,10 @@ var _ leroot.Prose = (*Prepared)(nil)
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		Description: "prepare explicit commits without touching the shared staging index",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "prepare explicit commits without touching the shared staging index",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterShape(area, command.ShapeMap)
 }

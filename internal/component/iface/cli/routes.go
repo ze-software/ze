@@ -30,9 +30,9 @@ func cmdRoutes(args []string) int {
 	limit := fs.Int("limit", defaultRouteLimit, "Maximum number of routes to return (must be > 0)")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: cmdPathRoutes,
-			Summary: "List kernel routing table entries",
-			Usage:   []string{"ze interface routes [<cidr>] [--limit N] [--json]"},
+			Command:   cmdPathRoutes,
+			ShortHelp: "List kernel routing table entries",
+			Usage:     []string{"ze interface routes [<cidr>] [--limit N] [--json]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: flagJSONLong, Desc: helpDescJSON},

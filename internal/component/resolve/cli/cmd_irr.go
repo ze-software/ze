@@ -82,9 +82,9 @@ func cmdIRR(ctx context.Context, args []string) int {
 
 func irrUsage() {
 	p := helpfmt.Page{
-		Command: "ze resolve irr",
-		Summary: "IRR AS-SET expansion and prefix lookup",
-		Usage:   []string{"ze resolve irr [--server <host>] <operation> <as-set-name>"},
+		Command:   "ze resolve irr",
+		ShortHelp: "IRR AS-SET expansion and prefix lookup",
+		Usage:     []string{"ze resolve irr [--server <host>] <operation> <as-set-name>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "as-set <name>", Desc: "Expand AS-SET to member ASNs"},

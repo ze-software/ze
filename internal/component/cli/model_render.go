@@ -548,7 +548,7 @@ func (m Model) warningText() (string, lipgloss.Style) {
 	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
 		// A plugin declares this text, so it is bounded to one row before it
 		// reaches the terminal.
-		summary := oneRow(m.completions[m.selected].Description)
+		summary := oneRow(m.completions[m.selected].ShortHelp)
 		// The box already holds this text when the node declares only ONE.
 		// Repeating it here says nothing the box has not said, and the copy on
 		// this row is the one a terminal edge cuts. A node that declares two,

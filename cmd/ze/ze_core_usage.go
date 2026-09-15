@@ -25,7 +25,7 @@ func zeUsage() {
 	for _, se := range registry.ListRootBySection() {
 		entries := make([]helpfmt.HelpEntry, len(se.Commands))
 		for i, rc := range se.Commands {
-			entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
+			entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.ShortHelp}
 		}
 		title := registry.SectionTitle(se.Section)
 		if title == "" {

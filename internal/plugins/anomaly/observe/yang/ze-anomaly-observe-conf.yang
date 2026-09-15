@@ -12,22 +12,22 @@ module ze-anomaly-observe-conf {
 
   augment "/ad:anomaly" {
     container observe {
-      description "Incident lifecycle store for confirmed anomaly incidents.";
-      ze:help "The store keeps each confirmed incident from its start to its end. `show anomaly observe` reads the
+      description "The store keeps each confirmed incident from its start to its end. `show anomaly observe` reads the
           store, so it can report the duration of a finished incident.";
+      ze:help "Incident lifecycle store for confirmed anomaly incidents.";
 
       leaf incident-ring-size {
         type uint32 { range "1..100000"; }
         default 1000;
-        description "Maximum number of incidents the ring keeps in memory.";
-        ze:help "When the ring is full, the oldest finalized incident is dropped first.";
+        description "When the ring is full, the oldest finalized incident is dropped first.";
+        ze:help "Maximum number of incidents the ring keeps in memory.";
       }
       leaf stale-incident-timeout {
         type uint32 { range "1..86400"; }
         default 3600;
-        description "Seconds before an open incident with no clear event is finalized.";
-        ze:help "The detector stops reporting an entity that goes idle, and it sends no clear event for that entity.
+        description "The detector stops reporting an entity that goes idle, and it sends no clear event for that entity.
             This timeout is the limit on how long such an incident reads as active.";
+        ze:help "Seconds before an open incident with no clear event is finalized.";
       }
     }
   }

@@ -19,9 +19,9 @@ func cmdGraph(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config graph",
-			Summary: "Show config dependency graph as JSON",
-			Usage:   []string{"ze config graph <config-file>"},
+			Command:   "ze config graph",
+			ShortHelp: "Show config dependency graph as JSON",
+			Usage:     []string{"ze config graph <config-file>"},
 			Examples: []string{
 				"ze config graph config.conf",
 			},

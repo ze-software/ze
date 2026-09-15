@@ -16,34 +16,34 @@ module ze-pppoe-cmd {
         container pppoe {
             config false;
             ze:command "ze-pppoe-api:summary";
-            description "PPPoE session and protocol state.";
-            ze:help "Without a subcommand, shows a summary of active
+            description "Without a subcommand, shows a summary of active
 sessions.";
+            ze:help "PPPoE session and protocol state.";
 
             container sessions {
                 config false;
                 ze:command "ze-pppoe-api:sessions";
-                description "List all active PPPoE sessions.";
-                ze:help "One line per session: session ID, MAC, subscriber
+                description "One line per session: session ID, MAC, subscriber
 login, uptime, and assigned addresses.";
+                ze:help "List all active PPPoE sessions.";
             }
 
             container session {
                 config false;
-                description "Show full detail for one PPPoE session.";
-                ze:help "It takes a single session and prints everything the daemon holds for it. The list
-                         of sessions is show pppoe session with no identifier.";
+                description "It takes a single session and prints everything the daemon holds for it. The list
+                             of sessions is show pppoe session with no identifier.";
+                ze:help "Show full detail for one PPPoE session.";
 
                 container id {
                     config false;
                     ze:command "ze-pppoe-api:session";
-                    description "Show full detail for one PPPoE session.";
-                    ze:help "Pass the session ID. Returns discovery tags,
+                    description "Pass the session ID. Returns discovery tags,
 LCP/NCP state, assigned addresses, and traffic counters.";
+                    ze:help "Show full detail for one PPPoE session.";
                     leaf id {
                         type string;
                         mandatory true;
-                        description "PPPoE session ID";
+                        ze:help "PPPoE session ID";
                     }
                 }
             }
@@ -51,18 +51,18 @@ LCP/NCP state, assigned addresses, and traffic counters.";
             container statistics {
                 config false;
                 ze:command "ze-pppoe-api:statistics";
-                description "Show PPPoE protocol message counters.";
-                ze:help "Returns PADI, PADO, PADR, PADS, PADT counts, active
+                description "Returns PADI, PADO, PADR, PADS, PADT counts, active
 sessions, and errors. A rising PADI count with flat PADS means sessions are not
 completing.";
+                ze:help "Show PPPoE protocol message counters.";
             }
 
             container interfaces {
                 config false;
                 ze:command "ze-pppoe-api:interfaces";
-                description "Show which interfaces are accepting PPPoE sessions.";
-                ze:help "Lists each PPPoE-enabled interface with its service
+                description "Lists each PPPoE-enabled interface with its service
 name, session limit, and how many sessions are active now.";
+                ze:help "Show which interfaces are accepting PPPoE sessions.";
             }
         }
     }

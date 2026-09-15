@@ -46,7 +46,7 @@ func TestDispatcherRegister(t *testing.T) {
 	cmd := d.Lookup("test command")
 	require.NotNil(t, cmd, "registered command must be found")
 	assert.Equal(t, "test command", cmd.Name)
-	assert.Equal(t, "Test command help", cmd.Description)
+	assert.Equal(t, "Test command help", cmd.ShortHelp)
 
 	// Verify handler is set
 	require.NotNil(t, cmd.Handler)
@@ -528,7 +528,7 @@ func TestDispatcherPluginMatch(t *testing.T) {
 	// prefix (e.g., "request bgp watchdog announce", not bare "announce").
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-watchdog"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "request bgp watchdog announce", Description: "Announce watchdog group"},
+		{Name: "request bgp watchdog announce", ShortHelp: "Announce watchdog group"},
 	})
 
 	// Prefixed command matches (process not running → error, but not ErrUnknownCommand)
@@ -690,7 +690,7 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	// Register a plugin command (process not running)
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "show bgp rib status", Description: "RIB summary"},
+		{Name: "show bgp rib status", ShortHelp: "RIB summary"},
 	})
 
 	// ForwardToPlugin should find the command but fail because process isn't running
@@ -719,7 +719,7 @@ func TestForwardToPluginUsesParentContext(t *testing.T) {
 
 	d := NewDispatcher()
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "show bgp rib status", Description: "RIB summary"},
+		{Name: "show bgp rib status", ShortHelp: "RIB summary"},
 	})
 
 	pluginConn := ipc.NewPluginConn(pluginSide, pluginSide)
@@ -774,7 +774,7 @@ func TestForwardToPluginBuiltinConflict(t *testing.T) {
 	// Plugin tries to register same name -- should be rejected
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
 	results := d.Registry().Register(proc, []CommandDef{
-		{Name: "show bgp rib status", Description: "RIB summary"},
+		{Name: "show bgp rib status", ShortHelp: "RIB summary"},
 	})
 	assert.False(t, results[0].OK, "plugin 'rib status' should conflict with builtin 'rib status'")
 	assert.Contains(t, results[0].Error, "conflicts with builtin")
@@ -1081,7 +1081,7 @@ func TestDispatcherAuthorizationAppliesToPluginCommands(t *testing.T) {
 	const pluginCmd = "show custom-probe"
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	results := d.registry.Register(proc, []CommandDef{
-		{Name: pluginCmd, Description: "Plugin-provided command"},
+		{Name: pluginCmd, ShortHelp: "Plugin-provided command"},
 	})
 	require.Len(t, results, 1)
 	require.True(t, results[0].OK, "plugin command registration must succeed: %s", results[0].Error)

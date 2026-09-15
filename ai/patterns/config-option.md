@@ -34,7 +34,8 @@ File: `internal/component/<name>/yang/ze-<name>-conf.yang` (or existing module).
 leaf my-option {
     type string;                          // From ze-types.yang
     default "my-default";                 // Required if accessed at startup
-    description "User-facing help text";  // Mandatory (CLI tooltip)
+    ze:help "One-line summary.";          // Mandatory: the completion row
+    description "The paragraph the ? box prints. It differs from the summary.";
 }
 ```
 
@@ -45,12 +46,13 @@ leaf my-option {
 ```yang
 leaf mode {
     type enumeration {
-        enum enable;
-        enum disable;
-        enum require;
+        enum enable { ze:help "Advertise and accept."; }
+        enum disable { ze:help "Neither advertise nor accept."; }
+        enum require { ze:help "Advertise, and refuse a peer that does not."; }
     }
     default "enable";
-    description "Operating mode";
+    ze:help "Operating mode.";
+    description "An enum value carries its one-line text as ze:help alone.";
 }
 ```
 
@@ -341,10 +343,10 @@ Core types/extensions must be embedded. Plugin schemas are registered at import 
 [ ] Classified as YANG config or env-only using the decision table above
 [ ] If env-only: documented WHY (debug, bootstrap, safety cap)
 [ ] If promoting an env var: old key preserved, precedence documented
-[ ] YANG leaf defined with type, default, description
+[ ] YANG leaf defined with type, default, a `ze:help` summary and a `description` explanation
 [ ] YANG leaf: full words, kebab-case, no abbreviations
 [ ] YANG leaf: dimensioned value carries a `units` statement, name unit-free
-[ ] YANG leaf: description names the env var override when one exists
+[ ] YANG leaf: the `description` names the env var override when one exists
 [ ] YANG module registered (init() + go:embed) or existing module extended
 [ ] Namespace is urn:ze:<component>:<kind> (kind is a colon segment)
 [ ] Prefix is short, unquoted, no hyphens; zt and ze not reused
@@ -354,7 +356,7 @@ Core types/extensions must be embedded. Plugin schemas are registered at import 
 [ ] Endpoint uses zt:listener (bind) or zt:endpoint (target); no host:port string
 [ ] Toggles are positive `enabled` booleans; no type empty, no enable/disable enum
 [ ] Cross-protocol concept matches its siblings (grep OSPF, IS-IS, BGP first)
-[ ] 4-space indent; compact leaves only for type (+ default, description)
+[ ] 4-space indent; compact leaves only for type (+ default, ze:help)
 [ ] If env var: env.MustRegister() in environment.go
 [ ] If env var: key is ze.<component>.<container>.<yang-leaf>, final segment exact
 [ ] If env var: Go struct field in environment.go, PascalCase of the YANG leaf

@@ -198,7 +198,7 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | `sdk.Plugin` | Main plugin struct, created via `NewFromEnv` or `NewWithConn` |
 | `sdk.Registration` | Stage 1 declaration (= `rpc.DeclareRegistrationInput`) |
 | `sdk.FamilyDecl` | Address family declaration (`Name` + `Mode`) |
-| `sdk.CommandDecl` | Command declaration (`Name` + `Description` + `LongHelp` + `Args`). `Description` is the one-line summary every listing prints. `LongHelp` is the explanation only the command's own help page prints |
+| `sdk.CommandDecl` | Command declaration (`Name` + `ShortHelp` + `Description` + `Args`). `ShortHelp` is the one-line summary every listing prints. `Description` is the explanation only the command's own help page prints |
 | `sdk.SchemaDecl` | YANG schema declaration (`Module` + `YANGText` + `Handlers`) |
 | `sdk.ConfigSection` | Config section (`Root` + `Data`) |
 | `sdk.ConfigDiffSection` | Config diff (`Root` + `Added` + `Removed` + `Changed`) |
@@ -302,7 +302,7 @@ p.SetStartupSubscriptions([]string{"update"}, nil, "")
 // Run the plugin.
 err = p.Run(context.Background(), sdk.Registration{
     Families: []sdk.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
-    Commands: []sdk.CommandDecl{{Name: "my-plugin status", Description: "Show status"}},
+    Commands: []sdk.CommandDecl{{Name: "my-plugin status", ShortHelp: "Show status"}},
     Schema:   &sdk.SchemaDecl{Module: "my-plugin", YANGText: myYANG, Handlers: []string{"my-prefix"}},
 })
 ```

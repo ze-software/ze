@@ -986,9 +986,9 @@ func parseUint16(s string, def uint16) uint16 {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: "show bmp sessions", Description: "Show BMP receiver sessions"},
-		{Name: "show bmp peers", Description: "Show monitored BGP peers"},
-		{Name: "show bmp collectors", Description: "Show BMP sender collector status"},
-		{Name: "show bmp rib", Description: "Show BMP-monitored routes"},
+		{Name: "show bmp sessions", ShortHelp: "Show BMP receiver sessions"},
+		{Name: "show bmp peers", ShortHelp: "Show monitored BGP peers"},
+		{Name: "show bmp collectors", ShortHelp: "Show BMP sender collector status"},
+		{Name: "show bmp rib", ShortHelp: "Show BMP-monitored routes"},
 	}
 }

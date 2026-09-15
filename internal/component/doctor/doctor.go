@@ -222,9 +222,9 @@ func outputText(ready bool, diags []diagnostic.Diagnostic) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze doctor",
-		Summary: "Check system readiness for running Ze",
-		Usage:   []string{"ze doctor [--json] [<config-file>]"},
+		Command:   "ze doctor",
+		ShortHelp: "Check system readiness for running Ze",
+		Usage:     []string{"ze doctor [--json] [<config-file>]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--json", Desc: "Output structured JSON diagnostics"},

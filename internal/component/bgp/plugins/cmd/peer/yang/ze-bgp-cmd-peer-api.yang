@@ -8,49 +8,48 @@ module ze-bgp-cmd-peer-api {
     "Ze BGP peer lifecycle and introspection command RPCs.";
 
   rpc peer-list {
-    description "List peer(s) (brief).";
-    ze:help "Each row carries the remote AS, the state and the uptime. A row
+    description "Each row carries the remote AS, the state and the uptime. A row
 also carries the peer name and the group name where the config declares them.
 The rows are keyed by peer address, and the full per-peer detail is a separate
 command.";
+    ze:help "List peer(s) (brief).";
   }
   rpc peer-show {
-    description "Show peer(s) details.";
-    ze:help "Each row carries the remote and local AS, the router ID and four
+    description "Each row carries the remote and local AS, the router ID and four
 timers: receive hold time, send hold time, keepalive and connect retry. The
 timers are reported in seconds.";
+    ze:help "Show peer(s) details.";
   }
   rpc peer-teardown {
-    description "Teardown peer session with cease subcode.";
-    ze:help "The subcode is 0 to 255 and it is required. Words after the
+    description "The subcode is 0 to 255 and it is required. Words after the
 subcode are joined into an RFC 8203 shutdown communication message. The
 selector is a peer address or a peer name, and the wildcard is refused.";
+    ze:help "Teardown peer session with cease subcode.";
   }
   // peer-add is declared in ze-bgp-api.yang, which is the declaration
   // 'ze:command "ze-bgp:peer-add"' names and handleBgpPeerAdd serves. The copy
   // here published a second method that no handler answered.
   rpc peer-remove {
-    description "Remove a peer dynamically.";
-    ze:help "Ze stops the TCP session and removes the peer from the running
+    description "Ze stops the TCP session and removes the peer from the running
 config, and the config file on disk does not change. The wildcard selector is
 refused, because removing every peer at once is never what a bare selector
 means.";
+    ze:help "Remove a peer dynamically.";
   }
   rpc peer-pause {
-    description "Pause peer read loop (flow control).";
-    ze:help "Ze stops reading from that peer's socket, which pushes back on a
+    description "Ze stops reading from that peer's socket, which pushes back on a
 plugin that cannot keep up. The session stays up and the peer's send queue
 fills. Resume it with the sibling command. The wildcard selector is refused.";
+    ze:help "Pause peer read loop (flow control).";
   }
   rpc peer-resume {
-    description "Resume peer read loop (flow control).";
-    ze:help "Ze starts reading that peer's socket again after a pause. The
+    description "Ze starts reading that peer's socket again after a pause. The
 answer carries the peer address and the action word. The wildcard selector is
 refused, because flow control acts on one peer's read loop.";
+    ze:help "Resume peer read loop (flow control).";
   }
   rpc peer-save {
-    description "Write the running peer set to the configuration file.";
-    ze:help "The method takes no argument and acts on the whole running peer
+    description "The method takes no argument and acts on the whole running peer
 set. It reconciles the configuration file to that set in both directions: a
 peer created through 'ze-bgp:peer-add' is written into the file, and a peer the
 file declares that 'ze-delete:bgp-peer' removed is taken out of it. A peer both
@@ -58,48 +57,49 @@ sides hold is not rewritten. Nothing about the running daemon changes. The
 answer carries 'added', 'removed' and 'config', which names the file. An
 argument is refused, because after a removal no peer is left for a selector to
 name.";
+    ze:help "Write the running peer set to the configuration file.";
   }
   rpc summary {
-    description "Show BGP summary (peer table with statistics).";
-    ze:help "With no argument, every configured peer appears in the table.
+    description "With no argument, every configured peer appears in the table.
 One argument names an address family, in the full ipv4/unicast form or in a
 shorthand. That argument narrows the table to the one family. A word that
 names neither a subcommand nor a family is refused.";
+    ze:help "Show BGP summary (peer table with statistics).";
   }
   rpc peer-capabilities {
-    description "Show negotiated capabilities for peer(s).";
-    ze:help "Each row carries the peer, the state and a negotiation-complete
+    description "Each row carries the peer, the state and a negotiation-complete
 flag. A row whose negotiation finished also carries negotiated. That holds the
 families, the extended-message flag, the enhanced-route-refresh flag and the
 asn4 flag, plus add-path where the two speakers negotiated it. A selector that
 matches no peer fails with 'no matching peers'.";
+    ze:help "Show negotiated capabilities for peer(s).";
   }
   rpc session-peer-ready {
-    description "Signal peer-specific plugin init complete.";
-    ze:help "The daemon signals readiness for the one peer the process serves.
+    description "The daemon signals readiness for the one peer the process serves.
 A request that names no peer, or that names the wildcard peer, is accepted and
 signals nothing.";
+    ze:help "Signal peer-specific plugin init complete.";
   }
   rpc warnings {
-    description "Show active prefix warnings (stale data, threshold exceeded).";
-    ze:help "Two codes reach this answer. Ze raises prefix-stale where a peer's
+    description "Two codes reach this answer. Ze raises prefix-stale where a peer's
 prefix data is old, and prefix-threshold where a family's prefix count passes
 the warning limit. Both live on the report bus under the bgp source, and 'show
 warnings' reads that same bus for every subsystem.";
+    ze:help "Show active prefix warnings (stale data, threshold exceeded).";
   }
   rpc peer-history {
-    description "Show FSM transition history for a peer.";
-    ze:help "Each row carries the from state and the to state, plus a
+    description "Each row carries the from state and the to state, plus a
 timestamp and a reason where the transition recorded them. Name one peer: a
 bare wildcard selector fails with 'no peer specified'. A peer that has never
 transitioned fails with 'no history for peer <address>'.";
+    ze:help "Show FSM transition history for a peer.";
   }
   rpc bgp-peer-prefix {
-    description "Update prefix maximums from PeeringDB for matched peer(s).";
-    ze:help "Ze reads the PeeringDB prefix counts for each matched peer and
+    description "Ze reads the PeeringDB prefix counts for each matched peer and
 adds the configured margin. It writes the result to the session family maximum
 in a config DRAFT, so run 'config commit' to apply it. A peer with no remote
 ASN is skipped, and so is a PeeringDB answer of zero prefixes. Ze waits one
 second between lookups to respect the PeeringDB rate limit.";
+    ze:help "Update prefix maximums from PeeringDB for matched peer(s).";
   }
 }

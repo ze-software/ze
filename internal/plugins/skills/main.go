@@ -171,9 +171,9 @@ func skillNames() string {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze skills",
-		Summary: "List and retrieve version-matched Ze skills for agents",
-		Usage:   []string{"ze skills list [--json]", "ze skills get <name> [--full] [--json]"},
+		Command:   "ze skills",
+		ShortHelp: "List and retrieve version-matched Ze skills for agents",
+		Usage:     []string{"ze skills list [--json]", "ze skills get <name> [--full] [--json]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "list", Desc: "List all bundled skills"},

@@ -49,9 +49,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze bgp",
-		Summary: "BGP protocol tools",
-		Usage:   []string{"ze bgp <command> [options]"},
+		Command:   "ze bgp",
+		ShortHelp: "BGP protocol tools",
+		Usage:     []string{"ze bgp <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "decode <hex>", Desc: "Decode BGP message from hex to JSON"},

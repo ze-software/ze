@@ -104,9 +104,9 @@ func outputText(meta *diagnostic.CodeMeta) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze explain",
-		Summary: "Explain a diagnostic code emitted by ze config validate",
-		Usage:   []string{"ze explain [--json] <diagnostic-code>"},
+		Command:   "ze explain",
+		ShortHelp: "Explain a diagnostic code emitted by ze config validate",
+		Usage:     []string{"ze explain [--json] <diagnostic-code>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--json", Desc: "Output structured JSON explanation"},

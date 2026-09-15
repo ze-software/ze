@@ -203,7 +203,7 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "tools", "source.txt"), []byte("source only\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog := `[{"path":"show test","description":"Show rows","mode":"read-only","operators":[{"name":"json","class":"global","available":"always","description":"JSON"}]}]`
+	catalog := `[{"path":"show test","short-help":"Show rows","mode":"read-only","operators":[{"name":"json","class":"global","available":"always","description":"JSON"}]}]`
 	stubLiveInputs(t, catalog)
 	// This build is about staging, so the page producers are stubbed out: a
 	// synthetic checkout carries no docs/ tree for them to publish, and
@@ -308,7 +308,7 @@ func stubLiveInputs(t *testing.T, catalog string) {
 // VALIDATES: a normal full build snapshots the current Pages checkout before
 // cleaning it, so a page the build does not write keeps its exact bytes.
 func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
-	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	parent := t.TempDir()
 	root := filepath.Join(parent, "main")
 	source := filepath.Join(root, "website")
@@ -371,7 +371,7 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 // The fixture carries no head, no title, no navigation and no vendor
 // equivalents, so it is a comparison input and never a page.
 func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
-	stubLiveInputs(t, `[{"path":"show live","description":"Show live rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show live","short-help":"Show live rows","mode":"read-only"}]`)
 	parent := t.TempDir()
 	root := filepath.Join(parent, "main")
 	output := filepath.Join(parent, "gh-pages")

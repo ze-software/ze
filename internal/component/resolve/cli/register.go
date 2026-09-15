@@ -11,9 +11,9 @@ func init() {
 	registry.MustRegisterRootHandler("resolve", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "DNS resolver tools",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "",
+		ShortHelp: "DNS resolver tools",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      "",
 	})
 }

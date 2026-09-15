@@ -16,8 +16,8 @@ const name = "cli-grammar"
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		Description: "every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register",
-		Mode:        "offline",
+		ShortHelp: "every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

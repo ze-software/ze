@@ -1125,20 +1125,20 @@ func emitLSPDown(log *slog.Logger, lsp *LSP, activeCount int) {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show rsvp-te session",
-			Description: "Show each signaling session with its LSP state, role, bandwidth and labels.",
+			Name:      "show rsvp-te session",
+			ShortHelp: "Show each signaling session with its LSP state, role, bandwidth and labels.",
 		},
 		{
-			Name:        "show rsvp-te interface",
-			Description: "Show the bandwidth each interface reserves and the amount still available.",
+			Name:      "show rsvp-te interface",
+			ShortHelp: "Show the bandwidth each interface reserves and the amount still available.",
 		},
 		{
-			Name:        "show rsvp-te tunnel",
-			Description: "Show each tunnel with its state, bandwidth and explicit route hop count.",
+			Name:      "show rsvp-te tunnel",
+			ShortHelp: "Show each tunnel with its state, bandwidth and explicit route hop count.",
 		},
 		{
-			Name:        "show rsvp-te fast-reroute",
-			Description: "Show each bypass LSP and each protected LSP, with the protection state of each.",
+			Name:      "show rsvp-te fast-reroute",
+			ShortHelp: "Show each bypass LSP and each protected LSP, with the protection state of each.",
 		},
 	}
 }

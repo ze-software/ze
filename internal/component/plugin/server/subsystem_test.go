@@ -148,9 +148,9 @@ func TestSubsystemRPCProtocol(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "cache list", Description: "List cache entries"},
-			{Name: "cache retain", Description: "Retain cache entry"},
-			{Name: "cache release", Description: "Release cache entry"},
+			{Name: "cache list", ShortHelp: "List cache entries"},
+			{Name: "cache retain", ShortHelp: "Retain cache entry"},
+			{Name: "cache release", ShortHelp: "Release cache entry"},
 		},
 	}
 
@@ -177,7 +177,7 @@ func TestSubsystemRPCCommand(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "plugin session ping", Description: "Ping session"},
+			{Name: "plugin session ping", ShortHelp: "Ping session"},
 		},
 		handler: func(command string) (string, string) {
 			if command == "plugin session ping" {
@@ -234,8 +234,8 @@ func TestSubsystemHandler(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "plugin session ping", Description: "Ping session"},
-			{Name: "plugin session bye", Description: "Session goodbye"},
+			{Name: "plugin session ping", ShortHelp: "Ping session"},
+			{Name: "plugin session bye", ShortHelp: "Session goodbye"},
 		},
 		handler: func(command string) (string, string) {
 			switch command {
@@ -274,7 +274,7 @@ func TestSubsystemManager(t *testing.T) {
 
 	cacheMock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "cache list", Description: "List cache entries"},
+			{Name: "cache list", ShortHelp: "List cache entries"},
 		},
 		handler: func(command string) (string, string) {
 			if command == "cache list" {
@@ -286,7 +286,7 @@ func TestSubsystemManager(t *testing.T) {
 
 	sessionMock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "plugin session ping", Description: "Ping session"},
+			{Name: "plugin session ping", ShortHelp: "Ping session"},
 		},
 		handler: func(command string) (string, string) {
 			if command == "plugin session ping" {
@@ -333,7 +333,7 @@ func TestDispatcherSubsystemIntegration(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "plugin session ping", Description: "Ping session"},
+			{Name: "plugin session ping", ShortHelp: "Ping session"},
 		},
 		handler: func(command string) (string, string) {
 			if command == "plugin session ping" {

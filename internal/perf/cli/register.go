@@ -26,9 +26,9 @@ func init() {
 		}
 		return Dispatch(args)
 	}, registry.Meta{
-		Description: "BGP propagation latency benchmark tool",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subcommands,
+		ShortHelp: "BGP propagation latency benchmark tool",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subcommands,
 	})
 }

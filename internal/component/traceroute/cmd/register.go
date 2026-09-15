@@ -33,13 +33,13 @@ func init() {
 	)
 
 	registry.MustRegisterLocalMeta("show traceroute", showTracerouteLocal, registry.Meta{
-		Description: "Trace the network path to a target using the internal ICMP engine (works without the daemon)",
-		Mode:        "offline",
+		ShortHelp: "Trace the network path to a target using the internal ICMP engine (works without the daemon)",
+		Mode:      "offline",
 	})
 
 	registry.MustRegisterLocalMeta("monitor traceroute", monitorTracerouteLocal, registry.Meta{
-		Description: "Live streaming traceroute (works without the daemon)",
-		Mode:        "offline",
+		ShortHelp: "Live streaming traceroute (works without the daemon)",
+		Mode:      "offline",
 	})
 }
 

@@ -80,7 +80,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	if ctx.Dispatcher() != nil {
 		var tb textbuf.Buffer
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.Description).String())
+			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.ShortHelp).String())
 		}
 		// Add plugin commands (skip hidden)
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
@@ -91,7 +91,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 			if cmd.Args != "" {
 				tb.Byte(' ').Str(cmd.Args)
 			}
-			tb.Str(" - ").Str(cmd.Description)
+			tb.Str(" - ").Str(cmd.ShortHelp)
 			commands = append(commands, tb.String())
 		}
 	}
@@ -417,7 +417,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 		var encoded rpc.RawRow
 
 		for _, cmd := range dispatcher.Commands() {
-			row := Completion{Value: cmd.Name, Description: cmd.Description, LongHelp: cmd.LongHelp}
+			row := Completion{Value: cmd.Name, ShortHelp: cmd.ShortHelp, Description: cmd.Description}
 			if verbose {
 				row.Source = sourceBuiltin
 			}
@@ -426,7 +426,7 @@ func commandRows(dispatcher *Dispatcher, verbose bool) iter.Seq[rpc.RowRecord] {
 			}
 		}
 		for _, cmd := range dispatcher.Registry().All() {
-			row := Completion{Value: cmd.Name, Description: cmd.Description, Hidden: cmd.Hidden, LongHelp: cmd.LongHelp}
+			row := Completion{Value: cmd.Name, ShortHelp: cmd.ShortHelp, Hidden: cmd.Hidden, Description: cmd.Description}
 			if verbose {
 				row.Source = cmd.Process.Name()
 			}
@@ -490,8 +490,8 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
+					fieldShortHelp:   cmd.ShortHelp,
 					fieldDescription: cmd.Description,
-					fieldLongHelp:    cmd.LongHelp,
 					fieldSource:      sourceBuiltin,
 				},
 			}, nil
@@ -502,8 +502,8 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
+					fieldShortHelp:   cmd.ShortHelp,
 					fieldDescription: cmd.Description,
-					fieldLongHelp:    cmd.LongHelp,
 					fieldArgs:        cmd.Args,
 					fieldSource:      cmd.Process.Name(),
 					"timeout":        cmd.Timeout.String(),
@@ -559,8 +559,8 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, Completion{
-					Value:       cmd.Name,
-					Description: cmd.Description,
+					Value:     cmd.Name,
+					ShortHelp: cmd.ShortHelp,
 				})
 			}
 		}

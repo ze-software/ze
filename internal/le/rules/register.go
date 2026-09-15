@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "the rule corpus in ai/rules/: lint and render it, map hook enforcement, " +
+		ShortHelp: "the rule corpus in ai/rules/: lint and render it, map hook enforcement, " +
 			"and report matched rules unread in a session transcript",
 		Mode: "offline",
 		// SectionTest is where ze files a tool rather than a product command;

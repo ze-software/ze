@@ -49,9 +49,9 @@ func cmdPluginTest(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze plugin test",
-			Summary: "Test plugin configuration and protocol behavior",
-			Usage:   []string{"ze plugin test [options] <config-file>"},
+			Command:   "ze plugin test",
+			ShortHelp: "Test plugin configuration and protocol behavior",
+			Usage:     []string{"ze plugin test [options] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Description", Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Useful for debugging plugin YANG schema loading and config delivery."},

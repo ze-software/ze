@@ -40,176 +40,176 @@ module ze-flowspec-cmd {
         container destination-ipv4 {
             config false;
             ze:modifier "repeat";
-            description "Destination prefix to match (RFC 8955 type 1).";
-            ze:help "The prefix is parsed in CIDR form, and its address family MUST match the
+            description "The prefix is parsed in CIDR form, and its address family MUST match the
 FlowSpec family, so an IPv6 prefix under an IPv4 FlowSpec is refused. One NLRI
 carries one destination prefix, so a second destination-ipv4 is refused as a
 duplicate component type.";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
+            ze:help "Destination prefix to match (RFC 8955 type 1).";
+            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "IPv4 prefix in CIDR form"; }
         }
 
         container destination-ipv6 {
             config false;
             ze:modifier "repeat";
-            description "Destination prefix to match (RFC 8956 type 1).";
-            ze:help "The prefix is parsed in CIDR form, and it is refused when the FlowSpec family is
+            description "The prefix is parsed in CIDR form, and it is refused when the FlowSpec family is
 IPv4. RFC 8956 gives the IPv6 form an offset field that RFC 8955 has not, which
 is why this keyword and destination-ipv4 are two words rather than one word and
 a qualifier.";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
+            ze:help "Destination prefix to match (RFC 8956 type 1).";
+            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "IPv6 prefix in CIDR form"; }
         }
 
         container source-ipv4 {
             config false;
             ze:modifier "repeat";
-            description "Source prefix to match (RFC 8955 type 2).";
-            ze:help "The prefix is parsed in CIDR form, and its address family MUST match the
+            description "The prefix is parsed in CIDR form, and its address family MUST match the
 FlowSpec family, so an IPv6 prefix under an IPv4 FlowSpec is refused. One NLRI
 carries one source prefix, so a second source-ipv4 is refused as a duplicate
 component type.";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
+            ze:help "Source prefix to match (RFC 8955 type 2).";
+            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "IPv4 prefix in CIDR form"; }
         }
 
         container source-ipv6 {
             config false;
             ze:modifier "repeat";
-            description "Source prefix to match (RFC 8956 type 2).";
-            ze:help "The prefix is parsed in CIDR form, and it is refused when the FlowSpec family is
+            description "The prefix is parsed in CIDR form, and it is refused when the FlowSpec family is
 IPv4. One NLRI carries one source prefix, so a second source-ipv6 is refused as
 a duplicate component type.";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
+            ze:help "Source prefix to match (RFC 8956 type 2).";
+            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "IPv6 prefix in CIDR form"; }
         }
 
         container protocol {
             config false;
             ze:modifier "repeat";
-            description "IP protocol to match, by name or number (RFC 8955 type 3).";
-            ze:help "A value is a name such as tcp, or a number from 0 to 255. A leading '=' is
+            description "A value is a name such as tcp, or a number from 0 to 255. A leading '=' is
 accepted, so 'protocol =6' and 'protocol 6' parse the same way. Values are read
 until the next component keyword, and each one is an equality match.";
-            leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; description "Protocol name such as tcp, or a number, optionally with a leading ="; }
+            ze:help "IP protocol to match, by name or number (RFC 8955 type 3).";
+            leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; ze:help "Protocol name such as tcp, or a number, optionally with a leading ="; }
         }
 
         container next-header {
             config false;
             ze:modifier "repeat";
-            description "IPv6 Next Header to match, by name or number (RFC 8956 type 3).";
-            ze:help "A value is a name such as tcp, or a number from 0 to 255. This keyword and
+            description "A value is a name such as tcp, or a number from 0 to 255. This keyword and
 'protocol' build the same component, and the two words exist because RFC 8956
 names the IPv6 field Next Header. A leading '=' is accepted.";
-            leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; description "Header name such as tcp, or a number, optionally with a leading ="; }
+            ze:help "IPv6 Next Header to match, by name or number (RFC 8956 type 3).";
+            leaf value { type string { pattern '=?([0-9]+|[a-z0-9-]+)'; length "1..16"; } mandatory true; ze:help "Header name such as tcp, or a number, optionally with a leading ="; }
         }
 
         container port {
             config false;
             ze:modifier "repeat";
-            description "Source or destination port to match (RFC 8955 type 4).";
-            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+            description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 Without an operator the match is equality. The value is bounded at 65535. This
 component matches either side of the flow, and destination-port and source-port
 name one side each.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
+            ze:help "Source or destination port to match (RFC 8955 type 4).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "Port, optionally with a comparison operator"; }
         }
 
         container destination-port {
             config false;
             ze:modifier "repeat";
-            description "Destination port to match (RFC 8955 type 5).";
-            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+            description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 Without an operator the match is equality. The value is bounded at 65535. Use
 'port' to match either side of the flow with one component.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
+            ze:help "Destination port to match (RFC 8955 type 5).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "Port, optionally with a comparison operator"; }
         }
 
         container source-port {
             config false;
             ze:modifier "repeat";
-            description "Source port to match (RFC 8955 type 6).";
-            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+            description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 Without an operator the match is equality. The value is bounded at 65535. Use
 'port' to match either side of the flow with one component.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Port, optionally with a comparison operator"; }
+            ze:help "Source port to match (RFC 8955 type 6).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "Port, optionally with a comparison operator"; }
         }
 
         container icmp-type {
             config false;
             ze:modifier "repeat";
-            description "ICMP type to match (RFC 8955 type 7).";
-            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+            description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 The value is bounded at 255. The ICMP type and the ICMP code are two components,
 so pair this keyword with icmp-code when both MUST match.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "ICMP type, optionally with a comparison operator"; }
+            ze:help "ICMP type to match (RFC 8955 type 7).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "ICMP type, optionally with a comparison operator"; }
         }
 
         container icmp-code {
             config false;
             ze:modifier "repeat";
-            description "ICMP code to match (RFC 8955 type 8).";
-            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+            description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 The value is bounded at 255. This component carries no ICMP type, so pair it
 with icmp-type when both MUST match.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "ICMP code, optionally with a comparison operator"; }
+            ze:help "ICMP code to match (RFC 8955 type 8).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "ICMP code, optionally with a comparison operator"; }
         }
 
         container tcp-flags {
             config false;
             ze:modifier "repeat";
-            description "TCP flags to match (RFC 8955 type 9).";
-            ze:help "A flag name is fin, syn, rst, psh, ack, urg, ece or cwr, and reset, push and
+            description "A flag name is fin, syn, rst, psh, ack, urg, ece or cwr, and reset, push and
 urgent are accepted aliases. A bitmask number is accepted in place of a name. A
 leading '&' makes the term AND with the term before it, and without the '&' the
 terms are OR.";
-            leaf value { type string { length "1..32"; } mandatory true; description "Flag name such as syn, or a bitmask, optionally with an operator"; }
+            ze:help "TCP flags to match (RFC 8955 type 9).";
+            leaf value { type string { length "1..32"; } mandatory true; ze:help "Flag name such as syn, or a bitmask, optionally with an operator"; }
         }
 
         container packet-length {
             config false;
             ze:modifier "repeat";
-            description "Packet length to match (RFC 8955 type 10).";
-            ze:help "The length is the total IP packet length and it excludes the layer 2 header. A
+            description "The length is the total IP packet length and it excludes the layer 2 header. A
 value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='. The
 value is bounded at 65535.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Length in octets, optionally with a comparison operator"; }
+            ze:help "Packet length to match (RFC 8955 type 10).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "Length in octets, optionally with a comparison operator"; }
         }
 
         container dscp {
             config false;
             ze:modifier "repeat";
-            description "DSCP value to match (RFC 8955 type 11).";
-            ze:help "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
+            description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 The DSCP field is 6 bits, so the parser refuses a value over 63.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "DSCP, optionally with a comparison operator"; }
+            ze:help "DSCP value to match (RFC 8955 type 11).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "DSCP, optionally with a comparison operator"; }
         }
 
         container fragment {
             config false;
             ze:modifier "repeat";
-            description "Fragment bits to match (RFC 8955 type 12).";
-            ze:help "A flag name is dont-fragment, is-fragment, first-fragment or last-fragment, and
+            description "A flag name is dont-fragment, is-fragment, first-fragment or last-fragment, and
 df, isf, ff and lf are accepted aliases. A leading '&' makes the term AND with
 the term before it. RFC 8955 Section 4.2.2.12 defines the four bits.";
-            leaf value { type string { length "1..32"; } mandatory true; description "Fragment name such as is-fragment, or a bitmask"; }
+            ze:help "Fragment bits to match (RFC 8955 type 12).";
+            leaf value { type string { length "1..32"; } mandatory true; ze:help "Fragment name such as is-fragment, or a bitmask"; }
         }
 
         container flow-label {
             config false;
             ze:modifier "repeat";
-            description "IPv6 Flow Label to match (RFC 8956 type 13).";
-            ze:help "The IPv6 Flow Label is a 20-bit field, and RFC 8956 defines this component for
+            description "The IPv6 Flow Label is a 20-bit field, and RFC 8956 defines this component for
 IPv6 FlowSpec alone. A value takes an optional operator, one of '>=', '<=',
 '!=', '>', '<' and '='. The parser bounds the value at 32 bits.";
-            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; description "Flow label, optionally with a comparison operator"; }
+            ze:help "IPv6 Flow Label to match (RFC 8956 type 13).";
+            leaf value { type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; } mandatory true; ze:help "Flow label, optionally with a comparison operator"; }
         }
 
         container rd {
             config false;
             ze:modifier "once";
-            description "Route Distinguisher, for a VPN FlowSpec family only.";
-            ze:help "This is the one component declared 'once' rather than 'repeat'. The encoder
+            description "This is the one component declared 'once' rather than 'repeat'. The encoder
 removes the rd pair before it walks the other components, so an rd that reaches
 the walk names a family carrying no Route Distinguisher and is refused. Write
 the value as ASN:value or as address:value.";
-            leaf value { type string { length "1..32"; } mandatory true; description "Route Distinguisher, as ASN:value or address:value"; }
+            ze:help "Route Distinguisher, for a VPN FlowSpec family only.";
+            leaf value { type string { length "1..32"; } mandatory true; ze:help "Route Distinguisher, as ASN:value or address:value"; }
         }
     }
 

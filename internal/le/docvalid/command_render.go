@@ -126,7 +126,7 @@ func renderPrimaryCommandHTML(commands []publishedCommand) []byte {
 			commandSurfaceSlug(command.Path),
 			html.EscapeString(command.Path),
 			html.EscapeString(command.Mode),
-			html.EscapeString(command.Description),
+			html.EscapeString(command.ShortHelp),
 		)
 		if command.AnswerShape != "" {
 			fmt.Fprintf(&out, "<span>Answer shape</span><code>%s</code>", html.EscapeString(command.AnswerShape))
@@ -209,7 +209,7 @@ func renderPrimaryCommandMarkdown(commands []publishedCommand) []byte {
 		out.Str(" | ")
 		out.Str(commandMarkdownValue(command.Mode))
 		out.Str(" | ")
-		out.Str(markdownLiteralProse(command.Description))
+		out.Str(markdownLiteralProse(command.ShortHelp))
 		out.Str(" | ")
 		out.Str(strings.Join(metadata, "<br>"))
 		out.Str(" |\n")
@@ -435,7 +435,7 @@ func renderCommandLLMS(commands []publishedCommand) []byte {
 			}
 			meta = append(meta, "args "+strings.Join(values, ", "))
 		}
-		fmt.Fprintf(&out, "- %s (%s): %s\n", markdownCodeLiteral(command.Path), strings.Join(meta, "; "), markdownLiteralProse(command.Description))
+		fmt.Fprintf(&out, "- %s (%s): %s\n", markdownCodeLiteral(command.Path), strings.Join(meta, "; "), markdownLiteralProse(command.ShortHelp))
 	}
 	return []byte(out.String())
 }

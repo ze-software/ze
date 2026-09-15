@@ -119,9 +119,9 @@ func dryRunUninstall(binPath, configDir string, purge bool) int {
 
 func uninstallUsage() {
 	p := helpfmt.Page{
-		Command: "ze local uninstall",
-		Summary: "Remove ze binary and optionally config directory",
-		Usage:   []string{"ze local uninstall [options]"},
+		Command:   "ze local uninstall",
+		ShortHelp: "Remove ze binary and optionally config directory",
+		Usage:     []string{"ze local uninstall [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--prefix <path>", Desc: "Installation prefix (default: detect from running binary)"},

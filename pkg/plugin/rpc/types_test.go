@@ -338,11 +338,11 @@ func TestConfigDiffSectionMarshal(t *testing.T) {
 // help texts across the process boundary, under two distinct wire keys.
 //
 // The method is a round trip in each direction: a value with both fields set
-// marshals to `description` and `long-help`, and a payload carrying both keys
+// marshals to `short-help` and `description`, and a payload carrying both keys
 // unmarshals into the two fields.
 //
 // VALIDATES: AC-7, the declaration side. `description` is the one-line summary
-// and `long-help` is the explanation the command's own help page prints.
+// and `description` is the explanation the command's own help page prints.
 // PREVENTS: one field renamed to the other's key, which would make every
 // plugin's summary read as its explanation.
 func TestPluginCommandDeclCarriesHelp(t *testing.T) {
@@ -350,8 +350,8 @@ func TestPluginCommandDeclCarriesHelp(t *testing.T) {
 
 	decl := CommandDecl{
 		Name:        "show widget",
-		Description: "Show the widget table.",
-		LongHelp:    "Each row is one widget.\nThe count column is the widgets seen since the last clear.",
+		ShortHelp:   "Show the widget table.",
+		Description: "Each row is one widget.\nThe count column is the widgets seen since the last clear.",
 	}
 
 	data, err := json.Marshal(decl)
@@ -363,32 +363,32 @@ func TestPluginCommandDeclCarriesHelp(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("unmarshal to map: %v", err)
 	}
-	if got := raw["description"]; got != "Show the widget table." {
+	if got := raw["short-help"]; got != "Show the widget table." {
 		t.Errorf("description key = %v, want the summary", got)
 	}
-	if got := raw["long-help"]; got != decl.LongHelp {
-		t.Errorf("long-help key = %v, want the explanation", got)
+	if got := raw["description"]; got != decl.Description {
+		t.Errorf("description key = %v, want the explanation", got)
 	}
 	if _, present := raw["help"]; present {
 		t.Errorf("declaration carries a %q key; that spelling means the summary on Completion", "help")
 	}
 
 	var decoded CommandDecl
-	if err := json.Unmarshal([]byte(`{"name":"show widget","description":"Show the widget table.","long-help":"Each row is one widget."}`), &decoded); err != nil {
+	if err := json.Unmarshal([]byte(`{"name":"show widget","short-help":"Show the widget table.","description":"Each row is one widget."}`), &decoded); err != nil {
 		t.Fatalf("unmarshal declaration: %v", err)
 	}
-	if decoded.Description != "Show the widget table." {
-		t.Errorf("Description = %q, want the summary", decoded.Description)
+	if decoded.ShortHelp != "Show the widget table." {
+		t.Errorf("Description = %q, want the summary", decoded.ShortHelp)
 	}
-	if decoded.LongHelp != "Each row is one widget." {
-		t.Errorf("LongHelp = %q, want the explanation", decoded.LongHelp)
+	if decoded.Description != "Each row is one widget." {
+		t.Errorf("Description = %q, want the explanation", decoded.Description)
 	}
 }
 
 // TestPluginCommandDeclWithoutHelpKeepsSummary proves the zero value of the
 // second field is the refusal, not a blank summary.
 //
-// The method is the payload a plugin compiled before `long-help` existed sends:
+// The method is the payload a plugin compiled before `description` existed sends:
 // a name and a description, and no second key. It MUST decode as
 // summary-present and explanation-absent, and it MUST re-encode without the
 // key it never carried.
@@ -401,14 +401,14 @@ func TestPluginCommandDeclWithoutHelpKeepsSummary(t *testing.T) {
 	t.Parallel()
 
 	var decoded CommandDecl
-	if err := json.Unmarshal([]byte(`{"name":"show widget","description":"Show the widget table."}`), &decoded); err != nil {
+	if err := json.Unmarshal([]byte(`{"name":"show widget","short-help":"Show the widget table."}`), &decoded); err != nil {
 		t.Fatalf("unmarshal legacy declaration: %v", err)
 	}
-	if decoded.Description != "Show the widget table." {
-		t.Errorf("Description = %q, want the summary the legacy plugin sent", decoded.Description)
+	if decoded.ShortHelp != "Show the widget table." {
+		t.Errorf("Description = %q, want the summary the legacy plugin sent", decoded.ShortHelp)
 	}
-	if decoded.LongHelp != "" {
-		t.Errorf("LongHelp = %q, want empty: the plugin declared no explanation", decoded.LongHelp)
+	if decoded.Description != "" {
+		t.Errorf("Description = %q, want empty: the plugin declared no explanation", decoded.Description)
 	}
 
 	data, err := json.Marshal(decoded)
@@ -419,17 +419,17 @@ func TestPluginCommandDeclWithoutHelpKeepsSummary(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("unmarshal to map: %v", err)
 	}
-	if _, present := raw["long-help"]; present {
-		t.Errorf("re-encoded declaration carries long-help: %s", data)
+	if _, present := raw["description"]; present {
+		t.Errorf("re-encoded declaration carries description: %s", data)
 	}
-	if got := raw["description"]; got != "Show the widget table." {
+	if got := raw["short-help"]; got != "Show the widget table." {
 		t.Errorf("description key = %v, want the summary preserved", got)
 	}
 }
 
 // TestCommandDeclRoundTripsBothKeys checks the Stage 1 wire spelling of a
 // command's two texts. The summary travels under `description` and the
-// explanation under `long-help`, and neither is derived from the other, so a
+// explanation under `description`, and neither is derived from the other, so a
 // plugin that states one and not the other must reach the daemon that way.
 //
 // The key names are the contract with every plugin, in Go or in any other
@@ -437,15 +437,15 @@ func TestPluginCommandDeclWithoutHelpKeepsSummary(t *testing.T) {
 // build. Reading the raw JSON rather than only the Go struct is what catches it.
 //
 // VALIDATES: AC-8 -- the summary is published under `description` and the
-// explanation under `long-help`, and the retired key `help` is absent from what
+// explanation under `description`, and the retired key `help` is absent from what
 // a Go plugin writes.
 // PREVENTS: a renamed key blanking the completion row or the help page of every
 // plugin command, with nothing to say why.
 func TestCommandDeclRoundTripsBothKeys(t *testing.T) {
 	decl := CommandDecl{
 		Name:        "show widget",
-		Description: "List every widget the daemon holds.",
-		LongHelp:    "Each row names one widget.\nA widget belongs to the plugin that declared it.",
+		ShortHelp:   "List every widget the daemon holds.",
+		Description: "Each row names one widget.\nA widget belongs to the plugin that declared it.",
 	}
 
 	encoded, err := json.Marshal(decl)
@@ -453,28 +453,28 @@ func TestCommandDeclRoundTripsBothKeys(t *testing.T) {
 
 	var keys map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(encoded, &keys))
-	assert.Contains(t, keys, "description", "the summary must travel under description")
-	assert.Contains(t, keys, "long-help", "the explanation must travel under long-help")
+	assert.Contains(t, keys, "short-help", "the summary must travel under short-help")
+	assert.Contains(t, keys, "description", "the explanation must travel under description")
 	assert.NotContains(t, keys, "help", "a Go plugin must never write the retired key")
 
 	var decoded CommandDecl
 	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	assert.Equal(t, decl.ShortHelp, decoded.ShortHelp)
 	assert.Equal(t, decl.Description, decoded.Description)
-	assert.Equal(t, decl.LongHelp, decoded.LongHelp)
 	assert.Nil(t, decoded.RetiredHelp)
 }
 
 // TestCommandDeclOmitsTheExplanationItDoesNotDeclare is the negative half. A
-// plugin that states only a summary must not put an empty `long-help` on the
+// plugin that states only a summary must not put an empty `description` on the
 // wire, because an empty explanation and an absent one are the same fact and
 // the reader must not have to tell them apart.
 func TestCommandDeclOmitsTheExplanationItDoesNotDeclare(t *testing.T) {
-	encoded, err := json.Marshal(CommandDecl{Name: "show widget", Description: "List every widget."})
+	encoded, err := json.Marshal(CommandDecl{Name: "show widget", ShortHelp: "List every widget."})
 	require.NoError(t, err)
 
 	var keys map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(encoded, &keys))
-	assert.Contains(t, keys, "description")
-	assert.NotContains(t, keys, "long-help", "an undeclared explanation stays off the wire")
+	assert.Contains(t, keys, "short-help")
+	assert.NotContains(t, keys, "description", "an undeclared explanation stays off the wire")
 	assert.NotContains(t, keys, "help")
 }

@@ -14,10 +14,10 @@ module ze-bgp-conf {
 
     typedef capability-mode {
         type enumeration {
-            enum enable { description "Advertise the capability; no enforcement"; }
-            enum disable { description "Do not advertise the capability; no enforcement"; }
-            enum require { description "Advertise the capability; refuse the session when the peer does not offer it"; }
-            enum refuse { description "Do not advertise the capability; refuse the session when the peer offers it"; }
+            enum enable { ze:help "Advertise the capability; no enforcement"; }
+            enum disable { ze:help "Do not advertise the capability; no enforcement"; }
+            enum require { ze:help "Advertise the capability; refuse the session when the peer does not offer it"; }
+            enum refuse { ze:help "Do not advertise the capability; refuse the session when the peer offers it"; }
         }
         description "The four negotiation modes of one BGP capability. Every mode leaf under capability
             declares this type, so the set is spelled once and parseCapMode in the reactor reads it.";
@@ -25,8 +25,8 @@ module ze-bgp-conf {
 
     // BGP block - main BGP configuration
     container bgp {
-        description "Border Gateway Protocol routing configuration.";
-        ze:help "A peer inherits from its group defaults. A group inherits from this global level.";
+        description "A peer inherits from its group defaults. A group inherits from this global level.";
+        ze:help "Border Gateway Protocol routing configuration.";
 
         // Global BGP related tools (workbench). Spec D7/D12.
         // Command paths target the registered command tree: `show bgp health`
@@ -40,55 +40,54 @@ module ze-bgp-conf {
             type zt:ipv4-address;
             ze:validate "nonzero-ipv4";
             mandatory true;
-            description "BGP Router ID for this speaker. The leaf is required.";
-            ze:help "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze
+            description "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer. Ze
                 therefore rejects 0.0.0.0. A peer that implements RFC 6286 Section 2.2 answers an OPEN that carries
                 0.0.0.0 with Bad BGP Identifier.";
+            ze:help "BGP Router ID for this speaker. The leaf is required.";
         }
 
         leaf as-notation {
             type enumeration {
-                enum asplain { description "Every AS number is a decimal integer"; }
-                enum asdot { description "An AS number of 65536 or more is X.Y, and a lower one is a decimal integer"; }
-                enum "asdot+" { description "Every AS number is X.Y"; }
+                enum asplain { ze:help "Every AS number is a decimal integer"; }
+                enum asdot { ze:help "An AS number of 65536 or more is X.Y, and a lower one is a decimal integer"; }
+                enum "asdot+" { ze:help "Every AS number is X.Y"; }
             }
             default asplain;
-            description "How Ze writes an AS number in the output an operator reads.";
-            ze:help "RFC 5396 Section 2 names the three notations. Take AS 65546 and AS 100. asplain
+            description "RFC 5396 Section 2 names the three notations. Take AS 65546 and AS 100. asplain
                 writes them 65546 and 100. asdot writes 1.10 and 100, leaving an AS number less than 65536
                 alone, and asdot+ writes 1.10 and 0.100. The leaf changes the text Ze WRITES, and the
                 wire value stays the same 4-octet number (RFC 6793). Ze READS all three notations wherever
                 an AS number is configured, and asplain is the default RFC 5396 Section 3 recommends.";
+            ze:help "How Ze writes an AS number in the output an operator reads.";
         }
 
         container multipath {
-            description "BGP multipath / ECMP configuration";
-            ze:help "The container holds maximum-paths and relax-as-path. When maximum-paths is more than 1, Ze
+            description "The container holds maximum-paths and relax-as-path. When maximum-paths is more than 1, Ze
                 mirrors the equal-cost siblings of the best path into the shared Loc-RIB. The sysrib component
                 expands that set into one ECMP entry in the FIB.";
+            ze:help "BGP multipath / ECMP configuration";
 
             leaf maximum-paths {
                 type uint16 {
                     range "1..256";
                 }
                 default 1;
-                description "Maximum number of equal-cost paths Ze installs per prefix.";
-                ze:help "1 is the default, and it selects the single best path (RFC 4271 Section 9.1.2). A value of more than
+                description "1 is the default, and it selects the single best path (RFC 4271 Section 9.1.2). A value of more than
                     1 enables ECMP with N-way load balancing.";
+                ze:help "Maximum number of equal-cost paths Ze installs per prefix.";
             }
 
             leaf relax-as-path {
                 type boolean;
                 default false;
-                description "Treat paths with different AS-paths as equal-cost.";
-                ze:help "When false, multipath requires an identical AS-path length and identical AS-path content. When true,
+                description "When false, multipath requires an identical AS-path length and identical AS-path content. When true,
                     the AS-path length alone must match, and the content can differ. Other vendors spell this option
                     'bgp bestpath as-path multipath-relax'.";
+                ze:help "Treat paths with different AS-paths as equal-cost.";
             }
         }
         container update-delay {
-            description "Hold the first advertisement at startup until the RIB settles.";
-            ze:help "An absent container is the default, and it keeps the behavior Ze had before the container
+            description "An absent container is the default, and it keeps the behavior Ze had before the container
                 existed: each peer advertises as soon as it reaches Established. The container holds max-delay,
                 which enables the feature and bounds the wait, and establish-wait, which can end the wait early.
                 While Ze holds, sessions negotiate, reach Established and receive UPDATE messages as usual. Ze
@@ -100,64 +99,65 @@ module ze-bgp-conf {
                 graceful-restart capability, so keep max-delay below that number yourself. A neighbor whose own
                 restart timer expires first discards the routes it kept for Ze. Read `show bgp update-delay` to
                 see whether a speaker is holding and what it waits for.";
+            ze:help "Hold the first advertisement at startup until the RIB settles.";
 
             leaf max-delay {
                 type uint16 {
                     range "0..3600";
                 }
                 default 0;
-                description "Seconds to hold the first advertisement. 0 disables the hold.";
-                ze:help "0 is the default and disables the feature. A value of more than 0 arms the hold when the
+                description "0 is the default and disables the feature. A value of more than 0 arms the hold when the
                     daemon starts its peers. The hold ends when every configured peer sends its End-of-RIB
                     marker, or when establish-wait ends it early, or when these seconds elapse, whichever comes
                     first. Ze waits for the marker and not for Established, because Established says only that
                     the neighbor answered. RFC 4724 Section 4.1 excludes a peer that advertised no
                     graceful-restart capability and a peer that is itself restarting, and Ze excludes the same
                     two. A peer that never comes up cannot extend the wait past this number.";
+                ze:help "Seconds to hold the first advertisement. 0 disables the hold.";
             }
 
             leaf establish-wait {
                 type uint16 {
                     range "1..3600";
                 }
-                description "Seconds after which the peers that are held end the hold. Must not exceed max-delay.";
-                ze:help "The leaf is optional, and an absent leaf lets only max-delay and full convergence end
+                description "The leaf is optional, and an absent leaf lets only max-delay and full convergence end
                     the hold. When these seconds elapse and one or more peers are held, Ze ends the hold and
                     advertises to them, whether or not they sent an End-of-RIB marker. When no peer is held, Ze
                     keeps waiting until max-delay, because there is no peer to advertise to yet. Ze refuses a
                     configuration where this value is more than max-delay.";
+                ze:help "Seconds after which the peers that are held end the hold. Must not exceed max-delay.";
             }
         }
 
 
         container session {
-            description "Global BGP session defaults";
-            ze:help "A group value overrides this global value, and a peer value overrides the group value. The
+            description "A group value overrides this global value, and a peer value overrides the group value. The
                 container holds the local ASN and the shared-router-id switch.";
+            ze:help "Global BGP session defaults";
             container asn {
-                description "AS number configuration";
-                ze:help "At this global level the container holds the local ASN alone. The same container under a
+                description "At this global level the container holds the local ASN alone. The same container under a
                     group or a peer also holds remote and local-options.";
+                ze:help "AS number configuration";
                 leaf local {
                     type zt:asn;
                     mandatory true;
                     ze:decorate "asn-name";
-                    description "Local Autonomous System Number (required)";
-                    ze:help "Ze sends the value as My Autonomous System in OPEN. A group or a peer can override it.
+                    description "Ze sends the value as My Autonomous System in OPEN. A group or a peer can override it.
                         Ze keeps this global value for the local-as modifiers, which need the real AS number.";
+                    ze:help "Local Autonomous System Number (required)";
                 }
             }
             leaf allow-shared-router-id {
                 type boolean;
                 default false;
-                description "Accept a peer whose BGP Identifier duplicates another established peer in the same AS.";
-                ze:help "The default is false, which enforces AS-wide uniqueness: Ze rejects the second OPEN with Bad BGP
+                description "The default is false, which enforces AS-wide uniqueness: Ze rejects the second OPEN with Bad BGP
                     Identifier. RFC 6286 Section 2.1 makes AS-wide uniqueness a SHOULD alone, so a shared identifier is
                     conformant. Set the leaf true when the duplication is intentional, for example one anycast speaker
                     (AS112) that peers over both IPv4 and IPv6 with the same router-id. When the leaf is true, Ze skips
                     the AS-wide uniqueness claim alone. RFC 6286 Section 2.2 validation still applies, and it rejects a
                     zero identifier, and this speaker's own identifier from an internal peer. Section 2.3 connection
                     collision resolution is implemented, and this leaf does not disable it.";
+                ze:help "Accept a peer whose BGP Identifier duplicates another established peer in the same AS.";
             }
         }
 
@@ -166,13 +166,12 @@ module ze-bgp-conf {
         // bgp-filter-modify reads this container (parseAttributeDefaults,
         // plugins/filter_modify/config.go) and holds no constant of its own.
         container defaults {
-            description "Values ze supplies when a route carries no such attribute.";
-            ze:help "The container holds attribute alone today. A default that is not an attribute value gets its own
+            description "The container holds attribute alone today. A default that is not an attribute value gets its own
                 container beside it, so an operator's existing leaves never move.";
+            ze:help "Values ze supplies when a route carries no such attribute.";
 
             container attribute {
-                description "The value policy arithmetic starts from when the route carries no such attribute.";
-                ze:help "The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its
+                description "The leaves govern the arithmetic in bgp { policy { modify NAME { increment } } } and its
                     decrement sibling alone. They do NOT move the Decision Process: RFC 4271 Section 9.1.2.2 compares
                     an absent MULTI_EXIT_DISC as 0 whatever med says here.
 
@@ -180,18 +179,19 @@ module ze-bgp-conf {
                     consideration rather than scoring it, so no number stands in for the absence. Section 3.4.1
                     forbids ze to add the attribute to a route whose path leads outside the AIGP administrative
                     domain.";
+                ze:help "The value policy arithmetic starts from when the route carries no such attribute.";
 
                 leaf med {
                     type uint32 {
                         range "0..4294967295";
                     }
                     default 0;
-                    description "The MULTI_EXIT_DISC value policy arithmetic starts from when the route carries none.";
-                    ze:help "RFC 4271 Section 9.1.2.2 supplies this number: \"Routes that do not have the
+                    description "RFC 4271 Section 9.1.2.2 supplies this number: \"Routes that do not have the
                         MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value.\"
                         A larger value makes an increment write a larger metric onto a route that arrived without one,
                         and the speaker that receives it reads a larger metric as a worse path. The Decision Process
                         comparison stays at 0 whatever this leaf holds.";
+                    ze:help "The MULTI_EXIT_DISC value policy arithmetic starts from when the route carries none.";
                 }
 
                 leaf local-preference {
@@ -199,12 +199,12 @@ module ze-bgp-conf {
                         range "0..4294967295";
                     }
                     default 100;
-                    description "The LOCAL_PREF value policy arithmetic starts from when the route carries none.";
-                    ze:help "RFC 4271 Section 9.1.1 supplies no number: \"The exact nature of this policy information,
+                    description "RFC 4271 Section 9.1.1 supplies no number: \"The exact nature of this policy information,
                         and the computation involved, is a local matter.\" 100 is the value FRR
                         (BGP_DEFAULT_LOCAL_PREF) and BIRD (default_local_pref) use, and it is the default here for
                         that reason alone. The leaf governs the modifier arithmetic. It does NOT supply the LOCAL_PREF
                         an eBGP-learned route carries into iBGP readvertisement, which ze does not do.";
+                    ze:help "The LOCAL_PREF value policy arithmetic starts from when the route carries none.";
                 }
             }
         }
@@ -214,28 +214,28 @@ module ze-bgp-conf {
         // is a named filter instance referenced in peer filter { import/export }
         // chains by its unique name.
         container policy {
-            description "Named filter definitions for the route policy framework.";
-            ze:help "Each filter type is a list that its plugin adds through an augment. A peer filter chain references a
+            description "Each filter type is a list that its plugin adds through an augment. A peer filter chain references a
                 filter instance by name.";
+            ze:help "Named filter definitions for the route policy framework.";
         }
 
         // Global filter chains (apply to all peers as base chain)
         container filter {
-            description "Global route filter chains for import and export.";
-            ze:help "The group level and the peer level append to this base chain. A name references a filter instance
+            description "The group level and the peer level append to this base chain. A name references a filter instance
                 defined in bgp/policy.";
+            ze:help "Global route filter chains for import and export.";
             leaf-list import {
                 type string;
-                description "Global import filter chain";
-                ze:help "Ze runs the global chain first, then the group chain, then the peer chain. Each name
+                description "Ze runs the global chain first, then the group chain, then the peer chain. Each name
                     references a filter instance declared under bgp/policy. A plain name that no instance declares
                     is refused at config load.";
+                ze:help "Global import filter chain";
             }
             leaf-list export {
                 type string;
-                description "Global export filter chain";
-                ze:help "Ze runs the global chain first, then the group chain, then the peer chain. An RFC 9234
+                description "Ze runs the global chain first, then the group chain, then the peer chain. An RFC 9234
                     role can require this chain to name a filter that catches a transit leak.";
+                ze:help "Global export filter chain";
             }
         }
 
@@ -246,16 +246,16 @@ module ze-bgp-conf {
         // Peer groups - Junos-style: peers nested inside named groups
         list group {
             key "name";
-            description "Peer group - defines shared defaults for member peers";
-            ze:help "A member peer inherits every leaf of the group, and its own value overrides the inherited one.
+            description "A member peer inherits every leaf of the group, and its own value overrides the inherited one.
                 Routes and filter chains accumulate instead of overriding: the group entries run before the peer
                 entries.";
+            ze:help "Peer group - defines shared defaults for member peers";
 
             leaf name {
                 type string;
-                description "Group name. Ze gives it to an egress filter and to the per-group capability selector.";
-                ze:help "A filter can therefore match every peer of one group. A per-group capability block selects
+                description "A filter can therefore match every peer of one group. A per-group capability block selects
                     its peers by the same name. A rename changes what both select.";
+                ze:help "Group name. Ze gives it to an egress filter and to the per-group capability selector.";
             }
 
             uses peer-fields;
@@ -267,9 +267,9 @@ module ze-bgp-conf {
                 ze:required "session/asn/local";
                 ze:required "session/asn/remote";
                 ze:suggest "connection/local/ip";
-                description "BGP peer in this group";
-                ze:help "The list key is the peer name. connection/remote/ip must be unique over every peer, and Ze
+                description "The list key is the peer name. connection/remote/ip must be unique over every peer, and Ze
                     refuses the config when that address, session/asn/local or session/asn/remote is absent.";
+                ze:help "BGP peer in this group";
 
                 // Same workbench tools as standalone bgp/peer, but the
                 // selector walks to the parent group's remote IP when the
@@ -284,10 +284,10 @@ module ze-bgp-conf {
                     type string {
                         pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
                     }
-                    description "Peer name (alphanumeric/underscore start, then alphanumeric/underscore/hyphen/dot)";
-                    ze:help "The name is the list key and the CLI selector for the peer. A group member can start
+                    description "The name is the list key and the CLI selector for the peer. A group member can start
                         with a digit. A standalone peer cannot, because its own pattern requires a letter or an
                         underscore first.";
+                    ze:help "Peer name (alphanumeric/underscore start, then alphanumeric/underscore/hyphen/dot)";
                 }
 
                 uses peer-fields;
@@ -302,9 +302,9 @@ module ze-bgp-conf {
             ze:required "session/asn/local";
             ze:required "session/asn/remote";
             ze:suggest "connection/local/ip";
-            description "BGP peer configuration (standalone, no group)";
-            ze:help "A standalone peer takes the global level and its own level, so no group value reaches it. The
+            description "A standalone peer takes the global level and its own level, so no group value reaches it. The
                 list key is the peer name, and connection/remote/ip must be unique over every peer.";
+            ze:help "BGP peer configuration (standalone, no group)";
 
             // Per-row workbench tools (spec Day-One BGP Related Tools).
             // The dispatcher extracts the `peer <selector>` pair and dispatches
@@ -323,9 +323,9 @@ module ze-bgp-conf {
                 type string {
                     pattern '[a-zA-Z_][a-zA-Z0-9_.\-]*';
                 }
-                description "Peer name (must start with a letter, not a digit)";
-                ze:help "An underscore is accepted as the first character too. After the first character the name
+                description "An underscore is accepted as the first character too. After the first character the name
                     accepts a letter, a digit, an underscore, a hyphen, and a dot.";
+                ze:help "Peer name (must start with a letter, not a digit)";
             }
 
             uses peer-fields;
@@ -337,34 +337,34 @@ module ze-bgp-conf {
         // Native update syntax - Ze-native route announcements
         // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
         list update {
-            description "Native Ze route announcements";
-            ze:help "Ze announces every route of the block to the peers the block applies to. The block is written
+            description "Ze announces every route of the block to the peers the block applies to. The block is written
                 at the global level, the group level, and the peer level, and the three accumulate.";
+            ze:help "Native Ze route announcements";
 
             leaf name {
                 type string {
                     pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
                 }
                 ze:display-key;
-                description "Optional label for this update block (display only)";
-                ze:help "The list carries no key, so the CLI and the web UI show this label in place of one. The
+                description "The list carries no key, so the CLI and the web UI show this label in place of one. The
                     label reaches no BGP message.";
+                ze:help "Optional label for this update block (display only)";
             }
 
             container attribute {
-                description "Path attributes for routes in this block";
-                ze:help "Every NLRI of the block takes the same attributes. To announce two prefixes that carry
+                description "Every NLRI of the block takes the same attributes. To announce two prefixes that carry
                     different attributes, write two update blocks.";
+                ze:help "Path attributes for routes in this block";
                 leaf origin {
                     type enumeration {
-                        enum igp { description "Interior Gateway Protocol"; }
-                        enum egp { description "Exterior Gateway Protocol"; }
-                        enum incomplete { description "Incomplete origin"; }
+                        enum igp { ze:help "Interior Gateway Protocol"; }
+                        enum egp { ze:help "Exterior Gateway Protocol"; }
+                        enum incomplete { ze:help "Incomplete origin"; }
                     }
-                    description "ORIGIN attribute (RFC 4271 Section 4.3)";
-                    ze:help "RFC 4271 Section 4.3 gives three values. igp is reachability interior to the
+                    description "RFC 4271 Section 4.3 gives three values. igp is reachability interior to the
                         originating AS. egp is reachability learned through the EGP protocol. incomplete is
                         reachability learned by some other means, for example a redistributed static route.";
+                    ze:help "ORIGIN attribute (RFC 4271 Section 4.3)";
                 }
                 leaf next-hop {
                     type union {
@@ -373,84 +373,84 @@ module ze-bgp-conf {
                             enum self;
                         }
                     }
-                    description "Next hop address or 'self'";
-                    ze:help "self resolves at send time to the local address of the session, so each peer reads its
+                    description "self resolves at send time to the local address of the session, so each peer reads its
                         own next hop. An IP address reaches every peer of the block unchanged. Ze refuses an IPv6
                         link-local address here, because RFC 2545 Section 3 puts the global address in that field.";
+                    ze:help "Next hop address or 'self'";
                 }
-                leaf med { type uint32; description "Multi-Exit Discriminator (MED). The lower value is preferred.";
- ze:help "MED influences the inbound path selection that an external peer makes (RFC 4271 Section 5.1.4)."; }
-                leaf local-preference { type uint32; description "LOCAL_PREF value for iBGP best-path selection. The higher value wins.";
- ze:help "LOCAL_PREF has a meaning inside a single AS alone (RFC 4271 Section 5.1.5). The default is 100."; }
-                leaf-list as-path { type string; ze:ordered; description "AS_PATH segments prepended to the route, as space-separated ASNs.";
- ze:help "The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate
+                leaf med { type uint32; description "MED influences the inbound path selection that an external peer makes (RFC 4271 Section 5.1.4).";
+ ze:help "Multi-Exit Discriminator (MED). The lower value is preferred."; }
+                leaf local-preference { type uint32; description "LOCAL_PREF has a meaning inside a single AS alone (RFC 4271 Section 5.1.5). The default is 100.";
+ ze:help "LOCAL_PREF value for iBGP best-path selection. The higher value wins."; }
+                leaf-list as-path { type string; ze:ordered; description "The list is an ordered sequence. A repeated ASN is a prepend that counts, so Ze does not deduplicate
      it (RFC 4271 Section 5.1.2). AS_PATH decides loop detection, and it decides path selection, where
-     the shorter path is preferred."; }
-                leaf-list community { type string; description "Standard BGP communities (RFC 1997).";
- ze:help "The format is AS:value, for example 65000:100. A well-known name is also accepted, such as no-export
-     or no-advertise."; }
-                leaf-list large-community { type string; description "Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively.";
- ze:help "Each value is three 32-bit numbers separated by colons, which is 12 octets on the wire. The global part
-     holds a 4-byte ASN, which a standard community of RFC 1997 cannot hold."; }
-                leaf-list extended-community { type string; description "Extended communities (RFC 4360). The format is type:admin:value.";
- ze:help "An extended community carries a route target, a site-of-origin, or VPN semantics."; }
-                leaf label { type string; description "MPLS label value for a labeled unicast route (RFC 3107). The value is a number.";
- ze:help "Ze accepts a decimal number from 0 to 1048575, which is the 20-bit label field. It accepts no keyword.
-     Write the labels leaf-list for a stack of more than one label."; }
-                leaf-list labels { type string; ze:ordered; description "MPLS label stack for a multi-label route (RFC 8277).";
- ze:help "The list is an ordered sequence from bottom to top. Ze keeps a repeated label, and it does not
-     deduplicate the stack."; }
-                leaf path-information { type string; description "ADD-PATH path identifier (RFC 7911).";
- ze:help "The identifier separates the several paths that one peer sends for the same prefix."; }
-                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364). The format is ASN:nn or IP:nn.";
- ze:help "Ze prepends the Route Distinguisher to the prefix, which makes a unique VPN route."; }
-                leaf aggregator { type string; description "AGGREGATOR attribute (RFC 4271 Section 5.1.7). The format is AS:IP.";
- ze:help "The attribute identifies the AS and the router that formed the aggregate."; }
-                leaf atomic-aggregate { type boolean; description "ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6).";
- ze:help "The flag signals that aggregation formed the route, and that AS_PATH information was lost."; }
-                leaf originator-id { type zt:ipv4-address; description "ORIGINATOR_ID for route reflection (RFC 4456).";
- ze:help "The reflector sets the attribute to the router ID of the originating router. The attribute prevents
-     a loop."; }
-                leaf-list cluster-list { type zt:ipv4-address; description "CLUSTER_LIST for route reflection (RFC 4456).";
- ze:help "Each reflector prepends its cluster ID. The list detects a loop between reflectors."; }
-                leaf-list attribute { type string; description "Raw BGP attributes in hex encoding, as flags:type:hex-value.";
- ze:help "The list carries an attribute that no named field covers."; }
-                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID attribute (RFC 8669).";
- ze:help "The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its
-     SID without a per-prefix label allocation."; }
-                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID attribute (RFC 9252).";
- ze:help "The attribute carries SRv6 SID information for IPv6 Segment Routing, and it includes the SRv6 L3
-     Service TLVs."; }
-                leaf split { type string; description "Split one prefix into more-specific prefixes for the announcement.";
- ze:help "The format is /length. For example, /24 splits a /16 into 256 prefixes of /24."; }
+     the shorter path is preferred.";
+ ze:help "AS_PATH segments prepended to the route, as space-separated ASNs."; }
+                leaf-list community { type string; description "The format is AS:value, for example 65000:100. A well-known name is also accepted, such as no-export
+     or no-advertise.";
+ ze:help "Standard BGP communities (RFC 1997)."; }
+                leaf-list large-community { type string; description "Each value is three 32-bit numbers separated by colons, which is 12 octets on the wire. The global part
+     holds a 4-byte ASN, which a standard community of RFC 1997 cannot hold.";
+ ze:help "Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively."; }
+                leaf-list extended-community { type string; description "An extended community carries a route target, a site-of-origin, or VPN semantics.";
+ ze:help "Extended communities (RFC 4360). The format is type:admin:value."; }
+                leaf label { type string; description "Ze accepts a decimal number from 0 to 1048575, which is the 20-bit label field. It accepts no keyword.
+     Write the labels leaf-list for a stack of more than one label.";
+ ze:help "MPLS label value for a labeled unicast route (RFC 3107). The value is a number."; }
+                leaf-list labels { type string; ze:ordered; description "The list is an ordered sequence from bottom to top. Ze keeps a repeated label, and it does not
+     deduplicate the stack.";
+ ze:help "MPLS label stack for a multi-label route (RFC 8277)."; }
+                leaf path-information { type string; description "The identifier separates the several paths that one peer sends for the same prefix.";
+ ze:help "ADD-PATH path identifier (RFC 7911)."; }
+                leaf rd { type zt:route-distinguisher; description "Ze prepends the Route Distinguisher to the prefix, which makes a unique VPN route.";
+ ze:help "Route Distinguisher (RFC 4364). The format is ASN:nn or IP:nn."; }
+                leaf aggregator { type string; description "The attribute identifies the AS and the router that formed the aggregate.";
+ ze:help "AGGREGATOR attribute (RFC 4271 Section 5.1.7). The format is AS:IP."; }
+                leaf atomic-aggregate { type boolean; description "The flag signals that aggregation formed the route, and that AS_PATH information was lost.";
+ ze:help "ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6)."; }
+                leaf originator-id { type zt:ipv4-address; description "The reflector sets the attribute to the router ID of the originating router. The attribute prevents
+     a loop.";
+ ze:help "ORIGINATOR_ID for route reflection (RFC 4456)."; }
+                leaf-list cluster-list { type zt:ipv4-address; description "Each reflector prepends its cluster ID. The list detects a loop between reflectors.";
+ ze:help "CLUSTER_LIST for route reflection (RFC 4456)."; }
+                leaf-list attribute { type string; description "The list carries an attribute that no named field covers.";
+ ze:help "Raw BGP attributes in hex encoding, as flags:type:hex-value."; }
+                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "The attribute carries an MPLS label index for Segment Routing. A node can therefore advertise its
+     SID without a per-prefix label allocation.";
+ ze:help "Prefix-SID attribute (RFC 8669)."; }
+                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "The attribute carries SRv6 SID information for IPv6 Segment Routing, and it includes the SRv6 L3
+     Service TLVs.";
+ ze:help "SRv6 Prefix-SID attribute (RFC 9252)."; }
+                leaf split { type string; description "The format is /length. For example, /24 splits a /16 into 256 prefixes of /24.";
+ ze:help "Split one prefix into more-specific prefixes for the announcement."; }
             }
 
             list nlri {
                 key "name";
-                description "Routes this update block announces, one entry for each address family.";
-                ze:help "Every entry takes the attribute block of the update block. The key is the family name, and
+                description "Every entry takes the attribute block of the update block. The key is the family name, and
                     content carries the operation keyword and the prefixes. An update block that declares no nlri
                     entry is refused at config load.";
-                leaf name { type zt:address-family; description "Address family (e.g., ipv4/unicast)";
- ze:help "The name is a registered address family. Ze refuses an unregistered name at config load."; }
-                leaf content { type string; description "Operation, qualifiers, and payload";
- ze:help "The form is an operation keyword, then an optional rd and label, then one or more prefixes. add, del and
+                ze:help "Routes this update block announces, one entry for each address family.";
+                leaf name { type zt:address-family; description "The name is a registered address family. Ze refuses an unregistered name at config load.";
+ ze:help "Address family (e.g., ipv4/unicast)"; }
+                leaf content { type string; description "The form is an operation keyword, then an optional rd and label, then one or more prefixes. add, del and
      eor are the operation keywords, and one of them is required. A block that carries del or eor announces nothing
-     at config load."; }
+     at config load.";
+ ze:help "Operation, qualifiers, and payload"; }
             }
 
             container watchdog {
-                description "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
-                ze:help "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of
+                description "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of
                     them as a static route. The plugin sends a route that is not withdrawn when the session reaches
                     Established.";
-                leaf name { type string; description "Watchdog group name";
- ze:help "request bgp watchdog announce <name> announces every route that carries the name, and request bgp
-     watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty."; }
-                leaf withdraw { type boolean; description "Start in withdrawn state (default true)";
- ze:help "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every
+                ze:help "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
+                leaf name { type string; description "request bgp watchdog announce <name> announces every route that carries the name, and request bgp
+     watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.";
+ ze:help "Watchdog group name"; }
+                leaf withdraw { type boolean; description "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every
      route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as
-     the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route."; }
+     the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.";
+ ze:help "Start in withdrawn state (default true)"; }
             }
         }
     }
@@ -461,13 +461,13 @@ module ze-bgp-conf {
 
         // Connection container - transport-level settings
         container connection {
-            description "Transport-level connection settings";
-            ze:help "The container holds the local endpoint, the remote endpoint, the TCP MD5 key, the TTL
+            description "The container holds the local endpoint, the remote endpoint, the TCP MD5 key, the TTL
                 controls, and the BFD opt-in. connect and accept cannot both be false, and Ze refuses that config.";
+            ze:help "Transport-level connection settings";
 
             container local {
-                description "Local endpoint for the TCP session.";
-                ze:help "The container controls the bind address, the port, and whether Ze accepts an inbound connection.";
+                description "The container controls the bind address, the port, and whether Ze accepts an inbound connection.";
+                ze:help "Local endpoint for the TCP session.";
                 leaf ip {
                     type union {
                         type zt:ip-address;
@@ -475,204 +475,204 @@ module ze-bgp-conf {
                             enum auto;
                         }
                     }
-                    description "Local address for connection (use IP address or 'auto')";
-                    ze:help "auto leaves the source address to the operating system. An address binds the outbound
+                    description "auto leaves the source address to the operating system. An address binds the outbound
                         connection to it, which fixes the source address that a next-hop self rewrite uses. Ze
                         refuses an IPv6 link-local address here.";
+                    ze:help "Local address for connection (use IP address or 'auto')";
                 }
                 leaf port {
                     type zt:port;
-                    description "Local listen port";
-                    ze:help "Ze opens a listener of its own for this peer on the local address and this port, and
+                    description "Ze opens a listener of its own for this peer on the local address and this port, and
                         answers an inbound connection there. The default is 179, and a peer at 179 shares the
                         global listener. The range is 1 to 65535, and Ze refuses a config outside it. Ze binds no
                         local source port on an outbound connection, so the value applies to the listener alone.
                         connection > remote > port is the port Ze dials, and the two are independent.";
+                    ze:help "Local listen port";
                 }
                 leaf accept {
                     type boolean;
                     default true;
-                    description "Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)";
-                    ze:help "The default is true. Set the leaf false for a peer Ze dials and never answers. accept
+                    description "The default is true. Set the leaf false for a peer Ze dials and never answers. accept
                         and connect cannot both be false, and Ze refuses that config.";
+                    ze:help "Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)";
                 }
             }
 
             container remote {
-                description "Remote endpoint for the TCP session.";
-                ze:help "The container controls the peer address, the port, the outbound connection, and the dynamic peer
+                description "The container controls the peer address, the port, the outbound connection, and the dynamic peer
                     ranges.";
+                ze:help "Remote endpoint for the TCP session.";
                 leaf ip {
                     type union {
                         type zt:ip-address;
                         type enumeration {
                             enum dynamic {
-                                description "Accept BGP sessions from any IP in the group's range.
-                                             Valid at group level only; rejected at peer level.";
+                                ze:help "Accept BGP sessions from any IP in the group's range.
+                                         Valid at group level only; rejected at peer level.";
                             }
                         }
                     }
                     ze:decorate "reverse-dns";
-                    description "Peer IP address or 'dynamic' for dynamic peer groups";
-                    ze:help "dynamic is valid at the group level alone. Ze then creates a peer when a connection
+                    description "dynamic is valid at the group level alone. Ze then creates a peer when a connection
                         arrives from an address inside one of the ranges, up to max-peers. The address must be
                         unique over every peer.";
+                    ze:help "Peer IP address or 'dynamic' for dynamic peer groups";
                 }
                 leaf port {
                     type zt:port;
-                    description "Remote connection port";
-                    ze:help "The default is 179. Ze dials the peer at this port. Set the leaf for a peer that
+                    description "The default is 179. Ze dials the peer at this port. Set the leaf for a peer that
                         listens on another port, and for a test peer on one host. connection > local > port is
                         the port Ze listens on, and the two are independent.";
+                    ze:help "Remote connection port";
                 }
                 leaf connect {
                     type boolean;
                     default true;
-                    description "Initiate outbound TCP connections to this remote endpoint (RFC 4271 Section 8.1.1)";
-                    ze:help "The default is true. Set the leaf false for a passive peer that Ze answers and never
+                    description "The default is true. Set the leaf false for a passive peer that Ze answers and never
                         dials. connect and accept cannot both be false, and Ze refuses that config.";
+                    ze:help "Initiate outbound TCP connections to this remote endpoint (RFC 4271 Section 8.1.1)";
                 }
                 leaf-list range {
                     type zt:ip-prefix;
-                    description "IP prefix ranges for a dynamic peer group.";
-                    ze:help "The list has a meaning when ip is 'dynamic' alone. A connection from an IP address inside one of
+                    description "The list has a meaning when ip is 'dynamic' alone. A connection from an IP address inside one of
                         these ranges creates a dynamic peer.";
+                    ze:help "IP prefix ranges for a dynamic peer group.";
                 }
                 leaf max-peers {
                     type uint32 {
                         range "1..100000";
                     }
                     default 1000;
-                    description "Maximum number of dynamic peers for this group";
-                    ze:help "The default is 1000, and the range is 1 to 100000. The leaf has a meaning when ip is
+                    description "The default is 1000, and the range is 1 to 100000. The leaf has a meaning when ip is
                         dynamic alone. Ze refuses a connection that would take the group past the value.";
+                    ze:help "Maximum number of dynamic peers for this group";
                 }
             }
 
             container md5 {
-                description "TCP MD5 authentication (RFC 2385)";
-                ze:help "Ze applies TCP_MD5SIG to the dialing socket and to the listening socket. A peer with no
+                description "Ze applies TCP_MD5SIG to the dialing socket and to the listening socket. A peer with no
                     matching key cannot open the TCP connection, so the session never reaches OPEN.";
+                ze:help "TCP MD5 authentication (RFC 2385)";
                 leaf password {
                     type string;
                     ze:sensitive;
-                    description "MD5 authentication password";
-                    ze:help "The leaf is marked sensitive, so the CLI and the web UI hide the value. The key never
+                    description "The leaf is marked sensitive, so the CLI and the web UI hide the value. The key never
                         reaches the wire, because RFC 2385 carries a digest in a TCP option.";
+                    ze:help "MD5 authentication password";
                 }
                 leaf ip {
                     type zt:ip-address;
-                    description "MD5 authentication IP";
-                    ze:help "The default is the peer address. Set the leaf for a multi-hop peer whose key is bound
+                    description "The default is the peer address. Set the leaf for a multi-hop peer whose key is bound
                         to another address.";
+                    ze:help "MD5 authentication IP";
                 }
             }
 
             container ttl {
-                description "TTL settings for BGP sessions";
-                ze:help "max is the hop-count form of RFC 5082 GTSM. set and min are the two raw values. Ze refuses
+                description "max is the hop-count form of RFC 5082 GTSM. set and min are the two raw values. Ze refuses
                     max together with set, and max together with min.";
+                ze:help "TTL settings for BGP sessions";
                 leaf max {
                     type uint8;
-                    description "TTL security / GTSM (RFC 5082)";
-                    ze:help "The value is a hop count. Ze sends every packet with TTL 255, and the kernel refuses a
+                    description "The value is a hop count. Ze sends every packet with TTL 255, and the kernel refuses a
                         packet that arrives with less than 256 minus the value. max 1 therefore accepts a directly
                         connected peer alone.";
+                    ze:help "TTL security / GTSM (RFC 5082)";
                 }
                 leaf set {
                     type uint8;
-                    description "Outgoing TTL value";
-                    ze:help "0 leaves the operating system default in place. A value sets the IP TTL, or the IPv6
+                    description "0 leaves the operating system default in place. A value sets the IP TTL, or the IPv6
                         Hop Limit, on every packet Ze sends to this peer.";
+                    ze:help "Outgoing TTL value";
                 }
                 leaf min {
                     type uint8;
-                    description "Minimum incoming TTL";
-                    ze:help "0 installs no receive-side gate in the kernel. A value makes the kernel refuse a
+                    description "0 installs no receive-side gate in the kernel. A value makes the kernel refuse a
                         packet whose IP TTL, or IPv6 Hop Limit, is less than it.";
+                    ze:help "Minimum incoming TTL";
                 }
             }
 
             leaf link-local {
                 type boolean;
-                description "Auto-discover IPv6 link-local address for TCP connection";
-                ze:help "The BGP reactor reads no value from the leaf, so the leaf changes no TCP connection and
+                description "The BGP reactor reads no value from the leaf, so the leaf changes no TCP connection and
                     discovers no address. session > link-local is the leaf that carries a link-local address, and
                     Ze writes that address after the global next hop (RFC 2545 Section 3). ze exabgp migrate sets
                     this leaf true and writes the address into session > link-local for an ExaBGP peer that states
                     local-link-local.";
+                ze:help "Auto-discover IPv6 link-local address for TCP connection";
             }
 
             container bfd {
                 presence "Enable BFD liveness detection for this peer";
-                description "Bidirectional Forwarding Detection options for this peer (RFC 5880).";
-                ze:help "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at
+                description "When the container is present, the BGP reactor calls the Service interface of the BFD plugin at
                     session establishment. The reactor stops the BGP session when BFD reports Down. The BFD plugin must
                     be loaded through a top-level bfd { ... } block. When the plugin is absent, the BGP peer starts
                     without BFD and Ze logs a warning.";
+                ze:help "Bidirectional Forwarding Detection options for this peer (RFC 5880).";
 
                 leaf enabled {
                     type boolean;
                     default true;
-                    description "Master switch for the BFD session of this peer.";
-                    ze:help "Set the leaf false to keep the config in place and suspend the BFD client. This is useful during
+                    description "Set the leaf false to keep the config in place and suspend the BFD client. This is useful during
                         maintenance.";
+                    ze:help "Master switch for the BFD session of this peer.";
                 }
 
                 leaf mode {
                     type enumeration {
                         enum single-hop {
-                            description "RFC 5881 single-hop BFD on UDP 3784 with GTSM.";
+                            ze:help "RFC 5881 single-hop BFD on UDP 3784 with GTSM.";
                         }
                         enum multi-hop {
-                            description "RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.";
+                            ze:help "RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.";
                         }
                     }
                     default single-hop;
-                    description "BFD hop mode for this peer: single-hop or multi-hop.";
-                    ze:help "Single-hop is the common case for an eBGP peer on a direct link. Multi-hop is for iBGP over an IGP,
+                    description "Single-hop is the common case for an eBGP peer on a direct link. Multi-hop is for iBGP over an IGP,
                         and for any peering that crosses more than one IP hop.";
+                    ze:help "BFD hop mode for this peer: single-hop or multi-hop.";
                 }
 
                 leaf profile {
                     type string;
-                    description "Name of a profile defined under the top-level bfd { profile ... } block.";
-                    ze:help "The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An
+                    description "The referenced profile supplies detect-multiplier, desired-min-tx-us, and required-min-rx-us. An
                         empty value selects the BFD plugin defaults.";
+                    ze:help "Name of a profile defined under the top-level bfd { profile ... } block.";
                 }
 
                 leaf min-ttl {
                     type uint8;
-                    description "Multi-hop minimum acceptable TTL (RFC 5883 Section 5).";
-                    ze:help "Ze ignores the leaf for single-hop. Zero selects the plugin default, which is 254.";
+                    description "Ze ignores the leaf for single-hop. Zero selects the plugin default, which is 254.";
+                    ze:help "Multi-hop minimum acceptable TTL (RFC 5883 Section 5).";
                 }
 
                 leaf interface {
                     type string;
-                    description "Single-hop egress interface for the BFD session.";
-                    ze:help "The leaf is optional. When the leaf is absent, the BFD plugin derives the interface from the local
+                    description "The leaf is optional. When the leaf is absent, the BFD plugin derives the interface from the local
                         address of the peer. Ze ignores the leaf for multi-hop.";
+                    ze:help "Single-hop egress interface for the BFD session.";
                 }
 
                 leaf strict {
                     type boolean;
                     default false;
-                    description "BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).";
-                    ze:help "Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until
+                    description "Ze advertises BGP capability 74 in its OPEN and does not let the BGP session go past OpenSent until
                         the BFD session is Up. Both speakers must advertise the capability: against a peer that does not, Ze
                         establishes the session on the normal path and BFD stays a failure detector. Ze opens the BFD session
                         before it starts the BGP FSM, and keeps it open while the BGP session is down.";
+                    ze:help "BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode).";
                 }
 
                 leaf hold-down {
                     type uint32;
                     units milliseconds;
                     default 0;
-                    description "BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).";
-                    ze:help "How long the BFD session must stay Up before Ze lets the BGP session establish. Zero, the default,
+                    description "How long the BFD session must stay Up before Ze lets the BGP session establish. Zero, the default,
                         establishes on the first Up and is the behaviour of a peer that sets no hold-down. A non-zero value damps
                         a flapping link: a BFD session that goes down again inside the interval never completes it. Set the
                         negotiated BGP hold time long enough to cover this interval, or the far end times out waiting.";
+                    ze:help "BFD hold-down interval for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 10).";
                 }
 
                 leaf hold-time {
@@ -681,151 +681,151 @@ module ze-bgp-conf {
                     }
                     units seconds;
                     default 30;
-                    description "BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).";
-                    ze:help "The maximum time Ze waits for BFD to come Up after the peer's OPEN, and only when the negotiated BGP
+                    description "The maximum time Ze waits for BFD to come Up after the peer's OPEN, and only when the negotiated BGP
                         hold time is zero. A non-zero BGP hold time bounds the wait already, so this timer does not run. On
                         expiry Ze sends a NOTIFICATION with Cease and subcode BFD Down, and the peer returns to Idle.";
+                    ze:help "BfdHoldTime for strict mode (draft-ietf-idr-bgp-bfd-strict-mode Section 3).";
                 }
             }
         }
 
         // Session container - BGP session settings
         container session {
-            description "BGP session parameters for this peer or group.";
-            ze:help "The container holds the ASN, the capabilities, the address families, the next-hop policy, and the
+            description "The container holds the ASN, the capabilities, the address families, the next-hop policy, and the
                 community control. A peer inherits these from its group, and a peer value overrides the group value.";
+            ze:help "BGP session parameters for this peer or group.";
 
             container asn {
-                description "AS number configuration";
-                ze:help "local overrides the global ASN for this session. remote names the peer ASN. Ze compares
+                description "local overrides the global ASN for this session. remote names the peer ASN. Ze compares
                     the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this
                     iBGP session also accepts while the router moves from one ASN to another.";
+                ze:help "AS number configuration";
                 leaf local {
                     type zt:asn;
                     ze:decorate "asn-name";
-                    description "Local AS (overrides global)";
-                    ze:help "Ze sends this value in OPEN in place of the global ASN. Ze keeps the global ASN too,
+                    description "Ze sends this value in OPEN in place of the global ASN. Ze keeps the global ASN too,
                         and local-options decides how the two appear in AS_PATH.";
+                    ze:help "Local AS (overrides global)";
                 }
                 leaf remote {
                     type zt:asn;
                     ze:decorate "asn-name";
-                    description "Peer Autonomous System Number";
-                    ze:help "Ze compares the value with the local ASN. A different value makes the session eBGP,
+                    description "Ze compares the value with the local ASN. A different value makes the session eBGP,
                         and an equal value makes it iBGP. That verdict decides the AS_PATH prepend, the auto
                         next-hop rewrite, and whether Ze sends LOCAL_PREF.";
+                    ze:help "Peer Autonomous System Number";
                 }
                 leaf migration {
                     type zt:asn;
                     ze:decorate "asn-name";
-                    description "Second local AS this iBGP session accepts and sends during an AS migration.";
-                    ze:help "RFC 7705 Section 4.2 'Internal BGP AS Migration'. Set the leaf to the other ASN of the
+                    description "RFC 7705 Section 4.2 'Internal BGP AS Migration'. Set the leaf to the other ASN of the
                         pair the router runs while it moves from one ASN to another: the local ASN is one of the two
                         and this leaf is the other. Ze then accepts an OPEN whose My Autonomous System carries either
                         ASN, and treats the session as native iBGP whichever ASN won. Ze sends the local ASN first and
                         falls back to this one only after the peer answers Bad Peer AS, which is what keeps two
                         speakers that both run the mechanism from deadlocking. remote must name one of the two ASNs,
                         and Ze refuses a config where it names a third. Remove the leaf when the migration ends.";
+                    ze:help "Second local AS this iBGP session accepts and sends during an AS migration.";
                 }
                 leaf-list local-options {
                     type enumeration {
                         enum no-prepend {
-                            description "RFC 7705 Section 3.3 'No Prepend Inbound': the local-as is
-                                         not added to a route received from this peer, so it is
-                                         absent when the route is installed and when it goes to an
-                                         iBGP neighbor. Ze never adds an AS to a received AS_PATH,
-                                         so this option states the behavior ze already has. It does
-                                         not change what this peer receives.";
+                            ze:help "RFC 7705 Section 3.3 'No Prepend Inbound': the local-as is
+                                     not added to a route received from this peer, so it is
+                                     absent when the route is installed and when it goes to an
+                                     iBGP neighbor. Ze never adds an AS to a received AS_PATH,
+                                     so this option states the behavior ze already has. It does
+                                     not change what this peer receives.";
                         }
                         enum replace-as {
-                            description "RFC 7705 Section 3.3 'Replace Old AS': toward this peer the
-                                         globally configured ASN is not prepended, and the local-as
-                                         is the only AS number added to AS_PATH.";
+                            ze:help "RFC 7705 Section 3.3 'Replace Old AS': toward this peer the
+                                     globally configured ASN is not prepended, and the local-as
+                                     is the only AS number added to AS_PATH.";
                         }
                     }
-                    description "Modifiers for the local-as behavior of this peer.";
-                    ze:help "The two options act in different directions, so each one is set on its own. no-prepend acts inbound:
+                    description "The two options act in different directions, so each one is set on its own. no-prepend acts inbound:
                         the local-as is not added to a route received from this peer. replace-as acts outbound: this peer
                         sees the local-as alone instead of the local-as followed by the globally configured ASN. With
                         neither option, this peer sees the local-as followed by the globally configured ASN.";
+                    ze:help "Modifiers for the local-as behavior of this peer.";
                 }
             }
 
             leaf as-override {
                 type boolean;
                 default false;
-                description "Replace the ASN of the peer with the local ASN in the outbound AS_PATH.";
-                ze:help "Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more
+                description "Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more
                     than one site.";
+                ze:help "Replace the ASN of the peer with the local ASN in the outbound AS_PATH.";
             }
 
             leaf accept-srv6-prefix-sid {
                 type boolean;
                 default false;
-                description "Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.";
-                ze:help "RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be
+                description "RFC 8669 Section 4 states that a PrefixSID from an EBGP peer outside the SR domain MUST be
                     discarded, unless the speaker is configured to accept it. The leaf has no effect on IBGP, where Ze
                     always accepts the attribute.";
+                ze:help "Accept the BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.";
             }
 
             leaf propagate-srv6-prefix-sid {
                 type boolean;
                 default false;
-                description "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.";
-                ze:help "RFC 8669 Section 8 states that the propagation to another AS MUST be configured explicitly. Ze
+                description "RFC 8669 Section 8 states that the propagation to another AS MUST be configured explicitly. Ze
                     therefore removes the attribute from every UPDATE sent to an EBGP peer that does not set this leaf.
                     Set the leaf on an EBGP peer inside the same SR domain. An SR domain can span more than one AS, and
                     Ze cannot derive that membership from the ASN. The leaf has no effect on IBGP, where Ze always
                     advertises the attribute.";
+                ze:help "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.";
             }
 
             container community {
-                description "Community attribute control for this session";
-                ze:help "The container holds the send leaf-list alone. send names the community types Ze puts in an
+                description "The container holds the send leaf-list alone. send names the community types Ze puts in an
                     outbound UPDATE, and it acts on no inbound message.";
+                ze:help "Community attribute control for this session";
                 leaf-list send {
                     type enumeration {
                         enum standard {
-                            description "Send standard communities (type 8, RFC 1997)";
+                            ze:help "Send standard communities (type 8, RFC 1997)";
                         }
                         enum large {
-                            description "Send large communities (type 32, RFC 8092)";
+                            ze:help "Send large communities (type 32, RFC 8092)";
                         }
                         enum extended {
-                            description "Send extended communities (type 16, RFC 4360)";
+                            ze:help "Send extended communities (type 16, RFC 4360)";
                         }
                         enum all {
-                            description "Send all community types (default)";
+                            ze:help "Send all community types (default)";
                         }
                         enum none {
-                            description "Suppress all community attributes";
+                            ze:help "Suppress all community attributes";
                         }
                     }
-                    description "Community types Ze includes in an outbound UPDATE.";
-                    ze:help "The default is all, which sends every community type. Name an individual type to control the set.
+                    description "The default is all, which sends every community type. Name an individual type to control the set.
                         none suppresses every community attribute.";
+                    ze:help "Community types Ze includes in an outbound UPDATE.";
                 }
             }
 
             leaf router-id {
                 type zt:ipv4-address;
                 ze:validate "nonzero-ipv4";
-                description "Override the router ID for this peer.";
-                ze:help "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.";
+                description "RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, non-zero integer.";
+                ze:help "Override the router ID for this peer.";
             }
 
             leaf route-reflector-client {
                 type boolean;
                 default false;
-                description "Mark this peer as a route reflector client (RFC 4456).";
-                ze:help "Ze forwards a route from a client to every client and to every non-client. Ze forwards a route from
+                description "Ze forwards a route from a client to every client and to every non-client. Ze forwards a route from
                     a non-client to the clients alone.";
+                ze:help "Mark this peer as a route reflector client (RFC 4456).";
             }
 
             leaf cluster-id {
                 type zt:ipv4-address;
-                description "Override the cluster ID for route reflection (RFC 4456 Section 7).";
-                ze:help "The default is the router-id. Ze prepends the cluster ID to CLUSTER_LIST on a reflected route.";
+                description "The default is the router-id. Ze prepends the cluster ID to CLUSTER_LIST on a reflected route.";
+                ze:help "Override the cluster ID for route reflection (RFC 4456 Section 7).";
             }
 
             leaf next-hop {
@@ -833,100 +833,99 @@ module ze-bgp-conf {
                     type zt:ip-address;
                     type enumeration {
                         enum self {
-                            description "Rewrite next-hop to local address (common for iBGP)";
+                            ze:help "Rewrite next-hop to local address (common for iBGP)";
                         }
                         enum unchanged {
-                            description "Never rewrite next-hop (route-server, third-party NH)";
+                            ze:help "Never rewrite next-hop (route-server, third-party NH)";
                         }
                         enum auto {
-                            description "RFC 4271 default: rewrite for eBGP, preserve for iBGP";
+                            ze:help "RFC 4271 default: rewrite for eBGP, preserve for iBGP";
                         }
                     }
                 }
                 default "auto";
-                description "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).";
-                ze:help "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites
+                description "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites
                     the next hop to the local address. unchanged never rewrites it, so the original next hop is
                     preserved. An IP address sets the next hop to that address.";
+                ze:help "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).";
             }
 
             leaf link-local {
                 type zt:ipv6-address;
-                description "IPv6 link-local address advertised after the global next hop (RFC 2545 Section 3).";
-                ze:help "The address goes in the MP_REACH Next Hop field. The leaf supplies the address, and it does not
+                description "The address goes in the MP_REACH Next Hop field. The leaf supplies the address, and it does not
                     decide that the address is sent. Ze appends the address only when this speaker shares a locally
                     connected subnet with the peer, and with the entity that the global next hop names. That is the 'if
                     and only if' condition of Section 3. In every other case the field carries the global address alone.
                     Set the leaf on a session that faces a peer on a shared link. It has no effect on any other session.";
+                ze:help "IPv6 link-local address advertised after the global next hop (RFC 2545 Section 3).";
             }
 
             // Address families
             list family {
                 key "name";
-                description "Address families to negotiate";
-                ze:help "Ze advertises one Multiprotocol Extensions capability per entry (RFC 4760). A list with no
+                description "Ze advertises one Multiprotocol Extensions capability per entry (RFC 4760). A list with no
                     entry sends no such capability. Each entry also carries the prefix limit and the
                     default-originate switch of that family.";
+                ze:help "Address families to negotiate";
                 leaf name {
                     type zt:address-family;
                     ze:validate "registered-address-family";
-                    description "AFI/SAFI (e.g. ipv4/unicast)";
-                    ze:help "The value must name a family the binary registered. Ze refuses an unregistered name at
+                    description "The value must name a family the binary registered. Ze refuses an unregistered name at
                         config load, so a family that a missing plugin owns is reported rather than dropped.";
+                    ze:help "AFI/SAFI (e.g. ipv4/unicast)";
                 }
                 leaf mode {
                     type enumeration {
-                        enum enable { description "Enable this address family"; }
-                        enum disable { description "Disable this address family"; }
-                        enum require { description "Require this address family"; }
-                        enum ignore { description "Ignore this address family"; }
+                        enum enable { ze:help "Enable this address family"; }
+                        enum disable { ze:help "Disable this address family"; }
+                        enum require { ze:help "Require this address family"; }
+                        enum ignore { ze:help "Ignore this address family"; }
                     }
-                    description "Address family negotiation mode";
-                    ze:help "enable advertises the family. disable does not advertise it. require advertises it and
+                    description "enable advertises the family. disable does not advertise it. require advertises it and
                         refuses the session when the peer does not offer it. ignore advertises the family and
                         relaxes the UPDATE check. Ze then drops an UPDATE that names a family the two peers did
                         not negotiate, and the session stays up.";
+                    ze:help "Address family negotiation mode";
                 }
 
                 // Per-family prefix limits (RFC 4486)
                 container prefix {
-                    description "Prefix limit configuration for this address family";
-                    ze:help "The limit is the defense against a peer that floods the RIB. When the count crosses
+                    description "The limit is the defense against a peer that floods the RIB. When the count crosses
                         maximum, Ze sends a Cease NOTIFICATION with subcode 1, Maximum Number of Prefixes Reached
                         (RFC 4486).";
+                    ze:help "Prefix limit configuration for this address family";
                     leaf maximum {
                         type uint32 {
                             range "1..max";
                         }
-                        description "Hard maximum number of prefixes accepted";
-                        ze:help "The NOTIFICATION data carries the AFI, the SAFI, and this value as the upper bound
+                        description "The NOTIFICATION data carries the AFI, the SAFI, and this value as the upper bound
                             (RFC 4486 Section 4). The count leaf decides which prefixes the count holds.";
+                        ze:help "Hard maximum number of prefixes accepted";
                     }
                     leaf warning {
                         type uint32;
-                        description "Warning threshold. Defaults to 90% of maximum when not set.";
-                        ze:help "Crossing the threshold raises a metric and a login-banner warning, and it leaves
+                        description "Crossing the threshold raises a metric and a login-banner warning, and it leaves
                             the session up. Ze refuses a warning value that is not less than maximum.";
+                        ze:help "Warning threshold. Defaults to 90% of maximum when not set.";
                     }
                     leaf teardown {
                         type boolean;
                         default true;
-                        description "Tear down session when prefix maximum exceeded (false = warn only)";
-                        ze:help "The default is true, and an absent value also reads as true. With false Ze keeps
+                        description "The default is true, and an absent value also reads as true. With false Ze keeps
                             the session up and drops the UPDATE that crossed the maximum.";
+                        ze:help "Tear down session when prefix maximum exceeded (false = warn only)";
                     }
                     leaf count {
                         type enumeration {
                             enum offered {
-                                description "Count every announcement the peer sends, the announcements of a dropped UPDATE included. A prefix announced twice counts twice.";
+                                ze:help "Count every announcement the peer sends, the announcements of a dropped UPDATE included. A prefix announced twice counts twice.";
                             }
                             enum installed {
-                                description "Count the prefixes this family currently holds. A re-announced prefix is one prefix, a dropped UPDATE moves nothing, and a withdrawal of a prefix ze does not hold moves nothing.";
+                                ze:help "Count the prefixes this family currently holds. A re-announced prefix is one prefix, a dropped UPDATE moves nothing, and a withdrawal of a prefix ze does not hold moves nothing.";
                             }
                         }
                         default "offered";
-                        description "Which prefixes the count compared against maximum holds.";
-                        ze:help "offered counts wire events. Every announcement raises the count, and every withdrawal lowers it. A
+                        description "offered counts wire events. Every announcement raises the count, and every withdrawal lowers it. A
                             peer that re-announces a prefix to change an attribute raises the count again, although it holds the
                             same route. The count can therefore be more than the maximum. Ze then drops every later announce of
                             this family, until the peer withdraws enough prefixes. installed counts the set of prefixes Ze
@@ -934,151 +933,152 @@ module ze-bgp-conf {
                             installed keeps one entry per prefix for this family, so its memory is the size of what the peer
                             sends, up to the maximum. Neither value is the size of the RIB, because import policy can reject a
                             counted prefix.";
+                        ze:help "Which prefixes the count compared against maximum holds.";
                     }
                     leaf idle-timeout {
                         type uint16;
                         default 0;
-                        description "Seconds to wait before reconnect after this family stopped the session.";
-                        ze:help "The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down. See the reconnect
+                        description "The wait doubles on each repeat teardown, up to one hour. 0 keeps the peer down. See the reconnect
                             leaf.";
+                        ze:help "Seconds to wait before reconnect after this family stopped the session.";
                     }
                     leaf reconnect {
                         type enumeration {
-                            enum never { description "Keep the peer down. An operator restarts it."; }
-                            enum backoff { description "Reconnect on the usual connect backoff of the peer."; }
-                            enum timer { description "Reconnect after idle-timeout seconds."; }
+                            enum never { ze:help "Keep the peer down. An operator restarts it."; }
+                            enum backoff { ze:help "Reconnect on the usual connect backoff of the peer."; }
+                            enum timer { ze:help "Reconnect after idle-timeout seconds."; }
                         }
-                        description "What the peer does after this family stopped the session.";
-                        ze:help "No value means timer when idle-timeout is more than 0, and never when idle-timeout is 0.";
+                        description "No value means timer when idle-timeout is more than 0, and never when idle-timeout is 0.";
+                        ze:help "What the peer does after this family stopped the session.";
                     }
                     leaf updated {
                         type string;
                         ze:hidden true;
-                        description "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
-                        ze:help "ze:hidden keeps the leaf out of the CLI completion. The peer command reports the
+                        description "ze:hidden keeps the leaf out of the CLI completion. The peer command reports the
                             date, and it marks the peer prefix-stale when the date is more than 180 days old.";
+                        ze:help "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
                     }
                 }
 
                 leaf default-originate {
                     type boolean;
                     default false;
-                    description "Originate the default route to this peer for this address family.";
-                    ze:help "The default route is 0.0.0.0/0 for IPv4, and ::/0 for IPv6.";
+                    description "The default route is 0.0.0.0/0 for IPv4, and ::/0 for IPv6.";
+                    ze:help "Originate the default route to this peer for this address family.";
                 }
 
                 leaf default-originate-filter {
                     type string;
-                    description "Named filter that must accept before Ze originates the default route.";
-                    ze:help "When the filter rejects, Ze does not send the default route. An empty value, or an absent leaf,
+                    description "When the filter rejects, Ze does not send the default route. An empty value, or an absent leaf,
                         originates the default route without a condition.";
+                    ze:help "Named filter that must accept before Ze originates the default route.";
                 }
             }
 
             // Capabilities
             container capability {
-                description "BGP capability negotiation";
-                ze:help "Every capability here takes four modes. enable advertises it. disable does not advertise
+                description "Every capability here takes four modes. enable advertises it. disable does not advertise
                     it. require advertises it and refuses the session when the peer does not offer it. refuse does
                     not advertise it and refuses the session when the peer offers it.";
+                ze:help "BGP capability negotiation";
 
                 leaf asn4 {
                     type capability-mode;
                     default enable;
-                    description "4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.";
-                    ze:help "The capability is required for an ASN of more than 65535. Disable it only for a peer that runs a
+                    description "The capability is required for an ASN of more than 65535. Disable it only for a peer that runs a
                         legacy implementation, which speaks 2-byte ASNs alone. require refuses the session when the
                         peer does not offer it, and refuse refuses the session when the peer offers it.";
+                    ze:help "4-byte ASN capability mode (RFC 6793): enable, disable, require or refuse.";
                 }
 
                 container route-refresh {
                     presence "Route Refresh capability enabled";
-                    description "Route Refresh capability (RFC 2918).";
-                    ze:help "The capability lets the peer request a full re-advertisement of the routes, without a session
+                    description "The capability lets the peer request a full re-advertisement of the routes, without a session
                         teardown.";
+                    ze:help "Route Refresh capability (RFC 2918).";
                 }
 
                 // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
 
                 container add-path {
                     presence "ADD-PATH capability enabled";
-                    description "ADD-PATH capability (RFC 7911), with an optional PATHS-LIMIT.";
-                    ze:help "PATHS-LIMIT is draft-abraitis-idr-addpath-paths-limit. The default direction applies to every
+                    description "PATHS-LIMIT is draft-abraitis-idr-addpath-paths-limit. The default direction applies to every
                         negotiated multiprotocol family. A per-family entry overrides the default direction.";
+                    ze:help "ADD-PATH capability (RFC 7911), with an optional PATHS-LIMIT.";
                     leaf direction {
                         type enumeration {
-                            enum send { description "Send multiple paths"; }
-                            enum receive { description "Receive multiple paths"; }
-                            enum send/receive { description "Both send and receive multiple paths"; }
+                            enum send { ze:help "Send multiple paths"; }
+                            enum receive { ze:help "Receive multiple paths"; }
+                            enum send/receive { ze:help "Both send and receive multiple paths"; }
                         }
-                        description "Default ADD-PATH direction for all negotiated families.";
-                        ze:help "send offers more than one path to the peer. receive accepts more than one path
+                        description "send offers more than one path to the peer. receive accepts more than one path
                             from the peer. send/receive does both. Ze applies the value to every negotiated family
                             that carries no family entry of its own.";
+                        ze:help "Default ADD-PATH direction for all negotiated families.";
                     }
                     leaf limit {
                         type uint16 { range "1..65535"; }
-                        description "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).";
-                        ze:help "Ze advertises this receive request for each enabled ADD-PATH family. A per-family
+                        description "Ze advertises this receive request for each enabled ADD-PATH family. A per-family
                             limit overrides it. This setting does not enforce a local receive-side limit.";
+                        ze:help "Default maximum paths per prefix requested from the peer (PATHS-LIMIT).";
                     }
                     list family {
                         key "name";
-                        description "Per-family ADD-PATH overrides with optional path count limit.";
-                        ze:help "The list key is the family name. An entry with no direction takes the container
+                        description "The list key is the family name. An entry with no direction takes the container
                             direction. Ze skips an entry whose family name is not registered.";
-                        leaf name { type zt:address-family; description "Address family (e.g. ipv4/unicast)";
- ze:help "The name is the list key. Ze looks it up in the family registry, and it skips the whole entry when the
-     lookup fails."; }
+                        ze:help "Per-family ADD-PATH overrides with optional path count limit.";
+                        leaf name { type zt:address-family; description "The name is the list key. Ze looks it up in the family registry, and it skips the whole entry when the
+     lookup fails.";
+ ze:help "Address family (e.g. ipv4/unicast)"; }
                         leaf direction {
                             type enumeration {
-                                enum send { description "Send ADD-PATH"; }
-                                enum receive { description "Receive ADD-PATH"; }
-                                enum send/receive { description "Both send and receive ADD-PATH"; }
+                                enum send { ze:help "Send ADD-PATH"; }
+                                enum receive { ze:help "Receive ADD-PATH"; }
+                                enum send/receive { ze:help "Both send and receive ADD-PATH"; }
                             }
-                            description "ADD-PATH direction override for this family.";
-                            ze:help "The value replaces the container direction for this family. An absent value
+                            description "The value replaces the container direction for this family. An absent value
                                 keeps the container direction.";
+                            ze:help "ADD-PATH direction override for this family.";
                         }
                         leaf limit {
                             type uint16 { range "1..65535"; }
-                            description "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).";
-                            ze:help "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.
+                            description "Use a value from 1 through 65535. Omit this leaf to inherit the container limit.
                                 Ze advertises no limit for a disabled or refused ADD-PATH family. This is a request
                                 to the sender, not local receive-side policing.";
+                            ze:help "Maximum paths per prefix requested from the peer (PATHS-LIMIT capability).";
                         }
                         leaf mode {
                             type capability-mode;
-                            description "ADD-PATH negotiation mode for this family.";
-                            ze:help "enable and disable act on this family alone. require refuses the session when
+                            description "enable and disable act on this family alone. require refuses the session when
                                 the peer does not offer ADD-PATH. refuse refuses the session when the peer offers
                                 it. Ze takes the most restrictive mode over the whole list.";
+                            ze:help "ADD-PATH negotiation mode for this family.";
                         }
                     }
                 }
 
                 container extended-message {
                     presence "Extended Message capability enabled";
-                    description "Extended Message capability (RFC 8654).";
-                    ze:help "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that
+                    description "The capability raises the BGP message size limit from 4096 bytes to 65535 bytes. A large UPDATE that
                         carries many attributes needs it.";
+                    ze:help "Extended Message capability (RFC 8654).";
                 }
 
                 list nexthop {
                     key "family";
-                    description "Extended Next Hop capability (RFC 8950)";
-                    ze:help "The list key is the NLRI family, and nhafi is the next-hop AFI. The pair lets an IPv4
+                    description "The list key is the NLRI family, and nhafi is the next-hop AFI. The pair lets an IPv4
                         route carry an IPv6 next hop, so an IPv6-only session can hold IPv4 reachability.";
-                    leaf family { type zt:address-family; description "NLRI family (e.g. ipv4/unicast)";
- ze:help "Ze reads ipv4 and ipv6 as the AFI, and unicast, multicast, mpls-vpn and mpls-label as the SAFI. It skips
-     an entry it cannot read."; }
-                    leaf nhafi { type zt:afi; description "Next-hop AFI (e.g. ipv6)";
- ze:help "Ze reads ipv4 and ipv6 alone, and it skips an entry that names another value."; }
+                    ze:help "Extended Next Hop capability (RFC 8950)";
+                    leaf family { type zt:address-family; description "Ze reads ipv4 and ipv6 as the AFI, and unicast, multicast, mpls-vpn and mpls-label as the SAFI. It skips
+     an entry it cannot read.";
+ ze:help "NLRI family (e.g. ipv4/unicast)"; }
+                    leaf nhafi { type zt:afi; description "Ze reads ipv4 and ipv6 alone, and it skips an entry that names another value.";
+ ze:help "Next-hop AFI (e.g. ipv6)"; }
                     leaf mode {
                         type capability-mode;
-                        description "Extended next hop negotiation mode";
-                        ze:help "Ze takes the most restrictive mode over the whole list, where require wins against
+                        description "Ze takes the most restrictive mode over the whole list, where require wins against
                             refuse, and refuse wins against enable. enable and require both advertise the family.";
+                        ze:help "Extended next hop negotiation mode";
                     }
                 }
             }
@@ -1087,56 +1087,56 @@ module ze-bgp-conf {
 
         // Behaviour container - operational knobs
         container behavior {
-            description "Controls how the reactor processes and forwards an UPDATE for this peer.";
-            ze:help "Most operators can keep the defaults.";
+            description "Most operators can keep the defaults.";
+            ze:help "Controls how the reactor processes and forwards an UPDATE for this peer.";
 
             leaf group-updates {
                 type boolean;
                 default true;
-                description "Pack several NLRI into one UPDATE message when they share the same path attributes.";
-                ze:help "Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it
+                description "Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it
                     for a peer that requires one prefix per UPDATE.";
+                ze:help "Pack several NLRI into one UPDATE message when they share the same path attributes.";
             }
 
             leaf manual-eor {
                 type boolean;
-                description "Do not send End-of-RIB automatically after the initial route advertisement.";
-                ze:help "When the leaf is enabled, End-of-RIB must be triggered from outside, through the process API. Use
+                description "When the leaf is enabled, End-of-RIB must be triggered from outside, through the process API. Use
                     the leaf when an external controller manages the convergence signaling.";
+                ze:help "Do not send End-of-RIB automatically after the initial route advertisement.";
             }
 
             leaf auto-flush {
                 type boolean;
-                description "Withdraw every route advertised to this peer when the session goes down.";
-                ze:help "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer
+                description "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer
                     expires. This is a legacy ExaBGP option, kept for migration.";
+                ze:help "Withdraw every route advertised to this peer when the session goes down.";
             }
         }
 
         // Basic peer identification
         leaf description {
             type string;
-            description "Free-text label for this peer.";
-            ze:help "The CLI, the web UI, and the logs show the label. It usually names the role or the location of the
+            description "The CLI, the web UI, and the logs show the label. It usually names the role or the location of the
                 peer, for example 'upstream-transit-provider'.";
+            ze:help "Free-text label for this peer.";
         }
 
         container capture {
-            description "Protocol event capture for this peer.";
-            ze:help "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes
+            description "When capture is enabled, Ze writes every message the peer sends to a JSONL file, as raw wire bytes
                 with arrival metadata. The file also carries the config operations applied while the capture runs.
                 Replay the file on a developer machine with 'ze-test replay <file>', which drives the same state
                 machine over the same input. Capture is a diagnostic aid, so leave it off in steady state. The file
                 holds the routing data of the peer: prefixes, AS paths, communities, and next hops. It holds no
                 local secret, because a TCP-MD5 key never appears on the wire, and a captured config payload is
                 redacted. Handle a capture file the way you handle a routing-table dump.";
+            ze:help "Protocol event capture for this peer.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Capture this peer's inbound protocol events to a file. Off by default.";
-                ze:help "When the leaf is true, Ze refuses the config if the directory is empty, and it refuses the
+                description "When the leaf is true, Ze refuses the config if the directory is empty, and it refuses the
                     config if maximum-size is zero. Both refusals happen at config load, before the peer starts.";
+                ze:help "Capture this peer's inbound protocol events to a file. Off by default.";
             }
 
             leaf directory {
@@ -1144,10 +1144,10 @@ module ze-bgp-conf {
                     length "1..4096";
                 }
                 default "/var/lib/ze/capture";
-                description "Directory that holds the capture files of this peer.";
-                ze:help "Ze creates the directory when it is absent. Ze writes one file per peer, named
+                description "Ze creates the directory when it is absent. Ze writes one file per peer, named
                     bgp-<peer-address>.jsonl. Choose a filesystem with room for the configured maximum-size, and with
                     twice that room when on-limit is rotate. 'ze doctor' reports whether the directory is writable.";
+                ze:help "Directory that holds the capture files of this peer.";
             }
 
             leaf maximum-size {
@@ -1156,10 +1156,10 @@ module ze-bgp-conf {
                 }
                 units megabytes;
                 default 100;
-                description "Hard cap on the size of one capture file.";
-                ze:help "The writer refuses a record that would cross the cap, and it never writes part of a record, so a
+                description "The writer refuses a record that would cross the cap, and it never writes part of a record, so a
                     file never exceeds this value. With on-limit rotate, a peer uses at most twice this value on disk.
                     With on-limit stop, a peer uses at most this value.";
+                ze:help "Hard cap on the size of one capture file.";
             }
 
             leaf on-limit {
@@ -1168,28 +1168,28 @@ module ze-bgp-conf {
                     enum stop;
                 }
                 default rotate;
-                description "What happens when a capture file reaches maximum-size.";
-                ze:help "'rotate' renames the file to <file>.1, which replaces any earlier rotation, and starts a fresh file.
+                description "'rotate' renames the file to <file>.1, which replaces any earlier rotation, and starts a fresh file.
                     Capture continues, and the newest events are kept. 'stop' closes the file and captures nothing more,
                     so the oldest events are kept. Either value leaves the daemon unaffected, and the file ends with a
                     capture-stop record.";
+                ze:help "What happens when a capture file reaches maximum-size.";
             }
         }
 
         container timer {
-            description "BGP session timers: hold time, keepalive interval, and connect retry delay.";
-            ze:help "The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two
+            description "The speaker proposes the hold time in OPEN. The two peers negotiate it to the lower of their two
                 values.";
+            ze:help "BGP session timers: hold time, keepalive interval, and connect retry delay.";
 
             leaf receive-hold-time {
                 type uint16 {
                     range "0 | 3..65535";
                 }
                 default 90;
-                description "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.";
-                ze:help "Ze puts the value in the Hold Time field of OPEN. The two peers then hold the lower of the
+                description "Ze puts the value in the Hold Time field of OPEN. The two peers then hold the lower of the
                     two values (RFC 4271 Section 4.2). Ze refuses 1 and 2, because the RFC permits 0, or 3 seconds
                     and more.";
+                ze:help "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.";
             }
 
             leaf send-hold-time {
@@ -1197,27 +1197,27 @@ module ze-bgp-conf {
                     range "0 | 480..65535";
                 }
                 default 0;
-                description "Send hold time in seconds (RFC 9687). 0 = auto: max(480, 2x receive-hold-time).";
-                ze:help "RFC 9687 Section 4.4 requires a non-zero Send Hold Time to be more than the negotiated
+                description "RFC 9687 Section 4.4 requires a non-zero Send Hold Time to be more than the negotiated
                     hold time. Ze therefore refuses a value that is not more than receive-hold-time. Ze also
                     refuses a non-zero value of less than 480 seconds.";
+                ze:help "Send hold time in seconds (RFC 9687). 0 = auto: max(480, 2x receive-hold-time).";
             }
 
             leaf keepalive {
                 type uint16;
                 default 0;
-                description "Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.";
-                ze:help "Ze refuses a value that is not less than receive-hold-time, because the hold timer must be
+                description "Ze refuses a value that is not less than receive-hold-time, because the hold timer must be
                     able to detect a lost KEEPALIVE. 0 derives the interval from the negotiated hold time.";
+                ze:help "Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.";
             }
 
             leaf connect-retry {
                 type uint16;
                 default 120;
-                description "Connect retry interval in seconds. Ze reads it for a dynamic peer alone.";
-                ze:help "Ze removes a disconnected dynamic peer after this delay when no connection comes back. A
+                description "Ze removes a disconnected dynamic peer after this delay when no connection comes back. A
                     static peer reconnects on an exponential backoff from 5 seconds to 60 seconds, and this leaf
                     does not change that backoff.";
+                ze:help "Connect retry interval in seconds. Ze reads it for a dynamic peer alone.";
             }
         }
 
@@ -1226,157 +1226,157 @@ module ze-bgp-conf {
         // Process attachments
         container attach {
             ze:flatten;
-            description "Programs this peer attaches.";
-            ze:help "Each attachment names one program declared under plugin/external. It states what that program
+            description "Each attachment names one program declared under plugin/external. It states what that program
                 receives from this peer, and what the program can send to the peer. Write one statement per program:
                 `attach process <name> { ... }`.";
+            ze:help "Programs this peer attaches.";
 
             list process {
                 key "name";
-                description "External process that receives BGP events and can inject a message.";
-                ze:help "Ze starts the process, and communicates with it over stdin and stdout, in JSON.";
+                description "Ze starts the process, and communicates with it over stdin and stdout, in JSON.";
+                ze:help "External process that receives BGP events and can inject a message.";
 
                 leaf name {
                     type string;
-                    description "Unique identifier for this process binding. Used in logs and status output.";
-                    ze:help "The name is the list key. An entry that also carries run declares an inline program
+                    description "The name is the list key. An entry that also carries run declares an inline program
                         under this name, and Ze starts it. Ze declares one program per name, so the first entry
                         that carries run for a name wins.";
+                    ze:help "Unique identifier for this process binding. Used in logs and status output.";
                 }
 
                 leaf run {
                     type string;
-                    description "Shell command that starts the external process.";
-                    ze:help "Ze pipes the BGP events to the stdin of the process, and reads the commands from its stdout.";
+                    description "Ze pipes the BGP events to the stdin of the process, and reads the commands from its stdout.";
+                    ze:help "Shell command that starts the external process.";
                 }
 
                 // Old syntax fields
                 leaf-list processes {
                     type string;
-                    description "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.";
-                    ze:help "The config migration rewrites the leaf. Ze creates one attach process entry per name
+                    description "The config migration rewrites the leaf. Ze creates one attach process entry per name
                         in the list, and it deletes the block that carried the leaf. The BGP reactor reads no value
                         from the leaf.";
+                    ze:help "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.";
                 }
 
                 leaf-list processes-match {
                     type string;
-                    description "Legacy ExaBGP process match patterns for event filtering.";
-                    ze:help "The config migration treats each pattern as a process name, and it creates one attach
+                    description "The config migration treats each pattern as a process name, and it creates one attach
                         process entry per pattern. Ze matches nothing against the pattern. The BGP reactor reads no
                         value from the leaf.";
+                    ze:help "Legacy ExaBGP process match patterns for event filtering.";
                 }
 
                 container neighbor-changes {
                     presence "Neighbor change notifications enabled";
-                    description "Send session state change events to this process.";
-                    ze:help "The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.";
+                    description "The events are up, down, and reset. The process can therefore react to a peer lifecycle transition.";
+                    ze:help "Send session state change events to this process.";
                 }
 
                 // New syntax fields
                 container content {
-                    description "Controls the encoding and filtering of events sent to this process.";
-                    ze:help "Ze reads encoding and format from the container. A binding that names neither takes
+                    description "Ze reads encoding and format from the container. A binding that names neither takes
                         the encoder the program registered, and the parsed format.";
-                    leaf encoding { type string; description "Wire encoding for events sent to the process (e.g., json, text).";
- ze:help "Ze resolves the value in three steps: this leaf first, then the default encoder the program registered,
-     then text. Ze lowercases the value before it passes the value to the program binding."; }
-                    leaf format { type string; description "Output format template for event rendering.";
- ze:help "Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program
-     binding."; }
-                    leaf attribute { type string; description "Filter expression to select which BGP attributes are included in events.";
- ze:help "The BGP reactor reads no value from the leaf. It takes encoding and format off the content container and
-     nothing else, so an event carries every attribute of the route whatever the leaf holds."; }
+                    ze:help "Controls the encoding and filtering of events sent to this process.";
+                    leaf encoding { type string; description "Ze resolves the value in three steps: this leaf first, then the default encoder the program registered,
+     then text. Ze lowercases the value before it passes the value to the program binding.";
+ ze:help "Wire encoding for events sent to the process (e.g., json, text)."; }
+                    leaf format { type string; description "Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program
+     binding.";
+ ze:help "Output format template for event rendering."; }
+                    leaf attribute { type string; description "The BGP reactor reads no value from the leaf. It takes encoding and format off the content container and
+     nothing else, so an event carries every attribute of the route whatever the leaf holds.";
+ ze:help "Filter expression to select which BGP attributes are included in events."; }
                 }
 
                 leaf-list receive {
                     type string;
                     ze:validate "receive-event-type";
-                    description "Event types this peer feeds the program.";
-                    ze:help "The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin
+                    description "The base types are update, open, notification, keepalive, refresh, state, and negotiated. A plugin
                         registers more, for example update-rpki. A type carries the direction it is fed in: 'update' means
                         both directions, and 'update-received' and 'update-sent' each mean one direction. A registered type
                         keeps its whole name, so a plugin type that ends in -sent is never read as a direction. '*' feeds
                         every type, in both directions. 'all' is not accepted, because a word that reads like a type would
                         grant a type that a plugin registers later, which '*' says on purpose. Ze validates the list at
                         runtime against the registered event types.";
+                    ze:help "Event types this peer feeds the program.";
                 }
 
                 leaf-list send {
                     type string;
                     ze:validate "send-message-type";
-                    description "Message types this program can send toward the peer.";
-                    ze:help "The valid types are update, refresh, raw, and enhanced-refresh. raw is a whole BGP message that the
+                    description "The valid types are update, refresh, raw, and enhanced-refresh. raw is a whole BGP message that the
                         program builds itself. enhanced-refresh carries the BORR and EORR markers of RFC 7313. '*' names
                         every type. A direction has no meaning here, because every send type is sent. Ze validates the list
                         at runtime against the known send types.";
+                    ze:help "Message types this program can send toward the peer.";
                 }
             }
         }
 
         // Filter chains
         container filter {
-            description "Route filter chains for import and export.";
-            ze:help "A name references a filter instance defined in bgp/policy.";
+            description "A name references a filter instance defined in bgp/policy.";
+            ze:help "Route filter chains for import and export.";
             leaf-list import {
                 type string;
-                description "Import filter chain (filter instance names)";
-                ze:help "Ze runs the global chain, then the group chain, then this chain. A plain name references a
+                description "Ze runs the global chain, then the group chain, then this chain. A plain name references a
                     filter instance declared under bgp/policy. A name that carries a colon names a plugin filter,
                     which Ze validates at runtime.";
+                ze:help "Import filter chain (filter instance names)";
             }
             leaf-list export {
                 type string;
-                description "Export filter chain (filter instance names)";
-                ze:help "Ze runs the global chain, then the group chain, then this chain. Prefix a name with
+                description "Ze runs the global chain, then the group chain, then this chain. Prefix a name with
                     inactive: to record that this session runs without a check an RFC 9234 role requires.";
+                ze:help "Export filter chain (filter instance names)";
             }
         }
 
         // RIB configuration
         container rib {
-            description "Route Information Base settings for this peer.";
-            ze:help "The container controls which RIB tables Ze maintains, and how the outbound route batching works.";
+            description "The container controls which RIB tables Ze maintains, and how the outbound route batching works.";
+            ze:help "Route Information Base settings for this peer.";
             container adj {
-                description "Adjacency RIB storage for this peer.";
-                ze:help "These tables hold the raw routes before policy and after policy. They make route-refresh and
+                description "These tables hold the raw routes before policy and after policy. They make route-refresh and
                     soft-reconfiguration possible.";
+                ze:help "Adjacency RIB storage for this peer.";
                 leaf in {
                     type boolean;
-                    description "Store received routes in Adj-RIB-In, before policy.";
-                    ze:help "The table makes inbound soft reconfiguration possible, which re-applies the import filters without a
+                    description "The table makes inbound soft reconfiguration possible, which re-applies the import filters without a
                         session reset. It uses more memory, in proportion to the number of received routes.";
+                    ze:help "Store received routes in Adj-RIB-In, before policy.";
                 }
                 leaf out {
                     type boolean;
-                    description "Store advertised routes in Adj-RIB-Out, after policy.";
-                    ze:help "Route-refresh (RFC 2918) needs the table to re-send the routes at the request of the peer. It uses
+                    description "Route-refresh (RFC 2918) needs the table to re-send the routes at the request of the peer. It uses
                         more memory, in proportion to the number of advertised routes.";
+                    ze:help "Store advertised routes in Adj-RIB-Out, after policy.";
                 }
             }
             container out {
-                description "Outbound RIB batching: how route changes are grouped and flushed to the peer.";
-                ze:help "The three leaves act on the Adj-RIB-Out of this peer alone. They trade the number of
+                description "The three leaves act on the Adj-RIB-Out of this peer alone. They trade the number of
                     UPDATE messages and the CPU cost against the convergence latency.";
+                ze:help "Outbound RIB batching: how route changes are grouped and flushed to the peer.";
                 leaf group-updates {
                     type boolean;
                     default true;
-                    description "Pack routes with identical attributes into one UPDATE.";
-                    ze:help "The leaf does what the behavior-level group-updates does, for the Adj-RIB-Out of this peer alone.";
+                    description "The leaf does what the behavior-level group-updates does, for the Adj-RIB-Out of this peer alone.";
+                    ze:help "Pack routes with identical attributes into one UPDATE.";
                 }
                 leaf auto-commit-delay {
                     type uint32;
                     default 0;
-                    description "Milliseconds to wait before Ze flushes pending route changes to the peer.";
-                    ze:help "The delay batches rapid successive changes into fewer UPDATE messages. 0 flushes immediately on each
+                    description "The delay batches rapid successive changes into fewer UPDATE messages. 0 flushes immediately on each
                         change.";
+                    ze:help "Milliseconds to wait before Ze flushes pending route changes to the peer.";
                 }
                 leaf max-batch-size {
                     type int32;
                     default 0;
-                    description "Maximum number of route changes in one flush cycle.";
-                    ze:help "0 means no limit, so Ze flushes every pending change at once. A limit reduces the CPU cost of one
+                    description "0 means no limit, so Ze flushes every pending change at once. A limit reduces the CPU cost of one
                         cycle, and raises the convergence latency.";
+                    ze:help "Maximum number of route changes in one flush cycle.";
                 }
             }
         }
@@ -1386,64 +1386,64 @@ module ze-bgp-conf {
     // BGP-owned environment settings — augment hub's environment container
     augment "/hub:environment" {
         container bgp {
-            description "BGP protocol environment settings, applied before any peer-level config.";
-            ze:help "The container controls the OPEN wait timeout and the initial announce delay.";
+            description "The container controls the OPEN wait timeout and the initial announce delay.";
+            ze:help "BGP protocol environment settings, applied before any peer-level config.";
             leaf openwait {
                 type int32 { range "1..3600"; }
                 default "120";
-                description "Seconds to wait for peer OPEN after TCP connect";
-                ze:help "The environment variable ze.bgp.openwait overrides the leaf. Ze arms the hold timer with
+                description "The environment variable ze.bgp.openwait overrides the leaf. Ze arms the hold timer with
                     the value after it sends OPEN. Ze resets that timer to the negotiated hold time when the peer
                     OPEN arrives.";
+                ze:help "Seconds to wait for peer OPEN after TCP connect";
             }
             leaf announce-delay {
                 type string;
                 default "0s";
-                description "Delay between reactor Ready and first UPDATE (duration, 0s-1h)";
-                ze:help "The environment variable ze.bgp.announce.delay overrides the leaf. Ze holds every peer
+                description "The environment variable ze.bgp.announce.delay overrides the leaf. Ze holds every peer
                     start for the delay after the reactor is otherwise Ready, which staggers route emission over a
                     restart.";
+                ze:help "Delay between reactor Ready and first UPDATE (duration, 0s-1h)";
             }
         }
 
         container reactor {
-            description "BGP reactor engine tuning.";
-            ze:help "The reactor is the core event loop. It processes an incoming message, runs the peer FSMs, and
+            description "The reactor is the core event loop. It processes an incoming message, runs the peer FSMs, and
                 dispatches an outbound UPDATE.";
-            leaf speed { type string; default "1.0"; description "Reactor loop cycle time multiplier, from 0.1 to 10.0.";
- ze:help "A value of less than 1.0 runs the loop faster, which lowers the latency and raises the CPU cost. A
-     value of more than 1.0 runs the loop slower, which raises the latency and lowers the CPU cost."; }
-            leaf cache-ttl { type uint32; default 60; description "Seconds Ze keeps a built UPDATE wire message in the encoding cache.";
- ze:help "Ze reuses a cached UPDATE for a peer with the same encoding context, which removes a repeated
-     serialization. 0 disables the cache, so Ze builds every UPDATE fresh."; }
-            leaf cache-max { type uint32; default 1000000; description "Maximum number of cached UPDATE wire messages.";
- ze:help "The value bounds the memory that the encoding cache uses. 0 means unlimited, so the cache grows with
-     the route table."; }
-            leaf update-groups { type boolean; default true; description "Build each UPDATE once for every peer with the same encoding context.";
- ze:help "The encoding context is the negotiated capabilities and the address families. Grouping reduces the
-     CPU cost from O(peers x routes) to O(groups x routes). Disable it for debugging alone."; }
-            leaf forward-queue-size { type uint32 { range "1..1000000"; } default 256; description "Per-destination forward channel capacity.";
- ze:help "The value is the number of UPDATE items Ze buffers for one destination peer before backpressure
-     starts."; }
-            leaf forward-batch-limit { type uint32 { range "0..1000000"; } default 1024; description "Max items per drain batch. Bounds writeMu hold time during forward dispatch. 0 means unlimited.";
- ze:help "The environment variable ze.fwd.batch.limit overrides the leaf. The limit bounds how long one drain holds
-     the session write lock, so a large batch cannot block another writer for long."; }
-            leaf forward-pool-max-bytes { type uint32; default 0; description "Combined byte budget for the 4K and 64K buffer pools, in bytes.";
- ze:help "The maximum is about 4GB. 0 means unlimited, and Ze then sizes the pools from the prefix maximums of
-     the peers."; }
-            leaf forward-pool-headroom { type uint32; default 0; description "Extra bytes beyond the auto-sized pool baseline.";
- ze:help "The maximum is about 4GB. Ze ignores the leaf when forward-pool-max-bytes is set explicitly."; }
-            leaf forward-teardown-grace { type string; default "5s"; description "Grace period before forced teardown on congestion (duration string, e.g. 5s, 1m).";
- ze:help "The environment variable ze.fwd.teardown.grace overrides the leaf. Ze starts the period when the forward
+            ze:help "BGP reactor engine tuning.";
+            leaf speed { type string; default "1.0"; description "A value of less than 1.0 runs the loop faster, which lowers the latency and raises the CPU cost. A
+     value of more than 1.0 runs the loop slower, which raises the latency and lowers the CPU cost.";
+ ze:help "Reactor loop cycle time multiplier, from 0.1 to 10.0."; }
+            leaf cache-ttl { type uint32; default 60; description "Ze reuses a cached UPDATE for a peer with the same encoding context, which removes a repeated
+     serialization. 0 disables the cache, so Ze builds every UPDATE fresh.";
+ ze:help "Seconds Ze keeps a built UPDATE wire message in the encoding cache."; }
+            leaf cache-max { type uint32; default 1000000; description "The value bounds the memory that the encoding cache uses. 0 means unlimited, so the cache grows with
+     the route table.";
+ ze:help "Maximum number of cached UPDATE wire messages."; }
+            leaf update-groups { type boolean; default true; description "The encoding context is the negotiated capabilities and the address families. Grouping reduces the
+     CPU cost from O(peers x routes) to O(groups x routes). Disable it for debugging alone.";
+ ze:help "Build each UPDATE once for every peer with the same encoding context."; }
+            leaf forward-queue-size { type uint32 { range "1..1000000"; } default 256; description "The value is the number of UPDATE items Ze buffers for one destination peer before backpressure
+     starts.";
+ ze:help "Per-destination forward channel capacity."; }
+            leaf forward-batch-limit { type uint32 { range "0..1000000"; } default 1024; description "The environment variable ze.fwd.batch.limit overrides the leaf. The limit bounds how long one drain holds
+     the session write lock, so a large batch cannot block another writer for long.";
+ ze:help "Max items per drain batch. Bounds writeMu hold time during forward dispatch. 0 means unlimited."; }
+            leaf forward-pool-max-bytes { type uint32; default 0; description "The maximum is about 4GB. 0 means unlimited, and Ze then sizes the pools from the prefix maximums of
+     the peers.";
+ ze:help "Combined byte budget for the 4K and 64K buffer pools, in bytes."; }
+            leaf forward-pool-headroom { type uint32; default 0; description "The maximum is about 4GB. Ze ignores the leaf when forward-pool-max-bytes is set explicitly.";
+ ze:help "Extra bytes beyond the auto-sized pool baseline."; }
+            leaf forward-teardown-grace { type string; default "5s"; description "The environment variable ze.fwd.teardown.grace overrides the leaf. Ze starts the period when the forward
      pool is more than 95% full and the peer holds more than twice its weight. A peer that does not drain inside
-     the period is torn down."; }
-            leaf read-buffer-size { type uint32 { range "4096..16777216"; } default 65536; description "Per-session TCP read buffer size in bytes.";
- ze:help "The environment variable ze.buf.read.size overrides the leaf. Ze sizes one buffered reader per session at
+     the period is torn down.";
+ ze:help "Grace period before forced teardown on congestion (duration string, e.g. 5s, 1m)."; }
+            leaf read-buffer-size { type uint32 { range "4096..16777216"; } default 65536; description "The environment variable ze.buf.read.size overrides the leaf. Ze sizes one buffered reader per session at
      connection time, so a change reaches a session at its next connection. The kernel receive buffer is a separate
-     256KB."; }
-            leaf write-buffer-size { type uint32 { range "4096..16777216"; } default 16384; description "Per-session TCP write buffer size in bytes.";
- ze:help "The environment variable ze.buf.write.size overrides the leaf. A larger buffer packs more BGP messages
-     into one write to the socket. The kernel send buffer is a separate 64KB."; }
+     256KB.";
+ ze:help "Per-session TCP read buffer size in bytes."; }
+            leaf write-buffer-size { type uint32 { range "4096..16777216"; } default 16384; description "The environment variable ze.buf.write.size overrides the leaf. A larger buffer packs more BGP messages
+     into one write to the socket. The kernel send buffer is a separate 64KB.";
+ ze:help "Per-session TCP write buffer size in bytes."; }
         }
     }
 }

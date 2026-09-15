@@ -13,9 +13,9 @@ func init() {
 	registry.MustRegisterRootHandler("cli", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Interactive CLI for the running daemon",
-		Mode:        "daemon",
-		Section:     registry.SectionOperations,
-		Subs:        "-c <cmd> for single command",
+		ShortHelp: "Interactive CLI for the running daemon",
+		Mode:      "daemon",
+		Section:   registry.SectionOperations,
+		Subs:      "-c <cmd> for single command",
 	})
 }

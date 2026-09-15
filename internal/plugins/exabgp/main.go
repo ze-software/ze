@@ -54,9 +54,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze exabgp",
-		Summary: "ExaBGP compatibility tools",
-		Usage:   []string{"ze exabgp <subcommand> [options]"},
+		Command:   "ze exabgp",
+		ShortHelp: "ExaBGP compatibility tools",
+		Usage:     []string{"ze exabgp <subcommand> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Subcommands", Entries: []helpfmt.HelpEntry{
 				{Name: "plugin <cmd>", Desc: "Run ExaBGP plugin with ze (bidirectional translation)"},
@@ -95,9 +95,9 @@ func cmdPlugin(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze exabgp plugin",
-			Summary: "Run an ExaBGP plugin with ze by translating between formats",
-			Usage:   []string{"ze exabgp plugin [flags] <cmd> [args...]"},
+			Command:   "ze exabgp plugin",
+			ShortHelp: "Run an ExaBGP plugin with ze by translating between formats",
+			Usage:     []string{"ze exabgp plugin [flags] <cmd> [args...]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Flags", Entries: []helpfmt.HelpEntry{
 					{Name: "--family <family>", Desc: "Address family to support (repeatable, default: ipv4/unicast)"},
@@ -198,8 +198,8 @@ func cmdMigrate(args []string) int {
 	envFile := fs.String("env", "", "Migrate ExaBGP INI environment file instead of config")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze exabgp migrate",
-			Summary: "Convert an ExaBGP configuration file to ze format",
+			Command:   "ze exabgp migrate",
+			ShortHelp: "Convert an ExaBGP configuration file to ze format",
 			Usage: []string{
 				"ze exabgp migrate [options] <config-file>",
 				"ze exabgp migrate --env <env-file>",

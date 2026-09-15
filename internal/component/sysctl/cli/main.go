@@ -244,9 +244,9 @@ func platformName(p sysctlreg.Platform) string {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze sysctl",
-		Summary: "inspect and manage kernel tunables",
-		Usage:   []string{"ze sysctl <command> [options]"},
+		Command:   "ze sysctl",
+		ShortHelp: "inspect and manage kernel tunables",
+		Usage:     []string{"ze sysctl <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Offline Commands (no daemon needed)", Entries: []helpfmt.HelpEntry{
 				{Name: commandList, Desc: "List all known sysctl keys with descriptions"},

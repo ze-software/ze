@@ -234,16 +234,16 @@ type routeServer struct {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show bgp rs status",
-			Description: "Show RS status",
+			Name:      "show bgp rs status",
+			ShortHelp: "Show RS status",
 			// handleCommand (server_handlers.go) answers {"running": true}. One
 			// key holding a scalar is no row set, so the answer is one document
 			// and the row operators are refused by name.
 			Shape: "doc",
 		},
 		{
-			Name:        "show bgp rs peers",
-			Description: "Show peer states",
+			Name:      "show bgp rs peers",
+			ShortHelp: "Show peer states",
 			// peerStatus (server_handlers.go) writes the rows under "peers", in
 			// ascending peer address order. "remote" carries the peer's AS
 			// number in an object of its own, which is the spelling this answer

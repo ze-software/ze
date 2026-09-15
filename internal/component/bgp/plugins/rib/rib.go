@@ -1379,7 +1379,7 @@ func commandDecls() []sdk.CommandDecl {
 	}
 
 	for index := range decls {
-		decls[index].Description = commandSummary(decls[index].Name)
+		decls[index].ShortHelp = commandSummary(decls[index].Name)
 	}
 	return decls
 }

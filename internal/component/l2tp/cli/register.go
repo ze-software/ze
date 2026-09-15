@@ -22,10 +22,10 @@ func init() {
 	registry.MustRegisterRootHandler(commandL2TP, func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "L2TP tools",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | all}",
+		ShortHelp: "L2TP tools",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "decode, show [--user] <query>, tunnel [--user] {id <id> | all}, session [--user] {id <id> | all}",
 	})
 
 	// Flag inventory for shell completion (registration over hardcoding).

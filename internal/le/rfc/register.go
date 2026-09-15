@@ -19,7 +19,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "RFC conformance: bind every MUST-level requirement of an enrolled RFC " +
+		ShortHelp: "RFC conformance: bind every MUST-level requirement of an enrolled RFC " +
 			"to the tests that enforce it, and bound what the summaries missed",
 		Mode: "offline",
 		// SectionTest is where ze files a tool rather than a product command;

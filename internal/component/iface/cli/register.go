@@ -33,10 +33,10 @@ func init() {
 	registry.MustRegisterRootHandler("interface", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Manage OS network interfaces",
-		Mode:        modeOffline,
-		Section:     registry.SectionConfiguration,
-		Subs:        subcommands(),
+		ShortHelp: "Manage OS network interfaces",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      subcommands(),
 	})
 	registry.MustRegisterLocal("show interface", func(args []string) int {
 		return Run(append([]string{subcmdShow}, args...))

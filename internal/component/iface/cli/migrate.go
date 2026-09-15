@@ -278,9 +278,9 @@ func resolveIfaceUnit(name string, unit int) string {
 func migrateUsage() {
 	var tb textbuf.Buffer
 	p := helpfmt.Page{
-		Command: "ze interface migrate",
-		Summary: "Perform a make-before-break IP migration between interfaces",
-		Usage:   []string{tb.Str("ze interface migrate [--user <name>] ").Str(migrateGrammar).String()},
+		Command:   "ze interface migrate",
+		ShortHelp: "Perform a make-before-break IP migration between interfaces",
+		Usage:     []string{tb.Str("ze interface migrate [--user <name>] ").Str(migrateGrammar).String()},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Five phases", Entries: []helpfmt.HelpEntry{
 				{Name: "1.", Desc: "Create the destination interface (when create is given)"},

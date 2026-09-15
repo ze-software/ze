@@ -152,7 +152,7 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 		typStr = node.NodeKind
 	}
 
-	desc := node.Description
+	desc := node.ShortHelp
 	if len(desc) > 60 {
 		var tb textbuf.Buffer
 		desc = tb.Str(desc[:57]).Str("...").String()
@@ -207,7 +207,7 @@ func formatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
 			Source:      node.Source,
 			Type:        node.Type,
 			Kind:        node.NodeKind,
-			Description: node.Description,
+			Description: node.ShortHelp,
 		}
 		for _, name := range node.sortedChildren() {
 			child := convert(node.Children[name], f)

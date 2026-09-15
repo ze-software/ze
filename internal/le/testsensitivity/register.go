@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal",
-		Mode:        "offline",
+		ShortHelp: "no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

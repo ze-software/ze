@@ -26,7 +26,7 @@ const (
 // preceding offered update has passed the sender's queue, even when it is denied.
 func runPathsLimitProcess(name string) error {
 	registration := sdk.Registration{Commands: []rpc.CommandDecl{{
-		Name: pathsLimitCommand, Description: "Offer a PATHS-LIMIT interop phase and its ordering sentinel",
+		Name: pathsLimitCommand, ShortHelp: "Offer a PATHS-LIMIT interop phase and its ordering sentinel",
 	}}}
 	var runErr error
 	code := sdk.RunOrDeclare(registration, func() int {

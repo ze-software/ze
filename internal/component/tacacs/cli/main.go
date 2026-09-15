@@ -55,9 +55,9 @@ func Run(args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze tacacs",
-		Summary: "Offline TACACS+ operational commands",
-		Usage:   []string{"ze tacacs <command> [options]"},
+		Command:   "ze tacacs",
+		ShortHelp: "Offline TACACS+ operational commands",
+		Usage:     []string{"ze tacacs <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "show <config>", Desc: "Probe each configured TACACS+ server and report reachability"},
@@ -102,9 +102,9 @@ func cmdShow(args []string) int {
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze tacacs show",
-			Summary: "Probe configured TACACS+ servers and report reachability",
-			Usage:   []string{"ze tacacs show <config-path>"},
+			Command:   "ze tacacs show",
+			ShortHelp: "Probe configured TACACS+ servers and report reachability",
+			Usage:     []string{"ze tacacs show <config-path>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: "At least one server reachable"},

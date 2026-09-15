@@ -12,75 +12,75 @@ module ze-pki-cmd {
     augment "/clishowcmd:show" {
         container pki {
             config false;
-            description "TLS certificates and CA trust store.";
-            ze:help "These are the certificates Ze itself presents and trusts for its own listeners
-                     and clients. They are not the certificates a peer presents over BGP or IPsec.";
+            description "These are the certificates Ze itself presents and trusts for its own listeners
+                         and clients. They are not the certificates a peer presents over BGP or IPsec.";
+            ze:help "TLS certificates and CA trust store.";
             container certificates {
                 config false;
                 ze:command "ze-show:pki-certificates";
-                description "List all loaded certificates with expiry dates.";
-                ze:help "Shows name, type (CA or device), subject, issuer, expiry, and validity status.
+                description "Shows name, type (CA or device), subject, issuer, expiry, and validity status.
 Check here to find certificates approaching expiration.";
+                ze:help "List all loaded certificates with expiry dates.";
             }
             container local-ca {
                 config false;
-                description "The certificate authority this daemon issues its own components' certificates from.";
-                ze:help "Ze generates this root at its first start and keeps it. It signs the leaf the plugin
-                         hub and the management hub serve. It is not one of the certificates the pki block
-                         configures, and it has no name.";
+                description "Ze generates this root at its first start and keeps it. It signs the leaf the plugin
+                             hub and the management hub serve. It is not one of the certificates the pki block
+                             configures, and it has no name.";
+                ze:help "The certificate authority this daemon issues its own components' certificates from.";
                 container pem {
                     config false;
                     ze:command "ze-show:pki-local-ca-pem";
-                    description "Export the root certificate of the local certificate authority as PEM.";
-                    ze:help "Give this text to each client that must trust this node, in its
-                             `pki ca <name> certificate` block. The output holds the certificate only:
-                             the root private key never leaves the daemon.";
+                    description "Give this text to each client that must trust this node, in its
+                                 `pki ca <name> certificate` block. The output holds the certificate only:
+                                 the root private key never leaves the daemon.";
+                    ze:help "Export the root certificate of the local certificate authority as PEM.";
                 }
             }
 
             container certificate {
                 config false;
-                description "Inspect a specific certificate in detail or export forms.";
-                ze:help "The detail view decodes the certificate for a reader. An export form writes it in
-                         a shape another program consumes, and the two answer the same certificate.";
+                description "The detail view decodes the certificate for a reader. An export form writes it in
+                             a shape another program consumes, and the two answer the same certificate.";
+                ze:help "Inspect a specific certificate in detail or export forms.";
                 container name {
                     config false;
                     ze:command "ze-show:pki-certificate";
-                    description "Inspect a specific certificate in detail.";
-                    ze:help "Each export form is a command of its own.";
+                    description "Each export form is a command of its own.";
+                    ze:help "Inspect a specific certificate in detail.";
                     leaf name {
                         type string;
                         mandatory true;
-                        description "Certificate name";
+                        ze:help "Certificate name";
                     }
 
                     container pem {
                         config false;
                         ze:command "ze-show:pki-certificate-pem";
-                        description "Export the certificate, and any intermediate it carries, as PEM.";
-                        ze:help "Use this form to give the certificate to another system.";
+                        description "Use this form to give the certificate to another system.";
+                        ze:help "Export the certificate, and any intermediate it carries, as PEM.";
                         leaf name {
                             type string;
                             mandatory true;
-                            description "Certificate name";
+                            ze:help "Certificate name";
                         }
                     }
 
                     container bundle {
                         config false;
-                        description "Export forms that carry more than the certificate.";
-                        ze:help "A bundle carries the chain, so it holds the issuers a verifier needs and not the
-                                 leaf alone. Use the plain PEM export when only the certificate is wanted.";
+                        description "A bundle carries the chain, so it holds the issuers a verifier needs and not the
+                                     leaf alone. Use the plain PEM export when only the certificate is wanted.";
+                        ze:help "Export forms that carry more than the certificate.";
 
                         container pem {
                             config false;
                             ze:command "ze-show:pki-certificate-bundle-pem";
-                            description "Export the certificate, its intermediates and its private key as one PEM stream.";
-                            ze:help "Device certificates only: a CA certificate in the store holds no private key.";
+                            description "Device certificates only: a CA certificate in the store holds no private key.";
+                            ze:help "Export the certificate, its intermediates and its private key as one PEM stream.";
                             leaf name {
                                 type string;
                                 mandatory true;
-                                description "Certificate name";
+                                ze:help "Certificate name";
                             }
                         }
                     }
@@ -88,28 +88,28 @@ Check here to find certificates approaching expiration.";
                     container fingerprint {
                         config false;
                         ze:command "ze-show:pki-certificate-fingerprint";
-                        description "Show the hash of the certificate, to verify its identity against the one another system reports.";
-                        ze:help "Without an algorithm, SHA-256.";
+                        description "Without an algorithm, SHA-256.";
+                        ze:help "Show the hash of the certificate, to verify its identity against the one another system reports.";
                         leaf name {
                             type string;
                             mandatory true;
-                            description "Certificate name";
+                            ze:help "Certificate name";
                         }
 
                         container algorithm {
                             config false;
                             ze:modifier "choice";
-                            description "Which hash to take of the certificate.";
-                            ze:help "The keyword takes one word, sha256, sha384 or sha512, and the
+                            description "The keyword takes one word, sha256, sha384 or sha512, and the
 word is case-insensitive. Any other word fails with the message 'pki:
 unsupported hash algorithm'. A second word after the algorithm is refused.";
+                            ze:help "Which hash to take of the certificate.";
                             leaf algorithm {
                                 type enumeration {
                                     enum sha256;
                                     enum sha384;
                                     enum sha512;
                                 }
-                                description "Hash algorithm. Without one, sha256.";
+                                ze:help "Hash algorithm. Without one, sha256.";
                             }
                         }
                     }

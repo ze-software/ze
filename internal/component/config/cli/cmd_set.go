@@ -32,9 +32,9 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config set",
-			Summary: "Set a configuration value in a config file",
-			Usage:   []string{"ze config set [options] <config-file> <path...> <value>"},
+			Command:   "ze config set",
+			ShortHelp: "Set a configuration value in a config file",
+			Usage:     []string{"ze config set [options] <config-file> <path...> <value>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "The last argument is the value, the second-to-last is the leaf name,"},

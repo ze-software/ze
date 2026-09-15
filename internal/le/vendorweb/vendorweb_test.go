@@ -736,7 +736,7 @@ func TestHelpAndTheListingAgreeAboutWhatWrites(t *testing.T) {
 			registered = command.Meta
 		}
 	}
-	if registered.Description == "" {
+	if registered.ShortHelp == "" {
 		t.Fatalf("%s registered no description, so help renders it blank", area)
 	}
 	if registered.ResolveSubs() != subs {

@@ -80,12 +80,13 @@ type Alias struct {
 
 // Entry is one command in the product catalog.
 type Entry struct {
-	Path        string `json:"path"`
-	Description string `json:"description,omitempty"`
-	// LongHelp is the command's own explanation, from ze:help. Description is
-	// the one-line summary beside it: two declarations, never one authored
+	Path      string `json:"path"`
+	ShortHelp string `json:"short-help,omitempty"`
+	// Description is the command's own explanation, from the YANG description.
+	// Description is the one-line summary from the ze:help beside it: two
+	// declarations, never one authored
 	// string cut in two, so each surface reads the half it renders.
-	LongHelp      string     `json:"long-help,omitempty"`
+	Description   string     `json:"description,omitempty"`
 	Mode          string     `json:"mode"`
 	WireMethod    string     `json:"wire-method,omitempty"`
 	Backend       []string   `json:"backend,omitempty"`
@@ -131,8 +132,8 @@ func Collect() []Entry {
 			node := findNode(tree, cliPath)
 			entry := Entry{Path: cliPath, Mode: mode, WireMethod: wireMethod}
 			if node != nil {
+				entry.ShortHelp = node.ShortHelp
 				entry.Description = node.Description
-				entry.LongHelp = node.LongHelp
 				entry.Args = extractArgs(node)
 				entry.Grammar = command.Usage(strings.Fields(cliPath), node)
 				entry.Usage = command.UsageLine(entry.Grammar)
@@ -156,24 +157,24 @@ func Collect() []Entry {
 	// every field against the live registry and rejects any drift here.
 	builtins := []Entry{
 		{
-			Path:        "help ai",
-			Description: "Print the agent reference this binary builds from its own registries.",
-			LongHelp: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
+			Path:      "help ai",
+			ShortHelp: "Print the agent reference this binary builds from its own registries.",
+			Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
 				"for a program to read.",
 			Mode: modeOffline,
 		},
 		{
-			Path:        "help command",
-			Description: "List every command this binary carries with its summary.",
-			LongHelp: "A filter word keeps the commands whose path holds it, and the answer renders as " +
+			Path:      "help command",
+			ShortHelp: "List every command this binary carries with its summary.",
+			Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
 				"JSON for a program to read.",
 			Mode: modeOffline,
 		},
-		{Path: "show version", Description: "Show the running Ze version and build date", Mode: modeOffline},
+		{Path: "show version", ShortHelp: "Show the running Ze version and build date", Mode: modeOffline},
 		{
-			Path:        "update serve",
-			Description: "Serve this binary and its version manifest for update checks.",
-			LongHelp: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
+			Path:      "update serve",
+			ShortHelp: "Serve this binary and its version manifest for update checks.",
+			Description: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
 				"It is meant for build infrastructure rather than for a router in production.",
 			Mode: modeOffline,
 		},
@@ -198,8 +199,8 @@ func Collect() []Entry {
 		}
 		entries = append(entries, Entry{
 			Path:        local.Path,
+			ShortHelp:   local.Meta.ShortHelp,
 			Description: local.Meta.Description,
-			LongHelp:    local.Meta.LongHelp,
 			Mode:        mode,
 		})
 		seen[local.Path] = true
@@ -243,14 +244,14 @@ func appendPluginCommands(entries []Entry, seen map[string]bool, tree *command.N
 			}
 			entry := Entry{
 				Path:        decl.Name,
+				ShortHelp:   decl.ShortHelp,
 				Description: decl.Description,
-				LongHelp:    decl.LongHelp,
 				Mode:        mode,
 				Usage:       pluginUsage(decl.Name, decl.Args),
 			}
 			if node := findNode(tree, decl.Name); node != nil {
+				entry.ShortHelp = node.ShortHelp
 				entry.Description = node.Description
-				entry.LongHelp = node.LongHelp
 				entry.Args = extractArgs(node)
 				entry.Subcommands = extractSubcommands(node)
 				entry.Backend = node.Backend

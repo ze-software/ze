@@ -12,110 +12,110 @@ module ze-anomaly-detect-conf {
   revision 2026-07-02 { description "Nest under anomaly/detect; the container now owns the shared anomaly parent that anomaly-shape augments."; }
 
   container anomaly {
-    description "Behavioral anomaly detection and response subsystem.";
-    ze:help "Two plugins fill this container. anomaly-detect owns the detect
-             subtree and reports incidents on the event bus. anomaly-shape adds
-             the shape subtree and acts on those incidents. Remove a plugin and
-             its subtree disappears from the config.";
+    description "Two plugins fill this container. anomaly-detect owns the detect
+                 subtree and reports incidents on the event bus. anomaly-shape adds
+                 the shape subtree and acts on those incidents. Remove a plugin and
+                 its subtree disappears from the config.";
+    ze:help "Behavioral anomaly detection and response subsystem.";
 
     container detect {
-      description "Report-only behavioral anomaly detector (emits incidents, takes no action).";
-      ze:help "The detector reads one traffic-feature snapshot every second, and
-               one second is one tick. It holds a baseline for each entity on
-               three axes: the source address, the destination address, and the
-               port. It publishes an incident on the event bus, and it writes no
-               firewall rule. The shape subtree is what acts on an incident.";
+      description "The detector reads one traffic-feature snapshot every second, and
+                   one second is one tick. It holds a baseline for each entity on
+                   three axes: the source address, the destination address, and the
+                   port. It publishes an incident on the event bus, and it writes no
+                   firewall rule. The shape subtree is what acts on an incident.";
+      ze:help "Report-only behavioral anomaly detector (emits incidents, takes no action).";
 
       leaf enabled {
         type boolean;
         default false;
-        description "Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).";
-        ze:help "The default false leaves the detector idle: it starts no ticker
-                 and it holds no baseline. Set it true and Ze attaches to the
-                 traffic-feature service and starts the one-second ticker. An
-                 entity needs 3 ticks of samples before Ze scores its deviation
-                 from its own baseline.";
+        description "The default false leaves the detector idle: it starts no ticker
+                     and it holds no baseline. Set it true and Ze attaches to the
+                     traffic-feature service and starts the one-second ticker. An
+                     entity needs 3 ticks of samples before Ze scores its deviation
+                     from its own baseline.";
+        ze:help "Enable the behavioral anomaly detector (report-only; emits incidents, takes no action).";
       }
       leaf deviation-threshold {
         type zt:decimal-2 { range "1.00..100.00"; }
         default "3.00";
-        description "Sigma at or above which a per-entity feature deviation fires.";
-        ze:help "A feature fires when its z-score reaches this value. That score
-                 is the larger of two numbers. The first is the deviation from
-                 the entity own baseline. The second is the rarity of the value
-                 in the cohort of the entity. A lower value fires more features
-                 and raises the number of false incidents. The value also grades
-                 the severity Ze puts on an incident.";
+        description "A feature fires when its z-score reaches this value. That score
+                     is the larger of two numbers. The first is the deviation from
+                     the entity own baseline. The second is the rarity of the value
+                     in the cohort of the entity. A lower value fires more features
+                     and raises the number of false incidents. The value also grades
+                     the severity Ze puts on an incident.";
+        ze:help "Sigma at or above which a per-entity feature deviation fires.";
       }
       leaf min-features-to-correlate {
         type uint8 { range "1..6"; }
         default 2;
-        description "Minimum distinct features that must fire before Ze scores an incident.";
-        ze:help "Minimum distinct features that must fire on one entity and one window before Ze scores an incident.
+        description "Minimum distinct features that must fire on one entity and one window before Ze scores an incident.
             The minimum correlates weak signals, so one feature alone raises no incident.";
+        ze:help "Minimum distinct features that must fire before Ze scores an incident.";
       }
       leaf min-cohort-size {
         type uint16 { range "2..1024"; }
         default 4;
-        description "Minimum members in a cohort before Ze scores peer-group rarity.";
-        ze:help "Minimum cohort members before peer-group rarity is scored. A cohort is a source-prefix bucket. A
+        description "Minimum cohort members before peer-group rarity is scored. A cohort is a source-prefix bucket. A
             smaller cohort uses self-deviation only.";
+        ze:help "Minimum members in a cohort before Ze scores peer-group rarity.";
       }
       leaf corroboration-weight {
         type zt:decimal-2 { range "0.00..1.00"; }
         default "0.50";
-        description "Discount applied to a corroborating feature when Ze combines scores.";
-        ze:help "Discount applied to corroborating features when combining scores. The discount stops correlated
+        description "Discount applied to corroborating features when combining scores. The discount stops correlated
             features from counting twice.";
+        ze:help "Discount applied to a corroborating feature when Ze combines scores.";
       }
       leaf confirm-duration {
         type uint16 { range "1..3600"; }
         default 3;
-        description "Consecutive above-threshold ticks before an incident is confirmed and emitted.";
-        ze:help "One tick is one second. Ze needs this many ticks in a row above
-                 the threshold, and one tick below it resets the count to 0. The
-                 default 3 delays an incident by 3 seconds and it drops a
-                 one-tick spike.";
+        description "One tick is one second. Ze needs this many ticks in a row above
+                     the threshold, and one tick below it resets the count to 0. The
+                     default 3 delays an incident by 3 seconds and it drops a
+                     one-tick spike.";
+        ze:help "Consecutive above-threshold ticks before an incident is confirmed and emitted.";
       }
       leaf clear-consecutive {
         type uint8 { range "1..100"; }
         default 10;
-        description "Consecutive below-threshold ticks before an active incident clears.";
-        ze:help "One tick is one second. An active incident clears after this
-                 many ticks in a row below the threshold, and one tick above it
-                 resets the count to 0. The default 10 holds the incident for 10
-                 seconds after the traffic stops.";
+        description "One tick is one second. An active incident clears after this
+                     many ticks in a row below the threshold, and one tick above it
+                     resets the count to 0. The default 10 holds the incident for 10
+                     seconds after the traffic stops.";
+        ze:help "Consecutive below-threshold ticks before an active incident clears.";
       }
       leaf baseline-window {
         type uint32 { range "10..86400"; }
         default 300;
-        description "Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).";
-        ze:help "Ze derives the EWMA smoothing factor from this window: alpha is
-                 2 divided by the window plus 1. The default 300 gives an alpha
-                 of 0.0066. A longer window makes the baseline slower and a short
-                 burst more visible. Ze folds a tick into the baseline only when
-                 the entity is not anomalous on that tick. A long anomaly cannot
-                 drift the baseline up to meet it.";
+        description "Ze derives the EWMA smoothing factor from this window: alpha is
+                     2 divided by the window plus 1. The default 300 gives an alpha
+                     of 0.0066. A longer window makes the baseline slower and a short
+                     burst more visible. Ze folds a tick into the baseline only when
+                     the entity is not anomalous on that tick. A long anomaly cannot
+                     drift the baseline up to meet it.";
+        ze:help "Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).";
       }
       leaf cohort-prefix-len-v4 {
         type uint8 { range "8..32"; }
         default 24;
-        description "Source-prefix length that buckets IPv4 entities into peer-group cohorts.";
-        ze:help "Ze masks the IPv4 address of the entity to this length and uses
-                 the result as the cohort key. Ze compares each entity against
-                 the other members of its cohort, which is how it scores rarity.
-                 A shorter length makes a larger cohort. min-cohort-size sets the
-                 smallest cohort Ze scores rarity in.";
+        description "Ze masks the IPv4 address of the entity to this length and uses
+                     the result as the cohort key. Ze compares each entity against
+                     the other members of its cohort, which is how it scores rarity.
+                     A shorter length makes a larger cohort. min-cohort-size sets the
+                     smallest cohort Ze scores rarity in.";
+        ze:help "Source-prefix length that buckets IPv4 entities into peer-group cohorts.";
       }
       leaf cohort-prefix-len-v6 {
         type uint8 { range "16..64"; }
         default 48;
-        description "Source-prefix length that buckets IPv6 entities into peer-group cohorts.";
-        ze:help "Ze masks the IPv6 address of the entity to this length and uses
-                 the result as the cohort key. The default 48 groups a site
-                 together. Where the mask does not apply to the address, Ze
-                 falls back to the whole address. That entity then forms a cohort
-                 of one, and Ze scores it on its own baseline alone.";
+        description "Ze masks the IPv6 address of the entity to this length and uses
+                     the result as the cohort key. The default 48 groups a site
+                     together. Where the mask does not apply to the address, Ze
+                     falls back to the whole address. That entity then forms a cohort
+                     of one, and Ze scores it on its own baseline alone.";
+        ze:help "Source-prefix length that buckets IPv6 entities into peer-group cohorts.";
       }
     }
   }

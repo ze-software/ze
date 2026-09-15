@@ -36,43 +36,43 @@ module ze-exabgp-bridge-conf {
 
     container exabgp {
         description
-            "Top-level container for ExaBGP-compatibility configuration.";
-        ze:help "The bridge itself lives in the bridge container under this root, which
-                 keeps the root free for other ExaBGP compatibility settings. The plugin is
-                 registered as exabgp-bridge, so plugin { internal exabgp-bridge } starts
-                 it. The bridge refuses to start until bridge run names a script.";
+            "The bridge itself lives in the bridge container under this root, which
+             keeps the root free for other ExaBGP compatibility settings. The plugin is
+             registered as exabgp-bridge, so plugin { internal exabgp-bridge } starts
+             it. The bridge refuses to start until bridge run names a script.";
+        ze:help "Top-level container for ExaBGP-compatibility configuration.";
 
         container bridge {
-            description "In-process ExaBGP bridge settings.";
-            ze:help "Present this container to configure the internal exabgp-bridge
+            description "Present this container to configure the internal exabgp-bridge
 plugin.";
+            ze:help "In-process ExaBGP bridge settings.";
 
             list process {
                 key "name";
-                description "One ExaBGP-format script the bridge runs as a subprocess.";
-                ze:help "One block per script. An ExaBGP configuration declares the same set as
+                description "One block per script. An ExaBGP configuration declares the same set as
 'process <name> { run ... }', and the migration writes one block here for each of them. Ze
 starts every block, sends every event to every script, and reads commands from every script.
 The bridge does nothing until one block names a run command.";
+                ze:help "One ExaBGP-format script the bridge runs as a subprocess.";
 
                 leaf name {
                     type string {
                         length "1..64";
                     }
-                    description "Name of the script, as the ExaBGP process block spelled it.";
-                    ze:help "The key of the block. Ze puts the name in its log lines, and an
+                    description "The key of the block. Ze puts the name in its log lines, and an
 ExaBGP neighbor's 'api { processes [ ... ] }' list refers to a script by this name. Keep the
 name the ExaBGP configuration used.";
+                    ze:help "Name of the script, as the ExaBGP process block spelled it.";
                 }
 
                 leaf run {
                     type string {
                         length "1..4096";
                     }
-                    description "Command line of the script.";
-                    ze:help "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
+                    description "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze
 splits the line on whitespace. The first token is the executable, and the rest are its
 arguments. A block with no run command is refused.";
+                    ze:help "Command line of the script.";
                 }
 
                 leaf encoder {
@@ -81,66 +81,66 @@ arguments. A block with no run command is refused.";
                         enum json;
                     }
                     default json;
-                    description "Format the script's events are written in.";
-                    ze:help "json writes one JSON object per event. text writes ExaBGP's
+                    description "json writes one JSON object per event. text writes ExaBGP's
 one-event-per-line format, such as 'neighbor 127.0.0.1 receive update announced 10.0.0.0/24
 next-hop 10.0.0.1 origin igp'. ExaBGP spells this leaf the same way and declares it per process,
 so one bridge can feed a text script and a JSON script at once. The default is json because the
 envelope Ze declares is 6.0.0, and ExaBGP 6 answers every process in JSON.";
+                    ze:help "Format the script's events are written in.";
                 }
 
                 list feed {
                     key "peer";
-                    description "One peer that feeds this script, and the events it feeds.";
-                    ze:help "An ExaBGP neighbor names the processes it feeds in
+                    description "An ExaBGP neighbor names the processes it feeds in
 'api { processes [ ... ] }' and the message kinds it feeds them in the same block, so the
 relation is per peer AND per script. The migration writes one block here for each neighbor that
 named this script. Ze also sends a command that names no neighbor to these peers alone. A
 process with NO feed block is fed by every peer with every event, which is what one script and
 one neighbor means.";
+                    ze:help "One peer that feeds this script, and the events it feeds.";
 
                     leaf peer {
                         type zt:ip-address;
-                        description "Address of the peer that feeds this script.";
-                        ze:help "The address the peer's own 'connection { remote { ip ... } }' declares.";
+                        description "The address the peer's own 'connection { remote { ip ... } }' declares.";
+                        ze:help "Address of the peer that feeds this script.";
                     }
 
                     leaf-list event {
                         type string;
                         ze:syntax "bracket";
-                        description "Events this peer feeds this script.";
-                        ze:help "ExaBGP's own event names: 'receive-update', 'send-update',
+                        description "ExaBGP's own event names: 'receive-update', 'send-update',
 'receive-open', 'send-keepalive', 'receive-notification', 'send-refresh', 'receive-operational'
 and their siblings, plus 'neighbor-changes', 'negotiated', 'fsm' and 'signal'. An EMPTY list
 feeds no event from this peer, which is what an ExaBGP api block that names a process and no
 message kind does.";
+                        ze:help "Events this peer feeds this script.";
                     }
                 }
 
                 leaf respawn {
                     type boolean;
                     default true;
-                    description "Start the script again when it exits.";
-                    ze:help "true starts the script again the moment it exits. false leaves it
+                    description "true starts the script again the moment it exits. false leaves it
 stopped, which is what a script that does its work once and exits needs. A script that exits
 more than five times in 64 seconds stays stopped whatever this leaf holds, and Ze logs that it
 did. ExaBGP spells this leaf the same way and applies the same limit.";
+                    ze:help "Start the script again when it exits.";
                 }
             }
 
             leaf-list family {
                 type zt:address-family;
-                description "Address families the bridge negotiates for the script.";
-                ze:help "One example is ipv4/unicast. If this leaf-list is empty, the
+                description "One example is ipv4/unicast. If this leaf-list is empty, the
 bridge negotiates ipv4/unicast.";
+                ze:help "Address families the bridge negotiates for the script.";
             }
 
             leaf route-refresh {
                 type boolean;
                 default false;
-                description "Advertise the BGP route-refresh capability.";
-                ze:help "RFC 2918 defines the route-refresh capability. When this leaf is
+                description "RFC 2918 defines the route-refresh capability. When this leaf is
 true, Ze advertises the capability on every session the bridge feeds.";
+                ze:help "Advertise the BGP route-refresh capability.";
             }
 
             leaf add-path {
@@ -151,10 +151,10 @@ true, Ze advertises the capability on every session the bridge feeds.";
                     enum both;
                 }
                 default none;
-                description "ADD-PATH mode for the families the bridge negotiates.";
-                ze:help "RFC 7911 defines ADD-PATH. none disables it. receive accepts more
+                description "RFC 7911 defines ADD-PATH. none disables it. receive accepts more
 than one path from the peer. send advertises more than one path to the peer. both does
 each of the two.";
+                ze:help "ADD-PATH mode for the families the bridge negotiates.";
             }
         }
     }

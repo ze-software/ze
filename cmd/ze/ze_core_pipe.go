@@ -145,9 +145,9 @@ func pipeUsage() {
 	}
 
 	p := helpfmt.Page{
-		Command: "ze pipe",
-		Summary: "Apply pipe operators to stdin",
-		Usage:   []string{"<command> | ze pipe <operator> [args]"},
+		Command:   "ze pipe",
+		ShortHelp: "Apply pipe operators to stdin",
+		Usage:     []string{"<command> | ze pipe <operator> [args]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Global Operators (act on any answer)", Entries: global},
 			{Title: "Row Operators (act where the answer has rows)", Entries: data},

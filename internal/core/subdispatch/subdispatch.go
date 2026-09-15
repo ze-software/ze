@@ -86,9 +86,9 @@ func (d *Dispatcher) usage() {
 
 	var tb textbuf.Buffer
 	p := helpfmt.Page{
-		Command: tb.Str("ze ").Str(d.Command).String(),
-		Summary: d.Summary,
-		Usage:   []string{tb.Reset().Str("ze ").Str(d.Command).Str(" <target> [options]").String()},
+		Command:   tb.Str("ze ").Str(d.Command).String(),
+		ShortHelp: d.Summary,
+		Usage:     []string{tb.Reset().Str("ze ").Str(d.Command).Str(" <target> [options]").String()},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Targets", Entries: entries},
 		},

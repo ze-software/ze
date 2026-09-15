@@ -299,7 +299,7 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 	}
 }
 
-// TestCommandRowsCarryLongHelp: `system command list` is the only answer the
+// TestCommandRowsCarryDescription: `system command list` is the only answer the
 // attached console of `ze start --cli` builds its command tree from. The long
 // explanation therefore travels on it, beside the summary. A command that
 // declares no explanation yields a row without the key. That is how the console
@@ -309,19 +309,19 @@ func TestDaemonTerminationSocketResponsePrecedesWait(t *testing.T) {
 // registered plugin command.
 // PREVENTS: `?` in the attached console answering "no explanation is declared"
 // for every command.
-func TestCommandRowsCarryLongHelp(t *testing.T) {
+func TestCommandRowsCarryDescription(t *testing.T) {
 	d := NewDispatcher()
 	handler := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 	d.RegisterWithOptions("show explained", handler, "Show the explained thing",
-		RegisterOptions{LongHelp: "The explanation a builtin declares."})
+		RegisterOptions{Description: "The explanation a builtin declares."})
 	d.Register("show bare", handler, "Show the bare thing")
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	for _, result := range d.Registry().Register(proc, []CommandDef{
-		{Name: "request explained", Description: "Explained plugin command", LongHelp: "The explanation a plugin declares."},
-		{Name: "request bare", Description: "Bare plugin command"},
+		{Name: "request explained", ShortHelp: "Explained plugin command", Description: "The explanation a plugin declares."},
+		{Name: "request bare", ShortHelp: "Bare plugin command"},
 	}) {
 		require.True(t, result.OK, "register %s: %s", result.Name, result.Error)
 	}
@@ -342,13 +342,13 @@ func TestCommandRowsCarryLongHelp(t *testing.T) {
 	for name, want := range declared {
 		row, ok := rows[name]
 		require.True(t, ok, "no row for %q", name)
-		assert.Equal(t, want, row["long-help"], "long-help of %q", name)
+		assert.Equal(t, want, row["description"], "description of %q", name)
 	}
 
 	for _, name := range []string{"show bare", "request bare"} {
 		row, ok := rows[name]
 		require.True(t, ok, "no row for %q", name)
-		_, present := row["long-help"]
-		assert.False(t, present, "row for %q carries long-help, want the key absent", name)
+		_, present := row["description"]
+		assert.False(t, present, "row for %q carries description, want the key absent", name)
 	}
 }

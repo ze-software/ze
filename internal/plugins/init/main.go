@@ -57,9 +57,9 @@ func Run(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze init",
-			Summary: "Bootstrap the ze database with SSH credentials",
-			Usage:   []string{"ze init [options]"},
+			Command:   "ze init",
+			ShortHelp: "Bootstrap the ze database with SSH credentials",
+			Usage:     []string{"ze init [options]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Input (stdin or interactive prompts)", Entries: []helpfmt.HelpEntry{
 					{Name: "Line 1: username", Desc: ""},

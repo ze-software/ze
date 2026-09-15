@@ -110,7 +110,7 @@ func TestWikiCatalogNamesAPluginCommand(t *testing.T) {
 		}
 		assertSameOrders(t, path, [][]string{{"prefix", "max-length", "asn"}}, entry.ColumnOrders)
 		assertSameNames(t, path, "address field", []string{"prefix"}, entry.AddressFields)
-		if entry.Description == "" {
+		if entry.ShortHelp == "" {
 			t.Errorf("%q publishes no summary", path)
 		}
 		return

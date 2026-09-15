@@ -220,8 +220,8 @@ func runFibVPPPlugin(conn net.Conn) int {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show fib vpp",
-			Description: "Show the routes this backend programmed into the VPP forwarding table.",
+			Name:      "show fib vpp",
+			ShortHelp: "Show the routes this backend programmed into the VPP forwarding table.",
 		},
 	}
 }

@@ -12,10 +12,10 @@ func init() {
 	registry.MustRegisterRootHandler("exabgp", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "ExaBGP bridge tools",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "plugin, migrate",
+		ShortHelp: "ExaBGP bridge tools",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "plugin, migrate",
 	})
 
 	// Flag inventory for shell completion (registration over hardcoding).

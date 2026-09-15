@@ -123,9 +123,9 @@ func cmdCompletion(args []string) int {
 
 func completionUsage() {
 	p := helpfmt.Page{
-		Command: "ze config completion",
-		Summary: "Query the YANG-driven completion engine non-interactively",
-		Usage:   []string{"ze config completion [options] <config-file>"},
+		Command:   "ze config completion",
+		ShortHelp: "Query the YANG-driven completion engine non-interactively",
+		Usage:     []string{"ze config completion [options] <config-file>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "--context <path>", Desc: "Context path with / separator (e.g., bgp/peer/1.1.1.1)"},
@@ -154,10 +154,10 @@ func printCompletions(completions []cli.Completion) int {
 	for _, comp := range completions {
 		line.Reset()
 		line.PadRight(comp.Type, completionTypeWidth).Byte(' ')
-		if comp.Description == "" {
+		if comp.ShortHelp == "" {
 			line.Str(comp.Text)
 		} else {
-			line.PadRight(comp.Text, completionTextWidth).Byte(' ').Str(comp.Description)
+			line.PadRight(comp.Text, completionTextWidth).Byte(' ').Str(comp.ShortHelp)
 		}
 		line.Byte('\n').StdOut() //nolint:errcheck // CLI output
 	}

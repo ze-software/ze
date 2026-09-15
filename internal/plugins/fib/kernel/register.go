@@ -252,8 +252,8 @@ func runFIBKernelPlugin(conn net.Conn) int {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show fib kernel",
-			Description: "Show the routes this backend programmed into the Linux forwarding table.",
+			Name:      "show fib kernel",
+			ShortHelp: "Show the routes this backend programmed into the Linux forwarding table.",
 		},
 	}
 }

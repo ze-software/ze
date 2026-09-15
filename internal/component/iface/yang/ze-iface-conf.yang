@@ -18,10 +18,10 @@ module ze-iface-conf {
             type string {
                 length "0..255";
             }
-            description "Interface description";
-            ze:help "Ze keeps the text in the config only, and it makes no kernel call for it. The
-                     kernel link alias IFLA_IFALIAS carries ze's own ownership marker instead, so
-                     a description never reaches it.";
+            description "Ze keeps the text in the config only, and it makes no kernel call for it. The
+                         kernel link alias IFLA_IFALIAS carries ze's own ownership marker instead, so
+                         a description never reaches it.";
+            ze:help "Interface description";
         }
 
         leaf mtu {
@@ -29,29 +29,29 @@ module ze-iface-conf {
                 range "68..16000";
             }
             default 1500;
-            description "Maximum transmission unit";
-            ze:help "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value
-                     with the netlink call LinkSetMTU after it creates the interface. Ze restores
-                     the previous value when a later step of the same apply fails.";
+            description "The range is 68 to 16000 bytes and the default is 1500. Ze applies the value
+                         with the netlink call LinkSetMTU after it creates the interface. Ze restores
+                         the previous value when a later step of the same apply fails.";
+            ze:help "Maximum transmission unit";
         }
 
         leaf os-name {
             type string;
             ze:validate "os-device-name";
-            description "OS device this logical interface name binds to.";
-            ze:help "When this leaf is omitted, ze uses the logical name as the OS device name, so
-                     every interface whose name already matches its kernel device resolves
-                     unchanged. Set the leaf to alias a readable interface name to a different
-                     kernel device. The iface resolver then maps the logical name to this OS device.
-                     ze init records the discovered OS name here.";
+            description "When this leaf is omitted, ze uses the logical name as the OS device name, so
+                         every interface whose name already matches its kernel device resolves
+                         unchanged. Set the leaf to alias a readable interface name to a different
+                         kernel device. The iface resolver then maps the logical name to this OS device.
+                         ze init records the discovered OS name here.";
+            ze:help "OS device this logical interface name binds to.";
         }
 
         leaf disable {
             type empty;
-            description "Administratively disable this interface";
-            ze:help "Ze skips a disabled interface at every apply step, so it creates no device
-                     and it installs no address. A device ze created before is deleted, because a
-                     disabled interface leaves the managed set. The config block stays in place.";
+            description "Ze skips a disabled interface at every apply step, so it creates no device
+                         and it installs no address. A device ze created before is deleted, because a
+                         disabled interface leaves the managed set. The config block stays in place.";
+            ze:help "Administratively disable this interface";
         }
     }
 
@@ -66,129 +66,129 @@ module ze-iface-conf {
         uses interface-common;
 
         container mac {
-            description "Hardware MAC settings for this interface.";
-            ze:help "address overrides the operational MAC address. match selects the kernel device
-                     by its MAC. The two leaves are independent, so ze can match a NIC by its
-                     permanent factory MAC and override its operational MAC at the same time.";
+            description "address overrides the operational MAC address. match selects the kernel device
+                         by its MAC. The two leaves are independent, so ze can match a NIC by its
+                         permanent factory MAC and override its operational MAC at the same time.";
+            ze:help "Hardware MAC settings for this interface.";
             leaf address {
                 type string {
                     pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
                 }
                 ze:validate "mac-address";
-                description "Override the kernel-assigned MAC with a colon-separated hex value.";
-                ze:help "An example value is 02:42:ac:11:00:02. Ze applies the value when it creates
-                         the interface. When the leaf is omitted, the kernel assigns a MAC by
-                         itself.";
+                description "An example value is 02:42:ac:11:00:02. Ze applies the value when it creates
+                             the interface. When the leaf is omitted, the kernel assigns a MAC by
+                             itself.";
+                ze:help "Override the kernel-assigned MAC with a colon-separated hex value.";
             }
             leaf match {
                 type string {
                     pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
                 }
                 ze:validate "mac-address";
-                description "Bind this logical interface to the kernel device that carries this hardware MAC.";
-                ze:help "The binding is by MAC rather than by name. The resolver matches the
-                         device's permanent factory address (IFLA_PERM_ADDRESS) when the device
-                         reports one, so the binding survives an operational MAC override. For a
-                         virtual device that reports no permanent address, the resolver matches the
-                         current address. This leaf takes precedence over os-name. It applies to the
-                         ethernet kind only, which is the matched physical kind. Ze identifies the
-                         kinds it creates (dummy, veth, bridge and the rest) by the name ze assigns.
-                         When the matching device is absent, the binding waits until the device
-                         appears.";
+                description "The binding is by MAC rather than by name. The resolver matches the
+                             device's permanent factory address (IFLA_PERM_ADDRESS) when the device
+                             reports one, so the binding survives an operational MAC override. For a
+                             virtual device that reports no permanent address, the resolver matches the
+                             current address. This leaf takes precedence over os-name. It applies to the
+                             ethernet kind only, which is the matched physical kind. Ze identifies the
+                             kinds it creates (dummy, veth, bridge and the rest) by the name ze assigns.
+                             When the matching device is absent, the binding waits until the device
+                             appears.";
+                ze:help "Bind this logical interface to the kernel device that carries this hardware MAC.";
             }
         }
 
         container offload {
-            description "Network offload and packet steering features.";
-            ze:help "Ze applies these features through a kernel ioctl, the ethtool SIOCETHTOOL
-                     interface, or a sysfs write, after it creates the interface. The ethtool(8) CLI
-                     program is not required, because ze talks to the kernel directly. For a boolean
-                     leaf, true enables the feature explicitly, false disables it explicitly, and an
-                     absent leaf preserves the OS default with no kernel call. Offload availability
-                     depends on the NIC driver and the kernel version. Ze logs an unsupported
-                     feature as a warning, and the config commit still succeeds.";
+            description "Ze applies these features through a kernel ioctl, the ethtool SIOCETHTOOL
+                         interface, or a sysfs write, after it creates the interface. The ethtool(8) CLI
+                         program is not required, because ze talks to the kernel directly. For a boolean
+                         leaf, true enables the feature explicitly, false disables it explicitly, and an
+                         absent leaf preserves the OS default with no kernel call. Offload availability
+                         depends on the NIC driver and the kernel version. Ze logs an unsupported
+                         feature as a warning, and the config commit still succeeds.";
+            ze:help "Network offload and packet steering features.";
 
             leaf gro {
                 type boolean;
-                description "Generic Receive Offload: aggregate small incoming packets before the network stack.";
-                ze:help "GRO aggregates small incoming packets into larger ones before it passes
-                         them up the network stack, which reduces the CPU cost per packet. GRO is
-                         software-based, so it works on all NIC types, including veth and dummy. Ze
-                         applies it through the kernel ioctl ETHTOOL_SGRO. It is equivalent to
-                         'ethtool -K <dev> gro on|off'.";
+                description "GRO aggregates small incoming packets into larger ones before it passes
+                             them up the network stack, which reduces the CPU cost per packet. GRO is
+                             software-based, so it works on all NIC types, including veth and dummy. Ze
+                             applies it through the kernel ioctl ETHTOOL_SGRO. It is equivalent to
+                             'ethtool -K <dev> gro on|off'.";
+                ze:help "Generic Receive Offload: aggregate small incoming packets before the network stack.";
             }
 
             leaf gso {
                 type boolean;
-                description "Generic Segmentation Offload: delay segmentation until the NIC driver transmit path.";
-                ze:help "GSO delays the segmentation of a large outgoing packet until just before
-                         the NIC driver transmit path, which reduces CPU work in the upper stack. It
-                         is the software-based counterpart of TSO. Ze applies it through the kernel
-                         ioctl ETHTOOL_SGSO. It is equivalent to 'ethtool -K <dev> gso on|off'.";
+                description "GSO delays the segmentation of a large outgoing packet until just before
+                             the NIC driver transmit path, which reduces CPU work in the upper stack. It
+                             is the software-based counterpart of TSO. Ze applies it through the kernel
+                             ioctl ETHTOOL_SGSO. It is equivalent to 'ethtool -K <dev> gso on|off'.";
+                ze:help "Generic Segmentation Offload: delay segmentation until the NIC driver transmit path.";
             }
 
             leaf sg {
                 type boolean;
-                description "Scatter-Gather I/O: build one frame from several memory buffers.";
-                ze:help "Scatter-Gather I/O lets the NIC assemble a single frame from multiple non-
-                         contiguous memory buffers, which avoids data copies. Most drivers need it
-                         for TSO and GSO. Ze applies it through the kernel ioctl ETHTOOL_SSG. It is
-                         equivalent to 'ethtool -K <dev> sg on|off'.";
+                description "Scatter-Gather I/O lets the NIC assemble a single frame from multiple non-
+                             contiguous memory buffers, which avoids data copies. Most drivers need it
+                             for TSO and GSO. Ze applies it through the kernel ioctl ETHTOOL_SSG. It is
+                             equivalent to 'ethtool -K <dev> sg on|off'.";
+                ze:help "Scatter-Gather I/O: build one frame from several memory buffers.";
             }
 
             leaf tso {
                 type boolean;
-                description "TCP Segmentation Offload: the NIC splits large TCP segments into wire frames.";
-                ze:help "TSO moves TCP segmentation to the NIC hardware, so the kernel hands off a
-                         TCP segment of up to 64 KB and the NIC splits it into MTU-sized frames on
-                         the wire. The feature needs NIC hardware support. Disable it when the
-                         interface passes traffic to VPP, or to a virtual switch that cannot handle
-                         an oversized frame. Ze applies it through the kernel ioctl ETHTOOL_STSO. It
-                         is equivalent to 'ethtool -K <dev> tso on|off'.";
+                description "TSO moves TCP segmentation to the NIC hardware, so the kernel hands off a
+                             TCP segment of up to 64 KB and the NIC splits it into MTU-sized frames on
+                             the wire. The feature needs NIC hardware support. Disable it when the
+                             interface passes traffic to VPP, or to a virtual switch that cannot handle
+                             an oversized frame. Ze applies it through the kernel ioctl ETHTOOL_STSO. It
+                             is equivalent to 'ethtool -K <dev> tso on|off'.";
+                ze:help "TCP Segmentation Offload: the NIC splits large TCP segments into wire frames.";
             }
 
             leaf lro {
                 type boolean;
-                description "Large Receive Offload: the NIC coalesces incoming TCP segments before DMA.";
-                ze:help "LRO is the hardware-based counterpart of GRO. It can break forwarding and
-                         bridging, because the coalesced frame no longer matches the original wire
-                         format. Disable it on a router or a bridge that forwards traffic between
-                         interfaces. Ze applies it through the kernel ioctl ETHTOOL_SLRO. It is
-                         equivalent to 'ethtool -K <dev> lro on|off'.";
+                description "LRO is the hardware-based counterpart of GRO. It can break forwarding and
+                             bridging, because the coalesced frame no longer matches the original wire
+                             format. Disable it on a router or a bridge that forwards traffic between
+                             interfaces. Ze applies it through the kernel ioctl ETHTOOL_SLRO. It is
+                             equivalent to 'ethtool -K <dev> lro on|off'.";
+                ze:help "Large Receive Offload: the NIC coalesces incoming TCP segments before DMA.";
             }
 
             leaf hw-tc-offload {
                 type boolean;
-                description "Hardware Traffic Control Offload: run TC filter rules in the NIC.";
-                ze:help "The feature lets the NIC run TC flower and u32 filter rules in hardware, so
-                         a matched flow does not reach kernel processing. It needs NIC firmware
-                         support, which is common on mlx5, bnxt and nfp. Ze applies it through the
-                         kernel ioctl ETHTOOL_SFEATURES. It is equivalent to 'ethtool -K <dev> hw-
-                         tc-offload on|off'.";
+                description "The feature lets the NIC run TC flower and u32 filter rules in hardware, so
+                             a matched flow does not reach kernel processing. It needs NIC firmware
+                             support, which is common on mlx5, bnxt and nfp. Ze applies it through the
+                             kernel ioctl ETHTOOL_SFEATURES. It is equivalent to 'ethtool -K <dev> hw-
+                             tc-offload on|off'.";
+                ze:help "Hardware Traffic Control Offload: run TC filter rules in the NIC.";
             }
 
             leaf rps {
                 type boolean;
-                description "Receive Packet Steering: spread incoming packets across CPUs in software.";
-                ze:help "RPS hashes the packet header and steers the packet to a target CPU receive
-                         queue. It helps when the NIC has fewer hardware RSS queues than the machine
-                         has CPUs. When the leaf is true, ze writes a bitmask covering all online
-                         CPUs to each rx queue sysfs entry, at
-                         /sys/class/net/<dev>/queues/rx-*/rps_cpus. When the leaf is false, ze
-                         writes 0 to each entry. RPS is not an ethtool feature, so ze uses sysfs
-                         directly.";
+                description "RPS hashes the packet header and steers the packet to a target CPU receive
+                             queue. It helps when the NIC has fewer hardware RSS queues than the machine
+                             has CPUs. When the leaf is true, ze writes a bitmask covering all online
+                             CPUs to each rx queue sysfs entry, at
+                             /sys/class/net/<dev>/queues/rx-*/rps_cpus. When the leaf is false, ze
+                             writes 0 to each entry. RPS is not an ethtool feature, so ze uses sysfs
+                             directly.";
+                ze:help "Receive Packet Steering: spread incoming packets across CPUs in software.";
             }
 
             leaf rfs {
                 type boolean;
-                description "Receive Flow Steering: steer a flow to the CPU that runs its application.";
-                ze:help "RFS extends RPS. It steers an incoming packet to the CPU where the
-                         application that consumes the flow runs, which improves cache locality and
-                         reduces cross-CPU cache bounces. When the leaf is true, ze sets
-                         /proc/sys/net/core/rps_sock_flow_entries to 32768, and it distributes per-
-                         queue rps_flow_cnt evenly across the rx queues. Enable RPS as well, because
-                         RFS is only effective with RPS. RFS is not an ethtool feature, so ze uses
-                         sysfs directly.";
+                description "RFS extends RPS. It steers an incoming packet to the CPU where the
+                             application that consumes the flow runs, which improves cache locality and
+                             reduces cross-CPU cache bounces. When the leaf is true, ze sets
+                             /proc/sys/net/core/rps_sock_flow_entries to 32768, and it distributes per-
+                             queue rps_flow_cnt evenly across the rx queues. Enable RPS as well, because
+                             RFS is only effective with RPS. RFS is not an ethtool feature, so ze uses
+                             sysfs directly.";
+                ze:help "Receive Flow Steering: steer a flow to the CPU that runs its application.";
             }
         }
     }
@@ -198,46 +198,46 @@ module ze-iface-conf {
 
         list unit {
             key "name";
-            description "Logical interface unit";
-            ze:help "A unit holds the addresses, the VLAN tag and the sysctl settings of one
-                     logical subinterface. A unit with a vlan-id creates a kernel subinterface
-                     named <parent>.<vlan-id>. A unit without one puts its addresses on the parent
-                     device.";
+            description "A unit holds the addresses, the VLAN tag and the sysctl settings of one
+                         logical subinterface. A unit with a vlan-id creates a kernel subinterface
+                         named <parent>.<vlan-id>. A unit without one puts its addresses on the parent
+                         device.";
+            ze:help "Logical interface unit";
 
             leaf name {
                 type zt:node-name;
-                description "Unit name (lowercase alphanumeric and hyphens)";
-                ze:help "The name is the list key and it identifies the unit in the config. It
-                         does not reach the kernel. The OS device name comes from the parent
-                         device and the vlan-id.";
+                description "The name is the list key and it identifies the unit in the config. It
+                             does not reach the kernel. The OS device name comes from the parent
+                             device and the vlan-id.";
+                ze:help "Unit name (lowercase alphanumeric and hyphens)";
             }
 
             leaf vlan-id {
                 type uint16 {
                     range "1..4094";
                 }
-                description "VLAN identifier";
-                ze:help "The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a
-                         kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses
-                         a unit that carries this leaf, because only gretap and ip6gretap carry
-                         Ethernet frames.";
+                description "The range is 1 to 4094, which is what IEEE 802.1Q allows. Ze creates a
+                             kernel 802.1Q subinterface named <parent>.<vlan-id>. An L3 tunnel refuses
+                             a unit that carries this leaf, because only gretap and ip6gretap carry
+                             Ethernet frames.";
+                ze:help "VLAN identifier";
             }
 
             leaf description {
                 type string {
                     length "0..255";
                 }
-                description "Unit description";
-                ze:help "Ze keeps the text in the config only, and it makes no kernel call for it.
-                         The limit is 255 characters.";
+                description "Ze keeps the text in the config only, and it makes no kernel call for it.
+                             The limit is 255 characters.";
+                ze:help "Unit description";
             }
 
             leaf disable {
                 type empty;
-                description "Administratively disable this unit";
-                ze:help "Ze skips a disabled unit at apply, so it installs none of its addresses
-                         and it installs no mirror for the unit. A VLAN subinterface ze created
-                         for the unit is deleted. The config block stays in place.";
+                description "Ze skips a disabled unit at apply, so it installs none of its addresses
+                             and it installs no mirror for the unit. A VLAN subinterface ze created
+                             for the unit is deleted. The config block stays in place.";
+                ze:help "Administratively disable this unit";
             }
 
             leaf route-priority {
@@ -245,85 +245,85 @@ module ze-iface-conf {
                     range "0..4294966271";
                 }
                 default 254;
-                description "Route metric for default routes learned on this unit through DHCP or router advertisement.";
-                ze:help "A lower value is preferred. On link-down, ze increases the metric by 1024,
-                         which deprioritizes the interface. The default 254 ranks a learned default
-                         below a static default and below a protocol-learned one, the way rib
-                         distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned
-                         default on the kernel metric that an operator's static default also uses.
-                         The two then share one kernel route, and the last writer owns it. A value
-                         above 0 also makes ze own the IPv6 default routes of the interface: ze sets
-                         accept_ra_defrtr=0 and installs the ::/0 routes itself.";
+                description "A lower value is preferred. On link-down, ze increases the metric by 1024,
+                             which deprioritizes the interface. The default 254 ranks a learned default
+                             below a static default and below a protocol-learned one, the way rib
+                             distance ranks connected 0, static 10 and ebgp 20. Write 0 to put a learned
+                             default on the kernel metric that an operator's static default also uses.
+                             The two then share one kernel route, and the last writer owns it. A value
+                             above 0 also makes ze own the IPv6 default routes of the interface: ze sets
+                             accept_ra_defrtr=0 and installs the ::/0 routes itself.";
+                ze:help "Route metric for default routes learned on this unit through DHCP or router advertisement.";
             }
 
             leaf vrf {
                 type string;
                 ze:validate "unimplemented-vrf";
-                description "Not implemented. Ze refuses a config that sets this leaf.";
-                ze:help "Ze creates no VRF device and enslaves no interface, so a unit cannot use a
-                         routing table other than the main table. The leaf stays in the schema so
-                         that the refusal can say why. It becomes functional when VRF support ships.";
+                description "Ze creates no VRF device and enslaves no interface, so a unit cannot use a
+                             routing table other than the main table. The leaf stays in the schema so
+                             that the refusal can say why. It becomes functional when VRF support ships.";
+                ze:help "Not implemented. Ze refuses a config that sets this leaf.";
             }
 
             leaf-list sysctl-profile {
                 type zt:node-name;
                 max-elements 10;
                 ze:syntax "bracket";
-                description "Named sysctl profiles to apply to this unit.";
-                ze:help "The built-in profiles are dsr, router, hardened, multihomed and proxy. A
-                         user-defined profile comes from a sysctl { profile ... } config block. Ze
-                         applies the profiles in order, and the last one wins on a key that two
-                         profiles both set.";
+                description "The built-in profiles are dsr, router, hardened, multihomed and proxy. A
+                             user-defined profile comes from a sysctl { profile ... } config block. Ze
+                             applies the profiles in order, and the last one wins on a key that two
+                             profiles both set.";
+                ze:help "Named sysctl profiles to apply to this unit.";
             }
 
             container ipv4 {
-                description "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.";
-                ze:help "The container holds one unit's IPv4 state. Ze installs the addresses
-                         through netlink. Ze turns each other leaf into a net.ipv4.conf.<iface>
-                         sysctl write, which it emits on the event bus for the sysctl plugin to
-                         perform.";
+                description "The container holds one unit's IPv4 state. Ze installs the addresses
+                             through netlink. Ze turns each other leaf into a net.ipv4.conf.<iface>
+                             sysctl write, which it emits on the event bus for the sysctl plugin to
+                             perform.";
+                ze:help "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.";
 
                 leaf-list address {
                     type string {
                         pattern '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/[0-9]{1,2}';
                     }
                     ze:syntax "bracket";
-                    description "IPv4 addresses in CIDR notation (e.g., 10.0.0.1/24)";
-                    ze:help "Ze installs each address on the unit's OS device through netlink. An
-                             address that leaves the list is removed on the next apply, because ze
-                             reconciles the whole set rather than adding to it. A unit with a
-                             vlan-id puts its addresses on <parent>.<vlan-id>.";
+                    description "Ze installs each address on the unit's OS device through netlink. An
+                                 address that leaves the list is removed on the next apply, because ze
+                                 reconciles the whole set rather than adding to it. A unit with a
+                                 vlan-id puts its addresses on <parent>.<vlan-id>.";
+                    ze:help "IPv4 addresses in CIDR notation (e.g., 10.0.0.1/24)";
                 }
 
                 leaf forwarding {
                     type boolean;
-                    description "Allow this interface to forward IPv4 packets between interfaces.";
-                    ze:help "The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When
-                             it is disabled, the kernel drops a packet that is not destined for a
-                             local address.";
+                    description "The leaf sets net.ipv4.conf.<iface>.forwarding. Routing needs it. When
+                                 it is disabled, the kernel drops a packet that is not destined for a
+                                 local address.";
+                    ze:help "Allow this interface to forward IPv4 packets between interfaces.";
                 }
 
                 leaf arp-filter {
                     type boolean;
-                    description "Only answer ARP requests for addresses on the receiving interface.";
-                    ze:help "The leaf sets net.ipv4.conf.<iface>.arp_filter. It stops the interface
-                             from answering for an address that is assigned to another interface.
-                             Use it on a multi-homed host.";
+                    description "The leaf sets net.ipv4.conf.<iface>.arp_filter. It stops the interface
+                                 from answering for an address that is assigned to another interface.
+                                 Use it on a multi-homed host.";
+                    ze:help "Only answer ARP requests for addresses on the receiving interface.";
                 }
 
                 leaf arp-accept {
                     type boolean;
-                    description "Accept gratuitous ARP frames and add their entries to the ARP cache.";
-                    ze:help "The leaf sets net.ipv4.conf.<iface>.arp_accept. It helps a failover,
-                             where a peer announces a new MAC for an existing IP address.";
+                    description "The leaf sets net.ipv4.conf.<iface>.arp_accept. It helps a failover,
+                                 where a peer announces a new MAC for an existing IP address.";
+                    ze:help "Accept gratuitous ARP frames and add their entries to the ARP cache.";
                 }
 
                 leaf proxy-arp {
                     type boolean;
-                    description "Answer ARP requests for other hosts that are reachable through this router.";
-                    ze:help "The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets
-                             that have no L2 connectivity between them, or for an unnumbered
-                             interface.";
+                    description "The leaf sets net.ipv4.conf.<iface>.proxy_arp. Use it to bridge subnets
+                                 that have no L2 connectivity between them, or for an unnumbered
+                                 interface.";
+                    ze:help "Answer ARP requests for other hosts that are reachable through this router.";
                 }
 
                 leaf arp-announce {
@@ -331,11 +331,11 @@ module ze-iface-conf {
                         range "0..2";
                     }
                     default 0;
-                    description "ARP announce level: 0=any, 1=prefer subnet, 2=best only";
-                    ze:help "Ze writes the value to net.ipv4.conf.<iface>.arp_announce. Level 0
-                             puts any local address in the ARP request. Level 1 prefers an address
-                             on the target's subnet. Level 2 uses the best local address only,
-                             which the dsr sysctl profile also sets.";
+                    description "Ze writes the value to net.ipv4.conf.<iface>.arp_announce. Level 0
+                                 puts any local address in the ARP request. Level 1 prefers an address
+                                 on the target's subnet. Level 2 uses the best local address only,
+                                 which the dsr sysctl profile also sets.";
+                    ze:help "ARP announce level: 0=any, 1=prefer subnet, 2=best only";
                 }
 
                 leaf arp-ignore {
@@ -343,9 +343,9 @@ module ze-iface-conf {
                         range "0..2";
                     }
                     default 0;
-                    description "ARP ignore level, which selects the ARP requests this interface answers.";
-                    ze:help "0 replies to any request. 1 replies only when the target address is on
-                             the incoming interface. 2 adds a sender subnet check to level 1.";
+                    description "0 replies to any request. 1 replies only when the target address is on
+                                 the incoming interface. 2 adds a sender subnet check to level 1.";
+                    ze:help "ARP ignore level, which selects the ARP requests this interface answers.";
                 }
 
                 leaf rpf-check {
@@ -354,74 +354,74 @@ module ze-iface-conf {
                         enum strict;
                         enum loose;
                     }
-                    description "Reverse path filtering mode";
-                    ze:help "Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable
-                             is 0, strict is 1 and loose is 2. strict drops a packet whose source
-                             address would not route back through this interface. loose drops a
-                             packet whose source address has no route at all.";
+                    description "Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable
+                                 is 0, strict is 1 and loose is 2. strict drops a packet whose source
+                                 address would not route back through this interface. loose drops a
+                                 packet whose source address has no route at all.";
+                    ze:help "Reverse path filtering mode";
                 }
 
                 container dhcp {
                     ze:backend "netlink";
-                    description "DHCPv4 client configuration";
-                    ze:help "Ze runs its own DHCPv4 client, so no dhclient process and no udhcpc
-                             process is needed. The client installs the leased address, the
-                             default route and the resolvers that the server sends.";
+                    description "Ze runs its own DHCPv4 client, so no dhclient process and no udhcpc
+                                 process is needed. The client installs the leased address, the
+                                 default route and the resolvers that the server sends.";
+                    ze:help "DHCPv4 client configuration";
 
                     leaf enabled {
                         type boolean;
                         default false;
-                        description "Enable DHCPv4 client";
-                        ze:help "Ze starts one client when this leaf is true, and it stops the
-                                 client when the leaf goes false. The client is keyed by the
-                                 interface name and the unit name, so two units on one interface
-                                 run two clients.";
+                        description "Ze starts one client when this leaf is true, and it stops the
+                                     client when the leaf goes false. The client is keyed by the
+                                     interface name and the unit name, so two units on one interface
+                                     run two clients.";
+                        ze:help "Enable DHCPv4 client";
                     }
 
                     leaf client-id {
                         type string;
-                        description "DHCP option 61 client identifier, sent in DISCOVER and REQUEST messages.";
-                        ze:help "When the leaf is omitted, ze uses the MAC address. Set it for an
-                                 environment where the DHCP server keys a lease on the client-id
-                                 rather than on the MAC.";
+                        description "When the leaf is omitted, ze uses the MAC address. Set it for an
+                                     environment where the DHCP server keys a lease on the client-id
+                                     rather than on the MAC.";
+                        ze:help "DHCP option 61 client identifier, sent in DISCOVER and REQUEST messages.";
                     }
 
                     leaf hostname {
                         type string;
-                        description "Hostname in DHCP requests";
-                        ze:help "Ze sends the value as DHCP option 12 in the DISCOVER message and
-                                 in the REQUEST message. When the leaf is omitted, ze sends no
-                                 option 12 at all.";
+                        description "Ze sends the value as DHCP option 12 in the DISCOVER message and
+                                     in the REQUEST message. When the leaf is omitted, ze sends no
+                                     option 12 at all.";
+                        ze:help "Hostname in DHCP requests";
                     }
                 }
             }
 
             container ipv6 {
-                description "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.";
-                ze:help "The container holds one unit's IPv6 state. Ze installs the addresses
-                         through netlink. Ze turns autoconf, accept-ra and forwarding into
-                         net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for
-                         the sysctl plugin to perform.";
+                description "The container holds one unit's IPv6 state. Ze installs the addresses
+                             through netlink. Ze turns autoconf, accept-ra and forwarding into
+                             net.ipv6.conf.<iface> sysctl writes, which it emits on the event bus for
+                             the sysctl plugin to perform.";
+                ze:help "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.";
 
                 leaf-list address {
                     type string {
                         pattern '[0-9a-fA-F:]{2,39}/[0-9]{1,3}';
                     }
                     ze:syntax "bracket";
-                    description "IPv6 addresses in CIDR notation (e.g., fd00::1/64)";
-                    ze:help "Ze installs each address on the unit's OS device through netlink. An
-                             address that leaves the list is removed on the next apply, because ze
-                             reconciles the whole set rather than adding to it.";
+                    description "Ze installs each address on the unit's OS device through netlink. An
+                                 address that leaves the list is removed on the next apply, because ze
+                                 reconciles the whole set rather than adding to it.";
+                    ze:help "IPv6 addresses in CIDR notation (e.g., fd00::1/64)";
                 }
 
                 leaf autoconf {
                     ze:backend "netlink";
                     type boolean;
-                    description "Enable IPv6 stateless autoconfiguration.";
-                    ze:help "The kernel learns an address only when a Router Advertisement reaches
-                             the device it owns, so this leaf needs the netlink backend. On the vpp
-                             backend, the NIC belongs to VPP, and no advertisement reaches the Linux
-                             Control Plane tap.";
+                    description "The kernel learns an address only when a Router Advertisement reaches
+                                 the device it owns, so this leaf needs the netlink backend. On the vpp
+                                 backend, the NIC belongs to VPP, and no advertisement reaches the Linux
+                                 Control Plane tap.";
+                    ze:help "Enable IPv6 stateless autoconfiguration.";
                 }
 
                 leaf accept-ra {
@@ -430,16 +430,16 @@ module ze-iface-conf {
                         range "0..2";
                     }
                     default 0;
-                    description "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.";
-                    ze:help "This leaf needs the netlink backend, for the same reason as autoconf:
-                             the two leaves describe one behavior.";
+                    description "This leaf needs the netlink backend, for the same reason as autoconf:
+                                 the two leaves describe one behavior.";
+                    ze:help "Accept RA level: 0 disables, 1 accepts when not forwarding, 2 accepts even when forwarding.";
                 }
 
                 leaf forwarding {
                     type boolean;
-                    description "Allow this interface to forward IPv6 packets between interfaces.";
-                    ze:help "The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA
-                             acceptance, unless accept-ra is set to 2.";
+                    description "The leaf sets net.ipv6.conf.<iface>.forwarding. Forwarding disables RA
+                                 acceptance, unless accept-ra is set to 2.";
+                    ze:help "Allow this interface to forward IPv6 packets between interfaces.";
                 }
 
                 leaf rpf-check {
@@ -448,74 +448,74 @@ module ze-iface-conf {
                         enum strict;
                         enum loose;
                     }
-                    description "Reverse path filtering mode, on the VPP data plane only for IPv6.";
-                    ze:help "strict drops a packet whose source address would not be routed back
-                             through this interface. loose drops a packet whose source address has
-                             no route at all. disable performs no source address validation.";
+                    description "strict drops a packet whose source address would not be routed back
+                                 through this interface. loose drops a packet whose source address has
+                                 no route at all. disable performs no source address validation.";
+                    ze:help "Reverse path filtering mode, on the VPP data plane only for IPv6.";
                 }
 
                 container dhcpv6 {
                     ze:backend "netlink";
-                    description "DHCPv6 stateful client (RFC 8415).";
-                    ze:help "The client requests addresses, delegated prefixes, or both, from a
-                             DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.";
+                    description "The client requests addresses, delegated prefixes, or both, from a
+                                 DHCPv6 server. It runs alongside SLAAC when autoconf is also enabled.";
+                    ze:help "DHCPv6 stateful client (RFC 8415).";
 
                     leaf enabled {
                         type boolean;
                         default false;
-                        description "Enable DHCPv6 client";
-                        ze:help "Ze starts a DHCPv6 client on this unit when the leaf is true. The
-                                 client sends a Solicit that carries the Rapid Commit option, and
-                                 it takes a Reply directly when the server answers with one.
-                                 Otherwise it sends a Request after the Advertise.";
+                        description "Ze starts a DHCPv6 client on this unit when the leaf is true. The
+                                     client sends a Solicit that carries the Rapid Commit option, and
+                                     it takes a Reply directly when the server answers with one.
+                                     Otherwise it sends a Request after the Advertise.";
+                        ze:help "Enable DHCPv6 client";
                     }
 
                     container pd {
-                        description "Prefix delegation";
-                        ze:help "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no
-                                 server for a delegated prefix. Ze does install a prefix that a
-                                 server sends on its own in the IA_PD option of a Reply. Ze
-                                 publishes that prefix as a lease on this unit. The length leaf
-                                 below reaches no message Ze sends.";
+                        description "Ze sends its DHCPv6 Solicit with no IA_PD option, so it asks no
+                                     server for a delegated prefix. Ze does install a prefix that a
+                                     server sends on its own in the IA_PD option of a Reply. Ze
+                                     publishes that prefix as a lease on this unit. The length leaf
+                                     below reaches no message Ze sends.";
+                        ze:help "Prefix delegation";
 
                         leaf length {
                             type uint8 {
                                 range "48..64";
                             }
-                            description "Requested prefix length";
-                            ze:help "The prefix length ze asks for, from 48 to 64. Ze reads the
-                                     leaf into the DHCP client configuration and then sends no
-                                     IA_PD option, so the value reaches no server and changes
-                                     nothing. A prefix that a server sends on its own keeps the
-                                     length that server assigned.";
+                            description "The prefix length ze asks for, from 48 to 64. Ze reads the
+                                         leaf into the DHCP client configuration and then sends no
+                                         IA_PD option, so the value reaches no server and changes
+                                         nothing. A prefix that a server sends on its own keeps the
+                                         length that server assigned.";
+                            ze:help "Requested prefix length";
                         }
                     }
 
                     leaf duid {
                         type string;
-                        description "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).";
-                        ze:help "When the leaf is omitted, ze generates a DUID-LL from the interface
-                                 MAC. Set the leaf when the DHCP server binds a lease to a specific
-                                 DUID.";
+                        description "When the leaf is omitted, ze generates a DUID-LL from the interface
+                                     MAC. Set the leaf when the DHCP server binds a lease to a specific
+                                     DUID.";
+                        ze:help "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).";
                     }
                 }
 
                 container router-advertisement {
                     ze:os "linux";
                     ze:backend "netlink";
-                    description "Router Advertisement sender (RFC 4861).";
-                    ze:help "Ze advertises prefixes, flags and resolvers on this link, so that a
-                             host autoconfigures. That is the role radvd fills on another system.
-                             Sending is separate from accepting: set forwarding true on an
-                             advertising interface, and leave accept-ra at 0 unless this interface
-                             also learns from another router.";
+                    description "Ze advertises prefixes, flags and resolvers on this link, so that a
+                                 host autoconfigures. That is the role radvd fills on another system.
+                                 Sending is separate from accepting: set forwarding true on an
+                                 advertising interface, and leave accept-ra at 0 unless this interface
+                                 also learns from another router.";
+                    ze:help "Router Advertisement sender (RFC 4861).";
 
                     leaf enabled {
                         type boolean;
                         default false;
-                        description "Send Router Advertisements on this unit.";
-                        ze:help "RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to
-                                 false, so a node never becomes a router by accident.";
+                        description "RFC 4861 Section 6.2.1 requires AdvSendAdvertisements to default to
+                                     false, so a node never becomes a router by accident.";
+                        ze:help "Send Router Advertisements on this unit.";
                     }
 
                     leaf maximum-interval {
@@ -524,9 +524,9 @@ module ze-iface-conf {
                         }
                         units seconds;
                         default 600;
-                        description "Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval).";
-                        ze:help "RFC 4861 Section 6.2.1 defines MaxRtrAdvInterval. Ze picks each
-                                 interval at random between minimum-interval and this value.";
+                        description "RFC 4861 Section 6.2.1 defines MaxRtrAdvInterval. Ze picks each
+                                     interval at random between minimum-interval and this value.";
+                        ze:help "Longest time between unsolicited Router Advertisements (MaxRtrAdvInterval).";
                     }
 
                     leaf minimum-interval {
@@ -535,10 +535,10 @@ module ze-iface-conf {
                         }
                         units seconds;
                         default 200;
-                        description "Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval).";
-                        ze:help "RFC 4861 Section 6.2.1 defines MinRtrAdvInterval. The value must
-                                 not exceed 0.75 x maximum-interval, and config verify rejects a
-                                 larger value.";
+                        description "RFC 4861 Section 6.2.1 defines MinRtrAdvInterval. The value must
+                                     not exceed 0.75 x maximum-interval, and config verify rejects a
+                                     larger value.";
+                        ze:help "Shortest time between unsolicited Router Advertisements (MinRtrAdvInterval).";
                     }
 
                     leaf router-lifetime {
@@ -547,40 +547,40 @@ module ze-iface-conf {
                         }
                         units seconds;
                         default 1800;
-                        description "How long a host keeps Ze in its default router list (AdvDefaultLifetime).";
-                        ze:help "RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze
-                                 is not a default router, and the prefixes and the resolvers in the
-                                 advertisement still apply. Any other value must be at least
-                                 maximum-interval, and config verify rejects a smaller one.";
+                        description "RFC 4861 Section 6.2.1 defines AdvDefaultLifetime. 0 says that Ze
+                                     is not a default router, and the prefixes and the resolvers in the
+                                     advertisement still apply. Any other value must be at least
+                                     maximum-interval, and config verify rejects a smaller one.";
+                        ze:help "How long a host keeps Ze in its default router list (AdvDefaultLifetime).";
                     }
 
                     leaf hop-limit {
                         type uint8;
                         default 64;
-                        description "Value a host places in the Hop Limit field of its outgoing packets.";
-                        ze:help "RFC 4861 Section 4.2 defines AdvCurHopLimit. 0 means that this
-                                 router states no value.";
+                        description "RFC 4861 Section 4.2 defines AdvCurHopLimit. 0 means that this
+                                     router states no value.";
+                        ze:help "Value a host places in the Hop Limit field of its outgoing packets.";
                     }
 
                     leaf managed {
                         type boolean;
                         default false;
-                        description "Set the M flag: hosts get their addresses from DHCPv6
-                                     (RFC 4861 Section 4.2).";
-                        ze:help "Ze sets bit 0x80 of the flags octet in the Router Advertisement.
-                                 Set the flag only where a DHCPv6 server answers on this link,
-                                 because the flag alone gives a host no address.";
+                        description "Ze sets bit 0x80 of the flags octet in the Router Advertisement.
+                                     Set the flag only where a DHCPv6 server answers on this link,
+                                     because the flag alone gives a host no address.";
+                        ze:help "Set the M flag: hosts get their addresses from DHCPv6
+                                 (RFC 4861 Section 4.2).";
                     }
 
                     leaf other-config {
                         type boolean;
                         default false;
-                        description "Set the O flag: hosts get other configuration, such as DNS,
-                                     from DHCPv6 (RFC 4861 Section 4.2).";
-                        ze:help "Ze sets bit 0x40 of the flags octet in the Router Advertisement.
-                                 The flag does not change how a host builds its addresses. Use the
-                                 rdnss container instead where no DHCPv6 server runs on this
-                                 link.";
+                        description "Ze sets bit 0x40 of the flags octet in the Router Advertisement.
+                                     The flag does not change how a host builds its addresses. Use the
+                                     rdnss container instead where no DHCPv6 server runs on this
+                                     link.";
+                        ze:help "Set the O flag: hosts get other configuration, such as DNS,
+                                 from DHCPv6 (RFC 4861 Section 4.2).";
                     }
 
                     leaf reachable-time {
@@ -589,95 +589,95 @@ module ze-iface-conf {
                         }
                         units milliseconds;
                         default 0;
-                        description "How long a host treats a neighbor as reachable after a reachability confirmation.";
-                        ze:help "RFC 4861 Section 6.2.1 defines AdvReachableTime. 0 means that this
-                                 router states no value.";
+                        description "RFC 4861 Section 6.2.1 defines AdvReachableTime. 0 means that this
+                                     router states no value.";
+                        ze:help "How long a host treats a neighbor as reachable after a reachability confirmation.";
                     }
 
                     leaf retransmit-timer {
                         type uint32;
                         units milliseconds;
                         default 0;
-                        description "Time between retransmitted Neighbor Solicitations on this link.";
-                        ze:help "RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this
-                                 router states no value.";
+                        description "RFC 4861 Section 6.2.1 defines AdvRetransTimer. 0 means that this
+                                     router states no value.";
+                        ze:help "Time between retransmitted Neighbor Solicitations on this link.";
                     }
 
                     list prefix {
                         key "prefix";
-                        description "Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2).";
-                        ze:help "Ze sends the host bits below the prefix length as zero.";
+                        description "Ze sends the host bits below the prefix length as zero.";
+                        ze:help "Prefixes advertised in Prefix Information options (RFC 4861 Section 4.6.2).";
 
                         leaf prefix {
                             type zt:prefix-ipv6;
-                            description "Advertised IPv6 prefix in CIDR notation, for example 2001:db8:1::/64.";
-                            ze:help "Stateless autoconfiguration needs a 64-bit prefix (RFC 4862
-                                     Section 5.5.3).";
+                            description "Stateless autoconfiguration needs a 64-bit prefix (RFC 4862
+                                         Section 5.5.3).";
+                            ze:help "Advertised IPv6 prefix in CIDR notation, for example 2001:db8:1::/64.";
                         }
 
                         leaf on-link {
                             type boolean;
                             default true;
-                            description "Set the L flag: hosts treat addresses in this prefix as
-                                         on-link (RFC 4861 Section 4.6.2).";
-                            ze:help "Ze sets bit 0x80 of the flags octet in the Prefix Information
-                                     option. With the flag clear, a host sends a packet for an
-                                     address in this prefix to the router rather than straight to
-                                     the neighbor.";
+                            description "Ze sets bit 0x80 of the flags octet in the Prefix Information
+                                         option. With the flag clear, a host sends a packet for an
+                                         address in this prefix to the router rather than straight to
+                                         the neighbor.";
+                            ze:help "Set the L flag: hosts treat addresses in this prefix as
+                                     on-link (RFC 4861 Section 4.6.2).";
                         }
 
                         leaf autonomous {
                             type boolean;
                             default true;
-                            description "Set the A flag in the Prefix Information option.";
-                            ze:help "With the A flag set, a host builds addresses from this prefix
-                                     by stateless autoconfiguration (RFC 4862).";
+                            description "With the A flag set, a host builds addresses from this prefix
+                                         by stateless autoconfiguration (RFC 4862).";
+                            ze:help "Set the A flag in the Prefix Information option.";
                         }
 
                         leaf valid-lifetime {
                             type uint32;
                             units seconds;
                             default 2592000;
-                            description "How long the prefix stays valid (RFC 4861 Section 4.6.2).";
-                            ze:help "4294967295 means that the prefix never expires. The default is
-                                     30 days.";
+                            description "4294967295 means that the prefix never expires. The default is
+                                         30 days.";
+                            ze:help "How long the prefix stays valid (RFC 4861 Section 4.6.2).";
                         }
 
                         leaf preferred-lifetime {
                             type uint32;
                             units seconds;
                             default 604800;
-                            description "How long an address built from the prefix stays preferred.";
-                            ze:help "RFC 4861 Section 4.6.2 defines the preferred lifetime. The
-                                     value must not exceed valid-lifetime, and config verify rejects
-                                     a larger value. The default is 7 days.";
+                            description "RFC 4861 Section 4.6.2 defines the preferred lifetime. The
+                                         value must not exceed valid-lifetime, and config verify rejects
+                                         a larger value. The default is 7 days.";
+                            ze:help "How long an address built from the prefix stays preferred.";
                         }
                     }
 
                     container rdnss {
-                        description "Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).";
-                        ze:help "The option points a link at a resolver without a DHCPv6 server.";
+                        description "The option points a link at a resolver without a DHCPv6 server.";
+                        ze:help "Recursive DNS servers advertised to hosts (RFC 8106 Section 5.1).";
 
                         leaf-list server {
                             type zt:ipv6-address;
                             ze:syntax "bracket";
                             max-elements 8;
-                            description "Resolver addresses. All of them share lifetime.";
-                            ze:help "Ze puts every address in ONE RDNSS option, which is why they
-                                     share one lifetime. The option carries 8 addresses at most,
-                                     and it grows by 16 bytes for each address.";
+                            description "Ze puts every address in ONE RDNSS option, which is why they
+                                         share one lifetime. The option carries 8 addresses at most,
+                                         and it grows by 16 bytes for each address.";
+                            ze:help "Resolver addresses. All of them share lifetime.";
                         }
 
                         leaf lifetime {
                             type uint32;
                             units seconds;
-                            description "How long a host can use these resolvers (RFC 8106 Section 5.1).";
-                            ze:help "0 tells a host to stop using the resolvers, and an operator can
-                                     set it. 4294967295 means that the resolvers never expire. This
-                                     leaf has no default: leave it out, and Ze sends 3 x maximum-
-                                     interval, the value RFC 8106 Section 5.1 recommends. 0 is not
-                                     the default for that reason, because Ze could not then tell an
-                                     operator who retires a resolver from one who set nothing.";
+                            description "0 tells a host to stop using the resolvers, and an operator can
+                                         set it. 4294967295 means that the resolvers never expire. This
+                                         leaf has no default: leave it out, and Ze sends 3 x maximum-
+                                         interval, the value RFC 8106 Section 5.1 recommends. 0 is not
+                                         the default for that reason, because Ze could not then tell an
+                                         operator who retires a resolver from one who set nothing.";
+                            ze:help "How long a host can use these resolvers (RFC 8106 Section 5.1).";
                         }
                     }
                 }
@@ -686,44 +686,44 @@ module ze-iface-conf {
             container mirror {
                 ze:os "linux";
                 ze:backend "netlink vpp";
-                description "Traffic mirroring for this interface.";
-                ze:help "The netlink backend mirrors through tc mirred. The vpp backend programs
-                         SPAN, through sw_interface_span_enable_disable, and it maps the ingress
-                         direction and the egress direction onto the RX SPAN state and the TX SPAN
-                         state, as a device-level port mirror.";
+                description "The netlink backend mirrors through tc mirred. The vpp backend programs
+                             SPAN, through sw_interface_span_enable_disable, and it maps the ingress
+                             direction and the egress direction onto the RX SPAN state and the TX SPAN
+                             state, as a device-level port mirror.";
+                ze:help "Traffic mirroring for this interface.";
 
                 leaf ingress {
                     type string;
-                    description "Mirror ingress traffic to this interface";
-                    ze:help "Ze installs a tc mirred filter that copies each received frame toward
-                             the named interface. Ze resolves the name through the same selector
-                             map as the source, so a capture port bound by mac/match or aliased by
-                             os-name works. An unbound name installs no mirror.";
+                    description "Ze installs a tc mirred filter that copies each received frame toward
+                                 the named interface. Ze resolves the name through the same selector
+                                 map as the source, so a capture port bound by mac/match or aliased by
+                                 os-name works. An unbound name installs no mirror.";
+                    ze:help "Mirror ingress traffic to this interface";
                 }
 
                 leaf egress {
                     type string;
-                    description "Mirror egress traffic to this interface";
-                    ze:help "Ze installs a tc mirred filter that copies each transmitted frame
-                             toward the named interface. Ze resolves the name through the same
-                             selector map as the source, so a capture port bound by mac/match or
-                             aliased by os-name works. An unbound name installs no mirror.";
+                    description "Ze installs a tc mirred filter that copies each transmitted frame
+                                 toward the named interface. Ze resolves the name through the same
+                                 selector map as the source, so a capture port bound by mac/match or
+                                 aliased by os-name works. An unbound name installs no mirror.";
+                    ze:help "Mirror egress traffic to this interface";
                 }
             }
 
             container mpls {
                 ze:os "linux";
-                description "MPLS forwarding on this interface (RFC 3031 LSR).";
-                ze:help "Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl
-                         write. The size of the global label table is a separate sysctl,
-                         net.mpls.platform_labels, which the sysctl config block sets.";
+                description "Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl
+                             write. The size of the global label table is a separate sysctl,
+                             net.mpls.platform_labels, which the sysctl config block sets.";
+                ze:help "MPLS forwarding on this interface (RFC 3031 LSR).";
 
                 leaf enable {
                     type boolean;
                     default false;
-                    description "Enable MPLS label input on this interface.";
-                    ze:help "The leaf sets net.mpls.conf.<iface>.input. net.mpls.platform_labels
-                             sets the size of the global label table.";
+                    description "The leaf sets net.mpls.conf.<iface>.input. net.mpls.platform_labels
+                                 sets the size of the global label table.";
+                    ze:help "Enable MPLS label input on this interface.";
                 }
             }
         }
@@ -733,40 +733,40 @@ module ze-iface-conf {
         description "IPv4 underlay endpoints for a tunnel.";
 
         container local {
-            description "Local IPv4 endpoint or source interface (one of ip or interface)";
-            ze:help "Set exactly one of ip and interface. Ze refuses both together with 'local ip
-                     and local interface are mutually exclusive', and it refuses neither with
-                     'local ip or local interface required'.";
+            description "Set exactly one of ip and interface. Ze refuses both together with 'local ip
+                         and local interface are mutually exclusive', and it refuses neither with
+                         'local ip or local interface required'.";
+            ze:help "Local IPv4 endpoint or source interface (one of ip or interface)";
 
             leaf ip {
                 type zt:ipv4-address;
-                description "Local IPv4 endpoint";
-                ze:help "Ze writes the address into the netlink Local field, so it becomes the
-                         source address of the outer IPv4 header. Use interface instead where the
-                         underlay address is learned by DHCP and can change.";
+                description "Ze writes the address into the netlink Local field, so it becomes the
+                             source address of the outer IPv4 header. Use interface instead where the
+                             underlay address is learned by DHCP and can change.";
+                ze:help "Local IPv4 endpoint";
             }
 
             leaf interface {
                 type string;
-                description "Local interface to take the source address from";
-                ze:help "Ze looks the device up and passes its kernel index as the netlink parent
-                         field, so the kernel takes the source address from that device. The vxlan
-                         case refuses this leaf and needs a local ip.";
+                description "Ze looks the device up and passes its kernel index as the netlink parent
+                             field, so the kernel takes the source address from that device. The vxlan
+                             case refuses this leaf and needs a local ip.";
+                ze:help "Local interface to take the source address from";
             }
         }
 
         container remote {
-            description "Remote IPv4 endpoint";
-            ze:help "The remote endpoint is mandatory, so ze builds no unnumbered tunnel and no
-                     multipoint tunnel. One tunnel interface reaches one remote endpoint.";
+            description "The remote endpoint is mandatory, so ze builds no unnumbered tunnel and no
+                         multipoint tunnel. One tunnel interface reaches one remote endpoint.";
+            ze:help "Remote IPv4 endpoint";
 
             leaf ip {
                 type zt:ipv4-address;
                 mandatory true;
-                description "Remote IPv4 endpoint";
-                ze:help "Ze writes the address into the netlink Remote field, so it becomes the
-                         destination address of the outer IPv4 header. For a vxlan tunnel this
-                         address is the remote VTEP.";
+                description "Ze writes the address into the netlink Remote field, so it becomes the
+                             destination address of the outer IPv4 header. For a vxlan tunnel this
+                             address is the remote VTEP.";
+                ze:help "Remote IPv4 endpoint";
             }
         }
     }
@@ -775,85 +775,85 @@ module ze-iface-conf {
         description "IPv6 underlay endpoints for a tunnel.";
 
         container local {
-            description "Local IPv6 endpoint or source interface (one of ip or interface)";
-            ze:help "Set exactly one of ip and interface. Ze refuses both together with 'local ip
-                     and local interface are mutually exclusive', and it refuses neither with
-                     'local ip or local interface required'.";
+            description "Set exactly one of ip and interface. Ze refuses both together with 'local ip
+                         and local interface are mutually exclusive', and it refuses neither with
+                         'local ip or local interface required'.";
+            ze:help "Local IPv6 endpoint or source interface (one of ip or interface)";
 
             leaf ip {
                 type zt:ipv6-address;
-                description "Local IPv6 endpoint";
-                ze:help "Ze writes the address into the netlink Local field, so it becomes the
-                         source address of the outer IPv6 header. Use interface instead where the
-                         underlay address is learned by a Router Advertisement and can change.";
+                description "Ze writes the address into the netlink Local field, so it becomes the
+                             source address of the outer IPv6 header. Use interface instead where the
+                             underlay address is learned by a Router Advertisement and can change.";
+                ze:help "Local IPv6 endpoint";
             }
 
             leaf interface {
                 type string;
-                description "Local interface to take the source address from";
-                ze:help "Ze looks the device up and passes its kernel index as the netlink parent
-                         field, so the kernel takes the source address from that device.";
+                description "Ze looks the device up and passes its kernel index as the netlink parent
+                             field, so the kernel takes the source address from that device.";
+                ze:help "Local interface to take the source address from";
             }
         }
 
         container remote {
-            description "Remote IPv6 endpoint";
-            ze:help "The remote endpoint is mandatory, so ze builds no unnumbered tunnel and no
-                     multipoint tunnel. One tunnel interface reaches one remote endpoint.";
+            description "The remote endpoint is mandatory, so ze builds no unnumbered tunnel and no
+                         multipoint tunnel. One tunnel interface reaches one remote endpoint.";
+            ze:help "Remote IPv6 endpoint";
 
             leaf ip {
                 type zt:ipv6-address;
                 mandatory true;
-                description "Remote IPv6 endpoint";
-                ze:help "Ze writes the address into the netlink Remote field, so it becomes the
-                         destination address of the outer IPv6 header.";
+                description "Ze writes the address into the netlink Remote field, so it becomes the
+                             destination address of the outer IPv6 header.";
+                ze:help "Remote IPv6 endpoint";
             }
         }
     }
 
     container interface {
-        description "Network interface configuration.";
-        ze:help "An interface name must not be one of the CLI reserved keywords: brief, scan, type,
-                 errors, counters. Each of these collides with the 'show interface' and 'clear
-                 interface' command grammar. 'show interface counters' would be ambiguous if an
-                 interface were named counters. iface.ValidateIfaceName rejects a reserved name at
-                 apply time, with a clear error. The kernel does not enforce this on its own.";
+        description "An interface name must not be one of the CLI reserved keywords: brief, scan, type,
+                     errors, counters. Each of these collides with the 'show interface' and 'clear
+                     interface' command grammar. 'show interface counters' would be ambiguous if an
+                     interface were named counters. iface.ValidateIfaceName rejects a reserved name at
+                     apply time, with a clear error. The kernel does not enforce this on its own.";
+        ze:help "Network interface configuration.";
 
         leaf backend {
             type string;
             default "netlink";
-            description "Interface management backend: netlink or vpp.";
-            ze:help "Ze loads the backend this name selects, and it refuses an unknown name with
-                     'unknown backend' and the list of registered names. netlink drives the Linux
-                     kernel through rtnetlink. vpp drives the VPP data plane, and it is linked in
-                     only under the ze_vpp build tag.";
+            description "Ze loads the backend this name selects, and it refuses an unknown name with
+                         'unknown backend' and the list of registered names. netlink drives the Linux
+                         kernel through rtnetlink. vpp drives the VPP data plane, and it is linked in
+                         only under the ze_vpp build tag.";
+            ze:help "Interface management backend: netlink or vpp.";
         }
 
         leaf dhcp-auto {
             type boolean;
             default false;
-            description "Auto-discover the first ethernet interface and run DHCP on it.";
-            ze:help "Use this leaf when the interface name is not known at config time, for example
-                     on a gokrazy appliance. Ze ignores the leaf when any explicit DHCP config
-                     exists.";
+            description "Use this leaf when the interface name is not known at config time, for example
+                         on a gokrazy appliance. Ze ignores the leaf when any explicit DHCP config
+                         exists.";
+            ze:help "Auto-discover the first ethernet interface and run DHCP on it.";
         }
 
         list ethernet {
             key "name";
             unique "mac/address";
             unique "mac/match";
-            description "Physical or virtual Ethernet interface.";
-            ze:help "Ze manages the interface's addresses, MTU, offload settings and units. The
-                     interface must already exist in the OS, because ze does not create a physical
-                     interface.";
+            description "Ze manages the interface's addresses, MTU, offload settings and units. The
+                         interface must already exist in the OS, because ze does not create a physical
+                         interface.";
+            ze:help "Physical or virtual Ethernet interface.";
 
             leaf name {
                 type string;
-                description "OS interface name (e.g., eth0, ens3). Must match an existing kernel interface.";
-                ze:help "Ze creates no physical interface, so the name must match a device the OS
-                         already carries. Where the logical name and the kernel device differ, set
-                         os-name to alias the device, or set mac/match to bind by hardware
-                         address.";
+                description "Ze creates no physical interface, so the name must match a device the OS
+                             already carries. Where the logical name and the kernel device differ, set
+                             os-name to alias the device, or set mac/match to bind by hardware
+                             address.";
+                ze:help "OS interface name (e.g., eth0, ens3). Must match an existing kernel interface.";
             }
 
             uses interface-l2;
@@ -862,17 +862,17 @@ module ze-iface-conf {
 
         list dummy {
             key "name";
-            description "Dummy interface, which behaves like a loopback.";
-            ze:help "Ze creates the interface when it does not exist. Use it to host a service
-                     address that is not tied to a physical link, for example a router-id or an
-                     anycast VIP.";
+            description "Ze creates the interface when it does not exist. Use it to host a service
+                         address that is not tied to a physical link, for example a router-id or an
+                         anycast VIP.";
+            ze:help "Dummy interface, which behaves like a loopback.";
 
             leaf name {
                 type string;
-                description "Interface name (e.g., dummy0). Ze creates the interface at apply time.";
-                ze:help "Ze creates the device with the netlink call LinkAdd and sets it up. The
-                         length is 1 to 15 characters, and a slash, a space and the sequence '..'
-                         are refused.";
+                description "Ze creates the device with the netlink call LinkAdd and sets it up. The
+                             length is 1 to 15 characters, and a slash, a space and the sequence '..'
+                             are refused.";
+                ze:help "Interface name (e.g., dummy0). Ze creates the interface at apply time.";
             }
 
             uses interface-l2;
@@ -883,26 +883,26 @@ module ze-iface-conf {
             key "name";
             unique "mac/address";
             ze:backend "netlink";
-            description "Virtual ethernet pair interface";
-            ze:help "A veth is a pair of connected devices, and a packet that enters one end
-                     leaves the other. Ze creates both ends in one netlink call and sets both up.
-                     The pair exists only while ze manages it, so ze deletes it when the entry
-                     leaves the config.";
+            description "A veth is a pair of connected devices, and a packet that enters one end
+                         leaves the other. Ze creates both ends in one netlink call and sets both up.
+                         The pair exists only while ze manages it, so ze deletes it when the entry
+                         leaves the config.";
+            ze:help "Virtual ethernet pair interface";
 
             leaf name {
                 type string;
-                description "Veth interface name (e.g., veth0). Ze creates the pair at apply time.";
-                ze:help "This name is the end ze manages: it carries the addresses, the units and
-                         the MTU. Ze creates the pair with one netlink LinkAdd call, then it sets
-                         the link state of both ends to up.";
+                description "This name is the end ze manages: it carries the addresses, the units and
+                             the MTU. Ze creates the pair with one netlink LinkAdd call, then it sets
+                             the link state of both ends to up.";
+                ze:help "Veth interface name (e.g., veth0). Ze creates the pair at apply time.";
             }
 
             leaf peer {
                 type string;
-                description "Veth peer name";
-                ze:help "Ze validates the peer name with the same rules as name. Ze sets the peer
-                         link state to up right after it creates the pair. The schema gives the
-                         peer end no units, so ze puts no address on it.";
+                description "Ze validates the peer name with the same rules as name. Ze sets the peer
+                             link state to up right after it creates the pair. The schema gives the
+                             peer end no units, so ze puts no address on it.";
+                ze:help "Veth peer name";
             }
 
             uses interface-l2;
@@ -913,36 +913,36 @@ module ze-iface-conf {
             key "name";
             unique "mac/address";
             ze:backend "netlink";
-            description "Linux bridge interface, which forwards Ethernet frames between member ports at L2.";
-            ze:help "Ze creates the bridge when it does not exist. Ze enslaves the member interfaces
-                     at apply time.";
+            description "Ze creates the bridge when it does not exist. Ze enslaves the member interfaces
+                         at apply time.";
+            ze:help "Linux bridge interface, which forwards Ethernet frames between member ports at L2.";
 
             leaf name {
                 type string;
-                description "Bridge interface name (e.g., br0). Ze creates the bridge at apply time.";
-                ze:help "Ze creates the bridge with the netlink call LinkAdd when the device is
-                         absent. The member leaf-list then enslaves each port to this device.";
+                description "Ze creates the bridge with the netlink call LinkAdd when the device is
+                             absent. The member leaf-list then enslaves each port to this device.";
+                ze:help "Bridge interface name (e.g., br0). Ze creates the bridge at apply time.";
             }
 
             leaf stp {
                 ze:os "linux";
                 type boolean;
                 default false;
-                description "Enable Spanning Tree Protocol";
-                ze:help "Ze writes 1 or 0 to /sys/class/net/<bridge>/bridge/stp_state. The default
-                         false leaves the bridge with no loop protection, so it forwards a frame
-                         as soon as a port comes up. Set it true where two ports can reach the
-                         same L2 segment.";
+                description "Ze writes 1 or 0 to /sys/class/net/<bridge>/bridge/stp_state. The default
+                             false leaves the bridge with no loop protection, so it forwards a frame
+                             as soon as a port comes up. Set it true where two ports can reach the
+                             same L2 segment.";
+                ze:help "Enable Spanning Tree Protocol";
             }
 
             leaf-list member {
                 ze:os "linux";
                 type string;
                 ze:syntax "bracket";
-                description "Member port interface names";
-                ze:help "Ze enslaves each named port with the netlink call LinkSetMaster. A port
-                         that leaves the list is released with LinkSetNoMaster on the next apply.
-                         Each name must be an interface the config or the OS already carries.";
+                description "Ze enslaves each named port with the netlink call LinkSetMaster. A port
+                             that leaves the list is released with LinkSetNoMaster on the next apply.
+                             Each name must be an interface the config or the OS already carries.";
+                ze:help "Member port interface names";
             }
 
             uses interface-l2;
@@ -952,55 +952,55 @@ module ze-iface-conf {
         list tunnel {
             key "name";
             ze:backend "netlink";
-            description "Tunnel interface, in the GRE, GRETAP, IPIP, SIT or IP6TNL family.";
-            ze:help "The choice below selects the encapsulation kind, and each case carries only the
-                     leaves that are valid for that kind. The local endpoint and remote endpoint
-                     pattern matches bgp peer connection { local { ip ... } remote { ip ... } }.";
+            description "The choice below selects the encapsulation kind, and each case carries only the
+                         leaves that are valid for that kind. The local endpoint and remote endpoint
+                         pattern matches bgp peer connection { local { ip ... } remote { ip ... } }.";
+            ze:help "Tunnel interface, in the GRE, GRETAP, IPIP, SIT or IP6TNL family.";
 
             leaf name {
                 type string;
-                description "Interface name (free-form, validated by iface naming rules)";
-                ze:help "Ze creates the kernel netdev under this name. The length is 1 to 15
-                         characters. A slash, a space and the sequence '..' are refused, because
-                         the name reaches a /proc/sys/net/ipv4/conf/<name>/ path.";
+                description "Ze creates the kernel netdev under this name. The length is 1 to 15
+                             characters. A slash, a space and the sequence '..' are refused, because
+                             the name reaches a /proc/sys/net/ipv4/conf/<name>/ path.";
+                ze:help "Interface name (free-form, validated by iface naming rules)";
             }
 
             container encapsulation {
-                description "Tunnel encapsulation kind and per-kind parameters";
-                ze:help "The container holds exactly one case of the kind choice below, and that
-                         choice is mandatory. A tunnel with no case is refused with 'encapsulation
-                         block has no kind selected'. A tunnel with no encapsulation container is
-                         refused with 'missing encapsulation block'.";
+                description "The container holds exactly one case of the kind choice below, and that
+                             choice is mandatory. A tunnel with no case is refused with 'encapsulation
+                             block has no kind selected'. A tunnel with no encapsulation container is
+                             refused with 'missing encapsulation block'.";
+                ze:help "Tunnel encapsulation kind and per-kind parameters";
 
                 choice kind {
                     mandatory true;
-                    description "Encapsulation kind of this tunnel.";
-                    ze:help "The schema cannot represent an invalid combination, for example a key
-                             on ipip.";
+                    description "The schema cannot represent an invalid combination, for example a key
+                                 on ipip.";
+                    ze:help "Encapsulation kind of this tunnel.";
 
                     case gre {
-                        description "GRE over IPv4 (RFC 2784, key extension RFC 2890). L3.";
-                        ze:help "The case selects the Linux gre kind, which puts a GRE header
-                                 between the outer IPv4 header and the inner packet. RFC 2890 adds
-                                 the optional Key field, and the key leaf below sets it.";
+                        description "The case selects the Linux gre kind, which puts a GRE header
+                                     between the outer IPv4 header and the inner packet. RFC 2890 adds
+                                     the optional Key field, and the key leaf below sets it.";
+                        ze:help "GRE over IPv4 (RFC 2784, key extension RFC 2890). L3.";
                         container gre {
                             ze:backend "netlink vpp";
-                            description "GRE-over-IPv4 parameters";
-                            ze:help "Ze builds a netlink Gretun link over IPv4 endpoints. The kind
-                                     is L3, so a unit that carries a vlan-id on this tunnel is
-                                     refused. Use the gretap kind where the tunnel must carry
-                                     Ethernet frames.";
+                            description "Ze builds a netlink Gretun link over IPv4 endpoints. The kind
+                                         is L3, so a unit that carries a vlan-id on this tunnel is
+                                         refused. Use the gretap kind where the tunnel must carry
+                                         Ethernet frames.";
+                            ze:help "GRE-over-IPv4 parameters";
                             uses tunnel-v4-endpoints;
 
                             leaf key {
                                 type uint32;
-                                description "32-bit GRE key (RFC 2890). Symmetric: same
-                                             value used for input and output";
-                                ze:help "Ze writes the value into the netlink IKey field and the
-                                         netlink OKey field, so one key covers the input direction
-                                         and the output direction. The value 0 cannot be set,
-                                         because the netlink library reads 0 as no key and leaves
-                                         the GRE Key flag clear.";
+                                description "Ze writes the value into the netlink IKey field and the
+                                             netlink OKey field, so one key covers the input direction
+                                             and the output direction. The value 0 cannot be set,
+                                             because the netlink library reads 0 as no key and leaves
+                                             the GRE Key flag clear.";
+                                ze:help "32-bit GRE key (RFC 2890). Symmetric: same
+                                         value used for input and output";
                             }
 
                             leaf ttl {
@@ -1013,64 +1013,64 @@ module ze-iface-conf {
                                 ze:backend "netlink";
                                 type uint8;
                                 default 64;
-                                description "Outer-header TTL. 0 = inherit from the inner packet";
-                                ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. The default 64 gives the
-                                         encapsulated packet its own budget of underlay hops, and
-                                         it matches the hoplimit default of the IPv6-underlay
-                                         kinds. 0 makes the kernel take the value from the inner
-                                         packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.
-                                         Only the netlink backend implements the leaf. The vpp
-                                         tunnel API carries no outer TTL, so a commit that names
-                                         a ttl on the vpp backend is refused by path.";
+                                description "Ze writes the value into the outer IPv4 TTL field,
+                                             through the netlink field Ttl. The default 64 gives the
+                                             encapsulated packet its own budget of underlay hops, and
+                                             it matches the hoplimit default of the IPv6-underlay
+                                             kinds. 0 makes the kernel take the value from the inner
+                                             packet instead, which drops the packet early when the
+                                             inner TTL is small or the underlay is more than one hop.
+                                             Only the netlink backend implements the leaf. The vpp
+                                             tunnel API carries no outer TTL, so a commit that names
+                                             a ttl on the vpp backend is refused by path.";
+                                ze:help "Outer-header TTL. 0 = inherit from the inner packet";
                             }
 
                             leaf tos {
                                 type uint8;
                                 default 0;
-                                description "Outer-header Type of Service. 0 = inherit";
-                                ze:help "Ze writes the value into the outer IPv4 Type of Service
-                                         field, through the netlink field Tos. 0 makes the kernel
-                                         copy the inner packet's own value, which carries a DSCP
-                                         marking across the tunnel.";
+                                description "Ze writes the value into the outer IPv4 Type of Service
+                                             field, through the netlink field Tos. 0 makes the kernel
+                                             copy the inner packet's own value, which carries a DSCP
+                                             marking across the tunnel.";
+                                ze:help "Outer-header Type of Service. 0 = inherit";
                             }
 
                             leaf no-pmtu-discovery {
                                 type empty;
-                                description "Disable Path MTU Discovery on the outer header";
-                                ze:help "Ze sets the netlink field PMtuDisc to 0 when this leaf is
-                                         present, and to 1 when it is absent. Path MTU Discovery
-                                         is therefore on by default. Set the leaf where the
-                                         underlay path drops the ICMP Fragmentation Needed message
-                                         that discovery needs.";
+                                description "Ze sets the netlink field PMtuDisc to 0 when this leaf is
+                                             present, and to 1 when it is absent. Path MTU Discovery
+                                             is therefore on by default. Set the leaf where the
+                                             underlay path drops the ICMP Fragmentation Needed message
+                                             that discovery needs.";
+                                ze:help "Disable Path MTU Discovery on the outer header";
                             }
                         }
                     }
 
                     case gretap {
-                        description "GRE over IPv4, L2 (Ethernet over GRE, bridgeable). RFC 2784.";
-                        ze:help "The case selects the Linux gretap kind, which carries whole
-                                 Ethernet frames over GRE. It is one of the two kinds ze counts as
-                                 bridgeable. A unit on it can therefore carry a vlan-id, and the
-                                 case carries its own mac container.";
+                        description "The case selects the Linux gretap kind, which carries whole
+                                     Ethernet frames over GRE. It is one of the two kinds ze counts as
+                                     bridgeable. A unit on it can therefore carry a vlan-id, and the
+                                     case carries its own mac container.";
+                        ze:help "GRE over IPv4, L2 (Ethernet over GRE, bridgeable). RFC 2784.";
                         container gretap {
                             ze:backend "netlink vpp";
-                            description "GRETAP-over-IPv4 parameters";
-                            ze:help "Ze builds a netlink Gretap link over IPv4 endpoints. The
-                                     kernel selects the GRE protocol type 0x6558, Transparent
-                                     Ethernet Bridging, from the link kind alone, so no leaf sets
-                                     it.";
+                            description "Ze builds a netlink Gretap link over IPv4 endpoints. The
+                                         kernel selects the GRE protocol type 0x6558, Transparent
+                                         Ethernet Bridging, from the link kind alone, so no leaf sets
+                                         it.";
+                            ze:help "GRETAP-over-IPv4 parameters";
                             uses tunnel-v4-endpoints;
 
                             leaf key {
                                 type uint32;
-                                description "32-bit GRE key (RFC 2890)";
-                                ze:help "Ze writes the value into the netlink IKey field and the
-                                         netlink OKey field, so one key covers the input direction
-                                         and the output direction. The value 0 cannot be set,
-                                         because the netlink library reads 0 as no key and leaves
-                                         the GRE Key flag clear.";
+                                description "Ze writes the value into the netlink IKey field and the
+                                             netlink OKey field, so one key covers the input direction
+                                             and the output direction. The value 0 cannot be set,
+                                             because the netlink library reads 0 as no key and leaves
+                                             the GRE Key flag clear.";
+                                ze:help "32-bit GRE key (RFC 2890)";
                             }
 
                             leaf ttl {
@@ -1083,181 +1083,181 @@ module ze-iface-conf {
                                 ze:backend "netlink";
                                 type uint8;
                                 default 64;
-                                description "Outer-header TTL. 0 = inherit from the inner packet";
-                                ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. The default 64 gives the
-                                         encapsulated packet its own budget of underlay hops, and
-                                         it matches the hoplimit default of the IPv6-underlay
-                                         kinds. 0 makes the kernel take the value from the inner
-                                         packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.
-                                         Only the netlink backend implements the leaf. The vpp
-                                         tunnel API carries no outer TTL, so a commit that names
-                                         a ttl on the vpp backend is refused by path.";
+                                description "Ze writes the value into the outer IPv4 TTL field,
+                                             through the netlink field Ttl. The default 64 gives the
+                                             encapsulated packet its own budget of underlay hops, and
+                                             it matches the hoplimit default of the IPv6-underlay
+                                             kinds. 0 makes the kernel take the value from the inner
+                                             packet instead, which drops the packet early when the
+                                             inner TTL is small or the underlay is more than one hop.
+                                             Only the netlink backend implements the leaf. The vpp
+                                             tunnel API carries no outer TTL, so a commit that names
+                                             a ttl on the vpp backend is refused by path.";
+                                ze:help "Outer-header TTL. 0 = inherit from the inner packet";
                             }
 
                             leaf tos {
                                 type uint8;
                                 default 0;
-                                description "Outer-header Type of Service. 0 = inherit";
-                                ze:help "Ze writes the value into the outer IPv4 Type of Service
-                                         field, through the netlink field Tos. 0 makes the kernel
-                                         copy the inner packet's own value, which carries a DSCP
-                                         marking across the tunnel.";
+                                description "Ze writes the value into the outer IPv4 Type of Service
+                                             field, through the netlink field Tos. 0 makes the kernel
+                                             copy the inner packet's own value, which carries a DSCP
+                                             marking across the tunnel.";
+                                ze:help "Outer-header Type of Service. 0 = inherit";
                             }
 
                             leaf no-pmtu-discovery {
                                 type empty;
-                                description "Disable Path MTU Discovery on the outer header";
-                                ze:help "Ze sets the netlink field PMtuDisc to 0 when this leaf is
-                                         present, and to 1 when it is absent. Path MTU Discovery
-                                         is therefore on by default. Set the leaf where the
-                                         underlay path drops the ICMP Fragmentation Needed message
-                                         that discovery needs.";
+                                description "Ze sets the netlink field PMtuDisc to 0 when this leaf is
+                                             present, and to 1 when it is absent. Path MTU Discovery
+                                             is therefore on by default. Set the leaf where the
+                                             underlay path drops the ICMP Fragmentation Needed message
+                                             that discovery needs.";
+                                ze:help "Disable Path MTU Discovery on the outer header";
                             }
 
                             container mac {
-                                description "Hardware MAC settings (L2 tunnel kinds only)";
-                                ze:help "An L2 tunnel kind carries its MAC leaf here rather than
-                                         in the shared interface-l2 grouping, because an L3 kind
-                                         has no MAC at all. Ze reads the container for the gretap
-                                         kind and the ip6gretap kind only.";
+                                description "An L2 tunnel kind carries its MAC leaf here rather than
+                                             in the shared interface-l2 grouping, because an L3 kind
+                                             has no MAC at all. Ze reads the container for the gretap
+                                             kind and the ip6gretap kind only.";
+                                ze:help "Hardware MAC settings (L2 tunnel kinds only)";
                                 leaf address {
                                     type string {
                                         pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
                                     }
                                     ze:validate "mac-address";
-                                    description "Hardware MAC address (L2 tunnel kinds only)";
-                                    ze:help "Ze applies the value after it creates the netdev,
-                                             with the netlink call LinkSetHardwareAddr. When the
-                                             leaf is omitted, ze makes no MAC call, and the device
-                                             keeps the address the kernel gave it.";
+                                    description "Ze applies the value after it creates the netdev,
+                                                 with the netlink call LinkSetHardwareAddr. When the
+                                                 leaf is omitted, ze makes no MAC call, and the device
+                                                 keeps the address the kernel gave it.";
+                                    ze:help "Hardware MAC address (L2 tunnel kinds only)";
                                 }
                             }
                         }
                     }
 
                     case ip6gre {
-                        description "GRE over IPv6 (RFC 2784, key extension RFC 2890). L3.";
-                        ze:help "The case selects the Linux ip6gre kind, which puts the GRE header
-                                 in an outer IPv6 header. Ze builds it from the same netlink
-                                 Gretun type as gre, and the endpoint family selects the kernel
-                                 kind.";
+                        description "The case selects the Linux ip6gre kind, which puts the GRE header
+                                     in an outer IPv6 header. Ze builds it from the same netlink
+                                     Gretun type as gre, and the endpoint family selects the kernel
+                                     kind.";
+                        ze:help "GRE over IPv6 (RFC 2784, key extension RFC 2890). L3.";
                         container ip6gre {
-                            description "GRE-over-IPv6 parameters";
-                            ze:help "The endpoints are IPv6, so this container carries hoplimit
-                                     and tclass where an IPv4 kind carries ttl and tos. The kind
-                                     is L3, so a unit that carries a vlan-id on this tunnel is
-                                     refused.";
+                            description "The endpoints are IPv6, so this container carries hoplimit
+                                         and tclass where an IPv4 kind carries ttl and tos. The kind
+                                         is L3, so a unit that carries a vlan-id on this tunnel is
+                                         refused.";
+                            ze:help "GRE-over-IPv6 parameters";
                             uses tunnel-v6-endpoints;
 
                             leaf key {
                                 type uint32;
-                                description "32-bit GRE key (RFC 2890)";
-                                ze:help "Ze writes the value into the netlink IKey field and the
-                                         netlink OKey field, so one key covers the input direction
-                                         and the output direction. The value 0 cannot be set,
-                                         because the netlink library reads 0 as no key and leaves
-                                         the GRE Key flag clear.";
+                                description "Ze writes the value into the netlink IKey field and the
+                                             netlink OKey field, so one key covers the input direction
+                                             and the output direction. The value 0 cannot be set,
+                                             because the netlink library reads 0 as no key and leaves
+                                             the GRE Key flag clear.";
+                                ze:help "32-bit GRE key (RFC 2890)";
                             }
 
                             leaf hoplimit {
                                 type uint8;
                                 default 64;
-                                description "Outer IPv6 hop limit (RFC 2473 Section 6.3)";
-                                ze:help "Ze writes the value into the outer IPv6 Hop Limit field,
-                                         through the netlink field Ttl. The field limits how many
-                                         underlay routers the encapsulated packet can cross before
-                                         one of them drops it.";
+                                description "Ze writes the value into the outer IPv6 Hop Limit field,
+                                             through the netlink field Ttl. The field limits how many
+                                             underlay routers the encapsulated packet can cross before
+                                             one of them drops it.";
+                                ze:help "Outer IPv6 hop limit (RFC 2473 Section 6.3)";
                             }
 
                             leaf tclass {
                                 type uint8;
                                 default 0;
-                                description "Outer IPv6 traffic class (RFC 2473 Section 6.4)";
-                                ze:help "Ze writes the value into the outer IPv6 Traffic Class
-                                         field, through the netlink field Tos. The field carries
-                                         the DSCP marking of the encapsulated packet across the
-                                         underlay.";
+                                description "Ze writes the value into the outer IPv6 Traffic Class
+                                             field, through the netlink field Tos. The field carries
+                                             the DSCP marking of the encapsulated packet across the
+                                             underlay.";
+                                ze:help "Outer IPv6 traffic class (RFC 2473 Section 6.4)";
                             }
                         }
                     }
 
                     case ip6gretap {
-                        description "GRE over IPv6, L2 (Ethernet over GRE bridgeable). RFC 2784.";
-                        ze:help "The case selects the Linux ip6gretap kind, which carries whole
-                                 Ethernet frames over GRE in an outer IPv6 header. It is the
-                                 second of the two kinds ze counts as bridgeable.";
+                        description "The case selects the Linux ip6gretap kind, which carries whole
+                                     Ethernet frames over GRE in an outer IPv6 header. It is the
+                                     second of the two kinds ze counts as bridgeable.";
+                        ze:help "GRE over IPv6, L2 (Ethernet over GRE bridgeable). RFC 2784.";
                         container ip6gretap {
-                            description "GRETAP-over-IPv6 parameters";
-                            ze:help "Ze builds a netlink Gretap link over IPv6 endpoints. The
-                                     endpoints are IPv6, so the container carries hoplimit and
-                                     tclass where the gretap case carries ttl and tos.";
+                            description "Ze builds a netlink Gretap link over IPv6 endpoints. The
+                                         endpoints are IPv6, so the container carries hoplimit and
+                                         tclass where the gretap case carries ttl and tos.";
+                            ze:help "GRETAP-over-IPv6 parameters";
                             uses tunnel-v6-endpoints;
 
                             leaf key {
                                 type uint32;
-                                description "32-bit GRE key (RFC 2890)";
-                                ze:help "Ze writes the value into the netlink IKey field and the
-                                         netlink OKey field, so one key covers the input direction
-                                         and the output direction. The value 0 cannot be set,
-                                         because the netlink library reads 0 as no key and leaves
-                                         the GRE Key flag clear.";
+                                description "Ze writes the value into the netlink IKey field and the
+                                             netlink OKey field, so one key covers the input direction
+                                             and the output direction. The value 0 cannot be set,
+                                             because the netlink library reads 0 as no key and leaves
+                                             the GRE Key flag clear.";
+                                ze:help "32-bit GRE key (RFC 2890)";
                             }
 
                             leaf hoplimit {
                                 type uint8;
                                 default 64;
-                                description "Outer IPv6 hop limit";
-                                ze:help "Ze writes the value into the outer IPv6 Hop Limit field,
-                                         through the netlink field Ttl. The field limits how many
-                                         underlay routers the encapsulated packet can cross before
-                                         one of them drops it.";
+                                description "Ze writes the value into the outer IPv6 Hop Limit field,
+                                             through the netlink field Ttl. The field limits how many
+                                             underlay routers the encapsulated packet can cross before
+                                             one of them drops it.";
+                                ze:help "Outer IPv6 hop limit";
                             }
 
                             leaf tclass {
                                 type uint8;
                                 default 0;
-                                description "Outer IPv6 traffic class";
-                                ze:help "Ze writes the value into the outer IPv6 Traffic Class
-                                         field, through the netlink field Tos. The field carries
-                                         the DSCP marking of the encapsulated packet across the
-                                         underlay.";
+                                description "Ze writes the value into the outer IPv6 Traffic Class
+                                             field, through the netlink field Tos. The field carries
+                                             the DSCP marking of the encapsulated packet across the
+                                             underlay.";
+                                ze:help "Outer IPv6 traffic class";
                             }
 
                             container mac {
-                                description "Hardware MAC settings (L2 tunnel kinds only)";
-                                ze:help "An L2 tunnel kind carries its MAC leaf here rather than
-                                         in the shared interface-l2 grouping, because an L3 kind
-                                         has no MAC at all. Ze reads the container for the gretap
-                                         kind and the ip6gretap kind only.";
+                                description "An L2 tunnel kind carries its MAC leaf here rather than
+                                             in the shared interface-l2 grouping, because an L3 kind
+                                             has no MAC at all. Ze reads the container for the gretap
+                                             kind and the ip6gretap kind only.";
+                                ze:help "Hardware MAC settings (L2 tunnel kinds only)";
                                 leaf address {
                                     type string {
                                         pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
                                     }
                                     ze:validate "mac-address";
-                                    description "Hardware MAC address (L2 tunnel kinds only)";
-                                    ze:help "Ze applies the value after it creates the netdev,
-                                             with the netlink call LinkSetHardwareAddr. When the
-                                             leaf is omitted, ze makes no MAC call, and the device
-                                             keeps the address the kernel gave it.";
+                                    description "Ze applies the value after it creates the netdev,
+                                                 with the netlink call LinkSetHardwareAddr. When the
+                                                 leaf is omitted, ze makes no MAC call, and the device
+                                                 keeps the address the kernel gave it.";
+                                    ze:help "Hardware MAC address (L2 tunnel kinds only)";
                                 }
                             }
                         }
                     }
 
                     case ipip {
-                        description "IPv4 in IPv4 (RFC 2003). No GRE header, no key. L3.";
-                        ze:help "The case selects the Linux ipip kind, which puts an IPv4 packet
-                                 directly in an outer IPv4 header with Protocol 4. There is no GRE
-                                 header, so no key can separate two tunnels between the same
-                                 endpoint pair.";
+                        description "The case selects the Linux ipip kind, which puts an IPv4 packet
+                                     directly in an outer IPv4 header with Protocol 4. There is no GRE
+                                     header, so no key can separate two tunnels between the same
+                                     endpoint pair.";
+                        ze:help "IPv4 in IPv4 (RFC 2003). No GRE header, no key. L3.";
                         container ipip {
                             ze:backend "netlink vpp";
-                            description "IPv4-in-IPv4 tunnel parameters (RFC 2003). Minimal overhead, no key support.";
-                            ze:help "Ze builds a netlink Iptun link and sets Proto to
-                                     IPPROTO_IPIP. The kind is L3, so a unit that carries a
-                                     vlan-id on this tunnel is refused at parse time.";
+                            description "Ze builds a netlink Iptun link and sets Proto to
+                                         IPPROTO_IPIP. The kind is L3, so a unit that carries a
+                                         vlan-id on this tunnel is refused at parse time.";
+                            ze:help "IPv4-in-IPv4 tunnel parameters (RFC 2003). Minimal overhead, no key support.";
                             uses tunnel-v4-endpoints;
 
                             leaf ttl {
@@ -1270,196 +1270,196 @@ module ze-iface-conf {
                                 ze:backend "netlink";
                                 type uint8;
                                 default 64;
-                                description "Outer-header TTL. 0 = inherit from the inner packet";
-                                ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. The default 64 gives the
-                                         encapsulated packet its own budget of underlay hops, and
-                                         it matches the hoplimit default of the IPv6-underlay
-                                         kinds. 0 makes the kernel take the value from the inner
-                                         packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.
-                                         Only the netlink backend implements the leaf. The vpp
-                                         tunnel API carries no outer TTL, so a commit that names
-                                         a ttl on the vpp backend is refused by path.";
+                                description "Ze writes the value into the outer IPv4 TTL field,
+                                             through the netlink field Ttl. The default 64 gives the
+                                             encapsulated packet its own budget of underlay hops, and
+                                             it matches the hoplimit default of the IPv6-underlay
+                                             kinds. 0 makes the kernel take the value from the inner
+                                             packet instead, which drops the packet early when the
+                                             inner TTL is small or the underlay is more than one hop.
+                                             Only the netlink backend implements the leaf. The vpp
+                                             tunnel API carries no outer TTL, so a commit that names
+                                             a ttl on the vpp backend is refused by path.";
+                                ze:help "Outer-header TTL. 0 = inherit from the inner packet";
                             }
 
                             leaf tos {
                                 type uint8;
                                 default 0;
-                                description "Outer-header Type of Service. 0 = inherit";
-                                ze:help "Ze writes the value into the outer IPv4 Type of Service
-                                         field, through the netlink field Tos. 0 makes the kernel
-                                         copy the inner packet's own value, which carries a DSCP
-                                         marking across the tunnel.";
+                                description "Ze writes the value into the outer IPv4 Type of Service
+                                             field, through the netlink field Tos. 0 makes the kernel
+                                             copy the inner packet's own value, which carries a DSCP
+                                             marking across the tunnel.";
+                                ze:help "Outer-header Type of Service. 0 = inherit";
                             }
 
                             leaf no-pmtu-discovery {
                                 type empty;
-                                description "Disable Path MTU Discovery on the outer header";
-                                ze:help "Ze sets the netlink field PMtuDisc to 0 when this leaf is
-                                         present, and to 1 when it is absent. Path MTU Discovery
-                                         is therefore on by default. Set the leaf where the
-                                         underlay path drops the ICMP Fragmentation Needed message
-                                         that discovery needs.";
+                                description "Ze sets the netlink field PMtuDisc to 0 when this leaf is
+                                             present, and to 1 when it is absent. Path MTU Discovery
+                                             is therefore on by default. Set the leaf where the
+                                             underlay path drops the ICMP Fragmentation Needed message
+                                             that discovery needs.";
+                                ze:help "Disable Path MTU Discovery on the outer header";
                             }
                         }
                     }
 
                     case sit {
-                        description "IPv6 in IPv4 (6in4, RFC 4213 Section 3). L3.";
-                        ze:help "The case selects the Linux sit kind, which carries IPv6 in an
-                                 outer IPv4 header with Protocol 41. Ze sets the netlink field
-                                 Proto to IPPROTO_IPV6. Use the kind to reach an IPv6 network over
-                                 an IPv4-only underlay.";
+                        description "The case selects the Linux sit kind, which carries IPv6 in an
+                                     outer IPv4 header with Protocol 41. Ze sets the netlink field
+                                     Proto to IPPROTO_IPV6. Use the kind to reach an IPv6 network over
+                                     an IPv4-only underlay.";
+                        ze:help "IPv6 in IPv4 (6in4, RFC 4213 Section 3). L3.";
                         container sit {
-                            description "SIT (6in4) parameters";
-                            ze:help "Ze builds a netlink Sittun link. The endpoints are IPv4 and
-                                     the payload is IPv6, so the container carries no key leaf.
-                                     The kind is L3, so a unit that carries a vlan-id on this
-                                     tunnel is refused.";
+                            description "Ze builds a netlink Sittun link. The endpoints are IPv4 and
+                                         the payload is IPv6, so the container carries no key leaf.
+                                         The kind is L3, so a unit that carries a vlan-id on this
+                                         tunnel is refused.";
+                            ze:help "SIT (6in4) parameters";
                             uses tunnel-v4-endpoints;
 
                             leaf ttl {
                                 type uint8;
                                 default 64;
-                                description "Outer-header TTL. 0 = inherit from the inner packet";
-                                ze:help "Ze writes the value into the outer IPv4 TTL field,
-                                         through the netlink field Ttl. The default 64 gives the
-                                         encapsulated packet its own budget of underlay hops, and
-                                         it matches the hoplimit default of the IPv6-underlay
-                                         kinds. 0 makes the kernel take the value from the inner
-                                         packet instead, which drops the packet early when the
-                                         inner TTL is small or the underlay is more than one hop.";
+                                description "Ze writes the value into the outer IPv4 TTL field,
+                                             through the netlink field Ttl. The default 64 gives the
+                                             encapsulated packet its own budget of underlay hops, and
+                                             it matches the hoplimit default of the IPv6-underlay
+                                             kinds. 0 makes the kernel take the value from the inner
+                                             packet instead, which drops the packet early when the
+                                             inner TTL is small or the underlay is more than one hop.";
+                                ze:help "Outer-header TTL. 0 = inherit from the inner packet";
                             }
 
                             leaf tos {
                                 type uint8;
                                 default 0;
-                                description "Outer-header Type of Service. 0 = inherit";
-                                ze:help "Ze writes the value into the outer IPv4 Type of Service
-                                         field, through the netlink field Tos. 0 makes the kernel
-                                         copy the inner packet's own value, which carries a DSCP
-                                         marking across the tunnel.";
+                                description "Ze writes the value into the outer IPv4 Type of Service
+                                             field, through the netlink field Tos. 0 makes the kernel
+                                             copy the inner packet's own value, which carries a DSCP
+                                             marking across the tunnel.";
+                                ze:help "Outer-header Type of Service. 0 = inherit";
                             }
 
                             leaf no-pmtu-discovery {
                                 type empty;
-                                description "Disable Path MTU Discovery on the outer header";
-                                ze:help "Ze sets the netlink field PMtuDisc to 0 when this leaf is
-                                         present, and to 1 when it is absent. Path MTU Discovery
-                                         is therefore on by default. Set the leaf where the
-                                         underlay path drops the ICMP Fragmentation Needed message
-                                         that discovery needs.";
+                                description "Ze sets the netlink field PMtuDisc to 0 when this leaf is
+                                             present, and to 1 when it is absent. Path MTU Discovery
+                                             is therefore on by default. Set the leaf where the
+                                             underlay path drops the ICMP Fragmentation Needed message
+                                             that discovery needs.";
+                                ze:help "Disable Path MTU Discovery on the outer header";
                             }
                         }
                     }
 
                     case ip6tnl {
-                        description "IPv6 in IPv6 (RFC 2473). Also covers ip6ip6. L3.";
-                        ze:help "The case selects the Linux ip6tnl kind, and ze sets the netlink
-                                 field Proto to IPPROTO_IPV6, which is 41. The same kernel kind
-                                 serves the ipip6 case, and the inner protocol number is the only
-                                 thing that separates the two.";
+                        description "The case selects the Linux ip6tnl kind, and ze sets the netlink
+                                     field Proto to IPPROTO_IPV6, which is 41. The same kernel kind
+                                     serves the ipip6 case, and the inner protocol number is the only
+                                     thing that separates the two.";
+                        ze:help "IPv6 in IPv6 (RFC 2473). Also covers ip6ip6. L3.";
                         container ip6tnl {
-                            description "IPv6-in-IPv6 tunnel parameters (RFC 2473). Also handles ip6ip6 encapsulation.";
-                            ze:help "Ze builds a netlink Ip6tnl link over IPv6 endpoints. A
-                                     read-back of an existing device reports the kind as ip6tnl
-                                     for this case and for ipip6, because the kernel drops the
-                                     inner protocol number. Ze therefore cannot separate the two
-                                     from kernel state alone.";
+                            description "Ze builds a netlink Ip6tnl link over IPv6 endpoints. A
+                                         read-back of an existing device reports the kind as ip6tnl
+                                         for this case and for ipip6, because the kernel drops the
+                                         inner protocol number. Ze therefore cannot separate the two
+                                         from kernel state alone.";
+                            ze:help "IPv6-in-IPv6 tunnel parameters (RFC 2473). Also handles ip6ip6 encapsulation.";
                             uses tunnel-v6-endpoints;
 
                             leaf hoplimit {
                                 type uint8;
                                 default 64;
-                                description "Outer IPv6 hop limit (RFC 2473 Section 6.3)";
-                                ze:help "Ze writes the value into the outer IPv6 Hop Limit field,
-                                         through the netlink field Ttl. The field limits how many
-                                         underlay routers the encapsulated packet can cross before
-                                         one of them drops it.";
+                                description "Ze writes the value into the outer IPv6 Hop Limit field,
+                                             through the netlink field Ttl. The field limits how many
+                                             underlay routers the encapsulated packet can cross before
+                                             one of them drops it.";
+                                ze:help "Outer IPv6 hop limit (RFC 2473 Section 6.3)";
                             }
 
                             leaf tclass {
                                 type uint8;
                                 default 0;
-                                description "Outer IPv6 traffic class (RFC 2473 Section 6.4)";
-                                ze:help "Ze writes the value into the outer IPv6 Traffic Class
-                                         field, through the netlink field Tos. The field carries
-                                         the DSCP marking of the encapsulated packet across the
-                                         underlay.";
+                                description "Ze writes the value into the outer IPv6 Traffic Class
+                                             field, through the netlink field Tos. The field carries
+                                             the DSCP marking of the encapsulated packet across the
+                                             underlay.";
+                                ze:help "Outer IPv6 traffic class (RFC 2473 Section 6.4)";
                             }
 
                             leaf encaplimit {
                                 type uint8;
                                 default 4;
-                                description "Tunnel encapsulation limit (RFC 2473 Section 4.1.1)";
-                                ze:help "RFC 2473 Section 4.1.1 defines the value as how many
-                                         further levels of encapsulation are permitted for the
-                                         packet. Ze writes it into the netlink field EncapLimit,
-                                         and the kernel sends it as an IPv6 destination option.";
+                                description "RFC 2473 Section 4.1.1 defines the value as how many
+                                             further levels of encapsulation are permitted for the
+                                             packet. Ze writes it into the netlink field EncapLimit,
+                                             and the kernel sends it as an IPv6 destination option.";
+                                ze:help "Tunnel encapsulation limit (RFC 2473 Section 4.1.1)";
                             }
                         }
                     }
 
                     case ipip6 {
-                        description "IPv4 in IPv6 (RFC 2473 with Next Header = 4). L3.";
-                        ze:help "Ze implements this case through the ip6tnl Linux kind, with
-                                 Proto=IPPROTO_IPIP.";
+                        description "Ze implements this case through the ip6tnl Linux kind, with
+                                     Proto=IPPROTO_IPIP.";
+                        ze:help "IPv4 in IPv6 (RFC 2473 with Next Header = 4). L3.";
                         container ipip6 {
-                            description "IPv4-in-IPv6 tunnel parameters (RFC 2473, Next Header = 4). Uses the ip6tnl kernel kind.";
-                            ze:help "Ze builds the same netlink Ip6tnl link as the ip6tnl case,
-                                     and it sets Proto to IPPROTO_IPIP, which is 4. The endpoints
-                                     are IPv6 and the payload is IPv4. The kernel reports the
-                                     device kind as ip6tnl either way.";
+                            description "Ze builds the same netlink Ip6tnl link as the ip6tnl case,
+                                         and it sets Proto to IPPROTO_IPIP, which is 4. The endpoints
+                                         are IPv6 and the payload is IPv4. The kernel reports the
+                                         device kind as ip6tnl either way.";
+                            ze:help "IPv4-in-IPv6 tunnel parameters (RFC 2473, Next Header = 4). Uses the ip6tnl kernel kind.";
                             uses tunnel-v6-endpoints;
 
                             leaf hoplimit {
                                 type uint8;
                                 default 64;
-                                description "Outer IPv6 hop limit";
-                                ze:help "Ze writes the value into the outer IPv6 Hop Limit field,
-                                         through the netlink field Ttl. The field limits how many
-                                         underlay routers the encapsulated packet can cross before
-                                         one of them drops it.";
+                                description "Ze writes the value into the outer IPv6 Hop Limit field,
+                                             through the netlink field Ttl. The field limits how many
+                                             underlay routers the encapsulated packet can cross before
+                                             one of them drops it.";
+                                ze:help "Outer IPv6 hop limit";
                             }
 
                             leaf tclass {
                                 type uint8;
                                 default 0;
-                                description "Outer IPv6 traffic class";
-                                ze:help "Ze writes the value into the outer IPv6 Traffic Class
-                                         field, through the netlink field Tos. The field carries
-                                         the DSCP marking of the encapsulated packet across the
-                                         underlay.";
+                                description "Ze writes the value into the outer IPv6 Traffic Class
+                                             field, through the netlink field Tos. The field carries
+                                             the DSCP marking of the encapsulated packet across the
+                                             underlay.";
+                                ze:help "Outer IPv6 traffic class";
                             }
 
                             leaf encaplimit {
                                 type uint8;
                                 default 4;
-                                description "Tunnel encapsulation limit";
-                                ze:help "RFC 2473 Section 4.1.1 defines the value as how many
-                                         further levels of encapsulation are permitted for the
-                                         packet. Ze writes it into the netlink field EncapLimit,
-                                         and the kernel sends it as an IPv6 destination option.";
+                                description "RFC 2473 Section 4.1.1 defines the value as how many
+                                             further levels of encapsulation are permitted for the
+                                             packet. Ze writes it into the netlink field EncapLimit,
+                                             and the kernel sends it as an IPv6 destination option.";
+                                ze:help "Tunnel encapsulation limit";
                             }
                         }
                     }
 
                     case vxlan {
-                        description "VXLAN overlay: L2 Ethernet frames over a UDP/IPv4 underlay, keyed by a 24-bit VNI.";
-                        ze:help "The case is implemented in the netlink backend and in the VPP
-                                 backend.";
+                        description "The case is implemented in the netlink backend and in the VPP
+                                     backend.";
+                        ze:help "VXLAN overlay: L2 Ethernet frames over a UDP/IPv4 underlay, keyed by a 24-bit VNI.";
                         container vxlan {
                             ze:backend "netlink vpp";
-                            description "VXLAN parameters. local ip is the tunnel
-                                         source, remote ip the (unicast) VTEP
-                                         destination.";
-                            ze:help "Ze builds a netlink Vxlan link, and it refuses a local
-                                     interface source, so the local endpoint must be an ip. The
-                                     VPP backend implements the same kind through
-                                     VxlanAddDelTunnelV3. A unit that carries a vlan-id on this
-                                     tunnel is refused, because ze counts only gretap and
-                                     ip6gretap as bridgeable.";
+                            description "Ze builds a netlink Vxlan link, and it refuses a local
+                                         interface source, so the local endpoint must be an ip. The
+                                         VPP backend implements the same kind through
+                                         VxlanAddDelTunnelV3. A unit that carries a vlan-id on this
+                                         tunnel is refused, because ze counts only gretap and
+                                         ip6gretap as bridgeable.";
+                            ze:help "VXLAN parameters. local ip is the tunnel
+                                     source, remote ip the (unicast) VTEP
+                                     destination.";
                             uses tunnel-v4-endpoints;
 
                             leaf vni {
@@ -1467,22 +1467,22 @@ module ze-iface-conf {
                                     range "1..16777215";
                                 }
                                 mandatory true;
-                                description "VXLAN Network Identifier (24-bit, 1..16777215)";
-                                ze:help "The VNI separates overlays that share one underlay, so
-                                         two VXLAN tunnels between the same endpoints need
-                                         different values. Ze refuses 0 and any value more
-                                         than 16777215, in the netlink backend and in the VPP
-                                         backend.";
+                                description "The VNI separates overlays that share one underlay, so
+                                             two VXLAN tunnels between the same endpoints need
+                                             different values. Ze refuses 0 and any value more
+                                             than 16777215, in the netlink backend and in the VPP
+                                             backend.";
+                                ze:help "VXLAN Network Identifier (24-bit, 1..16777215)";
                             }
 
                             leaf port {
                                 type zt:port;
                                 default 4789;
-                                description "UDP destination port (IANA-assigned default 4789)";
-                                ze:help "4789 is the port IANA assigns to VXLAN. Ze sends the
-                                         value as the netlink destination port, and 0 selects
-                                         4789. Change it only where an underlay device or a
-                                         firewall expects another port.";
+                                description "4789 is the port IANA assigns to VXLAN. Ze sends the
+                                             value as the netlink destination port, and 0 selects
+                                             4789. Change it only where an underlay device or a
+                                             firewall expects another port.";
+                                ze:help "UDP destination port (IANA-assigned default 4789)";
                             }
                         }
                     }
@@ -1497,107 +1497,107 @@ module ze-iface-conf {
             key "name";
             ze:listener;
             ze:backend "netlink vpp";
-            description "WireGuard interface, configured declaratively.";
-            ze:help "The interface level carries listen-port, fwmark and private-key, and a nested
-                     peer list. Each peer carries public-key, endpoint, allowed-ips, preshared-key
-                     and persistent-keepalive. WireGuard is an L3 kind with no MAC address, so it
-                     uses interface-common rather than interface-l2. Ze reconciles each peer in
-                     place, through the wgctrl ConfigureDevice call. Adding a peer, removing one, or
-                     rekeying one does not disturb the netdev or any other peer.";
+            description "The interface level carries listen-port, fwmark and private-key, and a nested
+                         peer list. Each peer carries public-key, endpoint, allowed-ips, preshared-key
+                         and persistent-keepalive. WireGuard is an L3 kind with no MAC address, so it
+                         uses interface-common rather than interface-l2. Ze reconciles each peer in
+                         place, through the wgctrl ConfigureDevice call. Adding a peer, removing one, or
+                         rekeying one does not disturb the netdev or any other peer.";
+            ze:help "WireGuard interface, configured declaratively.";
 
             leaf name {
                 type string;
-                description "Interface name (free-form, validated by iface naming rules)";
-                ze:help "Ze creates the kernel netdev under this name. The length is 1 to 15
-                         characters. A slash, a space and the sequence '..' are refused, because
-                         the name reaches a /proc/sys/net/ipv4/conf/<name>/ path.";
+                description "Ze creates the kernel netdev under this name. The length is 1 to 15
+                             characters. A slash, a space and the sequence '..' are refused, because
+                             the name reaches a /proc/sys/net/ipv4/conf/<name>/ path.";
+                ze:help "Interface name (free-form, validated by iface naming rules)";
             }
 
             leaf listen-port {
                 type zt:port;
-                description "UDP port WireGuard binds on 0.0.0.0 and :: for handshake and data traffic.";
-                ze:help "When the leaf is unset, the kernel chooses an ephemeral port on the first
-                         outbound handshake.";
+                description "When the leaf is unset, the kernel chooses an ephemeral port on the first
+                             outbound handshake.";
+                ze:help "UDP port WireGuard binds on 0.0.0.0 and :: for handshake and data traffic.";
             }
 
             leaf fwmark {
                 type uint32;
                 default 0;
-                description "Firewall mark applied to outgoing encapsulated
-                             packets for policy routing. 0 means unset.";
-                ze:help "Ze passes the value to the kernel through the wgctrl call
-                         ConfigureDevice. The kernel then sets the mark on each encapsulated UDP
-                         packet, and a policy routing rule or an nftables rule can match it. Ze
-                         always sends the leaf, so a config that clears the mark clears the kernel
-                         state too.";
+                description "Ze passes the value to the kernel through the wgctrl call
+                             ConfigureDevice. The kernel then sets the mark on each encapsulated UDP
+                             packet, and a policy routing rule or an nftables rule can match it. Ze
+                             always sends the leaf, so a config that clears the mark clears the kernel
+                             state too.";
+                ze:help "Firewall mark applied to outgoing encapsulated
+                         packets for policy routing. 0 means unset.";
             }
 
             leaf private-key {
                 mandatory true;
                 type string;
                 ze:sensitive;
-                description "Base64-encoded 32-byte Curve25519 private key.";
-                ze:help "Ze stores the key $9$-encoded on disk, through the standard ze sensitive-
-                         leaf pattern, and it decodes the key to plaintext base64 at parse time. 'ze
-                         config show' and 'ze config dump' always emit the $9$ form, never the
-                         plaintext. The $9$ form is obfuscation and not encryption, so protect the
-                         config file at the filesystem level with chmod 600, the same way as a BGP
-                         MD5 password.";
+                description "Ze stores the key $9$-encoded on disk, through the standard ze sensitive-
+                             leaf pattern, and it decodes the key to plaintext base64 at parse time. 'ze
+                             config show' and 'ze config dump' always emit the $9$ form, never the
+                             plaintext. The $9$ form is obfuscation and not encryption, so protect the
+                             config file at the filesystem level with chmod 600, the same way as a BGP
+                             MD5 password.";
+                ze:help "Base64-encoded 32-byte Curve25519 private key.";
             }
 
             list peer {
                 key "name";
-                description "WireGuard peer, identified by its public key.";
-                ze:help "Each peer has its own set of allowed-ips, which define the traffic that is
-                         routed through the tunnel.";
+                description "Each peer has its own set of allowed-ips, which define the traffic that is
+                             routed through the tunnel.";
+                ze:help "WireGuard peer, identified by its public key.";
 
                 leaf name {
                     type string;
-                    description "Config-level peer name (free-form label, used as list key). Not sent on the wire.";
-                    ze:help "The kernel matches a peer by its public key, and this name never
-                             reaches the kernel. Ze uses the name as the list key, and in the
-                             error message of a peer that fails to apply. A rename therefore
-                             produces the same kernel peer set.";
+                    description "The kernel matches a peer by its public key, and this name never
+                                 reaches the kernel. Ze uses the name as the list key, and in the
+                                 error message of a peer that fails to apply. A rename therefore
+                                 produces the same kernel peer set.";
+                    ze:help "Config-level peer name (free-form label, used as list key). Not sent on the wire.";
                 }
 
                 leaf public-key {
                     type string;
                     mandatory true;
-                    description "Base64-encoded 32-byte Curve25519 peer public key";
-                    ze:help "The kernel matches an inbound handshake to a peer by this key. The
-                             key is public, so it carries no ze:sensitive marker, and ze stores it
-                             in plaintext where private-key and preshared-key are $9$-encoded.";
+                    description "The kernel matches an inbound handshake to a peer by this key. The
+                                 key is public, so it carries no ze:sensitive marker, and ze stores it
+                                 in plaintext where private-key and preshared-key are $9$-encoded.";
+                    ze:help "Base64-encoded 32-byte Curve25519 peer public key";
                 }
 
                 leaf preshared-key {
                     type string;
                     ze:sensitive;
-                    description "Optional base64-encoded 32-byte symmetric preshared key.";
-                    ze:help "The key is mixed into the handshake for post-quantum resistance. Ze
-                             stores it $9$-encoded on disk, the same pattern as private-key.";
+                    description "The key is mixed into the handshake for post-quantum resistance. Ze
+                                 stores it $9$-encoded on disk, the same pattern as private-key.";
+                    ze:help "Optional base64-encoded 32-byte symmetric preshared key.";
                 }
 
                 container endpoint {
-                    description "Remote UDP endpoint for this peer.";
-                    ze:help "Both leaves are required together. The kernel uses this address on the
-                             first outbound handshake, and it updates the address on every inbound
-                             handshake from a new source address.";
+                    description "Both leaves are required together. The kernel uses this address on the
+                                 first outbound handshake, and it updates the address on every inbound
+                                 handshake from a new source address.";
+                    ze:help "Remote UDP endpoint for this peer.";
 
                     leaf ip {
                         type zt:ip-address;
-                        description "Remote IPv4 or IPv6 address (numeric, not
-                                     a hostname -- DNS resolution is not performed)";
-                        ze:help "Ze parses the value with net.ParseIP, so a hostname is refused at
-                                 apply time. When the endpoint is absent, ze sends no address to
-                                 the kernel, and the peer must start the handshake.";
+                        description "Ze parses the value with net.ParseIP, so a hostname is refused at
+                                     apply time. When the endpoint is absent, ze sends no address to
+                                     the kernel, and the peer must start the handshake.";
+                        ze:help "Remote IPv4 or IPv6 address (numeric, not
+                                 a hostname -- DNS resolution is not performed)";
                     }
 
                     leaf port {
                         type zt:port;
-                        description "Remote UDP port";
-                        ze:help "The value is the listen-port the peer sets on its own side. Ze
-                                 combines the port with ip into one UDP address for the kernel, so
-                                 a port with no ip reaches nothing.";
+                        description "The value is the listen-port the peer sets on its own side. Ze
+                                     combines the port with ip into one UDP address for the kernel, so
+                                     a port with no ip reaches nothing.";
+                        ze:help "Remote UDP port";
                     }
                 }
 
@@ -1606,9 +1606,9 @@ module ze-iface-conf {
                         pattern '[0-9a-fA-F:][0-9a-fA-F:.]*(/[0-9]{1,3})?';
                     }
                     ze:syntax "bracket";
-                    description "CIDR prefixes routed into the tunnel for this peer.";
-                    ze:help "An inbound packet from this peer must have a source address inside one
-                             of these prefixes. That check is cryptokey routing.";
+                    description "An inbound packet from this peer must have a source address inside one
+                                 of these prefixes. That check is cryptokey routing.";
+                    ze:help "CIDR prefixes routed into the tunnel for this peer.";
                 }
 
                 leaf persistent-keepalive {
@@ -1616,15 +1616,15 @@ module ze-iface-conf {
                         range "0..65535";
                     }
                     default 0;
-                    description "Seconds between unsolicited keepalive packets that maintain NAT state.";
-                    ze:help "0 disables the keepalives. A usual value is 25.";
+                    description "0 disables the keepalives. A usual value is 25.";
+                    ze:help "Seconds between unsolicited keepalive packets that maintain NAT state.";
                 }
 
                 leaf disable {
                     type empty;
-                    description "Administratively disable this peer.";
-                    ze:help "Ze removes the peer from the kernel peer set on reload, and the peer
-                             stays in the config.";
+                    description "Ze removes the peer from the kernel peer set on reload, and the peer
+                                 stays in the config.";
+                    ze:help "Administratively disable this peer.";
                 }
             }
 
@@ -1636,17 +1636,17 @@ module ze-iface-conf {
             key "name";
             ze:os "linux";
             ze:backend "netlink";
-            description "XFRM interface, for route-based IPsec (Linux 4.19 and later).";
-            ze:help "The kernel XFRM subsystem encrypts and decrypts the traffic that is routed into
-                     this interface. The if-id binds security associations to the interface. XFRM is
-                     an L3 kind with no MAC address.";
+            description "The kernel XFRM subsystem encrypts and decrypts the traffic that is routed into
+                         this interface. The if-id binds security associations to the interface. XFRM is
+                         an L3 kind with no MAC address.";
+            ze:help "XFRM interface, for route-based IPsec (Linux 4.19 and later).";
 
             leaf name {
                 type string;
-                description "Interface name (free-form, validated by iface naming rules)";
-                ze:help "Ze creates the XFRM netdev under this name. The length is 1 to 15
-                         characters. A slash, a space and the sequence '..' are refused, because
-                         the name reaches a /proc/sys/net/ipv4/conf/<name>/ path.";
+                description "Ze creates the XFRM netdev under this name. The length is 1 to 15
+                             characters. A slash, a space and the sequence '..' are refused, because
+                             the name reaches a /proc/sys/net/ipv4/conf/<name>/ path.";
+                ze:help "Interface name (free-form, validated by iface naming rules)";
             }
 
             leaf if-id {
@@ -1654,17 +1654,17 @@ module ze-iface-conf {
                 type uint32 {
                     range "1..4294967295";
                 }
-                description "XFRM identifier that binds security associations to this interface.";
-                ze:help "A bound security association carries the same if_id. The value must be non-
-                         zero, because 0 means unset in the kernel.";
+                description "A bound security association carries the same if_id. The value must be non-
+                             zero, because 0 means unset in the kernel.";
+                ze:help "XFRM identifier that binds security associations to this interface.";
             }
 
             leaf dev {
                 type string;
-                description "Optional parent device that this XFRM interface binds to.";
-                ze:help "When the leaf is set, ze binds the XFRM interface to this physical device.
-                         When the leaf is omitted, the interface is unbound, and it uses the routing
-                         table to select the underlay.";
+                description "When the leaf is set, ze binds the XFRM interface to this physical device.
+                             When the leaf is omitted, the interface is unbound, and it uses the routing
+                             table to select the underlay.";
+                ze:help "Optional parent device that this XFRM interface binds to.";
             }
 
             uses interface-common;
@@ -1675,47 +1675,47 @@ module ze-iface-conf {
             key "name";
             ze:os "linux";
             ze:backend "netlink";
-            description "PPPoE client interface (RFC 2516).";
-            ze:help "The client dials an access concentrator over a physical Ethernet interface,
-                     negotiates LCP, authentication and IPCP, and presents the PPP session as a
-                     routable interface with server-assigned addresses. The kernel creates the pppN
-                     interface dynamically. The name leaf is a config key only, and the OS interface
-                     name is pppN.";
+            description "The client dials an access concentrator over a physical Ethernet interface,
+                         negotiates LCP, authentication and IPCP, and presents the PPP session as a
+                         routable interface with server-assigned addresses. The kernel creates the pppN
+                         interface dynamically. The name leaf is a config key only, and the OS interface
+                         name is pppN.";
+            ze:help "PPPoE client interface (RFC 2516).";
 
             leaf name {
                 type string;
-                description "Config-level interface name (e.g. pppoe0)";
-                ze:help "The name is the list key and it never reaches the kernel. The kernel
-                         names the session device pppN, and ze reports that OS name in the show
-                         output.";
+                description "The name is the list key and it never reaches the kernel. The kernel
+                             names the session device pppN, and ze reports that OS name in the show
+                             output.";
+                ze:help "Config-level interface name (e.g. pppoe0)";
             }
 
             leaf source-interface {
                 mandatory true;
                 type string;
-                description "Physical Ethernet interface for PPPoE discovery
-                             (e.g. eth2). Must exist and be admin-up.";
-                ze:help "Ze opens a raw discovery socket bound to this device and sends the PADI
-                         frame on it. The source MAC of the frame is the device's own hardware
-                         address.";
+                description "Ze opens a raw discovery socket bound to this device and sends the PADI
+                             frame on it. The source MAC of the frame is the device's own hardware
+                             address.";
+                ze:help "Physical Ethernet interface for PPPoE discovery
+                         (e.g. eth2). Must exist and be admin-up.";
             }
 
             container authentication {
-                description "PPPoE authentication credentials (PAP or CHAP)";
-                ze:help "LCP negotiation decides which of PAP and CHAP ze uses. Ze answers PAP
-                         with an Authenticate-Request that carries the username as the Peer-ID. Ze
-                         answers CHAP with a Response that carries the MD5 digest and the
-                         username.";
+                description "LCP negotiation decides which of PAP and CHAP ze uses. Ze answers PAP
+                             with an Authenticate-Request that carries the username as the Peer-ID. Ze
+                             answers CHAP with a Response that carries the MD5 digest and the
+                             username.";
+                ze:help "PPPoE authentication credentials (PAP or CHAP)";
 
                 leaf username {
                     mandatory true;
                     type string {
                         length "1..255";
                     }
-                    description "Authentication username sent to the AC";
-                    ze:help "Ze puts the value in the Peer-ID field of a PAP Authenticate-Request,
-                             or in the Name field of a CHAP Response. The length is 1 to 255
-                             characters.";
+                    description "Ze puts the value in the Peer-ID field of a PAP Authenticate-Request,
+                                 or in the Name field of a CHAP Response. The length is 1 to 255
+                                 characters.";
+                    ze:help "Authentication username sent to the AC";
                 }
 
                 leaf password {
@@ -1724,14 +1724,14 @@ module ze-iface-conf {
                         length "1..255";
                     }
                     ze:sensitive;
-                    description "Authentication password. Stored $9$-encoded
-                                 on disk via the standard ze sensitive-leaf
-                                 pattern.";
-                    ze:help "The $9$ form is obfuscation and not encryption, so protect the config
-                             file at the filesystem level with chmod 600. Ze sends the password in
-                             a PAP Authenticate-Request. For CHAP, ze sends no password. It
-                             computes the MD5 digest over the Identifier, the password and the
-                             Challenge Value.";
+                    description "The $9$ form is obfuscation and not encryption, so protect the config
+                                 file at the filesystem level with chmod 600. Ze sends the password in
+                                 a PAP Authenticate-Request. For CHAP, ze sends no password. It
+                                 computes the MD5 digest over the Identifier, the password and the
+                                 Challenge Value.";
+                    ze:help "Authentication password. Stored $9$-encoded
+                             on disk via the standard ze sensitive-leaf
+                             pattern.";
                 }
             }
 
@@ -1739,27 +1739,27 @@ module ze-iface-conf {
                 type string {
                     length "0..255";
                 }
-                description "Desired PPPoE service name. Empty or absent
-                             means accept any service (RFC 2516 Section 5.1).";
-                ze:help "Ze puts the value in the Service-Name tag of the PADI frame and of the
-                         PADR frame. An empty value sends a zero-length tag, which every access
-                         concentrator answers.";
+                description "Ze puts the value in the Service-Name tag of the PADI frame and of the
+                             PADR frame. An empty value sends a zero-length tag, which every access
+                             concentrator answers.";
+                ze:help "Desired PPPoE service name. Empty or absent
+                         means accept any service (RFC 2516 Section 5.1).";
             }
 
             leaf ac-name {
                 type string {
                     length "0..255";
                 }
-                description "Desired access concentrator name.";
-                ze:help "When the leaf is set, ze accepts a PADO frame only from this access
-                         concentrator. An empty or absent value accepts any access concentrator.";
+                description "When the leaf is set, ze accepts a PADO frame only from this access
+                             concentrator. An empty or absent value accepts any access concentrator.";
+                ze:help "Desired access concentrator name.";
             }
 
             leaf no-default-route {
                 type empty;
-                description "Do not install a default route through the PPP interface.";
-                ze:help "When the leaf is absent, which is the default, ze installs a default route
-                         after IPCP completes.";
+                description "When the leaf is absent, which is the default, ze installs a default route
+                             after IPCP completes.";
+                ze:help "Do not install a default route through the PPP interface.";
             }
 
             leaf route-priority {
@@ -1767,36 +1767,36 @@ module ze-iface-conf {
                     range "0..4294966271";
                 }
                 default 254;
-                description "Route metric of the default route installed after IPCP completes.";
-                ze:help "A lower value is preferred. The default 254 ranks this learned default
-                         below a static default and below a protocol-learned one, and it matches the
-                         route-priority default on a unit. Write 0 to put the route on the kernel
-                         metric that an operator's static default also uses. The two then share one
-                         kernel route, and the last writer owns it.";
+                description "A lower value is preferred. The default 254 ranks this learned default
+                             below a static default and below a protocol-learned one, and it matches the
+                             route-priority default on a unit. Write 0 to put the route on the kernel
+                             metric that an operator's static default also uses. The two then share one
+                             kernel route, and the last writer owns it.";
+                ze:help "Route metric of the default route installed after IPCP completes.";
             }
 
             uses interface-common;
         }
 
         container loopback {
-            description "The system loopback interface (lo).";
-            ze:help "The interface is always present, and ze manages its addresses and units. Use it
-                     to host a router-id address that is reachable from any interface.";
+            description "The interface is always present, and ze manages its addresses and units. Use it
+                         to host a router-id address that is reachable from any interface.";
+            ze:help "The system loopback interface (lo).";
 
             uses interface-unit;
         }
 
         container monitor {
-            description "Interface monitoring settings";
-            ze:help "Ze reads no value under this container, so nothing below it changes the
-                     behavior of the daemon.";
+            description "Ze reads no value under this container, so nothing below it changes the
+                         behavior of the daemon.";
+            ze:help "Interface monitoring settings";
 
             leaf loopback {
                 type boolean;
                 default false;
-                description "Monitor loopback interface";
-                ze:help "Ze reads no value under the monitor container, so this leaf changes no
-                         behavior whether it is true or false. The default is false.";
+                description "Ze reads no value under the monitor container, so this leaf changes no
+                             behavior whether it is true or false. The default is false.";
+                ze:help "Monitor loopback interface";
             }
         }
     }

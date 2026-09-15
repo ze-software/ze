@@ -12,19 +12,19 @@ module ze-mpls-cmd {
     augment "/clishowcmd:show" {
         container mpls {
             config false;
-            description "MPLS forwarding table and label operations.";
-            ze:help "This is the forwarding state the dataplane uses. The protocol that installed a
-                     label lives under show ldp or show rsvp-te.";
+            description "This is the forwarding state the dataplane uses. The protocol that installed a
+                         label lives under show ldp or show rsvp-te.";
+            ze:help "MPLS forwarding table and label operations.";
 
             container forwarding {
                 config false;
                 ze:command "ze-show:mpls-forwarding";
-                description "Show MPLS forwarding entries installed in the kernel.";
-                ze:help "Each entry shows the incoming label, swap/push/pop operation, and outgoing
+                description "Each entry shows the incoming label, swap/push/pop operation, and outgoing
 next-hop. Pass 'limit N' to cap large tables. Linux only.";
+                ze:help "Show MPLS forwarding entries installed in the kernel.";
                 leaf limit {
                     type uint32;
-                    description "Maximum number of entries";
+                    ze:help "Maximum number of entries";
                 }
             }
         }

@@ -137,8 +137,8 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 			{Name: "ipv6/unicast", Mode: "encode"},
 		},
 		Commands: []rpc.CommandDecl{
-			{Name: "show fixture rib", Description: "Show fixture RIB"},
-			{Name: "request fixture refresh", Description: "Refresh fixture"},
+			{Name: "show fixture rib", ShortHelp: "Show fixture RIB"},
+			{Name: "request fixture refresh", ShortHelp: "Refresh fixture"},
 		},
 		WantsConfig: []string{"bgp"},
 		ConfigOperations: []rpc.ConfigOperationDecl{

@@ -82,9 +82,9 @@ func cmdShow(b tcpkg.Backend, args []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze traffic control",
-		Summary: "Traffic control visibility",
-		Usage:   []string{"ze traffic control <command> [options]"},
+		Command:   "ze traffic control",
+		ShortHelp: "Traffic control visibility",
+		Usage:     []string{"ze traffic control <command> [options]"},
 		Sections: []helpfmt.HelpSection{{
 			Title: "Commands",
 			Entries: []helpfmt.HelpEntry{

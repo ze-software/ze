@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register("command list", leroot.GroupReport, Answer, registry.Meta{
-		Description: "every registered command, by verb, read from the live handlers and schemas",
-		Mode:        "offline",
+		ShortHelp: "every registered command, by verb, read from the live handlers and schemas",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

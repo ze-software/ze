@@ -187,8 +187,8 @@ type rPKIPlugin struct {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        commandShowRPKI,
-			Description: "Show RPKI validation counters with one row for each cache server",
+			Name:      commandShowRPKI,
+			ShortHelp: "Show RPKI validation counters with one row for each cache server",
 			// appendSummaryFields writes the aggregate keys and
 			// appendCacheServers the rows, as siblings at one level. The order
 			// names the row keys: the aggregate half carries none of them, so
@@ -198,8 +198,8 @@ func commandDecls() []sdk.CommandDecl {
 			AddressFields: []string{columnAddress},
 		},
 		{
-			Name:        "show bgp rpki status",
-			Description: "Show RPKI validation status and cache server overview",
+			Name:      "show bgp rpki status",
+			ShortHelp: "Show RPKI validation status and cache server overview",
 			// statusCommand writes two candidate row sets, "cache-servers" and
 			// the per-peer actions, so rowsInKeyed
 			// (internal/component/command/answer_shape.go) can choose neither
@@ -207,8 +207,8 @@ func commandDecls() []sdk.CommandDecl {
 			Shape: "doc",
 		},
 		{
-			Name:        "show bgp rpki cache",
-			Description: "Show RTR cache server sessions with protocol details",
+			Name:      "show bgp rpki cache",
+			ShortHelp: "Show RTR cache server sessions with protocol details",
 			// cacheCommand writes the rows, adding the protocol detail of a
 			// session to what the overview carries.
 			Shape: shapeTab,
@@ -220,8 +220,8 @@ func commandDecls() []sdk.CommandDecl {
 			AddressFields: []string{columnAddress},
 		},
 		{
-			Name:        "show bgp rpki roa",
-			Description: "Show ROA table entries or lookup covering VRPs for a prefix",
+			Name:      "show bgp rpki roa",
+			ShortHelp: "Show ROA table entries or lookup covering VRPs for a prefix",
 			// roaCommand and roaLookupCommand both write their rows under
 			// "entries" in these three keys, so one declaration describes the
 			// command whichever branch its argument takes.
@@ -230,21 +230,21 @@ func commandDecls() []sdk.CommandDecl {
 			AddressFields: []string{"prefix"},
 		},
 		{
-			Name:        "show bgp rpki summary",
-			Description: "Show RPKI validation summary with session and ASPA counts",
+			Name:      "show bgp rpki summary",
+			ShortHelp: "Show RPKI validation summary with session and ASPA counts",
 			// summaryCommand writes the aggregate keys alone. No row set, and
 			// no field holding an address, so the row operators and the address
 			// operators are each refused by name.
 			Shape: "doc",
 		},
 		{
-			Name:        "request bgp rpki validate",
-			Description: "Validate a prefix against the ROA cache",
-			Args:        []string{"<prefix>", "<origin-asn>"},
+			Name:      "request bgp rpki validate",
+			ShortHelp: "Validate a prefix against the ROA cache",
+			Args:      []string{"<prefix>", "<origin-asn>"},
 		},
 		{
-			Name:        "show bgp rpki aspa",
-			Description: "Show ASPA cache or lookup providers for a customer AS",
+			Name:      "show bgp rpki aspa",
+			ShortHelp: "Show ASPA cache or lookup providers for a customer AS",
 			// aspaCommand writes its rows under "entries" in both branches. A
 			// row holds an AS number and the AS numbers that AS authorizes, and
 			// neither is an address.

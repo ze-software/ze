@@ -10,10 +10,10 @@ import (
 
 func init() {
 	leroot.Register(commandName, leroot.GroupWorkflow, Answer, registry.Meta{
-		Description: "spec ownership, per-spec state paths, transcript model facts, and independent review artifacts",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		Subs:        "current | claim | release | wip | state | model | review",
+		ShortHelp: "spec ownership, per-spec state paths, transcript model facts, and independent review artifacts",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		Subs:      "current | claim | release | wip | state | model | review",
 	})
 	leroot.RegisterShape(commandName, command.ShapeDoc)
 }

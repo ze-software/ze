@@ -23,7 +23,7 @@ func TestCollectCommands(t *testing.T) {
 	for _, e := range entries {
 		assert.NotEmpty(t, e.Path, "every entry must have a path")
 		assert.NotEmpty(t, e.Mode, "every entry must have a mode")
-		assert.NotEmpty(t, e.Description, "command %q must have a description", e.Path)
+		assert.NotEmpty(t, e.ShortHelp, "command %q must have a description", e.Path)
 	}
 
 	seen := make(map[string]bool, len(entries))
@@ -40,15 +40,15 @@ func TestCollectCommands(t *testing.T) {
 
 func TestFilterCommands(t *testing.T) {
 	entries := []commandEntry{
-		{Path: "show bgp peers", Description: "List all BGP peer sessions", Mode: "read-only"},
-		{Path: "set bgp peer", Description: "Configure a BGP peer", Mode: "daemon"},
-		{Path: "show interface", Description: "List OS network interfaces", Mode: "read-only"},
+		{Path: "show bgp peers", ShortHelp: "List all BGP peer sessions", Mode: "read-only"},
+		{Path: "set bgp peer", ShortHelp: "Configure a BGP peer", Mode: "daemon"},
+		{Path: "show interface", ShortHelp: "List OS network interfaces", Mode: "read-only"},
 	}
 
 	filtered := filterCommands(entries, "bgp")
 	assert.Len(t, filtered, 2)
 	for _, e := range filtered {
-		assert.Contains(t, e.Path+e.Description, "bgp")
+		assert.Contains(t, e.Path+e.ShortHelp, "bgp")
 	}
 
 	filtered = filterCommands(entries, "BGP")
@@ -78,9 +78,9 @@ func TestExtractCommandFilter(t *testing.T) {
 // and nothing goes red. A person reading the reference is the one who pays.
 func TestCommandJSONDoesNotEscapeAngleBrackets(t *testing.T) {
 	entries := []commandEntry{{
-		Path:        "request cache expire",
-		Description: "Remove a cached message immediately.\nUsage: request cache expire <id>.",
-		Mode:        "daemon",
+		Path:      "request cache expire",
+		ShortHelp: "Remove a cached message immediately.\nUsage: request cache expire <id>.",
+		Mode:      "daemon",
 	}}
 
 	var out bytes.Buffer
@@ -94,7 +94,7 @@ func TestCommandJSONDoesNotEscapeAngleBrackets(t *testing.T) {
 	var round []commandEntry
 	require.NoError(t, json.Unmarshal(out.Bytes(), &round))
 	require.Len(t, round, 1)
-	assert.Equal(t, entries[0].Description, round[0].Description,
+	assert.Equal(t, entries[0].ShortHelp, round[0].ShortHelp,
 		"the answer must still parse back to the description it was given")
 }
 
@@ -217,15 +217,15 @@ func TestCommandCatalogCarriesSummaryAndHelp(t *testing.T) {
 	entries := []commandEntry{{
 		Path:        "show bgp rib",
 		Mode:        "read-only",
-		Description: "Show the BGP RIB.",
-		LongHelp:    "The RIB answers per family.\nAdd a prefix to narrow it.",
+		ShortHelp:   "Show the BGP RIB.",
+		Description: "The RIB answers per family.\nAdd a prefix to narrow it.",
 	}, {
 		// An unconverted node, whose one description still holds both halves.
 		// The renderers must print what they are given rather than cut it: a
 		// cut hides the defect the shape gate exists to name.
-		Path:        "show bgp summary",
-		Mode:        "read-only",
-		Description: "Show one row per session.\nThe row carries state, ASN and uptime.",
+		Path:      "show bgp summary",
+		Mode:      "read-only",
+		ShortHelp: "Show one row per session.\nThe row carries state, ASN and uptime.",
 	}}
 
 	encoded, err := json.Marshal(entries)
@@ -235,12 +235,12 @@ func TestCommandCatalogCarriesSummaryAndHelp(t *testing.T) {
 	require.NoError(t, json.Unmarshal(encoded, &decoded))
 	require.Len(t, decoded, 2)
 
-	assert.Equal(t, "Show the BGP RIB.", decoded[0]["description"])
-	assert.Equal(t, "The RIB answers per family.\nAdd a prefix to narrow it.", decoded[0]["long-help"])
+	assert.Equal(t, "Show the BGP RIB.", decoded[0]["short-help"])
+	assert.Equal(t, "The RIB answers per family.\nAdd a prefix to narrow it.", decoded[0]["description"])
 	assert.NotContains(t, decoded[0], "help",
 		"`help` names the SUMMARY on the plugin boundary; the long form must not take that spelling")
 
-	assert.NotContains(t, decoded[1], "long-help", "an undeclared long help publishes no key")
+	assert.NotContains(t, decoded[1], "description", "an undeclared description publishes no key")
 
 	// The table row prints the declared summary whole, with no newline cut.
 	var buf bytes.Buffer
@@ -275,9 +275,9 @@ func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
 			continue
 		}
 		checked++
-		assert.Equal(t, node.Description, e.Description,
+		assert.Equal(t, node.ShortHelp, e.ShortHelp,
 			"command %q publishes a summary the node does not declare", e.Path)
-		assert.Equal(t, node.LongHelp, e.LongHelp,
+		assert.Equal(t, node.Description, e.Description,
 			"command %q publishes a long help the node does not declare", e.Path)
 	}
 	require.Greater(t, checked, 100, "too few YANG-backed commands were compared")

@@ -201,9 +201,9 @@ func cmdMAC(args []string) int {
 func upDownUsage(verb string) {
 	var tb textbuf.Buffer
 	p := helpfmt.Page{
-		Command: tb.Str("ze interface ").Str(verb).String(),
-		Summary: tb.Reset().Str("Bring an interface administratively ").Str(verb).String(),
-		Usage:   []string{tb.Reset().Str("ze interface ").Str(verb).Str(" <name>").String()},
+		Command:   tb.Str("ze interface ").Str(verb).String(),
+		ShortHelp: tb.Reset().Str("Bring an interface administratively ").Str(verb).String(),
+		Usage:     []string{tb.Reset().Str("ze interface ").Str(verb).Str(" <name>").String()},
 		Examples: []string{
 			tb.Reset().Str("ze interface ").Str(verb).Str(" eth0").String(),
 		},
@@ -213,9 +213,9 @@ func upDownUsage(verb string) {
 
 func mtuUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface mtu",
-		Summary: "Set the MTU on an interface",
-		Usage:   []string{"ze interface mtu <name> <mtu>"},
+		Command:   "ze interface mtu",
+		ShortHelp: "Set the MTU on an interface",
+		Usage:     []string{"ze interface mtu <name> <mtu>"},
 		Examples: []string{
 			"ze interface mtu eth0 1500",
 			"ze interface mtu eth0 9000",
@@ -226,9 +226,9 @@ func mtuUsage() {
 
 func macUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface mac",
-		Summary: "Set the MAC address on an interface",
-		Usage:   []string{"ze interface mac <name> <mac>"},
+		Command:   "ze interface mac",
+		ShortHelp: "Set the MAC address on an interface",
+		Usage:     []string{"ze interface mac <name> <mac>"},
 		Examples: []string{
 			"ze interface mac eth0 02:00:00:00:00:01",
 		},

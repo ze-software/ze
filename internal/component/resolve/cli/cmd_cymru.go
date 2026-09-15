@@ -76,9 +76,9 @@ func cmdCymru(args []string) int {
 
 func cymruUsage() {
 	p := helpfmt.Page{
-		Command: "ze resolve cymru",
-		Summary: "Team Cymru ASN-to-name resolution",
-		Usage:   []string{"ze resolve cymru [--dns-server <host>] asn-name <asn>"},
+		Command:   "ze resolve cymru",
+		ShortHelp: "Team Cymru ASN-to-name resolution",
+		Usage:     []string{"ze resolve cymru [--dns-server <host>] asn-name <asn>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "asn-name <asn>", Desc: "Resolve ASN to organization name"},

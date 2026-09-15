@@ -26,91 +26,91 @@ module ze-iface-interface-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container interface {
             config false;
             ze:command "ze-show:interface";
-            description "Show network interfaces on this box.";
-            ze:help "Without arguments, returns all interfaces with full detail.
+            description "Without arguments, returns all interfaces with full detail.
 Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail,
 name <name> counters.";
+            ze:help "Show network interfaces on this box.";
 
             container brief {
                 config false;
                 ze:command "ze-show:interface-brief";
-                description "One-line summary per interface: name, state, IP, and MTU.";
-                ze:help "It is the quick way to see what is up and what
+                description "It is the quick way to see what is up and what
 addresses are assigned.";
+                ze:help "One-line summary per interface: name, state, IP, and MTU.";
             }
 
             container scan {
                 config false;
                 ze:command "ze-show:interface-scan";
-                description "Discover and classify all OS interfaces.";
-                ze:help "Returns name, Ze type (ethernet, bridge, vxlan, etc.),
+                description "Returns name, Ze type (ethernet, bridge, vxlan, etc.),
 and MAC for each interface found. Pipe to table, yaml, or json for different
 views. Use it during initial setup to see what the box has.";
+                ze:help "Discover and classify all OS interfaces.";
             }
 
             container type {
                 config false;
                 ze:command "ze-show:interface-type";
-                description "Show only interfaces of a given type.";
-                ze:help "Types include ethernet, bridge, vxlan, wireguard,
+                description "Types include ethernet, bridge, vxlan, wireguard,
 tunnel, bond, and more. If you pick an invalid type, the error lists all valid
 ones.";
-                leaf type { type string { length "1..32"; } mandatory true; description "Ze interface type to filter by"; }
+                ze:help "Show only interfaces of a given type.";
+                leaf type { type string { length "1..32"; } mandatory true; ze:help "Ze interface type to filter by"; }
             }
 
             container errors {
                 config false;
                 ze:command "ze-show:interface-errors";
-                description "Show interfaces that have errors or drops.";
-                ze:help "Filters to only interfaces with non-zero Rx/Tx error or
+                description "Filters to only interfaces with non-zero Rx/Tx error or
 drop counters. It is the quick way to find troubled links.";
+                ze:help "Show interfaces that have errors or drops.";
             }
 
             container rate {
                 config false;
                 ze:command "ze-show:interface-rate";
-                description "Show per-second traffic rates on your interfaces.";
-                ze:help "Returns rx/tx bytes and packets per second. Pass an
+                description "Returns rx/tx bytes and packets per second. Pass an
 interface name to narrow the output. Requires the rate tracker. For continuous
 monitoring, use 'monitor interface rate' instead.";
+                ze:help "Show per-second traffic rates on your interfaces.";
             }
 
             container name {
                 config false;
-                description "Select one interface by name.";
-                ze:help "The keyword takes the interface name, and detail or counters
+                description "The keyword takes the interface name, and detail or counters
 follows it. Without a name, show interface answers every interface.";
+                ze:help "Select one interface by name.";
 
                 container detail {
                     config false;
                     ze:command "ze-show:interface-detail";
-                    description "Show full detail for one interface.";
-                    ze:help "The answer is the whole record the backend holds for that
+                    description "The answer is the whole record the backend holds for that
 interface, and the counters are part of it. An unknown name is reported as the backend's own
 error.";
+                    ze:help "Show full detail for one interface.";
                     leaf name {
                         type string;
                         mandatory true;
-                        description "Interface name";
+                        ze:help "Interface name";
                     }
                 }
 
                 container counters {
                     config false;
                     ze:command "ze-show:interface-counters";
-                    description "Show counters for one interface.";
-                    ze:help "The answer is the interface name and its Rx and Tx statistics.
+                    description "The answer is the interface name and its Rx and Tx statistics.
 A backend that keeps no statistics for the interface answers no counters available rather
 than an error.";
+                    ze:help "Show counters for one interface.";
                     leaf name {
                         type string;
                         mandatory true;
-                        description "Interface name";
+                        ze:help "Interface name";
                     }
                 }
             }
@@ -119,21 +119,21 @@ than an error.";
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop).";
+        ze:help "Continuous monitoring commands (Ctrl-C to stop).";
 
         container interface {
             config false;
-            description "Interface traffic monitoring.";
-            ze:help "Only rate sits under this keyword today, and it streams until you stop
+            description "Only rate sits under this keyword today, and it streams until you stop
 it. show interface rate reads the same numbers once.";
+            ze:help "Interface traffic monitoring.";
 
             container rate {
                 config false;
                 ze:command "ze-monitor:interface-rate";
                 ze:task-support required;
-                description "Stream per-second traffic rates for your interfaces.";
-                ze:help "Shows rx/tx bytes and packets per second, updating
+                description "Shows rx/tx bytes and packets per second, updating
 every second. Optionally pass an interface name to watch just one link.";
+                ze:help "Stream per-second traffic rates for your interfaces.";
             }
         }
     }
@@ -143,34 +143,34 @@ every second. Optionally pass an interface name to watch just one link.";
 
         container interface {
             config false;
-            description "Reset interface traffic counters.";
-            ze:help "Without a name every managed interface is reset. clear interface name
+            description "Without a name every managed interface is reset. clear interface name
 <name> counters resets one instead.";
+            ze:help "Reset interface traffic counters.";
 
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
-                description "Zero the Rx/Tx counters for every managed interface.";
-                ze:help "One call resets every interface the backend manages, and the answer
+                description "One call resets every interface the backend manages, and the answer
 reports the scope as all. Nothing else about the interfaces changes.";
+                ze:help "Zero the Rx/Tx counters for every managed interface.";
             }
 
             container name {
                 config false;
-                description "Select one interface by name.";
-                ze:help "The keyword takes the interface name, and counters follows it. The
+                description "The keyword takes the interface name, and counters follows it. The
 answer reports that name as the scope it cleared.";
+                ze:help "Select one interface by name.";
 
                 container counters {
                     config false;
                     ze:command "ze-clear:interface-counters";
-                    description "Zero the Rx/Tx counters for one interface.";
-                    ze:help "Only the named interface is reset. Ze translates the name to
+                    description "Only the named interface is reset. Ze translates the name to
 its kernel device first, so a name bound to hardware by a selector clears the right port.";
+                    ze:help "Zero the Rx/Tx counters for one interface.";
                     leaf name {
                         type string;
                         mandatory true;
-                        description "Interface name";
+                        ze:help "Interface name";
                     }
                 }
             }

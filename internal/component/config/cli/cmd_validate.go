@@ -109,9 +109,9 @@ func cmdValidate(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config validate",
-			Summary: "Validate a ze configuration file",
-			Usage:   []string{"ze config validate [options] <config-file>"},
+			Command:   "ze config validate",
+			ShortHelp: "Validate a ze configuration file",
+			Usage:     []string{"ze config validate [options] <config-file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-v", Desc: "Verbose output"},

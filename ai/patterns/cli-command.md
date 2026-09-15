@@ -279,7 +279,8 @@ container <verb> {
         container peer {
             config false;
             ze:command "ze-<verb>:bgp-peer";
-            description "Description for CLI help";
+            ze:help "One-line summary every listing prints.";
+            description "The long explanation the command's own help page prints.";
         }
     }
 }
@@ -369,7 +370,7 @@ func init() {
     registry.MustRegisterRootHandler("<name>", func(_ *registry.RuntimeContext, args []string) int {
         return Run(args)
     }, registry.Meta{
-        Description: "<short one-liner>",
+        ShortHelp:   "<short one-liner>",
         Mode:        "offline",            // or "daemon", "setup", "read-only"
         Section:     registry.SectionConfiguration,
         Subs:        "<example sub-paths>", // shown in help
@@ -478,7 +479,7 @@ registry.MustRegisterLocalMeta("show config history", func(args []string) int {
     if !ok { /* error */ return 1 }
     defer store.Close() //nolint:errcheck
     return RunWithStorage(store, append([]string{"history"}, args...))
-}, registry.Meta{Description: "..."})
+}, registry.Meta{ShortHelp: "..."})
 ```
 
 ### How `help ai` consumes the registry

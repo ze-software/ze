@@ -12,35 +12,35 @@ module ze-bfd-cmd {
     augment "/clishowcmd:show" {
         container bfd {
             config false;
-            description "BFD session state and timer configuration.";
-            ze:help "The timers reported are the negotiated ones and not the configured ones.
-                     BFD takes the slower of the two peers' intervals. A session can therefore
-                     run slower than this router asked for.";
+            description "The timers reported are the negotiated ones and not the configured ones.
+                         BFD takes the slower of the two peers' intervals. A session can therefore
+                         run slower than this router asked for.";
+            ze:help "BFD session state and timer configuration.";
 
             container sessions {
                 config false;
                 ze:command "ze-bfd-api:show-sessions";
-                description "List all active BFD sessions.";
-                ze:help "One line per session: peer address, state, negotiated
+                description "One line per session: peer address, state, negotiated
 tx/rx intervals, and detect multiplier.";
+                ze:help "List all active BFD sessions.";
             }
 
             container session {
                 config false;
-                description "Show one BFD session selected by peer address.";
-                ze:help "The address selects a single session. A router with several sessions to one peer
-                         over different links reports each of them separately.";
+                description "The address selects a single session. A router with several sessions to one peer
+                             over different links reports each of them separately.";
+                ze:help "Show one BFD session selected by peer address.";
 
                 container address {
                     config false;
                     ze:command "ze-bfd-api:show-session";
-                    description "Show full detail for one BFD session.";
-                    ze:help "Pass the peer address. Returns local/remote
+                    description "Pass the peer address. Returns local/remote
 discriminators, negotiated timers, detection time, and packet counters.";
+                    ze:help "Show full detail for one BFD session.";
                     leaf address {
                         type string;
                         mandatory true;
-                        description "Peer address";
+                        ze:help "Peer address";
                     }
                 }
             }
@@ -48,20 +48,20 @@ discriminators, negotiated timers, detection time, and packet counters.";
             container profile {
                 config false;
                 ze:command "ze-bfd-api:show-profile";
-                description "Show BFD timer profiles with effective values.";
-                ze:help "Returns min-tx, min-rx, and detect-multiplier after
+                description "Returns min-tx, min-rx, and detect-multiplier after
 inheritance. Use 'show bfd profile' for every profile or 'show bfd profile
 name <name>' for one profile.";
+                ze:help "Show BFD timer profiles with effective values.";
 
                 container name {
                     config false;
                     ze:command "ze-bfd-api:show-profile";
-                    description "Show one BFD profile by name.";
-                    ze:help "Give the profile name after the name keyword. The answer is one profile object, not a list. An unknown name fails with 'bfd: no profile named <name>'.";
+                    description "Give the profile name after the name keyword. The answer is one profile object, not a list. An unknown name fails with 'bfd: no profile named <name>'.";
+                    ze:help "Show one BFD profile by name.";
                     leaf name {
                         type string;
                         mandatory true;
-                        description "Profile name";
+                        ze:help "Profile name";
                     }
                 }
             }

@@ -12,10 +12,10 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		Description: "report committed journal classes and validate one edited shard",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "report committed journal classes and validate one edited shard",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 

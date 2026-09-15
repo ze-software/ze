@@ -212,7 +212,7 @@ Each `CommandDecl` has these fields:
 |-------|------|-------------|
 | `name` | `string` | Command path the plugin serves |
 | `description` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
-| `long-help` | `string` | The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused |
+| `description` | `string` | The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused |
 | `args` | `[]string` | Expected argument names, for help and completion |
 | `completable` | `bool` | Whether the command supports tab completion |
 | `hidden` | `bool` | Whether the command is left out of help and completion |
@@ -225,12 +225,12 @@ The last three are optional and additive. A plugin that sends none keeps the
 behavior it had before they existed. A plugin that sends one the engine refuses
 fails Stage 1 and does not start.
 
-`description` and `long-help` are two texts and neither is derived from the
-other. The key is `long-help` and not `help`, because `help` already names the
+`short-help` and `description` are two texts and neither is derived from the
+other. The key is `description` and not `help`, because `help` already names the
 SUMMARY in a completion row on this same protocol. A plugin that sends
-`description` and no `long-help` renders with its summary and an empty
-explanation. That is what every plugin written before `long-help` existed
-sends. An empty `long-help` NEVER renders as an empty summary.
+`description` and no `description` renders with its summary and an empty
+explanation. That is what every plugin written before `description` existed
+sends. An empty `description` NEVER renders as an empty summary.
 
 `validateHelpDecls` reads both texts before any conversion. It refuses a text
 past its bound, and a control character the text's shape does not allow. The
@@ -273,7 +273,7 @@ Set `afi` and `safi` for a custom family. A built-in family can omit both numeri
 **Wire example:**
 
 ```
-#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
 #1 ok
 ```
 
@@ -401,7 +401,7 @@ arguments and returns the exit code:
 // socket, no goroutine.
 func declaration() sdk.Registration {
     return sdk.Registration{
-        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", Description: "Show monitor status"}},
+        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
 

@@ -10,30 +10,30 @@ module ze-firewall-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container firewall {
             config false;
-            description "Firewall rules and groups (nftables).";
-            ze:help "Ze programs nftables, so what is reported is the state Ze installed. A rule added
-                     outside Ze is not managed here and is not shown.";
+            description "Ze programs nftables, so what is reported is the state Ze installed. A rule added
+                         outside Ze is not managed here and is not shown.";
+            ze:help "Firewall rules and groups (nftables).";
             container ruleset {
                 config false;
                 ze:command "ze-show:firewall-ruleset";
                 ze:backend "nft";
-                description "Show the live firewall ruleset with per-term counters.";
-                ze:help "Joins applied desired state with kernel counters from
+                description "Joins applied desired state with kernel counters from
 the nft backend.";
-                leaf name { type string { length "1..64"; } mandatory true; description "Firewall table name"; }
+                ze:help "Show the live firewall ruleset with per-term counters.";
+                leaf name { type string { length "1..64"; } mandatory true; ze:help "Firewall table name"; }
             }
             container group {
                 config false;
                 ze:command "ze-show:firewall-group";
                 ze:backend "nft";
-                description "Show members of a firewall address/port group.";
-                ze:help "Without arguments, lists all known groups. With a name,
+                description "Without arguments, lists all known groups. With a name,
 shows the set elements. Reads from the last applied config, not the
 kernel.";
+                ze:help "Show members of a firewall address/port group.";
             }
         }
 
@@ -43,10 +43,10 @@ kernel.";
                 config false;
                 ze:command "ze-show:system-conntrack";
                 ze:backend "nft";
-                description "Show the kernel connection tracking table.";
-                ze:help "Returns conntrack entry count, table size, timeouts,
+                description "Returns conntrack entry count, table size, timeouts,
 and loaded modules. Requires the nft backend. Check this when you suspect
 conntrack table exhaustion is dropping traffic.";
+                ze:help "Show the kernel connection tracking table.";
             }
         }
     }

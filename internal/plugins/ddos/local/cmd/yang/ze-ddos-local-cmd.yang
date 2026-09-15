@@ -10,18 +10,18 @@ module ze-ddos-local-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container ddos {
             config false;
-            description "Distributed denial-of-service detection and mitigation subsystem.";
+            ze:help "Distributed denial-of-service detection and mitigation subsystem.";
 
             container local {
                 config false;
                 ze:command "ze-show:ddos-local";
-                description "Show the on-host DDoS mitigation status.";
-                ze:help "The answer states whether an nft drop rule is installed
+                description "The answer states whether an nft drop rule is installed
 now, and the target vector it covers: prefix, protocol, or port.";
+                ze:help "Show the on-host DDoS mitigation status.";
             }
         }
     }

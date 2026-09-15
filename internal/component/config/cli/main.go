@@ -139,9 +139,9 @@ func printCommitWarnings(warnings []string) {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze config",
-		Summary: "Create and manage Ze configurations",
-		Usage:   []string{"ze config <command> [options]"},
+		Command:   "ze config",
+		ShortHelp: "Create and manage Ze configurations",
+		Usage:     []string{"ze config <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Editing", Entries: []helpfmt.HelpEntry{
 				{Name: "edit [file]", Desc: "Interactive editor (default: <identity>.conf)"},

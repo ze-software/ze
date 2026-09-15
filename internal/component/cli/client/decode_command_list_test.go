@@ -27,7 +27,7 @@ func TestDecodeCommandListRefusesTheRetiredKey(t *testing.T) {
 	}{
 		{name: "retired key with a value", payload: `{"commands":[{"value":"show env get","help":"Read one environment value"}]}`},
 		{name: "retired key with an empty value", payload: `{"commands":[{"value":"show env get","help":""}]}`},
-		{name: "retired key on a later row", payload: `{"commands":[{"value":"show a","description":"A."},{"value":"show env get","help":"B."}]}`},
+		{name: "retired key on a later row", payload: `{"commands":[{"value":"show a","short-help":"A."},{"value":"show env get","help":"B."}]}`},
 	}
 
 	for _, tc := range cases {
@@ -47,18 +47,18 @@ func TestDecodeCommandListRefusesTheRetiredKey(t *testing.T) {
 // texts have to survive the decode for the menu and the ? box to differ.
 func TestDecodeCommandListReadsBothTexts(t *testing.T) {
 	const payload = `{"commands":[
-		{"value":"show env get","description":"Read one environment value.","long-help":"The explanation."},
-		{"value":"show env set","description":"Write one environment value."}
+		{"value":"show env get","short-help":"Read one environment value.","description":"The explanation."},
+		{"value":"show env set","short-help":"Write one environment value."}
 	]}`
 
 	rows, err := decodeCommandList([]byte(payload))
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 
-	assert.Equal(t, "Read one environment value.", rows[0].Description)
-	assert.Equal(t, "The explanation.", rows[0].LongHelp)
+	assert.Equal(t, "Read one environment value.", rows[0].ShortHelp)
+	assert.Equal(t, "The explanation.", rows[0].Description)
 	assert.Nil(t, rows[0].RetiredHelp)
 
-	assert.Equal(t, "Write one environment value.", rows[1].Description)
-	assert.Empty(t, rows[1].LongHelp, "a row that declares no explanation carries none")
+	assert.Equal(t, "Write one environment value.", rows[1].ShortHelp)
+	assert.Empty(t, rows[1].Description, "a row that declares no explanation carries none")
 }

@@ -571,7 +571,7 @@ func HandleCLICompleteWithCommandCompleter(completer contract.Completer, command
 		for i, c := range completions {
 			items[i] = completionItem{
 				Text:        c.Text,
-				Description: c.Description,
+				Description: c.ShortHelp,
 				Type:        c.Type,
 			}
 		}

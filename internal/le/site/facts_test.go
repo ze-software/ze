@@ -49,8 +49,8 @@ func factsFixture(t *testing.T) Paths {
 	writeFixtureFile(t, filepath.Join(source, "changes", "posts", "2026-08-10.md"), "# Week\n")
 	writeFixtureFile(t, filepath.Join(root, "go.mod"), "module example.test\n\ngo 1.25\n\nrequire (\n\tone.test/a v1.0.0\n\ttwo.test/b v2.0.0\n\tthree.test/c v3.0.0 // indirect\n)\n")
 
-	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","description":"Show rows","mode":"read-only"},
-		{"path":"show other","description":"Show other rows","mode":"read-only"}]`)
+	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"},
+		{"path":"show other","short-help":"Show other rows","mode":"read-only"}]`)
 	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."},
 		"static":{"kind":"container","description":"Static routes."}}`)
 
@@ -325,7 +325,7 @@ func TestAFactTheTreeCannotAnswerStopsTheBuild(t *testing.T) {
 func TestThisCheckoutCanAnswerEveryPublishedFact(t *testing.T) {
 	root := repositoryRoot(t)
 	output := t.TempDir()
-	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
 	stubGitHubStars(t, 50, nil)
 
@@ -467,7 +467,7 @@ func TestEveryProseTokenResolvesAgainstTheSnapshotThisBuildWrites(t *testing.T) 
 // the command catalog and the plugin registry.
 func TestTheFactsSnapshotIsWrittenBeforeAnyProducerReadsIt(t *testing.T) {
 	root, output := siteFixture(t)
-	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	// The whole point is the ORDER, so this producer states what it read and
 	// the assertion below reads it back rather than trusting the file's
 	// presence after the build.
@@ -655,7 +655,7 @@ func manyRFCRequirements(total, gated int) rfc.Collected {
 func TestNoPublishedSourceNamesAGeneratedLedgerFile(t *testing.T) {
 	root := repositoryRoot(t)
 	output := t.TempDir()
-	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
 	stubGitHubStars(t, 50, nil)
 

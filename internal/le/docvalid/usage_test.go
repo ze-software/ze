@@ -37,13 +37,13 @@ module ze-fixture-cmd {
   import ze-extensions { prefix ze; }
   container show {
     config false;
-    description "Show operational state.";
+    ze:help "Show operational state.";
     container sockets {
       config false;
       ze:command "ze-show:sockets";
-      description "List open sockets.
+      ze:help "List open sockets.
 Usage: show sockets [port <N>].";
-      leaf port { type uint32; description "Port"; }
+      leaf port { type uint32; ze:help "Port"; }
     }
   }
 }
@@ -304,14 +304,14 @@ module ze-fixture-cmd {
   import ze-extensions { prefix ze; }
   container show {
     config false;
-    description "Show operational state.";
+    ze:help "Show operational state.";
     container sockets {
       config false;
-      description "List open sockets.";
+      ze:help "List open sockets.";
       container tcp {
         config false;
         ze:command "ze-show:sockets-tcp";
-        description "List open TCP sockets.";
+        ze:help "List open TCP sockets.";
       }
     }
   }
@@ -350,15 +350,15 @@ module ze-fixture-cmd {
   import ze-extensions { prefix ze; }
   container request {
     config false;
-    description "Request an action.";
+    ze:help "Request an action.";
     container interface {
       config false;
-      description "Act on one interface.";
+      ze:help "Act on one interface.";
       container down {
         config false;
         ze:command "ze-iface:interface-down";
-        description "Take the interface down.";
-        leaf name { type string; mandatory true; description "Interface name"; }
+        ze:help "Take the interface down.";
+        leaf name { type string; mandatory true; ze:help "Interface name"; }
       }
     }
   }

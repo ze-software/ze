@@ -50,10 +50,10 @@ func init() {
 		}
 		return Run(args, plugins)
 	}, registry.Meta{
-		Description: "Schema discovery",
-		Mode:        modeOffline,
-		Section:     registry.SectionConfiguration,
-		Subs:        subcommands(),
+		ShortHelp: "Schema discovery",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      subcommands(),
 	})
 	// These five answer with DATA, so their answers go through the pipe layer
 	// like any other command's. They printed a table and returned an exit code
@@ -65,24 +65,24 @@ func init() {
 	// command-contract` and the local-data coverage scan parse this file and
 	// read a string literal. A const identifier reaches them as no path at all.
 	registry.MustRegisterLocalData("show schema list", dataList, registry.Meta{
-		Description: "Every registered schema module, with its namespace.",
-		Mode:        modeOffline,
+		ShortHelp: "Every registered schema module, with its namespace.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show schema methods", dataMethods, registry.Meta{
-		Description: "Every RPC a schema module declares. Narrow it with a module name.",
-		Mode:        modeOffline,
+		ShortHelp: "Every RPC a schema module declares. Narrow it with a module name.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show schema events", dataEvents, registry.Meta{
-		Description: "Every notification a schema module declares. Narrow it with a module name.",
-		Mode:        modeOffline,
+		ShortHelp: "Every notification a schema module declares. Narrow it with a module name.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show schema handlers", dataHandlers, registry.Meta{
-		Description: "Which module serves each handler path.",
-		Mode:        modeOffline,
+		ShortHelp: "Which module serves each handler path.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show schema protocol", dataProtocol, registry.Meta{
-		Description: "The hub architecture protocol version.",
-		Mode:        modeOffline,
+		ShortHelp: "The hub architecture protocol version.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// Four answer rows read against declared column names. `show schema

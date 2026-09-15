@@ -74,9 +74,10 @@ func collectPaths(node *command.Node, prefix string, result map[string][]string)
 }
 
 // PathToDescription walks all -cmd YANG modules and builds a map from
-// CLI path (space-joined) to the node's one-line SUMMARY. Used to populate
-// help text when registering commands in the dispatcher. The long explanation
-// a node declares with ze:help is a separate field and is not in this map.
+// CLI path (space-joined) to the node's one-line SUMMARY, which the ze:help
+// extension declares. Used to populate help text when registering commands in
+// the dispatcher. The long explanation a node declares with the YANG
+// description statement is a separate field and is not in this map.
 func PathToDescription(loader *Loader) map[string]string {
 	result := make(map[string]string)
 	if loader == nil {
@@ -87,8 +88,8 @@ func PathToDescription(loader *Loader) map[string]string {
 }
 
 // PathToHelp walks all -cmd YANG modules and builds a map from CLI path
-// (space-joined) to the node's LONG explanation, which the ze:help extension
-// declares. Only the help page for that one command reads it.
+// (space-joined) to the node's LONG explanation, which the YANG description
+// statement declares. Only the help page for that one command reads it.
 //
 // A node that declares no explanation is absent from the map. That is not a
 // defect: the help page then prints the summary alone (PathToDescription).
@@ -104,9 +105,9 @@ func PathToHelp(loader *Loader) map[string]string {
 // nodeDescription and nodeHelp select which of a node's two help texts a walk
 // collects. Each is named for the field it reads, so a call site says which
 // half it is building a map of.
-func nodeDescription(node *command.Node) string { return node.Description }
+func nodeDescription(node *command.Node) string { return node.ShortHelp }
 
-func nodeHelp(node *command.Node) string { return node.LongHelp }
+func nodeHelp(node *command.Node) string { return node.Description }
 
 // collectNodeText recursively walks the command tree and collects path -> the
 // text `pick` reads from each node. A node whose text is empty is absent from
@@ -189,8 +190,9 @@ func collectArgDefs(node *command.Node, prefix string, result map[string][]comma
 // BuildCommandTree walks all -cmd YANG modules in the loader and builds
 // a merged command.Node tree. Multiple modules contributing to the same
 // container path (e.g., 4 modules defining peer > ...) are merged.
-// Every node takes its summary from the YANG description statement and its
-// long explanation from ze:help, whether or not it carries ze:command.
+// Every node takes its summary from the ze:help extension and its long
+// explanation from the YANG description statement, whether or not it carries
+// ze:command.
 // Grouping containers (no ze:command) become navigation-only branches.
 func BuildCommandTree(loader *Loader) *command.Node {
 	root := &command.Node{Children: make(map[string]*command.Node)}
@@ -320,7 +322,7 @@ var validateOnce sync.Once
 
 // validateCommandTree walks the merged command tree and warns about nodes
 // that have no summary after all modules have been merged. A node is expected
-// to take a description from at least one contributing module.
+// to take a ze:help summary from at least one contributing module.
 // Called automatically by BuildCommandTree (once per process).
 func validateCommandTree(root *command.Node) {
 	validateNode(root, "")
@@ -346,8 +348,8 @@ func validateNode(node *command.Node, prefix string) {
 			var tb textbuf.Buffer
 			path = tb.Str(prefix).Byte(' ').Str(name).String()
 		}
-		if child.Description == "" {
-			slog.Warn("YANG command node missing description", "path", path)
+		if child.ShortHelp == "" {
+			slog.Warn("YANG command node missing ze:help summary", "path", path)
 		}
 		validateNode(child, path)
 	}
@@ -355,7 +357,8 @@ func validateNode(node *command.Node, prefix string) {
 
 // mergeYANGEntry recursively walks a YANG entry's children and merges them
 // into the command.Node tree. config false containers become tree nodes.
-// Nodes with ze:command get their YANG description as the node Description.
+// Every node takes its ze:help summary as the node Description and its YANG
+// description statement as the node Description.
 func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 	if entry == nil || entry.Dir == nil {
 		return
@@ -388,8 +391,10 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 				target.TaskSupport = ts
 			}
 		}
+		// The summary is the ze:help extension; the explanation is the YANG
+		// description statement.
+		mergeHelpText(&target.ShortHelp, GetHelpExtension(child.Exts), declaresCommand, name, "help")
 		mergeHelpText(&target.Description, child.Description, declaresCommand, name, "description")
-		mergeHelpText(&target.LongHelp, GetHelpExtension(child.Exts), declaresCommand, name, "help")
 
 		if be := GetBackendExtension(child); be != nil && target.Backend == nil {
 			target.Backend = be
@@ -798,16 +803,18 @@ func getTaskSupportExtension(entry *gyang.Entry) string {
 }
 
 // GetHelpExtension reads the ze:help extension from a list of YANG extension
-// statements. Returns the long explanation, or empty string when the statement
-// list declares none. The argument is returned whole, newlines included: it is
-// what the help page prints, and nothing shortens it.
+// statements. Returns the one-line SUMMARY, or empty string when the statement
+// list declares none. The argument is returned whole: it is what every list,
+// completion candidate and help page heading prints, and nothing shortens it.
+// The long explanation is the YANG description statement, which a caller
+// reads from Entry.Description beside this call.
 //
 // The parameter is the statement list rather than an entry, because three
 // carriers declare the same extension and each exposes it in this form: a
 // command container reaches it through Entry.Exts, an RPC through
 // gyang.RPC.Exts() (rpc.go, ExtractRPCs), and a config node through Entry.Exts
-// again (the CLI completer, which puts it in the ? box). One reader answers all
-// three.
+// again (the CLI completer, which puts it beside the name in the ? box). One
+// reader answers all three.
 func GetHelpExtension(exts []*gyang.Statement) string {
 	for _, ext := range exts {
 		if ext.Keyword == HelpExtensionKeyword || strings.HasSuffix(ext.Keyword, ":help") {
@@ -818,9 +825,10 @@ func GetHelpExtension(exts []*gyang.Statement) string {
 }
 
 // HelpExtensionKeyword is the keyword a ze:help statement carries once the
-// loader has resolved the ze-extensions prefix. A caller that builds a help
-// statement rather than reading one writes this keyword, so the builder and
-// GetHelpExtension cannot disagree about the spelling.
+// loader has resolved the ze-extensions prefix. The statement declares a node's
+// one-line summary. A caller that builds a help statement rather than reading
+// one writes this keyword, so the builder and GetHelpExtension cannot disagree
+// about the spelling.
 const HelpExtensionKeyword = "ze:help"
 
 // UIResourceEntry holds the MCP Apps ui-resource metadata from YANG extensions.

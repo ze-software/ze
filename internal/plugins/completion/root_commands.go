@@ -28,7 +28,7 @@ func shellRootCommands() []rootEntry {
 		}
 		entries = append(entries, rootEntry{
 			Name:        cmd.Name,
-			Description: cmd.Meta.Description,
+			Description: cmd.Meta.ShortHelp,
 		})
 	}
 

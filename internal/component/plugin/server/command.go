@@ -73,8 +73,8 @@ func AllBuiltinRPCs() []RPCRegistration {
 // LoadBuiltins registers all builtin handlers with the dispatcher.
 // The wireToPath map provides the dispatch key for each handler, derived from
 // the YANG command tree (WireMethod -> CLI path). pathToDesc provides the
-// one-line summary each command's YANG description declares, and pathToHelp the
-// long explanation its ze:help extension declares. Handlers without a YANG
+// one-line summary each command's ze:help extension declares, and pathToHelp
+// the long explanation its YANG description declares. Handlers without a YANG
 // entry are skipped.
 func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) {
 	for _, reg := range AllBuiltinRPCs() {
@@ -87,7 +87,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]s
 			RequiresSelector: reg.RequiresSelector,
 			PluginProxy:      reg.PluginCommand != "",
 			ArgDefs:          pathToArgDefs[name],
-			LongHelp:         pathToHelp[name],
+			Description:      pathToHelp[name],
 		})
 	}
 }
@@ -119,7 +119,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pat
 				RequiresSelector: reg.RequiresSelector,
 				PluginProxy:      reg.PluginCommand != "",
 				ArgDefs:          pathToArgDefs[name],
-				LongHelp:         pathToHelp[name],
+				Description:      pathToHelp[name],
 			})
 		}
 	}
@@ -445,14 +445,14 @@ func (c *CommandContext) Selector(name string) string {
 type Command struct {
 	Name    string
 	Handler Handler
-	// Description is the one-line SUMMARY of the command, from its YANG description.
-	// Every surface that shows the command on one line reads it.
-	Description string
-	// LongHelp is the explanation this command's own help page prints, from its
-	// ze:help extension. Empty means the command declares no explanation, and
+	// ShortHelp is the one-line SUMMARY of the command, from its YANG ze:help
+	// extension. Every surface that shows the command on one line reads it.
+	ShortHelp string
+	// Description is the explanation this command's own help page prints, from its
+	// YANG description statement. Empty means the command declares no explanation, and
 	// the help page then prints the summary alone. It is NEVER read as a
 	// summary, and no one-line surface reads it at all.
-	LongHelp         string
+	Description      string
 	ReadOnly         bool             // True if command only reads state (safe for "ze show")
 	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
@@ -490,7 +490,7 @@ type RegisterOptions struct {
 	RequiresSelector bool             // True if the command requires an explicit selector value
 	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
-	LongHelp         string           // The long explanation the command's own help page prints (empty = none declared)
+	Description      string           // The long explanation the command's own help page prints (empty = none declared)
 }
 
 // Dispatcher routes commands to handlers.
@@ -559,9 +559,9 @@ func (d *Dispatcher) Register(name string, handler Handler, help string) {
 	// Store with lowercase key for case-insensitive matching
 	key := strings.ToLower(name)
 	d.commands[key] = &Command{
-		Name:        name,
-		Handler:     handler,
-		Description: help,
+		Name:      name,
+		Handler:   handler,
+		ShortHelp: help,
 	}
 	d.updateSortedKeys()
 
@@ -575,8 +575,8 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 	d.commands[key] = &Command{
 		Name:             name,
 		Handler:          handler,
-		Description:      help,
-		LongHelp:         opts.LongHelp,
+		ShortHelp:        help,
+		Description:      opts.Description,
 		ReadOnly:         opts.ReadOnly,
 		RequiresSelector: opts.RequiresSelector,
 		ArgDefs:          opts.ArgDefs,

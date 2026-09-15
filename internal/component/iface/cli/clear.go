@@ -86,9 +86,9 @@ func cmdClearCounters(args []string) int {
 
 func clearUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface clear",
-		Summary: "Clear per-interface operational state",
-		Usage:   []string{"ze interface clear <subject> [<name>]"},
+		Command:   "ze interface clear",
+		ShortHelp: "Clear per-interface operational state",
+		Usage:     []string{"ze interface clear <subject> [<name>]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Subjects", Entries: []helpfmt.HelpEntry{
 				{Name: "counters [<name>]", Desc: "Zero RX/TX counters (all interfaces, or one)"},

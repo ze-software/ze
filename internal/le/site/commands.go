@@ -207,7 +207,7 @@ func writeCommandRow(out *textbuf.Buffer, command *catalogCommand) {
 		Str(html.EscapeString(command.Path)).Str("</code></td>")
 	out.Str(`<td><span class="cli-mode cli-mode-`).Str(html.EscapeString(command.Mode)).Str(`">`).
 		Str(html.EscapeString(commandModeLabel(command.Mode))).Str("</span></td><td>")
-	out.Str(strings.ReplaceAll(html.EscapeString(command.Description), "\n", "<br>"))
+	out.Str(strings.ReplaceAll(html.EscapeString(command.ShortHelp), "\n", "<br>"))
 	if command.Usage != "" {
 		out.Str("<br><code>").Str(html.EscapeString(command.Usage)).Str("</code>")
 	}
@@ -421,7 +421,7 @@ func operatorGuideMirror(commands []catalogCommand) string {
 // what the command model states beside it, as one table cell.
 func commandMirrorDescription(command *catalogCommand) string {
 	parts := make([]string, 0, 6)
-	if description := markdownCell(command.Description); description != "" {
+	if description := markdownCell(command.ShortHelp); description != "" {
 		parts = append(parts, description)
 	}
 	if command.Usage != "" {

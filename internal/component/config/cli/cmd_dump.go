@@ -22,9 +22,9 @@ func cmdDump(args []string) int {
 	stripPrivate := fs.Bool("strip-private", false, "replace sensitive values with /* SECRET-DATA */")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config dump",
-			Summary: "Dump parsed configuration in human-readable form",
-			Usage:   []string{"ze config dump [options] <config>"},
+			Command:   "ze config dump",
+			ShortHelp: "Dump parsed configuration in human-readable form",
+			Usage:     []string{"ze config dump [options] <config>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--strip-private", Desc: "Replace sensitive values with /* SECRET-DATA */"},

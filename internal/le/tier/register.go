@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature",
-		Mode:        "offline",
+		ShortHelp: "module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

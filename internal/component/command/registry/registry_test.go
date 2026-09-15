@@ -9,11 +9,11 @@ func TestListRootBySection(t *testing.T) {
 	ResetForTest()
 	defer ResetForTest()
 
-	RegisterRoot("cli", Meta{Description: "CLI", Section: SectionOperations})
-	RegisterRoot("config", Meta{Description: "Config", Section: SectionConfiguration})
-	RegisterRoot("doctor", Meta{Description: "Doctor", Section: SectionSystem})
-	RegisterRoot("schema", Meta{Description: "Schema", Section: SectionConfiguration})
-	RegisterRoot("orphan", Meta{Description: "No section set"})
+	RegisterRoot("cli", Meta{ShortHelp: "CLI", Section: SectionOperations})
+	RegisterRoot("config", Meta{ShortHelp: "Config", Section: SectionConfiguration})
+	RegisterRoot("doctor", Meta{ShortHelp: "Doctor", Section: SectionSystem})
+	RegisterRoot("schema", Meta{ShortHelp: "Schema", Section: SectionConfiguration})
+	RegisterRoot("orphan", Meta{ShortHelp: "No section set"})
 
 	sections := ListRootBySection()
 
@@ -97,13 +97,13 @@ func TestRegisterRootHandlerRejectsDuplicateOwner(t *testing.T) {
 	ResetForTest()
 	defer ResetForTest()
 
-	if err := RegisterRootHandler("interface", okRootHandler, Meta{Description: "first"}); err != nil {
+	if err := RegisterRootHandler("interface", okRootHandler, Meta{ShortHelp: "first"}); err != nil {
 		t.Fatalf("first registration failed: %v", err)
 	}
 
 	secondCalled := false
 	second := func(_ *RuntimeContext, _ []string) int { secondCalled = true; return 9 }
-	err := RegisterRootHandler("interface", second, Meta{Description: "second"})
+	err := RegisterRootHandler("interface", second, Meta{ShortHelp: "second"})
 	if !errors.Is(err, ErrRootHandlerDuplicate) {
 		t.Fatalf("expected ErrRootHandlerDuplicate, got %v", err)
 	}
@@ -122,7 +122,7 @@ func TestRegisterRootHandlerAlsoRegistersMeta(t *testing.T) {
 	ResetForTest()
 	defer ResetForTest()
 
-	meta := Meta{Description: "Manage OS network interfaces", Section: SectionConfiguration}
+	meta := Meta{ShortHelp: "Manage OS network interfaces", Section: SectionConfiguration}
 	if err := RegisterRootHandler("interface", okRootHandler, meta); err != nil {
 		t.Fatalf("registration failed: %v", err)
 	}
@@ -140,7 +140,7 @@ func TestRegisterRootHandlerAlsoRegistersMeta(t *testing.T) {
 	if found == nil {
 		t.Fatal("owner-backed root absent from ListRoot()")
 	}
-	if found.Meta.Description != meta.Description || found.Meta.Section != meta.Section {
+	if found.Meta.ShortHelp != meta.ShortHelp || found.Meta.Section != meta.Section {
 		t.Errorf("ListRoot meta = %+v, want %+v", found.Meta, meta)
 	}
 }

@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		Description: "which YANG config leaves the owning plugin package never names, so a leaf that is delivered but never read is visible",
-		Mode:        "offline",
+		ShortHelp: "which YANG config leaves the owning plugin package never names, so a leaf that is delivered but never read is visible",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

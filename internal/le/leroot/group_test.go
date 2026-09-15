@@ -11,7 +11,7 @@ import (
 )
 
 func metaFor(description string) registry.Meta {
-	return registry.Meta{Description: description, Mode: "offline", Section: registry.SectionTest}
+	return registry.Meta{ShortHelp: description, Mode: "offline", Section: registry.SectionTest}
 }
 
 func TestUsageSectionsFollowGroupOrder(t *testing.T) {

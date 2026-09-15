@@ -93,9 +93,9 @@ func Run(args, plugins []string) int {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze schema",
-		Summary: "Schema discovery commands",
-		Usage:   []string{"ze schema <command> [options]"},
+		Command:   "ze schema",
+		ShortHelp: "Schema discovery commands",
+		Usage:     []string{"ze schema <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: subList, Desc: "List all registered schemas"},
@@ -326,7 +326,7 @@ func cmdMethods(args, plugins []string) int {
 		rpcs := reg.ListRPCs(module)
 		entries := make([]schemaEntry, len(rpcs))
 		for i, rpc := range rpcs {
-			entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.Description}
+			entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.ShortHelp}
 		}
 		return entries
 	})
@@ -338,7 +338,7 @@ func cmdEvents(args, plugins []string) int {
 		notifs := reg.ListNotifications(module)
 		entries := make([]schemaEntry, len(notifs))
 		for i, notif := range notifs {
-			entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.Description}
+			entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.ShortHelp}
 		}
 		return entries
 	})

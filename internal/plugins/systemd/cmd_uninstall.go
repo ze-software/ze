@@ -93,9 +93,9 @@ func (rt *serviceRuntime) purgeServiceAccount() int {
 
 func uninstallUsageTo(w io.Writer) {
 	p := helpfmt.Page{
-		Command: "ze systemd uninstall",
-		Summary: "Stop, disable, and remove ze.service",
-		Usage:   []string{"ze systemd uninstall [--purge]"},
+		Command:   "ze systemd uninstall",
+		ShortHelp: "Stop, disable, and remove ze.service",
+		Usage:     []string{"ze systemd uninstall [--purge]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--purge", Desc: "Also remove the ze user and group"},

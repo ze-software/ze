@@ -570,7 +570,7 @@ func TestThePluginCatalogClaimsOnlyPublishedRoutes(t *testing.T) {
 // method is the one a reader would use, a seed carrying a stale file and a
 // build over it.
 func TestABuildRefreshesThePluginRegistryAndTheConfigurationTree(t *testing.T) {
-	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","short-help":"Show rows","mode":"read-only"}]`)
 	stubProducers(t)
 	root, output := siteFixture(t)
 

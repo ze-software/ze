@@ -8,10 +8,10 @@ module ze-bgp-cmd-update-api {
     "Ze BGP route announcement parsing command RPCs.";
 
   rpc peer-update {
-    description "Parse and send text-format UPDATE to peer.";
-    ze:help "The first word after update names the encoding, and it is one of text, hex,
+    description "The first word after update names the encoding, and it is one of text, hex,
 b64 and cursor. A BGP reactor must be running, and any other first word is refused as an
 unknown encoding.";
+    ze:help "Parse and send text-format UPDATE to peer.";
   }
   // The hex and b64 forms are encodings of peer-update above, and handleUpdate
   // reads the encoding from the first word after update. They are not a command

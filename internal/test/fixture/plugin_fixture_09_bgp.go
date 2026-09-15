@@ -127,8 +127,8 @@ func localPrefStrip09(ctx context.Context, _ []string) error {
 
 func mcpHiddenCommand09(ctx context.Context, _ []string) error {
 	registration := sdk.Registration{Commands: []sdk.CommandDecl{
-		{Name: "show mcpgate visible", Description: "visible probe command"},
-		{Name: "show mcpgate concealed", Description: "concealed probe command", Hidden: true},
+		{Name: "show mcpgate visible", ShortHelp: "visible probe command"},
+		{Name: "show mcpgate concealed", ShortHelp: "concealed probe command", Hidden: true},
 	}}
 	return passiveObserve09(ctx, "mcpgate-test", registration, func(context.Context, *sdk.Plugin) error {
 		fmt.Fprintln(os.Stderr, "OK: declared one visible and one hidden command")

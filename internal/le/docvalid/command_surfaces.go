@@ -125,13 +125,13 @@ type publishedCommandToken struct {
 }
 
 type publishedCommand struct {
-	Path        string `json:"path"`
-	Description string `json:"description,omitempty"`
-	// LongHelp is the command's own explanation, from ze:help. The catalog
+	Path      string `json:"path"`
+	ShortHelp string `json:"short-help,omitempty"`
+	// Description is the command's own explanation, from the YANG description. The catalog
 	// carries it beside Description because the two answer different
 	// questions, and the parser rejects an unknown field, so a catalog
 	// carrying a long help is unreadable without it.
-	LongHelp      string                     `json:"long-help,omitempty"`
+	Description   string                     `json:"description,omitempty"`
 	Mode          string                     `json:"mode"`
 	WireMethod    string                     `json:"wire-method,omitempty"`
 	Backend       []string                   `json:"backend,omitempty"`
@@ -725,8 +725,8 @@ func validateGeneratedWikiCommandSurface(
 		// block takes the declared long form. Neither is a cut of the other:
 		// the wiki renderer reads two fields the command model declares
 		// separately (internal/le/wikicatalog/render.go, Render).
-		summary := wikiTableProse(normalizeWikiDescription(command.Description))
-		longHelp := normalizeWikiDescription(command.LongHelp)
+		summary := wikiTableProse(normalizeWikiDescription(command.ShortHelp))
+		explanation := normalizeWikiDescription(command.Description)
 		wantRow := rendered.Reset().Str("| ").
 			Str(markdownCodeLiteral(commandMarkdownTableValue(command.Path))).Str(" | ").
 			Str(command.Mode).Str(" | ").
@@ -745,14 +745,14 @@ func validateGeneratedWikiCommandSurface(
 			))
 			continue
 		}
-		if longHelp != "" {
-			lines := strings.Split(longHelp, "\n")
+		if explanation != "" {
+			lines := strings.Split(explanation, "\n")
 			for index := range lines {
 				lines[index] = markdownLiteralProse(lines[index])
 			}
-			wantLongHelp := rendered.Reset().Byte('\n').Str(strings.Join(lines, "\n")).
+			wantDescription := rendered.Reset().Byte('\n').Str(strings.Join(lines, "\n")).
 				Str("\n\n").String()
-			if !strings.HasPrefix(detail, wantLongHelp) {
+			if !strings.HasPrefix(detail, wantDescription) {
 				issues = append(issues, generatedCommandContractIssue(
 					surface, command.Path, "wiki command long help",
 				))
@@ -3494,7 +3494,7 @@ func validatePrimaryCommandContract(
 		}{
 			{name: pathField, expected: command.Path, actual: visible[0]},
 			{name: "mode", expected: normalizedCommandMode(command.Mode), actual: normalizedCommandMode(visible[1])},
-			{name: descriptionField, expected: command.Description, actual: visible[2]},
+			{name: descriptionField, expected: command.ShortHelp, actual: visible[2]},
 		} {
 			expected := normalizeRenderedHTMLText(field.expected)
 			if field.actual != expected {
@@ -3804,7 +3804,7 @@ func validatePrimaryMarkdownContract(
 		}{
 			{name: pathField, expected: strings.Join(strings.Fields(command.Path), " "), actual: visible[0]},
 			{name: "mode", expected: normalizedCommandMode(command.Mode), actual: normalizedCommandMode(visible[1])},
-			{name: descriptionField, expected: markdownInlineVisibleText(markdownLiteralProse(command.Description)), actual: visible[2]},
+			{name: descriptionField, expected: markdownInlineVisibleText(markdownLiteralProse(command.ShortHelp)), actual: visible[2]},
 		} {
 			if field.actual != field.expected {
 				issues = append(issues, generatedCommandSurfaceValueIssue(
@@ -5664,7 +5664,7 @@ func validateLLMSCommandContract(
 		},
 		{
 			name:     descriptionField,
-			expected: markdownInlineVisibleText(markdownLiteralProse(command.Description)),
+			expected: markdownInlineVisibleText(markdownLiteralProse(command.ShortHelp)),
 			actual:   markdownInlineVisibleText(description),
 		},
 	} {

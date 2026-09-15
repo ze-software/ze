@@ -70,7 +70,7 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 		Areas:   make([]ManifestArea, 0, len(roots)),
 	}
 	for _, root := range roots {
-		area := ManifestArea{Name: root.Name, Description: root.Meta.Description}
+		area := ManifestArea{Name: root.Name, Description: root.Meta.ShortHelp}
 		if group, declared := GroupOf(root.Name); declared {
 			area.Group = group
 		}
@@ -99,10 +99,10 @@ func (m Manifest) Text() string {
 func (m Manifest) page() helpfmt.Page {
 	var tb textbuf.Buffer
 	return helpfmt.Page{
-		Command:  m.Program,
-		Summary:  m.Summary,
-		Usage:    []string{tb.Str(m.Program).Str(" <command> [options] [| json | yaml | table]").String()},
-		Sections: m.sections(),
+		Command:   m.Program,
+		ShortHelp: m.Summary,
+		Usage:     []string{tb.Str(m.Program).Str(" <command> [options] [| json | yaml | table]").String()},
+		Sections:  m.sections(),
 	}
 }
 

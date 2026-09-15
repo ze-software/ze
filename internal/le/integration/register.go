@@ -14,8 +14,8 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
-		Description: "integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access",
-		Mode:        "offline",
+		ShortHelp: "integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

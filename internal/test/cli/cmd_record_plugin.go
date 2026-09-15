@@ -188,12 +188,12 @@ func cmdRecordPlugin(_ []string) int {
 
 	registration := sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: recordWalkCommand, Description: "Walk that streams its rows"},
-			{Name: recordFaultCommand, Description: "Walk with one row no line can carry"},
-			{Name: recordDocumentCommand, Description: "Walk whose collapsed document no line can carry"},
-			{Name: recordEngineCommand, Description: "What the plugin read from a streamed engine answer"},
-			{Name: recordTableCommand, Description: "Walk whose head declares its columns"},
-			{Name: recordObjectCommand, Description: "The same walk with no column schema"},
+			{Name: recordWalkCommand, ShortHelp: "Walk that streams its rows"},
+			{Name: recordFaultCommand, ShortHelp: "Walk with one row no line can carry"},
+			{Name: recordDocumentCommand, ShortHelp: "Walk whose collapsed document no line can carry"},
+			{Name: recordEngineCommand, ShortHelp: "What the plugin read from a streamed engine answer"},
+			{Name: recordTableCommand, ShortHelp: "Walk whose head declares its columns"},
+			{Name: recordObjectCommand, ShortHelp: "The same walk with no column schema"},
 		},
 	}
 	if runErr := p.Run(ctx, registration); runErr != nil {

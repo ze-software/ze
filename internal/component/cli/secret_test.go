@@ -234,7 +234,7 @@ func searchResultText(m *Model) string {
 	for _, completion := range m.searchConfig("") {
 		b.WriteString(completion.Text)
 		b.WriteByte('\n')
-		b.WriteString(completion.Description)
+		b.WriteString(completion.ShortHelp)
 		b.WriteByte('\n')
 	}
 	return b.String()

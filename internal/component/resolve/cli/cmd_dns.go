@@ -86,9 +86,9 @@ func cmdDNS(args []string) int {
 
 func dnsUsage() {
 	p := helpfmt.Page{
-		Command: "ze resolve dns",
-		Summary: "DNS record queries",
-		Usage:   []string{"ze resolve dns [--server <host>] <operation> <hostname|address>"},
+		Command:   "ze resolve dns",
+		ShortHelp: "DNS record queries",
+		Usage:     []string{"ze resolve dns [--server <host>] <operation> <hostname|address>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: usageSectionOperations, Entries: []helpfmt.HelpEntry{
 				{Name: "a <hostname>", Desc: "IPv4 address records"},

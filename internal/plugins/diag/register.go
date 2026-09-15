@@ -13,14 +13,14 @@ import (
 
 func init() {
 	registry.RegisterRoot("generate", registry.Meta{
-		Description: "Generate cryptographic artifacts (keypairs, bundles)",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "wireguard keypair",
+		ShortHelp: "Generate cryptographic artifacts (keypairs, bundles)",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      "wireguard keypair",
 	})
 	registry.MustRegisterLocalMeta("generate wireguard keypair", RunWgKeypair, registry.Meta{
-		Description: "Generate a WireGuard keypair with the system wg binary.",
-		LongHelp: "The private key is written on the first line and the public key on the second. " +
+		ShortHelp: "Generate a WireGuard keypair with the system wg binary.",
+		Description: "The private key is written on the first line and the public key on the second. " +
 			"The wg binary must be installed on this host.",
 	})
 }

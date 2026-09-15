@@ -17,10 +17,10 @@ module ze-fakeddos-conf {
       leaf enabled {
         type boolean;
         default false;
-        description "Start the synthetic DDoS injector. The default false leaves it inert.";
-        ze:help "When true, the injector emits a synthetic AttackDetected event.
-                 It then emits AttackCleared on the driver's trigger.
-                 The default false leaves the injector inert.";
+        description "When true, the injector emits a synthetic AttackDetected event.
+                     It then emits AttackCleared on the driver's trigger.
+                     The default false leaves the injector inert.";
+        ze:help "Start the synthetic DDoS injector. The default false leaves it inert.";
 
       }
     }

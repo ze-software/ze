@@ -197,7 +197,7 @@ func parseStateEvent(text string) (peerAddr, state string) {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: commandRequestWatchdogAnnounce, Description: "Announce routes in watchdog group"},
-		{Name: commandRequestWatchdogWithdraw, Description: "Withdraw routes in watchdog group"},
+		{Name: commandRequestWatchdogAnnounce, ShortHelp: "Announce routes in watchdog group"},
+		{Name: commandRequestWatchdogWithdraw, ShortHelp: "Withdraw routes in watchdog group"},
 	}
 }

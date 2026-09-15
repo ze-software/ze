@@ -629,7 +629,8 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	node.Hidden = hasHiddenExtension(entry)
 	node.Ephemeral = hasEphemeralExtension(entry)
 	node.Decorate = getDecorateExtension(entry)
-	node.Description = entry.Description
+	node.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
+	node.Description = entry.Description               // the long explanation
 	node.Backend = getBackendExtension(entry)
 	node.Related = extractRelatedTools(entry, path)
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
@@ -720,7 +721,8 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	// Check for YANG presence statement — enables flag/value/block modes
 	container.Presence = hasPresenceStatement(entry)
 	container.Flatten = hasFlattenExtension(entry)
-	container.Description = entry.Description
+	container.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
+	container.Description = entry.Description               // the long explanation
 	container.Backend = getBackendExtension(entry)
 	container.Related = extractRelatedTools(entry, path)
 
@@ -796,7 +798,8 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l.Hidden = hasHiddenExtension(entry)
 	l.Ephemeral = hasEphemeralExtension(entry)
 	l.Listener = hasListenerExtension(entry)
-	l.Description = entry.Description
+	l.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
+	l.Description = entry.Description               // the long explanation
 	l.Backend = getBackendExtension(entry)
 
 	// Scan children for ze:display-key extension (keyless lists only).

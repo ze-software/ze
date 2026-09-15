@@ -50,7 +50,7 @@ func TestRPCDeclareRegistration(t *testing.T) {
 			{Name: "ipv4/flow", Mode: "decode"},
 		},
 		Commands: []rpc.CommandDecl{
-			{Name: "show-routes", Description: "Show routes"},
+			{Name: "show-routes", ShortHelp: "Show routes"},
 		},
 		WantsConfig: []string{"bgp"},
 		Schema: &rpc.SchemaDecl{
@@ -461,7 +461,7 @@ func TestRPCFullStartupCycle(t *testing.T) {
 		// Stage 1: plugin sends declare-registration
 		if err := pluginConn.sendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
 			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
-			Commands:    []rpc.CommandDecl{{Name: "show-routes", Description: "Show routes"}},
+			Commands:    []rpc.CommandDecl{{Name: "show-routes", ShortHelp: "Show routes"}},
 			WantsConfig: []string{"bgp"},
 		}); err != nil {
 			errCh <- err

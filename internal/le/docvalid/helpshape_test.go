@@ -29,13 +29,13 @@ module ze-fixture-cmd {
   import ze-extensions { prefix ze; }
   container show {
     config false;
-    description "Show operational state.";
-    ze:help "Every command under this node reads the daemon and writes nothing.";
+    ze:help "Show operational state.";
+    description "Every command under this node reads the daemon and writes nothing.";
     container sockets {
       config false;
       ze:command "ze-show:sockets";
-      description "List the open sockets.";
-      ze:help "One row is written for each socket the daemon holds open.
+      ze:help "List the open sockets.";
+      description "One row is written for each socket the daemon holds open.
                The state column names the TCP state.";
     }
   }
@@ -51,13 +51,13 @@ module ze-fixture-api {
   prefix zefixapi;
   import ze-extensions { prefix ze; }
   rpc socket-list {
-    description "List the open sockets.";
-    ze:help "One row is written for each socket the daemon holds open.
+    ze:help "List the open sockets.";
+    description "One row is written for each socket the daemon holds open.
              The state column names the TCP state.";
   }
   rpc socket-clear {
-    description "Close every idle socket.";
-    ze:help "A socket with a peer still attached to it is left open.";
+    ze:help "Close every idle socket.";
+    description "A socket with a peer still attached to it is left open.";
   }
 }
 `
@@ -68,16 +68,16 @@ const fixtureRPC = "ze-fixture-api:socket-list"
 
 // brokenSummary replaces the fixture's good summary with one to be judged.
 func brokenSummary(summary string) string {
-	return strings.Replace(shapeModule, `description "List the open sockets.";`,
-		`description "`+summary+`";`, 1)
+	return strings.Replace(shapeModule, `ze:help "List the open sockets.";`,
+		`ze:help "`+summary+`";`, 1)
 }
 
 // brokenRPCSummary replaces the fixture RPC's good summary with one to be
 // judged. The rpc and the command node open with the same sentence, so the
-// replacement is anchored on the ze:help that follows it.
+// replacement is anchored on the description that follows it.
 func brokenRPCSummary(summary string) string {
-	return strings.Replace(shapeAPIModule, `description "List the open sockets.";`,
-		`description "`+summary+`";`, 1)
+	return strings.Replace(shapeAPIModule, `ze:help "List the open sockets.";`,
+		`ze:help "`+summary+`";`, 1)
 }
 
 // fixturePath is the CLI path of the command node every fixture in this file
@@ -175,8 +175,8 @@ func shapeLocals() []registry.LocalCommandEntry {
 	return []registry.LocalCommandEntry{{
 		Path: fixtureLocal,
 		Meta: registry.Meta{
-			Description: "Generate a fixture keypair.",
-			LongHelp:    "The private key is written first and the public key second.",
+			ShortHelp:   "Generate a fixture keypair.",
+			Description: "The private key is written first and the public key second.",
 			Mode:        "offline",
 		},
 	}}
@@ -188,20 +188,20 @@ func brokenLocalSummary(summary string) []registry.LocalCommandEntry {
 	return []registry.LocalCommandEntry{{
 		Path: fixtureLocal,
 		Meta: registry.Meta{
-			Description: summary,
-			LongHelp:    "The private key is written first and the public key second.",
+			ShortHelp:   summary,
+			Description: "The private key is written first and the public key second.",
 			Mode:        "offline",
 		},
 	}}
 }
 
-// localWithNoLongHelp answers one offline local command carrying a summary that
+// localWithNoDescription answers one offline local command carrying a summary that
 // breaks no rule and no long text at all, which is the one thing
-// missing-long-help refuses.
-func localWithNoLongHelp() []registry.LocalCommandEntry {
+// missing-description refuses.
+func localWithNoDescription() []registry.LocalCommandEntry {
 	return []registry.LocalCommandEntry{{
 		Path: fixtureLocal,
-		Meta: registry.Meta{Description: "Generate a fixture keypair.", Mode: "offline"},
+		Meta: registry.Meta{ShortHelp: "Generate a fixture keypair.", Mode: "offline"},
 	}}
 }
 
@@ -313,18 +313,18 @@ func TestHelpShapeGateRefusesANewlineInASummary(t *testing.T) {
 	}
 }
 
-// VALIDATES: a command node that declares no description is NAMED, and the
+// VALIDATES: a command node that declares no ze:help summary is NAMED, and the
 // report still counts it as a node of the tree.
 // PREVENTS: the silent answer. An unconverted node has nothing to measure, so
 // every shape rule passes over it vacuously; a gate that only judges the text
 // it finds reports zero failures for a tree nobody has written yet
 // (ai/rules/evidence.md: a zero value must never be a valid-looking answer).
 func TestHelpShapeGateNamesANodeWithNoSummary(t *testing.T) {
-	module := strings.Replace(shapeModule, `description "List the open sockets.";`, "", 1)
+	module := strings.Replace(shapeModule, `ze:help "List the open sockets.";`, "", 1)
 	report := shapeReport(t, module)
 
 	if got := shapeRules(report); len(got) != 1 || got[0] != ruleMissingSummary {
-		t.Fatalf("the gate reports %v against a node with no description, want exactly [%s]",
+		t.Fatalf("the gate reports %v against a node with no summary, want exactly [%s]",
 			got, ruleMissingSummary)
 	}
 	if report.Nodes != 2 {
@@ -344,7 +344,7 @@ func TestHelpShapeGateNamesANodeWithNoSummary(t *testing.T) {
 // ones that run a command, the ones with a summary, and the ones with a long
 // help.
 // PREVENTS: a gate that reports only refusals. R-6 in the spec names the case:
-// an empty ze:help means "nobody has written the explanation yet", and without a
+// an empty description means "nobody has written the explanation yet", and without a
 // coverage count that state is indistinguishable from a finished conversion.
 func TestHelpShapeGateReportsCoverage(t *testing.T) {
 	report := shapeReport(t, shapeModule)
@@ -359,7 +359,7 @@ func TestHelpShapeGateReportsCoverage(t *testing.T) {
 		t.Errorf("the gate counted %d summaries, want 2", report.WithSummary)
 	}
 	if report.WithHelp != 2 {
-		t.Errorf("the gate counted %d long help texts, want the 2 ze:help the fixture declares",
+		t.Errorf("the gate counted %d long help texts, want the 2 descriptions the fixture declares",
 			report.WithHelp)
 	}
 	if report.RPCs != 2 || report.RPCsWithSummary != 2 || report.RPCsWithHelp != 2 {
@@ -511,8 +511,8 @@ func TestHelpShapeGateNamesANodeWithNothingBehindIt(t *testing.T) {
 	tree := &command.Node{Children: map[string]*command.Node{
 		"show": {
 			Name:        "show",
-			Description: "Show operational state.",
-			LongHelp:    "Every command under this node reads the daemon and writes nothing.",
+			ShortHelp:   "Show operational state.",
+			Description: "Every command under this node reads the daemon and writes nothing.",
 			WireMethod:  "ze-show:state",
 			Children:    map[string]*command.Node{"sockets": nil},
 		},
@@ -529,10 +529,10 @@ func TestHelpShapeGateNamesANodeWithNothingBehindIt(t *testing.T) {
 	}
 }
 
-// VALIDATES: the gate judges an RPC's description by the same seven rules it
+// VALIDATES: the gate judges an RPC's ze:help summary by the same seven rules it
 // judges a command node's, names the module and the RPC that broke one, and
-// counts an RPC that declares no description at all.
-// PREVENTS: half a corpus with no shape to satisfy. 218 RPC descriptions sit
+// counts an RPC that declares no ze:help at all.
+// PREVENTS: half a corpus with no shape to satisfy. 218 RPC summaries sit
 // beside the command tree in the `-api` modules, they reach the same one-line
 // surfaces, and a gate that walks only the command tree reports full coverage
 // over a corpus it never read (ai/rules/evidence.md, AC-16).
@@ -605,12 +605,12 @@ func TestHelpShapeGateWalksRPCDescriptions(t *testing.T) {
 		})
 	}
 
-	t.Run("no description at all", func(t *testing.T) {
-		module := strings.Replace(shapeAPIModule, `description "List the open sockets.";`, "", 1)
+	t.Run("no summary at all", func(t *testing.T) {
+		module := strings.Replace(shapeAPIModule, `ze:help "List the open sockets.";`, "", 1)
 		report := shapeReportOver(t, shapeModule, module)
 
 		if got := shapeRPCRules(report); len(got) != 1 || got[0] != ruleMissingSummary {
-			t.Fatalf("the gate reports %v against an RPC with no description, want exactly [%s]",
+			t.Fatalf("the gate reports %v against an RPC with no summary, want exactly [%s]",
 				got, ruleMissingSummary)
 		}
 		if report.RPCs != 2 {
@@ -651,15 +651,15 @@ func TestHelpShapeGateRefusesAModuleSetWithNoRPC(t *testing.T) {
 // suffix, which is the shape of the plugin IPC protocol in
 // `internal/core/ipc/yang/` (`ze-plugin-engine`, `ze-plugin-callback`). Its
 // summary ends in no full stop, so a walk that reaches it must refuse it. It
-// carries a ze:help so that full-stop is the ONLY rule the case can report.
+// carries a description so that full-stop is the ONLY rule the case can report.
 const shapeIPCModule = `
 module ze-fixture-ipc {
   namespace "urn:ze:fixture:ipc";
   prefix zefixipc;
   import ze-extensions { prefix ze; }
   rpc session-ping {
-    description "Answer with the process id";
-    ze:help "The engine answers with the pid of the process that serves the plugin.";
+    ze:help "Answer with the process id";
+    description "The engine answers with the pid of the process that serves the plugin.";
   }
 }
 `
@@ -851,7 +851,7 @@ func TestHelpShapeGateRefusesABrokenLocalSummary(t *testing.T) {
 func TestHelpShapeGateSkipsALocalPathTheCommandTreeHolds(t *testing.T) {
 	locals := append(shapeLocals(), registry.LocalCommandEntry{
 		Path: fixturePath,
-		Meta: registry.Meta{Description: "no full stop and two sentences. At all"},
+		Meta: registry.Meta{ShortHelp: "no full stop and two sentences. At all"},
 	})
 
 	report, err := helpShapeContract(shapeInput(shapeLoader(t, shapeModule, shapeAPIModule), locals))
@@ -894,14 +894,14 @@ func TestHelpShapeGateReadsTheMainPackageRegistrations(t *testing.T) {
 	}
 	source := "package main\n\nfunc register() {\n" +
 		"\tregistry.MustRegisterLocalMeta(\"help fixture\", nil, registry.Meta{\n" +
-		"\t\tDescription: \"Show the fixture help.\",\n" +
-		"\t\tLongHelp:    \"One line is written for each fixture.\",\n" +
+		"\t\tShortHelp: \"Show the fixture help.\",\n" +
+		"\t\tDescription:    \"One line is written for each fixture.\",\n" +
 		"\t\tMode:        \"offline\",\n\t})\n" +
 		"\tregistry.MustRegisterLocalMeta(\"clear fixture\", nil, registry.Meta{\n" +
-		"\t\tDescription: \"Clear \" +\n\t\t\t\"the fixture.\",\n\t})\n" +
+		"\t\tShortHelp: \"Clear \" +\n\t\t\t\"the fixture.\",\n\t})\n" +
 		"\tregistry.MustRegisterLocal(\"show fixture\", nil)\n" +
 		"\tregistry.MustRegisterLocalMeta(\"watch fixture\", nil, other.Meta{\n" +
-		"\t\tDescription: \"Not the command registry's Meta.\",\n\t})\n}\n"
+		"\t\tShortHelp: \"Not the command registry's Meta.\",\n\t})\n}\n"
 	if err := os.WriteFile(filepath.Join(dir, "fixture.go"), []byte(source), 0o600); err != nil {
 		t.Fatalf("write the fixture file: %v", err)
 	}
@@ -916,22 +916,22 @@ func TestHelpShapeGateReadsTheMainPackageRegistrations(t *testing.T) {
 	// A summary wider than the line budget is written as a concatenation, so a
 	// reader that saw only a single literal would answer "nothing declared" for
 	// text the compiler puts in the registry.
-	if got[0].Path != "clear fixture" || got[0].Meta.Description != "Clear the fixture." {
+	if got[0].Path != "clear fixture" || got[0].Meta.ShortHelp != "Clear the fixture." {
 		t.Errorf("the reader answered %+v, want the joined summary", got[0])
 	}
-	if got[1].Path != "help fixture" || got[1].Meta.Description != "Show the fixture help." {
+	if got[1].Path != "help fixture" || got[1].Meta.ShortHelp != "Show the fixture help." {
 		t.Errorf("the reader answered %+v, want the declared path and summary", got[1])
 	}
-	if got[1].Meta.LongHelp != "One line is written for each fixture." {
-		t.Errorf("the reader dropped the long help: %q", got[1].Meta.LongHelp)
+	if got[1].Meta.Description != "One line is written for each fixture." {
+		t.Errorf("the reader dropped the long help: %q", got[1].Meta.Description)
 	}
-	if got[2].Path != "show fixture" || got[2].Meta.Description != "" {
+	if got[2].Path != "show fixture" || got[2].Meta.ShortHelp != "" {
 		t.Errorf("the reader answered %+v, want a registration that declares no summary", got[2])
 	}
 	// The Meta is matched on its TYPE. A literal of another type in the same
 	// call declares nothing the registry will hold, so reading its Description
 	// would report a summary no surface prints.
-	if got[3].Path != "watch fixture" || got[3].Meta.Description != "" {
+	if got[3].Path != "watch fixture" || got[3].Meta.ShortHelp != "" {
 		t.Errorf("the reader answered %+v, want the foreign literal ignored", got[3])
 	}
 }
@@ -987,10 +987,10 @@ func TestHelpShapeGateLeavesOutTheDevelopmentTooling(t *testing.T) {
 // one the fixture API module declares on `socket-list`. A case removes one of
 // them to leave a summary standing alone.
 const (
-	shapeCommandLongHelp = `      ze:help "One row is written for each socket the daemon holds open.
+	shapeCommandDescription = `      description "One row is written for each socket the daemon holds open.
                The state column names the TCP state.";
 `
-	shapeRPCLongHelp = `    ze:help "One row is written for each socket the daemon holds open.
+	shapeRPCDescription = `    description "One row is written for each socket the daemon holds open.
              The state column names the TCP state.";
 `
 )
@@ -1030,13 +1030,13 @@ func summaryOfWords(n int) string {
 }
 
 // VALIDATES: a command node whose summary the commit under test wrote, with no
-// long text beside it, is refused under `missing-long-help`.
+// long text beside it, is refused under `missing-description`.
 // PREVENTS: the pair going back to one half. `Description` is the one-line
-// summary and `LongHelp` is the paragraph the `?` box prints, and a node that
+// summary and `Description` is the paragraph the `?` box prints, and a node that
 // declares only the first leaves the box with nothing to show
 // (plan/spec-command-help-and-description.md, AC-1).
-func TestHelpShapeRefusesACommandWithNoLongHelp(t *testing.T) {
-	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandLongHelp),
+func TestHelpShapeRefusesACommandWithNoDescription(t *testing.T) {
+	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandDescription),
 		shapeAPIModule, shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
 
@@ -1044,30 +1044,30 @@ func TestHelpShapeRefusesACommandWithNoLongHelp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if got := shapeRules(report); len(got) != 1 || got[0] != ruleMissingLongHelp {
-		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixturePath, ruleMissingLongHelp)
+	if got := shapeRules(report); len(got) != 1 || got[0] != ruleMissingDescription {
+		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixturePath, ruleMissingDescription)
 	}
-	if text := report.Text(); !strings.Contains(text, ruleMissingLongHelp) {
+	if text := report.Text(); !strings.Contains(text, ruleMissingDescription) {
 		t.Errorf("the rendered report does not name the rule:\n%s", text)
 	}
 }
 
 // VALIDATES: an RPC whose summary the commit under test wrote, with no long
 // text beside it, is refused.
-// PREVENTS: the rpc half being left out of the pair rule. An rpc's description
-// is what `ze help` and the schema registry answer for the wire method, and its
-// ze:help is the only paragraph either of them can print.
-func TestHelpShapeRefusesAnRPCWithNoLongHelp(t *testing.T) {
+// PREVENTS: the rpc half being left out of the pair rule. An rpc's ze:help
+// summary is what `ze help` and the schema registry answer for the wire method,
+// and its description is the only paragraph either of them can print.
+func TestHelpShapeRefusesAnRPCWithNoDescription(t *testing.T) {
 	loader := shapeLoaderOver(t, shapeModule,
-		withoutText(t, shapeAPIModule, shapeRPCLongHelp), shapeConfModule(t))
+		withoutText(t, shapeAPIModule, shapeRPCDescription), shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
 
 	report, err := helpShapeContract(in)
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if got := shapeRPCRules(report); len(got) != 1 || got[0] != ruleMissingLongHelp {
-		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixtureRPC, ruleMissingLongHelp)
+	if got := shapeRPCRules(report); len(got) != 1 || got[0] != ruleMissingDescription {
+		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixtureRPC, ruleMissingDescription)
 	}
 }
 
@@ -1077,16 +1077,16 @@ func TestHelpShapeRefusesAnRPCWithNoLongHelp(t *testing.T) {
 // explanation. `ze help command --json` merges the command tree with the
 // offline registry, so a registration outside the tree reaches an operator
 // through no other gate.
-func TestHelpShapeRefusesALocalWithNoLongHelp(t *testing.T) {
+func TestHelpShapeRefusesALocalWithNoDescription(t *testing.T) {
 	loader := shapeLoader(t, shapeModule, shapeAPIModule)
-	in := shapeInput(loader, localWithNoLongHelp())
+	in := shapeInput(loader, localWithNoDescription())
 
 	report, err := helpShapeContract(in)
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if got := shapeLocalRules(report); len(got) != 1 || got[0] != ruleMissingLongHelp {
-		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixtureLocal, ruleMissingLongHelp)
+	if got := shapeLocalRules(report); len(got) != 1 || got[0] != ruleMissingDescription {
+		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixtureLocal, ruleMissingDescription)
 	}
 }
 
@@ -1138,8 +1138,8 @@ func TestHelpShapeRefusesALongTextThatRestatesItsSummary(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			module := strings.Replace(shapeModule, shapeCommandLongHelp,
-				`      ze:help "`+tt.long+`";`+"\n", 1)
+			module := strings.Replace(shapeModule, shapeCommandDescription,
+				`      description "`+tt.long+`";`+"\n", 1)
 			loader := shapeLoaderOver(t, module, shapeAPIModule, shapeConfModule(t))
 			in := shapeInput(loader, shapeLocals())
 
@@ -1147,24 +1147,24 @@ func TestHelpShapeRefusesALongTextThatRestatesItsSummary(t *testing.T) {
 			if err != nil {
 				t.Fatalf("the gate could not read the fixture: %v", err)
 			}
-			if got := shapeRules(report); len(got) != 1 || got[0] != ruleLongRestates {
+			if got := shapeRules(report); len(got) != 1 || got[0] != ruleDescriptionRestates {
 				t.Fatalf("the gate reports %v against %q, want exactly [%s]",
-					got, fixturePath, ruleLongRestates)
+					got, fixturePath, ruleDescriptionRestates)
 			}
 		})
 	}
 }
 
-// VALIDATES: a long text past command.MaxLongHelpBytes is refused, and the
+// VALIDATES: a long text past command.MaxDescriptionBytes is refused, and the
 // refusal states the measured size beside the bound.
 // PREVENTS: two gates disagreeing about what a long explanation may be.
 // `validateHelpDecls` (internal/component/plugin/server/startup.go) holds a
 // plugin's declaration to the same constant, so a text a plugin cannot send is
 // a text a YANG module cannot declare either (D-4).
 func TestHelpShapeRefusesALongTextPastItsByteCap(t *testing.T) {
-	long := strings.Repeat("a", command.MaxLongHelpBytes+1)
-	module := strings.Replace(shapeModule, shapeCommandLongHelp,
-		`      ze:help "`+long+`";`+"\n", 1)
+	long := strings.Repeat("a", command.MaxDescriptionBytes+1)
+	module := strings.Replace(shapeModule, shapeCommandDescription,
+		`      description "`+long+`";`+"\n", 1)
 
 	loader := shapeLoaderOver(t, module, shapeAPIModule, shapeConfModule(t))
 	in := shapeInput(loader, shapeLocals())
@@ -1173,8 +1173,8 @@ func TestHelpShapeRefusesALongTextPastItsByteCap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if got := shapeRules(report); len(got) != 1 || got[0] != ruleLongCap {
-		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixturePath, ruleLongCap)
+	if got := shapeRules(report); len(got) != 1 || got[0] != ruleDescriptionCap {
+		t.Fatalf("the gate reports %v against %q, want exactly [%s]", got, fixturePath, ruleDescriptionCap)
 	}
 	for _, row := range report.Broken {
 		if row.Path != fixturePath {
@@ -1194,15 +1194,15 @@ func TestHelpShapeRefusesALongTextPastItsByteCap(t *testing.T) {
 // judged exactly as a new one is, and a text nobody would be billed for cannot
 // reappear (ai/rules/principles.md).
 func TestHelpShapeRefusesALongTextMissingFromAnUnchangedCommand(t *testing.T) {
-	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandLongHelp),
+	loader := shapeLoaderOver(t, withoutText(t, shapeModule, shapeCommandDescription),
 		shapeAPIModule, shapeConfModule(t))
 
 	report, err := helpShapeContract(shapeInput(loader, shapeLocals()))
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if got := shapeRules(report); len(got) != 1 || got[0] != ruleMissingLongHelp {
+	if got := shapeRules(report); len(got) != 1 || got[0] != ruleMissingDescription {
 		t.Fatalf("the gate reports %v against %q, want exactly [%s]",
-			got, fixturePath, ruleMissingLongHelp)
+			got, fixturePath, ruleMissingDescription)
 	}
 }

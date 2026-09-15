@@ -10,15 +10,15 @@ module ze-aaa-cmd {
     augment "/clishowcmd:show" {
         container aaa {
             config false;
-            description "Authentication, authorization, and accounting state.";
-            ze:help "The view covers the AAA clients Ze talks to, RADIUS and TACACS+, rather than the
-                     operator accounts on the box.";
+            description "The view covers the AAA clients Ze talks to, RADIUS and TACACS+, rather than the
+                         operator accounts on the box.";
+            ze:help "Authentication, authorization, and accounting state.";
             container accounting {
                 config false;
                 ze:command "ze-show:aaa-accounting";
-                description "Show AAA accounting counters and any dropped records.";
-                ze:help "Tells you whether TACACS+ accounting is working or if records are being lost
+                description "Tells you whether TACACS+ accounting is working or if records are being lost
 due to server unreachability.";
+                ze:help "Show AAA accounting counters and any dropped records.";
             }
         }
     }

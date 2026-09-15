@@ -33,8 +33,23 @@ func TestYANGSchemaLoads(t *testing.T) {
 	require.NotNil(t, peer, "should have peer")
 
 	// peer should be a list
-	_, ok = peer.(*ListNode)
+	peerList, ok := peer.(*ListNode)
 	assert.True(t, ok, "peer should be ListNode")
+
+	// Every schema node carries both YANG help texts: the ze:help summary on
+	// ShortHelp and the description statement on Description. They are two
+	// declarations, so neither is empty and neither is a copy of the other.
+	for _, node := range []struct {
+		path                   string
+		shortHelp, description string
+	}{
+		{"bgp", bgpContainer.ShortHelp, bgpContainer.Description},
+		{"bgp/peer", peerList.ShortHelp, peerList.Description},
+	} {
+		assert.NotEmpty(t, node.shortHelp, "%s carries no ze:help summary", node.path)
+		assert.NotEmpty(t, node.description, "%s carries no description", node.path)
+		assert.NotEqual(t, node.shortHelp, node.description, "%s repeats its summary as its description", node.path)
+	}
 }
 
 func TestYANGSchemaLeafTypes(t *testing.T) {

@@ -22,9 +22,9 @@ func cmdShow(args []string) int {
 	jsonOutput := fs.Bool("json", false, "Output in JSON format")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: cmdPathShow,
-			Summary: "List all interfaces or show details for a specific interface",
-			Usage:   []string{"ze interface show [options] [name]"},
+			Command:   cmdPathShow,
+			ShortHelp: "List all interfaces or show details for a specific interface",
+			Usage:     []string{"ze interface show [options] [name]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: flagJSONLong, Desc: helpDescJSON},

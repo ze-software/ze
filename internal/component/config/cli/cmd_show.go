@@ -56,9 +56,9 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config show", flag.ExitOnError)
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config show",
-			Summary: "Show the configuration tree at a path",
-			Usage:   []string{"ze config show <file> [path...]"},
+			Command:   "ze config show",
+			ShortHelp: "Show the configuration tree at a path",
+			Usage:     []string{"ze config show <file> [path...]"},
 			Examples: []string{
 				"ze config show ze.conf",
 				"ze config show ze.conf bgp",

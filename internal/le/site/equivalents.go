@@ -675,8 +675,8 @@ func (row *equivalentRow) searchText(vendors []string) string {
 	// page wants the most text, and the long form is where a command names the
 	// thing an operator remembers it by.
 	terms := []string{
-		row.Command.Path, row.Command.Usage, row.Command.Description,
-		row.Command.LongHelp, row.Command.Mode, row.Command.WireMethod, row.Group,
+		row.Command.Path, row.Command.Usage, row.Command.ShortHelp,
+		row.Command.Description, row.Command.Mode, row.Command.WireMethod, row.Group,
 	}
 	for _, entry := range row.Entries {
 		terms = append(terms, entry.Intent, entry.Category, entry.Notes)

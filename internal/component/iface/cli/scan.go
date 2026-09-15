@@ -33,9 +33,9 @@ func cmdScan(args []string) int {
 	managedOnly := fs.Bool("managed", false, "Only show interface kinds Ze can create/delete (dummy, veth, bridge, tunnel, wireguard) -- hides ethernet and loopback")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze interface scan",
-			Summary: "Scan the OS for network interfaces and classify them by Ze type",
-			Usage:   []string{"ze interface scan [options]"},
+			Command:   "ze interface scan",
+			ShortHelp: "Scan the OS for network interfaces and classify them by Ze type",
+			Usage:     []string{"ze interface scan [options]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "--config", Desc: "Emit Ze config syntax (same format as ze init)"},

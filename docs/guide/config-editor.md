@@ -182,14 +182,14 @@ still accepts every value its YANG type admits, so an ASN outside the offered
 set is entered and committed with no warning.
 
 A menu row is the config key alone. The second message line above the prompt
-shows the summary of the selected key, which the YANG `description` statement
+shows the summary of the selected key, which the YANG `ze:help` statement
 declares.
 <!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
 
 Press `?` on a highlighted key to read its long explanation, in a box above the
-prompt. That text is the `ze:help` extension the schema declares, and it is
-often a paragraph. The message line holds one row, so the box is the only place
-the paragraph fits. A key that declares no `ze:help` says so on the message
+prompt. That text is the `description` statement the schema declares, and it
+is often a paragraph. The message line holds one row, so the box is the only place
+the paragraph fits. A key that declares no `description` says so on the message
 line, and its summary is not repeated in the box.
 <!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation, revealDeclared -->
 

@@ -11,9 +11,9 @@ module ze-bgp-cmd-monitor-api {
     }
 
     rpc monitor {
-        description "Stream live BGP events with optional filters.";
-        ze:help "The filters are peer <selector>, event <type,type> and direction, and each
+        description "The filters are peer <selector>, event <type,type> and direction, and each
 one is given once. direction takes received or sent, and a peer selector can start with !
 to exclude the peers it matches.";
+        ze:help "Stream live BGP events with optional filters.";
     }
 }

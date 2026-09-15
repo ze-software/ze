@@ -53,7 +53,7 @@ func buildLeafField(name string, leaf *config.LeafNode, value string, configured
 	info.Value = maskSecretLeaf(leaf, value)
 	info.Default = leaf.Default
 	info.IsConfigured = configured
-	info.Description = leaf.Description
+	info.ShortHelp = leaf.ShortHelp
 	if len(leaf.Enums) > 0 {
 		info.InputType = leafInputSelect
 		info.Options = leaf.Enums

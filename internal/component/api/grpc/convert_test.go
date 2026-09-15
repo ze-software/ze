@@ -64,11 +64,11 @@ func TestExecResultToProtoNil(t *testing.T) {
 
 func TestCommandMetaToProto(t *testing.T) {
 	cmd := api.CommandMeta{
-		Name:        "show bgp rib",
-		Description: "Show RIB routes",
-		ReadOnly:    true,
+		Name:      "show bgp rib",
+		ShortHelp: "Show RIB routes",
+		ReadOnly:  true,
 		Params: []api.ParamMeta{
-			{Name: "family", Type: "string", Description: "Address family", Required: false},
+			{Name: "family", Type: "string", ShortHelp: "Address family", Required: false},
 		},
 	}
 

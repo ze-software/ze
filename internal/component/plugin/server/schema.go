@@ -37,19 +37,19 @@ type Schema struct {
 
 // RegisteredRPC represents an RPC indexed in the schema registry.
 //
-// Description and LongHelp are the two texts the RPC declares. The description
-// is the one-line SUMMARY a table cell renders. LongHelp is the explanation a
+// ShortHelp and Description are the two texts the RPC declares. The description
+// is the one-line SUMMARY a table cell renders. Description is the explanation a
 // reference carries whole. Neither is derived from the other, and an empty
-// LongHelp means nobody has written the explanation yet. The pair is spelled
-// Description + LongHelp everywhere in this package, because Help already means
+// Description means nobody has written the explanation yet. The pair is spelled
+// ShortHelp + Description everywhere in this package, because Help already means
 // the summary on Command and on Completion.
 type RegisteredRPC struct {
 	Module      string          // YANG module name (e.g., "ze-bgp-api")
 	Name        string          // RPC name in kebab-case (e.g., "peer-list")
 	WireMethod  string          // Wire format "module:rpc-name" (e.g., "ze-bgp:peer-list")
 	CLICommand  string          // CLI text command (e.g., "bgp peer list")
-	Description string          // One-line summary, from the YANG description
-	LongHelp    string          // Long explanation, from the ze:help extension
+	ShortHelp   string          // One-line summary, from the ze:help extension
+	Description string          // Long explanation, from the YANG description
 	Input       []yang.LeafMeta // Input parameter leaves
 	Output      []yang.LeafMeta // Output parameter leaves
 	Handler     Handler         // Handler function (set during registration)
@@ -57,11 +57,11 @@ type RegisteredRPC struct {
 
 // RegisteredNotification represents a notification indexed in the schema registry.
 type RegisteredNotification struct {
-	Module      string          // YANG module name
-	Name        string          // Notification name in kebab-case
-	WireMethod  string          // Wire format "module:notification-name"
-	Description string          // From YANG description
-	Leaves      []yang.LeafMeta // Notification data leaves
+	Module     string          // YANG module name
+	Name       string          // Notification name in kebab-case
+	WireMethod string          // Wire format "module:notification-name"
+	ShortHelp  string          // One-line summary, from the ze:help extension
+	Leaves     []yang.LeafMeta // Notification data leaves
 }
 
 // SchemaRegistry stores and manages schemas from all plugins.
@@ -160,8 +160,8 @@ func (r *SchemaRegistry) RegisterRPCs(module string, rpcs []yang.RPCMeta) error 
 			Module:      module,
 			Name:        meta.Name,
 			WireMethod:  wireMethod,
+			ShortHelp:   meta.ShortHelp,
 			Description: meta.Description,
-			LongHelp:    meta.LongHelp,
 			Input:       meta.Input,
 			Output:      meta.Output,
 		}
@@ -182,11 +182,11 @@ func (r *SchemaRegistry) RegisterNotifications(module string, notifs []yang.Noti
 			return fmt.Errorf("%w: %s", ErrNotificationDuplicate, wireMethod)
 		}
 		r.notifications[wireMethod] = &RegisteredNotification{
-			Module:      module,
-			Name:        meta.Name,
-			WireMethod:  wireMethod,
-			Description: meta.Description,
-			Leaves:      meta.Leaves,
+			Module:     module,
+			Name:       meta.Name,
+			WireMethod: wireMethod,
+			ShortHelp:  meta.ShortHelp,
+			Leaves:     meta.Leaves,
 		}
 	}
 	return nil

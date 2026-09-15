@@ -302,9 +302,9 @@ func printSocketHint(w io.Writer) {
 
 func installUsageTo(w io.Writer) {
 	p := helpfmt.Page{
-		Command: "ze systemd install",
-		Summary: "Install ze as a systemd service",
-		Usage:   []string{"ze systemd install [--config <dir>] [--start] [--force]", "ze systemd install --dry-run [--config <dir>]"},
+		Command:   "ze systemd install",
+		ShortHelp: "Install ze as a systemd service",
+		Usage:     []string{"ze systemd install [--config <dir>] [--start] [--force]", "ze systemd install --dry-run [--config <dir>]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--config <dir>", Desc: "Override config directory in the unit file"},

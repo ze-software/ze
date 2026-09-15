@@ -19,21 +19,21 @@ func init() {
 	registry.MustRegisterRootHandler("data", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "ZeFS blob store management",
-		Mode:        modeOffline,
-		Section:     registry.SectionConfiguration,
-		Subs:        "import, rm, list, cat",
+		ShortHelp: "ZeFS blob store management",
+		Mode:      modeOffline,
+		Section:   registry.SectionConfiguration,
+		Subs:      "import, rm, list, cat",
 	})
 	// list and registered answer with DATA, so their answers reach the pipe
 	// layer. They printed a table and returned an exit code, while YANG
 	// declared a wire method for each that no daemon handler implements.
 	registry.MustRegisterLocalData("show data list", dataList, registry.Meta{
-		Description: "The keys the ZeFS blob store holds. Narrow them with a prefix.",
-		Mode:        modeOffline,
+		ShortHelp: "The keys the ZeFS blob store holds. Narrow them with a prefix.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show data registered", dataRegistered, registry.Meta{
-		Description: "The key patterns the code declares, and what each one holds.",
-		Mode:        modeOffline,
+		ShortHelp: "The key patterns the code declares, and what each one holds.",
+		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// `show data cat` answers the BYTES of one stored file, which may be YAML,

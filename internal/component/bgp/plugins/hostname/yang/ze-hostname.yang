@@ -16,28 +16,28 @@ module ze-hostname {
     // Standalone peers: augment capability container
     augment "/bgp:bgp/bgp:peer/bgp:session/bgp:capability" {
         container hostname {
-            description "FQDN capability configuration.";
-            ze:help "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
+            description "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
                 sends no capability when host and domain are both empty. A container on the peer replaces the
                 container on the group rather than adding to it.";
+            ze:help "FQDN capability configuration.";
 
             leaf host {
                 type string {
                     length "0..255";
                 }
-                description "System hostname (max 255 bytes).";
-                ze:help "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
+                description "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
                     limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.";
+                ze:help "System hostname (max 255 bytes).";
             }
 
             leaf domain {
                 type string {
                     length "0..255";
                 }
-                description "Domain name (max 255 bytes).";
-                ze:help "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
+                description "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
                     writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the
                     limit.";
+                ze:help "Domain name (max 255 bytes).";
             }
         }
     }
@@ -45,28 +45,28 @@ module ze-hostname {
     // Group-level capability
     augment "/bgp:bgp/bgp:group/bgp:session/bgp:capability" {
         container hostname {
-            description "FQDN capability configuration.";
-            ze:help "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
+            description "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
                 sends no capability when host and domain are both empty. A container on the peer replaces the
                 container on the group rather than adding to it.";
+            ze:help "FQDN capability configuration.";
 
             leaf host {
                 type string {
                     length "0..255";
                 }
-                description "System hostname (max 255 bytes).";
-                ze:help "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
+                description "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
                     limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.";
+                ze:help "System hostname (max 255 bytes).";
             }
 
             leaf domain {
                 type string {
                     length "0..255";
                 }
-                description "Domain name (max 255 bytes).";
-                ze:help "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
+                description "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
                     writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the
                     limit.";
+                ze:help "Domain name (max 255 bytes).";
             }
         }
     }
@@ -74,28 +74,28 @@ module ze-hostname {
     // Grouped peers: augment capability container
     augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session/bgp:capability" {
         container hostname {
-            description "FQDN capability configuration.";
-            ze:help "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
+            description "Ze sends the FQDN capability, code 73 of draft-walton-bgp-hostname, in the OPEN message. Ze
                 sends no capability when host and domain are both empty. A container on the peer replaces the
                 container on the group rather than adding to it.";
+            ze:help "FQDN capability configuration.";
 
             leaf host {
                 type string {
                     length "0..255";
                 }
-                description "System hostname (max 255 bytes).";
-                ze:help "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
+                description "Ze writes the value with a 1-byte length in front of it, which is why 255 bytes is the
                     limit. Ze does not read the hostname of the box, so an empty leaf sends an empty string.";
+                ze:help "System hostname (max 255 bytes).";
             }
 
             leaf domain {
                 type string {
                     length "0..255";
                 }
-                description "Domain name (max 255 bytes).";
-                ze:help "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
+                description "The capability carries host and domain as two separate strings, and Ze joins neither. Ze
                     writes the domain after the host, with its own 1-byte length, which is why 255 bytes is the
                     limit.";
+                ze:help "Domain name (max 255 bytes).";
             }
         }
     }
@@ -106,22 +106,22 @@ module ze-hostname {
             type string {
                 length "0..255";
             }
-            description "Legacy: Host name for FQDN capability.";
-            ze:help "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
+            description "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
                 peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
                 host name, which is the 255-byte limit. Write capability > hostname > host in a new config:
                 ze exabgp migrate produces that spelling and never this one.";
+            ze:help "Legacy: Host name for FQDN capability.";
         }
 
         leaf domain-name {
             type string {
                 length "0..255";
             }
-            description "Legacy: Domain name for FQDN capability.";
-            ze:help "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
+            description "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
                 peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
                 domain name, which is the 255-byte limit. Write capability > hostname > domain in a new config:
                 ze exabgp migrate produces that spelling and never this one.";
+            ze:help "Legacy: Domain name for FQDN capability.";
         }
     }
 
@@ -131,22 +131,22 @@ module ze-hostname {
             type string {
                 length "0..255";
             }
-            description "Legacy: Host name for FQDN capability.";
-            ze:help "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
+            description "Ze reads the leaf after capability > hostname > host and replaces that value with it, so a
                 peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
                 host name, which is the 255-byte limit. Write capability > hostname > host in a new config:
                 ze exabgp migrate produces that spelling and never this one.";
+            ze:help "Legacy: Host name for FQDN capability.";
         }
 
         leaf domain-name {
             type string {
                 length "0..255";
             }
-            description "Legacy: Domain name for FQDN capability.";
-            ze:help "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
+            description "Ze reads the leaf after capability > hostname > domain and replaces that value with it, so a
                 peer that writes both leaves sends this one. The capability writes a 1-byte length in front of the
                 domain name, which is the 255-byte limit. Write capability > hostname > domain in a new config:
                 ze exabgp migrate produces that spelling and never this one.";
+            ze:help "Legacy: Domain name for FQDN capability.";
         }
     }
 
@@ -156,22 +156,22 @@ module ze-hostname {
             type string {
                 length "0..255";
             }
-            description "Legacy: Host name for FQDN capability (group default).";
-            ze:help "A member peer that states no host-name of its own takes this value. Ze reads the leaf after
+            description "A member peer that states no host-name of its own takes this value. Ze reads the leaf after
                 capability > hostname > host and replaces that value with it. The capability writes a 1-byte length
                 in front of the host name, which is the 255-byte limit. Write capability > hostname > host in a new
                 config: ze exabgp migrate produces that spelling and never this one.";
+            ze:help "Legacy: Host name for FQDN capability (group default).";
         }
 
         leaf domain-name {
             type string {
                 length "0..255";
             }
-            description "Legacy: Domain name for FQDN capability (group default).";
-            ze:help "A member peer that states no domain-name of its own takes this value. Ze reads the leaf after
+            description "A member peer that states no domain-name of its own takes this value. Ze reads the leaf after
                 capability > hostname > domain and replaces that value with it. The capability writes a 1-byte length
                 in front of the domain name, which is the 255-byte limit. Write capability > hostname > domain in a new
                 config: ze exabgp migrate produces that spelling and never this one.";
+            ze:help "Legacy: Domain name for FQDN capability (group default).";
         }
     }
 }

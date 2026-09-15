@@ -144,8 +144,8 @@ func runPlugin(conn net.Conn) int {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show l2tp shaper",
-			Description: "Show each shaped subscriber session with its download and upload rate.",
+			Name:      "show l2tp shaper",
+			ShortHelp: "Show each shaped subscriber session with its download and upload rate.",
 		},
 	}
 }

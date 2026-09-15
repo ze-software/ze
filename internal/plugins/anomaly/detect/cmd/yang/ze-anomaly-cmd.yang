@@ -7,23 +7,23 @@ module ze-anomaly-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container anomaly {
             config false;
-            description "Behavioral anomaly detection and response subsystem.";
-            ze:help "Detection and response are separate: the detector reports what it sees, and a
-                     responder acts on it only where one is configured. A detected anomaly is not
-                     itself a mitigation.";
+            description "Detection and response are separate: the detector reports what it sees, and a
+                         responder acts on it only where one is configured. A detected anomaly is not
+                         itself a mitigation.";
+            ze:help "Behavioral anomaly detection and response subsystem.";
 
             container detect {
                 config false;
                 ze:command "ze-show:anomaly";
-                description "Show the recent behavioral anomaly incidents.";
-                ze:help "Each incident carries the source entity, the cohort, the fired
+                description "Each incident carries the source entity, the cohort, the fired
 features with their deviation z-scores, the combined score, and the severity.
 The detector only reports. The anomaly shape responder (Spec 2b) acts on the
 report.";
+                ze:help "Show the recent behavioral anomaly incidents.";
             }
         }
     }

@@ -7,29 +7,29 @@ module ze-ddos-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container ddos {
             config false;
-            description "Distributed denial-of-service detection and mitigation subsystem.";
-            ze:help "Detection and mitigation are separate. A detected attack is reported even
-                     when no mitigation is armed. An attack listed here does not prove that
-                     traffic is dropped.";
+            description "Detection and mitigation are separate. A detected attack is reported even
+                         when no mitigation is armed. An attack listed here does not prove that
+                         traffic is dropped.";
+            ze:help "Distributed denial-of-service detection and mitigation subsystem.";
 
             container status {
                 config false;
                 ze:command "ze-show:ddos-status";
-                description "Show the DDoS observation status.";
-                ze:help "Returns whether the incident store is running, the number of active
+                description "Returns whether the incident store is running, the number of active
 attacks, and the number of incidents the ring retains.";
+                ze:help "Show the DDoS observation status.";
             }
 
             container incidents {
                 config false;
                 ze:command "ze-show:ddos-incidents";
-                description "Show the recent DDoS incident ring (newest first).";
-                ze:help "Per incident: the target vector (prefix/proto/port), attack family, top
+                description "Per incident: the target vector (prefix/proto/port), attack family, top
 source addresses, peak pps/bps, start/end time, and whether it is still active.";
+                ze:help "Show the recent DDoS incident ring (newest first).";
             }
         }
     }

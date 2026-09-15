@@ -11,25 +11,25 @@ module ze-storage-conf {
     }
 
     container storage {
-        description "Storage device management";
-        ze:help "The container holds the smart block alone. Ze reads it at config load and at each
+        description "The container holds the smart block alone. Ze reads it at config load and at each
             reload, and starts or stops the health manager to match.";
+        ze:help "Storage device management";
 
         container smart {
-            description "SMART disk health monitoring and self-test scheduling";
-            ze:help "Ze polls each ATA and NVMe device it finds, and turns SMART on for a device that
+            description "Ze polls each ATA and NVMe device it finds, and turns SMART on for a device that
                 has it off. A reading past a threshold raises a warning or an error on the report bus,
                 and a reading back under the threshold clears it. show storage smart prints the last
                 reading of each device.";
+            ze:help "SMART disk health monitoring and self-test scheduling";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable SMART monitoring on all detected ATA/NVMe devices";
-                ze:help "false is the default, and nothing else under this container is read while the
+                description "false is the default, and nothing else under this container is read while the
                     leaf holds false. Ze reads the leaf as false unless it holds exactly true. A change
                     to false at a reload stops the poll loop, and clears every warning and error this
                     component raised.";
+                ze:help "Enable SMART monitoring on all detected ATA/NVMe devices";
             }
 
             leaf check-interval {
@@ -37,29 +37,29 @@ module ze-storage-conf {
                     range "60..86400";
                 }
                 default 1800;
-                description "Health poll interval in seconds";
-                ze:help "1800 seconds, which is 30 minutes, is the default, and the range is 60 to 86400
+                description "1800 seconds, which is 30 minutes, is the default, and the range is 60 to 86400
                     seconds. Ze polls once when the manager starts, and then at each interval. Every
                     temperature test and every self-test decision happens on that poll, so this
                     interval bounds how late an alert can arrive.";
+                ze:help "Health poll interval in seconds";
             }
 
             container temperature {
-                description "Temperature alert thresholds in degrees Celsius";
-                ze:help "Ze reads the temperature at each poll and compares it against the three leaves.
+                description "Ze reads the temperature at each poll and compares it against the three leaves.
                     A device that reports 0 degrees is read as having no reading, and Ze then raises
                     nothing for it.";
+                ze:help "Temperature alert thresholds in degrees Celsius";
 
                 leaf difference {
                     type uint8 {
                         range "1..50";
                     }
                     default 4;
-                    description "Temperature change threshold for rate-of-change alerts";
-                    ze:help "Ze compares the reading against the reading of the previous poll. A rise of
+                    description "Ze compares the reading against the reading of the previous poll. A rise of
                         this many degrees or more raises the temp-rising warning, and a smaller rise
                         clears it. The first poll of a device raises nothing, because no previous
                         reading exists. The range is 1 to 50 degrees, and 4 is the default.";
+                    ze:help "Temperature change threshold for rate-of-change alerts";
                 }
 
                 leaf informational {
@@ -67,10 +67,10 @@ module ze-storage-conf {
                         range "1..100";
                     }
                     default 45;
-                    description "Temperature above which an informational warning is raised";
-                    ze:help "A reading at or above this value raises the temp-high warning, and a lower
+                    description "A reading at or above this value raises the temp-high warning, and a lower
                         reading clears it. 45 degrees is the default. Ze tests the critical value first,
                         so this warning never appears while the reading is also at or above critical.";
+                    ze:help "Temperature above which an informational warning is raised";
                 }
 
                 leaf critical {
@@ -78,35 +78,35 @@ module ze-storage-conf {
                         range "1..100";
                     }
                     default 55;
-                    description "Temperature above which a critical error is raised";
-                    ze:help "A reading at or above this value raises the temp-critical error, and clears
+                    description "A reading at or above this value raises the temp-critical error, and clears
                         the temp-high warning. 55 degrees is the default. Ze does not check that critical
                         is more than informational, so a critical value at or under informational hides
                         the informational warning completely.";
+                    ze:help "Temperature above which a critical error is raised";
                 }
             }
 
             container self-test {
-                description "Periodic SMART self-test scheduling";
-                ze:help "Ze decides at each health poll whether a test is due, so check-interval bounds
+                description "Ze decides at each health poll whether a test is due, so check-interval bounds
                     how close to the wanted time a test can start. Ze starts no test on a device that is
                     already running one, and tries again at the next poll.";
+                ze:help "Periodic SMART self-test scheduling";
 
                 container short {
-                    description "Short self-test schedule";
-                    ze:help "Ze starts the short test at a poll where two conditions hold. The interval
+                    description "Ze starts the short test at a poll where two conditions hold. The interval
                         since the last test has passed, and the time of day has passed. The short test
                         needs no weekday, and the extended test does.";
+                    ze:help "Short self-test schedule";
 
                     leaf interval {
                         type string {
                             pattern '[1-9][0-9]*[hdms]?';
                         }
                         default "24h";
-                        description "Interval between short self-tests, for example 24h";
-                        ze:help "The last letter names the unit: h for hours, d for days, m for minutes
+                        description "The last letter names the unit: h for hours, d for days, m for minutes
                             and s for seconds. A bare number is read as seconds. 24h is the default, and
                             Ze keeps the default and logs a warning for a value it cannot read.";
+                        ze:help "Interval between short self-tests, for example 24h";
                     }
 
                     leaf time {
@@ -114,30 +114,30 @@ module ze-storage-conf {
                             pattern '(([01][0-9])|(2[0-3])):[0-5][0-9]';
                         }
                         default "02:00";
-                        description "Preferred time of day for short self-tests (HH:MM)";
-                        ze:help "Ze starts the test at the first poll of the day at or after this time,
+                        description "Ze starts the test at the first poll of the day at or after this time,
                             and only when the interval has also passed. The clock is the local time of
                             the appliance. 02:00 is the default.";
+                        ze:help "Preferred time of day for short self-tests (HH:MM)";
                     }
                 }
 
                 container long {
-                    description "Extended self-test schedule";
-                    ze:help "Ze starts the extended test at a poll where three conditions hold. The
+                    description "Ze starts the extended test at a poll where three conditions hold. The
                         weekday matches the day leaf, the time of day has passed, and the interval since
                         the last test has passed. The extended test takes a weekday of its own, and the
                         short test does not.";
+                    ze:help "Extended self-test schedule";
 
                     leaf interval {
                         type string {
                             pattern '[1-9][0-9]*[hdms]?';
                         }
                         default "7d";
-                        description "Interval between extended self-tests, for example 7d";
-                        ze:help "The last letter names the unit: h for hours, d for days, m for minutes
+                        description "The last letter names the unit: h for hours, d for days, m for minutes
                             and s for seconds. A bare number is read as seconds. 7d is the default. A
                             shorter interval still waits for the day leaf, so the test runs once in
                             that week.";
+                        ze:help "Interval between extended self-tests, for example 7d";
                     }
 
                     leaf time {
@@ -145,11 +145,11 @@ module ze-storage-conf {
                             pattern '(([01][0-9])|(2[0-3])):[0-5][0-9]';
                         }
                         default "03:00";
-                        description "Preferred time of day for extended self-tests (HH:MM)";
-                        ze:help "Ze starts the test at the first poll at or after this time on the named
+                        description "Ze starts the test at the first poll at or after this time on the named
                             day. The clock is the local time of the appliance. 03:00 is the default. Ze
                             skips the extended test while a short test is still running, and tries again
                             at the next poll.";
+                        ze:help "Preferred time of day for extended self-tests (HH:MM)";
                     }
 
                     leaf day {
@@ -163,10 +163,10 @@ module ze-storage-conf {
                             enum sunday;
                         }
                         default "sunday";
-                        description "Preferred day of week for extended self-tests";
-                        ze:help "The seven weekday names are the accepted values, and sunday is the
+                        description "The seven weekday names are the accepted values, and sunday is the
                             default. Ze reads the weekday from the local time of the appliance. The
                             extended test starts on that day alone, whatever the interval leaf holds.";
+                        ze:help "Preferred day of week for extended self-tests";
                     }
                 }
             }

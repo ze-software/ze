@@ -38,7 +38,7 @@ const (
 	// attributeDefaultsPath is the schema container that DECLARES the value the
 	// arithmetic starts from for an attribute the route does not carry. The
 	// numbers live there and nowhere else (ai/rules/principles.md), and the RFC
-	// reasoning for each one is the ze:help on its leaf.
+	// reasoning for each one is the description on its leaf.
 	attributeDefaultsPath = "bgp/defaults/attribute"
 )
 

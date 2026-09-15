@@ -385,7 +385,7 @@ func writeLLMSCommands(out *textbuf.Buffer, inputs *llmsInputs) {
 			// one line, so there is nothing left for a cut to do but stop a
 			// sentence mid-clause.
 			out.Str("- `").Str(command.Path).Str("` (").Str(commandMetadataLine(command)).Str("): ").
-				Str(cleanInline(command.Description)).Byte('\n')
+				Str(cleanInline(command.ShortHelp)).Byte('\n')
 		}
 		out.Byte('\n')
 	}

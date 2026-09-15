@@ -20,33 +20,33 @@ module ze-fakeredist-api {
   }
 
   rpc fakeredist-emit {
-    description "Emit one synthetic route-change batch.";
-    ze:help "Args: <add|remove> <family> <prefix> [<nexthop>].";
+    description "Args: <add|remove> <family> <prefix> [<nexthop>].";
+    ze:help "Emit one synthetic route-change batch.";
   }
 
   rpc fakeredist-emit-burst {
-    description "Emit N synthetic batches with the host portion of the base prefix auto-incremented.";
-    ze:help "Args: <N> <add|remove> <family> <base-prefix>. N is bounded to one million per
+    description "Args: <N> <add|remove> <family> <base-prefix>. N is bounded to one million per
 call.";
+    ze:help "Emit N synthetic batches with the host portion of the base prefix auto-incremented.";
   }
 
   rpc fakeredist-consume {
-    description "Register a synthetic redistribution consumer under a name.";
-    ze:help "Args: <destination-name>. The consumer records every route the
+    description "Args: <destination-name>. The consumer records every route the
 orchestrator dispatches to it, so a .ci scenario can register one AFTER a
 producer emitted and read back what the replay delivered.";
+    ze:help "Register a synthetic redistribution consumer under a name.";
   }
 
   rpc fakeredist-consumed {
-    description "List the prefixes a synthetic consumer currently holds.";
-    ze:help "Args: <destination-name>. The answer carries 'prefixes', the sorted
+    description "Args: <destination-name>. The answer carries 'prefixes', the sorted
 prefix list, and 'count'.";
+    ze:help "List the prefixes a synthetic consumer currently holds.";
   }
 
   rpc fakeredist-help {
-    description "Print the fakeredist command surface.";
-    ze:help "The answer is one JSON object with a single key, help. That key
+    description "The answer is one JSON object with a single key, help. That key
 holds two usage lines, one for fakeredist emit and one for fakeredist
 emit-burst.";
+    ze:help "Print the fakeredist command surface.";
   }
 }

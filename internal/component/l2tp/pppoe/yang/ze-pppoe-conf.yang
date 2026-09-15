@@ -23,34 +23,34 @@ module ze-pppoe-conf {
     }
 
     container pppoe {
-        description "PPPoE access concentrator settings (RFC 2516).";
-        ze:help "This block with any content in it enables the subsystem.
-                 Use 'enabled false' to disable it explicitly. Use
-                 'enabled true' as a filler when no other settings are
-                 needed.";
+        description "This block with any content in it enables the subsystem.
+                     Use 'enabled false' to disable it explicitly. Use
+                     'enabled true' as a filler when no other settings are
+                     needed.";
+        ze:help "PPPoE access concentrator settings (RFC 2516).";
 
         leaf enabled {
             type boolean;
             default true;
-            description "Enable the PPPoE subsystem.";
-            ze:help "The default is true when the pppoe block is present.
-                     Set it to false to disable the subsystem.";
+            description "The default is true when the pppoe block is present.
+                         Set it to false to disable the subsystem.";
+            ze:help "Enable the PPPoE subsystem.";
         }
 
         leaf ac-name {
             type string;
             default "ze";
-            description "Access Concentrator Name advertised in PADO (RFC 2516 Section 5.2).";
-            ze:help "The default is ze. Ze writes the value into the AC-Name tag, 0x0102, of
-                     each discovery reply it builds. A client that hears several
-                     concentrators reads this name to pick one.";
+            description "The default is ze. Ze writes the value into the AC-Name tag, 0x0102, of
+                         each discovery reply it builds. A client that hears several
+                         concentrators reads this name to pick one.";
+            ze:help "Access Concentrator Name advertised in PADO (RFC 2516 Section 5.2).";
         }
 
         leaf-list service-name {
             type string;
-            description "Accepted Service-Name values (RFC 2516 Section 5.1).";
-            ze:help "An empty list accepts any Service-Name. The per-interface
-                     service-name list overrides this global list.";
+            description "An empty list accepts any Service-Name. The per-interface
+                         service-name list overrides this global list.";
+            ze:help "Accepted Service-Name values (RFC 2516 Section 5.1).";
         }
 
         leaf auth-method {
@@ -62,25 +62,25 @@ module ze-pppoe-conf {
             }
             default "chap-md5";
             description
-                "PPP Auth-Protocol method the access concentrator advertises in LCP.";
-            ze:help
                 "The access concentrator advertises the method in its LCP
                  Configure-Request (RFC 1661 Section 6.2), for every subscriber
                  that completes PPPoE discovery. The auth handler verifies the
                  credential (l2tp-auth-local or l2tp-auth-radius). The default
                  requires CHAP-MD5 (RFC 1994). Set it to none only together
                  with allow-no-auth true.";
+            ze:help
+                "PPP Auth-Protocol method the access concentrator advertises in LCP.";
         }
 
         leaf allow-no-auth {
             type boolean;
             default false;
             description
-                "Accept a subscriber whose LCP negotiation ends with no Auth-Protocol option.";
-            ze:help
                 "The default is false. A client that rejects the configured
                  method is then disconnected, and it is never admitted
                  unauthenticated.";
+            ze:help
+                "Accept a subscriber whose LCP negotiation ends with no Auth-Protocol option.";
         }
 
         leaf cookie-timeout {
@@ -88,20 +88,20 @@ module ze-pppoe-conf {
                 range "1..300";
             }
             default 5;
-            description "AC-Cookie validity duration in seconds. Cookies older
-                         than this are rejected in PADR validation.";
-            ze:help "The default is 5 seconds and the range is 1 to 300. The cookie is 20
-                     bytes: 16 bytes of a truncated HMAC-SHA256 over the two MAC addresses,
-                     and 4 bytes of Unix timestamp. Each interface holds its own random key,
-                     so a cookie of one interface never verifies on another.";
+            description "The default is 5 seconds and the range is 1 to 300. The cookie is 20
+                         bytes: 16 bytes of a truncated HMAC-SHA256 over the two MAC addresses,
+                         and 4 bytes of Unix timestamp. Each interface holds its own random key,
+                         so a cookie of one interface never verifies on another.";
+            ze:help "AC-Cookie validity duration in seconds. Cookies older
+                     than this are rejected in PADR validation.";
         }
 
         leaf max-sessions {
             type uint16;
             default 65535;
-            description "Maximum concurrent PPPoE sessions per interface.";
-            ze:help "The 16-bit session ID range limits the count to 1 through
-                     65535.";
+            description "The 16-bit session ID range limits the count to 1 through
+                         65535.";
+            ze:help "Maximum concurrent PPPoE sessions per interface.";
         }
 
         leaf max-sessions-per-mac {
@@ -109,15 +109,15 @@ module ze-pppoe-conf {
                 range "1..65535";
             }
             default 8;
-            description "Maximum concurrent sessions one subscriber MAC
-                         address may hold.";
-            ze:help "The default is 8 and the range is 1 to 65535. RFC 2516
-                     places no limit on concurrent sessions from one peer MAC,
-                     so this bounds replay rather than a legitimate
-                     multi-session client: a PADR from a MAC already at the
-                     cap gets a PADS carrying an error tag and session ID
-                     0x0000 instead of a new session. The per-interface
-                     max-sessions-per-mac overrides this value.";
+            description "The default is 8 and the range is 1 to 65535. RFC 2516
+                         places no limit on concurrent sessions from one peer MAC,
+                         so this bounds replay rather than a legitimate
+                         multi-session client: a PADR from a MAC already at the
+                         cap gets a PADS carrying an error tag and session ID
+                         0x0000 instead of a new session. The per-interface
+                         max-sessions-per-mac overrides this value.";
+            ze:help "Maximum concurrent sessions one subscriber MAC
+                     address may hold.";
         }
 
         leaf padi-rate-limit {
@@ -125,58 +125,58 @@ module ze-pppoe-conf {
                 range "1..10000";
             }
             default 100;
-            description "Maximum PADI packets accepted per second on one interface.";
-            ze:help "The default is 100 and the range is 1 to 10000. Ze counts the PADI
-                     packets of one interface inside a one-second window and discards
-                     every packet over the count. Ze also discards a second PADI from one
-                     source MAC address inside the same second. The range starts at 1, so
-                     no configuration turns the limiter off.";
+            description "The default is 100 and the range is 1 to 10000. Ze counts the PADI
+                         packets of one interface inside a one-second window and discards
+                         every packet over the count. Ze also discards a second PADI from one
+                         source MAC address inside the same second. The range starts at 1, so
+                         no configuration turns the limiter off.";
+            ze:help "Maximum PADI packets accepted per second on one interface.";
         }
 
         list interface {
             key "name";
-            description "Access interfaces on which PPPoE discovery listens.";
-            ze:help "Each interface has an independent session ID space.";
+            description "Each interface has an independent session ID space.";
+            ze:help "Access interfaces on which PPPoE discovery listens.";
 
             leaf name {
                 type string;
-                description "Network interface name (e.g. eth0, eth0.100).";
-                ze:help "The name is the list key, and Ze resolves it to a kernel interface
-                         when the subsystem starts. An interface Ze cannot resolve is logged
-                         and gets no server, and the other interfaces still listen. Each
-                         interface holds its own session table, its own PADI limiter and its
-                         own cookie key.";
+                description "The name is the list key, and Ze resolves it to a kernel interface
+                             when the subsystem starts. An interface Ze cannot resolve is logged
+                             and gets no server, and the other interfaces still listen. Each
+                             interface holds its own session table, its own PADI limiter and its
+                             own cookie key.";
+                ze:help "Network interface name (e.g. eth0, eth0.100).";
             }
 
             leaf-list service-name {
                 type string;
-                description "Per-interface Service-Name filter. Overrides the
-                             global service-name list when set.";
-                ze:help "Ze answers a PADI whose Service-Name tag holds a value of this
-                         list, and it answers a PADI whose tag is empty. A PADI naming any
-                         other service gets no PADO. An empty list here takes the global
-                         list, and an empty global list accepts every Service-Name.";
+                description "Ze answers a PADI whose Service-Name tag holds a value of this
+                             list, and it answers a PADI whose tag is empty. A PADI naming any
+                             other service gets no PADO. An empty list here takes the global
+                             list, and an empty global list accepts every Service-Name.";
+                ze:help "Per-interface Service-Name filter. Overrides the
+                         global service-name list when set.";
             }
 
             leaf max-sessions {
                 type uint16;
-                description "Per-interface session limit. Defaults to the global
-                             max-sessions when unset.";
-                ze:help "Ze takes the global max-sessions when this leaf is absent or 0. The
-                         session identifiers come from a bitmap over the 16-bit space, and
-                         identifier 0 is reserved. A PADR that arrives at the limit gets no
-                         session, and Ze reports that the maximum is reached.";
+                description "Ze takes the global max-sessions when this leaf is absent or 0. The
+                             session identifiers come from a bitmap over the 16-bit space, and
+                             identifier 0 is reserved. A PADR that arrives at the limit gets no
+                             session, and Ze reports that the maximum is reached.";
+                ze:help "Per-interface session limit. Defaults to the global
+                         max-sessions when unset.";
             }
 
             leaf max-sessions-per-mac {
                 type uint16 {
                     range "1..65535";
                 }
-                description "Per-interface override for max-sessions-per-mac.
-                             Defaults to the global value when unset.";
-                ze:help "Ze takes the global max-sessions-per-mac when this leaf is absent
-                         or 0. A PADR from a MAC already at the cap gets a PADS carrying an
-                         error tag and session ID 0x0000 instead of a new session.";
+                description "Ze takes the global max-sessions-per-mac when this leaf is absent
+                             or 0. A PADR from a MAC already at the cap gets a PADS carrying an
+                             error tag and session ID 0x0000 instead of a new session.";
+                ze:help "Per-interface override for max-sessions-per-mac.
+                         Defaults to the global value when unset.";
             }
         }
     }

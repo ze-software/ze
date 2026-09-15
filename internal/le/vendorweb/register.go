@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "the vendored web assets: check every consumer copy against third_party/web/, sync them, or ask npm what is newer",
-		Mode:        "offline",
+		ShortHelp: "the vendored web assets: check every consumer copy against third_party/web/, sync them, or ask npm what is newer",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

@@ -35,8 +35,8 @@ func Run(args []string) int {
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze passwd",
-			Summary: "Bcrypt-hash a plaintext password for system.authentication.user",
+			Command:   "ze passwd",
+			ShortHelp: "Bcrypt-hash a plaintext password for system.authentication.user",
 			Usage: []string{
 				"ze passwd                  Interactive prompt (twice for confirmation)",
 				"echo <plain> | ze passwd   Hash piped plaintext, print on stdout",

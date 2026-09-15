@@ -74,7 +74,7 @@ func defaultUsage() {
 
 	entries := make([]helpfmt.HelpEntry, len(roots))
 	for i, rc := range roots {
-		entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
+		entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.ShortHelp}
 	}
 
 	var tb textbuf.Buffer

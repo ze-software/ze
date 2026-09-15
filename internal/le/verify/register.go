@@ -11,10 +11,10 @@ import (
 func init() {
 	setActionRunner(verifydispatch.RunAction)
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		Description: "the full native verification population against a fixed commit in a detached worktree",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "the full native verification population against a fixed commit in a detached worktree",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)

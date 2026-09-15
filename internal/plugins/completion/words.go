@@ -113,7 +113,7 @@ func rootCommandTree(name string) *command.Node {
 		if cmd.Name != name {
 			continue
 		}
-		root := &command.Node{Name: name, Description: cmd.Meta.Description}
+		root := &command.Node{Name: name, ShortHelp: cmd.Meta.ShortHelp}
 		subs := cmd.Meta.ResolveSubs()
 		if subs != "" {
 			root.Children = make(map[string]*command.Node)
@@ -126,7 +126,7 @@ func rootCommandTree(name string) *command.Node {
 				if cmdName[0] == '-' || cmdName[0] == '[' {
 					continue
 				}
-				root.Children[cmdName] = &command.Node{Name: cmdName, Description: hint}
+				root.Children[cmdName] = &command.Node{Name: cmdName, ShortHelp: hint}
 			}
 		}
 		mergeShowDescriptions(name, root)
@@ -151,9 +151,9 @@ func mergeShowDescriptions(name string, root *command.Node) {
 		return
 	}
 	for childName, child := range root.Children {
-		if child.Description == "" {
-			if srcChild, ok := src.Children[childName]; ok && srcChild.Description != "" {
-				child.Description = srcChild.Description
+		if child.ShortHelp == "" {
+			if srcChild, ok := src.Children[childName]; ok && srcChild.ShortHelp != "" {
+				child.ShortHelp = srcChild.ShortHelp
 			}
 		}
 	}
@@ -208,8 +208,8 @@ func addRIBRoutesAlias(tree *command.Node) {
 	}
 	if current.Children["routes"] == nil {
 		current.Children["routes"] = &command.Node{
-			Name:        "routes",
-			Description: "Query routes in the BGP RIB",
+			Name:      "routes",
+			ShortHelp: "Query routes in the BGP RIB",
 		}
 	}
 }

@@ -21,10 +21,10 @@ func TestBuildCommandMeta_DedupesPluginProxiedCommand(t *testing.T) {
 	const name = "show isis neighbor"
 
 	dispatcher := []*pluginserver.Command{
-		{Name: name, Description: "Show IS-IS neighbors", ReadOnly: true},
+		{Name: name, ShortHelp: "Show IS-IS neighbors", ReadOnly: true},
 	}
 	plugin := []*pluginserver.RegisteredCommand{
-		{Name: name, LowerName: name, Description: "plugin-side description"},
+		{Name: name, LowerName: name, ShortHelp: "plugin-side description"},
 	}
 
 	got := buildCommandMeta(dispatcher, plugin,
@@ -40,8 +40,8 @@ func TestBuildCommandMeta_DedupesPluginProxiedCommand(t *testing.T) {
 	}
 	// The dispatcher entry is a strict superset, so its help must survive and
 	// the YANG-derived fields must be attached to the surviving entry.
-	if got[0].Description != "Show IS-IS neighbors" {
-		t.Errorf("Description = %q, want the dispatcher (YANG) help", got[0].Description)
+	if got[0].ShortHelp != "Show IS-IS neighbors" {
+		t.Errorf("ShortHelp = %q, want the dispatcher (YANG) help", got[0].ShortHelp)
 	}
 	if !got[0].ReadOnly {
 		t.Error("ReadOnly = false, want true from the dispatcher entry")
@@ -75,15 +75,15 @@ func TestBuildCommandMeta_PluginHelpFillsEmptyDispatcherHelp(t *testing.T) {
 	const name = "show isis hostname"
 
 	got := buildCommandMeta(
-		[]*pluginserver.Command{{Name: name, Description: ""}},
-		[]*pluginserver.RegisteredCommand{{Name: name, Description: "plugin help"}},
+		[]*pluginserver.Command{{Name: name, ShortHelp: ""}},
+		[]*pluginserver.RegisteredCommand{{Name: name, ShortHelp: "plugin help"}},
 		nil, nil, nil)
 
 	if len(got) != 1 {
 		t.Fatalf("merged list length = %d, want 1", len(got))
 	}
-	if got[0].Description != "plugin help" {
-		t.Errorf("Description = %q, want the plugin description to fill the empty dispatcher help", got[0].Description)
+	if got[0].ShortHelp != "plugin help" {
+		t.Errorf("ShortHelp = %q, want the plugin description to fill the empty dispatcher help", got[0].ShortHelp)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestBuildCommandMeta_PluginHelpFillsEmptyDispatcherHelp(t *testing.T) {
 func TestBuildCommandMeta_KeepsPluginOnlyCommand(t *testing.T) {
 	got := buildCommandMeta(
 		[]*pluginserver.Command{{Name: "show bgp"}},
-		[]*pluginserver.RegisteredCommand{{Name: "show widget status", Description: "widget"}},
+		[]*pluginserver.RegisteredCommand{{Name: "show widget status", ShortHelp: "widget"}},
 		nil, nil, nil)
 
 	if len(got) != 2 {
@@ -101,7 +101,7 @@ func TestBuildCommandMeta_KeepsPluginOnlyCommand(t *testing.T) {
 	}
 	var found bool
 	for _, c := range got {
-		if c.Name == "show widget status" && c.Description == "widget" {
+		if c.Name == "show widget status" && c.ShortHelp == "widget" {
 			found = true
 		}
 	}
@@ -158,8 +158,8 @@ func TestBuildCommandMeta_SkipsHiddenPluginCommand(t *testing.T) {
 	got := buildCommandMeta(
 		[]*pluginserver.Command{{Name: "show bgp"}},
 		[]*pluginserver.RegisteredCommand{
-			{Name: "show widget status", Description: "visible one"},
-			{Name: "show widget secret", Description: "hidden one", Hidden: true},
+			{Name: "show widget status", ShortHelp: "visible one"},
+			{Name: "show widget secret", ShortHelp: "hidden one", Hidden: true},
 		},
 		nil, nil, nil)
 
@@ -188,15 +188,15 @@ func TestBuildCommandMeta_HiddenPluginCommandDoesNotFillHelp(t *testing.T) {
 	const name = "show widget status"
 
 	got := buildCommandMeta(
-		[]*pluginserver.Command{{Name: name, Description: ""}},
-		[]*pluginserver.RegisteredCommand{{Name: name, Description: "hidden help", Hidden: true}},
+		[]*pluginserver.Command{{Name: name, ShortHelp: ""}},
+		[]*pluginserver.RegisteredCommand{{Name: name, ShortHelp: "hidden help", Hidden: true}},
 		nil, nil, nil)
 
 	if len(got) != 1 {
 		t.Fatalf("merged list length = %d, want 1; entries = %+v", len(got), got)
 	}
-	if got[0].Description != "" {
-		t.Errorf("Description = %q, want the hidden plugin description to be dropped", got[0].Description)
+	if got[0].ShortHelp != "" {
+		t.Errorf("ShortHelp = %q, want the hidden plugin description to be dropped", got[0].ShortHelp)
 	}
 }
 
@@ -244,12 +244,12 @@ func TestBuildCommandMetaCarriesBothHelpTexts(t *testing.T) {
 
 	got := buildCommandMeta(
 		[]*pluginserver.Command{
-			{Name: yangOnly, Description: "List the IS-IS neighbors.", LongHelp: "One row for each adjacency.\nThe hold time is what the neighbor advertised."},
-			{Name: halfEach, Description: "Show the widget state."},
+			{Name: yangOnly, ShortHelp: "List the IS-IS neighbors.", Description: "One row for each adjacency.\nThe hold time is what the neighbor advertised."},
+			{Name: halfEach, ShortHelp: "Show the widget state."},
 		},
 		[]*pluginserver.RegisteredCommand{
-			{Name: halfEach, Description: "plugin summary", LongHelp: "The widget count is since the last clear."},
-			{Name: pluginOnly, Description: "Clear the widget counters.", LongHelp: "The counters restart at zero."},
+			{Name: halfEach, ShortHelp: "plugin summary", Description: "The widget count is since the last clear."},
+			{Name: pluginOnly, ShortHelp: "Clear the widget counters.", Description: "The counters restart at zero."},
 		},
 		nil, nil, nil)
 
@@ -259,25 +259,25 @@ func TestBuildCommandMetaCarriesBothHelpTexts(t *testing.T) {
 	}
 
 	yang := byName[yangOnly]
-	if yang.Description != "List the IS-IS neighbors." {
-		t.Errorf("Description = %q, want the YANG summary", yang.Description)
+	if yang.ShortHelp != "List the IS-IS neighbors." {
+		t.Errorf("ShortHelp = %q, want the YANG summary", yang.ShortHelp)
 	}
-	if yang.LongHelp != "One row for each adjacency.\nThe hold time is what the neighbor advertised." {
-		t.Errorf("LongHelp = %q, want the YANG explanation with its newline", yang.LongHelp)
+	if yang.Description != "One row for each adjacency.\nThe hold time is what the neighbor advertised." {
+		t.Errorf("Description = %q, want the YANG explanation with its newline", yang.Description)
 	}
 
 	// The dispatcher declared a summary and no explanation, so the plugin fills
 	// the explanation and does NOT replace the summary.
 	half := byName[halfEach]
-	if half.Description != "Show the widget state." {
-		t.Errorf("Description = %q, want the dispatcher summary to win", half.Description)
+	if half.ShortHelp != "Show the widget state." {
+		t.Errorf("ShortHelp = %q, want the dispatcher summary to win", half.ShortHelp)
 	}
-	if half.LongHelp != "The widget count is since the last clear." {
-		t.Errorf("LongHelp = %q, want the plugin explanation to fill the empty half", half.LongHelp)
+	if half.Description != "The widget count is since the last clear." {
+		t.Errorf("Description = %q, want the plugin explanation to fill the empty half", half.Description)
 	}
 
 	only := byName[pluginOnly]
-	if only.Description != "Clear the widget counters." || only.LongHelp != "The counters restart at zero." {
+	if only.ShortHelp != "Clear the widget counters." || only.Description != "The counters restart at zero." {
 		t.Errorf("plugin-only command = %+v, want both halves carried", only)
 	}
 }

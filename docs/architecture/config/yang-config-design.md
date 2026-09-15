@@ -71,7 +71,7 @@ standard YANG tools ignore but ze interprets at runtime.
 | `ze:ephemeral` | Node is validated and completed but never written to the config file | (none) |
 | `ze:filter` | Marks a list as a named filter type of the route policy framework | (none) |
 | `ze:flatten` | Serializes a container's children with the container name as a leading keyword | (none) |
-| `ze:help` | Declares the LONG explanation of a command node, an rpc, or a config node. The `description` statement declares the one-line summary | free text, several lines allowed |
+| `ze:help` | Declares the one-line SUMMARY of a command node, an rpc, a config node, or an enum value. The `description` statement beside it declares the long explanation | one sentence, one line |
 | `ze:hidden` | Hides a leaf from config display and from the web editor | `true` or `false` |
 | `ze:inherit` | Says whether a command takes the leaves its ancestor containers declare | `none` |
 | `ze:key-type` | Key type for inline-list nodes | type name |
@@ -540,7 +540,7 @@ Trade-off of the inline form: a member value that legitimately begins with
 
 ### CLI Help from YANG
 
-A config leaf's description and its type constraints generate its help text:
+A config leaf's `ze:help` summary and its type constraints generate its help text:
 
 ```
 ze(edit)# hold-time ?
@@ -554,12 +554,12 @@ each one answers a different question.
 
 | Statement | Holds | Read by |
 |-----------|-------|---------|
-| `description` | the one-line SUMMARY of the command | every surface that shows a command on one line: a list row, a table cell, and the message line under the interactive completion menu |
-| `ze:help` | the LONG explanation of that one command | the help page for that command, and the box that Tab opens in the interactive CLI |
+| `ze:help` | the one-line SUMMARY of the command | every surface that shows a command on one line: a list row, a table cell, and the message line under the interactive completion menu |
+| `description` | the LONG explanation of that one command | the help page for that command, and the box that Tab opens in the interactive CLI |
 <!-- source: internal/component/cli/model_render.go -- warningText, renderExplanationBox -->
 
 `mergeYANGEntry` (`internal/component/config/yang/command.go`) writes them to
-`command.Node.Description` and `command.Node.Help`. Neither field is derived
+`command.Node.ShortHelp` and `command.Node.Description`. Neither field is derived
 from the other, and no reader shortens either one. A summary is authored short
 because it is a summary.
 
@@ -567,23 +567,24 @@ because it is a summary.
 
 An `rpc` statement carries the same pair, in the same two statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
-`RPCMeta.Description` and `RPCMeta.Help`.
+`RPCMeta.ShortHelp` and `RPCMeta.Description`.
 
 One reader serves both carriers. `GetHelpExtension` takes the extension
 statement list, which a command container reaches through `Entry.Exts` and an
-rpc through `gyang.RPC.Exts()`. A second reader would let the two surfaces drift
-into two spellings of one declaration.
+rpc through `gyang.RPC.Exts()`, and returns the summary. The explanation is the
+goyang entry's own `Description`. A second reader would let the two surfaces
+drift into two spellings of one declaration.
 
 `./le docvalid help-shape` holds both corpora to one shape: 601 command tree
 nodes and 211 RPCs, each summary one sentence of 25 words at most, on one line,
 with no semicolon and a full stop at the end.
 
-An empty `ze:help` means nobody has written an explanation for that command.
-That is not a defect. The help page then prints the summary alone, and the
-interactive CLI says that the command declares none.
+An empty `description` means nobody has written an explanation for that
+command. That is not a defect. The help page then prints the summary alone, and
+the interactive CLI says that the command declares none.
 <!-- source: internal/component/cli/model_keys.go -- revealExplanation -->
 
-An empty `description` is a defect. Every list that names the command shows a
+An empty `ze:help` is a defect. Every list that names the command shows a
 blank cell, and `validateNode` warns for each one by path.
 
 Two modules can contribute the same command path. `mergeHelpText` decides each
@@ -602,18 +603,18 @@ two statements. Each text reaches its own surface of the interactive CLI.
 
 | Statement | Holds | Read by |
 |-----------|-------|---------|
-| `description` | the one-line SUMMARY of the node | the message row under the completion menu, the web editor form, and every list that names the node |
-| `ze:help` | the LONG explanation of that node | the box `?` opens on the highlighted candidate |
-<!-- source: internal/component/cli/completer.go -- entryDescription, entryLongHelp -->
+| `ze:help` | the one-line SUMMARY of the node | the message row under the completion menu, the web editor form, and every list that names the node |
+| `description` | the LONG explanation of that node | the box `?` opens on the highlighted candidate |
+<!-- source: internal/component/cli/completer.go -- entryShortHelp, entryDescription -->
 <!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation -->
 
 `matchChildren` and `matchEditTargets` put both texts on the `contract.Completion`
-they build, in `Description` and `LongHelp`. The reader of the extension is
+they build, in `ShortHelp` and `Description`. The reader of the extension is
 `GetHelpExtension`, the one a command container and an rpc already use.
 
-A node that declares no `ze:help` declares no explanation. `?` then says
-`<path>: no explanation is declared` on the message row. The description does
-not stand in for it: a box repeating the row is the defect this split removes.
+A node that declares no `description` declares no explanation. `?` then says
+`<path>: no explanation is declared` on the message row. The summary does not
+stand in for it: a box repeating the row is the defect this split removes.
 
 ##### Several modules can declare one node, and the `?` box carries them all
 
@@ -624,8 +625,8 @@ plugin self-containment requires. `class-of-service` reaches `interface` that
 way.
 
 `mergeAugmentedEntries` unions those declarations into one virtual entry. The
-`ze:help` of every declaration is JOINED into that entry, separated by a blank
-line and in module-name order. A module that declares no help can no longer
+`description` of every declaration is JOINED into that entry, separated by a
+blank line and in module-name order. A module that declares no help can no longer
 erase one that does.
 
 The join carries no module NAME, so the operator reads N paragraphs and cannot
@@ -634,11 +635,11 @@ tell which module wrote each one. The `?` box also draws what fits and no more:
 no key scrolls it. A node several modules explain can therefore hold more text
 than the box will ever show.
 
-The one-line `description` can show only one text, and it is the first in
+The one-line `ze:help` can show only one text, and it is the first in
 module-name order. Nothing in the schema says which module OWNS a shared node,
 so that row can name the wrong module until one does.
 
-<!-- source: internal/component/cli/completer.go -- mergeAugmentedEntries, mergeHelpExts -->
+<!-- source: internal/component/cli/completer.go -- mergeAugmentedEntries, mergeDescriptions -->
 
 ---
 

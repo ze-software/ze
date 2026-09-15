@@ -7,11 +7,11 @@ package web
 templ commandForm(v *FragmentData) {
 	<div class="command-form">
 		<h3 class="command-form-title">{ v.CommandForm.CommandName }</h3>
-		if v.CommandForm.Description != "" {
-			<p class="command-form-description">{ v.CommandForm.Description }</p>
+		if v.CommandForm.ShortHelp != "" {
+			<p class="command-form-description">{ v.CommandForm.ShortHelp }</p>
 		}
-		if v.CommandForm.LongHelp != "" {
-			<p class="command-form-help">{ v.CommandForm.LongHelp }</p>
+		if v.CommandForm.Description != "" {
+			<p class="command-form-help">{ v.CommandForm.Description }</p>
 		}
 		<form
 			method="post"

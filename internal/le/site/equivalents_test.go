@@ -89,7 +89,7 @@ func publishedCommandSummary(t *testing.T, paths Paths, path string) string {
 	}
 	for index := range commands {
 		if commands[index].Path == path {
-			return strings.Join(strings.Fields(commands[index].Description), " ")
+			return strings.Join(strings.Fields(commands[index].ShortHelp), " ")
 		}
 	}
 	t.Fatalf("the fixture catalog holds no command %q", path)

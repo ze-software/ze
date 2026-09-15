@@ -405,20 +405,20 @@ two declarations, and neither is derived from the other.
 | Field | Type | Description |
 |-------|------|-------------|
 | `commands[].description` | string | The one-line SUMMARY. Every surface that shows the command on one line reads it: a completion candidate, a list row, a table cell. Maximum 256 bytes, no control character |
-| `commands[].long-help` | string | The LONG explanation the command's own help page prints, under the summary. Maximum 4096 bytes, newlines kept, every other control character refused |
+| `commands[].description` | string | The LONG explanation the command's own help page prints, under the summary. Maximum 4096 bytes, newlines kept, every other control character refused |
 
-The key is `long-help` and NOT `help`, because `help` already names the summary
+The key is `description` and NOT `help`, because `help` already names the summary
 in a `Completion` row on this same boundary. One spelling, one meaning.
 
-An absent `long-help` is what every plugin written before the key existed
+An absent `description` is what every plugin written before the key existed
 sends. It renders as summary-present and explanation-absent, and it MUST NOT
 render as a blank summary. The engine carries the two texts in two maps
-(`PluginRegistration.CommandDescriptions`, `PluginRegistration.CommandLongHelp`)
-and writes them into `RegisteredCommand.Description` and
-`RegisteredCommand.LongHelp`. `VisibleCommandEntries` then hands both to
+(`PluginRegistration.CommandShortHelp`, `PluginRegistration.CommandDescription`)
+and writes them into `RegisteredCommand.ShortHelp` and
+`RegisteredCommand.Description`. `VisibleCommandEntries` then hands both to
 `command.MergeCommandPaths`, which fills each field of the command tree on its
-own: this package spells them Description and LongHelp, and the command package
-spells them Description and Help.
+own. This package and the command package both spell them `ShortHelp` and
+`Description`.
 
 `validateHelpDecls` reads both texts where `validateShapeDecls` reads the
 shapes, before any conversion. The summary is written into the tab-separated
@@ -428,7 +428,7 @@ ANSI sequence to the operator's terminal. The explanation is a paragraph only
 the command's own help page prints, so it keeps its newlines. The alias
 `description` above is held to the same one-line rule.
 
-`command help "<name>"` answers with both, under `description` and `long-help`,
+`command help "<name>"` answers with both, under `short-help` and `description`,
 for a builtin and for a plugin command alike. A builtin's two texts come from
 its YANG node: `PathToDescription` and `PathToHelp` build the two maps
 `loadBuiltinsWithAliases` registers them from.

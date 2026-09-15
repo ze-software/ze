@@ -172,7 +172,7 @@ func printCLICommands(rw *helpfmt.RenderWriter) {
 	cmds := aihelp.CLISubcommands()
 	for _, c := range cmds {
 		var tb textbuf.Buffer
-		tb.Str("  ze ").PadRight(c.Name, 14).Str(" [").PadRight(c.Mode, 7).Str("] ").Str(c.Description)
+		tb.Str("  ze ").PadRight(c.Name, 14).Str(" [").PadRight(c.Mode, 7).Str("] ").Str(c.ShortHelp)
 		rw.Line(tb.Slice())
 		if c.Subs != "" {
 			tb.Reset()
@@ -200,7 +200,7 @@ func printAPICommands(rw *helpfmt.RenderWriter) {
 	var tb textbuf.Buffer
 	for _, rpc := range rpcs {
 		// The RPC description is the declared one-line summary, printed whole.
-		desc := rpc.Description
+		desc := rpc.ShortHelp
 		if desc == "" {
 			desc = "(no description)"
 		}
@@ -221,7 +221,7 @@ func printAPICommands(rw *helpfmt.RenderWriter) {
 			if leaf.Mandatory {
 				req = " (REQUIRED)"
 			}
-			leafDesc := leaf.Description
+			leafDesc := leaf.ShortHelp
 			if leafDesc == "" {
 				leafDesc = leaf.Type
 			}
@@ -499,7 +499,7 @@ func printServices(rw *helpfmt.RenderWriter) {
 	}
 
 	for _, svc := range services {
-		desc := svc.Description
+		desc := svc.ShortHelp
 		if desc == "" {
 			desc = svc.Name
 		}
@@ -531,7 +531,7 @@ func printServices(rw *helpfmt.RenderWriter) {
 				var dtb textbuf.Buffer
 				def = dtb.Str(" (default: ").Str(leaf.Default).Byte(')').String()
 			}
-			desc := leaf.Description
+			desc := leaf.ShortHelp
 			if desc == "" {
 				desc = leaf.Type
 			}
@@ -670,7 +670,7 @@ func helpUsage() {
 			continue
 		}
 		name := strings.TrimPrefix(lc.Path, "help ")
-		subEntries = append(subEntries, helpfmt.HelpEntry{Name: name, Desc: lc.Meta.Description})
+		subEntries = append(subEntries, helpfmt.HelpEntry{Name: name, Desc: lc.Meta.ShortHelp})
 	}
 
 	var sections []helpfmt.HelpSection
@@ -690,10 +690,10 @@ func helpUsage() {
 	})
 
 	p := helpfmt.Page{
-		Command:  "ze help",
-		Summary:  "Show help and AI reference",
-		Usage:    []string{"ze help ai [cli|api|mcp|dispatch|all] [--json]"},
-		Sections: sections,
+		Command:   "ze help",
+		ShortHelp: "Show help and AI reference",
+		Usage:     []string{"ze help ai [cli|api|mcp|dispatch|all] [--json]"},
+		Sections:  sections,
 	}
 	p.WriteErr()
 }

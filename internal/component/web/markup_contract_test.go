@@ -327,7 +327,7 @@ func TestEveryLeafEditorIsNamedByItsLabel(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			field := FieldMeta{
 				Leaf: "router-id", Path: "bgp", Type: name,
-				Description: "Router ID", Options: "one,two",
+				ShortHelp: "Router ID", Options: "one,two",
 			}
 			markup := string(renderer.renderComponent("field_wrapper",
 				fieldWrapper(field, fieldInputFor(field))))
@@ -366,7 +366,7 @@ func TestALeafEditorIsNamedByItsLeafAlone(t *testing.T) {
 
 	field := FieldMeta{
 		Leaf: "router-id", Path: "bgp", Type: "string",
-		Description: "Router ID", Decoration: "Example Org",
+		ShortHelp: "Router ID", Decoration: "Example Org",
 	}
 	markup := string(renderer.renderComponent("field_wrapper",
 		fieldWrapper(field, fieldInputFor(field))))

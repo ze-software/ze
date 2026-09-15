@@ -21,8 +21,8 @@ func TestCommandRegistry_Register(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	results := registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
-		{Name: "request reload", Description: "Reload config", Timeout: 60 * time.Second},
+		{Name: "show status", ShortHelp: "Show status"},
+		{Name: "request reload", ShortHelp: "Reload config", Timeout: 60 * time.Second},
 	})
 
 	if len(results) != 2 {
@@ -44,8 +44,8 @@ func TestCommandRegistry_Register(t *testing.T) {
 	if cmd.Name != "show status" {
 		t.Errorf("expected name 'show status', got %q", cmd.Name)
 	}
-	if cmd.Description != "Show status" {
-		t.Errorf("expected description 'Show status', got %q", cmd.Description)
+	if cmd.ShortHelp != "Show status" {
+		t.Errorf("expected description 'Show status', got %q", cmd.ShortHelp)
 	}
 	if cmd.Timeout != DefaultCommandTimeout {
 		t.Errorf("expected default timeout, got %v", cmd.Timeout)
@@ -74,7 +74,7 @@ func TestCommandRegistry_BuiltinConflict(t *testing.T) {
 	registry.AddBuiltin("show status")
 
 	results := registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Fake status"},
+		{Name: "show status", ShortHelp: "Fake status"},
 	})
 
 	if len(results) != 1 {
@@ -99,7 +99,7 @@ func TestCommandRegistry_ProcessConflict(t *testing.T) {
 
 	// First process registers
 	results := registry.Register(proc1, []CommandDef{
-		{Name: "show status", Description: "Status from proc1"},
+		{Name: "show status", ShortHelp: "Status from proc1"},
 	})
 	if !results[0].OK {
 		t.Fatalf("first registration should succeed: %s", results[0].Error)
@@ -107,7 +107,7 @@ func TestCommandRegistry_ProcessConflict(t *testing.T) {
 
 	// Second process tries same command
 	results = registry.Register(proc2, []CommandDef{
-		{Name: "show status", Description: "Status from proc2"},
+		{Name: "show status", ShortHelp: "Status from proc2"},
 	})
 	if results[0].OK {
 		t.Error("second registration should fail")
@@ -130,10 +130,10 @@ func TestCommandRegistry_Unregister(t *testing.T) {
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
 	registry.Register(proc1, []CommandDef{
-		{Name: "show status", Description: "Status"},
+		{Name: "show status", ShortHelp: "Status"},
 	})
 	registry.Register(proc2, []CommandDef{
-		{Name: "set timeout", Description: "Set timeout"},
+		{Name: "set timeout", ShortHelp: "Set timeout"},
 	})
 
 	// proc2 cannot unregister proc1's command (no-op)
@@ -158,9 +158,9 @@ func TestCommandRegistry_UnregisterAll(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Status"},
-		{Name: "request reload", Description: "Reload"},
-		{Name: "request check", Description: "Check"},
+		{Name: "show status", ShortHelp: "Status"},
+		{Name: "request reload", ShortHelp: "Reload"},
+		{Name: "request check", ShortHelp: "Check"},
 	})
 
 	if len(registry.All()) != 3 {
@@ -183,9 +183,9 @@ func TestCommandRegistry_Complete(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
-		{Name: "show statistics", Description: "Show statistics"},
-		{Name: "set timeout", Description: "Set timeout"},
+		{Name: "show status", ShortHelp: "Show status"},
+		{Name: "show statistics", ShortHelp: "Show statistics"},
+		{Name: "set timeout", ShortHelp: "Set timeout"},
 	})
 
 	completions := registry.Complete("show st")
@@ -226,8 +226,8 @@ func TestCommandRegistryInjectsIntoCompletionTree(t *testing.T) {
 	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
-		{Name: "show statistics", Description: "Show statistics"},
+		{Name: "show status", ShortHelp: "Show status"},
+		{Name: "show statistics", ShortHelp: "Show statistics"},
 	})
 
 	tree := &command.Node{Children: map[string]*command.Node{
@@ -257,8 +257,8 @@ func TestHiddenCommandExcludedFromInjectedTree(t *testing.T) {
 	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Visible"},
-		{Name: "show statistics", Description: "Hidden one", Hidden: true},
+		{Name: "show status", ShortHelp: "Visible"},
+		{Name: "show statistics", ShortHelp: "Hidden one", Hidden: true},
 	})
 
 	tree := &command.Node{Children: map[string]*command.Node{
@@ -288,7 +288,7 @@ func TestUnregisteredCommandRemovedFromCompletion(t *testing.T) {
 	registry := newCommandRegistry()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
+		{Name: "show status", ShortHelp: "Show status"},
 	})
 
 	// Present before unregister.
@@ -318,7 +318,7 @@ func TestCommandRegistry_CaseInsensitive(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
+		{Name: "show status", ShortHelp: "Show status"},
 	})
 
 	// Lookup should be case-insensitive
@@ -339,8 +339,8 @@ func TestCommandRegistry_Completable(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status", Args: "<component>", Completable: true},
-		{Name: "request reload", Description: "Reload config", Completable: false},
+		{Name: "show status", ShortHelp: "Show status", Args: "<component>", Completable: true},
+		{Name: "request reload", ShortHelp: "Reload config", Completable: false},
 	})
 
 	cmd := registry.Lookup("show status")
@@ -366,8 +366,8 @@ func TestCommandRegistryFreeze(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
-		{Name: "request reload", Description: "Reload config"},
+		{Name: "show status", ShortHelp: "Show status"},
+		{Name: "request reload", ShortHelp: "Reload config"},
 	})
 
 	registry.Freeze()
@@ -394,7 +394,7 @@ func TestCommandRegistryPreFreezeFallback(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
+		{Name: "show status", ShortHelp: "Show status"},
 	})
 
 	// No Freeze() called -- must still work via RLock path
@@ -412,7 +412,7 @@ func TestCommandRegistryConcurrentLookup(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
+		{Name: "show status", ShortHelp: "Show status"},
 	})
 
 	registry.Freeze()
@@ -495,7 +495,7 @@ func TestDeprecatedCommandWarning(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	results := registry.Register(proc, []CommandDef{
-		{Name: "show fixture state", Description: "Show fixture state"},
+		{Name: "show fixture state", ShortHelp: "Show fixture state"},
 	})
 	assert.True(t, results[0].OK)
 
@@ -523,7 +523,7 @@ func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show fixture state", Description: "Show fixture state"},
+		{Name: "show fixture state", ShortHelp: "Show fixture state"},
 	})
 	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
@@ -548,7 +548,7 @@ func TestDeprecatedPrefixLookup(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show fixture state", Description: "Show fixture state"},
+		{Name: "show fixture state", ShortHelp: "Show fixture state"},
 	})
 	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
@@ -573,7 +573,7 @@ func TestDeprecatedUnregisterAll(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "fixture"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show fixture state", Description: "Show fixture state"},
+		{Name: "show fixture state", ShortHelp: "Show fixture state"},
 	})
 	assert.NoError(t, registry.registerDeprecated(proc, "show fixture old", "show fixture state"))
 
@@ -752,9 +752,9 @@ func TestHiddenCommandExcludedFromCompletion(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
-		{Name: "show internal", Description: "Internal diagnostics", Hidden: true},
-		{Name: "show statistics", Description: "Show statistics"},
+		{Name: "show status", ShortHelp: "Show status"},
+		{Name: "show internal", ShortHelp: "Internal diagnostics", Hidden: true},
+		{Name: "show statistics", ShortHelp: "Show statistics"},
 	})
 
 	completions := registry.Complete("show ")
@@ -784,8 +784,8 @@ func TestHiddenCommandPreservedInAll(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "show status", Description: "Show status"},
-		{Name: "show internal", Description: "Internal diagnostics", Hidden: true},
+		{Name: "show status", ShortHelp: "Show status"},
+		{Name: "show internal", ShortHelp: "Internal diagnostics", Hidden: true},
 	})
 
 	all := registry.All()
@@ -811,11 +811,11 @@ func TestCommandRegistry_CommandCountsByProcess(t *testing.T) {
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
 	registry.Register(proc1, []CommandDef{
-		{Name: "show alpha", Description: "alpha"},
-		{Name: "show beta", Description: "beta"},
+		{Name: "show alpha", ShortHelp: "alpha"},
+		{Name: "show beta", ShortHelp: "beta"},
 	})
 	registry.Register(proc2, []CommandDef{
-		{Name: "show gamma", Description: "gamma"},
+		{Name: "show gamma", ShortHelp: "gamma"},
 	})
 
 	counts := registry.CommandCountsByProcess()
@@ -826,7 +826,7 @@ func TestCommandRegistry_CommandCountsByProcess(t *testing.T) {
 	// appended only when the result was OK. The count keeps that meaning: what
 	// dispatch can resolve, never what a plugin asked for.
 	results := registry.Register(proc2, []CommandDef{
-		{Name: "show alpha", Description: "collides with proc1"},
+		{Name: "show alpha", ShortHelp: "collides with proc1"},
 	})
 	if results[0].OK {
 		t.Fatal("the colliding registration was accepted, so it cannot measure a refusal")
@@ -859,10 +859,10 @@ func TestCommandRegistryRegisterAfterFreezeIsVisible(t *testing.T) {
 	first := process.NewProcess(plugin.PluginConfig{Name: "frozen-first"})
 	late := process.NewProcess(plugin.PluginConfig{Name: "frozen-late"})
 
-	registry.Register(first, []CommandDef{{Name: "show first", Description: "First"}})
+	registry.Register(first, []CommandDef{{Name: "show first", ShortHelp: "First"}})
 	registry.Freeze()
 
-	results := registry.Register(late, []CommandDef{{Name: "show late", Description: "Late"}})
+	results := registry.Register(late, []CommandDef{{Name: "show late", ShortHelp: "Late"}})
 	require.Len(t, results, 1)
 	require.True(t, results[0].OK, "registration itself must succeed")
 
@@ -887,7 +887,7 @@ func TestCommandRegistryDeprecatedAliasAfterFreezeIsVisible(t *testing.T) {
 
 	registry.Freeze()
 
-	registry.Register(proc, []CommandDef{{Name: "show new", Description: "New"}})
+	registry.Register(proc, []CommandDef{{Name: "show new", ShortHelp: "New"}})
 	require.NoError(t, registry.registerDeprecated(proc, "show old", "show new"))
 
 	cmd := registry.Lookup("show old")

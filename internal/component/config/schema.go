@@ -153,7 +153,8 @@ type LeafNode struct {
 	Hidden      bool           // ze:hidden — excluded from config display output
 	Ephemeral   bool           // ze:ephemeral — present in schema, not persisted to config file
 	Decorate    string         // ze:decorate — decorator name for display-time enrichment
-	Description string         // YANG description for tooltips/help
+	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips/help
+	Description string         // Long explanation from the YANG description statement
 	Enums       []string       // Valid enum values (nil for non-enum types)
 	Ranges      []NumericRange // Valid numeric ranges from YANG range statements
 	Lengths     []NumericRange // Valid string lengths from YANG length statements (characters, RFC 7950 Section 9.4.4)
@@ -179,7 +180,8 @@ type ContainerNode struct {
 	Ephemeral    bool           // ze:ephemeral — present in schema, not persisted to config file
 	Presence     bool           // YANG presence container: accepts flag (;), value (word;), or block ({})
 	Flatten      bool           // ze:flatten — printed as "<container> <child> ..." rather than a nested block (see serialize_flatten.go)
-	Description  string         // YANG description for tooltips
+	ShortHelp    string         // One-line summary from the ze:help extension, for tooltips
+	Description  string         // Long explanation from the YANG description statement
 	Backend      []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related      []*RelatedTool // ze:related — operator tools attached to this container (see related.go)
 }
@@ -214,7 +216,8 @@ type ListNode struct {
 	Hidden      bool           // ze:hidden -- excluded from config display output
 	Ephemeral   bool           // ze:ephemeral -- present in schema, not persisted to config file
 	Listener    bool           // ze:listener -- marks list as a network listener for port conflict detection
-	Description string         // YANG description for tooltips
+	ShortHelp   string         // One-line summary from the ze:help extension, for tooltips
+	Description string         // Long explanation from the YANG description statement
 	Backend     []string       // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
 	Related     []*RelatedTool // ze:related -- operator tools attached to this list (see related.go)
 	children    map[string]Node

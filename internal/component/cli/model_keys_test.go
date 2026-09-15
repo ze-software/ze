@@ -33,10 +33,10 @@ func tabTestModel(t *testing.T) *Model {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"peer": {Name: "peer", Description: "Peer operations", Children: map[string]*commandNode{
-				"list":  {Name: "list", Description: "List peers", LongHelp: peerListHelp},
-				"lock":  {Name: "lock", Description: "Lock a peer"},
-				"reset": {Name: "reset", Description: "Reset a peer", LongHelp: peerResetHelp},
+			"peer": {Name: "peer", ShortHelp: "Peer operations", Children: map[string]*commandNode{
+				"list":  {Name: "list", ShortHelp: "List peers", Description: peerListHelp},
+				"lock":  {Name: "lock", ShortHelp: "Lock a peer"},
+				"reset": {Name: "reset", ShortHelp: "Reset a peer", Description: peerResetHelp},
 			}},
 		},
 	}))
@@ -609,8 +609,8 @@ func showTestModel(t *testing.T) *Model {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"show": {Name: "show", Description: "Show operational state", Children: map[string]*commandNode{
-				"version": {Name: "version", Description: "Show the version", LongHelp: "Prints the release this daemon runs."},
+			"show": {Name: "show", ShortHelp: "Show operational state", Children: map[string]*commandNode{
+				"version": {Name: "version", ShortHelp: "Show the version", Description: "Prints the release this daemon runs."},
 			}},
 		},
 	}))
@@ -645,19 +645,19 @@ func TestRevealWorksForAVerbTheConfigEditorAlsoOwns(t *testing.T) {
 	}
 }
 
-// TestRevealCandidateExplanationUsesLongHelp covers the config editor, where the
+// TestRevealCandidateExplanationUsesDescription covers the config editor, where the
 // two texts reach two surfaces.
 //
-// A config node declares the same pair a command declares. The YANG description
-// is the summary the one-line message row shows, and the ze:help extension is
-// the explanation. The box takes the explanation, so pressing ? adds the text
-// the row cannot hold.
+// A config node declares the same pair a command declares. The ze:help
+// extension is the summary the one-line message row shows, and the YANG
+// description is the explanation. The box takes the explanation, so pressing ?
+// adds the text the row cannot hold.
 //
-// VALIDATES: AC-11 — ? on a config candidate puts that node's ze:help in the
-// box, whole, and never its description.
+// VALIDATES: AC-11 — ? on a config candidate puts that node's description in
+// the box, whole, and never its ze:help summary.
 // PREVENTS: the box repeating the row, which is what it did while the config
-// branch passed the description.
-func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
+// branch passed the summary.
+func TestRevealCandidateExplanationUsesDescription(t *testing.T) {
 	const summary = "Classical admin distance stamped on BGP best-paths."
 	const explanation = "RFC 4271 leaves the preference between protocols to the implementation.\n" +
 		"Ze stamps this value on a best-path so the RIB can rank it against a route\n" +
@@ -670,8 +670,8 @@ func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
 	m.textInput.SetValue("set bgp ")
 	m.completions = []Completion{{
 		Text:        "multipath",
-		Description: summary,
-		LongHelp:    explanation,
+		ShortHelp:   summary,
+		Description: explanation,
 		Type:        completionKeyword,
 	}}
 	m.showDropdown = true
@@ -680,7 +680,7 @@ func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
 	revealed, _ := pressKey(t, m, tea.KeyPressMsg{Code: '?', Text: "?"})
 
 	if revealed.Explanation() != explanation {
-		t.Errorf("explanation = %q, want the declared ze:help", revealed.Explanation())
+		t.Errorf("explanation = %q, want the declared description", revealed.Explanation())
 	}
 	if strings.Contains(revealed.Explanation(), summary) {
 		t.Errorf("explanation = %q, want the summary to stay on the message row alone", revealed.Explanation())
@@ -696,8 +696,8 @@ func TestRevealCandidateExplanationUsesLongHelp(t *testing.T) {
 // TestRevealCandidateExplanationSaysNothingIsDeclared is the other half of the
 // branch above.
 //
-// VALIDATES: AC-11 — a config candidate that declares no ze:help leaves the
-// level where it is and says so, and its description does not stand in for the
+// VALIDATES: AC-11 — a config candidate that declares no description leaves the
+// level where it is and says so, and its ze:help summary does not stand in for the
 // explanation it has none of.
 // PREVENTS: a key that does nothing and states nothing, and the fallback that
 // would put the row's own sentence back in the box.
@@ -706,7 +706,7 @@ func TestRevealCandidateExplanationSaysNothingIsDeclared(t *testing.T) {
 
 	m := newTestModel(t)
 	m.textInput.SetValue("set bgp ")
-	m.completions = []Completion{{Text: "undocumented", Description: summary, Type: completionKeyword}}
+	m.completions = []Completion{{Text: "undocumented", ShortHelp: summary, Type: completionKeyword}}
 	m.showDropdown = true
 	m.selected = 0
 
@@ -720,6 +720,6 @@ func TestRevealCandidateExplanationSaysNothingIsDeclared(t *testing.T) {
 		t.Errorf("message line = %q, want it to name the path and say none is declared", hint)
 	}
 	if strings.Contains(hint, summary) {
-		t.Errorf("message line = %q, want no fallback to the description", hint)
+		t.Errorf("message line = %q, want no fallback to the summary", hint)
 	}
 }

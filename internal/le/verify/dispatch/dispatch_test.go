@@ -50,9 +50,9 @@ func registerProbe() {
 			}
 			return probeText("captured stdout"), 37
 		}, registry.Meta{
-			Description: "verify dispatch capture probe",
-			Mode:        "offline",
-			Section:     registry.SectionTest,
+			ShortHelp: "verify dispatch capture probe",
+			Mode:      "offline",
+			Section:   registry.SectionTest,
 		})
 	})
 }

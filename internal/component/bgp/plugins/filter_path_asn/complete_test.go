@@ -51,7 +51,7 @@ func TestCompletionOffersKnownTransitASNs(t *testing.T) {
 			completions := completionsFor(t, "set bgp policy reject-asn NO-TRANSIT "+leaf+" ")
 			offered := make(map[string]string, len(completions))
 			for _, completion := range completions {
-				offered[completion.Text] = completion.Description
+				offered[completion.Text] = completion.ShortHelp
 			}
 
 			require.Len(t, offered, len(curatedTransitFree),
@@ -136,7 +136,7 @@ func TestCompletionOffersPositionKeys(t *testing.T) {
 
 	described := make(map[string]string, len(completions))
 	for _, completion := range completions {
-		described[completion.Text] = completion.Description
+		described[completion.Text] = completion.ShortHelp
 	}
 
 	for _, key := range append(append([]string{}, positionLeaves...), "regex") {

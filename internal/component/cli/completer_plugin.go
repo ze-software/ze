@@ -49,7 +49,7 @@ func (c *pluginCompleter) Complete(input string) []Completion {
 	if input == "" {
 		comps := make([]Completion, len(c.methods))
 		for i, m := range c.methods {
-			comps[i] = Completion{Text: m.name, Description: m.help}
+			comps[i] = Completion{Text: m.name, ShortHelp: m.help}
 		}
 		return comps
 	}
@@ -57,11 +57,11 @@ func (c *pluginCompleter) Complete(input string) []Completion {
 	var comps []Completion
 	for _, m := range c.methods {
 		if len(input) <= len(m.name) && m.name[:len(input)] == input {
-			comps = append(comps, Completion{Text: m.name, Description: m.help})
+			comps = append(comps, Completion{Text: m.name, ShortHelp: m.help})
 		} else if len(input) > len(m.name) && input[:len(m.name)] == m.name && input[len(m.name)] == ' ' {
 			// Already typed the method name — show argument hint
 			if m.args != "" {
-				comps = append(comps, Completion{Text: m.args, Description: m.help, Type: completionHint})
+				comps = append(comps, Completion{Text: m.args, ShortHelp: m.help, Type: completionHint})
 			}
 			return comps
 		}

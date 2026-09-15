@@ -236,9 +236,9 @@ func makeTestCompletions(n int) []Completion {
 	comps := make([]Completion, n)
 	for i := range n {
 		comps[i] = Completion{
-			Text:        fmt.Sprintf("cmd%d", i+1),
-			Description: fmt.Sprintf("Command %d", i+1),
-			Type:        "command",
+			Text:      fmt.Sprintf("cmd%d", i+1),
+			ShortHelp: fmt.Sprintf("Command %d", i+1),
+			Type:      "command",
 		}
 	}
 	return comps
@@ -571,8 +571,8 @@ func TestOverlayLineRestoresColor(t *testing.T) {
 func TestDropdownMultilineDescriptionStaysOutOfTheBox(t *testing.T) {
 	m := Model{
 		completions: []Completion{
-			{Text: "firewall", Description: "Firewall tables.\nTable names are bare.", Type: "command"},
-			{Text: "interface", Description: "Network interface config", Type: "command"},
+			{Text: "firewall", ShortHelp: "Firewall tables.\nTable names are bare.", Type: "command"},
+			{Text: "interface", ShortHelp: "Network interface config", Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -915,8 +915,8 @@ func TestDropdownRowIsTheCommandNameAlone(t *testing.T) {
 
 	m := Model{
 		completions: []Completion{
-			{Text: "advertise-interval-milliseconds", Description: summaryLong, Type: "command"},
-			{Text: "neighbor", Description: summaryShort, Type: "command"},
+			{Text: "advertise-interval-milliseconds", ShortHelp: summaryLong, Type: "command"},
+			{Text: "neighbor", ShortHelp: summaryShort, Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -957,9 +957,9 @@ func TestSelectionMovesTheSummaryOnTheMessageLine(t *testing.T) {
 
 	m := Model{
 		completions: []Completion{
-			{Text: "advertise", Description: summaryFirst, Type: "command"},
-			{Text: "neighbor", Description: summarySecond, Type: "command"},
-			{Text: "shutdown", Description: summaryThird, Type: "command"},
+			{Text: "advertise", ShortHelp: summaryFirst, Type: "command"},
+			{Text: "neighbor", ShortHelp: summarySecond, Type: "command"},
+			{Text: "shutdown", ShortHelp: summaryThird, Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -997,8 +997,8 @@ func TestSummaryDoesNotDisplaceAnError(t *testing.T) {
 	m := Model{
 		err: errors.New("peer 192.0.2.1 is not configured"),
 		completions: []Completion{
-			{Text: "neighbor", Description: summary, Type: "command"},
-			{Text: "shutdown", Description: "hold the session down", Type: "command"},
+			{Text: "neighbor", ShortHelp: summary, Type: "command"},
+			{Text: "shutdown", ShortHelp: "hold the session down", Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -1024,7 +1024,7 @@ func TestSummaryDoesNotDisplaceAnError(t *testing.T) {
 func TestSummaryStripsATerminalEscape(t *testing.T) {
 	m := Model{
 		completions: []Completion{
-			{Text: "evil", Description: "clear \x1b[2J and move \x1b[1;1H the cursor", Type: "command"},
+			{Text: "evil", ShortHelp: "clear \x1b[2J and move \x1b[1;1H the cursor", Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -1051,7 +1051,7 @@ func TestSummaryStripsATerminalEscape(t *testing.T) {
 func TestSummaryWithANewlineStaysOnOneRow(t *testing.T) {
 	m := Model{
 		completions: []Completion{
-			{Text: "wordy", Description: "First line.\nSecond line.\r\n\tThird.", Type: "command"},
+			{Text: "wordy", ShortHelp: "First line.\nSecond line.\r\n\tThird.", Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -1091,8 +1091,8 @@ func TestHintWithANewlineStaysOnOneRow(t *testing.T) {
 func TestDropdownClampsANameWiderThanTheBox(t *testing.T) {
 	m := Model{
 		completions: []Completion{
-			{Text: strings.Repeat("x", 200), Description: "a name nobody declares", Type: "command"},
-			{Text: "neighbor", Description: "a short one", Type: "command"},
+			{Text: strings.Repeat("x", 200), ShortHelp: "a name nobody declares", Type: "command"},
+			{Text: "neighbor", ShortHelp: "a short one", Type: "command"},
 		},
 		selected:     0,
 		showDropdown: true,
@@ -1318,7 +1318,7 @@ func TestTheMessageRowDoesNotRepeatTheBox(t *testing.T) {
 	const only = "BGP Router ID (required). RFC 6286 Section 2.1 defines the BGP Identifier as a 4-octet, unsigned, NON-ZERO integer."
 
 	m := Model{
-		completions:        []Completion{{Text: "router-id", Description: only, Type: "keyword"}},
+		completions:        []Completion{{Text: "router-id", ShortHelp: only, Type: "keyword"}},
 		selected:           0,
 		showDropdown:       true,
 		explanation:        only,
@@ -1332,7 +1332,7 @@ func TestTheMessageRowDoesNotRepeatTheBox(t *testing.T) {
 	}
 
 	// A command declares two texts, so both belong on the screen.
-	m.completions[0].Description = "Set the BGP router identifier"
+	m.completions[0].ShortHelp = "Set the BGP router identifier"
 	if got := m.MessageHint(); got != "Set the BGP router identifier" {
 		t.Errorf("message row = %q, want the summary when it differs from the box", got)
 	}

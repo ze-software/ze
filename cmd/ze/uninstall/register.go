@@ -8,9 +8,9 @@ func init() {
 	registry.MustRegisterRootHandler("uninstall", func(_ *registry.RuntimeContext, args []string) int {
 		return Dispatch(args)
 	}, registry.Meta{
-		Description: "Remove ze binary or systemd service",
-		Mode:        "setup",
-		Section:     registry.SectionSystem,
-		SubsFunc:    Subcommands,
+		ShortHelp: "Remove ze binary or systemd service",
+		Mode:      "setup",
+		Section:   registry.SectionSystem,
+		SubsFunc:  Subcommands,
 	})
 }

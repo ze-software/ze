@@ -21,27 +21,27 @@ module ze-api-conf {
     }
 
     container environment {
-        description "Environment settings for API transports";
-        ze:help "The api-server container under it is the shared parent of the REST and gRPC
-                 transports. ze-rest-conf and ze-grpc-conf merge their rest and grpc
-                 containers into it, so a transport compiled out leaves no container to
-                 configure.";
+        description "The api-server container under it is the shared parent of the REST and gRPC
+                     transports. ze-rest-conf and ze-grpc-conf merge their rest and grpc
+                     containers into it, so a transport compiled out leaves no container to
+                     configure.";
+        ze:help "Environment settings for API transports";
 
         container api-server {
-            description "API engine settings (shared parent for the REST/gRPC transports)";
-            ze:help "The token leaf here is shared by both transports. Each transport starts
-                     only when its own enabled leaf is true, or when
-                     ze.api-server.rest.enabled or ze.api-server.grpc.enabled starts it.
-                     Ze parses the addresses, the CORS origin and the TLS pair even when
-                     the transport stays off.";
+            description "The token leaf here is shared by both transports. Each transport starts
+                         only when its own enabled leaf is true, or when
+                         ze.api-server.rest.enabled or ze.api-server.grpc.enabled starts it.
+                         Ze parses the addresses, the CORS origin and the TLS pair even when
+                         the transport stays off.";
+            ze:help "API engine settings (shared parent for the REST/gRPC transports)";
 
             leaf token {
                 type string;
                 ze:sensitive;
-                description "Bearer token for API authentication.";
-                ze:help "When the token is set, a client MUST send the header
-                         'Authorization: Bearer <token>'. Leave the leaf empty to
-                         allow unauthenticated access.";
+                description "When the token is set, a client MUST send the header
+                             'Authorization: Bearer <token>'. Leave the leaf empty to
+                             allow unauthenticated access.";
+                ze:help "Bearer token for API authentication.";
             }
         }
     }

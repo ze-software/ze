@@ -10,8 +10,8 @@ func init() {
 	registry.MustRegisterRootHandler("passwd", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Change stored SSH/HTTP passwords",
-		Mode:        "setup",
-		Section:     registry.SectionConfiguration,
+		ShortHelp: "Change stored SSH/HTTP passwords",
+		Mode:      "setup",
+		Section:   registry.SectionConfiguration,
 	})
 }

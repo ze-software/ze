@@ -10,17 +10,17 @@ func init() {
 	registry.MustRegisterRootHandler("signal", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Send signals to the daemon via SSH",
-		Mode:        "daemon",
-		Section:     registry.SectionSystem,
-		Subs:        "reload, stop, restart, quit",
+		ShortHelp: "Send signals to the daemon via SSH",
+		Mode:      "daemon",
+		Section:   registry.SectionSystem,
+		Subs:      "reload, stop, restart, quit",
 	})
 	registry.MustRegisterRootHandler("status", func(_ *registry.RuntimeContext, args []string) int {
 		return RunStatus(args)
 	}, registry.Meta{
-		Description: "Check if daemon is running",
-		Mode:        "daemon",
-		Section:     registry.SectionSystem,
-		Subs:        "exit 0 = running, 1 = not",
+		ShortHelp: "Check if daemon is running",
+		Mode:      "daemon",
+		Section:   registry.SectionSystem,
+		Subs:      "exit 0 = running, 1 = not",
 	})
 }

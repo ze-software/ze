@@ -53,7 +53,7 @@ func TestLeRegistersOneRootAndNoToolRoots(t *testing.T) {
 		if registry.LookupRoot(tool.Name) != nil {
 			t.Errorf("tool %q is also a top-level root", tool.Name)
 		}
-		if tool.Meta.Description == "" || tool.Meta.Mode == "" || tool.Meta.Section == "" {
+		if tool.Meta.ShortHelp == "" || tool.Meta.Mode == "" || tool.Meta.Section == "" {
 			t.Errorf("tool %q has incomplete help metadata: %#v", tool.Name, tool.Meta)
 		}
 	}
@@ -61,7 +61,7 @@ func TestLeRegistersOneRootAndNoToolRoots(t *testing.T) {
 
 func TestDuplicateLeRootIsRejected(t *testing.T) {
 	handler := func(*registry.RuntimeContext, []string) int { return 0 }
-	meta := registry.Meta{Description: "a test probe", Mode: "offline", Section: registry.SectionTest}
+	meta := registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest}
 	err := registry.RegisterRootHandler("le", handler, meta)
 	if !errors.Is(err, registry.ErrRootHandlerDuplicate) {
 		t.Fatalf("duplicate le root error = %v, want ErrRootHandlerDuplicate", err)

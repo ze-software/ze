@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register("inventory", leroot.GroupReport, Answer, registry.Meta{
-		Description: "what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes",
-		Mode:        "offline",
+		ShortHelp: "what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

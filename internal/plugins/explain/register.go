@@ -8,14 +8,14 @@ import (
 
 func init() {
 	registry.RegisterRoot("explain", registry.Meta{
-		Description: "Look up what a Ze diagnostic code means",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "--json <code>",
+		ShortHelp: "Look up what a Ze diagnostic code means",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      "--json <code>",
 	})
 	registry.MustRegisterLocalMeta("explain", Run, registry.Meta{
-		Description: "Explain one diagnostic code Ze printed.",
-		LongHelp: "The answer gives the meaning of the code, its likely cause and the recommended " +
+		ShortHelp: "Explain one diagnostic code Ze printed.",
+		Description: "The answer gives the meaning of the code, its likely cause and the recommended " +
 			"fix. Pass the code you read in a log line or an error message.",
 	})
 }

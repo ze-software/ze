@@ -77,7 +77,7 @@ func BuildVerbCommandTree(verb string) *Command {
 // path with children and no declaration is a grouping container (`show bgp`),
 // which a caller renders as a subcommand list instead of dispatching. Node
 // descriptions cannot answer that question: MergeYANGNodes gives a grouping
-// container its YANG description too, so an empty description marks nothing.
+// container its ze:help summary too, so an empty description marks nothing.
 func AbsoluteVerbPath(verb string, rel []string) (words []string, declared bool) {
 	if len(rel) == 0 {
 		return nil, false

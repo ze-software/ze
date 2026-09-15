@@ -7,35 +7,35 @@ module ze-yang-cli-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container yang {
             config false;
-            description "YANG model tree visualization and documentation.";
-            ze:help "It renders the schema this binary carries, so it describes what the daemon will
-                     accept rather than what is configured now.";
+            description "It renders the schema this binary carries, so it describes what the daemon will
+                         accept rather than what is configured now.";
+            ze:help "YANG model tree visualization and documentation.";
 
             container tree {
                 config false;
                 ze:command "ze-show:yang-tree";
-                description "Print the YANG tree for a module in a readable hierarchy.";
-                ze:help "Shows node types, data types, and config-vs-state annotations. Similar to
+                description "Shows node types, data types, and config-vs-state annotations. Similar to
 'pyang -f tree'. Useful for understanding the config or command structure.";
+                ze:help "Print the YANG tree for a module in a readable hierarchy.";
             }
 
             container completion {
                 config false;
                 ze:command "ze-show:yang-completion";
-                description "Show YANG paths available for tab completion.";
-                ze:help "Lists every valid completion point in the command tree.";
+                description "Lists every valid completion point in the command tree.";
+                ze:help "Show YANG paths available for tab completion.";
             }
 
             container doc {
                 config false;
                 ze:command "ze-show:yang-doc";
-                description "Generate command reference docs from YANG schemas.";
-                ze:help "Produces structured documentation with descriptions, arguments, and usage
+                description "Produces structured documentation with descriptions, arguments, and usage
 patterns for every registered command.";
+                ze:help "Generate command reference docs from YANG schemas.";
             }
         }
     }

@@ -173,7 +173,7 @@ func TestCommandHandler(t *testing.T) {
     go func() {
         errCh <- p.Run(ctx, sdk.Registration{
             Commands: []sdk.CommandDecl{
-                {Name: "show-status", Description: "Show health status"},
+                {Name: "show-status", ShortHelp: "Show health status"},
             },
         })
     }()

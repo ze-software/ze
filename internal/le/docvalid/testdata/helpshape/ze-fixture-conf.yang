@@ -11,7 +11,7 @@
 // is emitted as a completion row: effectiveChildren walks through both.
 //
 // Two enumerations sit in it on purpose. The one on `family` keys a list, so
-// the completer renders each value's description on a one-line row. The one on
+// the completer renders each value's ze:help on a one-line row. The one on
 // `state` keys nothing, so no surface renders it and no bound reaches it.
 module ze-fixture-conf {
   namespace "urn:ze:fixture:conf";
@@ -40,17 +40,17 @@ module ze-fixture-conf {
 
     leaf backlog {
       type uint16;
-      description "Pending connections the listener holds.";
-      ze:help "The kernel queues connections on this listener until the daemon accepts them.";
+      description "The kernel queues connections on this listener until the daemon accepts them.";
+      ze:help "Pending connections the listener holds.";
     }
   }
 
   typedef socket-state {
     type enumeration {
       enum listening {
-        description
+        ze:help
           "An enumeration reached through a typedef carries no help to any row,
-           because the completer reads an enum description off the leaf's own
+           because the completer reads an enum's ze:help off the leaf's own
            node, so this paragraph past both bounds is never rendered.";
       }
     }
@@ -58,66 +58,66 @@ module ze-fixture-conf {
   }
 
   container sockets {
-    description "Socket state the operator can set.";
-    ze:help "The container groups every socket the daemon opens on behalf of a peer.";
+    description "The container groups every socket the daemon opens on behalf of a peer.";
+    ze:help "Socket state the operator can set.";
 
     uses socket-common;
 
     leaf state {
       type enumeration {
         enum open {
-          description
+          ze:help
             "An enumeration on a leaf that keys no list reaches no completion
              row at all, because getListKeyEntry answers the key leaf and
              nothing else, so this paragraph past both bounds is never
              rendered.";
         }
       }
-      description "Whether the socket is open.";
-      ze:help "The state is read from the kernel each time the row is drawn.";
+      description "The state is read from the kernel each time the row is drawn.";
+      ze:help "Whether the socket is open.";
     }
 
     choice delivery {
-      description
+      ze:help
         "A choice statement is schema structure that effectiveChildren walks
-         through. Its own description reaches no completion row. This paragraph
+         through. Its own ze:help reaches no completion row. This paragraph
          runs past both bounds and is rendered nowhere.";
 
       case immediate {
-        description
+        ze:help
           "A case statement is walked through in the same way. This paragraph
            runs past both bounds. No bound of this gate reaches it.";
 
         leaf deadline {
           type uint16;
-          description "Seconds the daemon waits before it drops the socket.";
-          ze:help "The timer starts when the socket enters the closing state.";
+          description "The timer starts when the socket enters the closing state.";
+          ze:help "Seconds the daemon waits before it drops the socket.";
         }
       }
     }
 
     list binding {
       key "family";
-      description "One binding for each address family.";
-      ze:help "A binding names the family the listener opens a socket for.";
+      description "A binding names the family the listener opens a socket for.";
+      ze:help "One binding for each address family.";
 
       leaf family {
         type enumeration {
           enum ipv4 {
-            description "Bind the listener to IPv4 only.";
+            ze:help "Bind the listener to IPv4 only.";
           }
           enum ipv6 {
-            description "Bind the listener to IPv6 only.";
+            ze:help "Bind the listener to IPv6 only.";
           }
         }
-        description "Address family the listener binds.";
-        ze:help "The listener binds one family, and a second listener carries the other.";
+        description "The listener binds one family, and a second listener carries the other.";
+        ze:help "Address family the listener binds.";
       }
 
       leaf port {
         type uint16;
-        description "Port the listener binds.";
-        ze:help "The port is the local TCP port the listener accepts connections on.";
+        description "The port is the local TCP port the listener accepts connections on.";
+        ze:help "Port the listener binds.";
       }
     }
   }

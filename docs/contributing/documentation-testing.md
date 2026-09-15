@@ -57,8 +57,8 @@ pre-commit gate.
 | After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check verify` does not cover it) |
 | After adding or renaming a YANG `ze:command` | `./le docvalid command-contract` |
 | After writing the `description` or the `ze:help` of a command node, an RPC or a config node | `./le docvalid help-shape` |
-| After writing the `Description` or the `LongHelp` of a `registry.Meta` | `./le docvalid help-shape` |
-| While an agent writes a `description` in any `.yang` file | `./le hook-check pretool-writeedit` answers on the proposed text, before the file lands |
+| After writing the `ShortHelp` or the `Description` of a `registry.Meta` | `./le docvalid help-shape` |
+| While an agent writes a `ze:help` in any `.yang` file | `./le hook-check pretool-writeedit` answers on the proposed text, before the file lands |
 | After adding a doc validator, inventory source, command source, or exported Go API | `./le doc wiring` |
 | Before opening a documentation PR | `./le doc check verify` |
 
@@ -132,12 +132,12 @@ Config nodes with a broken summary: 11
 
 ## Broken rules (23)
 
-  missing-long-help 12
+  missing-description 12
   char-cap          6
   word-cap          5
 
   command show bgp reject-asn known
-    rule:    missing-long-help
+    rule:    missing-description
     problem: the declaration carries a summary and no long text beside it
     summary: ...
   schema ze-bgp-conf:bgp/policy/reject-asn/name
@@ -154,14 +154,14 @@ judged with the rest. An offline local command declares its help in a
 `registry.Meta` beside its handler and reaches no YANG module at all, and
 `ze help command --json` merges it with the tree (`cmd/ze/help_command.go`,
 `collectCommands`). A CONFIG node declares its help in a `-conf` module, and
-`entryDescription` (`internal/component/cli/completer.go`) puts it on the row
+`entryShortHelp` (`internal/component/cli/completer.go`) puts it on the row
 under the completion menu.
 
 The first three corpora are held to the eight summary rules. The config corpus
-is held to the two caps and to the pair rules, and to nothing else: a YANG
-description is written over as many lines as its author needed, and
-`entryDescription` collapses the whitespace before it renders, so a newline in
-one is the normal spelling rather than a defect.
+is held to the two caps and to the pair rules, and to nothing else: the
+summary of a config node is written over as many lines as its author needed,
+and `entryShortHelp` collapses the whitespace before it renders, so a newline
+in one is the normal spelling rather than a defect.
 
 <!-- source: internal/le/docvalid/helpshape_schema.go -- collectSchema -->
 
@@ -173,12 +173,12 @@ over statement keywords answers correctly.
 
 | Statement | Judged | Why |
 |-----------|--------|-----|
-| A `container`, `list`, `leaf` or `leaf-list` in the config tree | Yes | `entryDescription` puts its description on the one-line row |
+| A `container`, `list`, `leaf` or `leaf-list` in the config tree | Yes | `entryShortHelp` puts its `ze:help` summary on the one-line row |
 | A `choice` or a `case` | No, but the walk descends through it | `effectiveChildren` (`internal/component/cli/completer.go`) walks THROUGH both and emits neither as a completion row, so neither text ever renders |
 | A `module`, `submodule`, `revision`, `import`, `include`, `grouping`, `typedef`, `identity`, `feature` or `extension` description | No | It never becomes an entry, so no row renders it |
 | A `leaf` in a `-cmd.yang` or an `-api.yang` module | No | `argDefFor` builds a `command.ArgDef` from `leaf.Type` alone, and `ArgDef` holds no text field |
 | An `rpc` | By `collectRPCs`, wherever it is declared | Judging it here would refuse one declaration twice |
-| An `enum` on the leaf a list names as its KEY | The two caps, never the long-text rule | `listKeyCompletions` is the one caller of `enumKeyVocabulary`, and its entry comes from `getListKeyEntry`. Nothing reads a `ze:help` on an enum |
+| An `enum` on the leaf a list names as its KEY | The two caps, never the long-text rule | `listKeyCompletions` is the one caller of `enumKeyVocabulary`, and its entry comes from `getListKeyEntry`. An enum declares its summary as `ze:help` alone, and nothing reads a `description` on an enum |
 | An `enum` on any other leaf, or one reached through a `typedef` | No | `getListKeyEntry` answers the key leaf and nil for everything else |
 | A node another module AUGMENTS in | Yes, under the module it augments | It is in the tree, so `ze-role` and the other BGP plugin modules are judged without the gate knowing they exist |
 
@@ -192,15 +192,15 @@ comment is neither, so all three passes were reverted.
 
 | Rule | What it refuses |
 |------|-----------------|
-| `missing-summary` | A config node declaring no `description` at all. An empty row under the completion menu tells an operator the name exists and nothing else |
-| `missing-long-help` | A declaration carrying a summary and no long text beside it |
-| `long-restates-summary` | A long text byte-equal to the summary beside it, once each is trimmed |
-| `long-cap` | A long text past `command.MaxLongHelpBytes`, which is the bound `validateHelpDecls` holds a plugin's declaration to |
+| `missing-short-help` | A config node declaring no `ze:help` at all. An empty row under the completion menu tells an operator the name exists and nothing else |
+| `missing-description` | A declaration carrying a summary and no long text beside it |
+| `description-restates-short-help` | A long text byte-equal to the summary beside it, once each is trimmed |
+| `description-cap` | A long text past `command.MaxDescriptionBytes`, which is the bound `validateHelpDecls` holds a plugin's declaration to |
 
-Every one of the three is absolute, and so is `missing-summary`. A declaration
+Every one of the three is absolute, and so is `missing-short-help`. A declaration
 an operator can reach owes both texts wherever it was written.
 
-`missing-long-help` was scoped to what the working tree added or changed against
+`missing-description` was scoped to what the working tree added or changed against
 `HEAD` while 193 declarations in the corpus carried a summary alone. Those are
 written, so the rule holds over the whole tree and the `HEAD` baseline that
 scoped it is gone. There is no file to append a path to, and no scope line in
@@ -227,9 +227,9 @@ summary that breaks two rules is reported twice. The report therefore states the
 number of nodes, of RPCs and of local commands as well as the number of
 refusals.
 
-Fix the summary in the YANG `description` of that node or that rpc, or in the
+Fix the summary in the YANG `ze:help` of that node or that rpc, or in the
 `Description` of that registration. Prose that does not fit one short sentence
-belongs in the `ze:help` beside it, or in the `LongHelp` beside it, which no
+belongs in the `description` beside it, or in the `Description` beside it, which no
 one-line surface reads.
 
 ### The write hook, an edit before the gate
@@ -243,10 +243,10 @@ tree: `./le docvalid help-shape` is the gate.
 
 | Rule | What it refuses |
 |------|-----------------|
-| `char-cap` | A `description` longer than 96 characters. `overlayInnerWidth` clamps every CLI overlay to [48, 96] characters. A longer summary cannot render whole in any of them |
-| `word-cap` | A `description` of more than 25 words. The bound is `ste.MaxDescriptiveWords`, which the help-shape gate holds a summary to |
-| `shape` | A `description` carrying a semicolon, or one that does not end in a full stop |
-| `long-restates-summary` | A `ze:help` that repeats the `description` beside it word for word |
+| `char-cap` | A `ze:help` longer than 96 characters. `overlayInnerWidth` clamps every CLI overlay to [48, 96] characters. A longer summary cannot render whole in any of them |
+| `word-cap` | A `ze:help` of more than 25 words. The bound is `ste.MaxDescriptiveWords`, which the help-shape gate holds a summary to |
+| `shape` | A `ze:help` carrying a semicolon, or one that does not end in a full stop |
+| `description-restates-short-help` | A `description` that repeats the `ze:help` beside it word for word |
 
 The three summary rules hold one population: the statements whose text reaches a
 one-line operator surface. Those are `container`, `list`, `leaf`, `leaf-list`,
@@ -265,13 +265,13 @@ A `leaf` and a `leaf-list` are judged in a config module and passed in a
 `extractArgDefs` walks every child of a command container and calls `argDefFor`,
 which admits any entry that carries a type. Both statements carry one, so each
 becomes a `command.ArgDef` built from the type and the mandatory flag. `ArgDef`
-declares nine fields and none of them holds text, so the description is dropped
-at the tree boundary. `entryDescription` puts a config leaf's description on the
-completion row. The file name is what separates the two at the level the hook
+declares nine fields and none of them holds text, so the summary is dropped at
+the tree boundary. `entryShortHelp` puts a config leaf's `ze:help` summary on
+the completion row. The file name is what separates the two at the level the hook
 reads.
 
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs, argDefFor -->
-<!-- source: internal/component/cli/completer.go -- entryDescription -->
+<!-- source: internal/component/cli/completer.go -- entryShortHelp -->
 
 Each finding names the file, the statement that encloses the text, the rule, and
 the measured value beside its bound. The text is joined across its concatenated
@@ -279,10 +279,10 @@ parts and its lines, and its whitespace is collapsed. The author is therefore
 told what an operator will read, and not how the module was wrapped.
 
 The hook reads one Edit region as readily as one whole file. That is where its
-two silences are reported rather than hidden. A description the region carries
+two silences are reported rather than hidden. A `ze:help` the region carries
 with no statement around it is counted as NOT judged, because nothing says which
 surface renders it. A string or a comment the scan cannot close is reported as
-text that does not read as YANG. No description in that file is judged. A scan
+text that does not read as YANG. No text in that file is judged. A scan
 that stopped early must not read as a file that broke no rule.
 
 ## How to fix common issues

@@ -59,9 +59,9 @@ func TestExtractNotificationsNonexistentModule(t *testing.T) {
 }
 
 // rpcHelpModule declares two RPCs. The first carries both help texts, and its
-// ze:help argument spans three lines, because a long explanation is the reason
-// the extension exists and goyang has to return it whole. The second carries a
-// description alone, which is what every unconverted RPC looks like.
+// description argument spans three lines, because a long explanation is what
+// the statement carries and goyang has to return it whole. The second carries
+// a ze:help summary alone, which is what every unconverted RPC looks like.
 const rpcHelpModule = `
 module ze-fixture-api {
     namespace "urn:ze:fixture:api";
@@ -69,20 +69,20 @@ module ze-fixture-api {
     import ze-extensions { prefix ze; }
 
     rpc socket-list {
-        description "List the open sockets.";
-        ze:help "One row is written for each socket the daemon holds open.
+        ze:help "List the open sockets.";
+        description "One row is written for each socket the daemon holds open.
 
                  The state column names the TCP state.";
         output {
             leaf count {
                 type uint32;
-                description "How many sockets are open.";
+                ze:help "How many sockets are open.";
             }
         }
     }
 
     rpc socket-clear {
-        description "Close every idle socket.";
+        ze:help "Close every idle socket.";
     }
 }
 `
@@ -91,8 +91,8 @@ module ze-fixture-api {
 // texts and asserts each reaches its own field on the extracted metadata.
 //
 // VALIDATES: goyang exposes the extension statements of an rpc, so an RPC
-// declares its long explanation through the same ze:help the command tree uses,
-// and the description keeps the one-line summary.
+// declares its one-line summary through the same ze:help the command tree uses,
+// and the description carries the long explanation.
 // PREVENTS: a second mechanism for the long form on the RPC side, and an RPC
 // whose summary and explanation share one string, which is the state every
 // renderer guesses its way out of (AC-16).
@@ -111,13 +111,13 @@ func TestRPCDescriptionCarriesSummaryAndHelp(t *testing.T) {
 	}
 
 	declared := byName["socket-list"]
-	assert.Equal(t, "List the open sockets.", declared.Description)
-	assert.Contains(t, declared.LongHelp, "One row is written for each socket")
-	assert.Contains(t, declared.LongHelp, "The state column names the TCP state.")
-	assert.Contains(t, declared.LongHelp, "\n", "a long explanation keeps the line breaks its author wrote")
-	assert.NotContains(t, declared.Description, declared.LongHelp, "neither field is derived from the other")
+	assert.Equal(t, "List the open sockets.", declared.ShortHelp)
+	assert.Contains(t, declared.Description, "One row is written for each socket")
+	assert.Contains(t, declared.Description, "The state column names the TCP state.")
+	assert.Contains(t, declared.Description, "\n", "a long explanation keeps the line breaks its author wrote")
+	assert.NotContains(t, declared.ShortHelp, declared.Description, "neither field is derived from the other")
 
 	silent := byName["socket-clear"]
-	assert.Equal(t, "Close every idle socket.", silent.Description)
-	assert.Empty(t, silent.LongHelp, "no ze:help statement means no long explanation")
+	assert.Equal(t, "Close every idle socket.", silent.ShortHelp)
+	assert.Empty(t, silent.Description, "no description statement means no long explanation")
 }

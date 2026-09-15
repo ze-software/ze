@@ -421,8 +421,8 @@ func registerLocalCommands() {
 	registry.MustRegisterLocalMeta("show version", func(args []string) int {
 		return printVersion(slices.Contains(args, "--extended"))
 	}, registry.Meta{
-		Description: "Show the running Ze version and build date",
-		Mode:        commandModeOffline,
+		ShortHelp: "Show the running Ze version and build date",
+		Mode:      commandModeOffline,
 	})
 
 	registry.MustRegisterRootHandler("start", func(rctx *registry.RuntimeContext, args []string) int {
@@ -432,45 +432,45 @@ func registerLocalCommands() {
 		}
 		return cmdStart(args, rctx.Plugins, rctx.ChaosSeed, rctx.ChaosRate, rctx.MCPAddr, rctx.MCPToken, rctx.WebPort, rctx.InsecureWeb, rctx.WebOnly)
 	}, registry.Meta{
-		Description: "Start the Ze daemon from blob storage config",
-		Mode:        "setup",
-		Section:     registry.SectionSystem,
-		Subs:        "--web <port>, --web-only, --insecure-web, --mcp <port>",
+		ShortHelp: "Start the Ze daemon from blob storage config",
+		Mode:      "setup",
+		Section:   registry.SectionSystem,
+		Subs:      "--web <port>, --web-only, --insecure-web, --mcp <port>",
 	})
 	registry.MustRegisterRootHandler("version", func(rctx *registry.RuntimeContext, args []string) int {
 		rctx.PrintVersion(slices.Contains(args, "--extended"))
 		return 0
 	}, registry.Meta{
-		Description: "Show the running Ze version and build date",
-		Mode:        commandModeOffline,
-		Section:     registry.SectionSystem,
-		Subs:        "--extended",
+		ShortHelp: "Show the running Ze version and build date",
+		Mode:      commandModeOffline,
+		Section:   registry.SectionSystem,
+		Subs:      "--extended",
 	})
 	registry.MustRegisterRootHandler("help", func(_ *registry.RuntimeContext, args []string) int {
 		return dispatchHelp(args)
 	}, registry.Meta{
-		Description: "Show available commands and how to use them",
-		Mode:        commandModeOffline,
-		Section:     registry.SectionSystem,
-		Subs:        "command [<filter>] [--json], ai [cli|api|mcp|dispatch|all] [--json]",
+		ShortHelp: "Show available commands and how to use them",
+		Mode:      commandModeOffline,
+		Section:   registry.SectionSystem,
+		Subs:      "command [<filter>] [--json], ai [cli|api|mcp|dispatch|all] [--json]",
 	})
 	registry.MustRegisterRootHandler("pipe", func(_ *registry.RuntimeContext, args []string) int {
 		return runPipe(args)
 	}, registry.Meta{
-		Description: "Apply pipe operators to stdin",
-		Mode:        commandModeOffline,
-		Section:     registry.SectionSystem,
-		Subs:        pipeOperatorSubs(),
+		ShortHelp: "Apply pipe operators to stdin",
+		Mode:      commandModeOffline,
+		Section:   registry.SectionSystem,
+		Subs:      pipeOperatorSubs(),
 	})
 	registry.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
-		Description: "List every command this binary carries with its summary.",
-		LongHelp: "A filter word keeps the commands whose path holds it, and the answer renders as " +
+		ShortHelp: "List every command this binary carries with its summary.",
+		Description: "A filter word keeps the commands whose path holds it, and the answer renders as " +
 			"JSON for a program to read.",
 		Mode: commandModeOffline,
 	})
 	registry.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
-		Description: "Print the agent reference this binary builds from its own registries.",
-		LongHelp: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
+		ShortHelp: "Print the agent reference this binary builds from its own registries.",
+		Description: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
 			"for a program to read.",
 		Mode: commandModeOffline,
 	})
@@ -480,8 +480,8 @@ func registerLocalCommands() {
 	// `update serve` lives here as a local meta -- the same mechanism `show
 	// version` uses to run a local command under a YANG verb.
 	registry.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
-		Description: "Serve this binary and its version manifest for update checks.",
-		LongHelp: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
+		ShortHelp: "Serve this binary and its version manifest for update checks.",
+		Description: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
 			"It is meant for build infrastructure rather than for a router in production.",
 		Mode: commandModeOffline,
 	})

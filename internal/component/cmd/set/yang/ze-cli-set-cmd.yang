@@ -14,10 +14,10 @@ module ze-cli-set-cmd {
 
     container set {
         config false;
-        description "Modify running configuration parameters.";
-        ze:help "This keyword runs nothing on its own. It is the bare verb root, and each
+        description "This keyword runs nothing on its own. It is the bare verb root, and each
 owning module merges its own children onto it. 'set system file-descriptors' comes from
 the host component.";
+        ze:help "Modify running configuration parameters.";
 
         // NOTE: `set system file-descriptors` is owned by the host component.
         // See internal/component/host/schema/ze-host-set-cmd.yang.

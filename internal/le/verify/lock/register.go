@@ -8,10 +8,10 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		Description: "run a verify-class command through the shared heavy-job admission",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		Subs:        usage,
+		ShortHelp: "run a verify-class command through the shared heavy-job admission",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		Subs:      usage,
 	})
 	leroot.RegisterShape(name, command.ShapeDoc)
 }

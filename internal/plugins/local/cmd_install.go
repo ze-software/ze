@@ -225,9 +225,9 @@ func dryRunInstall(src, binPath, configDir string) int {
 
 func installUsage() {
 	p := helpfmt.Page{
-		Command: "ze local install",
-		Summary: "Copy ze binary and create config directory on this machine",
-		Usage:   []string{"ze local install [options]"},
+		Command:   "ze local install",
+		ShortHelp: "Copy ze binary and create config directory on this machine",
+		Usage:     []string{"ze local install [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--prefix <path>", Desc: "Installation prefix (default: interactive selection)"},

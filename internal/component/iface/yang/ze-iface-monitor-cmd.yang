@@ -9,22 +9,22 @@ module ze-iface-monitor-cmd {
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop).";
+        ze:help "Continuous monitoring commands (Ctrl-C to stop).";
 
         container system {
             config false;
-            description "System-level event streams.";
-            ze:help "A stream is a live feed and it starts empty. It reports what happens from
-                     now on. It never reports what happened before the command was typed.";
+            description "A stream is a live feed and it starts empty. It reports what happens from
+                         now on. It never reports what happened before the command was typed.";
+            ze:help "System-level event streams.";
 
             container netlink {
                 config false;
                 ze:command "ze-monitor:system-netlink";
                 ze:task-support required;
-                description "Watch kernel networking changes in real time.";
-                ze:help "Streams netlink events: route adds and deletes, link
+                description "Streams netlink events: route adds and deletes, link
 state changes, address assignments. Filter with route, link, address, or
 all.";
+                ze:help "Watch kernel networking changes in real time.";
             }
         }
     }

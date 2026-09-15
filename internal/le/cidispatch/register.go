@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone",
-		Mode:        "offline",
+		ShortHelp: "every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

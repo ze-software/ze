@@ -57,8 +57,8 @@ type pluginRow struct {
 // YANG and served by nobody.
 func init() {
 	cmdregistry.MustRegisterLocalData("show plugin list", dataPlugins, cmdregistry.Meta{
-		Description: "Every plugin compiled into this binary, with its setup outcome.",
-		LongHelp: "One row is written for each plugin the binary links. The row names the " +
+		ShortHelp: "Every plugin compiled into this binary, with its setup outcome.",
+		Description: "One row is written for each plugin the binary links. The row names the " +
 			"families it registers, the RFCs it implements and the capability codes it " +
 			"negotiates, beside the outcome its own init() recorded and the reason for it.",
 		Mode: modeOffline,
@@ -82,15 +82,15 @@ func init() {
 	// offers it and the usage line states the grammar. Both forms answer one
 	// payload, so both declare the same shape and the same columns.
 	cmdregistry.MustRegisterLocalData("show plugin declarations", dataDeclarations, cmdregistry.Meta{
-		Description: "What each plugin declares: the commands it serves and the pipe aliases it puts on them.",
-		LongHelp: "One row is written for each plugin this binary carries. A plugin whose " +
+		ShortHelp: "What each plugin declares: the commands it serves and the pipe aliases it puts on them.",
+		Description: "One row is written for each plugin this binary carries. A plugin whose " +
 			"declaration could not be read keeps its row and says why in the state field, so a " +
 			"plugin is never missing from the answer.",
 		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 	cmdregistry.MustRegisterLocalData("show plugin declarations config", dataDeclarationsConfig, cmdregistry.Meta{
-		Description: "The same answer, plus a row for each plugin a config file names.",
-		LongHelp: "The file is read with the daemon's own loader, so the answer covers the plugins " +
+		ShortHelp: "The same answer, plus a row for each plugin a config file names.",
+		Description: "The file is read with the daemon's own loader, so the answer covers the plugins " +
 			"the daemon would start from it, external ones included. A plugin the file names and " +
 			"this binary also carries keeps one row rather than two.",
 		Mode: modeOffline,

@@ -306,7 +306,7 @@ func IsValidCommand(words []string, tree *cli.Command) bool {
 		current = child
 	}
 
-	return current.Description != "" || len(current.Children) > 0
+	return current.ShortHelp != "" || len(current.Children) > 0
 }
 
 // SuggestFromTree returns a "did you mean?" suggestion for the first command word.
@@ -580,8 +580,8 @@ func printChildren(node *cli.Command) {
 // DescribeCommand returns a description for a command node.
 // Uses the node's own description if it's a leaf, or summarizes children.
 func DescribeCommand(cmd *cli.Command) string {
-	if cmd.Description != "" {
-		return cmd.Description
+	if cmd.ShortHelp != "" {
+		return cmd.ShortHelp
 	}
 	if len(cmd.Children) == 0 {
 		return ""

@@ -71,7 +71,7 @@ func mergeChildren(dst, src *Node) {
 			// Both declared help texts come across. A node carrying a summary
 			// and no explanation would answer an empty help page while the
 			// module it came from declares one.
-			dstChild = &Node{Name: name, Description: srcChild.Description, LongHelp: srcChild.LongHelp}
+			dstChild = &Node{Name: name, ShortHelp: srcChild.ShortHelp, Description: srcChild.Description}
 			dst.Children[name] = dstChild
 		}
 		mergeChildren(dstChild, srcChild)

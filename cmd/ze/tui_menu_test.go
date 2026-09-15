@@ -424,7 +424,7 @@ func TestBuildTopLevel(t *testing.T) {
 	const desc = "sentinel for TUI menu test"
 	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, _ []string) int {
 		return 0
-	}, registry.Meta{Description: desc, Section: registry.SectionOperations})
+	}, registry.Meta{ShortHelp: desc, Section: registry.SectionOperations})
 
 	level := buildTopLevel()
 	if len(level.items) == 0 {

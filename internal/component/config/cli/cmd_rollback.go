@@ -27,9 +27,9 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config rollback", flag.ExitOnError)
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config rollback",
-			Summary: "Restore a configuration file from rollback revision N",
-			Usage:   []string{"ze config rollback <N> <file>"},
+			Command:   "ze config rollback",
+			ShortHelp: "Restore a configuration file from rollback revision N",
+			Usage:     []string{"ze config rollback <N> <file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Use 'ze config history <file>' to list available revisions."},

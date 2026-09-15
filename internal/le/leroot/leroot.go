@@ -97,7 +97,7 @@ func Register(name string, group Group, answer Answer, meta registry.Meta) {
 	if !KnownGroup(group) {
 		panic("BUG: leroot.Register: unknown group; see group.go for the five le renders")
 	}
-	if meta.Description == "" || meta.Mode == "" || meta.Section == "" {
+	if meta.ShortHelp == "" || meta.Mode == "" || meta.Section == "" {
 		panic("BUG: leroot.Register: Meta needs Description, Mode and Section")
 	}
 	setGroup(name, group)

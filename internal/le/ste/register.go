@@ -13,7 +13,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		Description: "the repository's writing, against ASD-STE100 Simplified Technical English: " +
+		ShortHelp: "the repository's writing, against ASD-STE100 Simplified Technical English: " +
 			"review every surface, and gate each changed file against its own HEAD version",
 		Mode: "offline",
 		// SectionTest is where ze files a tool rather than a product command;

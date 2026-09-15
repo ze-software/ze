@@ -23,9 +23,9 @@ func cmdNeighbors(args []string) int {
 	jsonOutput := fs.Bool("json", false, "Output in JSON format")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: cmdPathNeighbors,
-			Summary: "List the kernel neighbor table (IPv4 ARP + IPv6 ND)",
-			Usage:   []string{"ze interface neighbors [ipv4|ipv6] [--json]"},
+			Command:   cmdPathNeighbors,
+			ShortHelp: "List the kernel neighbor table (IPv4 ARP + IPv6 ND)",
+			Usage:     []string{"ze interface neighbors [ipv4|ipv6] [--json]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: flagJSONLong, Desc: helpDescJSON},

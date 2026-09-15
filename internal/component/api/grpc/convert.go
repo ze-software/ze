@@ -91,7 +91,7 @@ func execResultToProto(r *api.ExecResult) *zepb.CommandResponse {
 func commandMetaToProto(cmd api.CommandMeta) *zepb.CommandInfo {
 	info := &zepb.CommandInfo{
 		Name:        cmd.Name,
-		Description: cmd.Description,
+		Description: cmd.ShortHelp,
 		ReadOnly:    cmd.ReadOnly,
 	}
 	if len(cmd.Params) > 0 {
@@ -100,7 +100,7 @@ func commandMetaToProto(cmd api.CommandMeta) *zepb.CommandInfo {
 			info.Params[i] = &zepb.ParamInfo{
 				Name:        p.Name,
 				Type:        p.Type,
-				Description: p.Description,
+				Description: p.ShortHelp,
 				Required:    p.Required,
 			}
 		}

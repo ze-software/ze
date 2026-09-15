@@ -33,10 +33,10 @@ func init() {
 	registry.MustRegisterRootHandler("appliance", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Manage gokrazy-based Ze appliance images",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        subcommands(),
+		ShortHelp: "Manage gokrazy-based Ze appliance images",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      subcommands(),
 	})
 
 	for _, check := range applianceDoctorChecks() {

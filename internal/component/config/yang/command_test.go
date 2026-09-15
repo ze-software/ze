@@ -43,28 +43,28 @@ module test-cmd {
 
     container peer {
         config false;
-        description "Peer operations";
+        ze:help "Peer operations";
 
         container list {
             config false;
             ze:command "ze-bgp:peer-list";
-            description "List all peers";
+            ze:help "List all peers";
         }
 
         container add {
             config false;
             ze:command "ze-bgp:peer-add";
-            description "Add a new peer";
+            ze:help "Add a new peer";
 
             leaf address {
                 type string;
-                description "Peer address";
+                ze:help "Peer address";
             }
         }
 
         container status {
             config false;
-            description "Status grouping (not a command, just a branch)";
+            ze:help "Status grouping (not a command, just a branch)";
         }
     }
 }
@@ -119,20 +119,20 @@ module test-shortcut {
         config false;
         ze:command "ze-bgp:commit";
         ze:edit-shortcut;
-        description "Apply config changes";
+        ze:help "Apply config changes";
     }
 
     container save {
         config false;
         ze:command "ze-bgp:save";
         ze:edit-shortcut;
-        description "Persist config";
+        ze:help "Persist config";
     }
 
     container overview {
         config false;
         ze:command "ze-bgp:overview";
-        description "Show an overview (not an edit shortcut)";
+        ze:help "Show an overview (not an edit shortcut)";
     }
 }
 `
@@ -636,7 +636,7 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	require.NotNil(t, rib)
 	// show bgp rib is the routes command, owned by the BGP rib plugin schema.
 	assert.Equal(t, "ze-rib-api:routes", rib.WireMethod, "show bgp rib is the BGP-owned routes command")
-	assert.Contains(t, rib.Description, "Query routes in the BGP RIB", "show bgp rib has the routes description")
+	assert.Contains(t, rib.ShortHelp, "Query routes in the BGP RIB", "show bgp rib has the routes description")
 
 	rpf := rib.Children["rpf"]
 	require.NotNil(t, rpf)
@@ -654,8 +654,8 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	// shape the spec guarantees rather than one string. A summary is present,
 	// and it is one line. Pinning the sentence made this test fail the day an
 	// author added the full stop the house style asks for.
-	require.NotEmpty(t, clearRIB.Description, "clear bgp rib grouping gets its YANG description")
-	assert.NotContains(t, clearRIB.Description, "\n", "a summary is one line, and the long form belongs in ze:help")
+	require.NotEmpty(t, clearRIB.ShortHelp, "clear bgp rib grouping gets its YANG description")
+	assert.NotContains(t, clearRIB.ShortHelp, "\n", "a summary is one line, and the long form belongs in the description")
 	assert.Equal(t, "", clearRIB.WireMethod, "clear bgp rib grouping has no WireMethod")
 	assert.Equal(t, "ze-rib-api:clear-in", clearRIB.Children["in"].WireMethod)
 	assert.Equal(t, "ze-rib-api:clear-out", clearRIB.Children["out"].WireMethod)
@@ -780,7 +780,7 @@ module test-backend {
         config false;
         ze:backend "netlink";
         ze:command "ze-test:tunnel";
-        description "Tunnel operations";
+        ze:help "Tunnel operations";
     }
 }
 `
@@ -816,14 +816,14 @@ module test-backend-multi {
         config false;
         ze:backend "netlink vpp";
         ze:command "ze-test:shared";
-        description "Shared across backends";
+        ze:help "Shared across backends";
     }
 
     container duped {
         config false;
         ze:backend "netlink netlink vpp";
         ze:command "ze-test:duped";
-        description "Has duplicates";
+        ze:help "Has duplicates";
     }
 }
 `
@@ -862,19 +862,19 @@ module test-backend-tree-cmd {
     container vpp {
         config false;
         ze:backend "vpp";
-        description "VPP operations";
+        ze:help "VPP operations";
 
         container trace {
             config false;
             ze:command "ze-test:vpp-trace";
-            description "VPP trace";
+            ze:help "VPP trace";
         }
     }
 
     container general {
         config false;
         ze:command "ze-test:general";
-        description "Works on all backends";
+        ze:help "Works on all backends";
     }
 }
 `
@@ -924,14 +924,14 @@ module test-enum-cmd {
         container goroutines {
             config false;
             ze:command "ze-show:system-goroutines";
-            description "Show goroutines";
+            ze:help "Show goroutines";
             leaf mode {
                 type enumeration {
                     enum summary;
                     enum blocked;
                     enum full;
                 }
-                description "Display mode";
+                ze:help "Display mode";
             }
         }
     }
@@ -970,7 +970,7 @@ module test-union-cmd {
         container file-descriptors {
             config false;
             ze:command "ze-set:system-file-descriptors";
-            description "Set FD limit";
+            ze:help "Set FD limit";
             leaf limit {
                 type union {
                     type uint64;
@@ -978,7 +978,7 @@ module test-union-cmd {
                         enum max;
                     }
                 }
-                description "New limit or max";
+                ze:help "New limit or max";
             }
         }
     }
@@ -1019,12 +1019,12 @@ module test-uint-cmd {
         container capture {
             config false;
             ze:command "ze-show:capture";
-            description "Capture packets";
+            ze:help "Capture packets";
             leaf count {
                 type uint32 {
                     range "1..10000";
                 }
-                description "Packet count";
+                ze:help "Packet count";
             }
         }
     }
@@ -1065,12 +1065,12 @@ module test-pattern-cmd {
         container ping {
             config false;
             ze:command "ze-show:ping";
-            description "Ping host";
+            ze:help "Ping host";
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                description "Timeout duration";
+                ze:help "Timeout duration";
             }
         }
     }
@@ -1260,14 +1260,14 @@ func TestValidateCommandTreeWarnsMissingDescription(t *testing.T) {
 	defer slog.SetDefault(old)
 
 	root := &command.Node{Children: map[string]*command.Node{
-		"show":    {Name: "show", Description: "Has description"},
+		"show":    {Name: "show", ShortHelp: "Has description"},
 		"request": {Name: "request"},
 	}}
 
 	validateCommandTree(root)
 
 	assert.NotContains(t, buf.String(), "path=show", "described nodes produce no warning")
-	assert.Contains(t, buf.String(), "YANG command node missing description")
+	assert.Contains(t, buf.String(), "YANG command node missing ze:help summary")
 	assert.Contains(t, buf.String(), "path=request")
 }
 
@@ -1278,15 +1278,15 @@ func TestMergeYANGEntryWarnsOnDescriptionMismatch(t *testing.T) {
 	defer slog.SetDefault(old)
 
 	root := &command.Node{Children: map[string]*command.Node{
-		"show": {Name: "show", Description: "First description"},
+		"show": {Name: "show", ShortHelp: "First description"},
 	}}
 
 	entry := &gyang.Entry{
 		Dir: map[string]*gyang.Entry{
 			"show": {
-				Name:        "show",
-				Description: "Different description",
-				Config:      gyang.TSFalse,
+				Name:   "show",
+				Config: gyang.TSFalse,
+				Exts:   []*gyang.Statement{{Keyword: "ze:help", Argument: "Different description"}},
 			},
 		},
 	}
@@ -1294,10 +1294,10 @@ func TestMergeYANGEntryWarnsOnDescriptionMismatch(t *testing.T) {
 	mergeYANGEntry(root, entry)
 
 	assert.Contains(t, buf.String(), "YANG command help text mismatch")
-	assert.Contains(t, buf.String(), "field=description")
+	assert.Contains(t, buf.String(), "field=help")
 	assert.Contains(t, buf.String(), "First description")
 	assert.Contains(t, buf.String(), "Different description")
-	assert.Equal(t, "First description", root.Children["show"].Description, "first description wins")
+	assert.Equal(t, "First description", root.Children["show"].ShortHelp, "first description wins")
 }
 
 func TestMergeYANGEntrySilentOnMatchingDescription(t *testing.T) {
@@ -1307,15 +1307,15 @@ func TestMergeYANGEntrySilentOnMatchingDescription(t *testing.T) {
 	defer slog.SetDefault(old)
 
 	root := &command.Node{Children: map[string]*command.Node{
-		"show": {Name: "show", Description: "Same description"},
+		"show": {Name: "show", ShortHelp: "Same description"},
 	}}
 
 	entry := &gyang.Entry{
 		Dir: map[string]*gyang.Entry{
 			"show": {
-				Name:        "show",
-				Description: "Same description",
-				Config:      gyang.TSFalse,
+				Name:   "show",
+				Config: gyang.TSFalse,
+				Exts:   []*gyang.Statement{{Keyword: "ze:help", Argument: "Same description"}},
 			},
 		},
 	}
@@ -1338,11 +1338,11 @@ module test-order-cmd {
         container outgoing-call {
             config false;
             ze:command "ze-test:outgoing-call";
-            description "Place a call.";
-            leaf remote { type string; mandatory true; description "Remote name"; }
-            leaf called { type string; mandatory true; description "Called number"; }
-            leaf zone { type string; description "Zone"; }
-            leaf attempts { type uint8; description "Attempts"; }
+            ze:help "Place a call.";
+            leaf remote { type string; mandatory true; ze:help "Remote name"; }
+            leaf called { type string; mandatory true; ze:help "Called number"; }
+            leaf zone { type string; ze:help "Zone"; }
+            leaf attempts { type uint8; ze:help "Attempts"; }
         }
     }
 }
@@ -1415,35 +1415,35 @@ module test-modifier-cmd {
     container announce {
         config false;
         ze:command "ze-bgp:announce";
-        description "Announce a route.";
-        leaf selector { type string; mandatory true; description "Peer selector"; }
+        ze:help "Announce a route.";
+        leaf selector { type string; mandatory true; ze:help "Peer selector"; }
 
         container tag {
             config false;
             ze:modifier "once";
-            description "A key and a value carried with the announcement.";
-            leaf key { type string; mandatory true; description "Tag key"; }
-            leaf value { type string; mandatory true; description "Tag value"; }
+            ze:help "A key and a value carried with the announcement.";
+            leaf key { type string; mandatory true; ze:help "Tag key"; }
+            leaf value { type string; mandatory true; ze:help "Tag value"; }
         }
 
         container label {
             config false;
             ze:modifier "repeat";
-            description "A repeatable label.";
-            leaf name { type string; mandatory true; description "Label name"; }
+            ze:help "A repeatable label.";
+            leaf name { type string; mandatory true; ze:help "Label name"; }
         }
 
         container detail {
             config false;
             ze:command "ze-bgp:announce-detail";
             ze:modifier "once";
-            description "A subcommand, not a group.";
+            ze:help "A subcommand, not a group.";
         }
 
         container typo {
             config false;
             ze:modifier "sometimes";
-            description "An occurrence nobody declared.";
+            ze:help "An occurrence nobody declared.";
         }
     }
 }
@@ -1499,30 +1499,30 @@ module test-inherit-cmd {
 
         container peer {
             config false;
-            description "Peer operations";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
+            ze:help "Peer operations";
+            leaf selector { type string; mandatory true; ze:help "Peer selector"; }
 
             container flush {
                 config false;
                 ze:command "test:peer-flush";
-                description "Flush a peer";
+                ze:help "Flush a peer";
             }
 
             container teardown {
                 config false;
                 ze:command "test:peer-teardown";
-                description "Tear down a peer";
-                leaf cease-subcode { type uint8; mandatory true; description "Cease subcode"; }
+                ze:help "Tear down a peer";
+                leaf cease-subcode { type uint8; mandatory true; ze:help "Cease subcode"; }
             }
 
             container plugin {
                 config false;
-                description "Plugin operations";
+                ze:help "Plugin operations";
 
                 container ready {
                     config false;
                     ze:command "test:peer-ready";
-                    description "Signal readiness";
+                    ze:help "Signal readiness";
                 }
             }
 
@@ -1530,7 +1530,7 @@ module test-inherit-cmd {
                 config false;
                 ze:command "test:peer-list";
                 ze:inherit "none";
-                description "List every peer";
+                ze:help "List every peer";
             }
         }
     }
@@ -1642,14 +1642,14 @@ module test-orphan-cmd {
 
         container orphan {
             config false;
-            description "Names an object no command below it acts on";
-            leaf selector { type string; mandatory true; description "Selector"; }
+            ze:help "Names an object no command below it acts on";
+            leaf selector { type string; mandatory true; ze:help "Selector"; }
 
             container list {
                 config false;
                 ze:command "test:orphan-list";
                 ze:inherit "none";
-                description "List every one of them";
+                ze:help "List every one of them";
             }
         }
     }
@@ -1669,7 +1669,7 @@ module test-orphan-cmd {
 }
 
 // helpExtensionModule declares one command carrying both help fields. The
-// ze:help argument spans three lines, because a long explanation is the reason
+// description argument spans three lines, because a long explanation is the reason
 // the extension exists and goyang has to return it whole.
 const helpExtensionModule = `
 module test-help-cmd {
@@ -1679,12 +1679,12 @@ module test-help-cmd {
 
     container show {
         config false;
-        description "Read state from the daemon.";
+        ze:help "Read state from the daemon.";
         container widget {
             config false;
             ze:command "ze-test:widget-list";
-            description "List every widget the daemon holds.";
-            ze:help "Each row names one widget and the module that declared it.
+            ze:help "List every widget the daemon holds.";
+            description "Each row names one widget and the module that declared it.
 
                      A widget with no module is one a plugin registered at run
                      time, and it disappears when that plugin exits.";
@@ -1696,8 +1696,8 @@ module test-help-cmd {
 // TestMergeYANGEntryReadsHelpExtension reads a module declaring both help
 // fields and asserts each reaches its own field on the command node.
 //
-// VALIDATES: goyang returns a ze:help argument whole, newlines included, and
-// the merge writes it beside the description rather than over it.
+// VALIDATES: goyang returns a description argument whole, newlines included, and
+// the merge writes it beside the ze:help summary rather than over it.
 // PREVENTS: the long form and the short form sharing one field, which is the
 // state every renderer guesses its way out of today.
 func TestMergeYANGEntryReadsHelpExtension(t *testing.T) {
@@ -1709,11 +1709,11 @@ func TestMergeYANGEntryReadsHelpExtension(t *testing.T) {
 	node := BuildCommandTree(loader).Children["show"].Children["widget"]
 	require.NotNil(t, node)
 
-	assert.Equal(t, "List every widget the daemon holds.", node.Description)
-	assert.Contains(t, node.LongHelp, "Each row names one widget")
-	assert.Contains(t, node.LongHelp, "it disappears when that plugin exits.")
-	assert.Contains(t, node.LongHelp, "\n", "a long explanation keeps the line breaks its author wrote")
-	assert.NotContains(t, node.Description, node.LongHelp, "neither field is derived from the other")
+	assert.Equal(t, "List every widget the daemon holds.", node.ShortHelp)
+	assert.Contains(t, node.Description, "Each row names one widget")
+	assert.Contains(t, node.Description, "it disappears when that plugin exits.")
+	assert.Contains(t, node.Description, "\n", "a long explanation keeps the line breaks its author wrote")
+	assert.NotContains(t, node.ShortHelp, node.Description, "neither field is derived from the other")
 }
 
 // TestMergeYANGEntryReadsNoHelpExtension reads a command declaring a
@@ -1732,8 +1732,8 @@ func TestMergeYANGEntryReadsNoHelpExtension(t *testing.T) {
 	node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
 	require.NotNil(t, node)
 
-	assert.Equal(t, "Place a call.", node.Description)
-	assert.Empty(t, node.LongHelp, "no ze:help statement means no long explanation")
+	assert.Equal(t, "Place a call.", node.ShortHelp)
+	assert.Empty(t, node.Description, "no description statement means no long explanation")
 }
 
 // TestMergeYANGEntryWarnsPerFieldOnMismatch merges a second module over a node
@@ -1744,10 +1744,13 @@ func TestMergeYANGEntryReadsNoHelpExtension(t *testing.T) {
 // PREVENTS: a summary collision being reported as a help collision, which
 // sends the reader of the log to the wrong statement in the wrong module.
 func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
-	entryWith := func(description, help string) *gyang.Entry {
-		child := &gyang.Entry{Name: "show", Description: description, Config: gyang.TSFalse}
-		if help != "" {
-			child.Exts = []*gyang.Statement{{Keyword: "ze:help", Argument: help}}
+	// The summary is the ze:help extension and the explanation is the YANG
+	// description, so the entry carries the first in Exts and the second in
+	// Description.
+	entryWith := func(summary, explanation string) *gyang.Entry {
+		child := &gyang.Entry{Name: "show", Description: explanation, Config: gyang.TSFalse}
+		if summary != "" {
+			child.Exts = []*gyang.Statement{{Keyword: "ze:help", Argument: summary}}
 		}
 		return &gyang.Entry{Dir: map[string]*gyang.Entry{"show": child}}
 	}
@@ -1763,21 +1766,21 @@ func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
 			name:        "only the summary collides",
 			description: "Second summary.",
 			help:        "First explanation.",
-			warnFields:  []string{"description"},
-			quietFields: []string{"help"},
+			warnFields:  []string{"help"},
+			quietFields: []string{"description"},
 		},
 		{
 			name:        "only the explanation collides",
 			description: "First summary.",
 			help:        "Second explanation.",
-			warnFields:  []string{"help"},
-			quietFields: []string{"description"},
+			warnFields:  []string{"description"},
+			quietFields: []string{"help"},
 		},
 		{
 			name:        "both collide",
 			description: "Second summary.",
 			help:        "Second explanation.",
-			warnFields:  []string{"description", "help"},
+			warnFields:  []string{"help", "description"},
 		},
 	}
 
@@ -1789,7 +1792,7 @@ func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
 			defer slog.SetDefault(old)
 
 			root := &command.Node{Children: map[string]*command.Node{
-				"show": {Name: "show", Description: "First summary.", LongHelp: "First explanation."},
+				"show": {Name: "show", ShortHelp: "First summary.", Description: "First explanation."},
 			}}
 
 			mergeYANGEntry(root, entryWith(tc.description, tc.help))
@@ -1801,8 +1804,8 @@ func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
 			for _, field := range tc.quietFields {
 				assert.NotContains(t, buf.String(), "field="+field, "a field that agrees is not reported")
 			}
-			assert.Equal(t, "First summary.", root.Children["show"].Description, "the first summary survives")
-			assert.Equal(t, "First explanation.", root.Children["show"].LongHelp, "the first explanation survives")
+			assert.Equal(t, "First summary.", root.Children["show"].ShortHelp, "the first summary survives")
+			assert.Equal(t, "First explanation.", root.Children["show"].Description, "the first explanation survives")
 		})
 	}
 }
@@ -1820,20 +1823,20 @@ func TestMergeYANGEntryFillsEachFieldOnItsOwn(t *testing.T) {
 	defer slog.SetDefault(old)
 
 	root := &command.Node{Children: map[string]*command.Node{
-		"show": {Name: "show", Description: "First summary."},
+		"show": {Name: "show", ShortHelp: "First summary."},
 	}}
 
 	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
 		"show": {
 			Name:        "show",
-			Description: "First summary.",
+			Description: "The long explanation.",
 			Config:      gyang.TSFalse,
-			Exts:        []*gyang.Statement{{Keyword: "ze:help", Argument: "The long explanation."}},
+			Exts:        []*gyang.Statement{{Keyword: "ze:help", Argument: "First summary."}},
 		},
 	}})
 
-	assert.Equal(t, "First summary.", root.Children["show"].Description)
-	assert.Equal(t, "The long explanation.", root.Children["show"].LongHelp)
+	assert.Equal(t, "First summary.", root.Children["show"].ShortHelp)
+	assert.Equal(t, "The long explanation.", root.Children["show"].Description)
 	assert.Empty(t, buf.String(), "filling an empty field is not a collision")
 }
 
@@ -1853,23 +1856,23 @@ func TestMergeYANGEntryWireMethodOverwriteIsPerField(t *testing.T) {
 	defer slog.SetDefault(old)
 
 	root := &command.Node{Children: map[string]*command.Node{
-		"show": {Name: "show", Description: "Grouping summary.", LongHelp: "Grouping explanation."},
+		"show": {Name: "show", ShortHelp: "Grouping summary.", Description: "Grouping explanation."},
 	}}
 
 	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
 		"show": {
-			Name:        "show",
-			Description: "Command summary.",
-			Config:      gyang.TSFalse,
+			Name:   "show",
+			Config: gyang.TSFalse,
 			Exts: []*gyang.Statement{
 				{Keyword: "ze:command", Argument: "ze-test:show"},
+				{Keyword: "ze:help", Argument: "Command summary."},
 			},
 		},
 	}})
 
 	node := root.Children["show"]
 	assert.Equal(t, "ze-test:show", node.WireMethod)
-	assert.Equal(t, "Command summary.", node.Description, "the command's own module states the summary")
-	assert.Empty(t, node.LongHelp, "a half the command's module does not state is empty, not inherited")
+	assert.Equal(t, "Command summary.", node.ShortHelp, "the command's own module states the summary")
+	assert.Empty(t, node.Description, "a half the command's module does not state is empty, not inherited")
 	assert.Empty(t, buf.String(), "the command's own module is not in collision with a grouping container")
 }

@@ -193,8 +193,8 @@ func runPlugin(conn net.Conn) int {
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
 		{
-			Name:        "show class-of-service",
-			Description: "Show each class-of-service profile with its ingress and egress marking maps.",
+			Name:      "show class-of-service",
+			ShortHelp: "Show each class-of-service profile with its ingress and egress marking maps.",
 		},
 	}
 }

@@ -8,10 +8,10 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		Description: "append one stage failure block to the verification failure index",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		Subs:        "append failures <failures-log> stage <stage> log <stage-log>",
+		ShortHelp: "append one stage failure block to the verification failure index",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		Subs:      "append failures <failures-log> stage <stage> log <stage-log>",
 	})
 	leroot.RegisterShape(name, command.ShapeDoc)
 }

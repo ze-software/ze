@@ -177,7 +177,7 @@ func init() {
     registry.MustRegisterRootHandler("<feature>", func(_ *registry.RuntimeContext, args []string) int {
         return Dispatch(args)
     }, registry.Meta{
-        Description: "<summary>",
+        ShortHelp:   "<summary>",
         Mode:        "offline",
         Section:     registry.SectionTest,
         SubsFunc:    func() string { return dispatcher.Subcommands() },

@@ -25,7 +25,7 @@ type FieldMeta struct {
 	Type          string // bool, string, enum, uint16, uint32, int, ip, prefix, duration
 	Value         string // Current configured value
 	Default       string // YANG default
-	Description   string // YANG description
+	ShortHelp     string // One-line summary from the ze:help extension
 	Options       string // Comma-separated enum values
 	Min           string // Numeric min
 	Max           string // Numeric max
@@ -48,14 +48,14 @@ type SidebarEntry struct {
 // SidebarSection represents one level in the left sidebar hierarchy.
 // For containers it shows just the name. For lists it shows entries + add.
 type SidebarSection struct {
-	Name        string         // Node name (e.g., "peer")
-	Description string         // YANG description for tooltip
-	URL         string         // Click navigates to this level
-	HxPath      string         // YANG path for hx-get
-	IsList      bool           // True for list nodes (show entries)
-	Entries     []SidebarEntry // List entries at this level
-	AddURL      string         // Base URL for add form (lists only)
-	Selected    string         // Currently selected entry key
+	Name      string         // Node name (e.g., "peer")
+	ShortHelp string         // One-line summary from the ze:help extension, for tooltip
+	URL       string         // Click navigates to this level
+	HxPath    string         // YANG path for hx-get
+	IsList    bool           // True for list nodes (show entries)
+	Entries   []SidebarEntry // List entries at this level
+	AddURL    string         // Base URL for add form (lists only)
+	Selected  string         // Currently selected entry key
 }
 
 // ColumnItem is a single row in a Finder column.
@@ -81,7 +81,7 @@ type ListTableCell struct {
 	Value       string // Current value
 	Leaf        string // Leaf name for the set command (e.g., "ip")
 	Path        string // Full YANG path for hx-post (e.g., "bgp/peer/london/remote")
-	Placeholder string // YANG description or type hint for empty cells
+	Placeholder string // ze:help summary or type hint for empty cells
 }
 
 // ListTableRow is one entry row in a list table.
@@ -427,7 +427,7 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 		// resubmitted placeholder is filtered on the write path.
 		Value:         maskSecretLeaf(leaf, value),
 		Default:       leaf.Default,
-		Description:   leaf.Description,
+		ShortHelp:     leaf.ShortHelp,
 		DecoratorName: leaf.Decorate,
 	}
 
@@ -495,15 +495,15 @@ func valueTypeToFieldType(vt config.ValueType) string {
 	return fieldTypeString
 }
 
-// nodeDescription extracts the YANG description from a schema node, if available.
+// nodeDescription extracts the ze:help summary from a schema node, if available.
 func nodeDescription(n config.Node) string {
 	switch v := n.(type) {
 	case *config.ContainerNode:
-		return v.Description
+		return v.ShortHelp
 	case *config.ListNode:
-		return v.Description
+		return v.ShortHelp
 	case *config.LeafNode:
-		return v.Description
+		return v.ShortHelp
 	}
 	return ""
 }
@@ -540,10 +540,10 @@ func buildSidebarHierarchy(schema *config.Schema, tree *config.Tree, path []stri
 		hxPath := tb.Join(childPath, "/").String()
 		url := tb.Reset().Str(showPathPrefix).Str(hxPath).Byte('/').String()
 		section := SidebarSection{
-			Name:        name,
-			Description: nodeDescription(child),
-			URL:         url,
-			HxPath:      hxPath,
+			Name:      name,
+			ShortHelp: nodeDescription(child),
+			URL:       url,
+			HxPath:    hxPath,
 		}
 
 		if _, ok := child.(*config.ListNode); ok {

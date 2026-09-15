@@ -13,8 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them",
-		Mode:        "offline",
+		ShortHelp: "the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them",
+		Mode:      "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,

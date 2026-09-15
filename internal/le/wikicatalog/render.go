@@ -18,8 +18,8 @@ func Render(entries []Entry) ([]byte, error) {
 	groups := make(map[string][]Entry)
 	for index := range entries {
 		entry := entries[index]
+		entry.ShortHelp = normalizeLineBreaks(entry.ShortHelp)
 		entry.Description = normalizeLineBreaks(entry.Description)
-		entry.LongHelp = normalizeLineBreaks(entry.LongHelp)
 		words := strings.Fields(entry.Path)
 		verb := entry.Path
 		if len(words) > 0 {
@@ -73,7 +73,7 @@ func Render(entries []Entry) ([]byte, error) {
 			out.WriteString(" | ")
 			out.WriteString(entry.Mode)
 			out.WriteString(" | ")
-			out.WriteString(markdownLiteralProse(tableProse(entry.Description)))
+			out.WriteString(markdownLiteralProse(tableProse(entry.ShortHelp)))
 			line(&out, " |")
 		}
 		line(&out, "")
@@ -124,9 +124,9 @@ func tableProse(value string) string {
 // The summary is not repeated here. The table above carries it, and the two
 // halves are separate declarations rather than one string cut in two.
 func renderDetail(out *bytes.Buffer, entry *Entry) error {
-	if entry.LongHelp != "" {
+	if entry.Description != "" {
 		line(out, "")
-		for helpLine := range strings.SplitSeq(entry.LongHelp, "\n") {
+		for helpLine := range strings.SplitSeq(entry.Description, "\n") {
 			line(out, markdownLiteralProse(helpLine))
 		}
 	}

@@ -1392,10 +1392,10 @@ nothing, so a missing mandatory argument is reported instead
 missing: direction`, and not a complaint about the `update` keyword the handler
 reads).
 
-A leaf's own `description` reaches no surface. `argDefFor`
+A leaf's own `ze:help` and `description` reach no surface. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
-statement, and `command.ArgDef` carries no description field. State what an
-argument means in the command's own `ze:help`.
+statement, and `command.ArgDef` carries no text field. State what an
+argument means in the command's own `description`.
 
 ```go
 type ArgDef struct {
@@ -1554,8 +1554,8 @@ same pair, in the declaration form their own registration uses.
 
 | Field | Declared by | Holds |
 |-------|-------------|-------|
-| `command.Node.Description` | the `description` statement | the one-line SUMMARY |
-| `command.Node.Help` | the `ze:help` extension | the LONG explanation of that one command |
+| `command.Node.ShortHelp` | the `ze:help` extension | the one-line SUMMARY |
+| `command.Node.Description` | the `description` statement | the LONG explanation of that one command |
 
 Neither is derived from the other, and no reader shortens either one to guess
 at the other. The summary is authored short because it is a summary. No reader
@@ -1566,44 +1566,43 @@ cuts it: every surface prints the summary whole.
 one command path. A collision leaves the first value in place and logs
 `YANG command help text mismatch` naming the field that collided.
 
-An empty `Help` is a command nobody has written an explanation for, and the
-help page prints its summary alone. An empty `Description` is a defect:
+An empty `Description` is a command nobody has written an explanation for, and
+the help page prints its summary alone. An empty `ShortHelp` is a defect:
 `validateNode` names each one by path.
 
 An RPC carries the same two texts, in the same two YANG statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
-`RPCMeta.Description` and `RPCMeta.Help`. `GetHelpExtension` is the ONE reader
+`RPCMeta.ShortHelp` and `RPCMeta.Description`. `GetHelpExtension` is the ONE reader
 of the extension for both carriers. A command container reaches it through
 `Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
 `./le docvalid help-shape` holds the two corpora to one shape.
 
 An RPC's pair reaches an agent through the machine-readable reference.
-`SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.Description` and
-`RegisteredRPC.LongHelp`. `aihelp.Build` then publishes them under `description`
-and `long-help`, the two keys `ze help command --json` uses for a command.
+`SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.ShortHelp` and
+`RegisteredRPC.Description`. `aihelp.Build` then publishes them under `short-help`
+and `description`, the two keys `ze help command --json` uses for a command.
 `ze help ai --json` and the MCP `ze_reference` tool read that one projection.
 The `show schema methods` and `ze schema methods` tables print one line for each
 RPC. Both read the summary alone, as every other one-line surface does.
 
 A PLUGIN command carries the same two texts, declared in its Stage 1 message as
-`description` and `long-help`. `VisibleCommandEntries` reads both off the
+`short-help` and `description`. `VisibleCommandEntries` reads both off the
 registry, and `MergeCommandPaths` fills each field of the tree on its own. A
 plugin that declares a summary and no explanation therefore fills the summary
-alone. The names cross at that call. The plugin server spells them
-`Description` and `LongHelp`, because `Help` already means the SUMMARY there,
-on `Completion` and on the dispatcher's builtin `Command`. The bound and the control-character
+alone. The plugin server spells them `ShortHelp` and `Description` too, on
+`Completion` and on the dispatcher's builtin `Command`. The bound and the control-character
 refusal on a declared text are in
 `docs/architecture/api/process-protocol.md`.
 
-`command help "<name>"` answers with both, under the `description` and
-`long-help` keys, for a builtin and for a plugin command alike.
+`command help "<name>"` answers with both, under the `short-help` and
+`description` keys, for a builtin and for a plugin command alike.
 
-`system command list` carries both texts on every row too. The `help` key holds
-the summary, and `long-help` holds the explanation. That answer is the only
+`system command list` carries both texts on every row too. The `short-help` key
+holds the summary, and `description` holds the explanation. That answer is the only
 place the ATTACHED console of `ze start --cli` reads either text from. An
 explanation that does not travel here is one its `?` key cannot print.
 `commandRows` fills the pair for a builtin and for a registered plugin command
-alike. A command that declares no explanation yields a row with no `long-help`
+alike. A command that declares no explanation yields a row with no `description`
 key.
 
 On the client, `applyCommandText` writes the pair onto the node the row names,
@@ -1611,8 +1610,8 @@ in ONE walk. `injectPluginCommands` carries the pair into a node the tree does
 not yet hold.
 
 An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
-declared beside its handler in Go rather than in a YANG module. `Description` is
-the summary and `LongHelp` is the explanation, and the same empty-is-unwritten
+declared beside its handler in Go rather than in a YANG module. `ShortHelp` is
+the summary and `Description` is the explanation, and the same empty-is-unwritten
 rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
 registrations into `ze help command --json` after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
@@ -1630,26 +1629,26 @@ surfaces.
 
 | Surface | Producer | Reads |
 |---------|----------|-------|
-| The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `Description` on the header line, then `Help` in the body block, then the child rows. A node states its own two texts whether or not it has children |
-| A help page's child rows | `command.HelpEntries` | `Description` |
-| A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `Description` |
+| The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `ShortHelp` on the header line, then `Description` in the body block, then the child rows. A node states its own two texts whether or not it has children |
+| A help page's child rows | `command.HelpEntries` | `ShortHelp` |
+| A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `ShortHelp`, copied to the candidate's `Suggestion.Description` |
 | The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | nothing. A menu row is the command name alone, and a name wider than the box is clamped to the frame |
-| The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole, for the candidate the menu has selected |
-| The interactive explanation box, which the `?` key opens | `internal/component/cli` `Model.renderExplanationBox`, answered by `command.TreeCompleter.Explain` | `Help`, whole. The attached console reads it from the `long-help` key of `system command list` |
-| A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `Description` |
-| The `ze help command` table row | `printCommandTable` | `Description` |
-| `ze help command --verbose` | `printCommandVerbose` | `Description`, then `Help` |
-| `ze help command --json` | `commandEntry` | `description`, and `long-help` |
-| The web admin command form | `buildAdminFragmentData`, rendered by the `commandForm` template | `Description` as the lede, `Help` as the body |
-| The web completion dropdown | `HandleCLICompleteWithCommandCompleter` | `Description`, in the JSON `description` key |
-| An MCP tool's action enum | `buildToolDef` | `Description`, one line for each action |
-| An MCP tool's own description | `buildToolDef`, `commandText` | `Description`, then a blank line, then `LongHelp` |
-| The OpenAPI operation | `OpenAPISchema` | `Description` as `summary`, `LongHelp` as `description` |
-| The published wiki catalog | `wikicatalog.Render` | `Description` in the summary table column, `LongHelp` in the `###` detail block |
-| The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `Description` |
-| The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `Description` as the lede, `LongHelp` as the Description body |
-| The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `Description`, whole and with no character budget |
-| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `wikicatalog.Collect` | `Meta.Description` and `Meta.LongHelp`, in place of the node's two texts |
+| The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `ShortHelp`, whole, for the candidate the menu has selected |
+| The interactive explanation box, which the `?` key opens | `internal/component/cli` `Model.renderExplanationBox`, answered by `command.TreeCompleter.Explain` | `Description`, whole. The attached console reads it from the `description` key of `system command list` |
+| A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `ShortHelp`, read from the candidate's `Suggestion.Description` |
+| The `ze help command` table row | `printCommandTable` | `ShortHelp` |
+| `ze help command --verbose` | `printCommandVerbose` | `ShortHelp`, then `Description` |
+| `ze help command --json` | `commandEntry` | `short-help`, and `description` |
+| The web admin command form | `buildAdminFragmentData`, rendered by the `commandForm` template | `ShortHelp` as the lede, `Description` as the body |
+| The web completion dropdown | `HandleCLICompleteWithCommandCompleter` | `ShortHelp`, in the JSON `description` key |
+| An MCP tool's action enum | `buildToolDef` | `ShortHelp`, one line for each action |
+| An MCP tool's own description | `buildToolDef`, `commandText` | `ShortHelp`, then a blank line, then `Description` |
+| The OpenAPI operation | `OpenAPISchema` | `ShortHelp` as `summary`, `Description` as `description` |
+| The published wiki catalog | `wikicatalog.Render` | `ShortHelp` in the summary table column, `Description` in the `###` detail block |
+| The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `ShortHelp` |
+| The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `ShortHelp` as the lede, `Description` as the Description body |
+| The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `ShortHelp`, whole and with no character budget |
+| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `wikicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
 
 The machine surfaces carry the same pair. `commandMeta`
 (`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.

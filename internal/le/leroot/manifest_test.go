@@ -22,9 +22,9 @@ func manifestProbeRoots(t *testing.T) []registry.RootCommand {
 	setGroup("manifest-probe-alpha", GroupWorkflow)
 	setGroup("manifest-probe-gate", GroupGate)
 	return []registry.RootCommand{
-		{Name: "manifest-probe-alpha", Meta: registry.Meta{Description: "the first probe"}},
-		{Name: "manifest-probe-gate", Meta: registry.Meta{Description: "the second probe"}},
-		{Name: "manifest-probe-loose", Meta: registry.Meta{Description: "a probe that named no group"}},
+		{Name: "manifest-probe-alpha", Meta: registry.Meta{ShortHelp: "the first probe"}},
+		{Name: "manifest-probe-gate", Meta: registry.Meta{ShortHelp: "the second probe"}},
+		{Name: "manifest-probe-loose", Meta: registry.Meta{ShortHelp: "a probe that named no group"}},
 	}
 }
 
@@ -71,8 +71,8 @@ func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {
 		AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
 	})
 	Register(area.Name(), GroupSuite, area.Answer, registry.Meta{
-		Description: "an area that declares its actions",
-		Mode:        "offline", Section: registry.SectionTest,
+		ShortHelp: "an area that declares its actions",
+		Mode:      "offline", Section: registry.SectionTest,
 	})
 	RegisterActions(area.Name(), area.Actions)
 

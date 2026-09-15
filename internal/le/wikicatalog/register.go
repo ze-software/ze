@@ -9,10 +9,10 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		Description: "the generated command-catalog Markdown: check it against live registries, or rewrite it",
-		Mode:        modeOffline,
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "the generated command-catalog Markdown: check it against live registries, or rewrite it",
+		Mode:      modeOffline,
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

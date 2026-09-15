@@ -15,13 +15,13 @@ module ze-fakeas112-api {
   }
 
   rpc fakeas112-emit {
-    description "Emit the AS112 covering prefixes as one route-change batch per family.";
-    ze:help "Args: <add|del> [asn <N>] [community <c1,c2,...>].";
+    description "Args: <add|del> [asn <N>] [community <c1,c2,...>].";
+    ze:help "Emit the AS112 covering prefixes as one route-change batch per family.";
   }
 
   rpc fakeas112-help {
-    description "Print the fakeas112 command surface.";
-    ze:help "The answer is one fixed line naming the emit form and its options. It is a
+    description "The answer is one fixed line naming the emit form and its options. It is a
 constant of the test plugin, so it does not read the command registry.";
+    ze:help "Print the fakeas112 command surface.";
   }
 }

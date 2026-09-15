@@ -17,135 +17,135 @@ module ze-plugin-engine {
     // Stage 1: Plugin declares itself to the engine.
 
     rpc declare-registration {
-        description "Plugin declares families, commands, config wants, and YANG schema.";
-        ze:help "Called during Stage 1 of the 5-stage startup protocol.";
+        description "Called during Stage 1 of the 5-stage startup protocol.";
+        ze:help "Plugin declares families, commands, config wants, and YANG schema.";
         input {
             list family {
                 key "name";
                 leaf name {
                     type string;
-                    description "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
+                    ze:help "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
                 }
                 leaf mode {
                     type enumeration {
-                        enum encode { description "Encode text to wire"; }
-                        enum decode { description "Decode wire to JSON"; }
-                        enum both { description "Encode and decode"; }
+                        enum encode { ze:help "Encode text to wire"; }
+                        enum decode { ze:help "Decode wire to JSON"; }
+                        enum both { ze:help "Encode and decode"; }
                     }
-                    description "Family handling mode";
+                    ze:help "Family handling mode";
                 }
             }
             list command {
                 key "name";
                 leaf name {
                     type string;
-                    description "Command name";
+                    ze:help "Command name";
                 }
                 leaf description {
                     type string;
-                    description "Command description";
+                    ze:help "Command description";
                 }
                 leaf-list args {
                     type string;
-                    description "Argument names";
+                    ze:help "Argument names";
                 }
                 leaf completable {
                     type boolean;
                     default false;
-                    description "Supports tab completion";
+                    ze:help "Supports tab completion";
                 }
             }
             leaf-list wants-config {
                 type string;
-                description "Config roots to receive (e.g., bgp, environment, *)";
+                ze:help "Config roots to receive (e.g., bgp, environment, *)";
             }
             container schema {
-                description "YANG schema declaration";
+                ze:help "YANG schema declaration";
                 leaf module {
                     type string;
-                    description "YANG module name";
+                    ze:help "YANG module name";
                 }
                 leaf namespace {
                     type string;
-                    description "YANG namespace URI";
+                    ze:help "YANG namespace URI";
                 }
                 leaf yang-text {
                     type string;
-                    description "Full YANG module text";
+                    ze:help "Full YANG module text";
                 }
                 leaf-list handlers {
                     type string;
-                    description "Handler paths (e.g., bgp, bgp.peer)";
+                    ze:help "Handler paths (e.g., bgp, bgp.peer)";
                 }
             }
             list filter {
                 key "name";
                 description
-                    "Named route filters this plugin offers.";
-                ze:help
                     "Config references a filter by name, in a filter block for
                      the import direction or the export direction.";
+                ze:help
+                    "Named route filters this plugin offers.";
                 leaf name {
                     type string;
-                    description "Filter name (the part after : in <plugin>:<filter>)";
+                    ze:help "Filter name (the part after : in <plugin>:<filter>)";
                 }
                 leaf direction {
                     type enumeration {
-                        enum import { description "Ingress filtering"; }
-                        enum export { description "Egress filtering"; }
-                        enum both { description "Ingress and egress filtering"; }
+                        enum import { ze:help "Ingress filtering"; }
+                        enum export { ze:help "Egress filtering"; }
+                        enum both { ze:help "Ingress and egress filtering"; }
                     }
-                    description "Which direction(s) this filter handles";
+                    ze:help "Which direction(s) this filter handles";
                 }
                 leaf-list attributes {
                     type string;
-                    description "Attribute names to receive (e.g., as-path, community)";
+                    ze:help "Attribute names to receive (e.g., as-path, community)";
                 }
                 leaf nlri {
                     type boolean;
                     default true;
-                    description "Whether to include NLRI list in filter input";
+                    ze:help "Whether to include NLRI list in filter input";
                 }
                 leaf raw {
                     type boolean;
                     default false;
-                    description "Whether to include raw wire bytes";
+                    ze:help "Whether to include raw wire bytes";
                 }
                 leaf on-error {
                     type enumeration {
-                        enum reject { description "Fail-closed: drop update on error"; }
-                        enum accept { description "Fail-open: pass update on error"; }
+                        enum reject { ze:help "Fail-closed: drop update on error"; }
+                        enum accept { ze:help "Fail-open: pass update on error"; }
                     }
                     default reject;
-                    description "Behavior when filter IPC fails";
+                    ze:help "Behavior when filter IPC fails";
                 }
                 leaf-list overrides {
                     type string;
-                    description "Default filters this filter replaces (e.g., rfc:no-self-as)";
+                    ze:help "Default filters this filter replaces (e.g., rfc:no-self-as)";
                 }
             }
             list pipe {
                 key "command name";
                 description
-                    "Pipe aliases this plugin offers for its own commands.";
-                ze:help
                     "An alias is a word an operator types after the pipe
                      character, and it stands for an operator chain.";
+                ze:help
+                    "Pipe aliases this plugin offers for its own commands.";
                 leaf command {
                     type string;
-                    description "Command path the alias sits on (one of this plugin's own declared commands)";
+                    ze:help "Command path the alias sits on (one of this plugin's own declared commands)";
                 }
                 leaf name {
                     type string;
-                    description "The word an operator types after the pipe character (kebab-case)";
+                    ze:help "The word an operator types after the pipe character (kebab-case)";
                 }
                 leaf description {
                     type string;
-                    description "The line completion and help show beside the name";
+                    ze:help "The line completion and help show beside the name";
                 }
                 leaf expansion {
                     type string;
-                    description "The operator chain the name stands for, for example: display kind vrp-count";
+                    ze:help "The operator chain the name stands for, for example: display kind vrp-count";
                 }
             }
         }
@@ -154,31 +154,31 @@ module ze-plugin-engine {
     // Stage 3: Plugin declares OPEN capabilities.
 
     rpc declare-capabilities {
-        description "Plugin declares capabilities for BGP OPEN injection.";
-        ze:help "Called during Stage 3 of the 5-stage startup protocol.";
+        description "Called during Stage 3 of the 5-stage startup protocol.";
+        ze:help "Plugin declares capabilities for BGP OPEN injection.";
         input {
             list capability {
                 key "code";
                 leaf code {
                     type uint8;
-                    description "BGP capability code (RFC 5492)";
+                    ze:help "BGP capability code (RFC 5492)";
                 }
                 leaf encoding {
                     type enumeration {
-                        enum hex { description "Hex-encoded payload"; }
-                        enum b64 { description "Base64-encoded payload"; }
-                        enum text { description "Text payload"; }
+                        enum hex { ze:help "Hex-encoded payload"; }
+                        enum b64 { ze:help "Base64-encoded payload"; }
+                        enum text { ze:help "Text payload"; }
                     }
                     default hex;
-                    description "Payload encoding";
+                    ze:help "Payload encoding";
                 }
                 leaf payload {
                     type string;
-                    description "Encoded capability value (empty for zero-length)";
+                    ze:help "Encoded capability value (empty for zero-length)";
                 }
                 leaf-list peers {
                     type string;
-                    description "Peer addresses (empty = global/all peers)";
+                    ze:help "Peer addresses (empty = global/all peers)";
                 }
             }
         }
@@ -187,39 +187,39 @@ module ze-plugin-engine {
     // Stage 5: Plugin signals readiness.
 
     rpc ready {
-        description "Plugin signals it is operational and ready to process events.";
-        ze:help "Called during Stage 5 of the 5-stage startup protocol.";
+        description "Called during Stage 5 of the 5-stage startup protocol.";
+        ze:help "Plugin signals it is operational and ready to process events.";
     }
 
     // Runtime: Route injection.
 
     rpc update-route {
         description
-            "Plugin injects a route update to matching peers.";
-        ze:help "The answer carries the announced and withdrawn NLRI counts and nothing
+            "The answer carries the announced and withdrawn NLRI counts and nothing
 else. A plugin that needs the target handler's structured response calls
 dispatch-command instead, which preserves it. The peer selector defaults to
 every peer, so an omitted selector is not a no-op.";
+        ze:help "Plugin injects a route update to matching peers.";
         input {
             leaf peer-selector {
                 type string;
                 default "*";
-                description "Peer selector (* for all, or specific IP)";
+                ze:help "Peer selector (* for all, or specific IP)";
             }
             leaf command {
                 type string;
                 mandatory true;
-                description "Route command (e.g., announce/withdraw text)";
+                ze:help "Route command (e.g., announce/withdraw text)";
             }
         }
         output {
             leaf announced {
                 type uint32;
-                description "Number of NLRIs announced";
+                ze:help "Number of NLRIs announced";
             }
             leaf withdrawn {
                 type uint32;
-                description "Number of NLRIs withdrawn";
+                ze:help "Number of NLRIs withdrawn";
             }
         }
     }
@@ -227,26 +227,26 @@ every peer, so an omitted selector is not a no-op.";
     // Runtime: Command dispatch (inter-plugin communication).
 
     rpc dispatch-command {
-        description "Plugin dispatches a command through the engine's command dispatcher.";
-        ze:help "Enables inter-plugin communication: the engine routes the command
+        description "Enables inter-plugin communication: the engine routes the command
 to the target plugin via longest-match registry lookup and returns
 the full {status, data} response. Unlike update-route, which
 extracts only route counters, this preserves structured responses.";
+        ze:help "Plugin dispatches a command through the engine's command dispatcher.";
         input {
             leaf command {
                 type string;
                 mandatory true;
-                description "Command string to dispatch (e.g., bgp rib list)";
+                ze:help "Command string to dispatch (e.g., bgp rib list)";
             }
         }
         output {
             leaf status {
                 type string;
-                description "Response status (done or error)";
+                ze:help "Response status (done or error)";
             }
             leaf data {
                 type string;
-                description "JSON-encoded response data from target handler";
+                ze:help "JSON-encoded response data from target handler";
             }
         }
     }
@@ -255,161 +255,161 @@ extracts only route counters, this preserves structured responses.";
 
     rpc subscribe-events {
         description
-            "Request event delivery from the engine.";
-        ze:help "An empty peer list means every peer rather than none. The format decides how
+            "An empty peer list means every peer rather than none. The format decides how
 much of each message the engine builds. Hex and base64 carry the bytes. Parsed
 carries the decoded message, and full carries both. A plugin that asks for
 parsed pays the decode cost on every event.";
+        ze:help "Request event delivery from the engine.";
         input {
             leaf-list events {
                 type string;
-                description "Event types (update, open, notification, keepalive, state, all)";
+                ze:help "Event types (update, open, notification, keepalive, state, all)";
             }
             leaf-list peers {
                 type string;
-                description "Peer filter (empty = all peers)";
+                ze:help "Peer filter (empty = all peers)";
             }
             leaf format {
                 type string;
                 default "parsed";
-                description "Event format (hex, base64, parsed, full)";
+                ze:help "Event format (hex, base64, parsed, full)";
             }
         }
     }
 
     rpc unsubscribe-events {
-        description "Stop event delivery.";
-        ze:help "It cancels the whole subscription subscribe-events created. There is no
+        description "It cancels the whole subscription subscribe-events created. There is no
 per-event and no per-peer form, so a plugin that wants a narrower set
 unsubscribes and subscribes again with the set it wants.";
+        ze:help "Stop event delivery.";
     }
 
     // Runtime: Wire decoding services.
     // Plugins call these to decode BGP wire data via the engine's parsers.
 
     rpc decode-nlri {
-        description "Decode NLRI hex for a specific address family.";
-        ze:help "Engine routes to the compile-time plugin registry for decoding.";
+        description "Engine routes to the compile-time plugin registry for decoding.";
+        ze:help "Decode NLRI hex for a specific address family.";
         input {
             leaf family {
                 type string;
                 mandatory true;
-                description "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
+                ze:help "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
             }
             leaf hex {
                 type string;
                 mandatory true;
-                description "Hex-encoded NLRI wire bytes";
+                ze:help "Hex-encoded NLRI wire bytes";
             }
         }
         output {
             leaf json {
                 type string;
-                description "JSON-encoded decoded NLRI";
+                ze:help "JSON-encoded decoded NLRI";
             }
         }
     }
 
     rpc encode-nlri {
-        description "Encode NLRI from text arguments for a specific address family.";
-        ze:help "Engine routes to the compile-time plugin registry for encoding.";
+        description "Engine routes to the compile-time plugin registry for encoding.";
+        ze:help "Encode NLRI from text arguments for a specific address family.";
         input {
             leaf family {
                 type string;
                 mandatory true;
-                description "Address family (e.g., ipv4/flow, l2vpn/evpn)";
+                ze:help "Address family (e.g., ipv4/flow, l2vpn/evpn)";
             }
             leaf-list args {
                 type string;
-                description "Encoding arguments (family-specific)";
+                ze:help "Encoding arguments (family-specific)";
             }
         }
         output {
             leaf hex {
                 type string;
-                description "Hex-encoded NLRI wire bytes";
+                ze:help "Hex-encoded NLRI wire bytes";
             }
         }
     }
 
     rpc decode-mp-reach {
-        description "Decode a full MP_REACH_NLRI attribute value (RFC 4760 Section 3).";
-        ze:help "Engine extracts address family, next-hop, and decoded NLRI.";
+        description "Engine extracts address family, next-hop, and decoded NLRI.";
+        ze:help "Decode a full MP_REACH_NLRI attribute value (RFC 4760 Section 3).";
         input {
             leaf hex {
                 type string;
                 mandatory true;
-                description "Hex-encoded MP_REACH_NLRI value (after TLV header)";
+                ze:help "Hex-encoded MP_REACH_NLRI value (after TLV header)";
             }
             leaf add-path {
                 type boolean;
                 default false;
-                description "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
+                ze:help "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
             }
         }
         output {
             leaf family {
                 type string;
-                description "Decoded address family (e.g., ipv4/unicast)";
+                ze:help "Decoded address family (e.g., ipv4/unicast)";
             }
             leaf next-hop {
                 type string;
-                description "Decoded next-hop address";
+                ze:help "Decoded next-hop address";
             }
             leaf nlri {
                 type string;
-                description "JSON array of decoded NLRI entries";
+                ze:help "JSON array of decoded NLRI entries";
             }
         }
     }
 
     rpc decode-mp-unreach {
-        description "Decode a full MP_UNREACH_NLRI attribute value (RFC 4760 Section 4).";
-        ze:help "Engine extracts address family and decoded withdrawn NLRI.";
+        description "Engine extracts address family and decoded withdrawn NLRI.";
+        ze:help "Decode a full MP_UNREACH_NLRI attribute value (RFC 4760 Section 4).";
         input {
             leaf hex {
                 type string;
                 mandatory true;
-                description "Hex-encoded MP_UNREACH_NLRI value (after TLV header)";
+                ze:help "Hex-encoded MP_UNREACH_NLRI value (after TLV header)";
             }
             leaf add-path {
                 type boolean;
                 default false;
-                description "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
+                ze:help "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
             }
         }
         output {
             leaf family {
                 type string;
-                description "Decoded address family (e.g., ipv4/unicast)";
+                ze:help "Decoded address family (e.g., ipv4/unicast)";
             }
             leaf nlri {
                 type string;
-                description "JSON array of decoded withdrawn NLRI entries";
+                ze:help "JSON array of decoded withdrawn NLRI entries";
             }
         }
     }
 
     rpc decode-update {
-        description "Decode a full UPDATE message body (RFC 4271 Section 4.3).";
-        ze:help "Engine parses attributes, NLRI, and withdrawn routes.
+        description "Engine parses attributes, NLRI, and withdrawn routes.
 Returns ze-bgp JSON format (same structure as deliver-event).";
+        ze:help "Decode a full UPDATE message body (RFC 4271 Section 4.3).";
         input {
             leaf hex {
                 type string;
                 mandatory true;
-                description "Hex-encoded UPDATE body (after 19-byte BGP header)";
+                ze:help "Hex-encoded UPDATE body (after 19-byte BGP header)";
             }
             leaf add-path {
                 type boolean;
                 default false;
-                description "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
+                ze:help "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
             }
         }
         output {
             leaf json {
                 type string;
-                description "ze-bgp JSON with update attributes and NLRI";
+                ze:help "ze-bgp JSON with update attributes and NLRI";
             }
         }
     }
@@ -417,40 +417,40 @@ Returns ze-bgp JSON format (same structure as deliver-event).";
     // Runtime: Event emission (plugin-generated events).
 
     rpc emit-event {
-        description "Plugin emits a custom event to subscribers.";
-        ze:help "The engine routes the event to all plugins subscribed to the
+        description "The engine routes the event to all plugins subscribed to the
 matching namespace and event-type.";
+        ze:help "Plugin emits a custom event to subscribers.";
         input {
             leaf namespace {
                 type string;
                 mandatory true;
-                description "Event namespace (e.g., bgp, rib)";
+                ze:help "Event namespace (e.g., bgp, rib)";
             }
             leaf event-type {
                 type string;
                 mandatory true;
-                description "Event type (e.g., rpki, update)";
+                ze:help "Event type (e.g., rpki, update)";
             }
             leaf direction {
                 type string;
                 default "received";
-                description "Event direction (received, sent, both)";
+                ze:help "Event direction (received, sent, both)";
             }
             leaf peer-address {
                 type string;
                 default "*";
-                description "Peer address for event routing (* for all)";
+                ze:help "Peer address for event routing (* for all)";
             }
             leaf event {
                 type string;
                 mandatory true;
-                description "JSON-encoded event payload";
+                ze:help "JSON-encoded event payload";
             }
         }
         output {
             leaf delivered {
                 type uint32;
-                description "Number of plugins that received the event";
+                ze:help "Number of plugins that received the event";
             }
         }
     }

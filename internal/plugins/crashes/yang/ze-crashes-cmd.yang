@@ -9,22 +9,22 @@ module ze-crashes-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container crashes {
             config false;
             ze:command "ze-show:crashes";
-            description "View saved crash reports, and whether kernel capture is armed.";
-            ze:help "Without arguments, lists every stored report with its kind: 'panic' for a Go
+            description "Without arguments, lists every stored report with its kind: 'panic' for a Go
 panic this daemon caught, 'kernel' for a kernel fault recovered from the
 reserved region on the following boot. The listing also carries a readiness
 block, which reports configured and armed separately because the reservation
 is a kernel boot argument and a commit alone does not arm it. Use 'latest' to
 see the newest report or 'name <filename>' to print one. Send the output to
 support when reporting a crash.";
+            ze:help "View saved crash reports, and whether kernel capture is armed.";
             leaf name {
                 type string;
-                description "Crash report name (used with 'name <filename>')";
+                ze:help "Crash report name (used with 'name <filename>')";
             }
         }
     }

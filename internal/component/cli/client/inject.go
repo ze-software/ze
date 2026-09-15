@@ -15,21 +15,21 @@ import (
 // until 2026-09-03. Both are spelled here because a refusal has to name them,
 // and the commandEntry tags below are the declaration they repeat.
 const (
-	summaryKey        = "description"
+	summaryKey        = "short-help"
 	retiredSummaryKey = "help"
 )
 
 // commandEntry is one row of the "system command list" answer.
 type commandEntry struct {
 	Value string `json:"value"`
-	// Description is the one-line SUMMARY of the command, which every surface that
+	// ShortHelp is the one-line SUMMARY of the command, which every surface that
 	// shows it on one line reads.
-	Description string `json:"description"`
-	// LongHelp is the explanation the command's own help page prints, and the
+	ShortHelp string `json:"short-help"`
+	// Description is the explanation the command's own help page prints, and the
 	// `?` key answers. Empty means the command declares none, and no one-line
 	// surface reads it at all.
-	LongHelp string `json:"long-help"`
-	Hidden   bool   `json:"hidden"`
+	Description string `json:"description"`
+	Hidden      bool   `json:"hidden"`
 	// RetiredHelp holds the retired summary key when a row still carries it.
 	// decodeCommandList refuses such an answer, because decoding it would leave
 	// Description empty and no reader can tell that from a command that states
@@ -79,8 +79,8 @@ func injectPluginCommands(tree *cmd.Node, commands []commandEntry, hidden map[st
 		}
 		entries = append(entries, cmd.CommandEntry{
 			Name:        c.Value,
+			ShortHelp:   c.ShortHelp,
 			Description: c.Description,
-			LongHelp:    c.LongHelp,
 		})
 	}
 	cmd.MergeCommandPaths(tree, entries)

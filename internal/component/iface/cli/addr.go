@@ -107,9 +107,9 @@ func parseAddrArgs(action string, args []string) (string, string, bool) {
 
 func addrUsage() {
 	p := helpfmt.Page{
-		Command: "ze interface addr",
-		Summary: "Manage IP addresses on interface units",
-		Usage:   []string{"ze interface addr <action> <name> unit <id> <cidr>"},
+		Command:   "ze interface addr",
+		ShortHelp: "Manage IP addresses on interface units",
+		Usage:     []string{"ze interface addr <action> <name> unit <id> <cidr>"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Actions", Entries: []helpfmt.HelpEntry{
 				{Name: "add <name> unit <id> <cidr>", Desc: "Add an IP address to a unit"},

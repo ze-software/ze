@@ -81,10 +81,10 @@ func usage() {
 	)
 	sections = append(sections, pipeSections...)
 	p := helpfmt.Page{
-		Command:  "ze cli",
-		Summary:  "Interactive CLI for Ze daemons",
-		Usage:    []string{"ze cli [subsystem] [options]"},
-		Sections: sections,
+		Command:   "ze cli",
+		ShortHelp: "Interactive CLI for Ze daemons",
+		Usage:     []string{"ze cli [subsystem] [options]"},
+		Sections:  sections,
 		Examples: []string{
 			"ze cli                           Interactive BGP CLI",
 			"ze cli bgp                       Interactive BGP CLI (explicit)",
@@ -785,11 +785,11 @@ func mergeHelpText(dst, src *Command) {
 		if !ok {
 			continue
 		}
+		if dstChild.ShortHelp == "" && srcChild.ShortHelp != "" {
+			dstChild.ShortHelp = srcChild.ShortHelp
+		}
 		if dstChild.Description == "" && srcChild.Description != "" {
 			dstChild.Description = srcChild.Description
-		}
-		if dstChild.LongHelp == "" && srcChild.LongHelp != "" {
-			dstChild.LongHelp = srcChild.LongHelp
 		}
 		mergeHelpText(dstChild, srcChild)
 	}
@@ -845,15 +845,15 @@ func nodeAtPath(root *Command, path string) *Command {
 func applyDescriptions(root *Command, descriptions map[string]string) {
 	for path, description := range descriptions {
 		node := nodeAtPath(root, path)
-		if node != nil && node.Description == "" {
-			node.Description = description
+		if node != nil && node.ShortHelp == "" {
+			node.ShortHelp = description
 		}
 	}
 }
 
 // applyCommandText writes both texts the daemon's "system command list" answer
-// carries onto the node each entry names. The summary lands on Description,
-// which every one-line surface reads, and the explanation on LongHelp, which
+// carries onto the node each entry names. The summary lands on ShortHelp,
+// which every one-line surface reads, and the explanation on Description, which
 // the command's help page and the `?` key read. It applies to a builtin and to
 // a plugin command alike.
 //
@@ -866,11 +866,11 @@ func applyCommandText(root *Command, entries []commandEntry) {
 		if node == nil {
 			continue
 		}
+		if node.ShortHelp == "" {
+			node.ShortHelp = entry.ShortHelp
+		}
 		if node.Description == "" {
 			node.Description = entry.Description
-		}
-		if node.LongHelp == "" {
-			node.LongHelp = entry.LongHelp
 		}
 	}
 }

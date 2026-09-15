@@ -12,9 +12,9 @@ func registerRoot(name string, handler func([]string) int, desc string) {
 	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, args []string) int {
 		return handler(args)
 	}, registry.Meta{
-		Description: desc,
-		Mode:        "offline",
-		Section:     registry.SectionTest,
+		ShortHelp: desc,
+		Mode:      "offline",
+		Section:   registry.SectionTest,
 	})
 }
 

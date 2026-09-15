@@ -47,7 +47,7 @@ func formatDocList(w io.Writer) error {
 		if d.ReadOnly {
 			mode = "ro"
 		}
-		if _, err := fmt.Fprintf(w, "%-40s %-6s %s\n", d.CLICommand, mode, d.Description); err != nil { //nolint:errcheck // output
+		if _, err := fmt.Fprintf(w, "%-40s %-6s %s\n", d.CLICommand, mode, d.ShortHelp); err != nil { //nolint:errcheck // output
 			return err
 		}
 	}
@@ -60,7 +60,7 @@ func writeDocEntry(w io.Writer, d rPCDoc) error {
 		mode = "read-only"
 	}
 
-	if _, err := fmt.Fprintf(w, "%s\n  %s (%s)\n", d.CLICommand, d.Description, mode); err != nil { //nolint:errcheck // output
+	if _, err := fmt.Fprintf(w, "%s\n  %s (%s)\n", d.CLICommand, d.ShortHelp, mode); err != nil { //nolint:errcheck // output
 		return err
 	}
 	if _, err := fmt.Fprintf(w, "\n  Wire method: %s\n", d.WireMethod); err != nil { //nolint:errcheck // output
@@ -95,7 +95,7 @@ func writeLeafTable(w io.Writer, leaves []yang.LeafMeta) error {
 		if leaf.Mandatory {
 			mandatory = " [mandatory]"
 		}
-		desc := leaf.Description
+		desc := leaf.ShortHelp
 		if len(desc) > 50 {
 			desc = desc[:47] + "..."
 		}

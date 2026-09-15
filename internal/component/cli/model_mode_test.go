@@ -105,8 +105,8 @@ func TestCommandModeCompletionsWired(t *testing.T) {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"peer":   {Name: "peer", Description: "Peer operations"},
-			"daemon": {Name: "daemon", Description: "Daemon operations"},
+			"peer":   {Name: "peer", ShortHelp: "Peer operations"},
+			"daemon": {Name: "daemon", ShortHelp: "Daemon operations"},
 		},
 	}))
 
@@ -160,7 +160,7 @@ func TestOperationalModeDedupsConfigCompletions(t *testing.T) {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"show": {Name: "show", Description: "Operational show"},
+			"show": {Name: "show", ShortHelp: "Operational show"},
 		},
 	}))
 
@@ -178,7 +178,7 @@ func TestOperationalModeDedupsConfigCompletions(t *testing.T) {
 		t.Errorf("expected exactly 1 'show' completion, got %d", count)
 		for _, c := range comps {
 			if c.Text == "show" {
-				t.Logf("  show: %q", c.Description)
+				t.Logf("  show: %q", c.ShortHelp)
 			}
 		}
 	}
@@ -190,7 +190,7 @@ func TestCommandModeDispatch(t *testing.T) {
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
 			"peer": {Name: "peer", Children: map[string]*commandNode{
-				"list": {Name: "list", Description: "List peers"},
+				"list": {Name: "list", ShortHelp: "List peers"},
 			}},
 		},
 	}))
@@ -329,8 +329,8 @@ func TestCommandModeGhostTextWired(t *testing.T) {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"peer":   {Name: "peer", Description: "Peer operations"},
-			"daemon": {Name: "daemon", Description: "Daemon operations"},
+			"peer":   {Name: "peer", ShortHelp: "Peer operations"},
+			"daemon": {Name: "daemon", ShortHelp: "Daemon operations"},
 		},
 	}))
 
@@ -463,8 +463,8 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 		Children: map[string]*commandNode{
 			"peer": {Name: "peer", Children: map[string]*commandNode{
 				"detail": {Name: "detail", Children: map[string]*commandNode{
-					"127.0.0.1": {Name: "127.0.0.1", Description: "Peer 1"},
-					"127.0.0.2": {Name: "127.0.0.2", Description: "Peer 2"},
+					"127.0.0.1": {Name: "127.0.0.1", ShortHelp: "Peer 1"},
+					"127.0.0.2": {Name: "127.0.0.2", ShortHelp: "Peer 2"},
 				}},
 			}},
 		},
@@ -509,8 +509,8 @@ func TestCrossModeCompletionsRunPrefix(t *testing.T) {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"peer":   {Name: "peer", Description: "Peer operations"},
-			"daemon": {Name: "daemon", Description: "Daemon operations"},
+			"peer":   {Name: "peer", ShortHelp: "Peer operations"},
+			"daemon": {Name: "daemon", ShortHelp: "Daemon operations"},
 		},
 	}))
 
@@ -543,7 +543,7 @@ func TestCrossModeCompletionsConfigInOperationalMode(t *testing.T) {
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&commandNode{
 		Children: map[string]*commandNode{
-			"peer": {Name: "peer", Description: "Peer operations"},
+			"peer": {Name: "peer", ShortHelp: "Peer operations"},
 		},
 	}))
 

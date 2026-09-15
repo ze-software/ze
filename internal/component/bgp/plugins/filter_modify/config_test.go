@@ -220,14 +220,14 @@ func TestAttributeDefaultLeafRangeHoldsAtTheBoundaries(t *testing.T) {
 }
 
 // containerHelp answers the long explanation the YANG container at path
-// declares in its ze:help extension.
+// declares in its description statement.
 //
-// config.ContainerNode carries a node's description and not its ze:help, so the
-// schema cannot answer this. Nothing reads the long text through the schema.
-// The ? box the operator opens reads it straight off the YANG entry
-// (entryLongHelp, internal/component/cli/completer.go). A copy on the schema
-// node would be a second declaration of one sentence, with no reader of its
-// own.
+// config.ContainerNode carries a node's ze:help summary and not its
+// description, so the schema cannot answer this. Nothing reads the long text
+// through the schema. The ? box the operator opens reads it straight off the
+// YANG entry (entryDescription, internal/component/cli/completer.go). A copy on
+// the schema node would be a second declaration of one paragraph, with no
+// reader of its own.
 //
 // A module the binary never registered would turn the walk into an empty string,
 // and the caller would read that as an absent explanation. So each step of the
@@ -246,5 +246,5 @@ func containerHelp(t *testing.T, path string) string {
 		entry = entry.Dir[name]
 		require.NotNil(t, entry, "the YANG tree declares no %q under %s", name, path)
 	}
-	return configyang.GetHelpExtension(entry.Exts)
+	return entry.Description
 }

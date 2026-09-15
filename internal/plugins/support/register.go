@@ -9,14 +9,14 @@ import (
 
 func init() {
 	registry.RegisterRoot("support", registry.Meta{
-		Description: "Collect logs, config, and diagnostics into a support archive",
-		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
+		ShortHelp: "Collect logs, config, and diagnostics into a support archive",
+		Mode:      "offline",
+		Section:   registry.SectionSystem,
+		Subs:      "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
 	})
 	registry.MustRegisterLocalMeta("support", impl.Run, registry.Meta{
-		Description: "Collect logs, config, state and diagnostics into one archive.",
-		LongHelp: "Send the archive to support when you report an issue. Modules can be selected or " +
+		ShortHelp: "Collect logs, config, state and diagnostics into one archive.",
+		Description: "Send the archive to support when you report an issue. Modules can be selected or " +
 			"excluded, and a time window narrows what the archive holds.",
 	})
 }

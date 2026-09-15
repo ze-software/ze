@@ -448,7 +448,7 @@ func writeCISleep(ctx context) *verdict {
 	return &verdict{2, red + bold + "BLOCKED: time.sleep( with no sleep(<kind>) marker in " + path + reset + "\n" + strings.Join(bad, "\n")}
 }
 
-// yangSummaryChars bounds a YANG description statement, in characters.
+// yangSummaryChars bounds a YANG ze:help summary, in characters.
 // overlayInnerWidth clamps every Ze overlay box to [48, 96] characters
 // (internal/component/cli/model_render.go), so a summary longer than this
 // cannot render whole in any of them.
@@ -473,21 +473,21 @@ var yangRendering = [...]string{
 	"action", "rpc", "notification",
 }
 
-// The rules a proposed YANG description is held to. Each is named on its own
+// The rules a proposed YANG ze:help summary is held to. Each is named on its own
 // line of a refusal. The author is told which bound was passed, and not that
 // something about the text is wrong.
 const (
 	yangRuleCharCap  = "char-cap"
 	yangRuleWordCap  = "word-cap"
 	yangRuleShape    = "shape"
-	yangRuleRestates = "long-restates-summary"
+	yangRuleRestates = "description-restates-short-help"
 )
 
-// yangKeywordHelp is the extension that carries the long explanation, and
-// yangKeywordSummary the statement that carries the one-line summary.
+// yangKeywordSummary is the extension that carries the one-line summary, and
+// yangKeywordExplanation the statement that carries the long explanation.
 const (
-	yangKeywordHelp    = "ze:help"
-	yangKeywordSummary = "description"
+	yangKeywordSummary     = "ze:help"
+	yangKeywordExplanation = "description"
 )
 
 // yangBlock is one open brace. It carries the keyword that opened it and the
@@ -499,13 +499,13 @@ type yangBlock struct {
 	name    string
 }
 
-// yangText is one `description` or `ze:help` argument read out of proposed
+// yangText is one `ze:help` or `description` argument read out of proposed
 // text. It carries the keyword, the block that held it, the statement that
 // named that block, and the argument itself. The argument arrives with its
 // concatenation joined and its whitespace collapsed.
 //
 // Owned says whether the scan found the enclosing statement at all. An Edit
-// region can carry a description and no statement around it. A text whose owner
+// region can carry a ze:help and no statement around it. A text whose owner
 // is unknown is REPORTED rather than judged, because nothing says which surface
 // renders it (ai/rules/principles.md).
 type yangText struct {
@@ -528,7 +528,7 @@ func yangArgumentModule(path string) bool {
 	return strings.HasSuffix(path, "-cmd.yang") || strings.HasSuffix(path, "-api.yang")
 }
 
-// yangRenders answers whether a description on this statement reaches a
+// yangRenders answers whether a ze:help summary on this statement reaches a
 // one-line operator surface. The statement decides it. For a leaf and a
 // leaf-list, the module the statement sits in decides it too.
 //
@@ -536,7 +536,7 @@ func yangArgumentModule(path string) bool {
 // of a command container and calls argDefFor, which admits any entry with a
 // type. A leaf and a leaf-list each have one, so both become a command.ArgDef
 // built from Type and Mandatory. ArgDef declares nine fields and none of them
-// holds text, so the description is dropped at the tree boundary. The same
+// holds text, so the ze:help is dropped at the tree boundary. The same
 // statement in a config module renders on the completion row, through
 // entryDescription (internal/component/cli/completer.go).
 func yangRenders(path, keyword string) bool {
@@ -697,7 +697,7 @@ func scanYangText(content string) ([]yangText, error) {
 // owns the `missing-summary` rule, and a fragment can end before its author
 // typed the text.
 func appendYangText(found []yangText, stack []yangBlock, keyword, argument string) []yangText {
-	if keyword != yangKeywordSummary && keyword != yangKeywordHelp {
+	if keyword != yangKeywordSummary && keyword != yangKeywordExplanation {
 		return found
 	}
 	text := yangSpaced(argument)
@@ -720,7 +720,7 @@ func yangFinding(text yangText, rule, detail string) string {
 	return "  " + text.node + ": " + rule + ", " + detail
 }
 
-// judgeYangSummary answers every rule one description breaks.
+// judgeYangSummary answers every rule one ze:help summary breaks.
 func judgeYangSummary(text yangText) []string {
 	bad := make([]string, 0, 4)
 	if count := utf8.RuneCountInString(text.text); count > yangSummaryChars {
@@ -740,9 +740,9 @@ func judgeYangSummary(text yangText) []string {
 
 // ze point: writing/directives/project-text-is-us-english-and-simplified-technical-english
 // ze point: writing/detail-budget/write-only-what-changes-the-next-action
-// writeYangDescription warns when a proposed YANG description is too long for
-// the one-line surface that renders it. It warns again when the ze:help beside
-// that description only repeats it.
+// writeYangDescription warns when a proposed YANG ze:help summary is too long
+// for the one-line surface that renders it. It warns again when the
+// description beside that summary only repeats it.
 func writeYangDescription(ctx context) *verdict {
 	path := filepath.ToSlash(ctx.path)
 	if !strings.HasSuffix(path, ".yang") || strings.TrimSpace(ctx.content) == "" {
@@ -751,7 +751,7 @@ func writeYangDescription(ctx context) *verdict {
 	texts, err := scanYangText(ctx.content)
 	if err != nil {
 		return &verdict{1, yellow + bold + "WARN: the proposed text of " + path + " does not read as YANG" + reset +
-			"\n  " + err.Error() + ", so no description in it was judged.\n" +
+			"\n  " + err.Error() + ", so no ze:help in it was judged.\n" +
 			"  Run ./le docvalid help-shape after the edit: it reads the built tree, and this hook reads one file."}
 	}
 
@@ -773,20 +773,20 @@ func writeYangDescription(ctx context) *verdict {
 		bad = append(bad, judgeYangSummary(text)...)
 	}
 	for _, text := range texts {
-		if text.keyword != yangKeywordHelp || !text.owned {
+		if text.keyword != yangKeywordExplanation || !text.owned {
 			continue
 		}
 		// Byte equality after the whitespace collapse, so a copy that was
 		// rewrapped over more lines is still read as the copy it is.
 		if beside, ok := summaries[text.block]; ok && beside == text.text {
-			bad = append(bad, yangFinding(text, yangRuleRestates, "the ze:help repeats the description word for word"))
+			bad = append(bad, yangFinding(text, yangRuleRestates, "the description repeats the ze:help summary word for word"))
 		}
 	}
 	if unowned == 1 {
-		bad = append(bad, "  one description was NOT judged: the proposed text names no statement around it, so nothing says which surface renders it.")
+		bad = append(bad, "  one ze:help was NOT judged: the proposed text names no statement around it, so nothing says which surface renders it.")
 	}
 	if unowned > 1 {
-		bad = append(bad, fmt.Sprintf("  %d descriptions were NOT judged: the proposed text names no statement around them, so nothing says which surface renders them.", unowned))
+		bad = append(bad, fmt.Sprintf("  %d ze:help were NOT judged: the proposed text names no statement around them, so nothing says which surface renders them.", unowned))
 	}
 	if len(bad) == 0 {
 		return nil
@@ -796,9 +796,9 @@ func writeYangDescription(ctx context) *verdict {
 	if len(shown) != len(bad) {
 		more = fmt.Sprintf("\n  %d more findings are not shown.", len(bad)-len(shown))
 	}
-	return &verdict{1, yellow + bold + "WARN: a description in " + path + " breaks the summary rules" + reset + "\n" +
+	return &verdict{1, yellow + bold + "WARN: a ze:help in " + path + " breaks the summary rules" + reset + "\n" +
 		strings.Join(shown, "\n") + more +
-		"\n  Write the one-line summary in `description`, and the paragraph in the `ze:help` beside it.\n" +
+		"\n  Write the one-line summary in `ze:help`, and the paragraph in the `description` beside it.\n" +
 		"  The bounds hold the statements that render on a one-line row.\n" +
 		"  Those are container, list, leaf, leaf-list, choice, case, action, rpc and notification.\n" +
 		"  A leaf and a leaf-list count in a config module alone, because a command module drops the text beside them.\n" +

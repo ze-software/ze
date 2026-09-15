@@ -14,10 +14,10 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		Description: "reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure",
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-		SubsFunc:    Subs,
+		ShortHelp: "reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure",
+		Mode:      "offline",
+		Section:   registry.SectionTest,
+		SubsFunc:  Subs,
 	})
 	leroot.RegisterShape(area, command.ShapeDoc)
 }

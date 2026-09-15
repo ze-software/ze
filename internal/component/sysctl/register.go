@@ -458,11 +458,11 @@ func runSysctlPlugin(conn net.Conn) int {
 // published as `show sysctl key key`.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence"},
-		{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions"},
-		{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"<key>"}},
-		{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"<key>", "<value>"}},
-		{Name: "show sysctl profiles", Description: "List all registered sysctl profiles"},
-		{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"<name>"}},
+		{Name: "show sysctl", ShortHelp: "Show all active sysctl keys with source and persistence"},
+		{Name: "show sysctl keys", ShortHelp: "List all known sysctl keys with descriptions"},
+		{Name: "show sysctl key", ShortHelp: "Show detail for one sysctl key", Args: []string{"<key>"}},
+		{Name: "set sysctl", ShortHelp: "Set a transient sysctl value", Args: []string{"<key>", "<value>"}},
+		{Name: "show sysctl profiles", ShortHelp: "List all registered sysctl profiles"},
+		{Name: "show sysctl profile", ShortHelp: "Show detail for one sysctl profile", Args: []string{"<name>"}},
 	}
 }

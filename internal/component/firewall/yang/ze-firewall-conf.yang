@@ -16,54 +16,54 @@ module ze-firewall-conf {
 
     typedef table-family {
         type enumeration {
-            enum inet { description "Dual-stack IPv4+IPv6"; }
-            enum ip { description "IPv4 only"; }
-            enum ip6 { description "IPv6 only"; }
-            enum arp { description "ARP"; }
-            enum bridge { description "Bridge"; }
-            enum netdev { description "Netdev"; }
+            enum inet { ze:help "Dual-stack IPv4+IPv6"; }
+            enum ip { ze:help "IPv4 only"; }
+            enum ip6 { ze:help "IPv6 only"; }
+            enum arp { ze:help "ARP"; }
+            enum bridge { ze:help "Bridge"; }
+            enum netdev { ze:help "Netdev"; }
         }
         description "nftables address family";
     }
 
     typedef chain-type {
         type enumeration {
-            enum filter { description "Packet filtering"; }
-            enum nat { description "Network address translation"; }
-            enum route { description "Routing decision override"; }
+            enum filter { ze:help "Packet filtering"; }
+            enum nat { ze:help "Network address translation"; }
+            enum route { ze:help "Routing decision override"; }
         }
         description "nftables chain type";
     }
 
     typedef chain-hook {
         type enumeration {
-            enum input { description "Input hook"; }
-            enum output { description "Output hook"; }
-            enum forward { description "Forward hook"; }
-            enum prerouting { description "Prerouting hook"; }
-            enum postrouting { description "Postrouting hook"; }
-            enum ingress { description "Ingress hook (netdev/inet)"; }
-            enum egress { description "Egress hook (netdev)"; }
+            enum input { ze:help "Input hook"; }
+            enum output { ze:help "Output hook"; }
+            enum forward { ze:help "Forward hook"; }
+            enum prerouting { ze:help "Prerouting hook"; }
+            enum postrouting { ze:help "Postrouting hook"; }
+            enum ingress { ze:help "Ingress hook (netdev/inet)"; }
+            enum egress { ze:help "Egress hook (netdev)"; }
         }
         description "Netfilter hook point";
     }
 
     typedef chain-policy {
         type enumeration {
-            enum accept { description "Accept by default"; }
-            enum drop { description "Drop by default"; }
+            enum accept { ze:help "Accept by default"; }
+            enum drop { ze:help "Drop by default"; }
         }
         description "Default policy for base chains";
     }
 
     typedef set-type {
         type enumeration {
-            enum ipv4 { description "IPv4 addresses"; }
-            enum ipv6 { description "IPv6 addresses"; }
-            enum ether { description "Ethernet addresses"; }
-            enum inet-service { description "TCP/UDP ports"; }
-            enum mark { description "Packet marks"; }
-            enum ifname { description "Interface names"; }
+            enum ipv4 { ze:help "IPv4 addresses"; }
+            enum ipv6 { ze:help "IPv6 addresses"; }
+            enum ether { ze:help "Ethernet addresses"; }
+            enum inet-service { ze:help "TCP/UDP ports"; }
+            enum mark { ze:help "Packet marks"; }
+            enum ifname { ze:help "Interface names"; }
         }
         description "Named set element data type";
     }
@@ -156,97 +156,97 @@ module ze-firewall-conf {
 
         leaf source-address {
             type ip-prefix;
-            description "Source IP prefix or @set-name";
-            ze:help "A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is
+            description "A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is
                 refused. The form @name matches against a named set of the same table, and that set MUST
                 be of type ipv4 or ipv6. Ze reads the IPv4 source at network-header offset 12 and the
                 IPv6 source at offset 8.";
+            ze:help "Source IP prefix or @set-name";
         }
         leaf destination-address {
             type ip-prefix;
-            description "Destination IP prefix or @set-name";
-            ze:help "The value takes the same two forms the source-address leaf takes. Ze reads the IPv4
+            description "The value takes the same two forms the source-address leaf takes. Ze reads the IPv4
                 destination at network-header offset 16 and the IPv6 destination at offset 24. An inet
                 table therefore carries an nfproto guard in front of the match, so an IPv4 rule never
                 reads IPv6 bytes.";
+            ze:help "Destination IP prefix or @set-name";
         }
         leaf source-port {
             type port-spec;
-            description "Source port, range, or list";
-            ze:help "The value is one port, a range such as 80-90, a comma list such as 22,80,443, or @name
+            description "The value is one port, a range such as 80-90, a comma list such as 22,80,443, or @name
                 for a named set of type inet-service. Verify refuses a port of 0, an inverted range, an
                 overlapping pair and more than 128 comma entries. Several ranges lower to one anonymous
                 interval set in the kernel.";
+            ze:help "Source port, range, or list";
         }
         leaf destination-port {
             type port-spec;
-            description "Destination port, range, or list";
-            ze:help "The value takes the same four forms the source-port leaf takes. The match reads the
+            description "The value takes the same four forms the source-port leaf takes. The match reads the
                 transport header at a fixed offset and carries no protocol guard of its own. Name the
                 protocol leaf in the same from block, or the term reads those two bytes out of any
                 protocol the chain sees.";
+            ze:help "Destination port, range, or list";
         }
         leaf protocol {
             type protocol-name;
-            description "L4 protocol";
-            ze:help "The names are tcp, udp, icmp, icmpv6, sctp, gre, esp, ah, ospf and vrrp. The match reads
+            description "The names are tcp, udp, icmp, icmpv6, sctp, gre, esp, ah, ospf and vrrp. The match reads
                 the kernel meta field l4proto rather than an IP header byte, so one term serves IPv4 and
                 IPv6 alike.";
+            ze:help "L4 protocol";
         }
         leaf input-interface {
             type string;
-            description "Input interface name, with a trailing asterisk for a prefix match.";
-            ze:help "Input interface name. A trailing asterisk, for example 'l2tp*', matches any interface whose name
+            description "Input interface name. A trailing asterisk, for example 'l2tp*', matches any interface whose name
                 begins with the given prefix.";
+            ze:help "Input interface name, with a trailing asterisk for a prefix match.";
         }
         leaf output-interface {
             type string;
-            description "Output interface name, with a trailing asterisk for a prefix match.";
-            ze:help "Output interface name. A trailing asterisk, for example 'veth*', matches any interface whose name
+            description "Output interface name. A trailing asterisk, for example 'veth*', matches any interface whose name
                 begins with the given prefix.";
+            ze:help "Output interface name, with a trailing asterisk for a prefix match.";
         }
         leaf connection-state {
             type connection-state;
             ze:backend "nft";
-            description "Connection tracking state(s) the rule matches.";
-            ze:help "Connection tracking state(s). The match is conntrack-driven, and it requires a backend that
+            description "Connection tracking state(s). The match is conntrack-driven, and it requires a backend that
                 integrates with the kernel nf_conntrack module.";
+            ze:help "Connection tracking state(s) the rule matches.";
         }
         leaf connection-mark {
             type mark-value;
             ze:backend "nft";
-            description "Connection mark value with an optional mask.";
-            ze:help "The mark lives on the conntrack entry, so every packet of one flow reads the same value
+            description "The mark lives on the conntrack entry, so every packet of one flow reads the same value
                 in both directions. The mark leaf beside it reads the per-packet mark instead, which
                 starts at 0 for each packet. The match is conntrack-driven, and it needs a backend that
                 integrates with the kernel nf_conntrack module.";
+            ze:help "Connection mark value with an optional mask.";
         }
         leaf mark {
             type mark-value;
-            description "Packet mark value/mask";
-            ze:help "The value is decimal or 0x-prefixed, and an optional /mask follows in the same form. An
+            description "The value is decimal or 0x-prefixed, and an optional /mask follows in the same form. An
                 absent mask means 0xffffffff, so the whole 32-bit mark MUST be equal. With a mask, Ze
                 ANDs the packet mark with it before the compare, so the other bits do not matter. The
                 mark lives for one packet.";
+            ze:help "Packet mark value/mask";
         }
         leaf dscp {
             type dscp-value;
-            description "DSCP value";
-            ze:help "The value is a number 0 to 63, or a symbolic name such as ef, af41 or cs6. The match is
+            description "The value is a number 0 to 63, or a symbolic name such as ef, af41 or cs6. The match is
                 IPv4-only. Verify refuses it in a table of family ip6, arp, bridge or netdev, and names
                 the family it read.";
+            ze:help "DSCP value";
         }
         leaf icmp-type {
             type string;
-            description "ICMPv4 type, as an nftables symbolic name or a byte value 0..255.";
-            ze:help "ICMPv4 type. It accepts symbolic names from nftables, such as echo-request, echo-reply,
+            description "ICMPv4 type. It accepts symbolic names from nftables, such as echo-request, echo-reply,
                 destination-unreachable and time-exceeded. It also accepts a numeric byte value 0..255.";
+            ze:help "ICMPv4 type, as an nftables symbolic name or a byte value 0..255.";
         }
         leaf icmpv6-type {
             type string;
-            description "ICMPv6 type, as an nftables symbolic name or a byte value 0..255.";
-            ze:help "ICMPv6 type. It accepts symbolic names from nftables, such as echo-request, nd-neighbor-solicit and
+            description "ICMPv6 type. It accepts symbolic names from nftables, such as echo-request, nd-neighbor-solicit and
                 packet-too-big. It also accepts a numeric byte value 0..255.";
+            ze:help "ICMPv6 type, as an nftables symbolic name or a byte value 0..255.";
         }
     }
 
@@ -255,658 +255,658 @@ module ze-firewall-conf {
 
         container accept {
             presence "Accept the packet";
-            description "Accept the packet";
-            ze:help "The verdict ends the evaluation of the packet in this chain, so a later term of the same
+            description "The verdict ends the evaluation of the packet in this chain, so a later term of the same
                 chain never sees it. A packet that reaches the end of the chain with no verdict takes
                 the chain policy instead.";
+            ze:help "Accept the packet";
         }
         container drop {
             presence "Drop the packet";
-            description "Drop the packet";
-            ze:help "The packet is discarded and nothing goes back to the sender. The sender waits for its
+            description "The packet is discarded and nothing goes back to the sender. The sender waits for its
                 own timeout to learn. Use a reject term instead when the sender MUST learn at once.";
+            ze:help "Drop the packet";
         }
         container reject {
             presence "Reject the packet";
-            description "Drop the packet and answer the sender with an ICMP or TCP reset.";
-            ze:help "The sender learns at once rather than waiting for a timeout, and the
-                     reply costs one packet per dropped packet. Use a drop term when the
-                     sender SHOULD learn nothing.";
+            description "The sender learns at once rather than waiting for a timeout, and the
+                         reply costs one packet per dropped packet. Use a drop term when the
+                         sender SHOULD learn nothing.";
+            ze:help "Drop the packet and answer the sender with an ICMP or TCP reset.";
             leaf with {
                 type reject-type;
-                description "Reject response type";
-                ze:help "An absent leaf and the value icmp both send an ICMP unreachable message. The value
+                description "An absent leaf and the value icmp both send an ICMP unreachable message. The value
                     icmpv6 selects the ICMPX unreachable form, which the kernel renders for the family
                     of the packet. The value tcp-reset sends a TCP reset, which a TCP client sees at
                     once.";
+                ze:help "Reject response type";
             }
             leaf code {
                 type uint8;
-                description "ICMP code";
-                ze:help "The number is the code byte of the ICMP unreachable message, and an absent leaf
+                description "The number is the code byte of the ICMP unreachable message, and an absent leaf
                     sends 0, which means network unreachable. Ze passes the number to the kernel
                     whatever the reject type is, so set the leaf only beside an ICMP reject type.";
+                ze:help "ICMP code";
             }
         }
         container return {
             presence "Return to caller chain";
-            description "Return to caller chain";
-            ze:help "In a regular chain the packet returns to the term after the jump that reached this
+            description "In a regular chain the packet returns to the term after the jump that reached this
                 chain. In a base chain the chain policy decides the packet. The exclude keyword lowers
                 to this same verdict.";
+            ze:help "Return to caller chain";
         }
         container exclude {
             presence "Skip NAT for matching traffic";
-            description "In a NAT chain term, skip NAT for the matching traffic.";
-            ze:help "In a NAT chain term, skip NAT for matching traffic. It lowers to the same `return` verdict the
+            description "In a NAT chain term, skip NAT for matching traffic. It lowers to the same `return` verdict the
                 operator could have written directly. The keyword exists for VyOS-config parity.";
+            ze:help "In a NAT chain term, skip NAT for the matching traffic.";
         }
         leaf jump {
             type string;
-            description "Jump to target chain";
-            ze:help "The target chain MUST be declared in the same table, and verify refuses a name the table
+            description "The target chain MUST be declared in the same table, and verify refuses a name the table
                 does not hold. Evaluation comes back to the term after this one when the target chain
                 ends or returns.";
+            ze:help "Jump to target chain";
         }
         leaf goto {
             type string;
-            description "Goto target chain (no return)";
-            ze:help "The target chain MUST be declared in the same table, and verify refuses a name the table
+            description "The target chain MUST be declared in the same table, and verify refuses a name the table
                 does not hold. Evaluation does not come back, so the terms after this one never run for
                 that packet.";
+            ze:help "Goto target chain (no return)";
         }
         container snat {
             presence "Source NAT";
-            description "Rewrite the source address of a packet leaving this router.";
-            ze:help "The reply is translated back on the same conntrack entry. A flow that
-                     started before the rule was installed keeps its old translation. It
-                     changes when that entry expires.";
+            description "The reply is translated back on the same conntrack entry. A flow that
+                         started before the rule was installed keeps its old translation. It
+                         changes when that entry expires.";
+            ze:help "Rewrite the source address of a packet leaving this router.";
             leaf to {
                 type nat-spec;
                 mandatory true;
-                description "NAT target address:port";
-                ze:help "The value is an address, or an address and a port after a colon, such as 1.2.3.4:80.
+                description "The value is an address, or an address and a port after a colon, such as 1.2.3.4:80.
                     An address range and a port range are both accepted, and Ze programs each as a
                     minimum and a maximum register. A comma list of ports is refused. With no port in
                     the value Ze translates the address alone.";
+                ze:help "NAT target address:port";
             }
         }
         container dnat {
             presence "Destination NAT";
-            description "Rewrite the destination address of a packet arriving at this router.";
-            ze:help "Translation happens before the routing decision. The packet is then
-                     forwarded toward the rewritten address, and not toward the address
-                     the sender wrote.";
+            description "Translation happens before the routing decision. The packet is then
+                         forwarded toward the rewritten address, and not toward the address
+                         the sender wrote.";
+            ze:help "Rewrite the destination address of a packet arriving at this router.";
             leaf to {
                 type nat-spec;
                 mandatory true;
-                description "NAT target address:port";
-                ze:help "The value takes the same form the snat leaf takes. Both ends of an address range
+                description "The value takes the same form the snat leaf takes. Both ends of an address range
                     MUST be of one family, and neither range can be inverted. With no port in the value
                     Ze programs the address alone, so the destination port stays as the sender wrote it.";
+                ze:help "NAT target address:port";
             }
         }
         container masquerade {
             presence "Masquerade outgoing traffic";
-            description "Masquerade, which is source NAT with the outgoing interface address.";
-            ze:help "Masquerade (source NAT with outgoing interface address). Restrict the source port range with
+            description "Masquerade (source NAT with outgoing interface address). Restrict the source port range with
                 port-range, or set the randomization and persistence flags. Port mapping and flags are mutually
                 exclusive.";
+            ze:help "Masquerade, which is source NAT with the outgoing interface address.";
             leaf port-range {
                 type string;
-                description "Source port or port range for the translated source, such as 1024-65535.";
-                ze:help "The kernel picks the translated source port inside this range. Verify refuses a port
+                description "The kernel picks the translated source port inside this range. Verify refuses a port
                     of 0 and an inverted range. The leaf cannot be combined with random or persistent,
                     and verify refuses a term that sets both.";
+                ze:help "Source port or port range for the translated source, such as 1024-65535.";
             }
             container random {
                 presence "Randomize source port mapping";
-                description "Randomize the translated source port.";
-                ze:help "Ze sets NF_NAT_RANGE_PROTO_RANDOM on the masquerade. Add the full leaf under it for
+                description "Ze sets NF_NAT_RANGE_PROTO_RANDOM on the masquerade. Add the full leaf under it for
                     NF_NAT_RANGE_PROTO_RANDOM_FULLY, and Ze then sets that flag alone. Neither flag can
                     be combined with port-range.";
+                ze:help "Randomize the translated source port.";
                 leaf full {
                     type empty;
-                    description "Use full randomization";
-                    ze:help "The leaf turns the random flag into NF_NAT_RANGE_PROTO_RANDOM_FULLY, which is
+                    description "The leaf turns the random flag into NF_NAT_RANGE_PROTO_RANDOM_FULLY, which is
                         the wider randomization the kernel offers. Ze sets one of the two flags, never
                         both.";
+                    ze:help "Use full randomization";
                 }
             }
             leaf persistent {
                 type empty;
-                description "Program the masquerade with the NF_NAT_RANGE_PERSISTENT flag.";
-                ze:help "The flag cannot be combined with port-range, and verify refuses a term that sets
+                description "The flag cannot be combined with port-range, and verify refuses a term that sets
                     both. Ze reads the leaf as a presence flag, so it takes no value.";
+                ze:help "Program the masquerade with the NF_NAT_RANGE_PERSISTENT flag.";
             }
         }
         container redirect {
             presence "Redirect to local port";
-            description "Send the packet to a port on this router instead of its destination.";
-            ze:help "It is a destination NAT whose target is this machine, so the local
-                     service sees the original source address and can answer it.";
+            description "It is a destination NAT whose target is this machine, so the local
+                         service sees the original source address and can answer it.";
+            ze:help "Send the packet to a port on this router instead of its destination.";
             leaf to {
                 type zt:port;
                 mandatory true;
-                description "Local port number";
-                ze:help "The value is 1 to 65535. Ze rewrites the destination port to it, and the destination
+                description "The value is 1 to 65535. Ze rewrites the destination port to it, and the destination
                     address becomes an address of this router. A term that names no port cannot be
                     written, because the leaf is mandatory.";
+                ze:help "Local port number";
             }
         }
         container notrack {
             presence "Disable connection tracking";
             ze:backend "nft";
-            description "Disable connection tracking for the packet.";
-            ze:help "The packet skips conntrack, so the kernel opens no entry for its flow. A
+            description "The packet skips conntrack, so the kernel opens no entry for its flow. A
                 connection-state or a connection-mark match in a later term cannot see that packet. NAT
                 needs a conntrack entry, so a NAT term cannot translate it either.";
+            ze:help "Disable connection tracking for the packet.";
         }
         container flow-offload {
             presence "Hardware flow offload";
             ze:backend "nft";
-            description "Hardware or software flow offload through an nftables flowtable.";
-            ze:help "Hardware or software flow offload through an nftables flowtable. The VPP dataplane is itself the
+            description "Hardware or software flow offload through an nftables flowtable. The VPP dataplane is itself the
                 fast path, and it does not expose a flowtable surface.";
+            ze:help "Hardware or software flow offload through an nftables flowtable.";
             leaf flowtable {
                 type string;
                 mandatory true;
-                description "Flowtable name declared in this table.";
-                ze:help "The value is the bare flowtable name, and verify refuses a name the same table does
+                description "The value is the bare flowtable name, and verify refuses a name the same table does
                     not declare. A leading @ is part of the nft command syntax and not part of this
                     value.";
+                ze:help "Flowtable name declared in this table.";
             }
         }
         container mark-set {
             presence "Set packet mark";
             ze:backend "nft";
-            description "Write the kernel skb mark.";
-            ze:help "Write the kernel skb mark. Different backends carry per-packet metadata differently. The VPP
+            description "Write the kernel skb mark. Different backends carry per-packet metadata differently. The VPP
                 classifier's equivalent uses opaque keys through ClassifyAddDelSession.";
+            ze:help "Write the kernel skb mark.";
             leaf value {
                 type mark-value;
                 mandatory true;
-                description "Mark value with optional mask";
-                ze:help "With no mask Ze writes all 32 bits. With a mask Ze reads the current mark, clears
+                description "With no mask Ze writes all 32 bits. With a mask Ze reads the current mark, clears
                     the masked bits, puts the new value in and writes the mark back, so the bits outside
                     the mask survive. The value is decimal or 0x-prefixed, and the mask follows a slash
                     in the same form.";
+                ze:help "Mark value with optional mask";
             }
         }
         container connection-mark-set {
             presence "Set connection mark";
             ze:backend "nft";
-            description "Write the conntrack mark of the packet's flow.";
-            ze:help "The mark lives on the conntrack entry, so it survives for the whole flow and both
+            description "The mark lives on the conntrack entry, so it survives for the whole flow and both
                 directions read it. The mark-set action writes the per-packet mark instead, and that
                 mark starts at 0 on each packet. The nft backend is required.";
+            ze:help "Write the conntrack mark of the packet's flow.";
             leaf value {
                 type mark-value;
                 mandatory true;
-                description "Mark value with optional mask";
-                ze:help "The form is the one mark-set takes. With a mask Ze reads the current conntrack mark,
+                description "The form is the one mark-set takes. With a mask Ze reads the current conntrack mark,
                     clears the masked bits, puts the new value in and writes it back. The mark then
                     holds for every later packet of that flow.";
+                ze:help "Mark value with optional mask";
             }
         }
         leaf dscp-set {
             type dscp-value;
-            description "Set DSCP field value";
-            ze:help "Ze rewrites the top 6 bits of the IPv4 TOS byte and keeps the 2 ECN bits below them. It
+            description "Ze rewrites the top 6 bits of the IPv4 TOS byte and keeps the 2 ECN bits below them. It
                 then recomputes the IPv4 header checksum. Verify refuses the action in a table of family
                 ip6, arp, bridge or netdev. An inet table programs the term as two kernel rules, one for
                 each family, because the field sits at a different offset in each.";
+            ze:help "Set DSCP field value";
         }
         leaf tcp-mss-set {
             type uint16 {
                 range "1..65535";
             }
-            description "Clamp TCP Maximum Segment Size option to the given value";
-            ze:help "The value is 1 to 65535, and verify refuses 0. The table MUST be of family ip, ip6 or
+            description "The value is 1 to 65535, and verify refuses 0. The table MUST be of family ip, ip6 or
                 inet, because arp, bridge and netdev carry no TCP header to rewrite. A clamp repairs a
                 path whose smallest link cannot carry the segment size the two ends agreed.";
+            ze:help "Clamp TCP Maximum Segment Size option to the given value";
         }
         container counter {
             presence "Enable per-rule counter";
-            description "Anonymous per-rule counter.";
-            ze:help "Anonymous per-rule counter. A non-empty `name` leaf is reserved for a future named-counter feature,
+            description "Anonymous per-rule counter. A non-empty `name` leaf is reserved for a future named-counter feature,
                 and verify rejects it today.";
+            ze:help "Anonymous per-rule counter.";
             leaf name {
                 type string;
-                description "Counter name, reserved for a future named-counter feature.";
-                ze:help "Verify refuses a non-empty value today. An nftables named counter is a table-scoped
+                description "Verify refuses a non-empty value today. An nftables named counter is a table-scoped
                     object plus an objref expression, and Ze emits an anonymous counter instead. Leave
                     the leaf unset.";
+                ze:help "Counter name, reserved for a future named-counter feature.";
             }
         }
         container log {
             presence "Log the packet";
-            description "Record the packet and go on evaluating the term.";
-            ze:help "Logging does not decide the packet, so the term still needs an accept
-                     or a drop beside it. A rule that logs every packet of a busy link
-                     costs the kernel a line per packet.";
+            description "Logging does not decide the packet, so the term still needs an accept
+                         or a drop beside it. A rule that logs every packet of a busy link
+                         costs the kernel a line per packet.";
+            ze:help "Record the packet and go on evaluating the term.";
             leaf prefix {
                 type string {
                     length "0..127";
                 }
-                description "Log prefix string";
-                ze:help "The kernel writes the string in front of each logged packet, so a search over the
+                description "The kernel writes the string in front of each logged packet, so a search over the
                     log finds the rule that wrote the line. The length is 0 to 127 characters. Ze sets
                     the NFTA_LOG_PREFIX attribute only when the string is not empty.";
+                ze:help "Log prefix string";
             }
             leaf level {
                 type uint32;
-                description "Log level (syslog severity)";
-                ze:help "The number is a syslog severity, 0 for emerg through 7 for debug. An absent leaf
+                description "The number is a syslog severity, 0 for emerg through 7 for debug. An absent leaf
                     leaves the kernel default in place. Ze holds the level as a pointer, so it tells an
                     explicit 0 apart from an absent leaf and sets NFTA_LOG_LEVEL only for the explicit
                     one.";
+                ze:help "Log level (syslog severity)";
             }
         }
         container limit-rate {
             presence "Rate limit";
-            description "Match only while the packet rate stays under a stated limit.";
-            ze:help "Traffic past the limit stops matching the term, so it falls through to
-                     what follows rather than being dropped here. Put the drop in the next
-                     term when that is what you want.";
+            description "Traffic past the limit stops matching the term, so it falls through to
+                         what follows rather than being dropped here. Put the drop in the next
+                         term when that is what you want.";
+            ze:help "Match only while the packet rate stays under a stated limit.";
             leaf rate {
                 type rate-spec;
                 mandatory true;
-                description "Rate limit, as a count and a time unit, such as 10/second.";
-                ze:help "The value is a count, a slash, then second, minute, hour or day. A plain count
+                description "The value is a count, a slash, then second, minute, hour or day. A plain count
                     limits packets, and a byte form such as 1mbytes/second limits bytes. The byte
                     prefixes scale as kbytes=1024, mbytes=1024^2 and gbytes=1024^3.";
+                ze:help "Rate limit, as a count and a time unit, such as 10/second.";
             }
             leaf burst {
                 type uint32;
-                description "Burst size";
-                ze:help "The burst is the allowance the term carries over from an idle period. It counts
+                description "The burst is the allowance the term carries over from an idle period. It counts
                     packets under a packet rate and bytes under a byte rate, which follows the dimension
                     the rate leaf sets. An absent leaf means 0.";
+                ze:help "Burst size";
             }
         }
     }
 
     container firewall {
-        description "Ze-managed nftables firewall tables.";
-        ze:help "Ze-managed nftables firewall tables. Table names are bare in config, and the component adds the ze_
+        description "Ze-managed nftables firewall tables. Table names are bare in config, and the component adds the ze_
             prefix.";
+        ze:help "Ze-managed nftables firewall tables.";
 
         leaf backend {
             type string;
             default "nft";
-            description "Firewall backend implementation, nft by default.";
-            ze:help "Firewall backend implementation. The default is nft, which is nftables through libnftnl. A future
+            description "Firewall backend implementation. The default is nft, which is nftables through libnftnl. A future
                 backend can declare itself through firewall.RegisterBackend. The ze:backend YANG extension on
                 feature nodes declares per-feature backend support, so the commit-time gate rejects a config that
                 uses an unsupported primitive.";
+            ze:help "Firewall backend implementation, nft by default.";
         }
 
         leaf flush-on-shutdown {
             type boolean;
             default "true";
-            description "Remove ze-owned nftables tables when the ze process stops in an orderly way.";
-            ze:help "Remove ze-owned nftables tables from the kernel when the ze process stops in an orderly way
+            description "Remove ze-owned nftables tables from the kernel when the ze process stops in an orderly way
                 (SIGTERM). The default is true, so a stopped daemon leaves no rules behind. Set the leaf to false to
                 use ze as a one-shot provisioner: program the rules, let the process exit, and leave them running in
                 the kernel, like nft -f. The leaf keys off how the process exits, and it is unrelated to BGP
                 graceful restart. A crash never runs the shutdown path, so tables always persist across a crash
                 whatever this leaf holds. The leaf governs every ze table producer (firewall,
                 control-plane-protection, policy-routes, ddos-local), which share one backend.";
+            ze:help "Remove ze-owned nftables tables when the ze process stops in an orderly way.";
         }
 
         container global-options {
-            description "Network security defaults mapped to kernel sysctls.";
-            ze:help "Network security defaults mapped to kernel sysctls. The container provides VyOS-compatible keyword
+            description "Network security defaults mapped to kernel sysctls. The container provides VyOS-compatible keyword
                 toggles for common settings. At apply time each keyword translates to a sysctl key and value pair
                 emitted to the sysctl plugin. An explicit sysctl setting always overrides these.";
+            ze:help "Network security defaults mapped to kernel sysctls.";
 
             leaf all-ping {
                 type enumeration {
                     enum enable {
-                        description "Allow ICMP echo replies (icmp_echo_ignore_all=0)";
+                        ze:help "Allow ICMP echo replies (icmp_echo_ignore_all=0)";
                     }
                     enum disable {
-                        description "Ignore all ICMP echo requests (icmp_echo_ignore_all=1)";
+                        ze:help "Ignore all ICMP echo requests (icmp_echo_ignore_all=1)";
                     }
                 }
-                description "Control ICMP echo (ping) responses.";
-                ze:help "The keyword writes net.ipv4.icmp_echo_ignore_all. The sysctl is inverted, so enable
+                description "The keyword writes net.ipv4.icmp_echo_ignore_all. The sysctl is inverted, so enable
                     writes 0 and disable writes 1. A router set to disable answers no ICMP echo request.
                     A monitoring system that pings it sees no reply.";
+                ze:help "Control ICMP echo (ping) responses.";
             }
 
             leaf broadcast-ping {
                 type enumeration {
                     enum enable {
-                        description "Allow broadcast ICMP echo (icmp_echo_ignore_broadcasts=0)";
+                        ze:help "Allow broadcast ICMP echo (icmp_echo_ignore_broadcasts=0)";
                     }
                     enum disable {
-                        description "Ignore broadcast ICMP echo (icmp_echo_ignore_broadcasts=1)";
+                        ze:help "Ignore broadcast ICMP echo (icmp_echo_ignore_broadcasts=1)";
                     }
                 }
-                description "Control broadcast ICMP echo responses.";
-                ze:help "Control broadcast ICMP echo responses. The sysctl is inverted, so enable sets
+                description "Control broadcast ICMP echo responses. The sysctl is inverted, so enable sets
                     icmp_echo_ignore_broadcasts to 0.";
+                ze:help "Control broadcast ICMP echo responses.";
             }
 
             leaf syn-cookies {
                 type enumeration {
                     enum enable {
-                        description "Enable TCP SYN cookies (tcp_syncookies=1)";
+                        ze:help "Enable TCP SYN cookies (tcp_syncookies=1)";
                     }
                     enum disable {
-                        description "Disable TCP SYN cookies (tcp_syncookies=0)";
+                        ze:help "Disable TCP SYN cookies (tcp_syncookies=0)";
                     }
                 }
-                description "TCP SYN cookie protection against SYN flood attacks.";
-                ze:help "The keyword writes net.ipv4.tcp_syncookies. The value enable writes 1, and disable
+                description "The keyword writes net.ipv4.tcp_syncookies. The value enable writes 1, and disable
                     writes 0. A kernel with cookies on answers a SYN that overflows the accept queue. It
                     keeps no state for that half-open connection until the third packet returns the
                     cookie.";
+                ze:help "TCP SYN cookie protection against SYN flood attacks.";
             }
 
             leaf receive-redirects {
                 type enumeration {
                     enum enable {
-                        description "Accept ICMP redirects (accept_redirects=1)";
+                        ze:help "Accept ICMP redirects (accept_redirects=1)";
                     }
                     enum disable {
-                        description "Reject ICMP redirects (accept_redirects=0)";
+                        ze:help "Reject ICMP redirects (accept_redirects=0)";
                     }
                 }
-                description "Control acceptance of IPv4 ICMP redirect messages.";
-                ze:help "The keyword writes net.ipv4.conf.all.accept_redirects. The value enable writes 1,
+                description "The keyword writes net.ipv4.conf.all.accept_redirects. The value enable writes 1,
                     and disable writes 0. An accepted ICMP redirect installs a host route in the kernel.
                     A neighbor on the same segment can then change where this router sends the traffic.";
+                ze:help "Control acceptance of IPv4 ICMP redirect messages.";
             }
 
             leaf send-redirects {
                 type enumeration {
                     enum enable {
-                        description "Send ICMP redirects (send_redirects=1)";
+                        ze:help "Send ICMP redirects (send_redirects=1)";
                     }
                     enum disable {
-                        description "Do not send ICMP redirects (send_redirects=0)";
+                        ze:help "Do not send ICMP redirects (send_redirects=0)";
                     }
                 }
-                description "Control sending of IPv4 ICMP redirect messages.";
-                ze:help "The keyword writes net.ipv4.conf.all.send_redirects. The value enable writes 1, and
+                description "The keyword writes net.ipv4.conf.all.send_redirects. The value enable writes 1, and
                     disable writes 0. A router sends an ICMP redirect when it forwards a packet back out
                     the interface the packet arrived on.";
+                ze:help "Control sending of IPv4 ICMP redirect messages.";
             }
 
             leaf source-validation {
                 type enumeration {
                     enum disable {
-                        description "No source address validation (rp_filter=0)";
+                        ze:help "No source address validation (rp_filter=0)";
                     }
                     enum strict {
-                        description "Strict reverse path filtering (rp_filter=1)";
+                        ze:help "Strict reverse path filtering (rp_filter=1)";
                     }
                     enum loose {
-                        description "Loose reverse path filtering (rp_filter=2)";
+                        ze:help "Loose reverse path filtering (rp_filter=2)";
                     }
                 }
-                description "Reverse path filtering mode for source address validation.";
-                ze:help "The keyword writes net.ipv4.conf.all.rp_filter. The value disable writes 0, strict
+                description "The keyword writes net.ipv4.conf.all.rp_filter. The value disable writes 0, strict
                     writes 1, and loose writes 2. Strict drops a packet when the best route back to its
                     source does not use the interface it arrived on. Loose drops it only when no route
                     back to the source exists.";
+                ze:help "Reverse path filtering mode for source address validation.";
             }
 
             leaf log-martians {
                 type enumeration {
                     enum enable {
-                        description "Log martian packets (log_martians=1)";
+                        ze:help "Log martian packets (log_martians=1)";
                     }
                     enum disable {
-                        description "Do not log martian packets (log_martians=0)";
+                        ze:help "Do not log martian packets (log_martians=0)";
                     }
                 }
-                description "Log packets with impossible source addresses.";
-                ze:help "The keyword writes net.ipv4.conf.all.log_martians. The value enable writes 1, and
+                description "The keyword writes net.ipv4.conf.all.log_martians. The value enable writes 1, and
                     disable writes 0. A martian packet carries a source address that no route can reach.
                     The kernel writes one line for each such packet, and a flood of them fills the log.";
+                ze:help "Log packets with impossible source addresses.";
             }
 
             leaf ipv6-receive-redirects {
                 type enumeration {
                     enum enable {
-                        description "Accept IPv6 ICMP redirects (accept_redirects=1)";
+                        ze:help "Accept IPv6 ICMP redirects (accept_redirects=1)";
                     }
                     enum disable {
-                        description "Reject IPv6 ICMP redirects (accept_redirects=0)";
+                        ze:help "Reject IPv6 ICMP redirects (accept_redirects=0)";
                     }
                 }
-                description "Control acceptance of IPv6 ICMP redirect messages.";
-                ze:help "The keyword writes net.ipv6.conf.all.accept_redirects. The value enable writes 1,
+                description "The keyword writes net.ipv6.conf.all.accept_redirects. The value enable writes 1,
                     and disable writes 0. The leaf governs IPv6 alone. The IPv4 sysctl stays under
                     receive-redirects.";
+                ze:help "Control acceptance of IPv6 ICMP redirect messages.";
             }
 
             leaf ipv6-src-route {
                 type enumeration {
                     enum enable {
-                        description "Accept IPv6 source-routed packets (accept_source_route=1)";
+                        ze:help "Accept IPv6 source-routed packets (accept_source_route=1)";
                     }
                     enum disable {
-                        description "Reject IPv6 source-routed packets (accept_source_route=0)";
+                        ze:help "Reject IPv6 source-routed packets (accept_source_route=0)";
                     }
                 }
-                description "Control acceptance of IPv6 packets with source routing headers.";
-                ze:help "The keyword writes net.ipv6.conf.all.accept_source_route. The value enable writes 1,
+                description "The keyword writes net.ipv6.conf.all.accept_source_route. The value enable writes 1,
                     and disable writes 0. A source-routed packet carries a routing header that names
                     hops it MUST pass. An accepted one lets the sender pick the path through this
                     router.";
+                ze:help "Control acceptance of IPv6 packets with source routing headers.";
             }
         }
 
         list table {
             key "name";
-            description "Named firewall table";
-            ze:help "The kernel table is ze_<name>. Ze changes and deletes only a table that carries the ze_
+            description "The kernel table is ze_<name>. Ze changes and deletes only a table that carries the ze_
                 prefix, so a table another tool wrote stays untouched. The chains, the named sets and
                 the flowtables of one table reference each other by name, and no reference crosses a
                 table.";
+            ze:help "Named firewall table";
 
             leaf name {
                 type string {
                     length "1..255";
                     pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
                 }
-                description "Table name (becomes ze_<name> in kernel)";
-                ze:help "The name holds 1 to 255 characters and starts with a letter or a digit. The ze_
+                description "The name holds 1 to 255 characters and starts with a letter or a digit. The ze_
                     prefix marks the table as owned by Ze, and `show firewall` strips the prefix again
                     before it prints the name.";
+                ze:help "Table name (becomes ze_<name> in kernel)";
             }
 
             leaf family {
                 type table-family;
                 mandatory true;
-                description "Address family";
-                ze:help "The value inet carries IPv4 and IPv6 in one table. Ze puts an nfproto guard in front
+                description "The value inet carries IPv4 and IPv6 in one table. Ze puts an nfproto guard in front
                     of each address match there, so an IPv4 rule never reads IPv6 header bytes. The
                     values ip and ip6 carry one family each. The values arp, bridge and netdev carry no
                     IP header, so a dscp match, dscp-set and tcp-mss-set are refused in them.";
+                ze:help "Address family";
             }
 
             list chain {
                 key "name";
-                description "Named chain within table";
-                ze:help "A chain that carries a type or a hook is a base chain, and the kernel attaches it to
+                description "A chain that carries a type or a hook is a base chain, and the kernel attaches it to
                     that hook. A chain with neither is a regular chain, and only a jump or a goto from
                     another chain of the same table reaches it.";
+                ze:help "Named chain within table";
 
                 leaf name {
                     type string {
                         length "1..255";
                         pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
                     }
-                    description "Chain name";
-                    ze:help "The name holds 1 to 255 characters and starts with a letter or a digit. A jump
+                    description "The name holds 1 to 255 characters and starts with a letter or a digit. A jump
                         or a goto names this chain, and verify refuses a term whose target chain the
                         table does not hold.";
+                    ze:help "Chain name";
                 }
 
                 leaf type {
                     type chain-type;
-                    description "Chain type (base chains only)";
-                    ze:help "A base chain MUST carry a type, and verify refuses one that does not. The value
+                    description "A base chain MUST carry a type, and verify refuses one that does not. The value
                         filter selects packet filtering, nat selects network address translation, and
                         route selects the routing decision override. Each lowers to the nftables chain
                         type of the same name.";
+                    ze:help "Chain type (base chains only)";
                 }
 
                 leaf hook {
                     type chain-hook;
-                    description "Netfilter hook point (base chains only)";
-                    ze:help "A base chain MUST carry a hook, and verify refuses one that does not. The hook
+                    description "A base chain MUST carry a hook, and verify refuses one that does not. The hook
                         decides where in the kernel path the chain sees the packet. The values input,
                         output, forward, prerouting and postrouting serve every family. The value
                         ingress serves a netdev or inet table, and egress serves a netdev table.";
+                    ze:help "Netfilter hook point (base chains only)";
                 }
 
                 leaf priority {
                     type int32;
-                    description "Chain priority (base chains only)";
-                    ze:help "The chain with the lower number runs first at the same hook. Verify accepts -400
+                    description "The chain with the lower number runs first at the same hook. Verify accepts -400
                         to 400 and refuses a number outside that range, which catches a typo such as 500
                         for 50. The well-known nftables values all fit: raw -300, mangle -150, filter 0,
                         security 50, nat prerouting -100 and nat postrouting 100. An absent leaf means
                         0.";
+                    ze:help "Chain priority (base chains only)";
                 }
 
                 leaf policy {
                     type chain-policy;
-                    description "Default policy (base chains only)";
-                    ze:help "The policy decides a packet that reaches the end of the chain with no verdict
+                    description "The policy decides a packet that reaches the end of the chain with no verdict
                         from a term. A base chain MUST carry accept or drop, and verify refuses a base
                         chain that carries neither. A regular chain takes no policy, and the packet
                         returns to the chain that jumped to it.";
+                    ze:help "Default policy (base chains only)";
                 }
 
                 list term {
                     key "name";
                     ordered-by user;
-                    description "Named rule (from/then structure)";
-                    ze:help "The list is ordered-by user, and the backend writes one kernel rule for each
+                    description "The list is ordered-by user, and the backend writes one kernel rule for each
                         term in that order. A term MUST carry at least one action, and verify refuses
                         one that carries none.";
+                    ze:help "Named rule (from/then structure)";
 
                     leaf name {
                         type string {
                             length "1..255";
                             pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
                         }
-                        description "Term name, which labels the counters of this rule.";
-                        ze:help "The backend stores the name in the kernel rule's UserData. `show firewall
+                        description "The backend stores the name in the kernel rule's UserData. `show firewall
                             counters` reads it back to label the packet and byte counts of that rule. A
                             rule that Ze did not write carries no name, so it reads back with an empty
                             name and zero counts.";
+                        ze:help "Term name, which labels the counters of this rule.";
                     }
 
                     container from {
                         uses from-block;
-                        description "Match criteria";
-                        ze:help "Every match in this container MUST hold at the same time for the term to
+                        description "Every match in this container MUST hold at the same time for the term to
                             act, because they lower into one kernel rule. A from block that declares no
                             match matches every packet the chain sees.";
+                        ze:help "Match criteria";
                     }
 
                     container then {
                         uses then-block;
-                        description "Actions and modifiers";
-                        ze:help "The term MUST carry at least one action here, and verify refuses one that
+                        description "The term MUST carry at least one action here, and verify refuses one that
                             carries none. Ze writes the modifiers first and the NAT and verdict actions
                             after them. A counter or a log in the same term therefore runs before the
                             packet is accepted or dropped.";
+                        ze:help "Actions and modifiers";
                     }
                 }
             }
 
             list set {
                 key "name";
-                description "Named set";
-                ze:help "A term matches against the set with @name in place of an address or a port. Ze
+                description "A term matches against the set with @name in place of an address or a port. Ze
                     applies the sets of a table before its chains, so a term can reference a set the
                     same commit creates. A reference never crosses a table.";
+                ze:help "Named set";
 
                 leaf name {
                     type string {
                         length "1..255";
                         pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
                     }
-                    description "Set name";
-                    ze:help "The name holds 1 to 255 characters and starts with a letter or a digit. A term
+                    description "The name holds 1 to 255 characters and starts with a letter or a digit. A term
                         writes @name to reference the set, and verify refuses a reference the table does
                         not declare.";
+                    ze:help "Set name";
                 }
 
                 leaf type {
                     type set-type;
                     mandatory true;
-                    description "Element data type";
-                    ze:help "The type decides the element form and which match can read the set. An address
+                    description "The type decides the element form and which match can read the set. An address
                         match reads an ipv4 or ipv6 set, and a port match reads an inet-service set.
                         Verify refuses any other pairing. No match keyword reads an ether, mark or
                         ifname set today, so Ze creates that set and no term uses it.";
+                    ze:help "Element data type";
                 }
 
                 container flags-interval {
                     presence "Enable interval ranges";
-                    description "Enable interval ranges";
-                    ze:help "Ze programs the kernel set with the interval flag. An element written in config
+                    description "Ze programs the kernel set with the interval flag. An element written in config
                         still carries one value: Ze drops the length of a prefix written there and
                         programs the bare address. The irr plugin is what fills an interval set with
                         ranges today.";
+                    ze:help "Enable interval ranges";
                 }
 
                 container flags-timeout {
                     presence "Enable per-element timeouts";
-                    description "Enable per-element timeouts";
-                    ze:help "The flag MUST be set for a per-element timeout to reach the kernel. The netlink
+                    description "The flag MUST be set for a per-element timeout to reach the kernel. The netlink
                         library writes the element timeout attribute only when the parent set carries
                         the flag, so a timeout under a set without it is dropped on the way down.";
+                    ze:help "Enable per-element timeouts";
                 }
 
                 container flags-constant {
                     presence "Immutable after creation";
-                    description "Immutable after creation";
-                    ze:help "Ze programs the kernel set with the constant flag. The elements of a ze set come
+                    description "Ze programs the kernel set with the constant flag. The elements of a ze set come
                         from config, and Ze writes no rule that adds one at runtime.";
+                    ze:help "Immutable after creation";
                 }
 
                 container flags-dynamic {
                     presence "Dynamically populated";
-                    description "Dynamically populated";
-                    ze:help "Ze programs the kernel set with the dynamic flag. Ze writes no rule that adds an
+                    description "Ze programs the kernel set with the dynamic flag. Ze writes no rule that adds an
                         element, so the elements still come from config.";
+                    ze:help "Dynamically populated";
                 }
 
                 list element {
                     key "value";
                     ordered-by user;
-                    description "Static set elements, whose value form follows the set type.";
-                    ze:help "Static set elements. The value form is interpreted per set type. ipv4 and ipv6 accept addresses, or
+                    description "Static set elements. The value form is interpreted per set type. ipv4 and ipv6 accept addresses, or
                         prefixes when flags-interval is set. inet-service accepts port numbers. mark accepts a numeric or
                         0x-prefixed value. ether accepts aa:bb:cc:dd:ee:ff. ifname accepts an interface name.";
+                    ze:help "Static set elements, whose value form follows the set type.";
 
                     leaf value {
                         type string;
-                        description "Element value (see list description for format).";
-                        ze:help "The value is the key of the list, so it is unique inside one set. Ze sorts
+                        description "The value is the key of the list, so it is unique inside one set. Ze sorts
                             the elements by value before it programs them, so two loads of one config
                             write the same order. An unknown leaf beside the value is refused, so a
                             misspelled leaf name does not fall through.";
+                        ze:help "Element value (see list description for format).";
                     }
 
                     leaf timeout {
                         type uint32;
-                        description "Per-element timeout in seconds, where 0 means no timeout.";
-                        ze:help "The kernel deletes the element when the timeout runs out. The enclosing set
+                        description "The kernel deletes the element when the timeout runs out. The enclosing set
                             MUST carry flags-timeout, and the timeout reaches the kernel only under that
                             flag.";
+                        ze:help "Per-element timeout in seconds, where 0 means no timeout.";
                     }
                 }
             }
@@ -914,43 +914,43 @@ module ze-firewall-conf {
             list flowtable {
                 key "name";
                 ze:backend "nft";
-                description "Hardware offload flowtable, which is nftables-specific.";
-                ze:help "Hardware offload flowtable. The flowtable is nftables-specific. The VPP dataplane is itself the fast
+                description "Hardware offload flowtable. The flowtable is nftables-specific. The VPP dataplane is itself the fast
                     path, and it does not expose a flowtable surface.";
+                ze:help "Hardware offload flowtable, which is nftables-specific.";
 
                 leaf name {
                     type string {
                         length "1..255";
                         pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
                     }
-                    description "Flowtable name";
-                    ze:help "The name holds 1 to 255 characters and starts with a letter or a digit. A
+                    description "The name holds 1 to 255 characters and starts with a letter or a digit. A
                         flow-offload term names it without the @ sign, and verify refuses a term that
                         names a flowtable the table does not declare.";
+                    ze:help "Flowtable name";
                 }
 
                 leaf hook {
                     type chain-hook;
                     mandatory true;
-                    description "Hook point, which MUST be ingress.";
-                    ze:help "The leaf takes the chain-hook type, so the parser accepts every hook name. Apply
+                    description "The leaf takes the chain-hook type, so the parser accepts every hook name. Apply
                         refuses each one except ingress and names the value it read.";
+                    ze:help "Hook point, which MUST be ingress.";
                 }
 
                 leaf priority {
                     type int32;
                     mandatory true;
-                    description "Flowtable priority at the ingress hook.";
-                    ze:help "Ze passes the number to the kernel with no range check, so the -400 to 400 range
+                    description "Ze passes the number to the kernel with no range check, so the -400 to 400 range
                         that a base chain takes does not apply here. The leaf is mandatory, so a
                         flowtable states its priority even when it is the only one.";
+                    ze:help "Flowtable priority at the ingress hook.";
                 }
 
                 leaf-list device {
                     type string;
-                    description "Devices for offload";
-                    ze:help "Each entry is a kernel interface name. The flowtable takes flows from those
+                    description "Each entry is a kernel interface name. The flowtable takes flows from those
                         interfaces alone, and a flowtable that names none takes nothing.";
+                    ze:help "Devices for offload";
                 }
             }
         }

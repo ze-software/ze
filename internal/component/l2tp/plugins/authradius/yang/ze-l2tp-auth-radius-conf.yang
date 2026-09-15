@@ -11,48 +11,47 @@ module ze-l2tp-auth-radius-conf {
         // Repeat the canonical description owned by ze-l2tp-conf.yang verbatim,
         // so the tree merge does not warn on a mismatch. This module only
         // attaches its own subtree to the shared node.
-        description "L2TPv2 tunnel subsystem settings (RFC 2661).";
-        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
-                 any content implies the subsystem is enabled. Use 'enabled false' to
-                 disable it explicitly, or 'enabled true' as a filler when no other settings
-                 are needed.";
+        description "L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with
+                     any content implies the subsystem is enabled. Use 'enabled false' to
+                     disable it explicitly, or 'enabled true' as a filler when no other settings
+                     are needed.";
+        ze:help "L2TPv2 tunnel subsystem settings (RFC 2661).";
 
         container auth {
-            description "PPP authentication for L2TP subscriber sessions.";
-            ze:help "The container holds the backend that answers a credential. The
-                     l2tp-auth-local plugin fills the local container under it, and the
-                     l2tp-auth-radius plugin fills the radius container. The timing of the
-                     PPP authentication phase sits under l2tp authentication instead.";
+            description "The container holds the backend that answers a credential. The
+                         l2tp-auth-local plugin fills the local container under it, and the
+                         l2tp-auth-radius plugin fills the radius container. The timing of the
+                         PPP authentication phase sits under l2tp authentication instead.";
+            ze:help "PPP authentication for L2TP subscriber sessions.";
 
             container radius {
-                description "Authenticate and account subscriber sessions against a RADIUS server.";
-                ze:help "Authentication and accounting are separate exchanges to the same
-                         server. A session is authorized by an Access-Accept, and the
-                         Accounting-Request packets that follow report its traffic.";
+                description "Authentication and accounting are separate exchanges to the same
+                             server. A session is authorized by an Access-Accept, and the
+                             Accounting-Request packets that follow report its traffic.";
+                ze:help "Authenticate and account subscriber sessions against a RADIUS server.";
                 leaf source-address {
                     type zt:ipv4-address;
-                    description "Source IPv4 address for outbound RADIUS packets.";
-                    ze:help "Ze binds the outbound RADIUS socket to this address, so every
-                             request leaves with it. Ze also sends the address as
-                             NAS-IP-Address, which is one of the two attributes RFC 2865
-                             Section 4.1 accepts to name the NAS. With the leaf empty, the
-                             kernel picks the source address and Ze names the NAS with
-                             NAS-Identifier instead.";
+                    description "Ze binds the outbound RADIUS socket to this address, so every
+                                 request leaves with it. Ze also sends the address as
+                                 NAS-IP-Address, which is one of the two attributes RFC 2865
+                                 Section 4.1 accepts to name the NAS. With the leaf empty, the
+                                 kernel picks the source address and Ze names the NAS with
+                                 NAS-Identifier instead.";
+                    ze:help "Source IPv4 address for outbound RADIUS packets.";
                 }
                 leaf nas-identifier {
                     type string;
-                    description "NAS-Identifier sent in RADIUS requests.";
-                    ze:help "Ze sends this text as the NAS-Identifier attribute in each
-                             Access-Request and each Accounting-Request. RFC 2865 Section
-                             4.1 requires either NAS-IP-Address or NAS-Identifier in an
-                             Access-Request. With this leaf empty and source-address empty,
-                             Ze sends the hostname, and the plugin name where the host
-                             carries none.";
+                    description "Ze sends this text as the NAS-Identifier attribute in each
+                                 Access-Request and each Accounting-Request. RFC 2865 Section
+                                 4.1 requires either NAS-IP-Address or NAS-Identifier in an
+                                 Access-Request. With this leaf empty and source-address empty,
+                                 Ze sends the hostname, and the plugin name where the host
+                                 carries none.";
+                    ze:help "NAS-Identifier sent in RADIUS requests.";
                 }
                 leaf nas-port-id-format {
                     type string { length "1..253"; }
-                    description "Template for the NAS-Port-Id attribute sent in RADIUS requests.";
-                    ze:help "Ze sends the NAS-Port-Id attribute (RFC 2869 Section 5.17) in an
+                    description "Ze sends the NAS-Port-Id attribute (RFC 2869 Section 5.17) in an
 Access-Request packet and in an Accounting-Request packet. The placeholders are
 {nas-id}, {tunnel-id} and {session-id}. Ze copies every other character. All three
 values are known before the session has an interface. One session therefore sends one
@@ -62,51 +61,51 @@ Section 5). The commit refuses an unknown placeholder, it refuses a {nas-id} whe
 nas-identifier is unset, and it refuses a template whose widest resolution passes 253
 octets because the nas-identifier it expands is long. An unset leaf sends no
 attribute.";
+                    ze:help "Template for the NAS-Port-Id attribute sent in RADIUS requests.";
                 }
                 leaf timeout {
                     type uint8 { range "1..30"; }
                     default 3;
-                    description "Per-request timeout in seconds.";
-                    ze:help "The default is 3 seconds and the range is 1 to 30. The first
-                             attempt waits this long, and each attempt after it waits twice
-                             the wait before it. With the default of 3 seconds and 3
-                             retries, a server that never answers costs 21 seconds before Ze
-                             tries the next server.";
+                    description "The default is 3 seconds and the range is 1 to 30. The first
+                                 attempt waits this long, and each attempt after it waits twice
+                                 the wait before it. With the default of 3 seconds and 3
+                                 retries, a server that never answers costs 21 seconds before Ze
+                                 tries the next server.";
+                    ze:help "Per-request timeout in seconds.";
                 }
                 leaf retries {
                     type uint8 { range "1..10"; }
                     default 3;
-                    description "Number of retransmit attempts per server.";
-                    ze:help "The default is 3 and the range is 1 to 10. Ze sends the request
-                             that many times to one server, then moves to the next entry of
-                             the list. An Access-Request is replayed byte for byte. An
-                             Accounting-Request gets a new identifier and a new
-                             Acct-Delay-Time on each attempt, which RFC 2866 Section 4.1
-                             requires.";
+                    description "The default is 3 and the range is 1 to 10. Ze sends the request
+                                 that many times to one server, then moves to the next entry of
+                                 the list. An Access-Request is replayed byte for byte. An
+                                 Accounting-Request gets a new identifier and a new
+                                 Acct-Delay-Time on each attempt, which RFC 2866 Section 4.1
+                                 requires.";
+                    ze:help "Number of retransmit attempts per server.";
                 }
                 leaf acct-interval {
                     type uint16 { range "60..3600"; }
-                    description "Accounting interim-update interval in seconds.";
-                    ze:help "RFC 2869 Section 2.1 states that a locally configured value on
+                    description "RFC 2869 Section 2.1 states that a locally configured value on
 the NAS MUST override the value found in an Access-Accept. A leaf that is set pins the
 cadence of every session, and the Acct-Interim-Interval attribute (type 85) of an
 Access-Accept then changes nothing. This leaf has no default. An unset leaf is the
 absent case, and it lets each Access-Accept set the cadence of that session. A session
 runs at 300 seconds when neither side states an interval.";
+                    ze:help "Accounting interim-update interval in seconds.";
                 }
                 leaf coa-port {
                     type uint16 { range "1..65535"; }
-                    description "UDP port of the RADIUS CoA and Disconnect listener, usually 3799.";
-                    ze:help "The listener implements RFC 5176. This leaf has no default on
+                    description "The listener implements RFC 5176. This leaf has no default on
 purpose. An unset leaf keeps the listener off, so an existing deployment does not start
 to accept CoA on upgrade. Ze accepts a request only from a configured RADIUS server
 address.";
+                    ze:help "UDP port of the RADIUS CoA and Disconnect listener, usually 3799.";
                 }
                 leaf require-message-authenticator {
                     type boolean;
                     default false;
-                    description "Discard a CoA-Request or a Disconnect-Request that carries no Message-Authenticator.";
-                    ze:help "RFC 5176 Section 3.4 makes the Message-Authenticator attribute
+                    description "RFC 5176 Section 3.4 makes the Message-Authenticator attribute
 optional, so the default is false. Ze then processes a request without the attribute
 once its Request Authenticator verifies against the shared secret. Set this leaf to
 true when every Dynamic Authorization Client sends the attribute. The attribute is an
@@ -114,115 +113,116 @@ HMAC-MD5 keyed with the shared secret, and it is the mitigation for the Blast-RA
 class of attack (CVE-2024-3596), which forges a RADIUS UDP packet with a chosen-prefix
 MD5 collision against the authenticator. A client that sends no attribute gets no
 answer while this leaf is true.";
+                    ze:help "Discard a CoA-Request or a Disconnect-Request that carries no Message-Authenticator.";
                 }
                 container attributes {
-                    description "Which optional RADIUS attributes Ze puts in the packets it sends.";
-                    ze:help "Ze sends every attribute it can build, which is what a billing
+                    description "Ze sends every attribute it can build, which is what a billing
 system usually wants, so this container is empty in most deployments. It names the
 attributes one deployment does not want on the wire. Nothing here reaches
 Acct-Status-Type, Acct-Session-Id or the NAS identity: RFC 2866 Section 5.13 counts the
 first two as 'Exactly one instance of this attribute MUST be present', and its Note 1
 requires either NAS-IP-Address or NAS-Identifier, so an Accounting-Request without them
 is not a conformant record and Ze offers no way to write one.";
+                    ze:help "Which optional RADIUS attributes Ze puts in the packets it sends.";
 
                     container exclude {
-                        description "Attributes Ze does not send, each with the record types it is held back from.";
-                        ze:help "Name an attribute to hold it back from every record type
+                        description "Name an attribute to hold it back from every record type
 that would carry it. Add packet-type under it to hold it back from some record types and
 keep it in the others. Each attribute accepts only the record types Ze can put it in, so
 a line naming a record type that never carries the attribute is refused when the
 configuration is committed rather than ignored at run time.";
+                        ze:help "Attributes Ze does not send, each with the record types it is held back from.";
 
                         container calling-station-id {
                             presence "Hold Calling-Station-Id back from the records named below.";
-                            description "Do not send Calling-Station-Id (attribute 31).";
-                            ze:help "RFC 2865 Section 5.31 carries the number the call came
+                            description "RFC 2865 Section 5.31 carries the number the call came
 from, which is the L2TP Calling Number of the session, or the subscriber MAC address on
 the PPPoE relay path. Some operators do not store it. Check the server first: FreeRADIUS
 matches its IP pool queries on this attribute with no fallback value, so a pool it serves
 keeps leases that never expire once the attribute stops arriving.";
+                            ze:help "Do not send Calling-Station-Id (attribute 31).";
                             leaf-list packet-type {
                                 type enumeration {
                                     enum accounting-start;
                                     enum accounting-interim;
                                     enum accounting-stop;
                                 }
-                                description "Record types to hold the attribute back from. Name none for all of them.";
-                                ze:help "Ze puts Calling-Station-Id in the three accounting
+                                description "Ze puts Calling-Station-Id in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
 holds the attribute back from all three.";
+                                ze:help "Record types to hold the attribute back from. Name none for all of them.";
                             }
                         }
 
                         container event-timestamp {
                             presence "Hold Event-Timestamp back from the records named below.";
-                            description "Do not send Event-Timestamp (attribute 55).";
-                            ze:help "RFC 2869 Section 5.3 records the second at which the
+                            description "RFC 2869 Section 5.3 records the second at which the
 event happened on the NAS. A server that stamps its own receive time does not need it.
 FreeRADIUS falls back to the server clock in its default accounting queries, so a record
 without the attribute is still stored with a time.";
+                            ze:help "Do not send Event-Timestamp (attribute 55).";
                             leaf-list packet-type {
                                 type enumeration {
                                     enum accounting-start;
                                     enum accounting-interim;
                                     enum accounting-stop;
                                 }
-                                description "Record types to hold the attribute back from. Name none for all of them.";
-                                ze:help "Ze puts Event-Timestamp in the three accounting
+                                description "Ze puts Event-Timestamp in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
 holds the attribute back from all three.";
+                                ze:help "Record types to hold the attribute back from. Name none for all of them.";
                             }
                         }
 
                         container acct-delay-time {
                             presence "Hold Acct-Delay-Time back from the records named below.";
-                            description "Do not send Acct-Delay-Time (attribute 41).";
-                            ze:help "RFC 2866 Section 5.2 reports how many seconds the
+                            description "RFC 2866 Section 5.2 reports how many seconds the
 client has been trying to send this record, and Ze rewrites the value on each
 retransmission. A record that carries no Acct-Delay-Time is replayed byte for byte
 instead, under the same Identifier, which is what an Access-Request does. accel-ppp ships
 this attribute off by default.";
+                            ze:help "Do not send Acct-Delay-Time (attribute 41).";
                             leaf-list packet-type {
                                 type enumeration {
                                     enum accounting-start;
                                     enum accounting-interim;
                                     enum accounting-stop;
                                 }
-                                description "Record types to hold the attribute back from. Name none for all of them.";
-                                ze:help "Ze puts Acct-Delay-Time in the three accounting
+                                description "Ze puts Acct-Delay-Time in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
 holds the attribute back from all three.";
+                                ze:help "Record types to hold the attribute back from. Name none for all of them.";
                             }
                         }
 
                         container acct-terminate-cause {
                             presence "Hold Acct-Terminate-Cause back from the Stop record.";
-                            description "Do not send Acct-Terminate-Cause (attribute 49).";
-                            ze:help "RFC 2866 Section 5.10 states that the attribute 'can
+                            description "RFC 2866 Section 5.10 states that the attribute 'can
 only be present in Accounting-Request records where the Acct-Status-Type is set to Stop',
 so the Stop record is the only one this reaches. A pipeline that keys on its own teardown
 signal does not need it. FreeRADIUS defaults it to NAS-Reboot in its accounting
 queries.";
+                            ze:help "Do not send Acct-Terminate-Cause (attribute 49).";
                             leaf-list packet-type {
                                 type enumeration {
                                     enum accounting-stop;
                                 }
-                                description "Record types to hold the attribute back from. Name none for all of them.";
-                                ze:help "RFC 2866 Section 5.10 admits Acct-Terminate-Cause
+                                description "RFC 2866 Section 5.10 admits Acct-Terminate-Cause
 in a Stop record alone, so accounting-stop is the one value this leaf accepts. An empty
 leaf holds the attribute back from the Stop record, which is the same thing said with
 fewer words.";
+                                ze:help "Record types to hold the attribute back from. Name none for all of them.";
                             }
                         }
 
                         container nas-port-id {
                             presence "Hold NAS-Port-Id back from the records named below.";
-                            description "Do not send NAS-Port-Id (attribute 87).";
-                            ze:help "RFC 2869 Section 5.17 names the access port in text,
+                            description "RFC 2869 Section 5.17 names the access port in text,
 and the nas-port-id-format leaf is the template Ze resolves for it. Clearing that leaf
 also sends no attribute, on every packet at once. This container is the finer instrument:
 it holds the attribute back from the record types you name while the template stays
 configured for the rest.";
+                            ze:help "Do not send NAS-Port-Id (attribute 87).";
                             leaf-list packet-type {
                                 type enumeration {
                                     enum access-request;
@@ -230,31 +230,31 @@ configured for the rest.";
                                     enum accounting-interim;
                                     enum accounting-stop;
                                 }
-                                description "Record types to hold the attribute back from. Name none for all of them.";
-                                ze:help "Ze puts NAS-Port-Id in the Access-Request and in
+                                description "Ze puts NAS-Port-Id in the Access-Request and in
 the three accounting records, so all four are what this leaf accepts. An empty leaf holds
 the attribute back from all four.";
+                                ze:help "Record types to hold the attribute back from. Name none for all of them.";
                             }
                         }
 
                         container framed-ip-address {
                             presence "Hold Framed-IP-Address back from the records named below.";
-                            description "Do not send Framed-IP-Address (attribute 8).";
-                            ze:help "RFC 2865 Section 5.8 reports the IPv4 address the
+                            description "RFC 2865 Section 5.8 reports the IPv4 address the
 session negotiated, and RFC 2866 Section 4.1 requires that a record which carries the
 attribute carries the real address. An operator whose addressing is reported by another
 system can hold it back. A session with no IPv4 address sends no attribute either way,
 which is a different case and is not configurable.";
+                            ze:help "Do not send Framed-IP-Address (attribute 8).";
                             leaf-list packet-type {
                                 type enumeration {
                                     enum accounting-start;
                                     enum accounting-interim;
                                     enum accounting-stop;
                                 }
-                                description "Record types to hold the attribute back from. Name none for all of them.";
-                                ze:help "Ze puts Framed-IP-Address in the three accounting
+                                description "Ze puts Framed-IP-Address in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
 holds the attribute back from all three.";
+                                ze:help "Record types to hold the attribute back from. Name none for all of them.";
                             }
                         }
                     }
@@ -263,46 +263,46 @@ holds the attribute back from all three.";
                 list server {
                     key "name";
                     ordered-by user;
-                    description "One RADIUS server Ze sends requests to, tried in the order written.";
-                    ze:help "The operator orders the list. Ze tries the first entry, and moves to
-                             the next one when that server does not answer. Write the closest
-                             server first.";
+                    description "The operator orders the list. Ze tries the first entry, and moves to
+                                 the next one when that server does not answer. Write the closest
+                                 server first.";
+                    ze:help "One RADIUS server Ze sends requests to, tried in the order written.";
 
                     leaf name {
                         type string;
-                        description "Logical name for this RADIUS server entry.";
-                        ze:help "The name is the list key alone. Ze reads the address, the
-                                 port and the shared key of the entry, and the written order
-                                 of the list decides the failover order. The name changes no
-                                 packet.";
+                        description "The name is the list key alone. Ze reads the address, the
+                                     port and the shared key of the entry, and the written order
+                                     of the list decides the failover order. The name changes no
+                                     packet.";
+                        ze:help "Logical name for this RADIUS server entry.";
                     }
                     leaf address {
                         type string;
                         mandatory true;
-                        description "RADIUS server IP address or hostname.";
-                        ze:help "The leaf is mandatory, and Ze refuses a server entry
-                                 without it. Ze joins the value to port to reach the server.
-                                 The first entry of the list is the one Ze tries first, so
-                                 write the closest server first.";
+                        description "The leaf is mandatory, and Ze refuses a server entry
+                                     without it. Ze joins the value to port to reach the server.
+                                     The first entry of the list is the one Ze tries first, so
+                                     write the closest server first.";
+                        ze:help "RADIUS server IP address or hostname.";
                     }
                     leaf port {
                         type uint16 { range "1..65535"; }
                         default 1812;
-                        description "RADIUS server UDP port.";
-                        ze:help "The default is 1812 and the range is 1 to 65535. Ze sends
-                                 the Access-Request packets and the Accounting-Request
-                                 packets of this server to this one port, because a server
-                                 entry carries no second port.";
+                        description "The default is 1812 and the range is 1 to 65535. Ze sends
+                                     the Access-Request packets and the Accounting-Request
+                                     packets of this server to this one port, because a server
+                                     entry carries no second port.";
+                        ze:help "RADIUS server UDP port.";
                     }
                     leaf shared-key {
                         type string {
                             length "1..max";
                         }
                         ze:sensitive;
-                        description "RADIUS shared secret.";
-                        ze:help "RFC 2865 Section 3 states that the secret MUST NOT be
+                        description "RFC 2865 Section 3 states that the secret MUST NOT be
 empty, that is length 0, because an empty secret makes a forged packet easy to
 build.";
+                        ze:help "RADIUS shared secret.";
                     }
                 }
             }

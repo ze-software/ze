@@ -615,7 +615,7 @@ func rrEORCmd(fam string) string {
 // registration message, which a running daemon reads.
 func commandDecls() []sdk.CommandDecl {
 	return []sdk.CommandDecl{
-		{Name: "show rr status", Description: "Show RR status"},
-		{Name: "show rr peers", Description: "Show peer states"},
+		{Name: "show rr status", ShortHelp: "Show RR status"},
+		{Name: "show rr peers", ShortHelp: "Show peer states"},
 	}
 }

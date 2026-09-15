@@ -16,19 +16,19 @@ module ze-softver {
     grouping software-version-config {
         container software-version {
             presence "Software Version capability enabled";
-            description "Software Version capability (code 75).";
-            ze:help "The container carries presence, so writing it makes Ze send the capability of
+            description "The container carries presence, so writing it makes Ze send the capability of
                 draft-abraitis-bgp-version-capability to this peer. The value is the fixed string Ze/0.1.0, and no
                 leaf changes it. A container on the peer replaces the container on the group rather than adding to
                 it.";
+            ze:help "Software Version capability (code 75).";
             leaf mode {
                 type bgp:capability-mode;
                 default "enable";
-                description "Capability negotiation mode.";
-                ze:help "enable is the default, and Ze sends the capability. disable sends none. Ze treats require
+                description "enable is the default, and Ze sends the capability. disable sends none. Ze treats require
                     as enable and refuse as disable: the plugin decides only whether to send code 75, and it holds
                     the peer to nothing. So a peer that sends no Software Version stays up under require, and a peer
                     that sends one stays up under refuse. Set the leaf on the peer to override the group value.";
+                ze:help "Capability negotiation mode.";
             }
         }
     }

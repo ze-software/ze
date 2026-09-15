@@ -57,98 +57,98 @@ module ze-rib {
     // group default can be set once and a peer can override it.
     grouping blackhole-honor-fields {
         container blackhole {
-            description "RFC 7999 blackhole agreement on this BGP session, in both directions.";
+            description "The RFC 7999 agreement on this BGP session, in both directions.
+                         It states what this speaker does with a received route carrying
+                         the BLACKHOLE community, 65535:666. It also states whether this
+                         speaker CAN advertise that community to this peer. Section 4 uses
+                         the suggested shorthand keyword for the value.
+
+                         A later revision adds an as-sets leaf-list here. It answers a
+                         DIFFERENT question from session/irr/as-set. That one states what
+                         the peer CAN advertise at all. This one would state what the peer
+                         CAN blackhole within. Whether one deployment puts the same set in
+                         both is the operator's business, not this model's.";
 
             ze:help
-              "The RFC 7999 agreement on this BGP session, in both directions.
-               It states what this speaker does with a received route carrying
-               the BLACKHOLE community, 65535:666. It also states whether this
-               speaker CAN advertise that community to this peer. Section 4 uses
-               the suggested shorthand keyword for the value.
-
-               A later revision adds an as-sets leaf-list here. It answers a
-               DIFFERENT question from session/irr/as-set. That one states what
-               the peer CAN advertise at all. This one would state what the peer
-               CAN blackhole within. Whether one deployment puts the same set in
-               both is the operator's business, not this model's.";
+              "RFC 7999 blackhole agreement on this BGP session, in both directions.";
 
             leaf-list communities {
                 type string;
                 ze:cumulative;
-                description "Communities that make Ze discard traffic toward a prefix this peer announces.";
+                description "Discard traffic sent toward a prefix this peer announces
+                             carrying one of these communities. Ze installs that prefix as
+                             a discard route directly. There is no next-hop to allocate and
+                             no static route to pre-create.
+
+                             Write ASN:VAL, for example 65001:666, or a well-known name.
+                             blackhole and 65535:666 are one value, the one RFC 7999
+                             registers. Section 4 suggests that keyword. An operator's own
+                             community is the common case, which is why this is a list.
+
+                             A listed community IS the agreement RFC 7999 Section 3.3
+                             requires the receiving party to make 'on that particular BGP
+                             session'.
+
+                             An empty list beside a set prefixes list means the well-known
+                             value alone. Stating the prefixes a peer CAN blackhole within
+                             IS the explicit configuration directive Section 4 asks for.
+                             The same act is Section 3.3's agreement on that session, so
+                             standard RTBH takes one line. Section 4's default holds: a
+                             container with neither list discards nothing, and so does a
+                             peer with no container.
+
+                             A STATED list is taken exactly. The well-known value is NOT
+                             added to it. An operator who names 65001:666 and not 65535:666
+                             means it, and Section 3.1 makes that their choice.
+
+                             The parser applies that default, not a YANG default statement.
+                             The default is conditional on a SIBLING leaf, which a leaf-list
+                             default cannot express. A value materialised into the schema
+                             would also make every peer read as having agreed to 65535:666
+                             on the send side.
+
+                             One community is not enough on its own. RFC 7999 Section 3.3
+                             states two conditions, and the prefixes list is the other. A
+                             peer with a community and no covering prefix blackholes
+                             nothing.
+
+                             The list governs the SEND side too. RFC 7999 Section 3.1
+                             requires the two networks to agree on use of the BLACKHOLE
+                             community before a speaker advertises it. Naming it here is
+                             this speaker's half. `send bgp <selector> blackhole` reaches only the
+                             sessions that hold 65535:666, under either spelling. A session
+                             that named its own value alone is left out of the
+                             announcement, and is not sent the prefix untagged.";
                 ze:help
-                  "Discard traffic sent toward a prefix this peer announces
-                   carrying one of these communities. Ze installs that prefix as
-                   a discard route directly. There is no next-hop to allocate and
-                   no static route to pre-create.
-
-                   Write ASN:VAL, for example 65001:666, or a well-known name.
-                   blackhole and 65535:666 are one value, the one RFC 7999
-                   registers. Section 4 suggests that keyword. An operator's own
-                   community is the common case, which is why this is a list.
-
-                   A listed community IS the agreement RFC 7999 Section 3.3
-                   requires the receiving party to make 'on that particular BGP
-                   session'.
-
-                   An empty list beside a set prefixes list means the well-known
-                   value alone. Stating the prefixes a peer CAN blackhole within
-                   IS the explicit configuration directive Section 4 asks for.
-                   The same act is Section 3.3's agreement on that session, so
-                   standard RTBH takes one line. Section 4's default holds: a
-                   container with neither list discards nothing, and so does a
-                   peer with no container.
-
-                   A STATED list is taken exactly. The well-known value is NOT
-                   added to it. An operator who names 65001:666 and not 65535:666
-                   means it, and Section 3.1 makes that their choice.
-
-                   The parser applies that default, not a YANG default statement.
-                   The default is conditional on a SIBLING leaf, which a leaf-list
-                   default cannot express. A value materialised into the schema
-                   would also make every peer read as having agreed to 65535:666
-                   on the send side.
-
-                   One community is not enough on its own. RFC 7999 Section 3.3
-                   states two conditions, and the prefixes list is the other. A
-                   peer with a community and no covering prefix blackholes
-                   nothing.
-
-                   The list governs the SEND side too. RFC 7999 Section 3.1
-                   requires the two networks to agree on use of the BLACKHOLE
-                   community before a speaker advertises it. Naming it here is
-                   this speaker's half. `send bgp <selector> blackhole` reaches only the
-                   sessions that hold 65535:666, under either spelling. A session
-                   that named its own value alone is left out of the
-                   announcement, and is not sent the prefix untagged.";
+                  "Communities that make Ze discard traffic toward a prefix this peer announces.";
             }
 
             leaf-list prefixes {
                 type string;
                 ze:cumulative;
-                description "The prefixes this peer is authorized to advertise.";
+                description "The prefixes this PEER is authorized to advertise. Ze honors a
+                             received blackhole announcement only when one of them covers
+                             it and is equal or shorter. That is RFC 7999 Section 3.3's
+                             first condition, in the RFC's own words. The announced prefix
+                             is 'covered by an equal or shorter IP prefix that the
+                             neighboring network is authorized to advertise'.
+
+                             The container already says blackhole, so the leaf does not
+                             repeat it.
+
+                             Coverage is not prefix-list membership. A list entry
+                             192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,
+                             because the /24 is a shorter covering prefix the neighbor may
+                             advertise. That is the RFC test, and it does not depend on any
+                             ge or le bound.
+
+                             An empty list authorizes nothing, so honoring never happens.
+                             That is the closed state on purpose: RFC 7999 Section 6 names
+                             unauthorized addition of BLACKHOLE as a denial-of-reachability
+                             vector, and an open default would let any peer discard traffic
+                             for any prefix it names.";
                 ze:help
-                  "The prefixes this PEER is authorized to advertise. Ze honors a
-                   received blackhole announcement only when one of them covers
-                   it and is equal or shorter. That is RFC 7999 Section 3.3's
-                   first condition, in the RFC's own words. The announced prefix
-                   is 'covered by an equal or shorter IP prefix that the
-                   neighboring network is authorized to advertise'.
-
-                   The container already says blackhole, so the leaf does not
-                   repeat it.
-
-                   Coverage is not prefix-list membership. A list entry
-                   192.0.2.0/24 authorizes a 192.0.2.1/32 blackhole inside it,
-                   because the /24 is a shorter covering prefix the neighbor may
-                   advertise. That is the RFC test, and it does not depend on any
-                   ge or le bound.
-
-                   An empty list authorizes nothing, so honoring never happens.
-                   That is the closed state on purpose: RFC 7999 Section 6 names
-                   unauthorized addition of BLACKHOLE as a denial-of-reachability
-                   vector, and an open default would let any peer discard traffic
-                   for any prefix it names.";
+                  "The prefixes this peer is authorized to advertise.";
             }
         }
     }
@@ -171,70 +171,70 @@ module ze-rib {
 
     augment "/bgp:bgp" {
         container rib {
-            description "RIB plugin state and operations.";
-            ze:help "The subtree is read-only, so the CLI refuses set on every node under it. No code answers a
+            description "The subtree is read-only, so the CLI refuses set on every node under it. No code answers a
                 read of it today. show bgp rib status reports the live per-peer counts, and show bgp rib
                 reports the routes. request bgp rib inject and request bgp rib withdraw change what the RIB
                 holds.";
+            ze:help "RIB plugin state and operations.";
             config false;
 
             container adj-rib-in {
-                description "Routes received from peers.";
-                ze:help "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has
+                description "RFC 4271 Section 3.2 states that the Adj-RIBs-In \"contains unprocessed routing information that has
                     been advertised to the local BGP speaker by its peers\". show bgp rib received reports those
                     routes, and clear bgp rib in <peer> discards the routes of one peer. No code answers a read of
                     this subtree.";
+                ze:help "Routes received from peers.";
 
                 list peer {
                     key "address";
-                    description "Per-peer Adj-RIB-In.";
-                    ze:help "One entry for each peer that holds a route, keyed by the peer address. show bgp rib
+                    description "One entry for each peer that holds a route, keyed by the peer address. show bgp rib
                         status answers the same numbers under route-counts, which carries an in value and an out
                         value for each peer address.";
+                    ze:help "Per-peer Adj-RIB-In.";
 
                     leaf address {
                         type string;
-                        description "Peer IP address.";
-                        ze:help "The leaf is the list key. It is the remote address of the BGP session, written as
+                        description "The leaf is the list key. It is the remote address of the BGP session, written as
                             an IP address.";
+                        ze:help "Peer IP address.";
                     }
 
                     leaf route-count {
                         type uint32;
-                        description "Number of routes from this peer.";
-                        ze:help "The count covers every address family of the peer. show bgp rib status answers it
+                        description "The count covers every address family of the peer. show bgp rib status answers it
                             as the in value under route-counts, where a family filter scopes the number to
                             one family.";
+                        ze:help "Number of routes from this peer.";
                     }
                 }
             }
 
             container adj-rib-out {
-                description "Routes sent to peers.";
-                ze:help "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker
+                description "RFC 4271 Section 3.2 states that the Adj-RIBs-Out \"stores information the local BGP speaker
                     selected for advertisement to its peers\". show bgp rib sent reports those routes. No code
                     answers a read of this subtree.";
+                ze:help "Routes sent to peers.";
 
                 list peer {
                     key "address";
-                    description "Per-peer Adj-RIB-Out.";
-                    ze:help "One entry for each peer that holds a route, keyed by the peer address. show bgp rib
+                    description "One entry for each peer that holds a route, keyed by the peer address. show bgp rib
                         status answers the same numbers under route-counts, which carries an in value and an out
                         value for each peer address.";
+                    ze:help "Per-peer Adj-RIB-Out.";
 
                     leaf address {
                         type string;
-                        description "Peer IP address.";
-                        ze:help "The leaf is the list key. It is the remote address of the BGP session, written as
+                        description "The leaf is the list key. It is the remote address of the BGP session, written as
                             an IP address.";
+                        ze:help "Peer IP address.";
                     }
 
                     leaf route-count {
                         type uint32;
-                        description "Number of routes to this peer.";
-                        ze:help "The count covers every address family of the peer. show bgp rib status answers it
+                        description "The count covers every address family of the peer. show bgp rib status answers it
                             as the out value under route-counts, where a family filter scopes the number to
                             one family.";
+                        ze:help "Number of routes to this peer.";
                     }
                 }
             }

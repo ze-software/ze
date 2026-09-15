@@ -13,33 +13,33 @@ module ze-ipsec-conf {
 
     typedef encryption-algo {
         type enumeration {
-            enum aes128 { description "AES-CBC-128 (RFC 3602)."; }
-            enum aes256 { description "AES-CBC-256 (RFC 3602)."; }
-            enum aes128gcm { description "AES-GCM-128, 16-byte ICV (RFC 4106)."; }
-            enum aes256gcm { description "AES-GCM-256, 16-byte ICV (RFC 4106)."; }
+            enum aes128 { ze:help "AES-CBC-128 (RFC 3602)."; }
+            enum aes256 { ze:help "AES-CBC-256 (RFC 3602)."; }
+            enum aes128gcm { ze:help "AES-GCM-128, 16-byte ICV (RFC 4106)."; }
+            enum aes256gcm { ze:help "AES-GCM-256, 16-byte ICV (RFC 4106)."; }
             enum aes128ccm8 {
-                description "AES-CCM-128, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+                ze:help "AES-CCM-128, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum aes256ccm8 {
-                description "AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+                ze:help "AES-CCM-256, 8-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum aes128ccm12 {
-                description "AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+                ze:help "AES-CCM-128, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum aes256ccm12 {
-                description "AES-CCM-256, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+                ze:help "AES-CCM-256, 12-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum aes128ccm16 {
-                description "AES-CCM-128, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+                ze:help "AES-CCM-128, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum aes256ccm16 {
-                description "AES-CCM-256, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
+                ze:help "AES-CCM-256, 16-byte ICV (RFC 4309, RFC 5282). IKE SA only.";
             }
             enum chacha20poly1305 {
-                description "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.";
+                ze:help "ChaCha20-Poly1305 AEAD (RFC 7634). No build implements it.";
             }
             enum 3des {
-                description "Triple-DES-CBC (RFC 2451), deprecated. No build implements it.";
+                ze:help "Triple-DES-CBC (RFC 2451), deprecated. No build implements it.";
             }
         }
     }
@@ -47,111 +47,111 @@ module ze-ipsec-conf {
     typedef hash-algo {
         type enumeration {
             enum sha1 {
-                description "HMAC-SHA-1-96 (RFC 2404). No build implements it.";
+                ze:help "HMAC-SHA-1-96 (RFC 2404). No build implements it.";
             }
-            enum sha256 { description "HMAC-SHA-256-128 (RFC 4868)."; }
-            enum sha384 { description "HMAC-SHA-384-192 (RFC 4868)."; }
-            enum sha512 { description "HMAC-SHA-512-256 (RFC 4868)."; }
+            enum sha256 { ze:help "HMAC-SHA-256-128 (RFC 4868)."; }
+            enum sha384 { ze:help "HMAC-SHA-384-192 (RFC 4868)."; }
+            enum sha512 { ze:help "HMAC-SHA-512-256 (RFC 4868)."; }
         }
     }
 
     container vpn {
-        description "VPN subsystems.";
-        ze:help "Ze declares one subsystem under it today, which is ipsec. That subsystem holds the ESP
+        description "Ze declares one subsystem under it today, which is ipsec. That subsystem holds the ESP
             groups, the IKE groups and the site-to-site peers.";
+        ze:help "VPN subsystems.";
 
         container ipsec {
-            description "IPsec VPN configuration.";
-            ze:help "Ze speaks IKEv2 (RFC 7296) and installs each negotiated Child SA into the Linux XFRM
+            description "Ze speaks IKEv2 (RFC 7296) and installs each negotiated Child SA into the Linux XFRM
                 stack. A peer references one ESP group and one IKE group, and those two carry the
                 algorithms and the timers of the tunnel.";
+            ze:help "IPsec VPN configuration.";
 
             leaf interface {
                 type string;
-                description "WAN interface for IPsec traffic.";
-                ze:help "Commit refuses a name no interface on the host carries. The first IPv4 address of
+                description "Commit refuses a name no interface on the host carries. The first IPv4 address of
                     the interface fills the local-address of every peer that names none. It is also the
                     address the IKE socket on port 500 and the NAT-T socket on port 4500 bind to. A
                     reload whose interface holds no IPv4 address is refused, and the same case at
                     startup runs and writes a warning.";
+                ze:help "WAN interface for IPsec traffic.";
             }
 
             leaf cookie-threshold {
                 type uint32;
                 default 0;
-                description "Number of half-open IKE SAs tolerated before a COOKIE challenge.";
+                description "Number of half-open IKE SAs tolerated before an inbound
+                             IKE_SA_INIT must answer a COOKIE challenge. RFC 7296
+                             Section 2.6 makes the challenge the answer to state and CPU
+                             exhaustion from forged source addresses. The default of 0
+                             challenges every inbound initiation, which costs one extra
+                             round trip and stops a single spoofed datagram taking a
+                             peer's only half-open handshake slot. Raise it to tolerate
+                             that many half-open handshakes before challenging.";
                 ze:help
-                    "Number of half-open IKE SAs tolerated before an inbound
-                     IKE_SA_INIT must answer a COOKIE challenge. RFC 7296
-                     Section 2.6 makes the challenge the answer to state and CPU
-                     exhaustion from forged source addresses. The default of 0
-                     challenges every inbound initiation, which costs one extra
-                     round trip and stops a single spoofed datagram taking a
-                     peer's only half-open handshake slot. Raise it to tolerate
-                     that many half-open handshakes before challenging.";
+                    "Number of half-open IKE SAs tolerated before a COOKIE challenge.";
             }
 
             list policy {
                 key "name";
-                description "Operator-authored Security Policy Database entry.";
+                description "An entry of the Security Policy Database that Ze installs directly,
+                             rather than one a Child SA negotiation produces.
+
+                             RFC 4301 Section 4.4.1 gives the database three dispositions:
+                             'PROTECT, BYPASS, or DISCARD'. A peer under site-to-site produces
+                             the PROTECT entries, because those name a transform and a peer to
+                             negotiate it with. The other two name neither, so they are written
+                             here: BYPASS lets traffic cross the IPsec boundary in the clear,
+                             and DISCARD stops it at the boundary.
+
+                             Section 7.4 makes the discard disposition an obligation: 'All
+                             implementations MUST support DISCARDing of fragments using the
+                             normal SPD packet classification mechanisms.' This list is the
+                             management interface that Section 4.4.1 requires for it.
+
+                             Ze installs every entry when the configuration is applied and
+                             removes it when the entry leaves the configuration. An entry needs
+                             no peer, no key and no negotiation, so it is in force whether or
+                             not any tunnel is up.";
                 ze:help
-                    "An entry of the Security Policy Database that Ze installs directly,
-                     rather than one a Child SA negotiation produces.
-
-                     RFC 4301 Section 4.4.1 gives the database three dispositions:
-                     'PROTECT, BYPASS, or DISCARD'. A peer under site-to-site produces
-                     the PROTECT entries, because those name a transform and a peer to
-                     negotiate it with. The other two name neither, so they are written
-                     here: BYPASS lets traffic cross the IPsec boundary in the clear,
-                     and DISCARD stops it at the boundary.
-
-                     Section 7.4 makes the discard disposition an obligation: 'All
-                     implementations MUST support DISCARDing of fragments using the
-                     normal SPD packet classification mechanisms.' This list is the
-                     management interface that Section 4.4.1 requires for it.
-
-                     Ze installs every entry when the configuration is applied and
-                     removes it when the entry leaves the configuration. An entry needs
-                     no peer, no key and no negotiation, so it is in force whether or
-                     not any tunnel is up.";
+                    "Operator-authored Security Policy Database entry.";
 
                 leaf name {
                     type string {
                         length "1..64";
                         pattern '[a-zA-Z0-9][a-zA-Z0-9_.-]*';
                     }
-                    description "Entry name, unique across the Security Policy Database.";
-                    ze:help "The name identifies the entry in the configuration and in the output of
+                    description "The name identifies the entry in the configuration and in the output of
                         `show vpn ipsec dataplane`. It does not reach the kernel, which identifies a
                         policy by its selector alone, so two entries whose selector, direction and
                         order all agree describe one kernel policy and commit refuses the pair.";
+                    ze:help "Entry name, unique across the Security Policy Database.";
                 }
 
                 leaf action {
                     type enumeration {
                         enum bypass {
-                            description "Let matching traffic cross the boundary unprotected.";
+                            ze:help "Let matching traffic cross the boundary unprotected.";
                         }
                         enum discard {
-                            description "Drop matching traffic at the boundary.";
+                            ze:help "Drop matching traffic at the boundary.";
                         }
                     }
                     mandatory true;
-                    description "What the entry does with the traffic its selector matches.";
+                    description "RFC 4301 Section 4.4.1 defines bypass as 'to allow the packet to pass
+                                 without IPsec protection' and discard as 'to discard the traffic, i.e.,
+                                 not to let the traffic traverse the IPsec boundary'.
+
+                                 There is no protect here on purpose. A protect entry names an ESP
+                                 transform, a mode and a peer to negotiate keys with, and those live
+                                 under site-to-site peer. Offering the word in both places would put one
+                                 concept in two grammars.
+
+                                 The leaf is mandatory rather than defaulted. A defaulted disposition is
+                                 the one field of this entry whose wrong value is silent: a bypass
+                                 written where a discard was meant passes exactly the traffic the
+                                 operator wrote the entry to stop.";
                     ze:help
-                        "RFC 4301 Section 4.4.1 defines bypass as 'to allow the packet to pass
-                         without IPsec protection' and discard as 'to discard the traffic, i.e.,
-                         not to let the traffic traverse the IPsec boundary'.
-
-                         There is no protect here on purpose. A protect entry names an ESP
-                         transform, a mode and a peer to negotiate keys with, and those live
-                         under site-to-site peer. Offering the word in both places would put one
-                         concept in two grammars.
-
-                         The leaf is mandatory rather than defaulted. A defaulted disposition is
-                         the one field of this entry whose wrong value is silent: a bypass
-                         written where a discard was meant passes exactly the traffic the
-                         operator wrote the entry to stop.";
+                        "What the entry does with the traffic its selector matches.";
                 }
 
                 leaf order {
@@ -159,81 +159,81 @@ module ze-ipsec-conf {
                         range "101..2147483647";
                     }
                     default 1000;
-                    description "Rank of this entry, lowest searched first.";
+                    description "Where this entry sits in the operator's ordering of the Security
+                                 Policy Database. A LOWER value is searched FIRST, in Ze and in the
+                                 Linux kernel, and it carries the same meaning as policy-priority
+                                 under a site-to-site peer.
+
+                                 RFC 4301 Section 4.4.1: the management interface 'MUST support
+                                 (total) ordering of these entries, as seen via this interface'.
+
+                                 The default of 1000 sits between the IKE control-plane bypass at 100
+                                 and a peer's default rank of 2000, so an entry written with no order
+                                 outranks the tunnels and carves its hole out of them. Raise it above
+                                 2000 to let a tunnel win instead.
+
+                                 The range starts above 100 for the reason policy-priority states: an
+                                 entry at or above the IKE bypass captures the IKE exchange that
+                                 builds and rekeys every tunnel on the node.";
                     ze:help
-                        "Where this entry sits in the operator's ordering of the Security
-                         Policy Database. A LOWER value is searched FIRST, in Ze and in the
-                         Linux kernel, and it carries the same meaning as policy-priority
-                         under a site-to-site peer.
-
-                         RFC 4301 Section 4.4.1: the management interface 'MUST support
-                         (total) ordering of these entries, as seen via this interface'.
-
-                         The default of 1000 sits between the IKE control-plane bypass at 100
-                         and a peer's default rank of 2000, so an entry written with no order
-                         outranks the tunnels and carves its hole out of them. Raise it above
-                         2000 to let a tunnel win instead.
-
-                         The range starts above 100 for the reason policy-priority states: an
-                         entry at or above the IKE bypass captures the IKE exchange that
-                         builds and rekeys every tunnel on the node.";
+                        "Rank of this entry, lowest searched first.";
                 }
 
                 leaf direction {
                     type enumeration {
                         enum out {
-                            description "Traffic leaving for the unprotected side.";
+                            ze:help "Traffic leaving for the unprotected side.";
                         }
                         enum in {
-                            description "Traffic arriving from the unprotected side.";
+                            ze:help "Traffic arriving from the unprotected side.";
                         }
                         enum both {
-                            description "Both directions, as a mirrored pair of entries.";
+                            ze:help "Both directions, as a mirrored pair of entries.";
                         }
                     }
                     default both;
-                    description "Which side of the boundary the entry acts on.";
-                    ze:help
-                        "RFC 4301 Section 4.4.1 splits the database by direction: SPD-O holds
-                         the outbound bypass and discard entries and SPD-I holds the inbound
-                         ones. A policy is one-way, so a Ze entry is one-way too.
+                    description "RFC 4301 Section 4.4.1 splits the database by direction: SPD-O holds
+                                 the outbound bypass and discard entries and SPD-I holds the inbound
+                                 ones. A policy is one-way, so a Ze entry is one-way too.
 
-                         both installs the mirrored pair: the outbound entry keeps local and
-                         remote as written, and the inbound entry swaps them, because the local
-                         side of a flow is the DESTINATION of an inbound packet. It is the
-                         default because a one-way discard leaves the return traffic crossing
-                         the boundary, which almost never expresses what the operator meant.";
+                                 both installs the mirrored pair: the outbound entry keeps local and
+                                 remote as written, and the inbound entry swaps them, because the local
+                                 side of a flow is the DESTINATION of an inbound packet. It is the
+                                 default because a one-way discard leaves the return traffic crossing
+                                 the boundary, which almost never expresses what the operator meant.";
+                    ze:help
+                        "Which side of the boundary the entry acts on.";
                 }
 
                 leaf protocol {
                     type uint8;
                     default 0;
-                    description "IP protocol number the selector matches, 0 for every protocol.";
-                    ze:help
-                        "The next-layer protocol of RFC 4301 Section 4.4.1.1, such as 6 for TCP
-                         and 17 for UDP. Zero is that section's ANY, which matches every
-                         protocol.
+                    description "The next-layer protocol of RFC 4301 Section 4.4.1.1, such as 6 for TCP
+                                 and 17 for UDP. Zero is that section's ANY, which matches every
+                                 protocol.
 
-                         A local-port or remote-port other than any needs this leaf to name a
-                         protocol that carries ports. Commit refuses the pair otherwise,
-                         because a port selector under protocol 0 would match on a field the
-                         classifier cannot read.";
+                                 A local-port or remote-port other than any needs this leaf to name a
+                                 protocol that carries ports. Commit refuses the pair otherwise,
+                                 because a port selector under protocol 0 would match on a field the
+                                 classifier cannot read.";
+                    ze:help
+                        "IP protocol number the selector matches, 0 for every protocol.";
                 }
 
                 container local {
-                    description "The local side of the selector.";
-                    ze:help "Local is Ze's own side of the IPsec boundary. It is the source of an
+                    description "Local is Ze's own side of the IPsec boundary. It is the source of an
                         outbound packet and the destination of an inbound one, which is the swap
                         direction both performs.";
+                    ze:help "The local side of the selector.";
 
                     leaf prefix {
                         type zt:ip-prefix;
                         mandatory true;
-                        description "Local traffic the entry matches.";
-                        ze:help "The value is a CIDR prefix and Ze installs it as the local selector of
+                        description "The value is a CIDR prefix and Ze installs it as the local selector of
                             the policy. Use 0.0.0.0/0 or ::/0 for every address. The two prefixes of
                             one entry MUST share an address family, and commit refuses a mixed pair
                             because a kernel selector carries one family.";
+                        ze:help "Local traffic the entry matches.";
                     }
 
                     leaf port {
@@ -241,32 +241,32 @@ module ze-ipsec-conf {
                             type uint16 { range "1..65535"; }
                             type enumeration {
                                 enum any {
-                                    description "Every port.";
+                                    ze:help "Every port.";
                                 }
                             }
                         }
                         default any;
-                        description "Local port of the selector.";
-                        ze:help "One exact port, or any for every port. RFC 4301 Section 4.4.1.1 defines
+                        description "One exact port, or any for every port. RFC 4301 Section 4.4.1.1 defines
                             the selector as a list of ranges; the kernel selector Ze programs carries a
                             port and a mask, which expresses every port or one exact port and no
                             range between them. A range is refused rather than widened to any,
                             because widening would bypass or discard traffic the operator did not
                             name.";
+                        ze:help "Local port of the selector.";
                     }
                 }
 
                 container remote {
-                    description "The remote side of the selector.";
-                    ze:help "Remote is the far side of the IPsec boundary. It is the destination of an
+                    description "Remote is the far side of the IPsec boundary. It is the destination of an
                         outbound packet and the source of an inbound one.";
+                    ze:help "The remote side of the selector.";
 
                     leaf prefix {
                         type zt:ip-prefix;
                         mandatory true;
-                        description "Remote traffic the entry matches.";
-                        ze:help "It follows the rules the local prefix states, including the shared
+                        description "It follows the rules the local prefix states, including the shared
                             address family.";
+                        ze:help "Remote traffic the entry matches.";
                     }
 
                     leaf port {
@@ -274,30 +274,30 @@ module ze-ipsec-conf {
                             type uint16 { range "1..65535"; }
                             type enumeration {
                                 enum any {
-                                    description "Every port.";
+                                    ze:help "Every port.";
                                 }
                             }
                         }
                         default any;
-                        description "Remote port of the selector.";
-                        ze:help "It follows the rule the local port states: one exact port or any, and a
+                        description "It follows the rule the local port states: one exact port or any, and a
                             value other than any needs the protocol leaf.";
+                        ze:help "Remote port of the selector.";
                     }
                 }
             }
 
             list esp-group {
                 key "name";
-                description "ESP (Encapsulating Security Payload) group.";
-                ze:help "The group carries the ESP proposals a peer offers for its Child SAs and the lifetime
+                description "The group carries the ESP proposals a peer offers for its Child SAs and the lifetime
                     those SAs run under. A group MUST hold at least one proposal, and commit refuses an
                     empty one. One group holds at most 255 proposals.";
+                ze:help "ESP (Encapsulating Security Payload) group.";
 
                 leaf name {
                     type string;
-                    description "ESP group name.";
-                    ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                    description "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
                         underscore and period. A site-to-site peer references the group by this name.";
+                    ze:help "ESP group name.";
                 }
 
                 leaf lifetime {
@@ -305,13 +305,13 @@ module ze-ipsec-conf {
                         range "0..86400";
                     }
                     default 3600;
-                    description "SA lifetime in seconds. 0 disables expiry.";
-                    ze:help "The Child SA rekey trigger sits ahead of the lifetime by the larger of a
+                    description "The Child SA rekey trigger sits ahead of the lifetime by the larger of a
                         random 10 percent and one retransmit budget. That lead is capped at half the
                         lifetime. RFC 7296 Section 2.8 states the rule. 'When the lifetime of a
                         Security Association expires, the Security Association MUST NOT be used.' Ze
                         therefore tears the SA down at that point, even when a rekey is still in
                         flight. The value 0 starts no rekey and no expiry.";
+                    ze:help "SA lifetime in seconds. 0 disables expiry.";
                 }
 
                 leaf pfs {
@@ -320,49 +320,48 @@ module ze-ipsec-conf {
                         enum disable;
                     }
                     default "enable";
-                    description "Perfect Forward Secrecy for Child SA rekeying.";
-                    ze:help "With enable, Ze puts a KEi payload in the CREATE_CHILD_SA request, and the
+                    description "With enable, Ze puts a KEi payload in the CREATE_CHILD_SA request, and the
                         replacement Child SA is keyed from a fresh Diffie-Hellman secret. With disable,
                         Ze sends no KEi, and the replacement is keyed from SK_d alone, so one leaked
                         SK_d reads every replacement Child SA. RFC 7296 Section 2.17 gives both KEYMAT
                         forms. An ESP proposal carries no Diffie-Hellman group of its own, so Ze offers
                         the group the IKE SA already negotiated. The default is enable, and Ze refuses a
                         response that disagrees with what its request carried.";
+                    ze:help "Perfect Forward Secrecy for Child SA rekeying.";
                 }
 
                 list proposal {
                     key "number";
                     max-elements 255;
-                    description "ESP proposal, where a lower number is a higher priority.";
-                    ze:help "ESP proposal. Lower number = higher priority. One group
+                    description "ESP proposal. Lower number = higher priority. One group
                         offers at most 255 proposals, because RFC 7296 Section 3.3.1
                         numbers them in one octet.";
+                    ze:help "ESP proposal, where a lower number is a higher priority.";
 
                     leaf number {
                         type uint16 {
                             range "1..65535";
                         }
-                        description "Proposal priority number.";
-                        ze:help "The number is a PRIORITY and it is not the Proposal Num of the wire. Ze
+                        description "The number is a PRIORITY and it is not the Proposal Num of the wire. Ze
                             sorts the proposals of the group by this number and offers them lowest
                             first. The wire number comes from the position after that sort, which is how
                             the ike-group proposal number behaves as well.";
+                        ze:help "Proposal priority number.";
                     }
 
                     leaf encryption {
                         type encryption-algo;
                         mandatory true;
-                        description "Encryption algorithm.";
-                        ze:help "No build carries a transform for chacha20poly1305
+                        description "No build carries a transform for chacha20poly1305
                             or 3des, so a proposal that names one is refused at
                             commit. The refusal lists the algorithms the build does
                             implement.";
+                        ze:help "Encryption algorithm.";
                     }
 
                     leaf hash {
                         type hash-algo;
-                        description "Integrity algorithm.";
-                        ze:help "Integrity algorithm. It is required beside a
+                        description "Integrity algorithm. It is required beside a
                             non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296
                             Section 3.3 gives an AEAD cipher its own integrity, so an ESP
                             proposal offers the integrity transform NONE. An ESP proposal
@@ -370,22 +369,23 @@ module ze-ipsec-conf {
                             No build carries a transform for sha1, so a proposal that
                             names it is refused at commit. The refusal lists the
                             algorithms the build does implement.";
+                        ze:help "Integrity algorithm.";
                     }
                 }
             }
 
             list ike-group {
                 key "name";
-                description "IKE (Internet Key Exchange) group.";
-                ze:help "The group carries the IKE proposals, the IKE SA lifetime and the Dead Peer Detection
+                description "The group carries the IKE proposals, the IKE SA lifetime and the Dead Peer Detection
                     timers. A group MUST hold at least one proposal, and commit refuses an empty one.
                     One group holds at most 255 proposals.";
+                ze:help "IKE (Internet Key Exchange) group.";
 
                 leaf name {
                     type string;
-                    description "IKE group name.";
-                    ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                    description "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
                         underscore and period. A site-to-site peer references the group by this name.";
+                    ze:help "IKE group name.";
                 }
 
                 leaf key-exchange {
@@ -394,10 +394,10 @@ module ze-ipsec-conf {
                         enum ikev2;
                     }
                     default "ikev2";
-                    description "IKE protocol version.";
-                    ze:help "The default is ikev2 and the engine writes major version 2 into every header
+                    description "The default is ikev2 and the engine writes major version 2 into every header
                         it sends. The parser stores the value and no other code reads it, so a group that
                         names ikev1 commits and still runs IKEv2.";
+                    ze:help "IKE protocol version.";
                 }
 
                 leaf lifetime {
@@ -405,13 +405,13 @@ module ze-ipsec-conf {
                         range "0..86400";
                     }
                     default 28800;
-                    description "IKE SA lifetime in seconds, where 0 starts no rekey.";
-                    ze:help "Ze rekeys the IKE SA before the lifetime runs out, on the trigger the ESP group
+                    description "Ze rekeys the IKE SA before the lifetime runs out, on the trigger the ESP group
                         lifetime describes. It also rekeys the SA as the message id space nears its
                         ceiling. RFC 7296 Section 2.2 requires that. 'In the unlikely event that Message
                         IDs grow too large to fit in 32 bits, the IKE SA MUST be closed or rekeyed.' The
                         value 0 starts no rekey, so the SA runs until the peer or the operator ends
                         it.";
+                    ze:help "IKE SA lifetime in seconds, where 0 starts no rekey.";
                 }
 
                 leaf close-action {
@@ -421,19 +421,19 @@ module ze-ipsec-conf {
                         enum restart;
                     }
                     default "none";
-                    description "Action when peer closes the IKE SA.";
-                    ze:help "The default is none. The parser stores the value and no other code reads it,
+                    description "The default is none. The parser stores the value and no other code reads it,
                         so none, start and restart leave the daemon with the same behavior. A session
                         whose IKE SA the peer deletes tears its Child SA down and reconnects on a growing
                         backoff. The session loop does this after every failure.";
+                    ze:help "Action when peer closes the IKE SA.";
                 }
 
                 container dead-peer-detection {
-                    description "Dead Peer Detection (DPD) settings (RFC 3706).";
-                    ze:help "The timers run whether or not this container is present. A peer with no DPD
+                    description "The timers run whether or not this container is present. A peer with no DPD
                         block probes every 30 seconds and waits 120 seconds for the answer. The probe is
                         an empty INFORMATIONAL request, which is the liveness check of RFC 7296 Sections
                         1.4 and 2.4.";
+                    ze:help "Dead Peer Detection (DPD) settings (RFC 3706).";
 
                     leaf action {
                         type enumeration {
@@ -442,11 +442,11 @@ module ze-ipsec-conf {
                             enum clear;
                         }
                         default "hold";
-                        description "Action when DPD detects a dead peer.";
-                        ze:help "The default is hold. One log line reads the value when the peer is
+                        description "The default is hold. One log line reads the value when the peer is
                             declared dead, and no other code reads it. The three values restart, hold
                             and clear leave the same behavior. Ze deletes the Child SA, ends the
                             session, and reconnects on a growing backoff.";
+                        ze:help "Action when DPD detects a dead peer.";
                     }
 
                     leaf interval {
@@ -454,9 +454,9 @@ module ze-ipsec-conf {
                             range "1..3600";
                         }
                         default 30;
-                        description "DPD probe interval in seconds.";
-                        ze:help "Ze sends the next probe this long after the last one, and it sends none
+                        description "Ze sends the next probe this long after the last one, and it sends none
                             while a probe is outstanding. The default is 30 seconds.";
+                        ze:help "DPD probe interval in seconds.";
                     }
 
                     leaf timeout {
@@ -464,51 +464,50 @@ module ze-ipsec-conf {
                             range "1..3600";
                         }
                         default 120;
-                        description "DPD timeout in seconds before declaring peer dead.";
-                        ze:help "The value bounds the whole liveness budget, so it covers the first probe and
+                        description "The value bounds the whole liveness budget, so it covers the first probe and
                             every repeat of it. RFC 7296 Section 2.4 allows the verdict only when
                             'repeated attempts to contact it have gone unanswered for a timeout period'.
                             Ze repeats the probe on a growing backoff inside the budget and tears the SA
                             down when the budget runs out. The default is 120 seconds.";
+                        ze:help "DPD timeout in seconds before declaring peer dead.";
                     }
                 }
 
                 list proposal {
                     key "number";
                     max-elements 255;
-                    description "IKE proposal, where a lower number is a higher priority.";
-                    ze:help "IKE proposal. Lower number = higher priority. One group
+                    description "IKE proposal. Lower number = higher priority. One group
                         offers at most 255 proposals, because RFC 7296 Section 3.3.1
                         numbers them in one octet.";
+                    ze:help "IKE proposal, where a lower number is a higher priority.";
 
                     leaf number {
                         type uint16 {
                             range "1..65535";
                         }
-                        description "Proposal priority number.";
-                        ze:help "The number is a PRIORITY and it is not the Proposal Num of the wire. Ze
+                        description "The number is a PRIORITY and it is not the Proposal Num of the wire. Ze
                             sorts the proposals of the group by this number and offers them lowest
                             first. RFC 7296 Section 3.3 sets the wire number. 'The first Proposal in the
                             initiator's SA payload MUST have a Proposal Num of one (1).' Each later one
                             is one greater, so Ze takes that number from the position after the
                             sort.";
+                        ze:help "Proposal priority number.";
                     }
 
                     leaf encryption {
                         type encryption-algo;
                         mandatory true;
-                        description "Encryption algorithm.";
-                        ze:help "No build carries a transform for chacha20poly1305
+                        description "No build carries a transform for chacha20poly1305
                             or 3des, so a proposal that names one is refused at
                             commit. The refusal lists the algorithms the build does
                             implement.";
+                        ze:help "Encryption algorithm.";
                     }
 
                     leaf hash {
                         type hash-algo;
                         mandatory true;
-                        description "PRF and integrity algorithm.";
-                        ze:help "It is required beside
+                        description "It is required beside
                             every cipher, and an AEAD cipher is no exception. RFC 7296
                             Section 3.3.3 makes the PRF a mandatory transform for an IKE
                             proposal, and this leaf names it. An ESP proposal reads the
@@ -517,6 +516,7 @@ module ze-ipsec-conf {
                             No build carries a transform for sha1, so a proposal that
                             names it is refused at commit. The refusal lists the
                             algorithms the build does implement.";
+                        ze:help "PRF and integrity algorithm.";
                     }
 
                     leaf dh-group {
@@ -524,60 +524,59 @@ module ze-ipsec-conf {
                             range "1..31";
                         }
                         mandatory true;
-                        description "Diffie-Hellman group number (RFC 7296 Section 3.3.2).";
-                        ze:help "The number is Transform Type 4 of RFC 7296 Section 3.3.2. That section lists
+                        description "The number is Transform Type 4 of RFC 7296 Section 3.3.2. That section lists
                             the values current at publication, up to 18, and sends the reader to the
                             IANA registry for later ones. Ze takes 1 to 31 and refuses a group this
                             build carries no transform for. The refusal lists the numbers the build does
                             carry, which stops the reserved Transform ID 0 reaching the wire.";
+                        ze:help "Diffie-Hellman group number (RFC 7296 Section 3.3.2).";
                     }
                 }
             }
 
             container remote-access {
-                description "Remote access VPN for road warrior clients (EAP).";
-                ze:help "The subtree parses and no session reads it, so a pool assigns no address and an
+                description "The subtree parses and no session reads it, so a pool assigns no address and an
                     eap-user authenticates nobody. The engine builds the address pool at each apply and
                     then discards it. Configure a road warrior as a site-to-site peer with an EAP mode
                     until the service exists. plan/immediate/spec-ipsec-remote-access.md owns the work.";
+                ze:help "Remote access VPN for road warrior clients (EAP).";
 
                 leaf ike-group {
                     type string;
                     mandatory true;
-                    description "Reference to an IKE group name.";
-                    ze:help "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
+                    description "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
                         name no group carries. No other code reads the reference, because no remote
                         access session runs.";
+                    ze:help "Reference to an IKE group name.";
                 }
 
                 leaf esp-group {
                     type string;
                     mandatory true;
-                    description "Reference to an ESP group name.";
-                    ze:help "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
+                    description "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
                         name no group carries. No other code reads the reference, because no remote
                         access session runs.";
+                    ze:help "Reference to an ESP group name.";
                 }
 
                 container authentication {
-                    description "EAP authentication settings for remote access.";
-                    ze:help "Ze reads this block with the same parser as the site-to-site peer
+                    description "Ze reads this block with the same parser as the site-to-site peer
                         authentication block, so mode is mandatory here too. A handshake takes its EAP
                         server credentials from the peer block instead, so the mode named here selects no
                         method. The one effect it carries is the warning the daemon writes when it names
                         eap-md5.";
+                    ze:help "EAP authentication settings for remote access.";
 
                     leaf mode {
                         type enumeration {
                             enum eap-tls;
                             enum eap-mschapv2;
                             enum eap-md5 {
-                                description "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
+                                ze:help "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
                             }
                         }
                         mandatory true;
-                        description "EAP authentication method.";
-                        ze:help "eap-md5 establishes no shared key, and RFC 7296
+                        description "eap-md5 establishes no shared key, and RFC 7296
                             Section 2.16 discourages such a method: EAP methods that do
                             not establish a shared key SHOULD NOT be used, as they are
                             subject to a number of man-in-the-middle attacks. The IKEv2
@@ -586,164 +585,165 @@ module ze-ipsec-conf {
                             tells the client nothing about Ze. The daemon writes one
                             warning when this mode is adopted. Use eap-tls or
                             eap-mschapv2 unless the client runs no other method.";
+                        ze:help "EAP authentication method.";
                     }
 
                     container x509 {
-                        description "Server certificate references for EAP.";
-                        ze:help "Server certificate references for EAP. Ze parses
+                        description "Server certificate references for EAP. Ze parses
                             both leaves and no component reads them today, so neither
                             takes effect. Ze also leaves both unchecked, so a name that
                             no PKI store entry carries still commits here. The enforced
                             leaves of these names are the site-to-site peer ones.";
+                        ze:help "Server certificate references for EAP.";
 
                         leaf ca-certificate {
                             type string;
-                            description "Name of the CA certificate in the PKI store.
-                                It has no effect today.";
-                            ze:help "Ze compares the name against nothing, so a name no PKI store entry
+                            description "Ze compares the name against nothing, so a name no PKI store entry
                                 carries still commits. The trust anchor of a handshake comes from the
                                 ca-certificate leaf of the site-to-site peer.";
+                            ze:help "Name of the CA certificate in the PKI store.
+                                It has no effect today.";
                         }
 
                         leaf certificate {
                             type string;
-                            description "Name of the server certificate in the PKI store.
-                                It has no effect today.";
-                            ze:help "Ze compares the name against nothing, so a name no PKI store entry
+                            description "Ze compares the name against nothing, so a name no PKI store entry
                                 carries still commits. The certificate a handshake presents comes from
                                 the certificate leaf of the site-to-site peer.";
+                            ze:help "Name of the server certificate in the PKI store.
+                                It has no effect today.";
                         }
                     }
                 }
 
                 list pool {
                     key "name";
-                    description "Virtual IP pool for client address assignment.";
-                    ze:help "Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).";
+                    description "Virtual IP pool for client address assignment (IKEv2 Configuration Payload, RFC 7296 Section 2.19).";
+                    ze:help "Virtual IP pool for client address assignment.";
 
                     leaf name {
                         type string;
-                        description "Pool name.";
-                        ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                        description "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
                             underscore and period, and commit refuses anything else. Ze reads the first
                             pool of the list and ignores every later one. The name labels the pool in the
                             message that refuses a range.";
+                        ze:help "Pool name.";
                     }
 
                     leaf range {
                         type string;
-                        description "IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.";
-                        ze:help "Commit refuses a value that is not a CIDR prefix, and a prefix length
+                        description "Commit refuses a value that is not a CIDR prefix, and a prefix length
                             outside /8 to /30. The pool leases the addresses of the prefix without the
                             network address and the broadcast address, so a /30 carries two clients. An
                             empty leaf leases no IPv4 address. No code reads the pool today, so no client
                             receives an address.";
+                        ze:help "IPv4 CIDR for client addresses (e.g. 10.10.0.0/24). Prefix length /8-/30.";
                     }
 
                     leaf range6 {
                         type string;
-                        description "IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.";
-                        ze:help "Commit refuses a value that is not a CIDR prefix, and a prefix length
+                        description "Commit refuses a value that is not a CIDR prefix, and a prefix length
                             outside /48 to /126. An empty leaf leases no IPv6 address. No code reads the
                             pool today, so no client receives an address.";
+                        ze:help "IPv6 CIDR for client addresses (e.g. fd00::/64). Prefix length /48-/126.";
                     }
 
                     leaf dns {
                         type string;
-                        description "DNS server pushed to clients via IKEv2 Configuration Payload.";
-                        ze:help "The leaf carries one address, and the pool sorts it into its IPv4 list or
+                        description "The leaf carries one address, and the pool sorts it into its IPv4 list or
                             its IPv6 list from the family of that address. RFC 7296 Section 3.15.1 names
                             the attribute that carries it INTERNAL_IP4_DNS or INTERNAL_IP6_DNS. Ze sends
                             no Configuration payload today, so no client receives the address.";
+                        ze:help "DNS server pushed to clients via IKEv2 Configuration Payload.";
                     }
 
                     leaf domain {
                         type string;
-                        description "Search domain pushed to clients.";
-                        ze:help "The pool carries the domain beside the addresses it leases. Ze sends no
+                        description "The pool carries the domain beside the addresses it leases. Ze sends no
                             Configuration payload today, so no client receives the domain.";
+                        ze:help "Search domain pushed to clients.";
                     }
                 }
 
                 list eap-user {
                     key "name";
-                    description "EAP user entry for remote access authentication.";
-                    ze:help "One entry holds the credential of one client. Which leaf carries that
+                    description "One entry holds the credential of one client. Which leaf carries that
                         credential follows the mode of the authentication block: password for
                         eap-mschapv2 and eap-md5, certificate for eap-tls. Ze validates every entry and
                         no handshake reads one, because EAP runs against the credentials of the
                         site-to-site peer.";
+                    ze:help "EAP user entry for remote access authentication.";
 
                     leaf name {
                         type string;
-                        description "Username.";
-                        ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                        description "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
                             underscore and period, and commit refuses anything else. It is the key of the
                             list, so it is unique. No code compares it against the identity an EAP client
                             sends.";
+                        ze:help "Username.";
                     }
 
                     leaf password {
                         type string;
                         ze:sensitive;
-                        description "User password ($9$-encoded). Required for eap-mschapv2.";
-                        ze:help "Ze reads the leaf when the mode of the authentication block is
+                        description "Ze reads the leaf when the mode of the authentication block is
                             eap-mschapv2 or eap-md5, and ignores it under every other mode. The $9$
                             wrapper is removed and what is left is the password. Commit refuses an empty
                             value under those two modes, because an empty password authenticates every
                             client that guesses the name. The CLI writes the value back $9$-encoded and
                             masks it in the configuration output.";
+                        ze:help "User password ($9$-encoded). Required for eap-mschapv2.";
                     }
 
                     leaf certificate {
                         type string;
-                        description "Client certificate name in PKI store. Required for eap-tls.";
-                        ze:help "Ze reads the leaf when the mode of the authentication block is eap-tls,
+                        description "Ze reads the leaf when the mode of the authentication block is eap-tls,
                             and ignores it under every other mode. Commit refuses an empty value under
                             eap-tls. The name is compared against nothing, so a name the PKI store does
                             not hold still commits.";
+                        ze:help "Client certificate name in PKI store. Required for eap-tls.";
                     }
                 }
             }
 
             container site-to-site {
-                description "Site-to-site VPN peers.";
-                ze:help "Each peer under it is one tunnel to one remote gateway. A peer carries its own
+                description "Each peer under it is one tunnel to one remote gateway. A peer carries its own
                     algorithms, its own identity, its own traffic selectors and its own rank in the
                     Security Policy Database.";
+                ze:help "Site-to-site VPN peers.";
 
                 list peer {
                     key "name";
-                    description "Remote VPN peer.";
-                    ze:help "Ze runs one session for each peer. A configuration reload stops and restarts
+                    description "Ze runs one session for each peer. A configuration reload stops and restarts
                         only the peers whose own configuration changed, so a peer left untouched keeps
                         its Child SAs up. A peer MUST reference one IKE group and one ESP group.";
+                    ze:help "Remote VPN peer.";
 
                     leaf name {
                         type string;
-                        description "Peer name (used as connection identifier).";
-                        ze:help "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
+                        description "The name holds 1 to 255 characters from the set a-z, A-Z, 0-9, hyphen,
                             underscore and period. Ze asserts the name as its own IKE identity when the
                             authentication local-id leaf is empty. The name also labels the peer in the
                             log and in the show output.";
+                        ze:help "Peer name (used as connection identifier).";
                     }
 
                     leaf ike-group {
                         type string;
                         mandatory true;
-                        description "Reference to an IKE group name.";
-                        ze:help "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
+                        description "The group MUST be declared under vpn ipsec ike-group, and commit refuses a
                             name no group carries. It supplies the IKE proposals, the IKE SA lifetime
                             and the Dead Peer Detection timers of this peer.";
+                        ze:help "Reference to an IKE group name.";
                     }
 
                     leaf esp-group {
                         type string;
                         mandatory true;
-                        description "Reference to an ESP group name.";
-                        ze:help "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
+                        description "The group MUST be declared under vpn ipsec esp-group, and commit refuses a
                             name no group carries. It supplies the ESP proposals Ze offers for this
                             peer's Child SAs and the lifetime those SAs run under.";
+                        ze:help "Reference to an ESP group name.";
                     }
 
                     leaf connection-type {
@@ -752,80 +752,80 @@ module ze-ipsec-conf {
                             enum respond;
                         }
                         default "initiate";
-                        description "Whether to initiate or wait for the remote peer.";
-                        ze:help "With `initiate` Ze starts the IKE_SA_INIT exchange toward remote-address.
+                        description "With `initiate` Ze starts the IKE_SA_INIT exchange toward remote-address.
                             With respond Ze starts nothing and waits. Ze matches an unsolicited
                             IKE_SA_INIT to a respond peer when the source address of the datagram
                             equals its remote-address. A respond peer that names no remote-address
                             therefore matches nothing.";
+                        ze:help "Whether to initiate or wait for the remote peer.";
                     }
 
                     leaf local-address {
                         type string;
-                        description "Local endpoint IP address.";
-                        ze:help "The value is an IP address literal. Ze reads it with net.ParseIP, so an
+                        description "The value is an IP address literal. Ze reads it with net.ParseIP, so an
                             interface name here resolves to nothing and the peer cannot build a Child
                             SA. Name the interface under vpn ipsec interface instead, and Ze fills this
                             leaf from the first IPv4 address of that interface.";
+                        ze:help "Local endpoint IP address.";
                     }
 
                     leaf remote-address {
                         type string;
-                        description "Remote endpoint IPv4 address or DNS hostname.";
-                        ze:help "Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to
+                        description "Ze resolves the value with net.ResolveUDPAddr over udp4 and sends IKE to
                             port 500 there, so an IPv6 literal is refused with \"ike: resolve remote\".
                             Ze builds the NAT detection hashes of RFC 7296 Section 2.23 from this value.
                             It sends none when the value is not an address literal. An unsolicited
                             IKE_SA_INIT reaches a respond peer only when its source address equals this
                             leaf, character for character.";
+                        ze:help "Remote endpoint IPv4 address or DNS hostname.";
                     }
 
                     leaf mode {
                         type enumeration {
                             enum tunnel {
-                                description "Encapsulate the whole packet (RFC 4301 tunnel mode).";
+                                ze:help "Encapsulate the whole packet (RFC 4301 tunnel mode).";
                             }
                             enum transport {
-                                description "Protect the payload and keep the outer IP header (RFC 4301 transport mode).";
+                                ze:help "Protect the payload and keep the outer IP header (RFC 4301 transport mode).";
                             }
 
                         }
                         default tunnel;
-                        description "Encapsulation mode for this peer's Child SAs.";
+                        description "Encapsulation mode for this peer's Child SAs.
+
+                                     RFC 7296 Section 1.3.1 states the default itself: 'Except when
+                                     using this option to negotiate transport mode, all Child SAs will
+                                     use tunnel mode.' Ze asks for transport mode by sending
+                                     USE_TRANSPORT_MODE with the Child SA request, and the peer can
+                                     decline. A declined request establishes a tunnel-mode Child SA
+                                     unless transport-required is set.
+
+                                     Transport mode constrains the traffic selectors. RFC 7296 Section
+                                     2.23.1 requires exactly one IP address in TSi and in TSr, so every
+                                     traffic-selector prefix under this peer must be a single host, and
+                                     a vti binding is refused because an XFRM interface carries tunnel
+                                     encapsulation.";
                         ze:help
-                            "Encapsulation mode for this peer's Child SAs.
-
-                             RFC 7296 Section 1.3.1 states the default itself: 'Except when
-                             using this option to negotiate transport mode, all Child SAs will
-                             use tunnel mode.' Ze asks for transport mode by sending
-                             USE_TRANSPORT_MODE with the Child SA request, and the peer can
-                             decline. A declined request establishes a tunnel-mode Child SA
-                             unless transport-required is set.
-
-                             Transport mode constrains the traffic selectors. RFC 7296 Section
-                             2.23.1 requires exactly one IP address in TSi and in TSr, so every
-                             traffic-selector prefix under this peer must be a single host, and
-                             a vti binding is refused because an XFRM interface carries tunnel
-                             encapsulation.";
+                            "Encapsulation mode for this peer's Child SAs.";
                     }
 
                     leaf transport-required {
                         type boolean;
                         default false;
-                        description "Delete the SA when the peer declines transport mode.";
+                        description "Whether a peer that declines transport mode is unacceptable.
+
+                                     RFC 7296 Section 1.3.1: 'If the responder declines the request, the
+                                     Child SA will be established in tunnel mode. If this is unacceptable
+                                     to the initiator, the initiator MUST delete the SA.' Only the
+                                     operator knows whether it is unacceptable, so this leaf carries that
+                                     decision. When it is true and the response omits USE_TRANSPORT_MODE,
+                                     Ze deletes the SA rather than run a tunnel-mode Child SA the
+                                     operator did not ask for. When it is false the SA stays up in
+                                     tunnel mode, which is the safe default.
+
+                                     It applies only when mode is transport.";
                         ze:help
-                            "Whether a peer that declines transport mode is unacceptable.
-
-                             RFC 7296 Section 1.3.1: 'If the responder declines the request, the
-                             Child SA will be established in tunnel mode. If this is unacceptable
-                             to the initiator, the initiator MUST delete the SA.' Only the
-                             operator knows whether it is unacceptable, so this leaf carries that
-                             decision. When it is true and the response omits USE_TRANSPORT_MODE,
-                             Ze deletes the SA rather than run a tunnel-mode Child SA the
-                             operator did not ask for. When it is false the SA stays up in
-                             tunnel mode, which is the safe default.
-
-                             It applies only when mode is transport.";
+                            "Delete the SA when the peer declines transport mode.";
                     }
 
                     leaf policy-priority {
@@ -833,75 +833,75 @@ module ze-ipsec-conf {
                             range "101..2147483647";
                         }
                         default 2000;
-                        description "Rank of this peer's Security Policy Database entries, lowest searched first.";
+                        description "Where this peer's Security Policy Database entries sit in the
+                                     operator's ordering of that database. A LOWER value is searched
+                                     FIRST, in Ze and in the Linux kernel.
+
+                                     RFC 4301 Section 4.4.1: 'The ordering requirement arises because
+                                     entries often will overlap due to the presence of (non-trivial)
+                                     ranges as values for selectors. Thus, a user or administrator MUST
+                                     be able to order the entries to express a desired access control
+                                     policy.' The same section binds this interface: it 'MUST support
+                                     (total) ordering of these entries, as seen via this interface'.
+
+                                     Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for
+                                     example, describe the same traffic. Give the one that must win the
+                                     lower value. Peers that share a value are ordered by whichever
+                                     established last, which is what every peer did before this leaf
+                                     existed, so the default 2000 keeps an unordered configuration
+                                     installing exactly what it installed before.
+
+                                     The range starts above 100, which is where the IKE control-plane
+                                     bypass sits. A peer entry at or above that rank captures the IKE
+                                     exchange that builds and rekeys the very SA it protects, and the
+                                     tunnel could then never renegotiate. It ends at 2147483647, the
+                                     largest rank Ze can carry to a dataplane.";
                         ze:help
-                            "Where this peer's Security Policy Database entries sit in the
-                             operator's ordering of that database. A LOWER value is searched
-                             FIRST, in Ze and in the Linux kernel.
-
-                             RFC 4301 Section 4.4.1: 'The ordering requirement arises because
-                             entries often will overlap due to the presence of (non-trivial)
-                             ranges as values for selectors. Thus, a user or administrator MUST
-                             be able to order the entries to express a desired access control
-                             policy.' The same section binds this interface: it 'MUST support
-                             (total) ordering of these entries, as seen via this interface'.
-
-                             Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for
-                             example, describe the same traffic. Give the one that must win the
-                             lower value. Peers that share a value are ordered by whichever
-                             established last, which is what every peer did before this leaf
-                             existed, so the default 2000 keeps an unordered configuration
-                             installing exactly what it installed before.
-
-                             The range starts above 100, which is where the IKE control-plane
-                             bypass sits. A peer entry at or above that rank captures the IKE
-                             exchange that builds and rekeys the very SA it protects, and the
-                             tunnel could then never renegotiate. It ends at 2147483647, the
-                             largest rank Ze can carry to a dataplane.";
+                            "Rank of this peer's Security Policy Database entries, lowest searched first.";
                     }
 
                     list traffic-selector {
                         key "number";
-                        description "The traffic this peer's Child SAs carry.";
+                        description "The traffic this peer's Child SAs carry, and the policy RFC 7296
+                                     Section 2.9 narrows a peer's proposal against.
+
+                                     When no entry is present the peer accepts whatever the remote
+                                     endpoint proposes, which is the behavior of every configuration
+                                     written before this list existed. Adding an entry restricts the
+                                     peer: a proposal Ze cannot narrow to a non-empty subset of these
+                                     entries is answered with TS_UNACCEPTABLE.
+
+                                     RFC 7296 Section 2.9 permits several selectors, so this is a list.";
                         ze:help
-                            "The traffic this peer's Child SAs carry, and the policy RFC 7296
-                             Section 2.9 narrows a peer's proposal against.
-
-                             When no entry is present the peer accepts whatever the remote
-                             endpoint proposes, which is the behavior of every configuration
-                             written before this list existed. Adding an entry restricts the
-                             peer: a proposal Ze cannot narrow to a non-empty subset of these
-                             entries is answered with TS_UNACCEPTABLE.
-
-                             RFC 7296 Section 2.9 permits several selectors, so this is a list.";
+                            "The traffic this peer's Child SAs carry.";
 
                         leaf number {
                             type string {
                                 length "1..16";
                                 pattern '[0-9]+';
                             }
-                            description "Selector identifier. Order is the order of proposal.";
-                            ze:help "Ze proposes the entries in the order the configuration declares them,
+                            description "Ze proposes the entries in the order the configuration declares them,
                                 and it does not sort them by this number. The number is the key of the
                                 list, so commit refuses a peer that declares one number twice.";
+                            ze:help "Selector identifier. Order is the order of proposal.";
                         }
 
                         container local {
-                            description "The local side of the selector pair (TSi when Ze
-                                initiates, TSr when Ze responds).";
-                            ze:help "The prefix under it is mandatory once a traffic-selector entry exists,
+                            description "The prefix under it is mandatory once a traffic-selector entry exists,
                                 and commit refuses an entry that leaves it out. The port under it takes
                                 any unless the protocol leaf names a protocol that carries ports.";
+                            ze:help "The local side of the selector pair (TSi when Ze
+                                initiates, TSr when Ze responds).";
 
                             leaf prefix {
                                 type zt:ip-prefix;
                                 mandatory true;
-                                description "Local traffic the Child SA carries.";
-                                ze:help "The value is a CIDR prefix, and Ze installs it as the local selector
+                                description "The value is a CIDR prefix, and Ze installs it as the local selector
                                     of the kernel policy. Under mode transport the prefix MUST cover
                                     exactly one address, a /32 or a /128. RFC 7296 Section 2.23.1
                                     requires one IP address in TSi and in TSr, so commit refuses
                                     anything wider there.";
+                                ze:help "Local traffic the Child SA carries.";
                             }
 
                             leaf port {
@@ -909,37 +909,37 @@ module ze-ipsec-conf {
                                     type uint16 { range "1..65535"; }
                                     type enumeration {
                                         enum any {
-                                            description "Every port. RFC 7296 Section 3.13.1
+                                            ze:help "Every port. RFC 7296 Section 3.13.1
                                                 encodes it as start 0, end 65535.";
                                         }
                                     }
                                 }
                                 default any;
-                                description "Local port of the selector.";
-                                ze:help
-                                    "Local port of the selector.
+                                description "Local port of the selector.
 
-                                     RFC 7296 Section 3.13.1 requires the port fields to be 0 and
-                                     65535 whenever the protocol is 0 or defines no port, so a
-                                     value other than any needs the protocol leaf to name a
-                                     protocol that has ports.";
+                                             RFC 7296 Section 3.13.1 requires the port fields to be 0 and
+                                             65535 whenever the protocol is 0 or defines no port, so a
+                                             value other than any needs the protocol leaf to name a
+                                             protocol that has ports.";
+                                ze:help
+                                    "Local port of the selector.";
                             }
                         }
 
                         container remote {
-                            description "The remote side of the selector pair (TSr when Ze
-                                initiates, TSi when Ze responds).";
-                            ze:help "It obeys the rules the local container states. Ze narrows the peer's
+                            description "It obeys the rules the local container states. Ze narrows the peer's
                                 proposal against the pair of prefixes, and it answers TS_UNACCEPTABLE
                                 when no non-empty subset remains.";
+                            ze:help "The remote side of the selector pair (TSr when Ze
+                                initiates, TSi when Ze responds).";
 
                             leaf prefix {
                                 type zt:ip-prefix;
                                 mandatory true;
-                                description "Remote traffic the Child SA carries.";
-                                ze:help "The value is a CIDR prefix, and Ze installs it as the remote
+                                description "The value is a CIDR prefix, and Ze installs it as the remote
                                     selector of the kernel policy. The single-address rule the local
                                     prefix states applies here as well under mode transport.";
+                                ze:help "Remote traffic the Child SA carries.";
                             }
 
                             leaf port {
@@ -947,36 +947,36 @@ module ze-ipsec-conf {
                                     type uint16 { range "1..65535"; }
                                     type enumeration {
                                         enum any {
-                                            description "Every port. RFC 7296 Section 3.13.1
+                                            ze:help "Every port. RFC 7296 Section 3.13.1
                                                 encodes it as start 0, end 65535.";
                                         }
                                     }
                                 }
                                 default any;
-                                description "Remote port of the selector.";
+                                description "It follows the same rule as the local port: a value other
+                                             than any needs the protocol leaf.";
                                 ze:help
-                                    "It follows the same rule as the local port: a value other
-                                     than any needs the protocol leaf.";
+                                    "Remote port of the selector.";
                             }
                         }
 
                         leaf protocol {
                             type uint8;
                             default 0;
-                            description "IP protocol number the selector matches.";
+                            description "IP protocol number the selector matches, such as 6 for TCP and
+                                         17 for UDP. Zero matches every protocol, which is RFC 7296
+                                         Section 3.13.1's 'protocol 0'.";
                             ze:help
-                                "IP protocol number the selector matches, such as 6 for TCP and
-                                 17 for UDP. Zero matches every protocol, which is RFC 7296
-                                 Section 3.13.1's 'protocol 0'.";
+                                "IP protocol number the selector matches.";
                         }
                     }
 
                     container authentication {
-                        description "Peer authentication settings.";
-                        ze:help "The mode leaf decides which leaf below it Ze reads. A pre-shared-secret peer
+                        description "The mode leaf decides which leaf below it Ze reads. A pre-shared-secret peer
                             and an EAP password mode read pre-shared-secret. X.509 and every EAP mode
                             read certificate and ca-certificate, and commit refuses a peer that leaves
                             either of those empty.";
+                        ze:help "Peer authentication settings.";
 
                         leaf mode {
                             type enumeration {
@@ -985,12 +985,11 @@ module ze-ipsec-conf {
                                 enum eap-tls;
                                 enum eap-mschapv2;
                                 enum eap-md5 {
-                                    description "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
+                                    ze:help "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
                                 }
                             }
                             mandatory true;
-                            description "Authentication mode.";
-                            ze:help "eap-md5 establishes no shared key, and RFC 7296
+                            description "eap-md5 establishes no shared key, and RFC 7296
                                 Section 2.16 discourages such a method: EAP methods that
                                 do not establish a shared key SHOULD NOT be used, as
                                 they are subject to a number of man-in-the-middle
@@ -1000,16 +999,17 @@ module ze-ipsec-conf {
                                 peer nothing about the far end. The daemon writes one
                                 warning when this mode is adopted. Use eap-tls or
                                 eap-mschapv2 unless the far end runs no other method.";
+                            ze:help "Authentication mode.";
                         }
 
                         leaf pre-shared-secret {
                             type string;
                             ze:sensitive;
-                            description "Pre-shared key ($9$-encoded).";
-                            ze:help "Ze reads the leaf when the mode is pre-shared-secret, and when the mode
+                            description "Ze reads the leaf when the mode is pre-shared-secret, and when the mode
                                 is an EAP method that carries a password. The $9$ wrapper is removed
                                 first, and the pre-shared-secret-encoding leaf then decides whether the
                                 result is ASCII text or hexadecimal digit pairs.";
+                            ze:help "Pre-shared key ($9$-encoded).";
                         }
 
                         leaf pre-shared-secret-encoding {
@@ -1018,38 +1018,37 @@ module ze-ipsec-conf {
                                 enum hex;
                             }
                             default ascii;
-                            description "How to read the pre-shared-secret value.";
-                            ze:help
-                                "RFC 7296
-                                 Section 2.15 requires the management interface to
-                                 accept both an ASCII string and a hex encoding of
-                                 the shared secret. Set this to hex to supply the
-                                 secret as hexadecimal digit pairs, which is the way
-                                 to configure a secret holding non-printable octets.
+                            description "RFC 7296
+                                         Section 2.15 requires the management interface to
+                                         accept both an ASCII string and a hex encoding of
+                                         the shared secret. Set this to hex to supply the
+                                         secret as hexadecimal digit pairs, which is the way
+                                         to configure a secret holding non-printable octets.
 
-                                 The encoding is stated here and is never guessed from
-                                 the value. A secret such as abcdef0123456789 is both
-                                 valid ASCII and valid hex, so reading it as hex would
-                                 silently change an existing secret. A hex value with
-                                 an odd length or a non-hexadecimal character is
-                                 refused at commit rather than read as ASCII.";
+                                         The encoding is stated here and is never guessed from
+                                         the value. A secret such as abcdef0123456789 is both
+                                         valid ASCII and valid hex, so reading it as hex would
+                                         silently change an existing secret. A hex value with
+                                         an odd length or a non-hexadecimal character is
+                                         refused at commit rather than read as ASCII.";
+                            ze:help
+                                "How to read the pre-shared-secret value.";
                         }
 
                         leaf local-id {
                             type string;
-                            description "Local identity for IKE negotiation.";
-                            ze:help "Ze derives the ID type it sends from the shape of the value. An IP
+                            description "Ze derives the ID type it sends from the shape of the value. An IP
                                 address literal goes out as ID_IPV4_ADDR or ID_IPV6_ADDR, and every
                                 other value as ID_FQDN. There is no ID_DER_ASN1_DN form, so commit
                                 refuses a distinguished name. Commit also refuses a subtree or an
                                 address range, because this leaf names the one identity Ze asserts. An
                                 empty leaf sends the peer name.";
+                            ze:help "Local identity for IKE negotiation.";
                         }
 
                         leaf remote-id {
                             type string;
-                            description "Identity the remote endpoint must assert.";
-                            ze:help "When it is set,
+                            description "When it is set,
                                 Ze refuses an IKE_AUTH whose ID payload names another identity.
                                 Comparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN,
                                 ID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value
@@ -1077,6 +1076,7 @@ module ze-ipsec-conf {
                                 When it is empty Ze checks no identity, so every certificate the
                                 ca-certificate issued authenticates as this peer. Set it whenever
                                 that authority issues to more than one client.";
+                            ze:help "Identity the remote endpoint must assert.";
                         }
 
                         leaf remote-id-type {
@@ -1088,201 +1088,201 @@ module ze-ipsec-conf {
                                 enum key-id;
                                 enum der-asn1-dn;
                             }
-                            description "The one IKE ID type the remote endpoint CAN assert.";
+                            description "The one IKE ID type the remote endpoint CAN assert, and when
+                                         absent any type Ze CAN compare, which is the historical behavior.
+                                         When it is set Ze refuses every other type, so a peer asserting
+                                         ID_FQDN with the text of a configured mail address is refused.
+
+                                         RFC 7296 Section 4 requires that it be possible to configure Ze to
+                                         accept a PKIX certificate where the identity passed is ID_KEY_ID.
+                                         An opaque key id corresponds to no certificate field, so Ze cannot
+                                         derive that binding and refuses it by default. Setting this leaf to
+                                         key-id is the operator stating that a chain to ca-certificate plus
+                                         the exact key id IS the intended binding.
+
+                                         It governs what Ze ACCEPTS, and the type Ze sends still follows
+                                         the shape of local-id.";
                             ze:help
-                                "The one IKE ID type the remote endpoint CAN assert, and when
-                                 absent any type Ze CAN compare, which is the historical behavior.
-                                 When it is set Ze refuses every other type, so a peer asserting
-                                 ID_FQDN with the text of a configured mail address is refused.
-
-                                 RFC 7296 Section 4 requires that it be possible to configure Ze to
-                                 accept a PKIX certificate where the identity passed is ID_KEY_ID.
-                                 An opaque key id corresponds to no certificate field, so Ze cannot
-                                 derive that binding and refuses it by default. Setting this leaf to
-                                 key-id is the operator stating that a chain to ca-certificate plus
-                                 the exact key id IS the intended binding.
-
-                                 It governs what Ze ACCEPTS, and the type Ze sends still follows
-                                 the shape of local-id.";
+                                "The one IKE ID type the remote endpoint CAN assert.";
                         }
 
                         leaf session-resumption {
                             type boolean;
                             default true;
-                            description "Let an EAP-TLS exchange with this peer resume an earlier one.";
+                            description "RFC 9190 Section 2.1.3 leaves resumption to each end: 'It is up
+                                         to the EAP-TLS peer to use resumption', and 'the EAP-TLS server
+                                         MAY choose to require a full handshake'. This leaf is that
+                                         choice, and it covers both roles of this peer.
+
+                                         With it true, an authentication that follows an earlier one
+                                         skips the certificate exchange and reuses the session the ticket
+                                         carries. Ze still checks the cached chain against the current
+                                         ca-certificate and crl before it accepts the session, on both
+                                         roles, so a revoked or expired certificate is refused on a
+                                         resumed authentication as it is on a full one.
+
+                                         With it false every authentication runs a full handshake. Ze
+                                         still SENDS a session ticket, because RFC 9190 Section 2.1.2
+                                         makes that a MUST with no condition on it; the ticket is simply
+                                         never accepted back.
+
+                                         Changing this leaf, the certificate, the ca-certificate or the
+                                         crl discards every ticket ze holds for this peer.";
                             ze:help
-                                "RFC 9190 Section 2.1.3 leaves resumption to each end: 'It is up
-                                 to the EAP-TLS peer to use resumption', and 'the EAP-TLS server
-                                 MAY choose to require a full handshake'. This leaf is that
-                                 choice, and it covers both roles of this peer.
-
-                                 With it true, an authentication that follows an earlier one
-                                 skips the certificate exchange and reuses the session the ticket
-                                 carries. Ze still checks the cached chain against the current
-                                 ca-certificate and crl before it accepts the session, on both
-                                 roles, so a revoked or expired certificate is refused on a
-                                 resumed authentication as it is on a full one.
-
-                                 With it false every authentication runs a full handshake. Ze
-                                 still SENDS a session ticket, because RFC 9190 Section 2.1.2
-                                 makes that a MUST with no condition on it; the ticket is simply
-                                 never accepted back.
-
-                                 Changing this leaf, the certificate, the ca-certificate or the
-                                 crl discards every ticket ze holds for this peer.";
+                                "Let an EAP-TLS exchange with this peer resume an earlier one.";
                         }
 
                         leaf certificate-status-request {
                             type boolean;
                             default false;
-                            description "Check this peer's EAP-TLS certificate chain by the OCSP response it staples.";
+                            description "RFC 9190 Section 5.4 recommends OCSP stapling for checking an
+                                         EAP-TLS server's certificate chain, and puts a MUST on the peer
+                                         that uses it: 'it MUST treat a CertificateEntry (but not the trust
+                                         anchor) without a valid CertificateStatus extension as invalid and
+                                         abort the handshake with an appropriate alert'. This leaf is what
+                                         makes Ze such a peer.
+
+                                         With it true, Ze refuses an authenticator that staples nothing,
+                                         staples a response about another certificate, staples an expired
+                                         one, or staples one that reports the certificate revoked or
+                                         unknown. It also refuses a chain carrying an intermediate below
+                                         the trust anchor, because Ze reads a stapled status for the leaf
+                                         certificate alone and Section 5.4 makes an entry whose status it
+                                         cannot read invalid.
+
+                                         With it false, which is the default, Ze checks the same chain
+                                         against the crl of the ca it validates against. Section 5.4
+                                         requires that check on TLS 1.3 either way.
+
+                                         It governs the peer role. As the authenticator Ze answers a
+                                         Certificate Status Request whenever the pki certificate it
+                                         presents carries an ocsp-response, whatever this leaf says.";
                             ze:help
-                                "RFC 9190 Section 5.4 recommends OCSP stapling for checking an
-                                 EAP-TLS server's certificate chain, and puts a MUST on the peer
-                                 that uses it: 'it MUST treat a CertificateEntry (but not the trust
-                                 anchor) without a valid CertificateStatus extension as invalid and
-                                 abort the handshake with an appropriate alert'. This leaf is what
-                                 makes Ze such a peer.
-
-                                 With it true, Ze refuses an authenticator that staples nothing,
-                                 staples a response about another certificate, staples an expired
-                                 one, or staples one that reports the certificate revoked or
-                                 unknown. It also refuses a chain carrying an intermediate below
-                                 the trust anchor, because Ze reads a stapled status for the leaf
-                                 certificate alone and Section 5.4 makes an entry whose status it
-                                 cannot read invalid.
-
-                                 With it false, which is the default, Ze checks the same chain
-                                 against the crl of the ca it validates against. Section 5.4
-                                 requires that check on TLS 1.3 either way.
-
-                                 It governs the peer role. As the authenticator Ze answers a
-                                 Certificate Status Request whenever the pki certificate it
-                                 presents carries an ocsp-response, whatever this leaf says.";
+                                "Check this peer's EAP-TLS certificate chain by the OCSP response it staples.";
                         }
 
                         leaf certificate-count {
                             type uint8 { range "1..4"; }
                             default 4;
-                            description "The most X.509 certificates Ze sends to this peer and accepts from it.";
-                            ze:help
-                                "The most X.509 certificates Ze sends for this peer, and the most it
-                                 accepts from it. RFC 7296 Section 3.6 requires an implementation be
-                                 capable of being configured to send and accept up to four. The
-                                 default is that figure, so an operator who never sets this leaf
-                                 gets the conformant behavior.
+                            description "The most X.509 certificates Ze sends for this peer, and the most it
+                                         accepts from it. RFC 7296 Section 3.6 requires an implementation be
+                                         capable of being configured to send and accept up to four. The
+                                         default is that figure, so an operator who never sets this leaf
+                                         gets the conformant behavior.
 
-                                 A peer that sends more than this is REFUSED, never truncated. A
-                                 silent trim would pass a count check and hide from the operator
-                                 that the limit was reached. It would also make which certificates
-                                 survive depend on the order the peer chose.";
+                                         A peer that sends more than this is REFUSED, never truncated. A
+                                         silent trim would pass a count check and hide from the operator
+                                         that the limit was reached. It would also make which certificates
+                                         survive depend on the order the peer chose.";
+                            ze:help
+                                "The most X.509 certificates Ze sends to this peer and accepts from it.";
                         }
 
                         leaf hash-and-url {
                             type boolean;
                             default false;
-                            description "Use the Hash and URL certificate encodings of RFC 7296 Section 3.6.";
+                            description "When it is true Ze sends its certificate as a SHA-1 hash plus
+                                         certificate-url, advertises HTTP_CERT_LOOKUP_SUPPORTED, and
+                                         resolves a peer's Hash and URL payload.
+
+                                         It defaults to false, and that default is a security property.
+                                         Resolving a peer's payload fetches a URL that peer chose, and Ze
+                                         must do that before it CAN authenticate the peer. With this leaf
+                                         false Ze advertises nothing, a conforming peer sends no such
+                                         payload, a non-conforming one is dropped, and no fetch is reachable.
+
+                                         The enabled fetch takes the http scheme only, a 64 KiB cap, a
+                                         5 second timeout, no redirects, denied destinations, and SHA-1
+                                         verification before any parser.";
                             ze:help
-                                "When it is true Ze sends its certificate as a SHA-1 hash plus
-                                 certificate-url, advertises HTTP_CERT_LOOKUP_SUPPORTED, and
-                                 resolves a peer's Hash and URL payload.
-
-                                 It defaults to false, and that default is a security property.
-                                 Resolving a peer's payload fetches a URL that peer chose, and Ze
-                                 must do that before it CAN authenticate the peer. With this leaf
-                                 false Ze advertises nothing, a conforming peer sends no such
-                                 payload, a non-conforming one is dropped, and no fetch is reachable.
-
-                                 The enabled fetch takes the http scheme only, a 64 KiB cap, a
-                                 5 second timeout, no redirects, denied destinations, and SHA-1
-                                 verification before any parser.";
+                                "Use the Hash and URL certificate encodings of RFC 7296 Section 3.6.";
                         }
 
                         leaf certificate-url {
                             type string;
-                            description "The http URL at which this device publishes its own certificate.";
+                            description "The http URL at which this device's own certificate is published,
+                                         sent beside the SHA-1 hash when hash-and-url is true. RFC 7296
+                                         Section 3.6 requires support for the http scheme.";
                             ze:help
-                                "The http URL at which this device's own certificate is published,
-                                 sent beside the SHA-1 hash when hash-and-url is true. RFC 7296
-                                 Section 3.6 requires support for the http scheme.";
+                                "The http URL at which this device publishes its own certificate.";
                         }
 
                         leaf-list certificate-url-allow {
                             type zt:ip-prefix;
-                            description "Extra destinations a certificate URL from this peer CAN resolve to.";
+                            description "Destinations a certificate URL received from this peer CAN resolve
+                                         to, beyond the fetcher's defaults. The fetcher refuses loopback,
+                                         private, link-local and multicast addresses, and the cloud metadata
+                                         address. It refuses them because the daemon runs on a router and
+                                         holds routes an internet host does not. Naming a prefix here
+                                         permits it.";
                             ze:help
-                                "Destinations a certificate URL received from this peer CAN resolve
-                                 to, beyond the fetcher's defaults. The fetcher refuses loopback,
-                                 private, link-local and multicast addresses, and the cloud metadata
-                                 address. It refuses them because the daemon runs on a router and
-                                 holds routes an internet host does not. Naming a prefix here
-                                 permits it.";
+                                "Extra destinations a certificate URL from this peer CAN resolve to.";
                         }
 
                         leaf ca-certificate {
                             type string;
-                            description "Name of the CA certificate in the PKI store.";
-                            ze:help "Name of the CA certificate in the PKI store. Required for
+                            description "Name of the CA certificate in the PKI store. Required for
                                 every EAP mode and for X.509. It is the trust anchor the remote
                                 certificate must chain to, through any intermediate certificates the
                                 peer sends. Without it any self-signed certificate would
                                 authenticate. The remote certificate must also carry the remote-id
                                 identity in a subject alternative name. Ze reads the subject common
                                 name only when the certificate has no such extension.";
+                            ze:help "Name of the CA certificate in the PKI store.";
                         }
 
                         leaf certificate {
                             type string;
-                            description "Name of the device certificate in the PKI store.";
-                            ze:help "Name of the device certificate in the PKI store. Required for
+                            description "Name of the device certificate in the PKI store. Required for
                                 every EAP mode, because RFC 7296 Section 2.16 makes the responder sign
                                 its AUTH with a public key. Also used by X.509 mode. Ze sends this
                                 certificate first, then the intermediate certificate the PKI entry
                                 carries.";
+                            ze:help "Name of the device certificate in the PKI store.";
                         }
 
                         container x509 {
-                            description "X.509 certificate references, deprecated in favor of the direct leaves.";
-                            ze:help "X.509 certificate references (deprecated, use
+                            description "X.509 certificate references (deprecated, use
                                 the direct leaves). Ze reads a leaf here only when the
                                 direct leaf of the same name is empty. A name set here
                                 therefore meets the same requirement the direct leaf
                                 meets, and it is checked against the PKI store the same
                                 way.";
+                            ze:help "X.509 certificate references, deprecated in favor of the direct leaves.";
 
                             leaf ca-certificate {
                                 type string;
-                                description "Name of the CA certificate in the PKI store.";
-                                ze:help "Ze reads it only when the direct ca-certificate
+                                description "Ze reads it only when the direct ca-certificate
                                     leaf is empty. It then satisfies the trust anchor that
                                     every EAP mode and X.509 require.";
+                                ze:help "Name of the CA certificate in the PKI store.";
                             }
 
                             leaf certificate {
                                 type string;
-                                description "Name of the device certificate in the PKI store.";
-                                ze:help "Ze reads it only when the direct certificate
+                                description "Ze reads it only when the direct certificate
                                     leaf is empty. It then satisfies the certificate that
                                     every EAP mode and X.509 require.";
+                                ze:help "Name of the device certificate in the PKI store.";
 
                             }
                         }
                     }
 
                     container vti {
-                        description "Virtual Tunnel Interface binding.";
-                        ze:help "The interface itself is declared under interfaces xfrm, where the if-id
+                        description "The interface itself is declared under interfaces xfrm, where the if-id
                             leaf carries the identifier a bound security association must match. Ze joins
                             the two nowhere, so every Child SA is installed with if_id 0.";
+                        ze:help "Virtual Tunnel Interface binding.";
 
                         leaf bind {
                             type string;
-                            description "VTI interface name to bind this peer's traffic to.";
-                            ze:help "Route-based IPsec encrypts the traffic the routing table forwards
+                            description "Route-based IPsec encrypts the traffic the routing table forwards
                                 into the named XFRM interface. Commit refuses a name beside mode
                                 transport, because an XFRM interface carries tunnel-mode encapsulation.
                                 No code maps the name to the if-id of that interface today. The Child
                                 SA is installed with if_id 0, and the binding carries no traffic.";
+                            ze:help "VTI interface name to bind this peer's traffic to.";
                         }
                     }
                 }

@@ -23,14 +23,14 @@ const (
 	fieldCommands    = "commands"
 	fieldCompletions = "completions"
 	fieldCount       = "count"
-	fieldDescription = "description"
-	// fieldLongHelp is the response payload key carrying the long explanation.
-	// fieldDescription carries the summary beside it, and neither is derived
+	fieldShortHelp   = "short-help"
+	// fieldDescription is the response payload key carrying the long explanation.
+	// fieldShortHelp carries the summary beside it, and neither is derived
 	// from the other.
-	fieldLongHelp   = "long-help"
-	fieldMessage    = "message"
-	fieldSource     = "source"
-	fieldSubsystems = "subsystems"
+	fieldDescription = "description"
+	fieldMessage     = "message"
+	fieldSource      = "source"
+	fieldSubsystems  = "subsystems"
 )
 
 func init() {
@@ -59,8 +59,8 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response,
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			commands = append(commands, map[string]any{
-				"name":           cmd.Name,
-				fieldDescription: cmd.Description,
+				"name":         cmd.Name,
+				fieldShortHelp: cmd.ShortHelp,
 			})
 		}
 	}
@@ -90,8 +90,8 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 				Status: plugin.StatusDone,
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
+					fieldShortHelp:   cmd.ShortHelp,
 					fieldDescription: cmd.Description,
-					fieldLongHelp:    cmd.LongHelp,
 					fieldArgs:        cmd.Args,
 					fieldSource:      cmd.Process.Name(),
 				},

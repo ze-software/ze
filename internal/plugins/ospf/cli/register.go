@@ -28,10 +28,10 @@ import (
 
 func init() {
 	registry.MustRegisterRootHandler("ospf", dispatchOSPF, registry.Meta{
-		Description: "Offline OSPF wire tools",
-		Mode:        "offline",
-		Section:     registry.SectionConfiguration,
-		Subs:        "decode [--pretty]",
+		ShortHelp: "Offline OSPF wire tools",
+		Mode:      "offline",
+		Section:   registry.SectionConfiguration,
+		Subs:      "decode [--pretty]",
 	})
 }
 

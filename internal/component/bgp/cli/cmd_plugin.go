@@ -41,9 +41,9 @@ func cmdPlugin(args []string) int {
 
 func pluginUsage() {
 	p := helpfmt.Page{
-		Command: "ze bgp plugin",
-		Summary: "Plugin debug shell",
-		Usage:   []string{"ze bgp plugin <command> [options]"},
+		Command:   "ze bgp plugin",
+		ShortHelp: "Plugin debug shell",
+		Usage:     []string{"ze bgp plugin <command> [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "cli", Desc: "Interactive plugin debug shell (5-stage handshake + commands)"},
@@ -70,9 +70,9 @@ func cmdPluginCLI(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze bgp plugin cli",
-			Summary: "Plugin debug shell. Connects to the daemon via SSH, runs the 5-stage plugin handshake, then enters interactive command mode",
-			Usage:   []string{"ze bgp plugin cli [options]"},
+			Command:   "ze bgp plugin cli",
+			ShortHelp: "Plugin debug shell. Connects to the daemon via SSH, runs the 5-stage plugin handshake, then enters interactive command mode",
+			Usage:     []string{"ze bgp plugin cli [options]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Post-handshake commands", Entries: []helpfmt.HelpEntry{
 					{Name: "dispatch-command <command>", Desc: "Dispatch engine command"},

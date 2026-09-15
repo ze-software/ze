@@ -17,18 +17,18 @@ module ze-plugin-callback {
     // Stage 2: Engine delivers configuration.
 
     rpc configure {
-        description "Engine delivers configuration sections to the plugin.";
-        ze:help "Called during Stage 2 of the 5-stage startup protocol.";
+        description "Called during Stage 2 of the 5-stage startup protocol.";
+        ze:help "Engine delivers configuration sections to the plugin.";
         input {
             list section {
                 key "root";
                 leaf root {
                     type string;
-                    description "Config root name (e.g., bgp, environment)";
+                    ze:help "Config root name (e.g., bgp, environment)";
                 }
                 leaf data {
                     type string;
-                    description "JSON-encoded config data for this root";
+                    ze:help "JSON-encoded config data for this root";
                 }
             }
         }
@@ -37,22 +37,22 @@ module ze-plugin-callback {
     // Stage 4: Engine shares command registry.
 
     rpc share-registry {
-        description "Engine shares the full command registry with the plugin.";
-        ze:help "Called during Stage 4 of the 5-stage startup protocol.";
+        description "Called during Stage 4 of the 5-stage startup protocol.";
+        ze:help "Engine shares the full command registry with the plugin.";
         input {
             list command {
                 key "name";
                 leaf name {
                     type string;
-                    description "Command name";
+                    ze:help "Command name";
                 }
                 leaf plugin {
                     type string;
-                    description "Plugin that registered this command";
+                    ze:help "Plugin that registered this command";
                 }
                 leaf encoding {
                     type string;
-                    description "Command encoding (text, hex, b64)";
+                    ze:help "Command encoding (text, hex, b64)";
                 }
             }
         }
@@ -61,13 +61,13 @@ module ze-plugin-callback {
     // Runtime: Event delivery.
 
     rpc deliver-event {
-        description "Engine delivers a BGP event to the plugin.";
-        ze:help "Timeout on delivery is FATAL (program terminates).";
+        description "Timeout on delivery is FATAL (program terminates).";
+        ze:help "Engine delivers a BGP event to the plugin.";
         input {
             leaf event {
                 type string;
                 mandatory true;
-                description "JSON-encoded BGP event";
+                ze:help "JSON-encoded BGP event";
             }
         }
     }
@@ -75,76 +75,76 @@ module ze-plugin-callback {
     // Runtime: NLRI encoding/decoding callbacks.
 
     rpc encode-nlri {
-        description "Engine requests NLRI encoding from the plugin.";
-        ze:help "The plugin answers one hex string, which the engine writes to the wire as
+        description "The plugin answers one hex string, which the engine writes to the wire as
 the NLRI body. A plugin that registers no OnEncodeNLRI handler cannot answer,
 so the family it claims stays unencodable and the engine has nothing to send.";
+        ze:help "Engine requests NLRI encoding from the plugin.";
         input {
             leaf family {
                 type string;
                 mandatory true;
-                description "Address family (e.g., ipv4/flow, l2vpn/evpn)";
+                ze:help "Address family (e.g., ipv4/flow, l2vpn/evpn)";
             }
             leaf-list args {
                 type string;
-                description "Encoding arguments";
+                ze:help "Encoding arguments";
             }
         }
         output {
             leaf hex {
                 type string;
-                description "Hex-encoded NLRI wire bytes";
+                ze:help "Hex-encoded NLRI wire bytes";
             }
         }
     }
 
     rpc decode-nlri {
-        description "Engine requests NLRI decoding from the plugin.";
-        ze:help "The plugin answers a value, and the SDK marshals it ONCE into the json
+        description "The plugin answers a value, and the SDK marshals it ONCE into the json
 field rather than encoding a string that holds encoded JSON. This is the
 receive direction of encode-nlri, and a plugin that claims a family declares
 both or the family works in one direction only.";
+        ze:help "Engine requests NLRI decoding from the plugin.";
         input {
             leaf family {
                 type string;
                 mandatory true;
-                description "Address family";
+                ze:help "Address family";
             }
             leaf hex {
                 type string;
                 mandatory true;
-                description "Hex-encoded NLRI wire bytes";
+                ze:help "Hex-encoded NLRI wire bytes";
             }
         }
         output {
             leaf json {
                 type string;
-                description "JSON-encoded decoded NLRI";
+                ze:help "JSON-encoded decoded NLRI";
             }
         }
     }
 
     rpc decode-capability {
-        description "Engine requests capability decoding from the plugin.";
-        ze:help "The engine passes the numeric capability code and the option bytes as hex,
+        description "The engine passes the numeric capability code and the option bytes as hex,
 so a plugin decodes a code the engine itself does not know. The answer is
 marshaled once into the json field, the shape decode-nlri also uses.";
+        ze:help "Engine requests capability decoding from the plugin.";
         input {
             leaf code {
                 type uint8;
                 mandatory true;
-                description "BGP capability code";
+                ze:help "BGP capability code";
             }
             leaf hex {
                 type string;
                 mandatory true;
-                description "Hex-encoded capability bytes";
+                ze:help "Hex-encoded capability bytes";
             }
         }
         output {
             leaf json {
                 type string;
-                description "JSON-encoded decoded capability";
+                ze:help "JSON-encoded decoded capability";
             }
         }
     }
@@ -152,43 +152,43 @@ marshaled once into the json field, the shape decode-nlri also uses.";
     // Runtime: Command execution.
 
     rpc execute-command {
-        description "Engine requests the plugin to execute a command.";
-        ze:help "The serial correlates the answer with this request. The engine can have
+        description "The serial correlates the answer with this request. The engine can have
 several requests in flight on one connection. A handler CAN answer with
 records, which is a walk and not a built value. Over the socket that arrives
 as a head, its records and a terminator. Over the direct bridge it collapses
 to the single document the record path would have carried.";
+        ze:help "Engine requests the plugin to execute a command.";
         input {
             leaf serial {
                 type string;
                 mandatory true;
-                description "Correlation serial for response tracking";
+                ze:help "Correlation serial for response tracking";
             }
             leaf command {
                 type string;
                 mandatory true;
-                description "Command to execute";
+                ze:help "Command to execute";
             }
             leaf-list args {
                 type string;
-                description "Command arguments";
+                ze:help "Command arguments";
             }
             leaf peer {
                 type string;
-                description "Peer context for the command";
+                ze:help "Peer context for the command";
             }
         }
         output {
             leaf status {
                 type enumeration {
-                    enum done { description "Command completed successfully"; }
-                    enum error { description "Command failed"; }
+                    enum done { ze:help "Command completed successfully"; }
+                    enum error { ze:help "Command failed"; }
                 }
-                description "Execution result status";
+                ze:help "Execution result status";
             }
             leaf data {
                 type string;
-                description "JSON result data or error message";
+                ze:help "JSON result data or error message";
             }
         }
     }
@@ -196,56 +196,56 @@ to the single document the record path would have carried.";
     // Runtime: Route filter callback.
 
     rpc filter-update {
-        description "Engine sends UPDATE attributes to a named filter plugin.";
-        ze:help "Plugin responds accept, reject, or modify (delta-only).";
+        description "Plugin responds accept, reject, or modify (delta-only).";
+        ze:help "Engine sends UPDATE attributes to a named filter plugin.";
         input {
             leaf filter {
                 type string;
                 mandatory true;
-                description "Filter name (declared at stage 1)";
+                ze:help "Filter name (declared at stage 1)";
             }
             leaf direction {
                 type string;
                 mandatory true;
-                description "import or export";
+                ze:help "import or export";
             }
             leaf peer {
                 type string;
                 mandatory true;
-                description "Peer IP address";
+                ze:help "Peer IP address";
             }
             leaf peer-as {
                 type uint32;
                 mandatory true;
-                description "Peer ASN";
+                ze:help "Peer ASN";
             }
             leaf update {
                 type string;
                 mandatory true;
-                description "Text-format attributes and NLRI (only declared attributes)";
+                ze:help "Text-format attributes and NLRI (only declared attributes)";
             }
             leaf raw {
                 type string;
-                description "Hex-encoded raw UPDATE body (if filter declared raw=true)";
+                ze:help "Hex-encoded raw UPDATE body (if filter declared raw=true)";
             }
         }
         output {
             leaf action {
                 type enumeration {
-                    enum accept { description "Pass update unchanged"; }
-                    enum reject { description "Drop update, short-circuit chain"; }
-                    enum modify { description "Apply delta changes"; }
+                    enum accept { ze:help "Pass update unchanged"; }
+                    enum reject { ze:help "Drop update, short-circuit chain"; }
+                    enum modify { ze:help "Apply delta changes"; }
                 }
                 mandatory true;
-                description "Filter decision";
+                ze:help "Filter decision";
             }
             leaf update {
                 type string;
-                description "Delta-only modified attributes (action=modify)";
+                ze:help "Delta-only modified attributes (action=modify)";
             }
             leaf raw {
                 type string;
-                description "Full raw UPDATE body replacement (action=modify with raw)";
+                ze:help "Full raw UPDATE body replacement (action=modify with raw)";
             }
         }
     }
@@ -253,12 +253,12 @@ to the single document the record path would have carried.";
     // Shutdown: Clean termination.
 
     rpc bye {
-        description "Engine requests the plugin to shut down cleanly.";
-        ze:help "Plugin should respond, then cleanup and exit with code 0.";
+        description "Plugin should respond, then cleanup and exit with code 0.";
+        ze:help "Engine requests the plugin to shut down cleanly.";
         input {
             leaf reason {
                 type string;
-                description "Shutdown reason (e.g., shutdown, restart)";
+                ze:help "Shutdown reason (e.g., shutdown, restart)";
             }
         }
     }

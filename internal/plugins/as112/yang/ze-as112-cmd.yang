@@ -15,14 +15,14 @@ module ze-as112-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state.";
+        ze:help "Read-only commands to inspect system, protocol, and network state.";
 
         container as112 {
             config false;
             ze:command "ze-show:as112";
-            description "AS112 node status.";
-            ze:help "Enabled, address-family, hostname/facility/location, allow-from count,
+            description "Enabled, address-family, hostname/facility/location, allow-from count,
 served zone count, and the current SOA serial.";
+            ze:help "AS112 node status.";
         }
     }
 
@@ -31,22 +31,22 @@ served zone count, and the current SOA serial.";
 
         container as112 {
             config false;
-            description "AS112 operational actions.";
-            ze:help "AS112 answers reverse-DNS queries for private address space, so these act on a
-                     sink service rather than on a routing session.";
+            description "AS112 answers reverse-DNS queries for private address space, so these act on a
+                         sink service rather than on a routing session.";
+            ze:help "AS112 operational actions.";
 
             container healthcheck {
                 config false;
                 ze:command "ze-as112:health";
-                description "Send one authoritative query and check the AS112 answer.";
-                ze:help "The query goes to an anycast service address, or to the
+                description "The query goes to an anycast service address, or to the
 given target. The exit code is 0 only when the expected AS112 answer comes
 back. Finding M4: the tool a healthcheck probe calls, since dig is not on the
 gokrazy appliance and 'ze resolve dns' cannot target a specific server.";
+                ze:help "Send one authoritative query and check the AS112 answer.";
 
                 leaf target {
                     type string;
-                    description "Anycast service address to query; defaults to the
+                    ze:help "Anycast service address to query; defaults to the
                          address-family-appropriate on-box loopback when omitted
                          (127.0.0.1, or ::1 when address-family is ipv6-only)";
                 }

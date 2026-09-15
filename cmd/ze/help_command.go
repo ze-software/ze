@@ -232,11 +232,11 @@ func streamingOperators(ops []commandOperator) []string {
 // commandEntry is a single command in the catalog.
 type commandEntry struct {
 	Path string `json:"path"`
-	// Description is the command's one-line summary. LongHelp is its long
+	// ShortHelp is the command's one-line summary. Description is its long
 	// explanation. They are two declarations, not one string cut in two, so a
 	// reader takes whichever its surface renders.
+	ShortHelp   string       `json:"short-help,omitempty"`
 	Description string       `json:"description,omitempty"`
-	LongHelp    string       `json:"long-help,omitempty"`
 	Mode        string       `json:"mode"`
 	WireMethod  string       `json:"wire-method,omitempty"`
 	Backend     []string     `json:"backend,omitempty"`
@@ -341,14 +341,14 @@ func collectCommands() []commandEntry {
 				mode = "read-only"
 			}
 			node := findNode(tree, cliPath)
-			desc, longHelp := "", ""
+			desc, explanation := "", ""
 			if node != nil {
-				desc, longHelp = node.Description, node.LongHelp
+				desc, explanation = node.ShortHelp, node.Description
 			}
 			e := commandEntry{
 				Path:        cliPath,
-				Description: desc,
-				LongHelp:    longHelp,
+				ShortHelp:   desc,
+				Description: explanation,
 				Mode:        mode,
 				WireMethod:  wireMethod,
 			}
@@ -383,8 +383,8 @@ func collectCommands() []commandEntry {
 		}
 		entries = append(entries, commandEntry{
 			Path:        lc.Path,
+			ShortHelp:   lc.Meta.ShortHelp,
 			Description: lc.Meta.Description,
-			LongHelp:    lc.Meta.LongHelp,
 			Mode:        mode,
 		})
 		seen[lc.Path] = true
@@ -437,14 +437,14 @@ func appendPluginCommands(entries []commandEntry, seen map[string]bool, tree *co
 			}
 			e := commandEntry{
 				Path:        decl.Name,
+				ShortHelp:   decl.ShortHelp,
 				Description: decl.Description,
-				LongHelp:    decl.LongHelp,
 				Mode:        mode,
 				Usage:       pluginUsage(decl.Name, decl.Args),
 			}
 			if node := findNode(tree, decl.Name); node != nil {
+				e.ShortHelp = node.ShortHelp
 				e.Description = node.Description
-				e.LongHelp = node.LongHelp
 				e.Args = extractArgs(node)
 				e.Subcommands = extractSubcommands(node)
 				e.Backend = node.Backend
@@ -567,7 +567,7 @@ func filterCommands(entries []commandEntry, filter string) []commandEntry {
 	var filtered []commandEntry
 	for i := range entries {
 		if strings.Contains(strings.ToLower(entries[i].Path), lower) ||
-			strings.Contains(strings.ToLower(entries[i].Description), lower) {
+			strings.Contains(strings.ToLower(entries[i].ShortHelp), lower) {
 			filtered = append(filtered, entries[i])
 		}
 	}
@@ -614,14 +614,14 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 		rw.Line(tb.Slice())
 
 		// The summary on one line, then the long explanation under it.
-		desc := e.Description
+		desc := e.ShortHelp
 		if desc == "" {
 			desc = "-"
 		}
 		tb.Reset().Str("  ").Str(desc)
 		rw.Line(tb.Slice())
-		if e.LongHelp != "" {
-			for line := range strings.SplitSeq(e.LongHelp, "\n") {
+		if e.Description != "" {
+			for line := range strings.SplitSeq(e.Description, "\n") {
 				tb.Reset().Str("  ").Str(line)
 				rw.Line(tb.Slice())
 			}
@@ -740,7 +740,7 @@ func printCommandTable(rw *helpfmt.RenderWriter, entries []commandEntry) {
 	for i := range entries {
 		e := &entries[i]
 		// The summary is declared one line long, so the row prints it whole.
-		desc := e.Description
+		desc := e.ShortHelp
 		if desc == "" {
 			desc = "-"
 		}
@@ -755,9 +755,9 @@ func printCommandTable(rw *helpfmt.RenderWriter, entries []commandEntry) {
 // helpCommandUsage prints usage for `ze help command`.
 func helpCommandUsage() {
 	p := helpfmt.Page{
-		Command: "ze help command",
-		Summary: "List all available commands with descriptions",
-		Usage:   []string{"ze help command [<filter>] [--json] [--verbose]"},
+		Command:   "ze help command",
+		ShortHelp: "List all available commands with descriptions",
+		Usage:     []string{"ze help command [<filter>] [--json] [--verbose]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpOptionsSectionTitle, Entries: []helpfmt.HelpEntry{
 				{Name: "<filter>", Desc: "Show only commands matching this string (path or description)"},

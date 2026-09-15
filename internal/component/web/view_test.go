@@ -59,9 +59,9 @@ func TestFieldPlaceholderPrefersTheDefault(t *testing.T) {
 		field FieldMeta
 		want  string
 	}{
-		{name: "set", field: FieldMeta{Value: "180", Default: "90", Description: "hold timer"}, want: ""},
-		{name: "default", field: FieldMeta{Default: "90", Description: "hold timer"}, want: "90"},
-		{name: "description", field: FieldMeta{Description: "hold timer"}, want: "hold timer"},
+		{name: "set", field: FieldMeta{Value: "180", Default: "90", ShortHelp: "hold timer"}, want: ""},
+		{name: "default", field: FieldMeta{Default: "90", ShortHelp: "hold timer"}, want: "90"},
+		{name: "description", field: FieldMeta{ShortHelp: "hold timer"}, want: "hold timer"},
 		{name: "bare", field: FieldMeta{}, want: ""},
 	}
 

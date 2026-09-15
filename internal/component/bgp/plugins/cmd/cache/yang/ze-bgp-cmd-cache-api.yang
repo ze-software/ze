@@ -11,9 +11,9 @@ module ze-bgp-cmd-cache-api {
     }
 
     rpc cache {
-        description "BGP message cache operations (list, retain, release, expire, forward).";
-        ze:help "'list' is the one action that reads. retain, release and expire each take a
+        description "'list' is the one action that reads. retain, release and expire each take a
 message ID, and forward takes a message ID and a peer selector. An ID field
 holding a comma-separated list runs the action over each ID in one call.";
+        ze:help "BGP message cache operations (list, retain, release, expire, forward).";
     }
 }

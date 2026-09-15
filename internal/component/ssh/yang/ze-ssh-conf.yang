@@ -15,20 +15,20 @@ module ze-ssh-conf {
     augment "/authz:system/authz:authentication/authz:user" {
         list public-keys {
             key "name";
-            description "SSH public keys for key-based authentication.
-                         Each entry is a named key (e.g. user@host).";
-            ze:help "Ze joins the type and the key of each entry into one authorized_keys
-                     line. A client key that equals any entry of this user authenticates
-                     that user. A key that does not parse is logged and skipped, and the
-                     other keys of the user still match. A user that carries a key and no
-                     profile authenticates, and the authorizer then decides what they can
-                     run.";
+            description "Ze joins the type and the key of each entry into one authorized_keys
+                         line. A client key that equals any entry of this user authenticates
+                         that user. A key that does not parse is logged and skipped, and the
+                         other keys of the user still match. A user that carries a key and no
+                         profile authenticates, and the authorizer then decides what they can
+                         run.";
+            ze:help "SSH public keys for key-based authentication.
+                     Each entry is a named key (e.g. user@host).";
 
             leaf name {
                 type string;
-                description "Key identifier, for example jdoe@laptop.";
-                ze:help "The name is the list key, so each key of one user carries a
-                         different one.";
+                description "The name is the list key, so each key of one user carries a
+                             different one.";
+                ze:help "Key identifier, for example jdoe@laptop.";
             }
 
             leaf type {
@@ -39,52 +39,52 @@ module ze-ssh-conf {
                     enum ecdsa-sha2-nistp384;
                     enum ecdsa-sha2-nistp521;
                 }
-                description "SSH public key algorithm.";
-                ze:help "The algorithm is the first field of an SSH public key line,
-                         such as ssh-ed25519.";
+                description "The algorithm is the first field of an SSH public key line,
+                             such as ssh-ed25519.";
+                ze:help "SSH public key algorithm.";
             }
 
             leaf key {
                 type string;
-                description "Base64-encoded public key data.";
-                ze:help "The value is the middle field of an SSH public key line.
-                         It carries no type prefix and no comment suffix.";
+                description "The value is the middle field of an SSH public key line.
+                             It carries no type prefix and no comment suffix.";
+                ze:help "Base64-encoded public key data.";
             }
         }
     }
 
     container environment {
-        description "Environment settings for the SSH server.";
-        ze:help "The ssh container under it carries every SSH server setting: the
-                 enable switch, the listen endpoints, the host key and the session
-                 limits.";
+        description "The ssh container under it carries every SSH server setting: the
+                     enable switch, the listen endpoints, the host key and the session
+                     limits.";
+        ze:help "Environment settings for the SSH server.";
 
         container ssh {
-            description "SSH server settings.";
-            ze:help "The container holds the enable switch, the listen endpoints, the
-                     host key, the host certificate, the idle timeout and the session
-                     limit.";
+            description "The container holds the enable switch, the listen endpoints, the
+                         host key, the host certificate, the idle timeout and the session
+                         limit.";
+            ze:help "SSH server settings.";
 
             leaf enabled {
                 type boolean;
                 default false;
-                description "Enable the SSH server.";
-                ze:help "The SSH server does not start while this leaf is false, and
-                         false is the default.";
+                description "The SSH server does not start while this leaf is false, and
+                             false is the default.";
+                ze:help "Enable the SSH server.";
             }
 
             list server {
                 key "name";
                 ze:listener;
-                description "SSH server listen endpoints.";
-                ze:help "Each entry names one listen endpoint. The default endpoint
-                         is 0.0.0.0 on port 2222.";
+                description "Each entry names one listen endpoint. The default endpoint
+                             is 0.0.0.0 on port 2222.";
+                ze:help "SSH server listen endpoints.";
 
                 leaf name {
                     type string;
-                    description "Server instance name.";
-                    ze:help "The name is the list key, so each server entry carries a
-                             different one.";
+                    description "The name is the list key, so each server entry carries a
+                                 different one.";
+                    ze:help "Server instance name.";
                 }
 
                 uses zt:listener {
@@ -99,33 +99,33 @@ module ze-ssh-conf {
 
             leaf host-key {
                 type string;
-                description "Path to the SSH host key file.";
-                ze:help "The default path is the config directory plus
-                         ssh_host_ed25519_key. Ze generates that key when the
-                         file is missing.";
+                description "The default path is the config directory plus
+                             ssh_host_ed25519_key. Ze generates that key when the
+                             file is missing.";
+                ze:help "Path to the SSH host key file.";
             }
 
             leaf host-certificate {
                 type string;
-                description "Path to the SSH host certificate file, signed by a CA.";
-                ze:help "A client that trusts the CA verifies the host on the
-                         first connection. It does not have to trust the host key
-                         on first use.";
+                description "A client that trusts the CA verifies the host on the
+                             first connection. It does not have to trust the host key
+                             on first use.";
+                ze:help "Path to the SSH host certificate file, signed by a CA.";
 
             }
 
             leaf idle-timeout {
                 type uint32;
-                description "Idle timeout in seconds. The default is 600.";
-                ze:help "Ze passes the value to the SSH server as the maximum
-                         duration of one session. The default is 600 seconds.";
+                description "Ze passes the value to the SSH server as the maximum
+                             duration of one session. The default is 600 seconds.";
+                ze:help "Idle timeout in seconds. The default is 600.";
             }
 
             leaf max-sessions {
                 type uint16;
-                description "Maximum number of concurrent SSH sessions.";
-                ze:help "Ze answers a session past this limit with 'maximum sessions
-                         reached', and closes it. The default limit is 8 sessions.";
+                description "Ze answers a session past this limit with 'maximum sessions
+                             reached', and closes it. The default limit is 8 sessions.";
+                ze:help "Maximum number of concurrent SSH sessions.";
 
             }
         }

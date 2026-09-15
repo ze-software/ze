@@ -12,8 +12,8 @@ import (
 // PREVENTS: malformed OpenAPI spec.
 func TestOpenAPISchemaValid(t *testing.T) {
 	commands := []CommandMeta{
-		{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
-		{Name: "daemon reload", Description: "Reload config", ReadOnly: false},
+		{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
+		{Name: "daemon reload", ShortHelp: "Reload config", ReadOnly: false},
 	}
 
 	data, err := OpenAPISchema(commands)
@@ -41,8 +41,8 @@ func TestOpenAPISchemaValid(t *testing.T) {
 // PREVENTS: wrong HTTP method in OpenAPI spec.
 func TestOpenAPISchemaHTTPMethods(t *testing.T) {
 	commands := []CommandMeta{
-		{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
-		{Name: "daemon reload", Description: "Reload config", ReadOnly: false},
+		{Name: "bgp summary", ShortHelp: "Show BGP summary", ReadOnly: true},
+		{Name: "daemon reload", ShortHelp: "Reload config", ReadOnly: false},
 	}
 
 	data, err := OpenAPISchema(commands)
@@ -71,9 +71,9 @@ func TestCommandSchemaMatchesYANG(t *testing.T) {
 	cmd := CommandMeta{
 		Name: "show bgp rib",
 		Params: []ParamMeta{
-			{Name: "family", Type: "string", Description: "Address family", Required: false},
-			{Name: "limit", Type: "uint32", Description: "Max results", Required: true},
-			{Name: "active", Type: "boolean", Description: "Active only", Required: false},
+			{Name: "family", Type: "string", ShortHelp: "Address family", Required: false},
+			{Name: "limit", Type: "uint32", ShortHelp: "Max results", Required: true},
+			{Name: "active", Type: "boolean", ShortHelp: "Active only", Required: false},
 		},
 	}
 
@@ -151,11 +151,11 @@ func TestOpenAPICarriesSummaryAndDescription(t *testing.T) {
 	commands := []CommandMeta{
 		{
 			Name:        "bgp summary",
-			Description: "Show one line for each configured peer.",
-			LongHelp:    "The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
+			ShortHelp:   "Show one line for each configured peer.",
+			Description: "The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
 			ReadOnly:    true,
 		},
-		{Name: "daemon reload", Description: "Reload the running configuration."},
+		{Name: "daemon reload", ShortHelp: "Reload the running configuration."},
 	}
 
 	data, err := OpenAPISchema(commands)

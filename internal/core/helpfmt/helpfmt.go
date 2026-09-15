@@ -31,19 +31,19 @@ const (
 
 // Page is a structured help page for a CLI command.
 //
-// Summary and LongHelp are the command's two declared help texts. Neither is
-// derived from the other. Summary goes on the header line. LongHelp is the long
+// ShortHelp and Description are the command's two declared help texts. Neither is
+// derived from the other. ShortHelp goes on the header line. Description is the long
 // explanation, and it goes in the body block. A command with no long
-// explanation leaves LongHelp empty and prints no block.
+// explanation leaves Description empty and prints no block.
 type Page struct {
-	Command  string        // e.g. "ze bgp"
-	Summary  string        // e.g. "BGP protocol tools" (the one-line summary)
-	LongHelp string        // the long explanation, printed as the body block
-	Software string        // e.g. "ze Software" (top-level only, styled differently)
-	Usage    []string      // usage patterns
-	Sections []HelpSection // groups of entries
-	Examples []string      // example command lines
-	SeeAlso  []string      // related commands
+	Command     string        // e.g. "ze bgp"
+	ShortHelp   string        // e.g. "BGP protocol tools" (the one-line summary)
+	Description string        // the long explanation, printed as the body block
+	Software    string        // e.g. "ze Software" (top-level only, styled differently)
+	Usage       []string      // usage patterns
+	Sections    []HelpSection // groups of entries
+	Examples    []string      // example command lines
+	SeeAlso     []string      // related commands
 }
 
 // HelpSection is a named group of entries in a help page.
@@ -56,7 +56,7 @@ type HelpSection struct {
 type HelpEntry struct {
 	Name string // e.g. "decode <hex>" or "--verbose"
 	// Desc is the one-line summary, rendered whole. A caller with a long
-	// explanation puts it in Page.LongHelp, never here. A section entry is one row,
+	// explanation puts it in Page.Description, never here. A section entry is one row,
 	// and this package shortens nothing.
 	Desc string
 }
@@ -84,16 +84,16 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 	switch {
 	case p.Software != "":
 		rw.Line(b.Reset().Str(styled(color, styleCommand, p.Command)).Str(" - ").Str(p.Software).String())
-	case p.Summary != "":
-		rw.Line(b.Reset().Str(styled(color, styleCommand, p.Command)).Str(" - ").Str(styled(color, styleSummary, p.Summary)).String())
+	case p.ShortHelp != "":
+		rw.Line(b.Reset().Str(styled(color, styleCommand, p.Command)).Str(" - ").Str(styled(color, styleSummary, p.ShortHelp)).String())
 	default:
 		rw.Line(styled(color, styleCommand, p.Command))
 	}
 
 	// The long explanation, indented, keeping the newlines its author wrote.
-	if p.LongHelp != "" {
+	if p.Description != "" {
 		rw.Str("\n")
-		for line := range strings.SplitSeq(p.LongHelp, "\n") {
+		for line := range strings.SplitSeq(p.Description, "\n") {
 			rw.Line(b.Reset().Str("  ").Str(strings.TrimRight(line, " \t")).String())
 		}
 	}

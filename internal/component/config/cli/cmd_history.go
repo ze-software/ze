@@ -26,9 +26,9 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config history", flag.ExitOnError)
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze config history",
-			Summary: "List rollback revisions for a configuration file",
-			Usage:   []string{"ze config history <file>"},
+			Command:   "ze config history",
+			ShortHelp: "List rollback revisions for a configuration file",
+			Usage:     []string{"ze config history <file>"},
 			Sections: []helpfmt.HelpSection{
 				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Revisions are stored in the rollback/ subdirectory alongside the config file."},

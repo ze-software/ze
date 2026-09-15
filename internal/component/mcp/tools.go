@@ -59,14 +59,15 @@ type UIResourceInfo struct {
 // CommandInfo describes a registered command for MCP tool generation.
 type CommandInfo struct {
 	Name string // Dispatch path, e.g. "show bgp rib status", "show config dump"
-	// Description is the one-line summary of the command, from its YANG
-	// description statement. It is what the action enum offers, one line for
+	// ShortHelp is the one-line summary of the command, from its YANG
+	// ze:help extension. It is what the action enum offers, one line for
 	// each action a model can pick.
-	Description string
-	// LongHelp is the explanation the command declares with ze:help. It is what
+	ShortHelp string
+	// Description is the explanation the command declares with the YANG
+	// description statement. It is what
 	// the tool's own description carries, and it holds the newlines its author
 	// wrote. Empty means the command declares no explanation.
-	LongHelp    string
+	Description string
 	ReadOnly    bool             // True if read-only command
 	Params      []ParamInfo      // Input parameters from YANG RPC (nil = no typed params)
 	TaskSupport TaskSupportLevel // From YANG ze:task-support extension
@@ -81,10 +82,10 @@ type CommandInfo struct {
 
 // ParamInfo describes a single input parameter from YANG RPC metadata.
 type ParamInfo struct {
-	Name        string // Parameter name (kebab-case from YANG)
-	Type        string // YANG type: "string", "uint32", "boolean", etc.
-	Description string // From YANG description
-	Required    bool   // Mandatory in YANG
+	Name      string // Parameter name (kebab-case from YANG)
+	Type      string // YANG type: "string", "uint32", "boolean", etc.
+	ShortHelp string // One-line summary, from the ze:help extension
+	Required  bool   // Mandatory in YANG
 }
 
 // CommandLister returns all registered commands. Called at tools/list time
@@ -102,8 +103,8 @@ type toolGroup struct {
 // action is a single subcommand within a group.
 type action struct {
 	name          string           // action name (suffix after prefix), e.g. "status", "dump"
-	description   string           // one-line summary, offered in the action enum
-	longHelp      string           // long explanation, carried by the tool description
+	shortHelp     string           // one-line summary, offered in the action enum
+	description   string           // long explanation, carried by the tool description
 	full          string           // full command path for dispatch
 	params        []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
 	taskSupport   TaskSupportLevel // from YANG ze:task-support
@@ -121,8 +122,8 @@ type action struct {
 func groupCommands(commands []CommandInfo) []toolGroup {
 	type entry struct {
 		full          string
+		shortHelp     string
 		description   string
-		longHelp      string
 		params        []ParamInfo
 		taskSupport   TaskSupportLevel
 		uiResource    *UIResourceInfo
@@ -139,7 +140,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			continue
 		}
 		e := entry{
-			full: cmd.Name, description: cmd.Description, longHelp: cmd.LongHelp,
+			full: cmd.Name, shortHelp: cmd.ShortHelp, description: cmd.Description,
 			params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource,
 			takesSelector: cmd.TakesSelector,
 		}
@@ -181,8 +182,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 				}
 				g.actions = append(g.actions, action{
 					name:          suffix,
+					shortHelp:     e.shortHelp,
 					description:   e.description,
-					longHelp:      e.longHelp,
 					full:          e.full,
 					params:        e.params,
 					taskSupport:   e.taskSupport,
@@ -205,7 +206,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			if len(tokens) == 2 {
 				g := toolGroup{prefix: e.full}
 				g.actions = append(g.actions, action{
-					name: "", description: e.description, longHelp: e.longHelp, full: e.full,
+					name: "", shortHelp: e.shortHelp, description: e.description, full: e.full,
 					params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource,
 					takesSelector: e.takesSelector,
 				})
@@ -237,8 +238,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			}
 			g.actions = append(g.actions, action{
 				name:        suffix,
+				shortHelp:   e.shortHelp,
 				description: e.description,
-				longHelp:    e.longHelp,
 				full:        e.full,
 				params:      e.params,
 				taskSupport: e.taskSupport,
@@ -299,14 +300,14 @@ func generateTools(groups []toolGroup, skipNames map[string]bool) []map[string]a
 // An MCP client shows one description for each tool, so a tool that IS one
 // command has this one place to carry both halves.
 func commandText(a action) string {
-	if a.longHelp == "" {
+	if a.description == "" {
+		return a.shortHelp
+	}
+	if a.shortHelp == "" {
 		return a.description
 	}
-	if a.description == "" {
-		return a.longHelp
-	}
 	var tb textbuf.Buffer
-	return tb.Str(a.description).Str("\n\n").Str(a.longHelp).String()
+	return tb.Str(a.shortHelp).Str("\n\n").Str(a.description).String()
 }
 
 // buildToolDef creates an MCP tool definition from a command group.
@@ -335,9 +336,9 @@ func buildToolDef(g toolGroup) map[string]any {
 			// The enum description is one line for each action, so it carries
 			// summaries only. The explanation goes to the tool description
 			// below, which is the one place a client shows a paragraph.
-			if a.description != "" {
+			if a.shortHelp != "" {
 				var tb textbuf.Buffer
-				actionDescs = append(actionDescs, tb.Str(a.name).Str(": ").Str(a.description).String())
+				actionDescs = append(actionDescs, tb.Str(a.name).Str(": ").Str(a.shortHelp).String())
 			}
 		}
 
@@ -513,8 +514,8 @@ func addYANGParams(actions []action, properties map[string]any) (bool, []string)
 			prop := map[string]any{
 				schemaKeyType: yangTypeToJSON(p.Type),
 			}
-			if p.Description != "" {
-				prop[schemaKeyDescription] = p.Description
+			if p.ShortHelp != "" {
+				prop[schemaKeyDescription] = p.ShortHelp
 			}
 			properties[p.Name] = prop
 			added = true

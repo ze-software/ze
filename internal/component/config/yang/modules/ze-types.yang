@@ -11,36 +11,36 @@ module ze-types {
     // Grouping for common route attributes used in announce/static/etc.
     grouping route-attributes {
         description "Common BGP route attributes";
-        leaf next-hop { type string; ze:validate "nonzero-ipv4|literal-self"; description "Next hop address"; }
+        leaf next-hop { type string; ze:validate "nonzero-ipv4|literal-self"; ze:help "Next hop address"; }
         leaf origin {
             type enumeration {
-                enum igp { description "Interior Gateway Protocol"; }
-                enum egp { description "Exterior Gateway Protocol"; }
-                enum incomplete { description "Incomplete origin"; }
+                enum igp { ze:help "Interior Gateway Protocol"; }
+                enum egp { ze:help "Exterior Gateway Protocol"; }
+                enum incomplete { ze:help "Incomplete origin"; }
             }
-            description "Origin attribute (RFC 4271 Section 4.3)";
+            ze:help "Origin attribute (RFC 4271 Section 4.3)";
         }
-        leaf local-preference { type uint32; description "Local preference"; }
-        leaf med { type uint32; description "Multi-Exit Discriminator"; }
-        leaf-list community { type string; ze:validate "community-range"; description "BGP communities"; }
-        leaf-list extended-community { type string; description "Extended communities"; }
-        leaf-list large-community { type string; description "Large communities"; }
-        leaf-list as-path { type string; ze:ordered; description "AS path (ordered sequence; duplicate ASNs are meaningful prepends, not deduplicated)"; }
-        leaf path-information { type string; description "Path information"; }
-        leaf label { type string; description "MPLS label"; }
-        leaf-list labels { type string; ze:ordered; description "MPLS labels (RFC 8277; ordered label stack, duplicates preserved)"; }
-        leaf rd { type string; description "Route Distinguisher"; }
-        leaf aggregator { type string; description "Aggregator attribute"; }
-        container atomic-aggregate { presence "Atomic aggregate flag"; description "Atomic aggregate"; }
-        leaf originator-id { type ipv4-address; description "Originator ID (RFC 4456)"; }
-        leaf cluster-list { type string; description "Cluster list (RFC 4456)"; }
-        leaf name { type string; description "Route name"; }
-        leaf split { type string; description "Split horizon"; }
-        leaf watchdog { type string; description "Watchdog name"; }
-        container withdraw { presence "Withdraw flag"; description "Withdraw flag"; }
-        leaf-list attribute { type string; description "Generic attributes"; }
-        container bgp-prefix-sid { presence "BGP Prefix SID enabled"; description "BGP Prefix SID"; }
-        container bgp-prefix-sid-srv6 { presence "SRv6 Prefix SID enabled"; description "SRv6 Prefix SID"; }
+        leaf local-preference { type uint32; ze:help "Local preference"; }
+        leaf med { type uint32; ze:help "Multi-Exit Discriminator"; }
+        leaf-list community { type string; ze:validate "community-range"; ze:help "BGP communities"; }
+        leaf-list extended-community { type string; ze:help "Extended communities"; }
+        leaf-list large-community { type string; ze:help "Large communities"; }
+        leaf-list as-path { type string; ze:ordered; ze:help "AS path (ordered sequence; duplicate ASNs are meaningful prepends, not deduplicated)"; }
+        leaf path-information { type string; ze:help "Path information"; }
+        leaf label { type string; ze:help "MPLS label"; }
+        leaf-list labels { type string; ze:ordered; ze:help "MPLS labels (RFC 8277; ordered label stack, duplicates preserved)"; }
+        leaf rd { type string; ze:help "Route Distinguisher"; }
+        leaf aggregator { type string; ze:help "Aggregator attribute"; }
+        container atomic-aggregate { presence "Atomic aggregate flag"; ze:help "Atomic aggregate"; }
+        leaf originator-id { type ipv4-address; ze:help "Originator ID (RFC 4456)"; }
+        leaf cluster-list { type string; ze:help "Cluster list (RFC 4456)"; }
+        leaf name { type string; ze:help "Route name"; }
+        leaf split { type string; ze:help "Split horizon"; }
+        leaf watchdog { type string; ze:help "Watchdog name"; }
+        container withdraw { presence "Withdraw flag"; ze:help "Withdraw flag"; }
+        leaf-list attribute { type string; ze:help "Generic attributes"; }
+        container bgp-prefix-sid { presence "BGP Prefix SID enabled"; ze:help "BGP Prefix SID"; }
+        container bgp-prefix-sid-srv6 { presence "SRv6 Prefix SID enabled"; ze:help "SRv6 Prefix SID"; }
     }
 
     // Grouping for network listener endpoints (ip + port).
@@ -49,20 +49,20 @@ module ze-types {
         description "Common listener endpoint fields";
         leaf ip {
             type ip-address;
-            description "Listen IP address";
-            ze:help "The listener binds this address. 0.0.0.0 binds every IPv4 address of
-                     the host, and :: binds every IPv6 address. Config validation refuses
-                     two listeners that share a protocol and a port when their addresses
-                     overlap. A wildcard address overlaps every address of its own family,
-                     and an IPv4 address never overlaps an IPv6 address.";
+            description "The listener binds this address. 0.0.0.0 binds every IPv4 address of
+                         the host, and :: binds every IPv6 address. Config validation refuses
+                         two listeners that share a protocol and a port when their addresses
+                         overlap. A wildcard address overlaps every address of its own family,
+                         and an IPv4 address never overlaps an IPv6 address.";
+            ze:help "Listen IP address";
         }
         leaf port {
             type listener-port;
-            description "Listen TCP port; 0 means OS-assigned";
-            ze:help "The port range is 0 to 65535. Port 0 makes the operating system pick a
-                     free port at bind time, so no client can know the port before the
-                     listener starts. ze doctor tries to bind each configured endpoint and
-                     reports the one the host refuses.";
+            description "The port range is 0 to 65535. Port 0 makes the operating system pick a
+                         free port at bind time, so no client can know the port before the
+                         listener starts. ze doctor tries to bind each configured endpoint and
+                         reports the one the host refuses.";
+            ze:help "Listen TCP port; 0 means OS-assigned";
         }
     }
 
@@ -230,27 +230,27 @@ module ze-types {
 
     typedef encoding-mode {
         type enumeration {
-            enum text { description "Human-readable text encoding"; }
-            enum hex { description "Hexadecimal encoding"; }
-            enum b64 { description "Base64 encoding"; }
+            enum text { ze:help "Human-readable text encoding"; }
+            enum hex { ze:help "Hexadecimal encoding"; }
+            enum b64 { ze:help "Base64 encoding"; }
         }
         description "Encoding mode for route data";
     }
 
     typedef wire-format {
         type enumeration {
-            enum hex { description "Hex bytes"; }
-            enum base64 { description "Base64 bytes"; }
-            enum parsed { description "Parsed JSON"; }
-            enum full { description "Full detail JSON"; }
+            enum hex { ze:help "Hex bytes"; }
+            enum base64 { ze:help "Base64 bytes"; }
+            enum parsed { ze:help "Parsed JSON"; }
+            enum full { ze:help "Full detail JSON"; }
         }
         description "Wire format for message output";
     }
 
     typedef ack-mode {
         type enumeration {
-            enum sync { description "Synchronous acknowledgment"; }
-            enum async { description "Asynchronous acknowledgment"; }
+            enum sync { ze:help "Synchronous acknowledgment"; }
+            enum async { ze:help "Asynchronous acknowledgment"; }
         }
         description "Acknowledgment mode for commands";
     }
@@ -259,72 +259,72 @@ module ze-types {
 
     grouping peer-info {
         description "Peer information returned by peer-list and peer-show";
-        leaf address { type ip-address; description "Peer IP address"; }
-        leaf name { type string; description "Peer name (YANG list key)"; }
-        leaf group { type string; description "Peer-group name (empty if standalone)"; }
+        leaf address { type ip-address; ze:help "Peer IP address"; }
+        leaf name { type string; ze:help "Peer name (YANG list key)"; }
+        leaf group { type string; ze:help "Peer-group name (empty if standalone)"; }
         container remote {
-            description "Remote peer identity";
-            leaf as { type asn; description "Peer ASN"; }
+            ze:help "Remote peer identity";
+            leaf as { type asn; ze:help "Peer ASN"; }
         }
         container local {
-            description "Local identity for this peer";
-            leaf as { type asn; description "Local ASN"; }
-            leaf address { type ip-address; description "Local bind address"; }
+            ze:help "Local identity for this peer";
+            leaf as { type asn; ze:help "Local ASN"; }
+            leaf address { type ip-address; ze:help "Local bind address"; }
         }
-        leaf state { type string; description "FSM state (idle, connect, active, opensent, openconfirm, established)"; }
-        leaf router-id { type ipv4-address; description "Peer router ID"; }
-        leaf receive-hold-time { type uint16; description "Configured receive hold time (RFC 4271)"; }
-        leaf send-hold-time { type uint16; description "Configured send hold time (RFC 9687, 0=auto)"; }
-        leaf connect-retry { type uint16; description "Connect retry interval"; }
-        leaf uptime { type uint32; description "Seconds since established"; }
+        leaf state { type string; ze:help "FSM state (idle, connect, active, opensent, openconfirm, established)"; }
+        leaf router-id { type ipv4-address; ze:help "Peer router ID"; }
+        leaf receive-hold-time { type uint16; ze:help "Configured receive hold time (RFC 4271)"; }
+        leaf send-hold-time { type uint16; ze:help "Configured send hold time (RFC 9687, 0=auto)"; }
+        leaf connect-retry { type uint16; ze:help "Connect retry interval"; }
+        leaf uptime { type uint32; ze:help "Seconds since established"; }
     }
 
     grouping command-info {
         description "Command descriptor for introspection";
-        leaf name { type string; description "Command name"; }
-        leaf description { type string; description "Command help text"; }
-        leaf args { type string; description "Argument specification"; }
-        leaf source { type string; description "Source (builtin or plugin name)"; }
-        leaf completable { type boolean; description "Supports tab completion"; }
+        leaf name { type string; ze:help "Command name"; }
+        leaf description { type string; ze:help "Command help text"; }
+        leaf args { type string; ze:help "Argument specification"; }
+        leaf source { type string; ze:help "Source (builtin or plugin name)"; }
+        leaf completable { type boolean; ze:help "Supports tab completion"; }
     }
 
     grouping event-type-info {
         description "Event type descriptor for subscribe";
-        leaf name { type string; description "Event type name"; }
-        leaf description { type string; description "Event description"; }
+        leaf name { type string; ze:help "Event type name"; }
+        leaf description { type string; ze:help "Event description"; }
     }
 
     grouping transaction-result {
         description "Result of a route transaction (commit-end)";
-        leaf routes-announced { type uint32; description "Routes announced"; }
-        leaf routes-withdrawn { type uint32; description "Routes withdrawn"; }
-        leaf updates-sent { type uint32; description "UPDATE messages sent"; }
-        leaf-list families { type address-family; description "Affected address families"; }
+        leaf routes-announced { type uint32; ze:help "Routes announced"; }
+        leaf routes-withdrawn { type uint32; ze:help "Routes withdrawn"; }
+        leaf updates-sent { type uint32; ze:help "UPDATE messages sent"; }
+        leaf-list families { type address-family; ze:help "Affected address families"; }
     }
 
     grouping cache-entry {
         description "Cached BGP message descriptor";
-        leaf message-id { type uint64; description "Cache message ID"; }
-        leaf peer { type ip-address; description "Source peer address"; }
-        leaf age-ms { type uint32; description "Age in milliseconds"; }
-        leaf size { type uint32; description "Message size in bytes"; }
+        leaf message-id { type uint64; ze:help "Cache message ID"; }
+        leaf peer { type ip-address; ze:help "Source peer address"; }
+        leaf age-ms { type uint32; ze:help "Age in milliseconds"; }
+        leaf size { type uint32; ze:help "Message size in bytes"; }
     }
 
     typedef afi {
         type enumeration {
-            enum ipv4 { value 1; description "IPv4 (AFI 1)"; }
-            enum ipv6 { value 2; description "IPv6 (AFI 2)"; }
+            enum ipv4 { value 1; ze:help "IPv4 (AFI 1)"; }
+            enum ipv6 { value 2; ze:help "IPv6 (AFI 2)"; }
         }
         description "Address Family Identifier";
     }
 
     typedef safi {
         type enumeration {
-            enum unicast { value 1; description "Unicast (SAFI 1)"; }
-            enum multicast { value 2; description "Multicast (SAFI 2)"; }
-            enum mpls { value 4; description "MPLS-labeled (SAFI 4)"; }
-            enum mpls-vpn { value 128; description "MPLS VPN (SAFI 128)"; }
-            enum flowspec { value 133; description "FlowSpec (SAFI 133)"; }
+            enum unicast { value 1; ze:help "Unicast (SAFI 1)"; }
+            enum multicast { value 2; ze:help "Multicast (SAFI 2)"; }
+            enum mpls { value 4; ze:help "MPLS-labeled (SAFI 4)"; }
+            enum mpls-vpn { value 128; ze:help "MPLS VPN (SAFI 128)"; }
+            enum flowspec { value 133; ze:help "FlowSpec (SAFI 133)"; }
         }
         description "Subsequent Address Family Identifier";
     }

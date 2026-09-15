@@ -1,6 +1,6 @@
 # Test: a command that declares only a summary publishes no long explanation
 # VALIDATES: AC-6, the zero-value half -- ze help command --json carries
-#            `description` and NO `long-help` key for a command that declares a
+#            `short-help` and NO `description` key for a command that declares a
 #            summary and no long explanation
 # PREVENTS: a reader inventing a long form out of the summary, which is what
 #           every deleted guess did
@@ -9,10 +9,10 @@
 #       here would leave the negative assertion meaningless
 #       (docs/architecture/testing/ci-format.md). `ecmp-groups` selects exactly
 #       one catalog entry, and internal/component/sysrib/register.go declares it
-#       with a Description and no LongHelp.
+#       with a ShortHelp and no Description.
 # NOTE: the subject was `create interface veth name` until commit fa553a4802
-#       (2026-09-03) gave every YANG command node a ze:help, which left no
-#       YANG-declared entry carrying a description and no long form. The
+#       (2026-09-03) gave every YANG command node a long explanation, which left
+#       no YANG-declared entry carrying a summary and no long form. The
 #       assertion below is unchanged; only the command that still has the
 #       property moved.
 
@@ -20,7 +20,9 @@ cmd=foreground:seq=1:exec=ze help command ecmp-groups --json
 expect=exit:code=0
 
 expect=stdout:contains="path": "show ecmp-groups"
-expect=stdout:contains="description": "Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them."
+expect=stdout:contains="short-help": "Show each prefix the system RIB holds equal-cost paths for, whether or not Ze programs them."
 
-# Nothing invents a long form. The key is absent, not empty.
-reject=stdout:contains="long-help"
+# Nothing invents a long form. The key is absent, not empty. The pattern is
+# anchored to the four-space indent of a command entry's own keys, because the
+# operator rows further down the envelope carry a `description` of their own.
+reject=stdout:pattern=(?m)^ {4}"description":
