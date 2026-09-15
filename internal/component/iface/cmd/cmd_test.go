@@ -315,7 +315,9 @@ func TestHandleInterfaceUpDown_UsageGate(t *testing.T) {
 }
 
 // TestHandleUnitAdd_Validation verifies the unit-add handler rejects
-// malformed input BEFORE calling the backend.
+// malformed input BEFORE calling the backend. The 1 to 4094 bound is the
+// model's, enforced by the dispatcher, and TestUnitVIDBoundIsTheModels
+// (manage_test.go) drives it through that path.
 func TestHandleUnitAdd_Validation(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -326,8 +328,6 @@ func TestHandleUnitAdd_Validation(t *testing.T) {
 		{"missing all", nil, nil, "usage: create interface"},
 		{"missing vid", map[string]string{"name": "eth0"}, nil, "usage: create interface"},
 		{"non-numeric", map[string]string{"name": "eth0"}, []string{"abc"}, "invalid VLAN ID"},
-		{"zero", map[string]string{"name": "eth0"}, []string{"0"}, "invalid VLAN ID"},
-		{"above max", map[string]string{"name": "eth0"}, []string{"4095"}, "invalid VLAN ID"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -342,7 +342,9 @@ func TestHandleUnitAdd_Validation(t *testing.T) {
 }
 
 // TestHandleUnitDel_Validation verifies the unit-del handler rejects
-// malformed input and constructs the correct sub-interface name.
+// malformed input and constructs the correct sub-interface name. The 1 to
+// 4094 bound is the model's, enforced by the dispatcher, and
+// TestUnitVIDBoundIsTheModels (manage_test.go) drives it through that path.
 // PREVENTS: regression where handleUnitDel deleted the parent interface
 // instead of the VLAN sub-interface (parent.vid).
 func TestHandleUnitDel_Validation(t *testing.T) {
@@ -355,8 +357,6 @@ func TestHandleUnitDel_Validation(t *testing.T) {
 		{"missing all", nil, nil, "usage: delete interface"},
 		{"missing vid", map[string]string{"name": "eth0"}, nil, "usage: delete interface"},
 		{"non-numeric", map[string]string{"name": "eth0"}, []string{"abc"}, "invalid VLAN ID"},
-		{"zero", map[string]string{"name": "eth0"}, []string{"0"}, "invalid VLAN ID"},
-		{"above max", map[string]string{"name": "eth0"}, []string{"4095"}, "invalid VLAN ID"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

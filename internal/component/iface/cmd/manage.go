@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"errors"
 	"regexp"
 	"strconv"
 
@@ -117,16 +118,32 @@ func handleAddrDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	}, nil
 }
 
+// parseVID reads the VLAN ID token of `create interface <name> unit <vid>` and
+// `delete interface <name> unit <vid>`.
+//
+// The bound, 1 to 4094, is stated ONCE, by the `vid` leaf of ze-iface-cmd.yang
+// and of the two rpcs in ze-iface-api.yang, and the dispatcher refuses a value
+// outside it before the handler runs (validateCommandArgs,
+// internal/component/plugin/server/command.go). Dispatch is the one path that
+// hands a handler its args, so no second range check lives here: the parse
+// only normalizes the spelling, so that "0100" and "100" both name <name>.100.
+func parseVID(token string) (int, error) {
+	vid, err := strconv.Atoi(token)
+	if err != nil {
+		var tb textbuf.Buffer
+		return 0, errors.New(tb.Str("invalid VLAN ID ").Str(token).Str(": ").Str(err.Error()).String())
+	}
+	return vid, nil
+}
+
 func handleUnitAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	name := ctx.Selector("name")
 	if name == "" || len(args) == 0 {
 		return errResp("usage: create interface <name> unit <vid>")
 	}
-	vidStr := args[0]
-	vid, parseErr := strconv.Atoi(vidStr)
-	if parseErr != nil || vid < 1 || vid > 4094 {
-		var tb textbuf.Buffer
-		return errResp(tb.Str("invalid VLAN ID ").Str(vidStr).Str(" (must be 1-4094)").String())
+	vid, parseErr := parseVID(args[0])
+	if parseErr != nil {
+		return errResp(parseErr.Error())
 	}
 	if err := iface.CreateVLAN(name, vid); err != nil {
 		return errResp(err.Error())
@@ -143,11 +160,9 @@ func handleUnitDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	if name == "" || len(args) == 0 {
 		return errResp("usage: delete interface <name> unit <vid>")
 	}
-	vidStr := args[0]
-	vid, parseErr := strconv.Atoi(vidStr)
-	if parseErr != nil || vid < 1 || vid > 4094 {
-		var tb textbuf.Buffer
-		return errResp(tb.Str("invalid VLAN ID ").Str(vidStr).Str(" (must be 1-4094)").String())
+	vid, parseErr := parseVID(args[0])
+	if parseErr != nil {
+		return errResp(parseErr.Error())
 	}
 	var bName textbuf.Buffer
 	subName := bName.Reset().Str(name).Byte('.').Int(int64(vid)).String()

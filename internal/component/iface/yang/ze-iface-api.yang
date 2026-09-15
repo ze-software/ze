@@ -73,7 +73,7 @@ the interface.";
 the kernel before the call.";
                 ze:help "Interface name";
             }
-            leaf address {
+            leaf prefix {
                 type string;
                 mandatory true;
                 description "An IPv4 or IPv6 address with its prefix length. The string
@@ -95,7 +95,7 @@ other addresses on the interface stay.";
 stay.";
                 ze:help "Interface name";
             }
-            leaf address {
+            leaf prefix {
                 type string;
                 mandatory true;
                 description "An IPv4 or IPv6 address with its prefix length, in the string
@@ -105,8 +105,8 @@ form the add used.";
         }
     }
     rpc interface-unit-add {
-        description "The VLAN ID is 1 to 4094, and a value outside that range fails
-with 'invalid VLAN ID <value> (must be 1-4094)'. Ze names the new device
+        description "The VLAN ID is 1 to 4094, and the dispatcher refuses a value
+outside that range before the handler runs. Ze names the new device
 <name>.<vid>. The parent interface is created first when it is absent, and
 deleted again when this step fails.";
         ze:help "Add a VLAN logical unit to an interface.";
@@ -118,19 +118,20 @@ deleted again when this step fails.";
 <name>.<vid>.";
                 ze:help "Parent interface name";
             }
-            leaf vlan-id {
-                type uint16;
+            leaf vid {
+                type uint16 { range "1..4094"; }
                 mandatory true;
-                description "The 802.1Q tag of the unit. A value outside 1 to 4094 fails
-before the backend is called.";
+                description "The 802.1Q tag of the unit. A value outside 1 to 4094 is
+refused before the handler runs.";
                 ze:help "VLAN ID (1-4094)";
             }
         }
     }
     rpc interface-unit-del {
         description "The handler takes the parent interface name and the VLAN ID,
-and joins them into <name>.<vid> itself. The VLAN ID is 1 to 4094. The parent
-interface stays.";
+and joins them into <name>.<vid> itself. The VLAN ID is 1 to 4094, and the
+dispatcher refuses a value outside that range before the handler runs. The
+parent interface stays.";
         ze:help "Delete a logical unit from an interface.";
         input {
             leaf name {
@@ -139,6 +140,13 @@ interface stays.";
                 description "The parent interface. The handler joins it with the VLAN ID
 into <name>.<vid> and deletes that device.";
                 ze:help "Parent interface name";
+            }
+            leaf vid {
+                type uint16 { range "1..4094"; }
+                mandatory true;
+                description "The 802.1Q tag of the unit to remove. The device deleted is
+<name>.<vid>. A tag outside 1 to 4094 is refused before the handler runs.";
+                ze:help "VLAN ID (1-4094)";
             }
         }
     }
