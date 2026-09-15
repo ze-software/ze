@@ -11,7 +11,15 @@ module ze-iface-api {
 present answers with created false and changes nothing. A name that holds an
 interface of another type fails, and the error names both types.";
         ze:help "Create a dummy (loopback-like) interface.";
-        input { leaf name { type string; mandatory true; ze:help "Interface name"; } }
+        input {
+            leaf name {
+                type string;
+                mandatory true;
+                description "The name of the dummy. The caller fills it, and a name in use
+by an interface of another type is refused.";
+                ze:help "Interface name";
+            }
+        }
     }
     rpc interface-create-veth {
         description "One call creates both ends, so the name and the peer name both
@@ -19,8 +27,20 @@ appear in the kernel. The command is idempotent, and a veth of that name
 already present answers with created false.";
         ze:help "Create a veth pair.";
         input {
-            leaf name { type string; mandatory true; ze:help "Interface name"; }
-            leaf peer { type string; mandatory true; ze:help "Peer interface name"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The name of the first end of the pair. The exists check and
+the created flag in the answer are about this end.";
+                ze:help "Interface name";
+            }
+            leaf peer {
+                type string;
+                mandatory true;
+                description "The name of the second end. The one call creates it with the
+first.";
+                ze:help "Peer interface name";
+            }
         }
     }
     rpc interface-delete {
@@ -29,7 +49,15 @@ bound to hardware by a selector reaches the right port. The dispatcher calls
 this same RPC to undo a compound create. An interface the dispatcher created
 is deleted when the unit or address step after it fails.";
         ze:help "Delete an interface.";
-        input { leaf name { type string; mandatory true; ze:help "Interface name"; } }
+        input {
+            leaf name {
+                type string;
+                mandatory true;
+                description "The interface to delete. The caller fills it with the Ze name,
+and the device that name resolves to is the one that goes.";
+                ze:help "Interface name";
+            }
+        }
     }
     rpc interface-addr-add {
         description "Write the address in CIDR form, for example 10.0.0.1/24. Ze
@@ -38,8 +66,20 @@ netlink backend. The answer carries a message key that names the prefix and
 the interface.";
         ze:help "Add an IP address to an interface.";
         input {
-            leaf name { type string; mandatory true; ze:help "Interface name"; }
-            leaf address { type string; mandatory true; ze:help "IP address in CIDR notation (e.g. 10.0.0.1/24)"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The interface that receives the address. It must be present in
+the kernel before the call.";
+                ze:help "Interface name";
+            }
+            leaf address {
+                type string;
+                mandatory true;
+                description "An IPv4 or IPv6 address with its prefix length. The string
+goes to the netlink backend unchanged.";
+                ze:help "IP address in CIDR notation (e.g. 10.0.0.1/24)";
+            }
         }
     }
     rpc interface-addr-del {
@@ -48,8 +88,20 @@ string to the netlink backend unchanged. Only that one address goes, and the
 other addresses on the interface stay.";
         ze:help "Remove an IP address from an interface.";
         input {
-            leaf name { type string; mandatory true; ze:help "Interface name"; }
-            leaf address { type string; mandatory true; ze:help "IP address in CIDR notation"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The interface that holds the address. Its other addresses
+stay.";
+                ze:help "Interface name";
+            }
+            leaf address {
+                type string;
+                mandatory true;
+                description "An IPv4 or IPv6 address with its prefix length, in the string
+form the add used.";
+                ze:help "IP address in CIDR notation";
+            }
         }
     }
     rpc interface-unit-add {
@@ -59,8 +111,20 @@ with 'invalid VLAN ID <value> (must be 1-4094)'. Ze names the new device
 deleted again when this step fails.";
         ze:help "Add a VLAN logical unit to an interface.";
         input {
-            leaf name { type string; mandatory true; ze:help "Parent interface name"; }
-            leaf vlan-id { type uint16; mandatory true; ze:help "VLAN ID (1-4094)"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The parent interface. The new device is named after it, as
+<name>.<vid>.";
+                ze:help "Parent interface name";
+            }
+            leaf vlan-id {
+                type uint16;
+                mandatory true;
+                description "The 802.1Q tag of the unit. A value outside 1 to 4094 fails
+before the backend is called.";
+                ze:help "VLAN ID (1-4094)";
+            }
         }
     }
     rpc interface-unit-del {
@@ -68,7 +132,15 @@ deleted again when this step fails.";
 and joins them into <name>.<vid> itself. The VLAN ID is 1 to 4094. The parent
 interface stays.";
         ze:help "Delete a logical unit from an interface.";
-        input { leaf name { type string; mandatory true; ze:help "Interface name (e.g. eth0.100)"; } }
+        input {
+            leaf name {
+                type string;
+                mandatory true;
+                description "The parent interface. The handler joins it with the VLAN ID
+into <name>.<vid> and deletes that device.";
+                ze:help "Parent interface name";
+            }
+        }
     }
     rpc interface-migrate {
         description "Ze runs five phases in a fixed order. It creates the
@@ -80,9 +152,27 @@ failure at any phase rolls the earlier phases back. The wait is 30 seconds
 where no timeout value is given.";
         ze:help "Make-before-break IP migration between interfaces.";
         input {
-            leaf from { type string; mandatory true; ze:help "Source interface.unit (e.g. eth0.0)"; }
-            leaf to { type string; mandatory true; ze:help "Destination interface.unit (e.g. eth1.0)"; }
-            leaf address { type string; mandatory true; ze:help "IP address to migrate (CIDR)"; }
+            leaf from {
+                type string;
+                mandatory true;
+                description "The source, written as name.unit, where unit 0 is the interface
+itself. The address leaves it in phase 4, after BGP confirms readiness on the destination.";
+                ze:help "Source interface.unit (e.g. eth0.0)";
+            }
+            leaf to {
+                type string;
+                mandatory true;
+                description "The destination, written as name.unit. The address is added
+there in phase 2, before it leaves the source.";
+                ze:help "Destination interface.unit (e.g. eth1.0)";
+            }
+            leaf address {
+                type string;
+                mandatory true;
+                description "An IPv4 or IPv6 address with its prefix length. Phase 3 matches
+the BGP listener-ready event on the address part alone.";
+                ze:help "IP address to migrate (CIDR)";
+            }
         }
     }
 }

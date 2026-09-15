@@ -142,18 +142,26 @@ Linux only. Good for confirming listeners or spotting stuck connections.";
                 ze:help "Show open TCP and UDP sockets on this box.";
                 leaf protocol {
                     type enumeration {
-                        enum tcp;
-                        enum udp;
+                        enum tcp { ze:help "List only TCP sockets, IPv4 and IPv6."; }
+                        enum udp { ze:help "List only UDP sockets, IPv4 and IPv6."; }
                     }
-                    ze:help "Filter by protocol";
+                    description "The word is optional. Absent, the list carries both protocols. Ze reads
+/proc/net/tcp and /proc/net/tcp6 for tcp, and the udp pair for udp.";
+                    ze:help "Filter by protocol.";
                 }
                 leaf state {
                     type string;
-                    ze:help "Filter by socket state";
+                    description "The value is a kernel state name such as established, listen or time_wait,
+in any letter case. Only sockets in that state are listed. A UDP socket has no state
+to match.";
+                    ze:help "Filter by socket state.";
                 }
                 leaf port {
                     type uint32;
-                    ze:help "Filter by port number";
+                    description "The value is a port number from 1 to 65535. A socket is listed when its
+local port or its remote port equals it. A value outside that range is ignored and the
+list is not filtered.";
+                    ze:help "Filter by port number.";
                 }
             }
 
@@ -169,11 +177,14 @@ when the daemon stops responding.";
                 ze:help "Dump goroutine stacks for debugging hangs or deadlocks.";
                 leaf mode {
                     type enumeration {
-                        enum summary;
-                        enum blocked;
-                        enum full;
+                        enum summary { ze:help "Report the goroutine total and a count for each state."; }
+                        enum blocked { ze:help "List the goroutines waiting on a channel, a lock or I/O."; }
+                        enum full { ze:help "Dump every goroutine stack as the Go runtime prints it."; }
                     }
-                    ze:help "Display mode";
+                    description "The word is optional and the default is summary. The blocked list carries
+each waiting goroutine with its id, its state and its stack, after the same totals. A
+full dump is one text block of up to 16 MB, so keep it for a hang.";
+                    ze:help "Display mode.";
                 }
             }
 
@@ -186,10 +197,12 @@ this when you suspect fd exhaustion.";
                 ze:help "Show how many file descriptors the daemon has open.";
                 leaf mode {
                     type enumeration {
-                        enum summary;
-                        enum detail;
+                        enum summary { ze:help "Report the total, a count per type, and the soft and hard limits."; }
+                        enum detail { ze:help "Add one row per descriptor with its number, target and type."; }
                     }
-                    ze:help "Display mode";
+                    description "The word is optional and the default is summary. Detail keeps the totals
+and appends the descriptor rows, so the output grows with the number of open files.";
+                    ze:help "Display mode.";
                 }
             }
 
@@ -202,18 +215,23 @@ this when you suspect fd exhaustion.";
                 ze:help "Capture a runtime profile for performance analysis.";
                 leaf type {
                     type enumeration {
-                        enum cpu;
-                        enum heap;
-                        enum goroutine;
-                        enum allocs;
+                        enum cpu { ze:help "Sample the CPU for the duration, then return the profile."; }
+                        enum heap { ze:help "Snapshot the live heap objects at the last garbage collection."; }
+                        enum goroutine { ze:help "Snapshot the stack of every goroutine now."; }
+                        enum allocs { ze:help "Sample the allocations made since the daemon started."; }
                     }
-                    ze:help "Profile type";
+                    description "The word is optional and the default is heap. Only cpu runs for a time
+and reads duration. The three others return at once. The response carries the pprof
+bytes as base64 in data, with format pprof-base64.";
+                    ze:help "Profile type.";
                 }
                 leaf duration {
                     type string {
                         pattern '\d+[smh]?';
                     }
-                    ze:help "Profile duration";
+                    description "The value is a Go duration with a unit, from 1s to 60s, and the default
+is 10s. Only a cpu profile reads it. A second cpu profile is refused while one runs.";
+                    ze:help "Profile duration.";
                 }
             }
 
@@ -254,26 +272,38 @@ Actions include config-commit, login, peer-teardown, and more.";
             ze:help "Show who did what and when on this box.";
             leaf action {
                 type string;
+                description "The value is an action name as the action column reports it, such as
+config-commit or login, compared as text. Absent, entries of every action are shown.";
                 ze:help "Filter by action type";
             }
             leaf actor {
                 type string;
+                description "The value is the name of the user or process that acted, compared as text
+with the actor column. Absent, entries of every actor are shown.";
                 ze:help "Filter by actor name";
             }
             leaf surface {
                 type string;
+                description "The value is the surface the action came through: cli, web or api,
+compared as text. Absent, entries of every surface are shown.";
                 ze:help "Filter by surface name";
             }
             leaf since {
                 type string;
+                description "The value is an RFC 3339 timestamp such as 2026-09-15T08:00:00Z, and any other
+form is refused. Entries recorded before it are left out.";
                 ze:help "Start time (RFC3339)";
             }
             leaf until {
                 type string;
+                description "The value is an RFC 3339 timestamp such as 2026-09-15T18:00:00Z, and any other
+form is refused. Entries recorded after it are left out.";
                 ze:help "End time (RFC3339)";
             }
             leaf count {
                 type uint32;
+                description "The value is a whole number of 1 or more. The query stops after that many
+matching entries, oldest first. Absent, every matching entry is shown.";
                 ze:help "Maximum number of entries";
             }
         }
@@ -315,15 +345,34 @@ outcome each plugin recorded once, before main(), when it set itself up.";
                 description "Returns matching time series from the internal registry. Multiple label
 filters are ANDed. More targeted than the full metrics dump.";
                 ze:help "Show one Prometheus metric by name.";
-                leaf name { type string { length "1..128"; } mandatory true; ze:help "Prometheus metric name"; }
+                leaf name {
+                    type string { length "1..128"; }
+                    mandatory true;
+                    description "The value is the whole metric name, such as ze_bgp_connect_retry_counter,
+compared as text with the start of each sample line. A name that matches no sample answers
+an empty list.";
+                    ze:help "Prometheus metric name";
+                }
 
                 container label {
                     config false;
                     ze:modifier "repeat";
                     description "Every filter given must match.";
                     ze:help "A label and the value it must hold for a series to be reported.";
-                    leaf key { type string { length "1..128"; } mandatory true; ze:help "Prometheus label name"; }
-                    leaf value { type string { length "1..256"; } mandatory true; ze:help "The value the label must hold"; }
+                    leaf key {
+                        type string { length "1..128"; }
+                        mandatory true;
+                        description "The value is a label name as the sample line carries it, such as peer.
+A key named twice states two conditions, and a series MUST meet both.";
+                        ze:help "Prometheus label name";
+                    }
+                    leaf value {
+                        type string { length "1..256"; }
+                        mandatory true;
+                        description "The value is compared as text with the quoted label value on the sample
+line, so it MUST be spelled the way the exporter wrote it.";
+                        ze:help "The value the label must hold";
+                    }
                 }
             }
         }
@@ -392,7 +441,9 @@ see nothing from this peer'.";
 
         container policy {
             config false;
-            ze:help "Inspect and test route policy filters.";
+            // No text on this container. ze-policy-cmd owns show policy and
+            // states both halves, and a second module that restates one half
+            // is what mergeHelpText reports as a mismatch.
 
             container list {
                 config false;

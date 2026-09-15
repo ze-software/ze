@@ -21,8 +21,8 @@ module ze-ddos-flowspec-conf {
 
       leaf response-level {
         type enumeration {
-          enum alert;
-          enum enforce;
+          enum alert { ze:help "Log the FlowSpec rule the responder would announce, and announce nothing."; }
+          enum enforce { ze:help "Announce the FlowSpec rule to the peer."; }
         }
         default alert;
         description "alert is the default. The responder then logs the announcement it would make, and
@@ -32,8 +32,8 @@ module ze-ddos-flowspec-conf {
       }
       leaf action {
         type enumeration {
-          enum rate-limit;
-          enum discard;
+          enum rate-limit { ze:help "Announce a traffic-rate of rate-limit-bytes, which that leaf must then carry."; }
+          enum discard { ze:help "Announce a traffic-rate of 0, which drops the attack flow."; }
         }
         mandatory true;
         description "Neither discard nor rate-limit is universally safe, so this leaf

@@ -60,7 +60,13 @@ views. Use it during initial setup to see what the box has.";
 tunnel, bond, and more. If you pick an invalid type, the error lists all valid
 ones.";
                 ze:help "Show only interfaces of a given type.";
-                leaf type { type string { length "1..32"; } mandatory true; ze:help "Ze interface type to filter by"; }
+                leaf type {
+                    type string { length "1..32"; }
+                    mandatory true;
+                    description "The type name the backend reports for an interface, compared
+without regard to case. When no interface has it, the error lists the types present.";
+                    ze:help "Ze interface type to filter by";
+                }
             }
 
             container errors {
@@ -96,6 +102,8 @@ error.";
                     leaf name {
                         type string;
                         mandatory true;
+                        description "The interface whose record is shown. The backend looks it
+up by this name, and an unknown name answers the backend's error.";
                         ze:help "Interface name";
                     }
                 }
@@ -110,6 +118,8 @@ than an error.";
                     leaf name {
                         type string;
                         mandatory true;
+                        description "The interface whose statistics are read. The answer
+repeats this name beside the Rx and Tx values.";
                         ze:help "Interface name";
                     }
                 }
@@ -170,6 +180,8 @@ its kernel device first, so a name bound to hardware by a selector clears the ri
                     leaf name {
                         type string;
                         mandatory true;
+                        description "The interface whose counters are reset. The answer names
+it as the scope cleared, where the form without a name reports all.";
                         ze:help "Interface name";
                     }
                 }

@@ -30,7 +30,14 @@ of a specific entry.";
                 ze:command "ze-show:data-cat";
                 description "Outputs the value for the given key, like 'cat' for ZeFS.";
                 ze:help "Print the raw content of a blob store entry.";
-                leaf key { type string { length "1..512"; } mandatory true; ze:help "Blob store key to print"; }
+                leaf key {
+                    type string { length "1..512"; }
+                    mandatory true;
+                    description "The key of one entry, as show data list prints it. The bytes stored
+                                 under it are written out unchanged, and a key the store does not
+                                 hold is an error.";
+                    ze:help "Blob store key to print";
+                }
             }
 
             container registered {

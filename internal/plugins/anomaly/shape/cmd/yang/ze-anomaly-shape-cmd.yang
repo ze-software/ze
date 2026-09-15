@@ -11,6 +11,11 @@ module ze-anomaly-shape-cmd {
 
         container anomaly {
             config false;
+            // Repeat the canonical description owned by ze-anomaly-cmd.yang
+            // verbatim, because the command-tree merge keeps the first text.
+            description "Detection and response are separate: the detector reports what it sees, and a
+                         responder acts on it only where one is configured. A detected anomaly is not
+                         itself a mitigation.";
             ze:help "Behavioral anomaly detection and response subsystem.";
 
             container shape {

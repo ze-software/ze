@@ -58,7 +58,13 @@ diff' to review changes before rolling back.";
                 ze:command "ze-show:config-cat";
                 description "Outputs the config as-is.";
                 ze:help "Print the full text of a stored configuration snapshot.";
-                leaf id { type string { length "1..128"; } mandatory true; ze:help "Stored configuration snapshot id"; }
+                leaf id {
+                    type string { length "1..128"; }
+                    mandatory true;
+                    description "The value is a key that show config list prints. Ze reads that file from
+the configuration store and writes its bytes unchanged.";
+                    ze:help "Stored configuration snapshot id.";
+                }
             }
 
             container fmt {

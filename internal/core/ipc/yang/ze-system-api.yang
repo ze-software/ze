@@ -17,7 +17,12 @@ module ze-system-api {
 registered. A plugin command marked hidden is left out.";
         ze:help "List the subcommands the system verb accepts.";
         output {
-            leaf-list subcommands { type string; ze:help "Available subcommands"; }
+            leaf-list subcommands {
+                type string;
+                description "Each entry is one line in the form name - summary. A plugin command
+that declared arguments shows them between the name and the dash.";
+                ze:help "Available subcommands";
+            }
         }
     }
 
@@ -26,7 +31,12 @@ registered. A plugin command marked hidden is left out.";
 compiled with. Both are set at startup and never change while the daemon runs.";
         ze:help "Show the ze software version.";
         output {
-            leaf version { type string; ze:help "Software version string"; }
+            leaf version {
+                type string;
+                description "The string is the one the binary was built with. A build-date field
+comes with it in the same answer.";
+                ze:help "Software version string";
+            }
         }
     }
 
@@ -36,7 +46,12 @@ it moves apart from the software version. The daemon reads it nowhere else, so t
 reports the protocol rather than negotiates it.";
         ze:help "Show the IPC protocol version.";
         output {
-            leaf version { type string; ze:help "API protocol version"; }
+            leaf version {
+                type string;
+                description "The value is the constant the daemon was compiled with. A client
+compares it with its own to detect a protocol it does not speak.";
+                ze:help "API protocol version";
+            }
         }
     }
 
@@ -66,9 +81,24 @@ then stops through the same path daemon-shutdown uses.";
 the command. The uptime is truncated to a whole second.";
         ze:help "Show the daemon uptime, peer count, and start time.";
         output {
-            leaf uptime-seconds { type uint32; ze:help "Seconds since start"; }
-            leaf peer-count { type uint32; ze:help "Number of configured peers"; }
-            leaf start-time { type string; ze:help "ISO 8601 start timestamp"; }
+            leaf uptime-seconds {
+                type uint32;
+                description "The value is the time since the reactor started, rounded down to
+the second. It is rendered as a duration string such as 3h2m1s.";
+                ze:help "Seconds since start";
+            }
+            leaf peer-count {
+                type uint32;
+                description "The count is read from the reactor statistics and covers every
+peer the reactor holds, whatever its session state.";
+                ze:help "Number of configured peers";
+            }
+            leaf start-time {
+                type string;
+                description "The time the reactor started, in the form 2006-01-02T15:04:05
+with a numeric zone offset or Z.";
+                ze:help "ISO 8601 start timestamp";
+            }
         }
     }
 
@@ -82,8 +112,18 @@ each one then applies it. A daemon with no config loader reconciles the BGP peer
         description "It is a test and operator barrier that replaces a fixed sleep.";
         ze:help "Block until every subsystem drains its pending async work.";
         output {
-            leaf-list quiesced { type string; ze:help "Subsystems that were asked to drain"; }
-            leaf-list failed { type string; ze:help "Subsystems that failed or timed out"; }
+            leaf-list quiesced {
+                type string;
+                description "Each entry names one subsystem the daemon asked to drain. A
+subsystem that failed appears here too, because the request was made.";
+                ze:help "Subsystems that were asked to drain";
+            }
+            leaf-list failed {
+                type string;
+                description "Each entry names one subsystem whose drain returned an error or
+did not finish in time. The list is absent when every drain succeeded.";
+                ze:help "Subsystems that failed or timed out";
+            }
         }
     }
 
@@ -93,8 +133,21 @@ many commands it registered. The command count is read from the dispatcher regis
         ze:help "List the subsystems registered in the daemon.";
         output {
             list subsystem {
-                leaf name { type string; ze:help "Subsystem name"; }
-                leaf description { type string; ze:help "Subsystem description"; }
+                description "One row for each plugin process the process manager holds, whatever
+its stage. A daemon with no process manager answers an empty list and a count of zero.";
+                ze:help "One row per plugin process.";
+                leaf name {
+                    type string;
+                    description "The process name of the plugin, as the configuration names
+it. It is the key the command registry counts commands under.";
+                    ze:help "Subsystem name";
+                }
+                leaf description {
+                    type string;
+                    description "A text about the subsystem. The daemon fills no such field
+today, so a reader sees the name, stage, running flag and command count alone.";
+                    ze:help "Subsystem description";
+                }
             }
         }
     }
@@ -106,6 +159,9 @@ the commands each plugin registered.";
         ze:help "List every command the daemon knows.";
         output {
             list command {
+                description "Built-in rows come first, then one row for each command every plugin
+registered. Each row carries the fields of command-info.";
+                ze:help "One row per command the daemon knows.";
                 uses zt:command-info;
             }
         }
@@ -117,10 +173,21 @@ registry. A plugin command also answers with its argument form, its source proce
 timeout.";
         ze:help "Show the detailed help for one command.";
         input {
-            leaf name { type string; mandatory true; ze:help "Command name"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The full command name, as command-list prints it. A name in
+neither registry fails with unknown command.";
+                ze:help "Command name";
+            }
         }
         output {
-            leaf help { type string; ze:help "Detailed help text"; }
+            leaf help {
+                type string;
+                description "The answer carries the command name, its summary, its
+explanation and its source, which is builtin or the plugin process name.";
+                ze:help "Detailed help text";
+            }
         }
     }
 
@@ -130,11 +197,27 @@ timeout.";
 does not declare that command completable.";
         ze:help "List the completion candidates for a partial command.";
         input {
-            leaf partial { type string; mandatory true; ze:help "Partial command string"; }
-            leaf arg { type string; ze:help "Current argument being completed"; }
+            leaf partial {
+                type string;
+                mandatory true;
+                description "The text the operator typed so far. Built-in and plugin command
+names that start with it, in any letter case, are the candidates.";
+                ze:help "Partial command string";
+            }
+            leaf arg {
+                type string;
+                description "The partial word of an argument, used with the args form. The
+engine forwards it to the plugin that owns the command.";
+                ze:help "Current argument being completed";
+            }
         }
         output {
-            leaf-list completions { type string; ze:help "Completion candidates"; }
+            leaf-list completions {
+                type string;
+                description "Each entry is one candidate with its summary. An empty list means
+nothing matched, and it is still a successful answer.";
+                ze:help "Completion candidates";
+            }
         }
     }
 
@@ -144,11 +227,26 @@ CLI uses, so a plugin command is reachable too. It fails with missing command wh
 is given.";
         ze:help "Dispatch a text command through the command dispatcher.";
         input {
-            leaf-list args { type string; ze:help "Command words to join and dispatch"; }
+            leaf-list args {
+                type string;
+                description "The words of the command in order. A word that holds a space is
+joined like any other, so quote it as the target command expects.";
+                ze:help "Command words to join and dispatch";
+            }
         }
         output {
-            leaf status { type string; ze:help "Result status (ok or error)"; }
-            leaf data { type string; ze:help "Response data"; }
+            leaf status {
+                type string;
+                description "The status the dispatched command answered with. It is passed
+through unchanged, so a plugin command's own vocabulary appears here.";
+                ze:help "Result status (ok or error)";
+            }
+            leaf data {
+                type string;
+                description "The answer the dispatched command produced, passed through
+unchanged.";
+                ze:help "Response data";
+            }
         }
     }
 }

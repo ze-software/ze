@@ -47,7 +47,15 @@ lists the IDs.";
 comma-separated list, and each ID is acted on in turn with a failure reported
 per ID.";
                 ze:help "Prevent eviction of a cached message.";
-                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
+                leaf id {
+                    type string;
+                    mandatory true;
+                    description "One decimal cache entry ID, as show cache lists it, or several joined
+by commas. A comma-separated value runs the action once for each ID and reports a
+failure for each ID that is not in the cache. A value that is not a decimal
+number is refused as an invalid cache id.";
+                    ze:help "Cache entry ID, or a comma-separated list of IDs.";
+                }
             }
 
             container release {
@@ -57,7 +65,15 @@ per ID.";
 does not forward it. An API caller undoes an earlier retain. The ID leaf
 accepts a comma-separated list, and each ID is acted on in turn.";
                 ze:help "Ack without forwarding (cache consumer) or undo retain (API).";
-                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
+                leaf id {
+                    type string;
+                    mandatory true;
+                    description "One decimal cache entry ID, as show cache lists it, or several joined
+by commas. A comma-separated value runs the action once for each ID and reports a
+failure for each ID that is not in the cache. A value that is not a decimal
+number is refused as an invalid cache id.";
+                    ze:help "Cache entry ID, or a comma-separated list of IDs.";
+                }
             }
 
             container expire {
@@ -67,7 +83,15 @@ accepts a comma-separated list, and each ID is acted on in turn.";
 accepts a comma-separated list, and each ID is acted on in turn with a failure
 reported per ID.";
                 ze:help "Remove a cached message immediately.";
-                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
+                leaf id {
+                    type string;
+                    mandatory true;
+                    description "One decimal cache entry ID, as show cache lists it, or several joined
+by commas. A comma-separated value runs the action once for each ID and reports a
+failure for each ID that is not in the cache. A value that is not a decimal
+number is refused as an invalid cache id.";
+                    ze:help "Cache entry ID, or a comma-separated list of IDs.";
+                }
             }
 
         }
@@ -90,7 +114,15 @@ reported per ID.";
 ID in that list. The command sends a message the cache already holds, so it names what
 goes on the wire and not the act of sending it.";
                 ze:help "Send a cached UPDATE to the peers the selector matches.";
-                leaf id { type string; mandatory true; ze:help "Cache entry ID or comma-separated IDs"; }
+                leaf id {
+                    type string;
+                    mandatory true;
+                    description "One decimal cache entry ID, as show cache lists it, or several joined
+by commas. A comma-separated value runs the action once for each ID and reports a
+failure for each ID that is not in the cache. A value that is not a decimal
+number is refused as an invalid cache id.";
+                    ze:help "Cache entry ID, or a comma-separated list of IDs.";
+                }
             }
         }
     }

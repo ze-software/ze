@@ -38,9 +38,9 @@ names the backbone area.";
                 }
                 leaf area-type {
                     type enumeration {
-                        enum normal;
-                        enum stub;
-                        enum nssa;
+                        enum normal { ze:help "Flood AS-external-LSAs into this area."; }
+                        enum stub { ze:help "Keep AS-external-LSAs out and reach external destinations through the default route."; }
+                        enum nssa { ze:help "Keep AS-external-LSAs out and import external routes as Type 7 LSAs."; }
                     }
                     default "normal";
                     description "RFC 5340 Appendix C.2 excludes every AS-external-LSA from a
@@ -141,10 +141,10 @@ then sends no Hello on the link, and this router advertises no link for it.";
                 }
                 leaf network-type {
                     type enumeration {
-                        enum broadcast;
-                        enum point-to-point;
-                        enum nbma;
-                        enum point-to-multipoint;
+                        enum broadcast { ze:help "Multi-access link that elects a DR and a BDR with multicast Hellos."; }
+                        enum point-to-point { ze:help "Link with one neighbor and no DR election."; }
+                        enum nbma { ze:help "Non-broadcast multi-access link that elects a DR over a configured neighbor list."; }
+                        enum point-to-multipoint { ze:help "Set of point-to-point links with no DR election."; }
                     }
                     default "broadcast";
                     description "broadcast and point-to-point are the two common types. nbma
@@ -275,8 +275,8 @@ protocol, so two interfaces that share an SPI collide.";
                     }
                     leaf protocol {
                         type enumeration {
-                            enum ah;
-                            enum esp;
+                            enum ah { ze:help "Authentication Header (RFC 4302): integrity with no encryption."; }
+                            enum esp { ze:help "Encapsulating Security Payload (RFC 4303): integrity, with optional encryption."; }
                         }
                         default "esp";
                         description "esp is RFC 4303, and an implementation MUST support
@@ -285,10 +285,10 @@ authentication with it. ah is RFC 4302, and an implementation MAY support it.";
                     }
                     leaf algorithm {
                         type enumeration {
-                            enum sha1;
-                            enum sha256;
-                            enum sha384;
-                            enum sha512;
+                            enum sha1 { ze:help "HMAC-SHA-1 with a 40 hex character key."; }
+                            enum sha256 { ze:help "HMAC-SHA-256 with a 64 hex character key."; }
+                            enum sha384 { ze:help "HMAC-SHA-384 with a 96 hex character key."; }
+                            enum sha512 { ze:help "HMAC-SHA-512 with a 128 hex character key."; }
                         }
                         default "sha256";
                         description "The value sets the length the key leaf takes: 40 hex
@@ -323,9 +323,9 @@ section prefers 64.";
                     }
                     leaf encryption-algorithm {
                         type enumeration {
-                            enum null;
-                            enum aes128;
-                            enum aes256;
+                            enum null { ze:help "Authenticate the packet and do not encrypt it."; }
+                            enum aes128 { ze:help "Encrypt with AES and a 128-bit key."; }
+                            enum aes256 { ze:help "Encrypt with AES and a 256-bit key."; }
                         }
                         description "RFC 4552 §4 offers confidentiality with ESP only, never
 with AH. Leave this leaf absent, or set it to null, for an ESP that authenticates the
@@ -656,8 +656,8 @@ attracts the traffic of the whole AS.";
             }
             leaf metric-type {
                 type enumeration {
-                    enum type-1;
-                    enum type-2;
+                    enum type-1 { ze:help "Add the internal distance to the ASBR to the external metric."; }
+                    enum type-2 { ze:help "Compare the external metric alone and break a tie on the internal distance."; }
                 }
                 default "type-2";
                 description "RFC 2328 section 2.3 adds the distance to the ASBR for a Type 1
@@ -850,11 +850,11 @@ entry here takes metric 20 and metric-type type-2.";
             ze:help "Per-source metric, metric type and tag for redistribution into OSPF.";
             leaf source {
                 type enumeration {
-                    enum connected;
-                    enum static;
-                    enum kernel;
-                    enum bgp;
-                    enum isis;
+                    enum connected { ze:help "Routes of the addresses configured on local interfaces."; }
+                    enum static { ze:help "Routes the static plugin installs."; }
+                    enum kernel { ze:help "Routes read from the kernel routing table."; }
+                    enum bgp { ze:help "Routes learned by BGP."; }
+                    enum isis { ze:help "Routes learned by IS-IS."; }
                 }
                 description "The value is the key of the list. Ze reads the entry when it
 originates the AS-external LSA for a route that carries this source label.";
@@ -869,8 +869,8 @@ which is 24 bits wide. A source with no entry in this list takes 20.";
             }
             leaf metric-type {
                 type enumeration {
-                    enum type-1;
-                    enum type-2;
+                    enum type-1 { ze:help "External metric in OSPF cost units, added to the internal distance."; }
+                    enum type-2 { ze:help "External metric larger than any internal path, compared alone."; }
                 }
                 default "type-2";
                 description "RFC 2328 section 2.3 states that a Type 1 external metric is in the
@@ -909,9 +909,9 @@ names the backbone area.";
                 }
                 leaf area-type {
                     type enumeration {
-                        enum normal;
-                        enum stub;
-                        enum nssa;
+                        enum normal { ze:help "Flood AS-external-LSAs into this area."; }
+                        enum stub { ze:help "Keep AS-external-LSAs out and reach external destinations through the default route."; }
+                        enum nssa { ze:help "Keep AS-external-LSAs out and import external routes as Type 7 LSAs."; }
                     }
                     default "normal";
                     description "The types are normal, stub and nssa. The stub specification
@@ -940,9 +940,9 @@ LSA, and the elected translator rewrites it into a Type 5 LSA.";
                     ze:help "NSSA-specific configuration (applies when area-type is nssa).";
                     leaf translate-role {
                         type enumeration {
-                            enum candidate;
-                            enum always;
-                            enum never;
+                            enum candidate { ze:help "Enter the translator election, which the highest Router ID wins."; }
+                            enum always { ze:help "Translate Type 7 LSAs whatever the election decides."; }
+                            enum never { ze:help "Do no Type 7 to Type 5 translation."; }
                         }
                         default "candidate";
                         description "candidate enters the election, which the highest router-id
@@ -998,8 +998,8 @@ any host bit of the prefix is dropped.";
                         }
                         leaf advertise {
                             type enumeration {
-                                enum advertise;
-                                enum not-advertise;
+                                enum advertise { ze:help "Send one summary-LSA for the whole range."; }
+                                enum not-advertise { ze:help "Send no summary-LSA and hide the component networks from other areas."; }
                             }
                             default "advertise";
                             description "RFC 2328 section 12.4.3 suppresses the Type 3
@@ -1108,11 +1108,11 @@ then sends no Hello on the link, and this router advertises no link for it.";
                 }
                 leaf network-type {
                     type enumeration {
-                        enum broadcast;
-                        enum point-to-point;
-                        enum nbma;
-                        enum point-to-multipoint;
-                        enum loopback;
+                        enum broadcast { ze:help "Multi-access link that elects a DR and a BDR with multicast Hellos."; }
+                        enum point-to-point { ze:help "Link with one neighbor and no DR election."; }
+                        enum nbma { ze:help "Non-broadcast multi-access link that elects a DR over a configured neighbor list."; }
+                        enum point-to-multipoint { ze:help "Set of point-to-point links with no DR election."; }
+                        enum loopback { ze:help "Send no Hellos and advertise the interface address as a host route."; }
                     }
                     default "broadcast";
                     description "broadcast and point-to-point are the two common types. nbma
@@ -1233,14 +1233,14 @@ keys in the resolved chain.";
                     ze:help "Per-interface authentication settings.";
                     leaf mode {
                         type enumeration {
-                            enum inherit;
-                            enum none;
-                            enum simple;
-                            enum md5;
-                            enum hmac-sha-1;
-                            enum hmac-sha-256;
-                            enum hmac-sha-384;
-                            enum hmac-sha-512;
+                            enum inherit { ze:help "Take the authentication key chain of the area."; }
+                            enum none { ze:help "No authentication (AuType 0)."; }
+                            enum simple { ze:help "Cleartext password (AuType 1)."; }
+                            enum md5 { ze:help "Keyed MD5 digest (AuType 2)."; }
+                            enum hmac-sha-1 { ze:help "HMAC-SHA-1 digest (AuType 2)."; }
+                            enum hmac-sha-256 { ze:help "HMAC-SHA-256 digest (AuType 2)."; }
+                            enum hmac-sha-384 { ze:help "HMAC-SHA-384 digest (AuType 2)."; }
+                            enum hmac-sha-512 { ze:help "HMAC-SHA-512 digest (AuType 2)."; }
                         }
                         default "inherit";
                         description "The value inherit takes the area default.";
@@ -1350,8 +1350,8 @@ travels in sub-TLV 24 and not in sub-TLV 23. Use a stable global IPv6 address.";
                         }
                         leaf scope {
                             type enumeration {
-                                enum area;
-                                enum as;
+                                enum area { ze:help "Type 10 LSA, held inside the area of the ASBR."; }
+                                enum as { ze:help "Type 11 LSA, flooded across the AS."; }
                             }
                             default "area";
                             description "RFC 5392 section 3.1.1 defines the policy. area is a
@@ -1436,12 +1436,12 @@ that bound. AuType 1 carries no Key ID on the wire.";
                 }
                 leaf algorithm {
                     type enumeration {
-                        enum simple;
-                        enum md5;
-                        enum hmac-sha-1;
-                        enum hmac-sha-256;
-                        enum hmac-sha-384;
-                        enum hmac-sha-512;
+                        enum simple { ze:help "AuType 1, a cleartext password."; }
+                        enum md5 { ze:help "AuType 2, a keyed MD5 digest of 16 octets."; }
+                        enum hmac-sha-1 { ze:help "AuType 2, an HMAC-SHA-1 digest of 20 octets."; }
+                        enum hmac-sha-256 { ze:help "AuType 2, an HMAC-SHA-256 digest of 32 octets."; }
+                        enum hmac-sha-384 { ze:help "AuType 2, an HMAC-SHA-384 digest of 48 octets."; }
+                        enum hmac-sha-512 { ze:help "AuType 2, an HMAC-SHA-512 digest of 64 octets."; }
                     }
                     default "md5";
                     description "simple is AuType 1, which sends a cleartext password. The md5

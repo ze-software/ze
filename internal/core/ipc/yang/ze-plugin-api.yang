@@ -19,7 +19,12 @@ module ze-plugin-api {
 plugin verb accepts nothing else, so a third word is a mistake.";
         ze:help "List the subcommands the plugin verb accepts.";
         output {
-            leaf-list subcommands { type string; ze:help "Available subcommands"; }
+            leaf-list subcommands {
+                type string;
+                description "The list is fixed at build time and holds the two words session
+and command. It reads no registry.";
+                ze:help "Available subcommands";
+            }
         }
     }
 
@@ -31,8 +36,21 @@ command help <name>'.";
         ze:help "List every command a plugin registered, with its summary.";
         output {
             list command {
-                leaf name { type string; ze:help "Command name"; }
-                leaf description { type string; ze:help "Command description"; }
+                description "The rows are read from the plugin command registry, in the order
+it holds them. A daemon with no dispatcher answers an empty list.";
+                ze:help "One row per plugin command.";
+                leaf name {
+                    type string;
+                    description "The name the owning plugin declared at Stage 1, as the
+dispatcher registered it.";
+                    ze:help "Command name";
+                }
+                leaf description {
+                    type string;
+                    description "The one-line summary the plugin declared as its short help.
+The long explanation is not in this list.";
+                    ze:help "Command description";
+                }
             }
         }
     }
@@ -43,10 +61,21 @@ source. The source names the plugin process that registered the command. An
 unknown name fails with 'unknown plugin command: <name>'.";
         ze:help "Show one plugin command's summary, explanation, arguments, and source plugin.";
         input {
-            leaf name { type string; mandatory true; ze:help "Command name"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The full command name, as command-list prints it. The lookup
+reads the plugin registry alone, so a built-in name is unknown here.";
+                ze:help "Command name";
+            }
         }
         output {
-            leaf help { type string; ze:help "Detailed help text"; }
+            leaf help {
+                type string;
+                description "The answer carries the command name, its summary, its explanation,
+its argument names and the process name of the plugin that owns it.";
+                ze:help "Detailed help text";
+            }
         }
     }
 
@@ -56,10 +85,21 @@ registry only, so a built-in command never appears here. The answer carries a
 completions list, and an empty list means no plugin command matched.";
         ze:help "List the completion candidates for a partial plugin command.";
         input {
-            leaf partial { type string; mandatory true; ze:help "Partial command string"; }
+            leaf partial {
+                type string;
+                mandatory true;
+                description "The text the operator typed so far. Plugin command names that start
+with it are the candidates.";
+                ze:help "Partial command string";
+            }
         }
         output {
-            leaf-list completions { type string; ze:help "Completion candidates"; }
+            leaf-list completions {
+                type string;
+                description "Each entry is one candidate with its summary. The answer succeeds
+with an empty list when nothing matched.";
+                ze:help "Completion candidates";
+            }
         }
     }
 
@@ -84,7 +124,12 @@ accepted and signals nothing.";
 A caller reads that id to tell one daemon from another after a restart.";
         ze:help "Answer a health check with the daemon process id.";
         output {
-            leaf pong { type boolean; ze:help "Always true when alive"; }
+            leaf pong {
+                type boolean;
+                description "The daemon writes its own process id here, so the value changes
+when the daemon restarts. Any answer at all means the daemon is alive.";
+                ze:help "Always true when alive";
+            }
         }
     }
 

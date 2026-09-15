@@ -28,23 +28,31 @@ this box, not from your workstation.";
             ze:help "Ping a target from the router itself.";
             leaf dest {
                 type string;
-                ze:help "Target host or IP address";
+                description "The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.";
+                ze:help "Target host or IP address.";
             }
             leaf count {
                 type uint32;
-                ze:help "Number of ping packets";
+                description "The value is the number of echo requests Ze sends, 1 to 100, paced 10
+milliseconds apart. Absent, the value is 5.";
+                ze:help "Number of ping packets.";
             }
             leaf size {
                 type uint32 {
                     range "1..65507";
                 }
+                description "Ze fills the payload to exactly this many bytes, with its marker copied
+into the front so a capture still identifies the sender.";
                 ze:help "ICMP echo payload size in bytes (1-65507). Omit for the engine default.";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                ze:help "Timeout duration";
+                description "The value is the time Ze waits for each reply, in Go duration syntax, 1s
+to 30s. Absent, the value is 5s.";
+                ze:help "Timeout duration.";
             }
         }
     }
@@ -75,10 +83,31 @@ fe80::1%eth0. The source binds a local address and takes the same zone suffix.
 The count runs from 1 to 100 and the payload size from 1 to 65507 bytes. 'show
 ping' declares no source leaf and puts no upper bound on its count.";
             ze:help "Ping from the router with optional source binding.";
-            leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; ze:help "Host or IP address to ping"; }
-            leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } ze:help "Source IP address to bind"; }
-            leaf count { type uint32 { range "1..100"; } ze:help "Number of echo requests"; }
-            leaf size { type uint32 { range "1..65507"; } ze:help "ICMP echo payload size in bytes"; }
+            leaf target {
+                type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; }
+                mandatory true;
+                description "The value follows the target keyword. A host name is resolved in either
+address family, and the family of the answer selects ICMPv4 or ICMPv6.";
+                ze:help "Host or IP address to ping.";
+            }
+            leaf source {
+                type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; }
+                description "The value is a local IPv4 or IPv6 address, with an optional %zone, that Ze
+binds the echo socket to. Absent, the kernel picks the source.";
+                ze:help "Source IP address to bind.";
+            }
+            leaf count {
+                type uint32 { range "1..100"; }
+                description "Ze sends this many echo requests and waits 5 seconds for each reply.
+Absent, the value is 4.";
+                ze:help "Number of echo requests.";
+            }
+            leaf size {
+                type uint32 { range "1..65507"; }
+                description "Ze fills the payload to exactly this many bytes, with its marker copied
+into the front. Absent, Ze sends the small default payload.";
+                ze:help "ICMP echo payload size in bytes.";
+            }
         }
     }
 }

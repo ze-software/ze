@@ -21,6 +21,8 @@ name, and a 'count' comes with them.";
         output {
             leaf certificates {
                 type string;
+                description "One object per loaded CA or device certificate, sorted by type and
+then by name. The array is empty when the store holds none.";
                 ze:help "JSON array of certificate summary objects.";
             }
         }
@@ -33,12 +35,17 @@ name, and a 'count' comes with them.";
         input {
             leaf name {
                 type string;
+                description "The name a pki ca or pki certificate block declares. The CA store is
+searched first, then the device store, and a miss fails with pki: certificate <name> not
+found and the names that exist.";
                 ze:help "Certificate name to look up.";
             }
         }
         output {
             leaf certificate {
                 type string;
+                description "The shape follows the sub-command: details as fields, the PEM as one
+text block, or the digest as a colon-separated hex string.";
                 ze:help "JSON object: certificate details, PEM text, or fingerprint
                          depending on sub-command.";
             }

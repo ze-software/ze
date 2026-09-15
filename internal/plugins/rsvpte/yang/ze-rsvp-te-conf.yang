@@ -156,8 +156,8 @@ module ze-rsvp-te-conf {
 
                 leaf backup {
                     type enumeration {
-                        enum facility;
-                        enum one-to-one;
+                        enum facility { ze:help "Ask each PLR for one bypass LSP that protects many LSPs (RFC 4090 Section 3.2)."; }
+                        enum one-to-one { ze:help "Ask for one detour per LSP (RFC 4090 Section 3.1), which Ze signals and never builds."; }
                     }
                     default facility;
                     description "Backup method. facility is the default and asks each PLR for one bypass LSP that protects
@@ -225,8 +225,8 @@ module ze-rsvp-te-conf {
 
                 leaf type {
                     type enumeration {
-                        enum strict;
-                        enum loose;
+                        enum strict { ze:help "The previous hop must reach this one directly, with no hop between them."; }
+                        enum loose { ze:help "Set the L bit of the ERO subobject and permit other hops between them."; }
                     }
                     default strict;
                     description "Hop type. strict is the default and asks that the previous hop reaches this one directly.
@@ -295,8 +295,8 @@ module ze-rsvp-te-conf {
 
                 leaf type {
                     type enumeration {
-                        enum strict;
-                        enum loose;
+                        enum strict { ze:help "The previous hop must reach this one directly, with no hop between them."; }
+                        enum loose { ze:help "Set the L bit of the ERO subobject and permit other hops between them."; }
                     }
                     default strict;
                     description "Hop type. strict is the default and asks that the previous hop reaches this one directly.

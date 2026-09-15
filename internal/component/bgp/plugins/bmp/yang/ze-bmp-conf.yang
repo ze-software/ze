@@ -156,9 +156,9 @@ module ze-bmp-conf {
 
                 leaf route-monitoring-policy {
                     type enumeration {
-                        enum pre-policy;
-                        enum post-policy;
-                        enum all;
+                        enum pre-policy { ze:help "Stream the UPDATE messages Ze received, the Adj-RIB-In."; }
+                        enum post-policy { ze:help "Stream the UPDATE messages Ze sent, the Adj-RIB-Out (RFC 8671)."; }
+                        enum all { ze:help "Stream both the received and the sent UPDATE messages."; }
                     }
                     default "all";
                     description "pre-policy streams the UPDATE messages Ze received, post-policy streams the UPDATE

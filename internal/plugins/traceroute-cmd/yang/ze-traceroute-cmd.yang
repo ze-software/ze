@@ -20,21 +20,29 @@ measurements.";
             ze:help "Trace the network path from this router to a target.";
             leaf dest {
                 type string;
-                ze:help "Target host or IP address";
+                description "The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.";
+                ze:help "Target host or IP address.";
             }
             leaf max-hops {
                 type uint32;
-                ze:help "Maximum number of hops";
+                description "The value is the largest time-to-live Ze probes, 1 to 64. The trace stops
+early when the target answers. Absent, the value is 30.";
+                ze:help "Maximum number of hops.";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                ze:help "Timeout duration";
+                description "The value is the time Ze waits for one probe, in Go duration syntax, 1s
+to 30s. Absent, the value is 3s.";
+                ze:help "Timeout duration.";
             }
             leaf probes {
                 type uint32;
-                ze:help "Number of probes per hop";
+                description "The value is the number of probes Ze sends at each time-to-live, 1 to 10,
+and each probe reports its own round-trip time. Absent, the value is 3.";
+                ze:help "Number of probes per hop.";
             }
         }
 
@@ -46,21 +54,29 @@ Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.";
             ze:help "Run a parallel traceroute probe round to a target.";
             leaf dest {
                 type string;
-                ze:help "Target host or IP address";
+                description "The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.";
+                ze:help "Target host or IP address.";
             }
             leaf probes {
                 type uint32;
-                ze:help "Number of probes per hop";
+                description "The value is accepted in the range 1 to 10 and then not read: a probe
+round sends one probe at each time-to-live.";
+                ze:help "Number of probes per hop.";
             }
             leaf max-hops {
                 type uint32;
-                ze:help "Maximum number of hops";
+                description "The value is the largest time-to-live Ze probes, 1 to 64. Absent, or set
+to 30, the round probes 16 hops.";
+                ze:help "Maximum number of hops.";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                ze:help "Timeout duration";
+                description "The value is accepted in Go duration syntax, 1s to 30s, and then not read:
+a probe round waits one second for every answer.";
+                ze:help "Timeout duration.";
             }
         }
     }
@@ -92,11 +108,37 @@ to 3, and timeout is 1s to 30s and defaults to 3s. The source also selects the a
 family: a target name is resolved in the family of the source, and a target with no
 address in that family is refused.";
             ze:help "Traceroute from the router with optional source binding.";
-            leaf target { type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; } mandatory true; ze:help "Host or IP address to trace to"; }
-            leaf source { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } ze:help "Source IP address to bind, whose family also selects the family the target is resolved in"; }
-            leaf max-hops { type uint32 { range "1..64"; } ze:help "Largest time-to-live to probe"; }
-            leaf timeout { type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; } ze:help "Per-probe timeout, 1s to 30s, in Go duration syntax"; }
-            leaf probes { type uint32 { range "1..10"; } ze:help "Number of probes per hop"; }
+            leaf target {
+                type string { pattern '[a-zA-Z0-9.:%-]+'; length "1..253"; }
+                mandatory true;
+                description "The value follows the target keyword. A host name is resolved in the family
+of the source, or in either family when no source is given, and a name with no address in
+that family is refused.";
+                ze:help "Host or IP address to trace to.";
+            }
+            leaf source {
+                type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; }
+                description "The value is a local IPv4 or IPv6 address, with an optional %zone, that Ze
+binds the probe socket to. Absent, the kernel picks the source.";
+                ze:help "Source IP address to bind, whose family also selects the family the target is resolved in.";
+            }
+            leaf max-hops {
+                type uint32 { range "1..64"; }
+                description "The trace stops early when the target answers. Absent, the value is 30.";
+                ze:help "Largest time-to-live to probe.";
+            }
+            leaf timeout {
+                type string { pattern '([0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h))+'; }
+                description "The value is the time Ze waits for one probe before it records a missing
+answer. Absent, the value is 3s.";
+                ze:help "Per-probe timeout, 1s to 30s, in Go duration syntax.";
+            }
+            leaf probes {
+                type uint32 { range "1..10"; }
+                description "Each probe at one time-to-live reports its own round-trip time. Absent,
+the value is 3.";
+                ze:help "Number of probes per hop.";
+            }
         }
     }
 }

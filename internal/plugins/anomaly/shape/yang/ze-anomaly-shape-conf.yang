@@ -22,14 +22,20 @@ module ze-anomaly-shape-conf {
       ze:help "Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).";
 
       leaf mode {
-        type enumeration { enum shadow; enum armed; }
+        type enumeration {
+          enum shadow { ze:help "Log the action the responder would take and install nothing."; }
+          enum armed { ze:help "Install live per-source firewall actions."; }
+        }
         default shadow;
         description "shadow, the default, logs the action it would take and installs
                      nothing. armed installs live per-source firewall actions.";
         ze:help "Responder mode: shadow or armed.";
       }
       leaf action {
-        type enumeration { enum limit; enum drop; }
+        type enumeration {
+          enum limit { ze:help "Rate-limit the source prefix at limit-rate per limit-unit."; }
+          enum drop { ze:help "Discard every packet from the source prefix."; }
+        }
         default limit;
         description "limit writes an nftables counter and a rate limit on the source
                      prefix, and it reads limit-rate, limit-unit and limit-burst.
@@ -49,7 +55,12 @@ module ze-anomaly-shape-conf {
         ze:help "Rate for the limit action, in packets per limit-unit.";
       }
       leaf limit-unit {
-        type enumeration { enum second; enum minute; enum hour; enum day; }
+        type enumeration {
+          enum second { ze:help "Allow limit-rate packets each second."; }
+          enum minute { ze:help "Allow limit-rate packets each minute."; }
+          enum hour { ze:help "Allow limit-rate packets each hour."; }
+          enum day { ze:help "Allow limit-rate packets each day."; }
+        }
         default second;
         description "The unit divides limit-rate. A rate of 1000 with the unit minute
                      lets 1000 packets a minute through. Ze gives the word to the

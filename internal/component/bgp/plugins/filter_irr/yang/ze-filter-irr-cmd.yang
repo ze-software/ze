@@ -30,7 +30,14 @@ prefix-lists are loaded and current.";
                     description "Lists all IPv4 and IPv6 prefixes
 in the IRR-resolved prefix-list for the given peer address.";
                     ze:help "Show IRR-resolved prefixes for a peer.";
-                    leaf peer { type string; mandatory true; ze:help "Peer address"; }
+                    leaf peer {
+                        type string;
+                        mandatory true;
+                        description "The address of an IRR-filtered peer, spelled as the configuration
+spells it. The plugin finds the ASN the peer is enrolled under and answers that ASN's
+prefix list. An address no enrolled ASN carries is refused.";
+                        ze:help "Peer address.";
+                    }
                 }
 
                 container check {
@@ -39,8 +46,22 @@ in the IRR-resolved prefix-list for the given peer address.";
                     description "Reports whether the
 prefix would be accepted or rejected, and which entry matches.";
                     ze:help "Check if a prefix is accepted by the IRR filter.";
-                    leaf peer { type string; mandatory true; ze:help "Peer address"; }
-                    leaf prefix { type string; mandatory true; ze:help "Prefix to check (CIDR)"; }
+                    leaf peer {
+                        type string;
+                        mandatory true;
+                        description "The address of an IRR-filtered peer, spelled as the configuration
+spells it. The prefix is evaluated against the list of the ASN that peer is enrolled
+under. An address no enrolled ASN carries is refused.";
+                        ze:help "Peer address.";
+                    }
+                    leaf prefix {
+                        type string;
+                        mandatory true;
+                        description "An IPv4 or IPv6 prefix in CIDR form, which Ze parses before the
+check. The answer echoes it and reports accepted true or false, with the entry that
+matched when one did.";
+                        ze:help "Prefix to check (CIDR).";
+                    }
                 }
             }
         }
@@ -75,7 +96,14 @@ existing prefix-list and report an error.";
                     description "Re-queries the IRR server for
 the given ASN only.";
                     ze:help "Refresh IRR prefix-list for a specific ASN.";
-                    leaf asn { type string; mandatory true; ze:help "ASN number"; }
+                    leaf asn {
+                        type string;
+                        mandatory true;
+                        description "The AS number as a plain decimal from 0 to 4294967295. An ASN with
+no IRR-filtered peer is refused, and a refresh the IRR server fails is reported with the
+server's error.";
+                        ze:help "ASN number.";
+                    }
                 }
 
                 container as-set {
@@ -84,7 +112,14 @@ the given ASN only.";
                     description "Re-queries the IRR server
 for all peers using the given AS-SET name.";
                     ze:help "Refresh IRR prefix-list for a specific AS-SET.";
-                    leaf as-set { type string; mandatory true; ze:help "AS-SET name"; }
+                    leaf as-set {
+                        type string;
+                        mandatory true;
+                        description "The AS-SET name as the peer configuration spells it, compared as an
+exact string. Every enrolled ASN that resolves through this AS-SET is refreshed, and a
+name no enrolled ASN uses is refused.";
+                        ze:help "AS-SET name.";
+                    }
                 }
             }
         }

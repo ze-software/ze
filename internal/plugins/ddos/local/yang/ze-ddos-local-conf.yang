@@ -21,8 +21,8 @@ module ze-ddos-local-conf {
 
       leaf response-level {
         type enumeration {
-          enum alert;
-          enum enforce;
+          enum alert { ze:help "Log the drop rule the responder would install, and install nothing."; }
+          enum enforce { ze:help "Install the drop rule in nftables."; }
         }
         default alert;
         description "alert is the default. The responder then logs the rule it would install, and installs

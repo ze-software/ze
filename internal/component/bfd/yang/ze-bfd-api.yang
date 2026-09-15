@@ -23,6 +23,8 @@ BFD is not running.";
         output {
             leaf sessions {
                 type string;
+                description "One object per session, taken from a snapshot of the service at
+the moment of the call. An empty array means BFD runs and holds no session.";
                 ze:help "JSON array of session objects.";
             }
         }
@@ -36,12 +38,16 @@ before the lookup. A peer with no session is reported as no session for that pee
             leaf peer {
                 type string;
                 mandatory true;
+                description "The address in its usual text form, with no prefix length. It
+is matched against the peer address of each session.";
                 ze:help "Peer IPv4 or IPv6 address.";
             }
         }
         output {
             leaf session {
                 type string;
+                description "The same fields a show-sessions row carries, for the one session
+the peer selected.";
                 ze:help "JSON object with session detail.";
             }
         }
@@ -55,12 +61,16 @@ and whether the profile is passive.";
         input {
             leaf name {
                 type string;
+                description "With a name, the answer is that one profile object rather than
+an array. A name no profile carries fails with bfd: no profile named <name>.";
                 ze:help "Profile name (empty returns every profile).";
             }
         }
         output {
             leaf profiles {
                 type string;
+                description "The values are the ones in effect after inheritance, not the
+ones typed in the configuration.";
                 ze:help "JSON array of profile objects.";
             }
         }

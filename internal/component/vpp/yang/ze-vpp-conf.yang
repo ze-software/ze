@@ -135,8 +135,8 @@ module ze-vpp-conf {
 
             leaf hugepage-size {
                 type enumeration {
-                    enum 2M;
-                    enum 1G;
+                    enum 2M { ze:help "Write page-size default-hugepage-size, which takes the kernel's default hugepage size."; }
+                    enum 1G { ze:help "Write page-size 1G into the buffers and statseg sections of startup.conf."; }
                 }
                 default "2M";
                 description "The two accepted values are 2M and 1G. For 1G Ze writes page-size 1G into both the buffers section and

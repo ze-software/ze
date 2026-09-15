@@ -28,7 +28,13 @@ module ze-env-cmd {
                 ze:command "ze-show:env-get";
                 description "Returns the variable name, current value, default, and what it controls.";
                 ze:help "Show one environment variable in detail.";
-                leaf name { type string { length "1..128"; } mandatory true; ze:help "Environment variable name"; }
+                leaf name {
+                    type string { length "1..128"; }
+                    mandatory true;
+                    description "The variable's full name as Ze registered it, matched exactly.
+A name Ze never declared is refused, even when the process inherited it.";
+                    ze:help "Environment variable name";
+                }
             }
 
             container registered {

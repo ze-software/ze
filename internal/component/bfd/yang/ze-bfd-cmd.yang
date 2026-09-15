@@ -40,6 +40,8 @@ discriminators, negotiated timers, detection time, and packet counters.";
                     leaf address {
                         type string;
                         mandatory true;
+                        description "An IPv4 or IPv6 address in its usual text form. A value that
+does not parse fails with bfd: invalid peer address before any lookup.";
                         ze:help "Peer address";
                     }
                 }
@@ -61,6 +63,8 @@ name <name>' for one profile.";
                     leaf name {
                         type string;
                         mandatory true;
+                        description "The name a bfd profile block declares in the configuration.
+The match is exact, and the values answered are the ones in effect after inheritance.";
                         ze:help "Profile name";
                     }
                 }

@@ -103,25 +103,31 @@ inventory collection.";
                 config false;
                 ze:command "ze-show:system-kernel-log";
                 description "Reads from /dev/kmsg. Filter by syslog level (emerg through debug) and limit
-with count. Without count, you get everything available. Linux only. Useful
+with count. Without count, you get the newest 50 messages. Linux only. Useful
 for spotting NIC errors or OOM events.";
                 ze:help "Show kernel log messages (dmesg-style).";
                 leaf level {
                     type enumeration {
-                        enum emerg;
-                        enum alert;
-                        enum crit;
-                        enum err;
-                        enum warning;
-                        enum notice;
-                        enum info;
-                        enum debug;
+                        enum emerg { ze:help "Show only level 0, the system is unusable."; }
+                        enum alert { ze:help "Show levels 0 to 1, action is needed at once."; }
+                        enum crit { ze:help "Show levels 0 to 2, critical conditions."; }
+                        enum err { ze:help "Show levels 0 to 3, error conditions."; }
+                        enum warning { ze:help "Show levels 0 to 4, warning conditions."; }
+                        enum notice { ze:help "Show levels 0 to 5, normal but significant events."; }
+                        enum info { ze:help "Show levels 0 to 6, informational messages."; }
+                        enum debug { ze:help "Show every level, 0 to 7, which is the default."; }
                     }
-                    ze:help "Filter by syslog level";
+                    description "The word is the highest syslog level to show, and every more severe level
+is included with it. A digit from 0 to 7 is accepted in its place. Absent, or not a
+known level, nothing is filtered.";
+                    ze:help "Filter by syslog level.";
                 }
                 leaf count {
                     type uint32;
-                    ze:help "Maximum number of messages";
+                    description "The value is from 1 to 10000 and the default is 50. Ze reads the whole ring
+buffer, applies the level filter, then keeps the newest count messages. A value outside
+the range is ignored and the default applies.";
+                    ze:help "Maximum number of messages.";
                 }
             }
         }

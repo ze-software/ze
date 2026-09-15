@@ -24,7 +24,10 @@ support when reporting a crash.";
             ze:help "View saved crash reports, and whether kernel capture is armed.";
             leaf name {
                 type string;
-                ze:help "Crash report name (used with 'name <filename>')";
+                description "The file name of one stored report, as the listing prints it. Ze reads
+that file from the crash directory and prints it. A name holding a slash or '..' is
+refused.";
+                ze:help "Crash report name (used with 'name <filename>').";
             }
         }
     }

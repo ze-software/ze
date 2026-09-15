@@ -28,12 +28,16 @@ alone.";
                 ze:help "Send a pre-built BGP UPDATE to a peer.";
                 leaf encoding {
                     type enumeration {
-                        enum text;
-                        enum hex;
-                        enum b64;
-                        enum cursor;
+                        enum text { ze:help "Read the tokens as the route syntax update-syntax.md states."; }
+                        enum hex { ze:help "Read the attributes and the NLRI as hexadecimal wire octets."; }
+                        enum b64 { ze:help "Read the attributes and the NLRI as base64 wire octets."; }
+                        enum cursor { ze:help "Read the tokens as a delta against this process's stored attributes."; }
                     }
                     mandatory true;
+                    description "The word is required and any other word there is refused before the
+handler runs. hex and b64 keep the structure of text with the octets in place of the words.
+cursor keeps the attributes of the last command per process and peer, so a later command
+names only what changed, and 'cursor done' clears them.";
                     ze:help "How the tokens after this word are read.";
                 }
             }

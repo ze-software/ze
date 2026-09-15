@@ -154,13 +154,13 @@ module ze-storage-conf {
 
                     leaf day {
                         type enumeration {
-                            enum monday;
-                            enum tuesday;
-                            enum wednesday;
-                            enum thursday;
-                            enum friday;
-                            enum saturday;
-                            enum sunday;
+                            enum monday { ze:help "Run the extended self-test on a Monday."; }
+                            enum tuesday { ze:help "Run the extended self-test on a Tuesday."; }
+                            enum wednesday { ze:help "Run the extended self-test on a Wednesday."; }
+                            enum thursday { ze:help "Run the extended self-test on a Thursday."; }
+                            enum friday { ze:help "Run the extended self-test on a Friday."; }
+                            enum saturday { ze:help "Run the extended self-test on a Saturday."; }
+                            enum sunday { ze:help "Run the extended self-test on a Sunday, the default."; }
                         }
                         default "sunday";
                         description "The seven weekday names are the accepted values, and sunday is the

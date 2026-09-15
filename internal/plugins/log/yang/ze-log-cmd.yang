@@ -32,20 +32,26 @@ entries first. Useful when you cannot access the log file directly.";
                 ze:help "Show recent log entries from the in-memory ring.";
                 leaf level {
                     type enumeration {
-                        enum disabled;
-                        enum debug;
-                        enum info;
-                        enum warn;
-                        enum err;
+                        enum disabled { ze:help "Matches no entry, because a buffered entry always carries a real level."; }
+                        enum debug { ze:help "Keep the entries written at the debug level."; }
+                        enum info { ze:help "Keep the entries written at the info level."; }
+                        enum warn { ze:help "Keep the entries written at the warn level."; }
+                        enum err { ze:help "Keep the entries written at the error level."; }
                     }
+                    description "Keeps the entries whose level equals this value, and no other level. Without it
+every level is shown.";
                     ze:help "Filter by log level";
                 }
                 leaf component {
                     type string;
+                    description "Keeps the entries whose component name equals this value exactly. Without it every
+component is shown.";
                     ze:help "Filter by component name";
                 }
                 leaf count {
                     type uint32;
+                    description "Stops the answer after this many entries, newest first. It MUST be 1 or more, and
+without it every buffered entry is shown.";
                     ze:help "Maximum number of entries";
                 }
             }
@@ -70,17 +76,21 @@ when you are done.";
                 leaf logger {
                     type string;
                     mandatory true;
+                    description "The name of a registered logger, as 'show log levels' lists it. A name no logger
+registered is refused.";
                     ze:help "Logger/subsystem name";
                 }
                 leaf target {
                     type enumeration {
-                        enum disabled;
-                        enum debug;
-                        enum info;
-                        enum warn;
-                        enum err;
+                        enum disabled { ze:help "Refused: the runtime level change accepts no disabled value."; }
+                        enum debug { ze:help "Write every entry, debug included."; }
+                        enum info { ze:help "Write the info, warn and error entries and drop debug."; }
+                        enum warn { ze:help "Write the warn and error entries and drop info and debug."; }
+                        enum err { ze:help "Write the error entries alone."; }
                     }
                     mandatory true;
+                    description "The level the logger writes at from now on. The value is matched without regard to
+case, and 'error' and 'warning' are accepted as spellings of err and warn.";
                     ze:help "Target log level";
                 }
             }

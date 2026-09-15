@@ -77,8 +77,8 @@ arguments. A block with no run command is refused.";
 
                 leaf encoder {
                     type enumeration {
-                        enum text;
-                        enum json;
+                        enum text { ze:help "Write each event as one line in the ExaBGP text format."; }
+                        enum json { ze:help "Write each event as one JSON object."; }
                     }
                     default json;
                     description "json writes one JSON object per event. text writes ExaBGP's
@@ -145,10 +145,10 @@ true, Ze advertises the capability on every session the bridge feeds.";
 
             leaf add-path {
                 type enumeration {
-                    enum none;
-                    enum receive;
-                    enum send;
-                    enum both;
+                    enum none { ze:help "Advertise no ADD-PATH capability."; }
+                    enum receive { ze:help "Send/Receive value 1: accept more than one path from the peer."; }
+                    enum send { ze:help "Send/Receive value 2: advertise more than one path to the peer."; }
+                    enum both { ze:help "Send/Receive value 3: accept and advertise more than one path."; }
                 }
                 default none;
                 description "RFC 7911 defines ADD-PATH. none disables it. receive accepts more

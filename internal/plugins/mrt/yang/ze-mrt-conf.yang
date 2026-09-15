@@ -83,9 +83,9 @@ module ze-mrt-conf {
 
         leaf direction {
             type enumeration {
-                enum both;
-                enum received;
-                enum sent;
+                enum both { ze:help "Record the BGP messages of each direction."; }
+                enum received { ze:help "Record the BGP messages the peer sent to Ze alone."; }
+                enum sent { ze:help "Record the BGP messages Ze sent to the peer alone."; }
             }
             default both;
             description

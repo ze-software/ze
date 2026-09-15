@@ -316,8 +316,12 @@ module ze-ipsec-conf {
 
                 leaf pfs {
                     type enumeration {
-                        enum enable;
-                        enum disable;
+                        enum enable {
+                            ze:help "Send a KEi payload and key each replacement Child SA from a fresh Diffie-Hellman secret.";
+                        }
+                        enum disable {
+                            ze:help "Send no KEi and key each replacement Child SA from SK_d alone.";
+                        }
                     }
                     default "enable";
                     description "With enable, Ze puts a KEi payload in the CREATE_CHILD_SA request, and the
@@ -390,8 +394,12 @@ module ze-ipsec-conf {
 
                 leaf key-exchange {
                     type enumeration {
-                        enum ikev1;
-                        enum ikev2;
+                        enum ikev1 {
+                            ze:help "Accepted and not read: the group still runs IKEv2.";
+                        }
+                        enum ikev2 {
+                            ze:help "IKEv2 (RFC 7296), the version the engine speaks.";
+                        }
                     }
                     default "ikev2";
                     description "The default is ikev2 and the engine writes major version 2 into every header
@@ -416,9 +424,15 @@ module ze-ipsec-conf {
 
                 leaf close-action {
                     type enumeration {
-                        enum none;
-                        enum start;
-                        enum restart;
+                        enum none {
+                            ze:help "The default: the session reconnects on a growing backoff.";
+                        }
+                        enum start {
+                            ze:help "Accepted and not read: the session reconnects on a growing backoff.";
+                        }
+                        enum restart {
+                            ze:help "Accepted and not read: the session reconnects on a growing backoff.";
+                        }
                     }
                     default "none";
                     description "The default is none. The parser stores the value and no other code reads it,
@@ -437,9 +451,15 @@ module ze-ipsec-conf {
 
                     leaf action {
                         type enumeration {
-                            enum restart;
-                            enum hold;
-                            enum clear;
+                            enum restart {
+                                ze:help "Log restart when the peer is dead, then reconnect on a growing backoff.";
+                            }
+                            enum hold {
+                                ze:help "Log hold when the peer is dead, then reconnect on a growing backoff.";
+                            }
+                            enum clear {
+                                ze:help "Log clear when the peer is dead, then reconnect on a growing backoff.";
+                            }
                         }
                         default "hold";
                         description "The default is hold. One log line reads the value when the peer is
@@ -569,8 +589,12 @@ module ze-ipsec-conf {
 
                     leaf mode {
                         type enumeration {
-                            enum eap-tls;
-                            enum eap-mschapv2;
+                            enum eap-tls {
+                                ze:help "EAP-TLS, Type 13 (RFC 5216): the client authenticates with a certificate.";
+                            }
+                            enum eap-mschapv2 {
+                                ze:help "EAP-MSCHAPv2: the client proves its password by challenge and response.";
+                            }
                             enum eap-md5 {
                                 ze:help "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
                             }
@@ -748,8 +772,12 @@ module ze-ipsec-conf {
 
                     leaf connection-type {
                         type enumeration {
-                            enum initiate;
-                            enum respond;
+                            enum initiate {
+                                ze:help "Start the IKE_SA_INIT exchange toward remote-address.";
+                            }
+                            enum respond {
+                                ze:help "Start nothing and wait for an IKE_SA_INIT whose source is remote-address.";
+                            }
                         }
                         default "initiate";
                         description "With `initiate` Ze starts the IKE_SA_INIT exchange toward remote-address.
@@ -980,10 +1008,18 @@ module ze-ipsec-conf {
 
                         leaf mode {
                             type enumeration {
-                                enum pre-shared-secret;
-                                enum x509;
-                                enum eap-tls;
-                                enum eap-mschapv2;
+                                enum pre-shared-secret {
+                                    ze:help "Both ends prove the same secret, taken from the pre-shared-secret leaf.";
+                                }
+                                enum x509 {
+                                    ze:help "Sign AUTH with the named certificate and validate the remote one against ca-certificate.";
+                                }
+                                enum eap-tls {
+                                    ze:help "EAP-TLS, Type 13 (RFC 5216): this peer authenticates with a certificate.";
+                                }
+                                enum eap-mschapv2 {
+                                    ze:help "EAP-MSCHAPv2: this peer proves its password by challenge and response.";
+                                }
                                 enum eap-md5 {
                                     ze:help "EAP MD5-Challenge, Type 4 (RFC 3748 Section 5.4).";
                                 }
@@ -1014,8 +1050,12 @@ module ze-ipsec-conf {
 
                         leaf pre-shared-secret-encoding {
                             type enumeration {
-                                enum ascii;
-                                enum hex;
+                                enum ascii {
+                                    ze:help "Read the secret as ASCII text, one octet for each character.";
+                                }
+                                enum hex {
+                                    ze:help "Read the secret as hexadecimal digit pairs, two digits for each octet.";
+                                }
                             }
                             default ascii;
                             description "RFC 7296
@@ -1081,12 +1121,24 @@ module ze-ipsec-conf {
 
                         leaf remote-id-type {
                             type enumeration {
-                                enum ipv4-address;
-                                enum ipv6-address;
-                                enum fqdn;
-                                enum rfc822-address;
-                                enum key-id;
-                                enum der-asn1-dn;
+                                enum ipv4-address {
+                                    ze:help "ID_IPV4_ADDR, an IPv4 address in four octets.";
+                                }
+                                enum ipv6-address {
+                                    ze:help "ID_IPV6_ADDR, an IPv6 address in sixteen octets.";
+                                }
+                                enum fqdn {
+                                    ze:help "ID_FQDN, a fully qualified domain name.";
+                                }
+                                enum rfc822-address {
+                                    ze:help "ID_RFC822_ADDR, a mail address such as user@example.com.";
+                                }
+                                enum key-id {
+                                    ze:help "ID_KEY_ID, an opaque octet string no certificate field can bind.";
+                                }
+                                enum der-asn1-dn {
+                                    ze:help "ID_DER_ASN1_DN, the DER-encoded subject name of a certificate.";
+                                }
                             }
                             description "The one IKE ID type the remote endpoint CAN assert, and when
                                          absent any type Ze CAN compare, which is the historical behavior.

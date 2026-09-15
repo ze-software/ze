@@ -31,7 +31,13 @@ annotation.";
                     ze:command "ze-show:reject-asn-name";
                     description "The same answer for a single list, for a config that holds many.";
                     ze:help "Show one reject-asn list.";
-                    leaf name { type string; mandatory true; ze:help "Reject-ASN list name"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The name of one configured reject-asn list. A name no list carries is
+refused, and the answer names the missing list.";
+                        ze:help "Reject-ASN list name";
+                    }
                 }
 
                 container known {

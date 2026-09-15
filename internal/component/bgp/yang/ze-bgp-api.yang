@@ -23,7 +23,12 @@ command registry and not in the builtin table, so command-help is the RPC that
 reaches it.";
         ze:help "List BGP subcommands.";
         output {
-            leaf-list subcommands { type string; ze:help "Available subcommands"; }
+            leaf-list subcommands {
+                type string;
+                description "One entry for each builtin command. Each entry joins the command name to its
+summary with a hyphen. A plugin command is not in the list.";
+                ze:help "Available subcommands";
+            }
         }
     }
 
@@ -34,6 +39,9 @@ from the dispatcher's builtin table.";
         ze:help "List BGP commands.";
         output {
             list command {
+                description "Each row carries the command name and its summary, and with the 'verbose'
+argument its source too.";
+                ze:help "One row for each builtin command.";
                 uses zt:command-info;
             }
         }
@@ -45,10 +53,21 @@ explanation under 'long-help'. Neither text is derived from the other. The
 lookup reads the builtin table first and the plugin command registry after it.";
         ze:help "Show BGP command details.";
         input {
-            leaf name { type string; mandatory true; ze:help "Command name"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The full name of the command the answer describes. The lookup reads the
+builtin table first and the plugin command registry after it.";
+                ze:help "Command name";
+            }
         }
         output {
-            leaf help { type string; ze:help "Detailed help text"; }
+            leaf help {
+                type string;
+                description "The long explanation of the named command, as its author registered it. The
+one-line summary is answered beside it under 'description'.";
+                ze:help "Detailed help text";
+            }
         }
     }
 
@@ -58,10 +77,21 @@ candidate carries its summary beside the name. A prefix that matches nothing
 answers an empty list and not an error.";
         ze:help "Complete BGP command/args.";
         input {
-            leaf partial { type string; mandatory true; ze:help "Partial command string"; }
+            leaf partial {
+                type string;
+                mandatory true;
+                description "The start of a command name. The match is a case-insensitive prefix over the
+builtin command names.";
+                ze:help "Partial command string";
+            }
         }
         output {
-            leaf-list completions { type string; ze:help "Completion candidates"; }
+            leaf-list completions {
+                type string;
+                description "One candidate for each builtin command whose name starts with the partial
+string, with its summary beside the name. The list is empty when nothing matches.";
+                ze:help "Completion candidates";
+            }
         }
     }
 
@@ -73,7 +103,13 @@ The daemon holds the mode on the calling process, so it changes nothing for
 another plugin.";
         ze:help "Set event encoding (json|text).";
         input {
-            leaf encoding { type zt:encoding-mode; mandatory true; ze:help "Encoding format"; }
+            leaf encoding {
+                type zt:encoding-mode;
+                mandatory true;
+                description "The encoding of every event the daemon sends to the calling plugin process.
+The value takes effect for that process alone.";
+                ze:help "Encoding format";
+            }
         }
     }
 
@@ -84,7 +120,14 @@ carry the wire bytes in that encoding. 'full' carries the decoded fields and the
 wire bytes together.";
         ze:help "Set wire format (hex|base64|parsed|full).";
         input {
-            leaf format { type zt:wire-format; mandatory true; ze:help "Wire format"; }
+            leaf format {
+                type zt:wire-format;
+                mandatory true;
+                description "How the BGP wire bytes are rendered inside each event the calling process
+receives. 'parsed' is the default, and 'full' is the only value that carries the decoded
+fields and the bytes together.";
+                ze:help "Wire format";
+            }
         }
     }
 
@@ -94,7 +137,13 @@ daemon answers the ACK. 'async' answers as soon as the command is accepted, and
 it is the default. The daemon holds the mode on the calling process.";
         ze:help "Set ACK timing (sync|async).";
         input {
-            leaf mode { type zt:ack-mode; mandatory true; ze:help "ACK mode"; }
+            leaf mode {
+                type zt:ack-mode;
+                mandatory true;
+                description "'sync' delays the ACK of an announce or a withdraw until the bytes are on the
+wire. 'async' answers when the command is accepted and is the default.";
+                ze:help "ACK mode";
+            }
         }
     }
 
@@ -107,10 +156,18 @@ receive hold time, the send hold time, the connect retry interval, and the
 seconds since the session became established close the row.";
         ze:help "List configured peers.";
         input {
-            leaf selector { type zt:peer-selector; ze:help "Peer filter"; }
+            leaf selector {
+                type zt:peer-selector;
+                description "A peer address, a peer name, '*', or a comma-separated list of them. With no
+selector every configured peer is listed.";
+                ze:help "Peer filter";
+            }
         }
         output {
             list peer {
+                description "The rows carry the peer-info fields: address, name, group, both ASNs, FSM
+state, router ID, the three timers and the uptime.";
+                ze:help "One row for each peer the selector matched.";
                 uses zt:peer-info;
             }
         }
@@ -123,10 +180,18 @@ three timers, and the uptime. The selector is optional here, as it is for
 peer-list.";
         ze:help "Show detailed peer information.";
         input {
-            leaf selector { type zt:peer-selector; ze:help "Peer filter"; }
+            leaf selector {
+                type zt:peer-selector;
+                description "A peer address, a peer name, '*', or a comma-separated list of them. With no
+selector every configured peer is shown.";
+                ze:help "Peer filter";
+            }
         }
         output {
             list peer {
+                description "The rows carry the same peer-info fields peer-list answers, so the two RPCs
+differ in their summary and not in their shape.";
+                ze:help "One row for each peer the selector matched.";
                 uses zt:peer-info;
             }
         }
@@ -138,10 +203,28 @@ count of peers in the Established state. The peer rows follow. A first argument
 that names neither a subcommand nor an address family is refused.";
         ze:help "Show the BGP overview (peer table with statistics).";
         output {
-            leaf uptime { type string; ze:help "Daemon uptime"; }
-            leaf peers-configured { type uint32; ze:help "Total configured peers"; }
-            leaf peers-established { type uint32; ze:help "Peers in Established state"; }
+            leaf uptime {
+                type string;
+                description "The time since the daemon started, truncated to whole seconds and written as a
+Go duration such as '1h2m3s'.";
+                ze:help "Daemon uptime";
+            }
+            leaf peers-configured {
+                type uint32;
+                description "The number of peers in the running configuration, whatever FSM state each one
+is in.";
+                ze:help "Total configured peers";
+            }
+            leaf peers-established {
+                type uint32;
+                description "The number of configured peers whose FSM is in the Established state at the
+time of the answer.";
+                ze:help "Peers in Established state";
+            }
             list peer {
+                description "The rows follow the three aggregate leaves as their sibling, so a display
+filter selects them by key. Each row carries the peer-info fields.";
+                ze:help "One row for each configured peer.";
                 uses zt:peer-info;
             }
         }
@@ -153,12 +236,31 @@ once the OPEN exchange completed. The selector is mandatory, so this RPC reads
 one peer and never every peer.";
         ze:help "Show negotiated capabilities for peer.";
         input {
-            leaf selector { type zt:peer-selector; mandatory true; ze:help "Peer filter"; }
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address, a peer name, or a comma-separated list of them. The selector
+is mandatory, so no request reads every peer by default.";
+                ze:help "Peer filter";
+            }
         }
         output {
-            leaf peer { type zt:ip-address; ze:help "Peer address"; }
-            leaf state { type string; ze:help "FSM state"; }
-            leaf negotiation-complete { type boolean; ze:help "True if OPEN exchange completed"; }
+            leaf peer {
+                type zt:ip-address;
+                description "The IP address of the peer the capabilities belong to.";
+                ze:help "Peer address";
+            }
+            leaf state {
+                type string;
+                description "The name of the FSM state the session is in at the time of the answer.";
+                ze:help "FSM state";
+            }
+            leaf negotiation-complete {
+                type boolean;
+                description "True once both OPEN messages were exchanged and the capabilities are known.
+While it is false the negotiated families and the add-path fields are absent.";
+                ze:help "True if OPEN exchange completed";
+            }
         }
     }
 
@@ -169,23 +271,97 @@ each direction. Four rate fields give the UPDATE and KEEPALIVE traffic per
 second.";
         ze:help "Show per-peer update statistics with rates.";
         input {
-            leaf selector { type zt:peer-selector; ze:help "Peer filter"; }
+            leaf selector {
+                type zt:peer-selector;
+                description "A peer address, a peer name, '*', or a comma-separated list of them. A
+selector that matches no peer is refused.";
+                ze:help "Peer filter";
+            }
         }
         output {
-            leaf address { type zt:ip-address; ze:help "Peer address"; }
-            leaf remote-as { type zt:asn-notated; ze:help "Peer ASN, in the notation bgp/as-notation selects"; }
-            leaf state { type string; ze:help "FSM state"; }
-            leaf uptime { type string; ze:help "Session uptime"; }
-            leaf updates-received { type uint32; ze:help "UPDATE messages received"; }
-            leaf updates-sent { type uint32; ze:help "UPDATE messages sent"; }
-            leaf keepalives-received { type uint32; ze:help "KEEPALIVE messages received"; }
-            leaf keepalives-sent { type uint32; ze:help "KEEPALIVE messages sent"; }
-            leaf eor-received { type uint32; ze:help "End-of-RIB markers received"; }
-            leaf eor-sent { type uint32; ze:help "End-of-RIB markers sent"; }
-            leaf rate-updates-received { type string; ze:help "Updates received per second"; }
-            leaf rate-updates-sent { type string; ze:help "Updates sent per second"; }
-            leaf rate-keepalives-received { type string; ze:help "Keepalives received per second"; }
-            leaf rate-keepalives-sent { type string; ze:help "Keepalives sent per second"; }
+            leaf address {
+                type zt:ip-address;
+                description "The IP address of the peer this row describes.";
+                ze:help "Peer address";
+            }
+            leaf remote-as {
+                type zt:asn-notated;
+                description "The AS number of the peer. Its notation is the one the bgp/as-notation leaf
+selects, asplain or asdot.";
+                ze:help "Peer ASN, in the notation bgp/as-notation selects";
+            }
+            leaf state {
+                type string;
+                description "The name of the FSM state the session is in at the time of the answer.";
+                ze:help "FSM state";
+            }
+            leaf uptime {
+                type string;
+                description "The time since the session became Established, truncated to whole seconds
+and written as a Go duration such as '5m3s'. It is zero while the session is not
+Established.";
+                ze:help "Session uptime";
+            }
+            leaf updates-received {
+                type uint32;
+                description "The count of UPDATE messages received from the peer. rate-updates-received
+divides it by the uptime.";
+                ze:help "UPDATE messages received";
+            }
+            leaf updates-sent {
+                type uint32;
+                description "The count of UPDATE messages sent to the peer. rate-updates-sent divides it
+by the uptime.";
+                ze:help "UPDATE messages sent";
+            }
+            leaf keepalives-received {
+                type uint32;
+                description "The count of KEEPALIVE messages received from the peer.
+rate-keepalives-received divides it by the uptime.";
+                ze:help "KEEPALIVE messages received";
+            }
+            leaf keepalives-sent {
+                type uint32;
+                description "The count of KEEPALIVE messages sent to the peer. rate-keepalives-sent
+divides it by the uptime.";
+                ze:help "KEEPALIVE messages sent";
+            }
+            leaf eor-received {
+                type uint32;
+                description "The count of End-of-RIB markers received from the peer, one for each address
+family whose initial table the peer finished sending.";
+                ze:help "End-of-RIB markers received";
+            }
+            leaf eor-sent {
+                type uint32;
+                description "The count of End-of-RIB markers sent to the peer, one for each address family
+whose initial table Ze finished sending.";
+                ze:help "End-of-RIB markers sent";
+            }
+            leaf rate-updates-received {
+                type string;
+                description "The updates-received count divided by the uptime in seconds, as a decimal
+number. It is 0 while the uptime is zero.";
+                ze:help "Updates received per second";
+            }
+            leaf rate-updates-sent {
+                type string;
+                description "The updates-sent count divided by the uptime in seconds, as a decimal number.
+It is 0 while the uptime is zero.";
+                ze:help "Updates sent per second";
+            }
+            leaf rate-keepalives-received {
+                type string;
+                description "The keepalives-received count divided by the uptime in seconds, as a decimal
+number. It is 0 while the uptime is zero.";
+                ze:help "Keepalives received per second";
+            }
+            leaf rate-keepalives-sent {
+                type string;
+                description "The keepalives-sent count divided by the uptime in seconds, as a decimal
+number. It is 0 while the uptime is zero.";
+                ze:help "Keepalives sent per second";
+            }
         }
     }
 
@@ -197,12 +373,31 @@ selector resolves to one peer, and a wildcard is refused. The answer lists the
 families that were refreshed.";
         ze:help "Soft-clear peer (send ROUTE-REFRESH per negotiated family).";
         input {
-            leaf selector { type zt:peer-selector; mandatory true; ze:help "Peer address"; }
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address or a peer name that resolves to one peer. A wildcard is
+refused.";
+                ze:help "Peer address";
+            }
         }
         output {
-            leaf peer { type zt:ip-address; ze:help "Peer address"; }
-            leaf action { type string; ze:help "Always soft-clear"; }
-            leaf-list families-refreshed { type zt:address-family; ze:help "Families refreshed"; }
+            leaf peer {
+                type zt:ip-address;
+                description "The IP address of the peer that received the ROUTE-REFRESH messages.";
+                ze:help "Peer address";
+            }
+            leaf action {
+                type string;
+                description "The constant text 'soft-clear'. A caller reading a mixed stream of answers
+uses it to tell which operation produced this one.";
+                ze:help "Always soft-clear";
+            }
+            leaf-list families-refreshed {
+                type zt:address-family;
+                description "One entry for each negotiated address family a ROUTE-REFRESH was sent for.";
+                ze:help "Families refreshed";
+            }
         }
     }
 
@@ -220,25 +415,110 @@ what peer-remove mirrors on the way out. 'create bgp peer <address> asn <asn>'
 is the CLI path.";
         ze:help "Add a new peer.";
         input {
-            leaf address { type zt:ip-address; mandatory true; ze:help "Peer address"; }
-            leaf asn { type zt:asn-notated; mandatory true; ze:help "Peer ASN, in any notation RFC 5396 names"; }
-            leaf local-as { type zt:asn-notated; ze:help "Local ASN override, in any notation RFC 5396 names"; }
-            leaf local-address { type zt:ip-address; ze:help "Local bind address"; }
-            leaf router-id { type zt:ipv4-address; ze:help "Router ID override"; }
-            leaf receive-hold-time { type uint16; ze:help "Receive hold time (RFC 4271)"; }
-            leaf send-hold-time { type uint16; ze:help "Send hold time (RFC 9687, 0=auto)"; }
-            leaf connect-retry { type uint16; ze:help "Connect retry interval"; }
-            leaf connect { type boolean; ze:help "Dial the peer (default true)"; }
-            leaf accept { type boolean; ze:help "Answer a connection from the peer (default true)"; }
-            leaf-list family { type zt:address-family; ze:help "Address family to negotiate"; }
-            leaf graceful-restart { type uint16; ze:help "Restart Time in seconds (RFC 4724)"; }
-            leaf group-updates { type boolean; ze:help "Group this peer's UPDATEs with other peers (default true)"; }
-            leaf-list attach { type zt:node-name; ze:help "Plugin process this peer feeds"; }
+            leaf address {
+                type zt:ip-address;
+                mandatory true;
+                description "The IPv4 or IPv6 address of the peer. It is the key of the peer, and
+peer-remove takes the same address.";
+                ze:help "Peer address";
+            }
+            leaf asn {
+                type zt:asn-notated;
+                mandatory true;
+                description "The AS number the peer announces in its OPEN, 1 to 4294967295. Ze stores the
+decimal form whichever notation was given.";
+                ze:help "Peer ASN, in any notation RFC 5396 names";
+            }
+            leaf local-as {
+                type zt:asn-notated;
+                description "The AS number Ze announces in its own OPEN to this peer, 1 to 4294967295.
+Without it the daemon's local AS applies.";
+                ze:help "Local ASN override, in any notation RFC 5396 names";
+            }
+            leaf local-address {
+                type zt:ip-address;
+                description "The IPv4 or IPv6 address of this host that the TCP connection to the peer is
+bound to.";
+                ze:help "Local bind address";
+            }
+            leaf router-id {
+                type zt:ipv4-address;
+                description "The BGP Identifier Ze sends in its OPEN to this peer, as a dotted quad.
+0.0.0.0 is refused, and without it the daemon's router ID applies.";
+                ze:help "Router ID override";
+            }
+            leaf receive-hold-time {
+                type uint16;
+                description "The Hold Time in seconds that Ze proposes in its OPEN to this peer, 0 to
+65535.";
+                ze:help "Receive hold time (RFC 4271)";
+            }
+            leaf send-hold-time {
+                type uint16;
+                description "The send hold time in seconds, 0 to 65535. A value of 0 lets Ze derive it.";
+                ze:help "Send hold time (RFC 9687, 0=auto)";
+            }
+            leaf connect-retry {
+                type uint16;
+                description "The seconds Ze waits between two connection attempts to the peer, 0 to
+65535.";
+                ze:help "Connect retry interval";
+            }
+            leaf connect {
+                type boolean;
+                description "When true Ze dials the peer address. Set it false when the peer opens the
+connection.";
+                ze:help "Dial the peer (default true)";
+            }
+            leaf accept {
+                type boolean;
+                description "When true Ze answers a TCP connection the peer opens. Set it false when Ze
+alone dials.";
+                ze:help "Answer a connection from the peer (default true)";
+            }
+            leaf-list family {
+                type zt:address-family;
+                description "An address family the OPEN offers in its multiprotocol capability. A name no
+family registry entry matches is refused.";
+                ze:help "Address family to negotiate";
+            }
+            leaf graceful-restart {
+                type uint16;
+                description "The Restart Time in seconds Ze advertises in its Graceful Restart capability,
+0 to 4095, which is the width of the field.";
+                ze:help "Restart Time in seconds (RFC 4724)";
+            }
+            leaf group-updates {
+                type boolean;
+                description "When true this peer's UPDATEs are grouped with those of other peers that
+carry the same attributes. When false they are built for this peer alone.";
+                ze:help "Group this peer's UPDATEs with other peers (default true)";
+            }
+            leaf-list attach {
+                type zt:node-name;
+                description "The name of a plugin process that receives every message from this peer and
+can send every message type to it. Give one entry per process.";
+                ze:help "Plugin process this peer feeds";
+            }
         }
         output {
-            leaf peer { type zt:ip-address; ze:help "Address of the peer created"; }
-            leaf remote-as { type zt:asn-notated; ze:help "Remote AS of the peer created, in the notation bgp/as-notation selects"; }
-            leaf message { type string; ze:help "Always 'peer created'"; }
+            leaf peer {
+                type zt:ip-address;
+                description "The IP address of the peer that was created, as the input gave it.";
+                ze:help "Address of the peer created";
+            }
+            leaf remote-as {
+                type zt:asn-notated;
+                description "The AS number of the created peer. Its notation is the one the bgp/as-notation
+leaf selects, asplain or asdot.";
+                ze:help "Remote AS of the peer created, in the notation bgp/as-notation selects";
+            }
+            leaf message {
+                type string;
+                description "The constant text 'peer created'. It confirms the peer exists in the running
+daemon and not in the configuration file.";
+                ze:help "Always 'peer created'";
+            }
         }
     }
 
@@ -248,7 +528,13 @@ removes exactly one peer. peer-teardown takes a selector instead, and it closes
 the session but keeps the peer.";
         ze:help "Remove a peer.";
         input {
-            leaf address { type zt:ip-address; mandatory true; ze:help "Peer address"; }
+            leaf address {
+                type zt:ip-address;
+                mandatory true;
+                description "The IP address of the peer to remove. A peer name and a selector are not
+accepted here.";
+                ze:help "Peer address";
+            }
         }
     }
 
@@ -260,8 +546,19 @@ other subcode. The message is truncated to the length the wire carries, and the
 answer echoes the truncated text.";
         ze:help "Teardown peer session with CEASE notification.";
         input {
-            leaf selector { type zt:peer-selector; mandatory true; ze:help "Peer filter"; }
-            leaf subcode { type uint8; ze:help "CEASE subcode"; }
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address, a peer name, or a comma-separated list of them. Every matched
+session receives the NOTIFICATION, and the peer stays configured.";
+                ze:help "Peer filter";
+            }
+            leaf subcode {
+                type uint8;
+                description "The Cease subcode, 0 to 255, that the NOTIFICATION carries under error code
+6. Subcodes 2 and 4 can carry a shutdown communication message.";
+                ze:help "CEASE subcode";
+            }
         }
     }
 
@@ -271,11 +568,27 @@ peer received without a fixed sleep. A selector of '*', or no selector at all,
 flushes every peer. The wait is bounded at 30 seconds.";
         ze:help "Wait for forward pool to drain (barrier).";
         input {
-            leaf selector { type zt:peer-selector; mandatory true; ze:help "Peer filter (* for all)"; }
+            leaf selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "A peer address, a peer name, or '*'. '*' drains the forward pool of every
+peer, and a name that resolves to no peer is refused.";
+                ze:help "Peer filter (* for all)";
+            }
         }
         output {
-            leaf peer { type string; ze:help "Peer selector that was flushed"; }
-            leaf action { type string; ze:help "Always flush"; }
+            leaf peer {
+                type string;
+                description "What the barrier drained: the address of the one peer, or '*' when every
+peer was flushed.";
+                ze:help "Peer selector that was flushed";
+            }
+            leaf action {
+                type string;
+                description "The constant text 'flush'. A caller reading a mixed stream of answers uses it
+to tell which operation produced this one.";
+                ze:help "Always flush";
+            }
         }
     }
 
@@ -288,13 +601,41 @@ carries announce, withdraw and End-of-RIB in one command, and the answer counts
 the NLRIs each way.";
         ze:help "Batch UPDATE with text/hex/b64 encoding.";
         input {
-            leaf peer-selector { type zt:peer-selector; mandatory true; ze:help "Target peers"; }
-            leaf encoding { type zt:encoding-mode; mandatory true; ze:help "Command encoding"; }
-            leaf command { type string; mandatory true; ze:help "Route DSL command"; }
+            leaf peer-selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "The peers the UPDATE goes to, as a peer address, a peer name, '*', or a
+comma-separated list of them.";
+                ze:help "Target peers";
+            }
+            leaf encoding {
+                type zt:encoding-mode;
+                mandatory true;
+                description "The parser the command goes to: 'text' for the route DSL, 'hex' or 'b64' for
+encoded UPDATE bytes.";
+                ze:help "Command encoding";
+            }
+            leaf command {
+                type string;
+                mandatory true;
+                description "The route DSL text, or the encoded UPDATE bytes when the encoding is hex or
+b64. One text command can announce, withdraw and send End-of-RIB together.";
+                ze:help "Route DSL command";
+            }
         }
         output {
-            leaf announced { type uint32; ze:help "Number of NLRIs announced"; }
-            leaf withdrawn { type uint32; ze:help "Number of NLRIs withdrawn"; }
+            leaf announced {
+                type uint32;
+                description "The number of NLRIs the command announced. It counts NLRIs and not UPDATE
+messages.";
+                ze:help "Number of NLRIs announced";
+            }
+            leaf withdrawn {
+                type uint32;
+                description "The number of NLRIs the command withdrew. It counts NLRIs and not UPDATE
+messages.";
+                ze:help "Number of NLRIs withdrawn";
+            }
         }
     }
 
@@ -307,8 +648,20 @@ the peer. The family names which Adj-RIB-Out the re-advertisement covers. Send
 peer-eorr once that re-advertisement is complete.";
         ze:help "Send Beginning of Route Refresh.";
         input {
-            leaf peer-selector { type zt:peer-selector; mandatory true; ze:help "Target peers"; }
-            leaf family { type zt:address-family; mandatory true; ze:help "Address family"; }
+            leaf peer-selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "The peers that receive the BoRR message, as a peer address, a peer name, '*',
+or a comma-separated list of them.";
+                ze:help "Target peers";
+            }
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                description "The address family the BoRR names. It is the Adj-RIB-Out the re-advertisement
+that follows covers.";
+                ze:help "Address family";
+            }
         }
     }
 
@@ -319,8 +672,20 @@ be the one peer-borr opened. RFC 7313 Section 4 applies the procedure only after
 the peer sent the Enhanced Route Refresh Capability.";
         ze:help "Send End of Route Refresh.";
         input {
-            leaf peer-selector { type zt:peer-selector; mandatory true; ze:help "Target peers"; }
-            leaf family { type zt:address-family; mandatory true; ze:help "Address family"; }
+            leaf peer-selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "The peers that receive the EoRR message, as a peer address, a peer name, '*',
+or a comma-separated list of them.";
+                ze:help "Target peers";
+            }
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                description "The address family the EoRR closes. It MUST be the family the matching
+peer-borr opened.";
+                ze:help "Address family";
+            }
         }
     }
 
@@ -334,10 +699,32 @@ encodings are hex and b64. Nothing validates the bytes, so this RPC can put a
 malformed message on the wire.";
         ze:help "Send raw bytes to peer (no validation).";
         input {
-            leaf peer-selector { type zt:peer-selector; mandatory true; ze:help "Target peers"; }
-            leaf type { type string; ze:help "Message type hint"; }
-            leaf encoding { type zt:encoding-mode; mandatory true; ze:help "Data encoding"; }
-            leaf data { type string; mandatory true; ze:help "Raw data"; }
+            leaf peer-selector {
+                type zt:peer-selector;
+                mandatory true;
+                description "The peers the bytes go to, as a peer address, a peer name, '*', or a
+comma-separated list of them.";
+                ze:help "Target peers";
+            }
+            leaf type {
+                type string;
+                description "One of open, update, notification, keepalive and route-refresh. With a type
+Ze writes the marker and the header, and the data carries the payload alone.";
+                ze:help "Message type hint";
+            }
+            leaf encoding {
+                type zt:encoding-mode;
+                mandatory true;
+                description "The encoding the data leaf is written in, hex or b64.";
+                ze:help "Data encoding";
+            }
+            leaf data {
+                type string;
+                mandatory true;
+                description "The message bytes in the named encoding. Without a type they carry the marker,
+the length and the type too, and nothing checks them.";
+                ze:help "Raw data";
+            }
         }
     }
 
@@ -350,9 +737,25 @@ message ID field holding a comma-separated list runs the action over each ID in
 one call.";
         ze:help "BGP message cache operations.";
         input {
-            leaf action { type string; mandatory true; ze:help "Cache action (list|retain|release|expire|forward)"; }
-            leaf message-id { type uint64; ze:help "Cache message ID"; }
-            leaf peer-selector { type zt:peer-selector; ze:help "Target peers (for forward)"; }
+            leaf action {
+                type string;
+                mandatory true;
+                description "One of list, retain, release, expire and forward. Every action except list
+needs a message-id, and another word is refused.";
+                ze:help "Cache action (list|retain|release|expire|forward)";
+            }
+            leaf message-id {
+                type uint64;
+                description "The ID of a cached message, as the list action answers it. A comma-separated
+list of IDs runs the action once for each ID.";
+                ze:help "Cache message ID";
+            }
+            leaf peer-selector {
+                type zt:peer-selector;
+                description "The peers a forwarded UPDATE goes to, as a peer address, a peer name, '*', or
+a comma-separated list of them. Only the forward action reads it.";
+                ze:help "Target peers (for forward)";
+            }
         }
     }
 
@@ -364,7 +767,12 @@ except list takes a name. 'withdraw' takes a route prefix after the name. 'list'
 answers the open commit names and their count.";
         ze:help "Named commit operations.";
         input {
-            leaf name { type string; ze:help "Commit name"; }
+            leaf name {
+                type string;
+                description "The name of the commit the action operates on. Every action except list needs
+it, and start is what first creates the name.";
+                ze:help "Commit name";
+            }
         }
     }
 
@@ -377,7 +785,12 @@ the next configuration apply discards the override. The configuration document
 stays the durable statement of what the daemon feeds.";
         ze:help "Subscribe to BGP events (streaming).";
         input {
-            leaf-list events { type string; ze:help "Event types to subscribe to"; }
+            leaf-list events {
+                type string;
+                description "An event type name, as event-list answers it. Each name adds one runtime
+subscription for the calling process.";
+                ze:help "Event types to subscribe to";
+            }
         }
     }
 
@@ -394,6 +807,9 @@ its description. subscribe takes its event names from that same registry.";
         ze:help "List available event types.";
         output {
             list event {
+                description "Each row carries the name subscribe takes and the one-line text the
+event registry holds beside it, in registry order.";
+                ze:help "One row for each event type registered in the BGP namespace.";
                 uses zt:event-type-info;
             }
         }
@@ -402,46 +818,124 @@ its description. subscribe takes its event names from that same registry.";
     // Notifications
 
     notification peer-state-change {
+        description "Both states are FSM state names. No producer emits this notification today, so a
+subscriber that waits for it receives nothing.";
         ze:help "Peer FSM state changed.";
-        leaf address { type zt:ip-address; ze:help "Peer address"; }
-        leaf old-state { type string; ze:help "Previous FSM state"; }
-        leaf new-state { type string; ze:help "New FSM state"; }
+        leaf address {
+            type zt:ip-address;
+            description "The IP address of the peer whose FSM moved.";
+            ze:help "Peer address";
+        }
+        leaf old-state {
+            type string;
+            description "The name of the FSM state the peer left.";
+            ze:help "Previous FSM state";
+        }
+        leaf new-state {
+            type string;
+            description "The name of the FSM state the peer entered.";
+            ze:help "New FSM state";
+        }
     }
 
     notification route-received {
+        description "One notification describes one UPDATE message. No producer emits this notification
+today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP UPDATE received from peer.";
-        leaf peer { type zt:ip-address; ze:help "Source peer"; }
-        leaf family { type zt:address-family; ze:help "Address family"; }
-        leaf count { type uint32; ze:help "Number of NLRI in update"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The IP address of the peer that sent the UPDATE.";
+            ze:help "Source peer";
+        }
+        leaf family {
+            type zt:address-family;
+            description "The address family of the NLRIs the UPDATE carried.";
+            ze:help "Address family";
+        }
+        leaf count {
+            type uint32;
+            description "The number of NLRIs the UPDATE carried.";
+            ze:help "Number of NLRI in update";
+        }
     }
 
     notification route-update-sent {
+        description "The notification names the peer and the family and carries no NLRI count. No
+producer emits this notification today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP UPDATE sent to peer.";
-        leaf peer { type zt:ip-address; ze:help "Target peer"; }
-        leaf family { type zt:address-family; ze:help "Address family"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The IP address of the peer the UPDATE went to.";
+            ze:help "Target peer";
+        }
+        leaf family {
+            type zt:address-family;
+            description "The address family of the NLRIs the UPDATE carried.";
+            ze:help "Address family";
+        }
     }
 
     notification eor-received {
+        description "One End-of-RIB marker closes the initial table of one address family. No producer
+emits this notification today, so a subscriber that waits for it receives nothing.";
         ze:help "End-of-RIB marker received.";
-        leaf peer { type zt:ip-address; ze:help "Source peer"; }
-        leaf family { type zt:address-family; ze:help "Address family"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The IP address of the peer that sent the End-of-RIB marker.";
+            ze:help "Source peer";
+        }
+        leaf family {
+            type zt:address-family;
+            description "The address family whose initial table the marker closes.";
+            ze:help "Address family";
+        }
     }
 
     notification graceful-restart-state {
+        description "The state is a string and no enumeration constrains it. No producer emits this
+notification today, so a subscriber that waits for it receives nothing.";
         ze:help "Graceful restart state changed.";
-        leaf peer { type zt:ip-address; ze:help "Peer address"; }
-        leaf state { type string; ze:help "GR state"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The IP address of the peer whose graceful restart state changed.";
+            ze:help "Peer address";
+        }
+        leaf state {
+            type string;
+            description "The graceful restart state the peer entered, as free text.";
+            ze:help "GR state";
+        }
     }
 
     notification session-established {
+        description "The peer address and its AS number identify the session. No producer emits this
+notification today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP session established.";
-        leaf peer { type zt:ip-address; ze:help "Peer address"; }
-        leaf asn { type zt:asn; ze:help "Peer ASN, as a decimal value. No producer emits this notification today, so the type states the conservative form rather than a spelling nothing writes"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The IP address of the peer the session was established with.";
+            ze:help "Peer address";
+        }
+        leaf asn {
+            type zt:asn;
+            description "The AS number the peer announced in its OPEN, as a plain decimal integer.";
+            ze:help "Peer ASN, as a decimal value. No producer emits this notification today, so the type states the conservative form rather than a spelling nothing writes";
+        }
     }
 
     notification session-closed {
+        description "The reason is free text and no enumeration constrains it. No producer emits this
+notification today, so a subscriber that waits for it receives nothing.";
         ze:help "BGP session closed.";
-        leaf peer { type zt:ip-address; ze:help "Peer address"; }
-        leaf reason { type string; ze:help "Close reason"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The IP address of the peer whose session closed.";
+            ze:help "Peer address";
+        }
+        leaf reason {
+            type string;
+            description "A text stating why the session closed.";
+            ze:help "Close reason";
+        }
     }
 }

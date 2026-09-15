@@ -27,6 +27,9 @@ not running, the RPC answers an error rather than a row of zeros.";
         output {
             leaf summary {
                 type string;
+                description "The keys are tunnel-count, session-count, listener-count and captured-at.
+The counts come from one snapshot of the subsystem. captured-at is the UTC time
+of that snapshot in RFC 3339 form.";
                 ze:help "JSON object with aggregate counters.";
             }
         }
@@ -40,6 +43,10 @@ the same instant.";
         output {
             leaf tunnels {
                 type string;
+                description "Each object carries local-tid, remote-tid, peer, peer-hostname, state,
+session-count, created-at, last-activity and max-sessions. last-activity is
+empty when the tunnel has seen no activity. Timestamps are UTC in RFC 3339
+form.";
                 ze:help "JSON array of tunnel summary objects.";
             }
         }
@@ -55,12 +62,17 @@ tunnel with local-tid'.";
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the tunnel, as a decimal number. It is the local-tid
+value of a 'tunnels' row. Zero is refused because RFC 2661 reserves it.";
                 ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf tunnel {
                 type string;
+                description "The object carries every field of a 'tunnels' row plus peer-framing,
+peer-bearer, peer-recv-window and a sessions array. Each sessions entry is the
+summary form of one session on that tunnel.";
                 ze:help "JSON object with tunnel detail.";
             }
         }
@@ -74,6 +86,9 @@ the 'session' RPC returns the detail form.";
         output {
             leaf sessions {
                 type string;
+                description "Each object carries local-sid, remote-sid, tunnel-local-tid, state, username,
+assigned-addr, family and created-at. assigned-addr is empty when the session
+holds no address. created-at is UTC in RFC 3339 form.";
                 ze:help "JSON array of session summary objects.";
             }
         }
@@ -88,12 +103,17 @@ session with local-sid'.";
             leaf session-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the session, as a decimal number. It is the local-sid
+value of a 'sessions' row. Zero is refused because RFC 2661 reserves it.";
                 ze:help "Local session ID (1..65535).";
             }
         }
         output {
             leaf session {
                 type string;
+                description "The object carries every field of a 'sessions' row plus tx-connect-speed,
+rx-connect-speed, framing-type, sequencing-required, lns-mode and
+kernel-setup-needed.";
                 ze:help "JSON object with session detail.";
             }
         }
@@ -106,6 +126,8 @@ not published here yet. Use 'listeners' for the bind state of each UDP endpoint.
         output {
             leaf statistics {
                 type string;
+                description "The keys are tunnels-active and sessions-active. Both come from one snapshot,
+so they agree with each other and with 'summary'.";
                 ze:help "JSON object with counter values.";
             }
         }
@@ -119,6 +141,8 @@ of 0.";
         output {
             leaf listeners {
                 type string;
+                description "Each object carries address and port. address is the bound IP address as
+text, and port is the UDP port number.";
                 ze:help "JSON array of listener objects.";
             }
         }
@@ -130,6 +154,9 @@ of 0.";
         output {
             leaf config {
                 type string;
+                description "The keys are enabled, max-tunnels, max-sessions, auth-method, allow-no-auth,
+hello-interval, hello-retries, shared-secret and listeners. hello-interval is
+in seconds, and listeners is an array of bound addresses as text.";
                 ze:help "JSON object with effective config.";
             }
         }
@@ -146,13 +173,21 @@ of 0.";
         input {
             leaf session-id {
                 type uint16;
+                description "A decimal local session ID selects the event ring of that one session.
+'all' or no argument selects the summary of every ring. A session with no ring
+is refused with 'no observer data'.";
                 ze:help "Local session ID (1..65535), or omit for 'all'.";
             }
         }
         output {
             leaf observer {
                 type string;
-                ze:help "JSON array of events or session summaries.";
+                description "With a session ID the object carries session-id, events and count. Each
+event carries timestamp, type, tunnel-id and session-id, plus rtt-ms, actor,
+reason and cause when set. With 'all' the object carries sessions and count,
+and each entry carries session-id, event-count, last-event-type and
+last-event-time.";
+                ze:help "JSON object with events or session summaries.";
             }
         }
     }
@@ -164,13 +199,20 @@ returns aggregate state across all tracked logins.";
         input {
             leaf login {
                 type string;
+                description "A login name selects the bucket list of that one subscriber. 'summary',
+'all' or no argument selects the per-login summary. A login with no CQM data
+is refused with 'no CQM data'.";
                 ze:help "Login name, or 'summary' for aggregate view.";
             }
         }
         output {
             leaf cqm {
                 type string;
-                ze:help "JSON array of CQM buckets or login summaries.";
+                description "With a login the object carries login, buckets and count. Each bucket
+carries start, state, echo-count, min-rtt-ms, max-rtt-ms and avg-rtt-ms. With
+'summary' the object carries logins and count, and each login carries
+bucket-count, last-state, echo-count and avg-rtt-ms.";
+                ze:help "JSON object with CQM buckets or login summaries.";
             }
         }
     }
@@ -183,12 +225,16 @@ RTT, the loss ratio, the echo interval, and the bucket state.";
             leaf login {
                 type string;
                 mandatory true;
+                description "The login name of the subscriber whose echo state is wanted. A login with
+no echo data is refused with 'no echo data'.";
                 ze:help "Login name.";
             }
         }
         output {
             leaf echo {
                 type string;
+                description "The keys are login, last-rtt-ms and bucket-state. echo-interval and
+loss-ratio are present only when an echo interval is set for the login.";
                 ze:help "JSON object with echo state.";
             }
         }
@@ -202,12 +248,18 @@ retransmit count, cwnd, ssthresh, and the peer receive window size.";
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the tunnel whose control channel window is wanted, as
+a decimal number. Zero is refused because RFC 2661 reserves it. An unknown ID
+is refused with 'no tunnel with local-tid'.";
                 ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf reliable {
                 type string;
+                description "The keys are tunnel-id, ns, nr, peer-nr, outstanding, retransmit-count,
+cwnd, ssthresh and peer-rws. ns and nr are the next sequence numbers to send
+and to receive, and peer-rws is the peer receive window size.";
                 ze:help "JSON object with reliable transport state.";
             }
         }
@@ -223,13 +275,17 @@ tunnel with local-tid'.";
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the tunnel whose transitions are wanted, as a decimal
+number. Zero is refused because RFC 2661 reserves it.";
                 ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf history {
                 type string;
-                ze:help "JSON array of FSM transitions.";
+                description "The object carries transitions and count. Each transition carries from and
+to, plus timestamp in UTC RFC 3339 form and trigger when they were recorded.";
+                ze:help "JSON object with FSM transitions.";
             }
         }
     }
@@ -244,13 +300,17 @@ session with local-sid'.";
             leaf session-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the session whose transitions are wanted, as a
+decimal number. Zero is refused because RFC 2661 reserves it.";
                 ze:help "Local session ID (1..65535).";
             }
         }
         output {
             leaf history {
                 type string;
-                ze:help "JSON array of FSM transitions.";
+                description "The object carries transitions and count. Each transition carries from and
+to, plus timestamp in UTC RFC 3339 form and trigger when they were recorded.";
+                ze:help "JSON object with FSM transitions.";
             }
         }
     }
@@ -270,12 +330,17 @@ one session and leave the tunnel up.";
             leaf tunnel-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the tunnel to stop, as a decimal number. It is the
+local-tid value of a 'tunnels' row. Zero is refused because RFC 2661 reserves
+it.";
                 ze:help "Local tunnel ID (1..65535).";
             }
         }
         output {
             leaf result {
                 type string;
+                description "The keys are action, tunnel-id and status. action is 'tunnel-teardown', and
+status is 'sent' once the StopCCN has left Ze.";
                 ze:help "JSON object describing the teardown outcome.";
             }
         }
@@ -289,6 +354,8 @@ its local tunnel ID.";
         output {
             leaf result {
                 type string;
+                description "The keys are action and tunnels-cleared. action is 'tunnel-teardown-all',
+and tunnels-cleared is a count that is 0 when no tunnel was live.";
                 ze:help "JSON object with the number of tunnels torn down.";
             }
         }
@@ -304,12 +371,18 @@ echoed in the answer. The tunnel stays up.";
             leaf session-id {
                 type uint16;
                 mandatory true;
+                description "The ID Ze assigned to the session to stop, as a decimal number. It is the
+local-sid value of a 'sessions' row. Zero is refused because RFC 2661 reserves
+it. The 'actor', 'reason' and 'cause' keywords after the ID are optional.";
                 ze:help "Local session ID (1..65535).";
             }
         }
         output {
             leaf result {
                 type string;
+                description "The keys are action, session-id and status. action is 'session-teardown',
+and status is 'sent' once the CDN has left Ze. reason and cause are present
+when the request carried them.";
                 ze:help "JSON object describing the teardown outcome.";
             }
         }
@@ -322,6 +395,8 @@ session. The tunnels stay open.";
         output {
             leaf result {
                 type string;
+                description "The keys are action and sessions-cleared. action is 'session-teardown-all',
+and sessions-cleared is a count that is 0 when no session was live.";
                 ze:help "JSON object with the number of sessions torn down.";
             }
         }
@@ -342,17 +417,26 @@ outgoing-calls enabled.";
             leaf remote {
                 type string;
                 mandatory true;
+                description "The name of an l2tp/remote entry. The entry supplies the address and the
+shared secret Ze dials with when no tunnel to that peer is up. An unknown name,
+or an entry without outgoing-calls, is refused before any packet is sent.";
                 ze:help "Name of a configured l2tp/remote dial target.";
             }
             leaf called {
                 type string;
                 mandatory true;
+                description "The number the remote LAC dials, as free text. Ze copies it into the Called
+Number AVP of the OCRQ without validation, so its form is what the LAC
+accepts.";
                 ze:help "Called Number placed in the OCRQ (RFC 2661 Section 7.9).";
             }
         }
         output {
             leaf result {
                 type string;
+                description "The keys are action, remote, called and established. A call that came up
+adds local-sid and remote-sid. A call that failed adds error and, when the peer
+or Ze supplied one, result-code.";
                 ze:help "JSON object describing the call outcome.";
             }
         }

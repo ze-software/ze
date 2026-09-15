@@ -246,9 +246,9 @@ module ze-geodns-conf {
                     }
                     leaf type {
                         type enumeration {
-                            enum A;
-                            enum AAAA;
-                            enum SRV;
+                            enum A { ze:help "Answer an A record for each address, and refuse an IPv6 address at commit."; }
+                            enum AAAA { ze:help "Answer an AAAA record for each address, and refuse an IPv4 address at commit."; }
+                            enum SRV { ze:help "Answer an SRV record from the srv container, and ignore the address list."; }
                         }
                         description "An unset leaf reads each `address` entry on its own, and answers A for an IPv4
                             address and AAAA for an IPv6 address. A refuses the commit for an IPv6 address, and AAAA

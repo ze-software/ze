@@ -20,10 +20,14 @@ the output.";
             ze:help "Show the kernel routing table.";
             leaf prefix {
                 type string;
+                description "A prefix in CIDR form, or the word default. Only routes for
+that prefix are listed, and every route is listed when it is absent.";
                 ze:help "CIDR prefix filter";
             }
             leaf limit {
                 type uint32;
+                description "The largest number of routes the answer carries, given after
+the word limit. The default is 100000, and the answer says when it was truncated.";
                 ze:help "Maximum number of routes";
             }
 
@@ -33,7 +37,13 @@ the output.";
                 description "Performs a longest-prefix-match and returns the
 matching route with gateway, interface, protocol, and metric.";
                 ze:help "Look up which route the kernel would use for a given IP.";
-                leaf ip { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; ze:help "Destination IP address to look up"; }
+                leaf ip {
+                    type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; }
+                    mandatory true;
+                    description "One IPv4 or IPv6 address without a prefix length. The
+kernel answers with the route it selects for a packet to that address.";
+                    ze:help "Destination IP address to look up";
+                }
             }
         }
 
@@ -46,11 +56,13 @@ For the IPv4-only view, 'show arp' is a shortcut.";
             ze:help "Show the ARP and neighbor discovery table.";
             leaf family {
                 type enumeration {
-                    enum ipv4;
-                    enum ipv6;
-                    enum any;
-                    enum all;
+                    enum ipv4 { ze:help "List the IPv4 ARP entries only."; }
+                    enum ipv6 { ze:help "List the IPv6 neighbor discovery entries only."; }
+                    enum any { ze:help "List both families, the same as no argument."; }
+                    enum all { ze:help "List both families, a synonym of any."; }
                 }
+                description "Selects the address family the answer carries. The default
+when it is absent is both families.";
                 ze:help "Address family filter";
             }
         }

@@ -21,6 +21,9 @@ not started.";
         output {
             leaf summary {
                 type string;
+                description "The keys are session-count, interface-count and captured-at. Both counts
+come from one snapshot, and captured-at is the UTC time of that snapshot in RFC 3339
+form.";
                 ze:help "JSON object with aggregate counters.";
             }
         }
@@ -34,6 +37,9 @@ creation time.";
         output {
             leaf sessions {
                 type string;
+                description "Each object carries sid, mac, interface, service-name, state, unit and
+created-at. state is discovery, session or teardown, and created-at is UTC in RFC 3339
+form.";
                 ze:help "JSON array of session objects.";
             }
         }
@@ -48,12 +54,16 @@ sid.";
             leaf session-id {
                 type uint16;
                 mandatory true;
+                description "The identifier of one PPPoE session, as a decimal number. It is the sid
+value of a 'sessions' row, and an unknown value is refused.";
                 ze:help "PPPoE session ID (1..65535).";
             }
         }
         output {
             leaf session {
                 type string;
+                description "The object carries the same keys as one 'sessions' row: sid, mac,
+interface, service-name, state, unit and created-at.";
                 ze:help "JSON object with session detail.";
             }
         }
@@ -67,6 +77,8 @@ maximum.";
         output {
             leaf statistics {
                 type string;
+                description "The keys are sessions-active and interfaces. Each interfaces entry carries
+interface, sessions and max-sessions.";
                 ze:help "JSON object with counter values.";
             }
         }
@@ -79,6 +91,9 @@ count, its configured maximum and the service names it accepts.";
         output {
             leaf interfaces {
                 type string;
+                description "Each object carries name, ifindex, sessions, max-sessions and
+service-names. service-names is an array of the Service-Name values the interface
+accepts.";
                 ze:help "JSON array of interface objects.";
             }
         }

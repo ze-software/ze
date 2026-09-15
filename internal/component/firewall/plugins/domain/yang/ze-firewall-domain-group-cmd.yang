@@ -16,6 +16,8 @@ module ze-firewall-domain-group-cmd {
             config false;
             // Repeat the canonical description owned by ze-firewall-cmd.yang
             // verbatim so the command-tree merge does not warn on a mismatch.
+            description "Ze programs nftables, so what is reported is the state Ze installed. A rule added
+                         outside Ze is not managed here and is not shown.";
             ze:help "Firewall rules and groups (nftables).";
 
             container domain-group {
@@ -25,7 +27,12 @@ module ze-firewall-domain-group-cmd {
                              them, when each name last resolved, and what the last answer said.
                              Read this before a commit to confirm a group has data.";
                 ze:help "Show what each configured domain group's DNS names resolve to.";
-                leaf name { type string; ze:help "Group name; omit to list every group"; }
+                leaf name {
+                    type string;
+                    description "A group from the firewall configuration. A name no group
+carries is an error that lists the groups present.";
+                    ze:help "Group name; omit to list every group";
+                }
             }
         }
     }
@@ -47,7 +54,13 @@ module ze-firewall-domain-group-cmd {
                              already had for it, and only a name that answers NXDOMAIN empties
                              its own contribution.";
                 ze:help "Resolve a domain group's DNS names now and program its set.";
-                leaf name { type string; mandatory true; ze:help "Domain group name"; }
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "A group from the firewall configuration. Every name in that
+group is resolved, and a name no group carries is an error that lists the groups present.";
+                    ze:help "Domain group name";
+                }
             }
         }
     }
@@ -74,7 +87,13 @@ module ze-firewall-domain-group-cmd {
                              names the group fails to verify until it is resolved again with
                              'update firewall domain-group <name>'.";
                 ze:help "Remove the addresses Ze cached for a domain group.";
-                leaf name { type string; mandatory true; ze:help "Domain group name"; }
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "A group from the firewall configuration. The cache entries of
+that group's names are purged, and a name no group carries is an error.";
+                    ze:help "Domain group name";
+                }
             }
         }
     }

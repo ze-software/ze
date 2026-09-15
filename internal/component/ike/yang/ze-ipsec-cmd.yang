@@ -64,6 +64,9 @@ dumps every SA, which on a device with many tunnels is one row per SA.";
                             type uint32 {
                                 range "1..4294967295";
                             }
+                            description "The value is decimal. Ze keeps only the SAs whose SPI equals it, and
+the inbound SA and the outbound SA of one tunnel carry different SPIs, so one value
+names one direction. The value 0 is refused.";
                             ze:help "Show all SAs with this SPI.";
                         }
                     }
@@ -105,7 +108,10 @@ traffic selectors, and byte counts.";
                         leaf name {
                             type string;
                             mandatory true;
-                            ze:help "Configured IPsec peer name";
+                            description "The value is the key of a site-to-site peer entry, at most 255
+characters. Ze returns every IKE SA that peer holds, and answers 'peer not found' when
+none is up.";
+                            ze:help "Configured IPsec peer name.";
                         }
                     }
                 }

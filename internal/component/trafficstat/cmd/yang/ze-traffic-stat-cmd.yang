@@ -22,6 +22,8 @@ module ze-traffic-stat-cmd {
                 ze:help "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).";
                 leaf name {
                     type string;
+                    description "The name of one interface, matched exactly against the interface names in
+the snapshot. A name in no row leaves the answer empty.";
                     ze:help "Interface name filter";
                 }
             }
@@ -46,6 +48,8 @@ module ze-traffic-stat-cmd {
                 ze:help "Start streaming traffic monitor (per-second snapshots).";
                 leaf name {
                     type string;
+                    description "The name of one interface, matched exactly against the interface names in
+each snapshot. Every other interface is left out of the stream.";
                     ze:help "Interface name filter";
                 }
             }

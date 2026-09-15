@@ -350,9 +350,9 @@ module ze-iface-conf {
 
                 leaf rpf-check {
                     type enumeration {
-                        enum disable;
-                        enum strict;
-                        enum loose;
+                        enum disable { ze:help "No source address check, rp_filter 0."; }
+                        enum strict { ze:help "Drop a packet whose source does not route back through this interface, rp_filter 1."; }
+                        enum loose { ze:help "Drop a packet whose source address has no route at all, rp_filter 2."; }
                     }
                     description "Ze writes the value to net.ipv4.conf.<iface>.rp_filter, where disable
                                  is 0, strict is 1 and loose is 2. strict drops a packet whose source
@@ -444,9 +444,9 @@ module ze-iface-conf {
 
                 leaf rpf-check {
                     type enumeration {
-                        enum disable;
-                        enum strict;
-                        enum loose;
+                        enum disable { ze:help "No source address validation."; }
+                        enum strict { ze:help "Drop a packet whose source address does not route back through this interface."; }
+                        enum loose { ze:help "Drop a packet whose source address has no route at all."; }
                     }
                     description "strict drops a packet whose source address would not be routed back
                                  through this interface. loose drops a packet whose source address has

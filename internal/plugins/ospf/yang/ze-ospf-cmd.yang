@@ -531,11 +531,13 @@ refused. For link scope Ze uses the first configured interface.";
                             ze:help "Flooding scope of the injected LSA.";
                             leaf scope {
                                 type enumeration {
-                                    enum link;
-                                    enum area;
-                                    enum as;
+                                    enum link { ze:help "Opaque type 9, flooded on one link only."; }
+                                    enum area { ze:help "Opaque type 10, flooded inside the area."; }
+                                    enum as { ze:help "Opaque type 11, flooded across the AS."; }
                                 }
                                 mandatory true;
+                                description "The word selects the opaque LSA type Ze originates. Any other word is
+refused with the three accepted words in the message.";
                                 ze:help "Link-local, area, or AS flooding scope.";
                             }
                         }
@@ -551,6 +553,8 @@ largest. A larger number is refused with 'opaque id exceeds 24 bits (max
                                     range "0..16777215";
                                 }
                                 mandatory true;
+                                description "The value is decimal. With the Opaque Type it forms the Link State ID
+of the injected LSA, so a withdraw MUST repeat the same value.";
                                 ze:help "24-bit Opaque ID (RFC 5250 Appendix A.2).";
                             }
                         }
@@ -565,6 +569,8 @@ standards-track consumer.";
                                     range "128..255";
                                 }
                                 mandatory true;
+                                description "The value is decimal and Ze refuses one below 128 or above 255. When
+the keyword is absent the LSA takes the Private-Use default.";
                                 ze:help "Private-Use Opaque Type (RFC 5250 Section 9).";
                             }
                         }
@@ -580,6 +586,8 @@ the LSA maximum, which is 65535 bytes minus the 20-octet header.";
                                     pattern "[0-9a-fA-F]*";
                                 }
                                 mandatory true;
+                                description "The value is an even number of hex digits with no prefix and no
+separator. Ze decodes it and appends the octets to the LSA body.";
                                 ze:help "Body octets as hex.";
                             }
                         }
@@ -593,6 +601,8 @@ multiple of 4 octets. Repeat the keyword to append more TLVs.";
                             leaf type {
                                 type uint16;
                                 mandatory true;
+                                description "The value is decimal. Ze writes it into the 2-octet type field of
+the TLV.";
                                 ze:help "TLV type.";
                             }
                             leaf value-hex {
@@ -600,6 +610,9 @@ multiple of 4 octets. Repeat the keyword to append more TLVs.";
                                     pattern "[0-9a-fA-F]*";
                                 }
                                 mandatory true;
+                                description "The value is an even number of hex digits with no prefix. Its decoded
+length fills the 2-octet length field, and Ze pads the octets with zeros to a multiple
+of 4.";
                                 ze:help "TLV value as hex.";
                             }
                         }
@@ -650,6 +663,8 @@ cross-check and not the source.";
                                     pattern "(0[xX])?[0-9a-fA-F]{1,4}";
                                 }
                                 mandatory true;
+                                description "The 0x prefix is optional. Bits S2 and S1 of the value give the
+flooding scope, and Ze refuses the reserved combination 11 (RFC 5340 Appendix A.4.2.1).";
                                 ze:help "16-bit LS Type in hex, such as 0x2009.";
                             }
                         }
@@ -663,6 +678,8 @@ the origination used.";
                             leaf link-state-id {
                                 type uint32;
                                 mandatory true;
+                                description "The value is decimal. Ze writes it into the Link State ID field of the
+LSA header, where OSPFv3 gives it no address meaning.";
                                 ze:help "32-bit Link State ID.";
                             }
                         }
@@ -674,11 +691,13 @@ accepts the LS Type.";
                             ze:help "Cross-check on the scope the LS Type states.";
                             leaf scope {
                                 type enumeration {
-                                    enum link;
-                                    enum area;
-                                    enum as;
+                                    enum link { ze:help "Expect S2/S1 bits 00, flooded on one link only."; }
+                                    enum area { ze:help "Expect S2/S1 bits 01, flooded inside the area."; }
+                                    enum as { ze:help "Expect S2/S1 bits 10, flooded across the AS."; }
                                 }
                                 mandatory true;
+                                description "Ze compares the word with the scope the LS Type bits state and refuses
+the command when the two disagree. The word never sets the scope by itself.";
                                 ze:help "Link-local, area, or AS flooding scope.";
                             }
                         }
@@ -694,6 +713,9 @@ is written as hex.";
                                     pattern "[0-9a-fA-F]*";
                                 }
                                 mandatory true;
+                                description "The value is an even number of hex digits with no prefix and no
+separator. Ze decodes it and appends the octets to the LSA body, which is refused above
+65515 octets.";
                                 ze:help "Body octets as hex.";
                             }
                         }

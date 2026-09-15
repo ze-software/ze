@@ -43,7 +43,9 @@ LCP/NCP state, assigned addresses, and traffic counters.";
                     leaf id {
                         type string;
                         mandatory true;
-                        ze:help "PPPoE session ID";
+                        description "The decimal sid column of the show pppoe session table. Zero is refused
+because RFC 2516 reserves it, and an unknown id is refused with 'no session with sid'.";
+                        ze:help "PPPoE session ID.";
                     }
                 }
             }

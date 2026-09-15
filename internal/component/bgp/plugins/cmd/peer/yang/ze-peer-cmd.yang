@@ -67,7 +67,14 @@ as65001, a glob, or *.";
                 // the keyword the operator types it after, and each of those
                 // commands inherits it. The selector can be an IP, a peer name,
                 // an AS pattern (as65001), a glob, or *.
-                leaf selector { type string; mandatory true; ze:help "Peer selector"; }
+                leaf selector {
+                    type string;
+                    mandatory true;
+                    description "The value is an IP address, a peer name, an AS pattern such as as65001, a
+glob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches,
+except 'list', which reads every peer.";
+                    ze:help "Peer selector";
+                }
 
                 container list {
                     config false;
@@ -142,11 +149,13 @@ without a peer scope.";
                         ze:help "Which direction of the peer's RIB to read.";
                         leaf scope {
                             type enumeration {
-                                enum sent;
-                                enum advertised;
-                                enum received;
-                                enum sent-received;
+                                enum sent { ze:help "Read the routes Ze sent to the peer."; }
+                                enum advertised { ze:help "Read the routes Ze sent to the peer, another spelling of sent."; }
+                                enum received { ze:help "Read the routes the peer sent to Ze."; }
+                                enum sent-received { ze:help "Read the routes of both directions, which is the default."; }
                             }
+                            description "The word is typed first, before any pipe stage. The RIB plugin reads
+its outbound table for sent, its inbound table for received, and both for sent-received.";
                             ze:help "Direction of the routes to read. 'advertised' is another spelling of 'sent'.";
                         }
                     }
@@ -215,30 +224,109 @@ less.";
                 // The type is an address rather than zt:peer-selector: a peer
                 // that does not exist yet matches no glob, no name and no AS
                 // pattern, so every other selector form names nothing here.
-                leaf selector { type zt:ip-address; mandatory true; ze:help "Address of the peer to create"; }
+                leaf selector {
+                    type zt:ip-address;
+                    mandatory true;
+                    description "The token typed after 'peer' is an IPv4 or IPv6 address and nothing else.
+A name, a glob or an AS pattern is refused, because a peer that does not exist yet
+matches none of them. An address that already names a peer is refused.";
+                    ze:help "Address of the peer to create";
+                }
 
-                leaf asn { type zt:asn-notated; mandatory true; ze:help "Remote AS of the peer, in any notation RFC 5396 names"; }
-                leaf local-as { type zt:asn-notated; ze:help "Local AS for this session, overriding the router's, in any notation RFC 5396 names"; }
-                leaf local-address { type zt:ip-address; ze:help "Local address to bind the session to"; }
-                leaf router-id { type zt:ipv4-address; ze:help "BGP Identifier for this session, overriding the router's"; }
-                leaf receive-hold-time { type uint16; ze:help "Hold time in seconds (RFC 4271)"; }
-                leaf send-hold-time { type uint16; ze:help "Send hold time in seconds, 0 for automatic (RFC 9687)"; }
-                leaf connect-retry { type uint16; ze:help "ConnectRetry interval in seconds"; }
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The value is 1 to 4294967295, in asplain or asdot notation. Ze stores the
+decimal form whichever notation you typed. AS 0 is refused, because RFC 7607 reserves it.";
+                    ze:help "Remote AS of the peer, in any notation RFC 5396 names";
+                }
+                leaf local-as {
+                    type zt:asn-notated;
+                    description "The value is 1 to 4294967295, in asplain or asdot notation. Absent, the
+session uses the router's own AS. AS 0 is refused.";
+                    ze:help "Local AS for this session, overriding the router's, in any notation RFC 5396 names";
+                }
+                leaf local-address {
+                    type zt:ip-address;
+                    description "The value is an IPv4 or IPv6 address of this router. Ze binds the TCP
+session to it. Absent, the kernel picks the source address.";
+                    ze:help "Local address to bind the session to";
+                }
+                leaf router-id {
+                    type zt:ipv4-address;
+                    description "The value is a dotted quad and it MUST NOT be 0.0.0.0. Ze sends it as the
+BGP Identifier in the OPEN for this session. Absent, the session uses the router's own.";
+                    ze:help "BGP Identifier for this session, overriding the router's";
+                }
+                leaf receive-hold-time {
+                    type uint16;
+                    description "The value is 0 to 65535 seconds and Ze puts it in the Hold Time field of
+its OPEN. The two peers then hold the lower of the two proposals. Absent, the value is 90.";
+                    ze:help "Hold time in seconds (RFC 4271)";
+                }
+                leaf send-hold-time {
+                    type uint16;
+                    description "The value is 0 to 65535 seconds. A non-zero value MUST be at least 480 and
+more than the receive hold time, or the peer is refused. 0 derives it as the larger of 480
+and twice the receive hold time.";
+                    ze:help "Send hold time in seconds, 0 for automatic (RFC 9687)";
+                }
+                leaf connect-retry {
+                    type uint16;
+                    description "The value is 0 to 65535 seconds and Ze reads it for a dynamic peer alone.
+A disconnected dynamic peer is removed after this delay when no connection comes back. A
+static peer reconnects on its own backoff, which this value does not change. Absent, the
+value is 120.";
+                    ze:help "ConnectRetry interval in seconds";
+                }
                 leaf connect {
-                    type enumeration { enum true; enum false; }
+                    type enumeration {
+                        enum true { ze:help "Ze dials the peer."; }
+                        enum false { ze:help "Ze does not dial the peer and waits for the peer to connect."; }
+                    }
+                    description "The value is true or false and nothing else. With false, the session comes
+up only when the peer opens the TCP connection and 'accept' lets it in.";
                     ze:help "Dial the peer, default true";
                 }
                 leaf accept {
-                    type enumeration { enum true; enum false; }
+                    type enumeration {
+                        enum true { ze:help "Ze answers a TCP connection the peer opens."; }
+                        enum false { ze:help "Ze refuses a TCP connection the peer opens."; }
+                    }
+                    description "The value is true or false and nothing else. With false, the session comes
+up only when 'connect' lets Ze dial the peer.";
                     ze:help "Accept a connection from the peer, default true";
                 }
-                leaf family { type family-list; ze:help "Address families to negotiate, comma separated"; }
-                leaf graceful-restart { type uint16; ze:help "Graceful restart time in seconds (RFC 4724)"; }
+                leaf family {
+                    type family-list;
+                    description "Each name is an AFI/SAFI pair such as ipv4/unicast, and a name Ze does
+not know is refused. Ze negotiates each family in the OPEN. Absent, the session uses the
+configured default families.";
+                    ze:help "Address families to negotiate, comma separated";
+                }
+                leaf graceful-restart {
+                    type uint16;
+                    description "The value is 0 to 4095 seconds. It is the Restart Time Ze advertises in
+the graceful restart capability of its OPEN. Absent, the session advertises none.";
+                    ze:help "Graceful restart time in seconds (RFC 4724)";
+                }
                 leaf group-updates {
-                    type enumeration { enum true; enum false; }
+                    type enumeration {
+                        enum true { ze:help "Ze packs several NLRI that share path attributes into one UPDATE."; }
+                        enum false { ze:help "Ze sends one prefix per UPDATE to this peer."; }
+                    }
+                    description "The value is true or false and nothing else. Packing reduces the number
+of UPDATE messages from one per route to one per set of path attributes. Use false for a
+peer that requires one prefix per UPDATE.";
                     ze:help "Group this peer's UPDATEs with other peers, default true";
                 }
-                leaf attach { type process-list; ze:help "Plugin processes bound to this peer, comma separated"; }
+                leaf attach {
+                    type process-list;
+                    description "Each name is a plugin process the configuration declares. Ze binds the
+peer to each one with the whole surface: the process receives every message from this peer
+and can send every type toward it. An empty name is refused.";
+                    ze:help "Plugin processes bound to this peer, comma separated";
+                }
             }
         }
     }
@@ -259,7 +347,13 @@ command under it.";
                 description "Tears down the TCP session and deletes the peer from the running
 configuration. Does not modify the config file on disk.";
                 ze:help "Remove a peer from the running config.";
-                leaf selector { type string; mandatory true; ze:help "Peer selector"; }
+                leaf selector {
+                    type string;
+                    mandatory true;
+                    description "The value is an IP address, a peer name, an AS pattern such as as65001, a
+glob, or * for every peer. Ze tears down and deletes each peer it matches.";
+                    ze:help "Peer selector";
+                }
             }
         }
     }
@@ -283,7 +377,13 @@ and not to the running daemon, so 'config commit' is what applies the result.";
 
                 // The peer every command below updates, declared on the keyword
                 // the operator types it after.
-                leaf selector { type string; mandatory true; ze:help "Peer selector"; }
+                leaf selector {
+                    type string;
+                    mandatory true;
+                    description "The value is an IP address, a peer name, an AS pattern such as as65001, a
+glob, or * for every peer. 'prefix' refreshes the maximums of each peer it matches.";
+                    ze:help "Peer selector";
+                }
 
                 container prefix {
                     config false;
@@ -334,7 +434,14 @@ the 'network' permission.";
             // keyword the operator types it after, and each of those commands
             // inherits it -- including the ones ze-refresh-cmd.yang merges onto
             // this container.
-            leaf selector { type string; mandatory true; ze:help "Peer selector"; }
+            leaf selector {
+                type string;
+                mandatory true;
+                description "The value is an IP address, a peer name, an AS pattern such as as65001, a
+glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than
+one peer, and the other commands act on each peer it matches.";
+                ze:help "Peer selector";
+            }
 
             container teardown {
                 config false;
@@ -345,7 +452,13 @@ administrative shutdown, and with subcode 4, administrative reset, and with no
 other subcode. The message follows the subcode on the command line, and the
 answer echoes the truncated text that went on the wire.";
                 ze:help "Tear down a peer session.";
-                leaf cease-subcode { type uint8; mandatory true; ze:help "BGP cease NOTIFICATION subcode"; }
+                leaf cease-subcode {
+                    type uint8;
+                    mandatory true;
+                    description "The value is a whole number from 0 to 255, and a value outside that range
+is refused. Ze puts it in the Cease NOTIFICATION it sends before it closes the session.";
+                    ze:help "BGP cease NOTIFICATION subcode";
+                }
             }
 
             container pause {

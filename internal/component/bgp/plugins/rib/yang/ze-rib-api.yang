@@ -28,7 +28,13 @@ module ze-rib-api {
 bgp rib. It is read from the RIB command registry and sorted.";
         ze:help "Show RIB subcommands.";
         output {
-            leaf-list subcommands { type string; ze:help "Available subcommands"; }
+            leaf-list subcommands {
+                type string;
+                description "Each value is one word, the first word after the verb and bgp rib
+                             in a registered command name. A word that follows more than one
+                             verb is listed once.";
+                ze:help "Available subcommands";
+            }
         }
     }
 
@@ -39,8 +45,18 @@ after the built-in table are in it.";
         ze:help "List RIB commands.";
         output {
             list command {
-                leaf name { type string; ze:help "Command name"; }
-                leaf description { type string; ze:help "Command description"; }
+                leaf name {
+                    type string;
+                    description "The full command name with its verb, as the operator types it,
+                                 for example show bgp rib status.";
+                    ze:help "Command name";
+                }
+                leaf description {
+                    type string;
+                    description "The one-line summary the RIB plugin registered beside the
+                                 command.";
+                    ze:help "Command description";
+                }
             }
         }
     }
@@ -51,8 +67,17 @@ the RIB plugin and does not change with the configuration.";
         ze:help "List RIB event types.";
         output {
             list event {
-                leaf name { type string; ze:help "Event type name"; }
-                leaf description { type string; ze:help "Event description"; }
+                leaf name {
+                    type string;
+                    description "The name of the event type, one of cache, route, peer and
+                                 memory.";
+                    ze:help "Event type name";
+                }
+                leaf description {
+                    type string;
+                    description "The text that says what the event type reports.";
+                    ze:help "Event description";
+                }
             }
         }
     }
@@ -65,11 +90,36 @@ address family. The routes-in and routes-out totals stay all-family counts whate
 given.";
         ze:help "RIB summary: peer count, route counts, GR state.";
         output {
-            leaf running { type boolean; ze:help "RIB plugin is running"; }
-            leaf peers { type uint32; ze:help "Number of peers tracked"; }
-            leaf routes-in { type uint32; ze:help "Total Adj-RIB-In routes"; }
-            leaf routes-out { type uint32; ze:help "Total Adj-RIB-Out routes"; }
-            leaf stale-routes { type uint32; ze:help "Stale routes (GR)"; }
+            leaf running {
+                type boolean;
+                description "Always true in an answer, because the plugin that answers is the
+                             one that runs. A stopped plugin answers nothing.";
+                ze:help "RIB plugin is running";
+            }
+            leaf peers {
+                type uint32;
+                description "The count of BGP peers whose session is up. A peer that is
+                             configured and down is not counted.";
+                ze:help "Number of peers tracked";
+            }
+            leaf routes-in {
+                type uint32;
+                description "The sum of the routes held in every Adj-RIB-In, over all address
+                             families. The redistribution sources count as well as the BGP peers.";
+                ze:help "Total Adj-RIB-In routes";
+            }
+            leaf routes-out {
+                type uint32;
+                description "The sum of the routes held in every Adj-RIB-Out, over all peers and
+                             all address families.";
+                ze:help "Total Adj-RIB-Out routes";
+            }
+            leaf stale-routes {
+                type uint32;
+                description "The count of Adj-RIB-In routes marked stale by graceful restart
+                             (RFC 4724) and not yet refreshed by the restarted peer.";
+                ze:help "Stale routes (GR)";
+            }
         }
     }
 
@@ -84,11 +134,26 @@ given.";
                      graph returns the AS-path topology as box-drawing text.";
         ze:help "Show routes with pipeline filters.";
         input {
-            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
-            leaf-list args { type string; ze:help "Pipeline args: scope, filters, terminal"; }
+            leaf peer {
+                type zt:ip-address;
+                description "A peer selector. Given, only the routes received from or sent to the
+                             matching peers are shown. Absent, every peer is shown.";
+                ze:help "Filter by peer";
+            }
+            leaf-list args {
+                type string;
+                description "The words of the pipeline in order: an optional scope, then filters,
+                             then one terminal. A keyword that is none of them is refused.";
+                ze:help "Pipeline args: scope, filters, terminal";
+            }
         }
         output {
-            leaf route-count { type uint32; ze:help "Number of routes (count terminal)"; }
+            leaf route-count {
+                type uint32;
+                description "The count of routes the filters matched. It is answered when the
+                             terminal is count, and the routes themselves are not.";
+                ze:help "Number of routes (count terminal)";
+            }
         }
     }
 
@@ -102,11 +167,26 @@ given.";
                      graph returns the AS-path topology as box-drawing text.";
         ze:help "Show best-path per prefix (RFC 4271 §9.1.2).";
         input {
-            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
-            leaf-list args { type string; ze:help "Pipeline args: filters, terminal"; }
+            leaf peer {
+                type zt:ip-address;
+                description "A peer selector. Given, only a best path learned from a matching peer
+                             is shown. Absent, the best path of every prefix is shown.";
+                ze:help "Filter by peer";
+            }
+            leaf-list args {
+                type string;
+                description "The words of the pipeline in order: filters, then one terminal. There
+                             is no scope word, because a best path is always a received route.";
+                ze:help "Pipeline args: filters, terminal";
+            }
         }
         output {
-            leaf route-count { type uint32; ze:help "Number of best paths"; }
+            leaf route-count {
+                type uint32;
+                description "The count of prefixes with a best path that the filters matched. It
+                             is answered when the terminal is count.";
+                ze:help "Number of best paths";
+            }
         }
     }
 
@@ -116,8 +196,18 @@ that feed the RIB. It can be larger than the BGP peer count, and the route count
 over both.";
         ze:help "Show best-path computation status.";
         output {
-            leaf peers-with-rib { type uint32; ze:help "Peers with RIB entries"; }
-            leaf total-routes { type uint32; ze:help "Total route count across peers"; }
+            leaf peers-with-rib {
+                type uint32;
+                description "The count of sources that hold an Adj-RIB-In: the BGP peers plus the
+                             non-BGP redistribution sources. A peer with an empty table counts.";
+                ze:help "Peers with RIB entries";
+            }
+            leaf total-routes {
+                type uint32;
+                description "The sum of the routes held in those Adj-RIB-In tables, over all
+                             address families. It counts received routes, not best paths.";
+                ze:help "Total route count across peers";
+            }
         }
     }
 
@@ -127,8 +217,18 @@ matching peer loses its Adj-RIB-In and its entry in the peer table, and the best
 then computed again.";
         ze:help "Clear Adj-RIB-In entries.";
         input {
-            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
-            leaf family { type zt:address-family; ze:help "Filter by address family"; }
+            leaf peer {
+                type zt:ip-address;
+                description "A peer selector, one address or * for every peer. Each matching peer
+                             loses its Adj-RIB-In. The selector is required.";
+                ze:help "Filter by peer";
+            }
+            leaf family {
+                type zt:address-family;
+                description "An afi/safi pair, for example ipv4/unicast. The handler does not read
+                             it: the Adj-RIB-In of a matching peer is cleared for every family.";
+                ze:help "Filter by address family";
+            }
         }
     }
 
@@ -138,8 +238,18 @@ required, and only a peer that is up is resent to. A second argument holding a s
 the replay to one family.";
         ze:help "Resend the Adj-RIB-Out routes to the matching peers.";
         input {
-            leaf peer { type zt:ip-address; ze:help "Filter by peer"; }
-            leaf family { type zt:address-family; ze:help "Filter by address family"; }
+            leaf peer {
+                type zt:ip-address;
+                description "A peer selector, one address or * for every peer. Each matching peer
+                             that is up has its Adj-RIB-Out resent. The selector is required.";
+                ze:help "Filter by peer";
+            }
+            leaf family {
+                type zt:address-family;
+                description "An afi/safi pair, for example ipv4/unicast. Given, only the routes of
+                             that family are resent. Absent, every family is resent.";
+                ze:help "Filter by address family";
+            }
         }
     }
 
@@ -147,20 +257,82 @@ the replay to one family.";
         description "The peer address is a label; no live BGP session required.";
         ze:help "Insert route into Adj-RIB-In as if received from a peer.";
         input {
-            leaf peer { type zt:ip-address; mandatory true; ze:help "Peer address label"; }
-            leaf family { type zt:address-family; mandatory true; ze:help "Address family (e.g. ipv4/unicast)"; }
-            leaf prefix { type string; mandatory true; ze:help "CIDR prefix (e.g. 10.0.0.0/24)"; }
-            leaf origin { type string; ze:help "Origin: igp, egp, incomplete (default: igp)"; }
-            leaf nhop { type zt:ip-address; ze:help "Next-hop IP address"; }
-            leaf nexthop { type zt:ip-address; ze:help "Alias for nhop next-hop IP address"; }
-            leaf aspath { type string; ze:help "AS path as comma-separated ASNs (e.g. 64500,64501)"; }
-            leaf localpref { type uint32; ze:help "LOCAL_PREF value"; }
-            leaf med { type uint32; ze:help "MULTI_EXIT_DISC value"; }
+            leaf peer {
+                type zt:ip-address;
+                mandatory true;
+                description "The address the route is filed under in the Adj-RIB-In. A peer table
+                             that does not exist yet is created, so no session is needed.";
+                ze:help "Peer address label";
+            }
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                description "An afi/safi pair. It selects the Adj-RIB-In table and the NLRI
+                             encoding of the prefix.";
+                ze:help "Address family (e.g. ipv4/unicast)";
+            }
+            leaf prefix {
+                type string;
+                mandatory true;
+                description "The prefix in CIDR form, address and length. It is encoded as the
+                             NLRI of the injected route.";
+                ze:help "CIDR prefix (e.g. 10.0.0.0/24)";
+            }
+            leaf origin {
+                type string;
+                description "One of igp, egp and incomplete. Absent, the route carries igp. Any
+                             other word is refused with the three names.";
+                ze:help "Origin: igp, egp, incomplete (default: igp)";
+            }
+            leaf nhop {
+                type zt:ip-address;
+                description "An IPv4 value fills the NEXT_HOP attribute. An IPv6 value travels in
+                             MP_REACH_NLRI, and for an IPv4 prefix the peer must have negotiated
+                             extended-nexthop.";
+                ze:help "Next-hop IP address";
+            }
+            leaf nexthop {
+                type zt:ip-address;
+                description "The same argument as nhop under its long spelling. Give one of the
+                             two.";
+                ze:help "Alias for nhop next-hop IP address";
+            }
+            leaf aspath {
+                type string;
+                description "The ASNs of the AS_PATH in order, separated by commas. Absent, the
+                             path is empty.";
+                ze:help "AS path as comma-separated ASNs (e.g. 64500,64501)";
+            }
+            leaf localpref {
+                type uint32;
+                description "An integer that fills the LOCAL_PREF attribute. Absent, the route
+                             carries no LOCAL_PREF.";
+                ze:help "LOCAL_PREF value";
+            }
+            leaf med {
+                type uint32;
+                description "An integer that fills the MULTI_EXIT_DISC attribute. Absent, the
+                             route carries no MED.";
+                ze:help "MULTI_EXIT_DISC value";
+            }
         }
         output {
-            leaf injected { type string; ze:help "Prefix that was injected"; }
-            leaf peer { type zt:ip-address; ze:help "Peer the route was injected for"; }
-            leaf family { type zt:address-family; ze:help "Address family"; }
+            leaf injected {
+                type string;
+                description "The prefix as it was given, echoed back once the route is in the
+                             Adj-RIB-In and the best path is computed again.";
+                ze:help "Prefix that was injected";
+            }
+            leaf peer {
+                type zt:ip-address;
+                description "The peer address the route was filed under, echoed as given.";
+                ze:help "Peer the route was injected for";
+            }
+            leaf family {
+                type zt:address-family;
+                description "The afi/safi pair the route was filed under, echoed as given.";
+                ze:help "Address family";
+            }
         }
     }
 
@@ -169,25 +341,79 @@ the replay to one family.";
 whether the route existed, and the best path for that prefix is computed again.";
         ze:help "Remove route from Adj-RIB-In.";
         input {
-            leaf peer { type zt:ip-address; mandatory true; ze:help "Peer address label"; }
-            leaf family { type zt:address-family; mandatory true; ze:help "Address family"; }
-            leaf prefix { type string; mandatory true; ze:help "CIDR prefix to withdraw"; }
+            leaf peer {
+                type zt:ip-address;
+                mandatory true;
+                description "The address the route is filed under in the Adj-RIB-In. A value that
+                             is not an IP address is refused.";
+                ze:help "Peer address label";
+            }
+            leaf family {
+                type zt:address-family;
+                mandatory true;
+                description "An afi/safi pair. It selects the Adj-RIB-In table and the NLRI
+                             encoding of the prefix.";
+                ze:help "Address family";
+            }
+            leaf prefix {
+                type string;
+                mandatory true;
+                description "The prefix in CIDR form, address and length. It is encoded as NLRI
+                             and removed from the table when the encoding matches.";
+                ze:help "CIDR prefix to withdraw";
+            }
         }
         output {
-            leaf withdrawn { type string; ze:help "Prefix that was withdrawn"; }
-            leaf peer { type zt:ip-address; ze:help "Peer the route was withdrawn from"; }
-            leaf family { type zt:address-family; ze:help "Address family"; }
-            leaf existed { type boolean; ze:help "Whether the route existed before withdrawal"; }
+            leaf withdrawn {
+                type string;
+                description "The prefix as it was given, echoed back once the best path for it
+                             is computed again.";
+                ze:help "Prefix that was withdrawn";
+            }
+            leaf peer {
+                type zt:ip-address;
+                description "The peer address the route was filed under, echoed as given.";
+                ze:help "Peer the route was withdrawn from";
+            }
+            leaf family {
+                type zt:address-family;
+                description "The afi/safi pair the route was filed under, echoed as given.";
+                ze:help "Address family";
+            }
+            leaf existed {
+                type boolean;
+                description "True when the table held the route and the withdraw removed it.
+                             False when there was nothing to remove, which is not an error.";
+                ze:help "Whether the route existed before withdrawal";
+            }
         }
     }
 
     // Notifications
 
     notification rib-change {
+        description "One event per peer and family whose table changed. It carries counts and
+                     not the routes, so a subscriber reads the RIB for the detail.";
         ze:help "RIB content changed";
-        leaf peer { type zt:ip-address; ze:help "Affected peer"; }
-        leaf family { type zt:address-family; ze:help "Address family"; }
-        leaf added { type uint32; ze:help "Routes added"; }
-        leaf removed { type uint32; ze:help "Routes removed"; }
+        leaf peer {
+            type zt:ip-address;
+            description "The address of the peer whose Adj-RIB-In changed.";
+            ze:help "Affected peer";
+        }
+        leaf family {
+            type zt:address-family;
+            description "The afi/safi pair of the table that changed.";
+            ze:help "Address family";
+        }
+        leaf added {
+            type uint32;
+            description "The count of routes the change inserted into the table.";
+            ze:help "Routes added";
+        }
+        leaf removed {
+            type uint32;
+            description "The count of routes the change removed from the table.";
+            ze:help "Routes removed";
+        }
     }
 }

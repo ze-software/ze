@@ -33,11 +33,11 @@ module ze-ssh-conf {
 
             leaf type {
                 type enumeration {
-                    enum ssh-rsa;
-                    enum ssh-ed25519;
-                    enum ecdsa-sha2-nistp256;
-                    enum ecdsa-sha2-nistp384;
-                    enum ecdsa-sha2-nistp521;
+                    enum ssh-rsa { ze:help "An RSA key."; }
+                    enum ssh-ed25519 { ze:help "An Ed25519 key."; }
+                    enum ecdsa-sha2-nistp256 { ze:help "An ECDSA key on the NIST P-256 curve."; }
+                    enum ecdsa-sha2-nistp384 { ze:help "An ECDSA key on the NIST P-384 curve."; }
+                    enum ecdsa-sha2-nistp521 { ze:help "An ECDSA key on the NIST P-521 curve."; }
                 }
                 description "The algorithm is the first field of an SSH public key line,
                              such as ssh-ed25519.";

@@ -70,16 +70,16 @@ module ze-firewall-conf {
 
     typedef protocol-name {
         type enumeration {
-            enum tcp;
-            enum udp;
-            enum icmp;
-            enum icmpv6;
-            enum sctp;
-            enum gre;
-            enum esp;
-            enum ah;
-            enum ospf;
-            enum vrrp;
+            enum tcp { ze:help "Match TCP, IP protocol 6."; }
+            enum udp { ze:help "Match UDP, IP protocol 17."; }
+            enum icmp { ze:help "Match ICMP, IP protocol 1."; }
+            enum icmpv6 { ze:help "Match ICMPv6, IP protocol 58."; }
+            enum sctp { ze:help "Match SCTP, IP protocol 132."; }
+            enum gre { ze:help "Match GRE, IP protocol 47."; }
+            enum esp { ze:help "Match IPsec ESP, IP protocol 50."; }
+            enum ah { ze:help "Match IPsec AH, IP protocol 51."; }
+            enum ospf { ze:help "Match OSPF, IP protocol 89."; }
+            enum vrrp { ze:help "Match VRRP, IP protocol 112."; }
         }
         description "L4 protocol name";
     }
@@ -94,19 +94,19 @@ module ze-firewall-conf {
 
     typedef reject-type {
         type enumeration {
-            enum icmp;
-            enum icmpv6;
-            enum tcp-reset;
+            enum icmp { ze:help "Answer with an ICMP destination unreachable message."; }
+            enum icmpv6 { ze:help "Answer with the unreachable message of the packet's own IP family."; }
+            enum tcp-reset { ze:help "Answer a TCP packet with a TCP reset."; }
         }
         description "Reject response type";
     }
 
     typedef rate-unit {
         type enumeration {
-            enum second;
-            enum minute;
-            enum hour;
-            enum day;
+            enum second { ze:help "Count the rate over each second."; }
+            enum minute { ze:help "Count the rate over each minute."; }
+            enum hour { ze:help "Count the rate over each hour."; }
+            enum day { ze:help "Count the rate over each day."; }
         }
         description "Rate limit time unit";
     }

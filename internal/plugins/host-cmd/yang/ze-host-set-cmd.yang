@@ -25,10 +25,13 @@ Check current limits with 'show system file-descriptors'.";
                     type union {
                         type uint64;
                         type enumeration {
-                            enum max;
+                            enum max { ze:help "Raise the soft limit to the hard limit of the process."; }
                         }
                     }
-                    ze:help "New limit or max for hard limit";
+                    description "The value is the new soft limit on open descriptors, a count from 1 up to
+the hard limit, or the word max. Ze sets it with setrlimit and reports the previous,
+the current and the hard limit. Zero, or a count above the hard limit, is refused.";
+                    ze:help "New limit or max for hard limit.";
                 }
             }
         }

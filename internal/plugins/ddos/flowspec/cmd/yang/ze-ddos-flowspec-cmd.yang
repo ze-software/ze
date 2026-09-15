@@ -11,6 +11,9 @@ module ze-ddos-flowspec-cmd {
 
         container ddos {
             config false;
+            description "Detection and mitigation are separate. A detected attack is reported even
+                         when no mitigation is armed. An attack listed here does not prove that
+                         traffic is dropped.";
             ze:help "Distributed denial-of-service detection and mitigation subsystem.";
 
             container flowspec {

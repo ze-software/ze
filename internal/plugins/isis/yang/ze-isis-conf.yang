@@ -156,9 +156,9 @@ module ze-isis-conf {
                 }
                 leaf level {
                     type enumeration {
-                        enum l1;
-                        enum l2;
-                        enum l1-l2;
+                        enum l1 { ze:help "Form only a Level-1 adjacency on this circuit."; }
+                        enum l2 { ze:help "Form only a Level-2 adjacency on this circuit."; }
+                        enum l1-l2 { ze:help "Form both adjacencies on this circuit, the default."; }
                     }
                     default "l1-l2";
                     description "This narrows the instance `level` for one circuit. l1 forms only a Level-1 adjacency on

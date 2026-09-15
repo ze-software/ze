@@ -24,7 +24,14 @@ module ze-firewall-cmd {
                 description "Joins applied desired state with kernel counters from
 the nft backend.";
                 ze:help "Show the live firewall ruleset with per-term counters.";
-                leaf name { type string { length "1..64"; } mandatory true; ze:help "Firewall table name"; }
+                leaf name {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The table name as the configuration spells it, without the
+ze prefix the backend adds. A name no applied table carries is an error that lists the
+tables applied.";
+                    ze:help "Firewall table name";
+                }
             }
             container group {
                 config false;

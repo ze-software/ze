@@ -70,7 +70,10 @@ state, peer endpoint, hello interval, and all assigned sessions.";
                     leaf id {
                         type string;
                         mandatory true;
-                        ze:help "Local tunnel ID";
+                        description "The decimal local tunnel ID from the show l2tp tunnel table. Zero is
+refused because RFC 2661 reserves it, and an unknown ID is refused with 'no tunnel with
+local-tid'.";
+                        ze:help "Local tunnel ID.";
                     }
                 }
 
@@ -107,7 +110,10 @@ assigned addresses, negotiated LCP/NCP options, and traffic counters.";
                     leaf id {
                         type string;
                         mandatory true;
-                        ze:help "Local session ID";
+                        description "The decimal local session ID from the show l2tp session table. Zero is
+refused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with
+local-sid'.";
+                        ze:help "Local session ID.";
                     }
                 }
 
@@ -293,12 +299,17 @@ tie-breaker loss, peer CDN, or timeout).";
                         leaf remote {
                             type string;
                             mandatory true;
-                            ze:help "Configured l2tp/remote dial-target name";
+                            description "The name of an l2tp/remote entry, which supplies the address and the
+shared secret Ze dials with. An unknown name, or an entry without outgoing-calls, is
+refused before any packet is sent.";
+                            ze:help "Configured l2tp/remote dial-target name.";
                         }
                         leaf called {
                             type string;
                             mandatory true;
-                            ze:help "Called Number for the OCRQ";
+                            description "The number the remote LAC dials, as free text. Ze copies it into the
+Called Number AVP of the OCRQ without validation, so its form is what the LAC accepts.";
+                            ze:help "Called Number for the OCRQ.";
                         }
                     }
                 }

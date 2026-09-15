@@ -22,12 +22,25 @@ module ze-plugin-callback {
         input {
             list section {
                 key "root";
+                description
+                    "The list holds one entry for each root the plugin asked for that has
+                     config, in the order the plugin named them. A plugin that asked for
+                     nothing receives an empty list and the claims beside it.";
+                ze:help "Config subtrees the plugin asked for at Stage 1.";
                 leaf root {
                     type string;
+                    description
+                        "One section arrives for each root the plugin named in wants-config at
+                         Stage 1, and a root with no config is left out. The value repeats the
+                         name the plugin asked for.";
                     ze:help "Config root name (e.g., bgp, environment)";
                 }
                 leaf data {
                     type string;
+                    description
+                        "The subtree is wrapped in its full path from the root, so a plugin that
+                         asked for bgp reads an object with one bgp key. The order of a
+                         reordered list travels inside it.";
                     ze:help "JSON-encoded config data for this root";
                 }
             }
@@ -42,16 +55,30 @@ module ze-plugin-callback {
         input {
             list command {
                 key "name";
+                description
+                    "The engine builds the list from the plugin registry after every plugin
+                     registered, so it is complete at Stage 4. A plugin reads it to learn which
+                     commands dispatch-command can reach.";
+                ze:help "Every command any plugin registered.";
                 leaf name {
                     type string;
+                    description
+                        "The name is the one the owning plugin declared at Stage 1. The list
+                         holds every plugin's commands, this plugin's own included.";
                     ze:help "Command name";
                 }
                 leaf plugin {
                     type string;
+                    description
+                        "The process name of the plugin that declared the command. A plugin
+                         reads it to learn which peer process answers a dispatch.";
                     ze:help "Plugin that registered this command";
                 }
                 leaf encoding {
                     type string;
+                    description
+                        "The value is copied from the registry row and is absent when the owning
+                         plugin declared none.";
                     ze:help "Command encoding (text, hex, b64)";
                 }
             }
@@ -67,6 +94,10 @@ module ze-plugin-callback {
             leaf event {
                 type string;
                 mandatory true;
+                description
+                    "The body is built in the format the plugin asked for in subscribe-events:
+                     hex, base64, parsed or full. A plugin that asked for an envelope reads
+                     the namespace and event name around the payload.";
                 ze:help "JSON-encoded BGP event";
             }
         }
@@ -83,16 +114,27 @@ so the family it claims stays unencodable and the engine has nothing to send.";
             leaf family {
                 type string;
                 mandatory true;
+                description
+                    "The form is afi/safi, and it is one of the families the plugin declared
+                     with mode encode or both. The engine calls the plugin that registered
+                     that family.";
                 ze:help "Address family (e.g., ipv4/flow, l2vpn/evpn)";
             }
             leaf-list args {
                 type string;
+                description
+                    "The words are the operator's text after the family name, in order. The
+                     plugin defines their form, and the engine passes them without reading
+                     them.";
                 ze:help "Encoding arguments";
             }
         }
         output {
             leaf hex {
                 type string;
+                description
+                    "The text is the NLRI body as hex with no separator. The engine decodes it
+                     and writes the bytes into the UPDATE.";
                 ze:help "Hex-encoded NLRI wire bytes";
             }
         }
@@ -108,17 +150,26 @@ both or the family works in one direction only.";
             leaf family {
                 type string;
                 mandatory true;
+                description
+                    "The form is afi/safi, and it is one of the families the plugin declared
+                     with mode decode or both.";
                 ze:help "Address family";
             }
             leaf hex {
                 type string;
                 mandatory true;
+                description
+                    "The text is the NLRI field alone, as hex with no separator. The
+                     MP_REACH_NLRI header is already removed.";
                 ze:help "Hex-encoded NLRI wire bytes";
             }
         }
         output {
             leaf json {
                 type string;
+                description
+                    "The value is the plugin's decoded NLRI as one JSON document. The engine
+                     places it in the event it delivers to subscribers.";
                 ze:help "JSON-encoded decoded NLRI";
             }
         }
@@ -133,17 +184,25 @@ marshaled once into the json field, the shape decode-nlri also uses.";
             leaf code {
                 type uint8;
                 mandatory true;
+                description
+                    "The value is the capability code from the OPEN message, in the range 0 to
+                     255 of RFC 5492.";
                 ze:help "BGP capability code";
             }
             leaf hex {
                 type string;
                 mandatory true;
+                description
+                    "The text is the capability value alone, as hex with no separator. The code
+                     and length bytes are already removed.";
                 ze:help "Hex-encoded capability bytes";
             }
         }
         output {
             leaf json {
                 type string;
+                description
+                    "The value is the plugin's decoded capability as one JSON document.";
                 ze:help "JSON-encoded decoded capability";
             }
         }
@@ -162,19 +221,32 @@ to the single document the record path would have carried.";
             leaf serial {
                 type string;
                 mandatory true;
+                description
+                    "The engine sets it, and the plugin copies it into its answer unchanged.
+                     Two requests in flight on one connection never share a serial.";
                 ze:help "Correlation serial for response tracking";
             }
             leaf command {
                 type string;
                 mandatory true;
+                description
+                    "The name is one the plugin declared at Stage 1, and the engine sends the
+                     declared name rather than the text the operator typed.";
                 ze:help "Command to execute";
             }
             leaf-list args {
                 type string;
+                description
+                    "The words are the operator's arguments after the command name, in order.
+                     On a completion request they are the arguments already completed.";
                 ze:help "Command arguments";
             }
             leaf peer {
                 type string;
+                description
+                    "The value is the peer selector the command was reached under, and it is
+                     absent when there was none. On a completion request the engine puts the
+                     partial word here instead.";
                 ze:help "Peer context for the command";
             }
         }
@@ -184,10 +256,16 @@ to the single document the record path would have carried.";
                     enum done { ze:help "Command completed successfully"; }
                     enum error { ze:help "Command failed"; }
                 }
+                description
+                    "The engine reads error as a failed command and reports the data field
+                     as its message. Any other value is passed through as the response status.";
                 ze:help "Execution result status";
             }
             leaf data {
                 type string;
+                description
+                    "On done, the bytes are the answer the engine passes to the operator without
+                     decoding them. On error, the text is the message the operator reads.";
                 ze:help "JSON result data or error message";
             }
         }
@@ -202,31 +280,51 @@ to the single document the record path would have carried.";
             leaf filter {
                 type string;
                 mandatory true;
+                description
+                    "The name is the one the peer's filter block references, without the
+                     plugin prefix. The engine reads the on-error policy and the raw flag from
+                     the declaration of this name, or from a * declaration when none matches.";
                 ze:help "Filter name (declared at stage 1)";
             }
             leaf direction {
                 type string;
                 mandatory true;
+                description
+                    "The value is import for an UPDATE the peer sent and export for one Ze is
+                     about to send. A teardown answer is honored on import alone.";
                 ze:help "import or export";
             }
             leaf peer {
                 type string;
                 mandatory true;
+                description
+                    "The address of the peer the UPDATE was received from, or the peer it is
+                     about to be sent to.";
                 ze:help "Peer IP address";
             }
             leaf peer-as {
                 type uint32;
                 mandatory true;
+                description
+                    "The value is the AS number of that same peer, as a plain number.";
                 ze:help "Peer ASN";
             }
             leaf update {
                 type string;
                 mandatory true;
+                description
+                    "The text is the chain's running result, so a modify an earlier filter
+                     answered is already applied when this filter reads it. A modify this filter
+                     answers is applied before the next filter runs.";
                 ze:help "Text-format attributes and NLRI (only declared attributes)";
             }
             leaf raw {
                 type string;
-                ze:help "Hex-encoded raw UPDATE body (if filter declared raw=true)";
+                description
+                    "The bytes are the UPDATE body after the 19-byte header, base64 encoded
+                     because the field is bytes on the wire. It is present when the filter
+                     declared raw true and the engine holds the body.";
+                ze:help "Base64-encoded raw UPDATE body (if filter declared raw=true)";
             }
         }
         output {
@@ -237,15 +335,25 @@ to the single document the record path would have carried.";
                     enum modify { ze:help "Apply delta changes"; }
                 }
                 mandatory true;
+                description
+                    "A value outside the three is read as reject, and the chain records that
+                     the filter failed rather than decided.";
                 ze:help "Filter decision";
             }
             leaf update {
                 type string;
+                description
+                    "The text names the attributes to change and nothing else. The engine
+                     rejects the route when the delta touches an attribute the filter did not
+                     declare.";
                 ze:help "Delta-only modified attributes (action=modify)";
             }
             leaf raw {
                 type string;
-                ze:help "Full raw UPDATE body replacement (action=modify with raw)";
+                description
+                    "The bytes replace the whole UPDATE body, base64 encoded like the input
+                     field. The engine reads it on a modify answer alone.";
+                ze:help "Base64-encoded full raw UPDATE body replacement (action=modify with raw)";
             }
         }
     }
@@ -258,6 +366,9 @@ to the single document the record path would have carried.";
         input {
             leaf reason {
                 type string;
+                description
+                    "The SDK hands the text to the plugin's bye handler. A plugin reads it to
+                     tell a daemon stop from a restart, and nothing else reads it.";
                 ze:help "Shutdown reason (e.g., shutdown, restart)";
             }
         }

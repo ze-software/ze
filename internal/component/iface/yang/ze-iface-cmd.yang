@@ -53,7 +53,13 @@ the interface is present. It fails when that name holds an interface of another 
                     description "The command is idempotent. When a unit or address command under
 it fails, and this command created the interface, the interface is deleted again.";
                     ze:help "Create a dummy (loopback-style) interface.";
-                    leaf name { type string; mandatory true; ze:help "Interface name"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The name of the dummy to create. A name that holds an
+interface of another type is refused, and the error names both types.";
+                        ze:help "Interface name";
+                    }
 
                     container unit {
                         config false;
@@ -63,8 +69,20 @@ it fails, and this command created the interface, the interface is deleted again
 <name>.<vid>. The dummy is created first when it is absent, and deleted again when this step
 fails.";
                         ze:help "Add a VLAN sub-interface to the dummy.";
-                        leaf name { type string; mandatory true; ze:help "Parent interface name"; }
-                        leaf vid { type uint16 { range "1..4094"; } mandatory true; ze:help "VLAN ID"; }
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "The dummy the unit hangs off. The dispatcher creates it
+first when it is absent.";
+                            ze:help "Parent interface name";
+                        }
+                        leaf vid {
+                            type uint16 { range "1..4094"; }
+                            mandatory true;
+                            description "The 802.1Q tag of the unit. The new device is named
+<name>.<vid>, and a tag outside 1 to 4094 is refused before the backend is called.";
+                            ze:help "VLAN ID";
+                        }
                     }
 
                     container address {
@@ -75,8 +93,20 @@ fails.";
 10.0.0.1/32. The dummy is created first when it is absent, and deleted again when this step
 fails.";
                         ze:help "Add an IP address to the dummy.";
-                        leaf name { type string; mandatory true; ze:help "Interface name"; }
-                        leaf prefix { type ip-prefix; mandatory true; ze:help "Address in CIDR form"; }
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "The dummy that receives the address. The dispatcher
+creates it first when it is absent.";
+                            ze:help "Interface name";
+                        }
+                        leaf prefix {
+                            type ip-prefix;
+                            mandatory true;
+                            description "An IPv4 or IPv6 address with its prefix length, for
+example 10.0.0.1/32. Ze passes the string to the netlink backend.";
+                            ze:help "Address in CIDR form";
+                        }
                     }
                 }
             }
@@ -94,8 +124,20 @@ form, so create the pair first, then add a unit or an address to either end.";
                     description "The peer name is the second value and is required. A second
 create of the same name changes nothing and reports that the pair is present.";
                     ze:help "Create a veth pair (two linked virtual Ethernet interfaces).";
-                    leaf name { type string; mandatory true; ze:help "Interface name"; }
-                    leaf peer { type string; mandatory true; ze:help "Peer interface name"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The name of the first end of the pair. A pair already
+present under that name is reported, and nothing changes.";
+                        ze:help "Interface name";
+                    }
+                    leaf peer {
+                        type string;
+                        mandatory true;
+                        description "The name of the second end. Both ends appear in the kernel
+after the one command.";
+                        ze:help "Peer interface name";
+                    }
                 }
             }
 
@@ -113,7 +155,13 @@ the bridge is present. It fails when that name holds an interface of another typ
                     description "The command is idempotent. When a unit or address command under
 it fails, and this command created the bridge, the bridge is deleted again.";
                     ze:help "Create a Linux bridge for L2 forwarding.";
-                    leaf name { type string; mandatory true; ze:help "Interface name"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The name of the bridge to create. A name that holds an
+interface of another type is refused, and the error names both types.";
+                        ze:help "Interface name";
+                    }
 
                     container unit {
                         config false;
@@ -123,8 +171,20 @@ it fails, and this command created the bridge, the bridge is deleted again.";
 <name>.<vid>. The bridge is created first when it is absent, and deleted again when this
 step fails.";
                         ze:help "Add a VLAN sub-interface to the bridge.";
-                        leaf name { type string; mandatory true; ze:help "Parent interface name"; }
-                        leaf vid { type uint16 { range "1..4094"; } mandatory true; ze:help "VLAN ID"; }
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "The bridge the unit hangs off. The dispatcher creates
+it first when it is absent.";
+                            ze:help "Parent interface name";
+                        }
+                        leaf vid {
+                            type uint16 { range "1..4094"; }
+                            mandatory true;
+                            description "The 802.1Q tag of the unit. The new device is named
+<name>.<vid>, and a tag outside 1 to 4094 is refused before the backend is called.";
+                            ze:help "VLAN ID";
+                        }
                     }
 
                     container address {
@@ -135,8 +195,20 @@ step fails.";
 10.0.0.1/32. The bridge is created first when it is absent, and deleted again when this step
 fails.";
                         ze:help "Add an IP address to the bridge.";
-                        leaf name { type string; mandatory true; ze:help "Interface name"; }
-                        leaf prefix { type ip-prefix; mandatory true; ze:help "Address in CIDR form"; }
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "The bridge that receives the address. The dispatcher
+creates it first when it is absent.";
+                            ze:help "Interface name";
+                        }
+                        leaf prefix {
+                            type ip-prefix;
+                            mandatory true;
+                            description "An IPv4 or IPv6 address with its prefix length, for
+example 10.0.0.1/32. Ze passes the string to the netlink backend.";
+                            ze:help "Address in CIDR form";
+                        }
                     }
                 }
             }
@@ -146,8 +218,20 @@ fails.";
                 ze:command "ze-iface:interface-unit-add";
                 description "The parent interface must already exist.";
                 ze:help "Add a VLAN sub-interface (802.1Q tagged).";
-                leaf name { type string; mandatory true; ze:help "Parent interface name"; }
-                leaf vid { type uint16 { range "1..4094"; } mandatory true; ze:help "VLAN ID"; }
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "The parent interface. This form creates no interface, so
+the name must be present in the kernel before the command runs.";
+                    ze:help "Parent interface name";
+                }
+                leaf vid {
+                    type uint16 { range "1..4094"; }
+                    mandatory true;
+                    description "The 802.1Q tag of the unit. The new device is named
+<name>.<vid>, and a tag outside 1 to 4094 is refused before the backend is called.";
+                    ze:help "VLAN ID";
+                }
             }
 
             container address {
@@ -155,8 +239,20 @@ fails.";
                 ze:command "ze-iface:interface-addr-add";
                 description "The interface must already exist.";
                 ze:help "Add an IP address to an interface.";
-                leaf name { type string; mandatory true; ze:help "Interface name"; }
-                leaf prefix { type ip-prefix; mandatory true; ze:help "Address in CIDR form"; }
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "The interface that receives the address. This form creates
+no interface, so the name must be present in the kernel before the command runs.";
+                    ze:help "Interface name";
+                }
+                leaf prefix {
+                    type ip-prefix;
+                    mandatory true;
+                    description "An IPv4 or IPv6 address with its prefix length, for example
+10.0.0.1/24. Ze passes the string to the netlink backend.";
+                    ze:help "Address in CIDR form";
+                }
             }
         }
     }
@@ -176,7 +272,13 @@ its kernel device, so a name bound to hardware by a selector reaches the right p
                 description "The dispatcher calls this same command to undo a compound create.
 An interface it created is deleted when the unit or address step after it fails.";
                 ze:help "Delete an interface from the kernel.";
-                leaf name { type string; mandatory true; ze:help "Interface name"; }
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "The interface to delete. The unit and address forms below
+keep this interface and remove one unit or one address of it.";
+                    ze:help "Interface name";
+                }
 
                 container unit {
                     config false;
@@ -184,8 +286,20 @@ An interface it created is deleted when the unit or address step after it fails.
                     description "The VLAN id is 1 to 4094. The interface deleted is
 <name>.<vid>, so the parent interface stays.";
                     ze:help "Remove a VLAN sub-interface.";
-                    leaf name { type string; mandatory true; ze:help "Sub-interface name (e.g. eth0.100)"; }
-                    leaf vid { type uint16 { range "1..4094"; } mandatory true; ze:help "VLAN ID"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The parent interface. Ze joins it with the VLAN id into
+<name>.<vid> and deletes that device.";
+                        ze:help "Parent interface name";
+                    }
+                    leaf vid {
+                        type uint16 { range "1..4094"; }
+                        mandatory true;
+                        description "The 802.1Q tag of the unit to remove. A tag outside 1 to
+4094 is refused before the backend is called.";
+                        ze:help "VLAN ID";
+                    }
                 }
 
                 container address {
@@ -194,8 +308,20 @@ An interface it created is deleted when the unit or address step after it fails.
                     description "Give the address in the same CIDR form it was added with. The
 interface stays, and only that address goes.";
                     ze:help "Remove an IP address from an interface.";
-                    leaf name { type string; mandatory true; ze:help "Interface name"; }
-                    leaf prefix { type ip-prefix; mandatory true; ze:help "Address in CIDR form"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The interface that holds the address. Its other addresses
+stay.";
+                        ze:help "Interface name";
+                    }
+                    leaf prefix {
+                        type ip-prefix;
+                        mandatory true;
+                        description "An IPv4 or IPv6 address with its prefix length. Ze passes
+the string to the netlink backend, so it must match the string the add used.";
+                        ze:help "Address in CIDR form";
+                    }
                 }
             }
         }
@@ -214,7 +340,13 @@ interfaces of its own.";
             // The interface every command below acts on. It is declared here,
             // on the keyword the operator types it after, and each of those
             // commands inherits it.
-            leaf name { type string; mandatory true; ze:help "Interface name"; }
+            leaf name {
+                type string;
+                mandatory true;
+                description "The interface that up, down, mtu and mac act on. Each of those
+commands inherits it, and migrate names its own interfaces instead.";
+                ze:help "Interface name";
+            }
 
             container up {
                 config false;
@@ -238,7 +370,13 @@ another port.";
                 ze:command "ze-iface:interface-mtu";
                 description "The MTU is between 68 and 65535 bytes.";
                 ze:help "Set the MTU on an interface.";
-                leaf bytes { type uint16 { range "68..65535"; } mandatory true; ze:help "MTU in bytes"; }
+                leaf bytes {
+                    type uint16 { range "68..65535"; }
+                    mandatory true;
+                    description "The largest frame payload the interface accepts. A value
+outside 68 to 65535 is refused before the backend is called.";
+                    ze:help "MTU in bytes";
+                }
             }
 
             container mac {
@@ -247,7 +385,13 @@ another port.";
                 description "The address is written as xx:xx:xx:xx:xx:xx. Ze checks that form
 before it calls the backend, so a malformed address is refused with its own message.";
                 ze:help "Set the MAC address on an interface.";
-                leaf address { type string { pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}'; } mandatory true; ze:help "MAC address, as xx:xx:xx:xx:xx:xx"; }
+                leaf address {
+                    type string { pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}'; }
+                    mandatory true;
+                    description "Six hexadecimal byte pairs separated by colons, in either
+case. The kernel device takes this address in place of the one it has.";
+                    ze:help "MAC address, as xx:xx:xx:xx:xx:xx";
+                }
             }
 
             container migrate {
@@ -265,7 +409,14 @@ source (make-before-break).";
                     description "The value is an interface and one of its units, written as
 name.unit. Unit 0 is the interface itself.";
                     ze:help "Interface and unit the address moves off.";
-                    leaf source { type iface-unit; mandatory true; ze:help "Source interface and unit"; }
+                    leaf source {
+                        type iface-unit;
+                        mandatory true;
+                        description "Written as name.unit, where unit 0 is the interface
+itself. The address leaves this unit in phase 4, after BGP confirms it is ready on the
+destination.";
+                        ze:help "Source interface and unit";
+                    }
                 }
 
                 container to {
@@ -274,7 +425,13 @@ name.unit. Unit 0 is the interface itself.";
                     description "The value is an interface and one of its units, written as
 name.unit. The address is added here before it is removed from the source.";
                     ze:help "Interface and unit the address moves onto.";
-                    leaf destination { type iface-unit; mandatory true; ze:help "Destination interface and unit"; }
+                    leaf destination {
+                        type iface-unit;
+                        mandatory true;
+                        description "Written as name.unit, where unit 0 is the interface
+itself. The address is added to this unit in phase 2, before it leaves the source.";
+                        ze:help "Destination interface and unit";
+                    }
                 }
 
                 container address {
@@ -283,7 +440,14 @@ name.unit. The address is added here before it is removed from the source.";
                     description "One address moves for each command, written in CIDR form. Each
 keyword of migrate is given once, and a second one is refused.";
                     ze:help "Address to move.";
-                    leaf prefix { type ip-prefix; mandatory true; ze:help "Address in CIDR form"; }
+                    leaf prefix {
+                        type ip-prefix;
+                        mandatory true;
+                        description "An IPv4 or IPv6 address with its prefix length. The BGP
+readiness wait matches on the address part alone, because BGP binds to the address and
+not the prefix.";
+                        ze:help "Address in CIDR form";
+                    }
                 }
 
                 container create {
@@ -294,11 +458,13 @@ exists.";
                     ze:help "Create the destination interface before the address moves onto it.";
                     leaf type {
                         type enumeration {
-                            enum dummy;
-                            enum veth;
-                            enum bridge;
+                            enum dummy { ze:help "Create the destination as a dummy interface."; }
+                            enum veth { ze:help "Create the destination as a veth pair, its peer named <name>-peer."; }
+                            enum bridge { ze:help "Create the destination as a Linux bridge."; }
                         }
                         mandatory true;
+                        description "The kind of interface phase 1 creates under the destination
+name. A failure in a later phase deletes the interface this phase created.";
                         ze:help "Interface type to create";
                     }
                 }
@@ -309,7 +475,14 @@ exists.";
                     description "The wait is for BGP on the destination address.
 The default is 30 seconds.";
                     ze:help "How long to wait for BGP to become ready before the move is abandoned.";
-                    leaf duration { type duration; mandatory true; ze:help "Wait time, as a number and a unit"; }
+                    leaf duration {
+                        type duration;
+                        mandatory true;
+                        description "A number and a unit, for example 30s or 2m. When BGP
+reports no listener on the destination address inside this time, the address is removed
+from the destination again and the source keeps it.";
+                        ze:help "Wait time, as a number and a unit";
+                    }
                 }
             }
         }

@@ -9,12 +9,15 @@ module ze-policy-cmd {
 
     container show {
         config false;
-        ze:help "Read-only commands to inspect system, protocol, and network state.";
+        // No text on this container. ze-cli-show-cmd owns the show root and
+        // states both halves, and a second module that restates one half is
+        // what mergeHelpText reports as a mismatch.
 
         container policy {
             config false;
             description "This keyword runs nothing on its own. 'chain' reads the filter chain a peer has,
-and 'test' feeds one UPDATE through it. Both are read-only.";
+'test' feeds one UPDATE through it, and 'list', which ze-cli-show-cmd declares, names the
+filter types available. All three are read-only.";
             ze:help "Inspect and test route policy filters.";
 
             container chain {
@@ -31,7 +34,13 @@ shows is the one left after group inheritance is resolved.";
 Shows the effective chain after group inheritance is resolved. Without
 a direction keyword, shows both import and export.";
                     ze:help "Show the import/export filter chain applied to a peer.";
-                    leaf selector { type string; mandatory true; ze:help "Peer selector"; }
+                    leaf selector {
+                        type string;
+                        mandatory true;
+                        description "The value is an IP address, a peer name, an AS pattern such as as65001,
+or * for every peer. The chain of each peer it matches is shown.";
+                        ze:help "Peer selector";
+                    }
 
                     container direction {
                         config false;
@@ -40,9 +49,10 @@ a direction keyword, shows both import and export.";
                         ze:help "Which half of the chain to show.";
                         leaf direction {
                             type enumeration {
-                                enum import;
-                                enum export;
+                                enum import { ze:help "Show the filters applied to the routes the peer sends."; }
+                                enum export { ze:help "Show the filters applied to the routes sent to the peer."; }
                             }
+                            description "The word follows the selector, and any other word there is refused.";
                             ze:help "The half of the chain to show.";
                         }
                     }
@@ -66,13 +76,29 @@ The selector and the direction, filter, update and source-asn4 tokens are
 parsed by the handler, so the peer selector can be a free-form name or
 address and the tokens can arrive in any order.";
                     ze:help "Test what your policy does to a specific UPDATE.";
-                    leaf selector { type string; mandatory true; ze:help "Peer selector"; }
+                    leaf selector {
+                        type string;
+                        mandatory true;
+                        description "The value is an IP address, a peer name, or an AS pattern such as
+as65001. It MUST match exactly one peer: no match, and a match of several peers, are each
+refused.";
+                        ze:help "Peer selector";
+                    }
                     // The handler refuses a call with no direction (errMissingDirection in
                     // handler.go), so this leaf is mandatory. Undeclared, positionalDef had
                     // no enum to bind the bare import or export token to and offered it to
                     // the filter leaf instead, which refused the documented form outright and
                     // silently read the direction as a filter NAME in the form it accepted.
-                    leaf direction { type enumeration { enum import; enum export; } mandatory true; ze:help "Which half of the chain to test"; }
+                    leaf direction {
+                        type enumeration {
+                            enum import { ze:help "Feed the UPDATE through the peer's import chain."; }
+                            enum export { ze:help "Feed the UPDATE through the peer's export chain."; }
+                        }
+                        mandatory true;
+                        description "The word is required, and a call without it is refused. It picks which
+of the peer's two chains the UPDATE is fed through.";
+                        ze:help "Which half of the chain to test";
+                    }
                     // A group rather than a leaf, and declared before update, because
                     // parsePolicyTestArgs reads `filter` as a keyword introducing the
                     // name. Declaration order is what puts the chain being tested in
@@ -89,6 +115,8 @@ is refused.";
                                 length "1..64";
                             }
                             mandatory true;
+                            description "The value is the name of a filter in the peer's chain. The dry run
+replaces the chain with that one filter. A name the chain does not carry is refused.";
                             ze:help "The filter to test on its own.";
                         }
                     }
@@ -109,6 +137,9 @@ it is refused.";
                                 pattern '(0[xX])?[0-9a-fA-F]+';
                             }
                             mandatory true;
+                            description "The value is the whole BGP message, marker and header included, as hex
+digits with an optional 0x prefix. It is at most 65535 bytes once decoded, and its type
+byte MUST be 2. A body that does not parse as an UPDATE is refused.";
                             ze:help "The UPDATE octets, hex-encoded.";
                         }
                     }
@@ -121,10 +152,13 @@ once.";
                         ze:help "How to read the sender's AS support.";
                         leaf enabled {
                             type enumeration {
-                                enum true;
-                                enum false;
+                                enum true { ze:help "Read AS_PATH with four-byte AS numbers, as a peer with the capability sends it."; }
+                                enum false { ze:help "Read AS_PATH with two-byte AS numbers, as a peer without the capability sends it."; }
                             }
                             mandatory true;
+                            description "It decides the width of each AS number in the AS_PATH and the
+AGGREGATOR of the UPDATE, so the dry run decodes the attributes the way the named sender
+encoded them.";
                             ze:help "Read the UPDATE as though the sender had four-byte AS support.";
                         }
                     }

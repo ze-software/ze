@@ -19,22 +19,30 @@ to verify a peer's BGP port is reachable.";
             leaf host {
                 type string;
                 mandatory true;
-                ze:help "Target host";
+                description "An IP address or a DNS name of at most 253 characters, which the dialer
+resolves. The answer echoes it in the host key.";
+                ze:help "Target host.";
             }
             leaf port {
                 type uint16;
                 mandatory true;
-                ze:help "Target port";
+                description "The TCP port to connect to, from 1 to 65535. Ze joins it to the host and
+dials that one endpoint.";
+                ze:help "Target port.";
             }
             leaf source {
                 type string;
-                ze:help "Source IP address";
+                description "A local IP address the connection binds to before it dials. An address
+the host does not hold makes the dial fail. Absent, the kernel picks the source.";
+                ze:help "Source IP address.";
             }
             leaf timeout {
                 type string {
                     pattern '\d+[smh]?';
                 }
-                ze:help "Connection timeout";
+                description "How long the dial waits before it reports timeout, from 1s to 30s. The
+default is 5s.";
+                ze:help "Connection timeout.";
             }
         }
 
@@ -47,10 +55,12 @@ issues.";
             ze:help "Show captured control-plane messages.";
             leaf protocol {
                 type enumeration {
-                    enum l2tp;
-                    enum bgp;
+                    enum l2tp { ze:help "Show only the L2TP control messages."; }
+                    enum bgp { ze:help "Show only the BGP messages."; }
                 }
-                ze:help "Protocol filter";
+                description "Restricts the answer to one protocol key. Absent, the answer carries an
+l2tp key and a bgp key, each holding its messages or 'capture not enabled'.";
+                ze:help "Protocol filter.";
             }
             leaf tunnel-id {
                 // Identifiers are string-typed (ai/rules/cli-grammar.md "Identifiers
@@ -58,15 +68,21 @@ issues.";
                 type string {
                     pattern '[0-9]{1,5}';
                 }
-                ze:help "L2TP tunnel ID filter";
+                description "Keeps only the L2TP messages of the tunnel with this local tunnel ID. The
+BGP messages are not affected.";
+                ze:help "L2TP tunnel ID filter.";
             }
             leaf count {
                 type uint32;
-                ze:help "Maximum number of messages";
+                description "At most this many messages are returned for each protocol. Absent or 0,
+every buffered message is returned.";
+                ze:help "Maximum number of messages.";
             }
             leaf peer {
                 type string;
-                ze:help "Peer address filter";
+                description "Keeps only the messages exchanged with this peer address, for L2TP and BGP
+alike.";
+                ze:help "Peer address filter.";
             }
 
             container raw {
@@ -77,29 +93,37 @@ l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>.";
                 ze:help "Control raw byte capture for protocol debugging.";
                 leaf action {
                     type enumeration {
-                        enum start;
-                        enum stop;
-                        enum dump;
+                        enum start { ze:help "Turn raw capture on and answer with the protocols it started for."; }
+                        enum stop { ze:help "Turn raw capture off and answer with the protocols it stopped for."; }
+                        enum dump { ze:help "Return the captured bytes in the chosen format without changing the capture state."; }
                     }
-                    ze:help "Capture action";
+                    description "The verb the command performs. It is required, and a call without one is
+refused with the usage line.";
+                    ze:help "Capture action.";
                 }
                 leaf protocol {
                     type enumeration {
-                        enum l2tp;
-                        enum bgp;
+                        enum l2tp { ze:help "Apply the action to the L2TP capture alone."; }
+                        enum bgp { ze:help "Apply the action to the BGP capture alone."; }
                     }
-                    ze:help "Protocol to capture";
+                    description "Narrows the action to one protocol. Absent, the action applies to every
+protocol with a raw capture, and the answer carries one key for each.";
+                    ze:help "Protocol to capture.";
                 }
                 leaf format {
                     type enumeration {
-                        enum pcap;
-                        enum json;
+                        enum pcap { ze:help "Return the bytes as a base64 pcap file, ready for Wireshark."; }
+                        enum json { ze:help "Return one row per message with its timestamp, direction and byte count."; }
                     }
-                    ze:help "Output format";
+                    description "Read by dump alone. The default is json. With pcap the answer carries a
+<protocol>-pcap key holding the base64 file and a <protocol>-packets count.";
+                    ze:help "Output format.";
                 }
                 leaf count {
                     type uint32;
-                    ze:help "Maximum number of messages";
+                    description "Read by dump alone. At most this many messages are returned for each
+protocol. Absent or 0, every captured message is returned.";
+                    ze:help "Maximum number of messages.";
                 }
             }
 
@@ -112,36 +136,49 @@ how many bytes per packet are captured.";
                 ze:help "Capture live packets on an interface (like tcpdump).";
                 leaf iface {
                     type string;
-                    ze:help "Interface name";
+                    description "The interface name as the configuration spells it. Ze resolves it to the
+kernel device before it opens the socket. One capture at a time runs per interface, and a
+second call on the same name is refused.";
+                    ze:help "Interface name.";
                 }
                 leaf count {
                     type uint32 {
                         range "1..10000";
                     }
-                    ze:help "Packet count";
+                    description "The capture ends when this many packets have been read or when the
+duration has elapsed, whichever comes first. The default is 100.";
+                    ze:help "Packet count.";
                 }
                 leaf duration {
                     type string {
                         pattern '\d+[smh]?';
                     }
-                    ze:help "Capture duration";
+                    description "The time the socket stays open, from 1s to 60s. The default is 10s. The
+capture ends earlier when the packet count is reached.";
+                    ze:help "Capture duration.";
                 }
                 leaf snap-len {
                     type uint32 {
                         range "64..65535";
                     }
-                    ze:help "Snap length in bytes";
+                    description "The number of bytes kept from the start of each packet. The default is
+65535, which keeps whole packets. The value is written into the pcap file header.";
+                    ze:help "Snap length in bytes.";
                 }
                 leaf format {
                     type enumeration {
-                        enum pcap;
-                        enum text;
+                        enum pcap { ze:help "Return the packets as a base64 pcap file, ready for Wireshark."; }
+                        enum text { ze:help "Return one decoded line per packet, in the style of tcpdump."; }
                     }
-                    ze:help "Output format";
+                    description "The default is pcap. Both forms carry a packets count with the data.";
+                    ze:help "Output format.";
                 }
                 leaf protocol {
                     type string;
-                    ze:help "Protocol filter";
+                    description "A pcap-filter word such as tcp or udp. Ze joins it to every other word
+after the interface name and compiles the whole expression to a BPF program on the
+socket.";
+                    ze:help "Protocol filter.";
                 }
             }
         }

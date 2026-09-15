@@ -13,6 +13,8 @@ module ze-traffic-feature-cmd {
 
         container traffic {
             config false;
+            // Repeat the canonical description owned by ze-traffic-cmd.yang
+            // verbatim, because the command-tree merge keeps the first text.
             ze:help "Traffic subsystem: QoS control and byte-usage accounting.";
 
             container feature {
@@ -26,6 +28,8 @@ filters to one source.";
                 ze:help "Show neutral per-source traffic feature signals.";
                 leaf name {
                     type string;
+                    description "A source IP address, compared as text against each entry's
+address. Only the entries with that exact address are listed.";
                     ze:help "Source address filter";
                 }
             }

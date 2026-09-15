@@ -42,6 +42,9 @@ macvlan device that carries the virtual MAC.";
 
                     leaf value {
                         type zt:node-name;
+                        description "The name of the parent interface whose virtual routers the answer lists.
+The word after the name keyword is the value, and a bare word with no keyword is
+accepted from a programmatic sender.";
                         ze:help "Parent interface name";
                     }
                 }

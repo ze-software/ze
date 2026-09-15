@@ -24,7 +24,10 @@ next-hop. Pass 'limit N' to cap large tables. Linux only.";
                 ze:help "Show MPLS forwarding entries installed in the kernel.";
                 leaf limit {
                     type uint32;
-                    ze:help "Maximum number of entries";
+                    description "The value is a positive integer. Ze returns at most that many
+entries and sets truncated to true when the kernel holds more. Absent, the value
+is 100000.";
+                    ze:help "Maximum number of entries.";
                 }
             }
         }

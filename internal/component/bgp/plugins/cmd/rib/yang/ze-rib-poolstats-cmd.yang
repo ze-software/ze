@@ -10,7 +10,9 @@ module ze-rib-poolstats-cmd {
 
         container metrics {
             config false;
-            ze:help "Access Prometheus metrics and internal pool stats.";
+            // No text on this container. ze-cli-show-cmd owns show metrics and
+            // states both halves, and a second module that restates one half
+            // is what mergeHelpText reports as a mismatch.
 
             container pool {
                 config false;

@@ -370,7 +370,7 @@ module ze-bgp-conf {
                     type union {
                         type zt:ip-address;
                         type enumeration {
-                            enum self;
+                            enum self { ze:help "Resolve the next hop at send time to the local address of each session."; }
                         }
                     }
                     description "self resolves at send time to the local address of the session, so each peer reads its
@@ -472,7 +472,7 @@ module ze-bgp-conf {
                     type union {
                         type zt:ip-address;
                         type enumeration {
-                            enum auto;
+                            enum auto { ze:help "Let the operating system choose the source address of the connection."; }
                         }
                     }
                     description "auto leaves the source address to the operating system. An address binds the outbound
@@ -1164,8 +1164,8 @@ module ze-bgp-conf {
 
             leaf on-limit {
                 type enumeration {
-                    enum rotate;
-                    enum stop;
+                    enum rotate { ze:help "Rename the full file to <file>.1 and start a fresh one, keeping the newest events."; }
+                    enum stop { ze:help "Close the full file and capture nothing more, keeping the oldest events."; }
                 }
                 default rotate;
                 description "'rotate' renames the file to <file>.1, which replaces any earlier rotation, and starts a fresh file.

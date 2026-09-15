@@ -55,10 +55,10 @@ module ze-pppoe-conf {
 
         leaf auth-method {
             type enumeration {
-                enum none;
-                enum pap;
-                enum chap-md5;
-                enum ms-chap-v2;
+                enum none { ze:help "Advertise no Auth-Protocol, so the session opens with no PPP authentication phase."; }
+                enum pap { ze:help "Advertise PAP (RFC 1334), which carries the password in clear text."; }
+                enum chap-md5 { ze:help "Advertise CHAP with the MD5 algorithm (RFC 1994), the default."; }
+                enum ms-chap-v2 { ze:help "Advertise MS-CHAP-V2 (RFC 2759)."; }
             }
             default "chap-md5";
             description

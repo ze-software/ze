@@ -58,6 +58,9 @@ would start from it.";
                     leaf path {
                         type string { length "1..4096"; }
                         mandatory true;
+                        description "One filesystem path, or - for a config arriving on stdin. A path
+                                     that names no readable file is refused before the read, and a
+                                     second path after it is refused.";
                         ze:help "Path of the config file whose plugin blocks are read";
                     }
                 }

@@ -143,9 +143,15 @@ keeps leases that never expire once the attribute stops arriving.";
                             ze:help "Do not send Calling-Station-Id (attribute 31).";
                             leaf-list packet-type {
                                 type enumeration {
-                                    enum accounting-start;
-                                    enum accounting-interim;
-                                    enum accounting-stop;
+                                    enum accounting-start {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Start.";
+                                    }
+                                    enum accounting-interim {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Interim-Update.";
+                                    }
+                                    enum accounting-stop {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Stop.";
+                                    }
                                 }
                                 description "Ze puts Calling-Station-Id in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
@@ -163,9 +169,15 @@ without the attribute is still stored with a time.";
                             ze:help "Do not send Event-Timestamp (attribute 55).";
                             leaf-list packet-type {
                                 type enumeration {
-                                    enum accounting-start;
-                                    enum accounting-interim;
-                                    enum accounting-stop;
+                                    enum accounting-start {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Start.";
+                                    }
+                                    enum accounting-interim {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Interim-Update.";
+                                    }
+                                    enum accounting-stop {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Stop.";
+                                    }
                                 }
                                 description "Ze puts Event-Timestamp in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
@@ -184,9 +196,15 @@ this attribute off by default.";
                             ze:help "Do not send Acct-Delay-Time (attribute 41).";
                             leaf-list packet-type {
                                 type enumeration {
-                                    enum accounting-start;
-                                    enum accounting-interim;
-                                    enum accounting-stop;
+                                    enum accounting-start {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Start.";
+                                    }
+                                    enum accounting-interim {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Interim-Update.";
+                                    }
+                                    enum accounting-stop {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Stop.";
+                                    }
                                 }
                                 description "Ze puts Acct-Delay-Time in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf
@@ -205,7 +223,9 @@ queries.";
                             ze:help "Do not send Acct-Terminate-Cause (attribute 49).";
                             leaf-list packet-type {
                                 type enumeration {
-                                    enum accounting-stop;
+                                    enum accounting-stop {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Stop.";
+                                    }
                                 }
                                 description "RFC 2866 Section 5.10 admits Acct-Terminate-Cause
 in a Stop record alone, so accounting-stop is the one value this leaf accepts. An empty
@@ -225,10 +245,18 @@ configured for the rest.";
                             ze:help "Do not send NAS-Port-Id (attribute 87).";
                             leaf-list packet-type {
                                 type enumeration {
-                                    enum access-request;
-                                    enum accounting-start;
-                                    enum accounting-interim;
-                                    enum accounting-stop;
+                                    enum access-request {
+                                        ze:help "Hold the attribute back from the Access-Request that authenticates the session.";
+                                    }
+                                    enum accounting-start {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Start.";
+                                    }
+                                    enum accounting-interim {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Interim-Update.";
+                                    }
+                                    enum accounting-stop {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Stop.";
+                                    }
                                 }
                                 description "Ze puts NAS-Port-Id in the Access-Request and in
 the three accounting records, so all four are what this leaf accepts. An empty leaf holds
@@ -247,9 +275,15 @@ which is a different case and is not configurable.";
                             ze:help "Do not send Framed-IP-Address (attribute 8).";
                             leaf-list packet-type {
                                 type enumeration {
-                                    enum accounting-start;
-                                    enum accounting-interim;
-                                    enum accounting-stop;
+                                    enum accounting-start {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Start.";
+                                    }
+                                    enum accounting-interim {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Interim-Update.";
+                                    }
+                                    enum accounting-stop {
+                                        ze:help "Hold the attribute back from the Accounting-Request whose Acct-Status-Type is Stop.";
+                                    }
                                 }
                                 description "Ze puts Framed-IP-Address in the three accounting
 records and in no other packet, so those three are what this leaf accepts. An empty leaf

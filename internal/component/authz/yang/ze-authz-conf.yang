@@ -103,8 +103,8 @@ module ze-authz-conf {
 
                     leaf default-action {
                         type enumeration {
-                            enum allow;
-                            enum deny;
+                            enum allow { ze:help "Permit a command that no entry of this section matches."; }
+                            enum deny { ze:help "Refuse a command that no entry of this section matches."; }
                         }
                         description "Action when no entry of this section matches the command. Ze reads the value allow,
                             and it leaves the section at deny for every other state, the absent leaf included. A
@@ -131,8 +131,8 @@ module ze-authz-conf {
 
                         leaf action {
                             type enumeration {
-                                enum allow;
-                                enum deny;
+                                enum allow { ze:help "Permit the command this entry matches and stop the search."; }
+                                enum deny { ze:help "Refuse the command this entry matches and stop the search."; }
                             }
                             description "Authorization action for a command this entry matches. Ze reads the value allow, and
                                 it leaves the entry at deny for every other state, the absent leaf included. The
@@ -168,8 +168,8 @@ module ze-authz-conf {
 
                     leaf default-action {
                         type enumeration {
-                            enum allow;
-                            enum deny;
+                            enum allow { ze:help "Permit a command that no entry of this section matches."; }
+                            enum deny { ze:help "Refuse a command that no entry of this section matches."; }
                         }
                         description "Action when no entry of this section matches the command. Ze reads the value allow,
                             and it leaves the section at deny for every other state, the absent leaf included. A
@@ -196,8 +196,8 @@ module ze-authz-conf {
 
                         leaf action {
                             type enumeration {
-                                enum allow;
-                                enum deny;
+                                enum allow { ze:help "Permit the command this entry matches and stop the search."; }
+                                enum deny { ze:help "Refuse the command this entry matches and stop the search."; }
                             }
                             description "Authorization action for a command this entry matches. Ze reads the value allow, and
                                 it leaves the entry at deny for every other state, the absent leaf included. The

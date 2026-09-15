@@ -21,14 +21,28 @@ module ze-cli-announce-cmd {
             description "The address family follows the prefix, so it is ipv4 unicast or ipv6
 unicast. The ORIGIN is IGP, and the next hop is this router unless next-hop names one.";
             ze:help "Originate a unicast route on demand.";
-            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "Prefix to originate, in CIDR form"; }
+            leaf prefix {
+                type string { length "1..49"; }
+                mandatory true;
+                description "The value is an IPv4 or IPv6 prefix with its length, such as 192.0.2.0/24.
+The address family of the route follows from the prefix. A value that is not a prefix is
+refused.";
+                ze:help "Prefix to originate, in CIDR form";
+            }
 
             container next-hop {
                 config false;
                 ze:modifier "once";
                 description "It defaults to this router.";
                 ze:help "The next hop to advertise.";
-                leaf address { type string { length "1..46"; } mandatory true; ze:help "An address, or self for this router"; }
+                leaf address {
+                    type string { length "1..46"; }
+                    mandatory true;
+                    description "The value is an IPv4 or IPv6 address, or the word self. An IPv6 value MUST
+be a global address, because the encoder adds the link-local half from the session. self
+puts this router's own address in the NEXT_HOP.";
+                    ze:help "An address, or self for this router";
+                }
             }
 
             container community {
@@ -38,7 +52,14 @@ unicast. The ORIGIN is IGP, and the next hop is this router unless next-hop name
 RFC 7999 Section 3.1 and its agreement gate. The fan-out then narrows to the sessions that
 recorded the agreement.";
                 ze:help "A community to attach, repeated for each one.";
-                leaf value { type string { length "1..32"; } mandatory true; ze:help "Community, as ASN:value or a well-known name"; }
+                leaf value {
+                    type string { length "1..32"; }
+                    mandatory true;
+                    description "The value is a standard community as ASN:value, such as 65000:100, or a
+well-known name such as no-export or blackhole. Ze adds it to the COMMUNITIES attribute
+of the route, and a value it cannot parse is refused.";
+                    ze:help "Community, as ASN:value or a well-known name";
+                }
             }
 
             container tag {
@@ -48,8 +69,20 @@ recorded the agreement.";
 tag the announcement is not tracked, so show announcements never lists it and withdraw id
 cannot reach it. Each half is 64 characters at most.";
                 ze:help "A key and a value carried with the announcement, so a later withdraw can name it.";
-                leaf key { type string { length "1..64"; } mandatory true; ze:help "Tag key"; }
-                leaf value { type string { length "1..64"; } mandatory true; ze:help "Tag value"; }
+                leaf key {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The value is free text of 64 characters at most. show announcements filters
+on it, and withdraw tag names it to withdraw every announcement that carries it.";
+                    ze:help "Tag key";
+                }
+                leaf value {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The value is free text of 64 characters at most. withdraw tag names the
+key and this value together to withdraw one group of announcements under a key.";
+                    ze:help "Tag value";
+                }
             }
 
             container for {
@@ -59,7 +92,14 @@ cannot reach it. Each half is 64 characters at most.";
 seconds. It is read only when the announcement also carries a tag, because the timer lives
 with the registry entry.";
                 ze:help "How long the announcement lives before ze withdraws it.";
-                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; ze:help "Lifetime, in Go duration syntax or in whole seconds"; }
+                leaf duration {
+                    type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; }
+                    mandatory true;
+                    description "The value is a Go duration such as 300s or 5m, or a whole number of seconds.
+It MUST be more than zero. When it elapses Ze withdraws the announcement and removes it
+from the registry.";
+                    ze:help "Lifetime, in Go duration syntax or in whole seconds";
+                }
             }
         }
 
@@ -70,7 +110,14 @@ with the registry entry.";
 RFC 7999 Section 3.1 narrows the fan-out to the sessions that recorded the
 agreement.";
             ze:help "Originate a blackhole route on demand.";
-            leaf prefix { type string { length "1..49"; } mandatory true; ze:help "Prefix to blackhole, in CIDR form"; }
+            leaf prefix {
+                type string { length "1..49"; }
+                mandatory true;
+                description "The value is an IPv4 or IPv6 prefix with its length, such as 192.0.2.1/32.
+The address family of the route follows from the prefix. A value that is not a prefix is
+refused.";
+                ze:help "Prefix to blackhole, in CIDR form";
+            }
 
             container tag {
                 config false;
@@ -79,8 +126,20 @@ agreement.";
 tag the announcement is not tracked, so show announcements never lists it and withdraw id
 cannot reach it. Each half is 64 characters at most.";
                 ze:help "A key and a value carried with the announcement, so a later withdraw can name it.";
-                leaf key { type string { length "1..64"; } mandatory true; ze:help "Tag key"; }
-                leaf value { type string { length "1..64"; } mandatory true; ze:help "Tag value"; }
+                leaf key {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The value is free text of 64 characters at most. show announcements filters
+on it, and withdraw tag names it to withdraw every announcement that carries it.";
+                    ze:help "Tag key";
+                }
+                leaf value {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The value is free text of 64 characters at most. withdraw tag names the
+key and this value together to withdraw one group of announcements under a key.";
+                    ze:help "Tag value";
+                }
             }
 
             container for {
@@ -90,7 +149,14 @@ cannot reach it. Each half is 64 characters at most.";
 seconds. It is read only when the announcement also carries a tag, because the timer lives
 with the registry entry.";
                 ze:help "How long the announcement lives before ze withdraws it.";
-                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; ze:help "Lifetime, in Go duration syntax or in whole seconds"; }
+                leaf duration {
+                    type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; }
+                    mandatory true;
+                    description "The value is a Go duration such as 300s or 5m, or a whole number of seconds.
+It MUST be more than zero. When it elapses Ze withdraws the announcement and removes it
+from the registry.";
+                    ze:help "Lifetime, in Go duration syntax or in whole seconds";
+                }
             }
         }
 
@@ -120,7 +186,15 @@ name.";
                     description "rate-limit and discard are two spellings of this one
 action.";
                     ze:help "The traffic action, as the extended community RFC 8955 Section 7 defines it.";
-                    leaf value { type string { length "1..64"; } mandatory true; ze:help "Action community, such as traffic-rate or redirect"; }
+                    leaf value {
+                        type string { length "1..64"; }
+                        mandatory true;
+                        description "The value is an extended community in the text form the configuration
+reads, such as traffic-rate <asn> <rate> bytes or redirect <asn> <target>. It runs to the
+tag or for keyword, so it can span several words. Ze attaches it to the FlowSpec rule as
+its action.";
+                        ze:help "Action community, such as traffic-rate or redirect";
+                    }
                 }
 
                 container rate-limit {
@@ -128,7 +202,13 @@ action.";
                     ze:modifier "once";
                     description "It is sugar for a traffic-rate community.";
                     ze:help "Rate-limit the matched traffic.";
-                    leaf bytes-per-second { type string { pattern '[0-9]+'; length "1..20"; } mandatory true; ze:help "Rate in bytes per second"; }
+                    leaf bytes-per-second {
+                        type string { pattern '[0-9]+'; length "1..20"; }
+                        mandatory true;
+                        description "The value is a whole number of bytes per second. Ze rewrites it as the
+traffic-rate extended community with AS 0 and this rate.";
+                        ze:help "Rate in bytes per second";
+                    }
                 }
 
                 container discard {
@@ -146,8 +226,20 @@ action.";
 tag the announcement is not tracked, so show announcements never lists it and withdraw id
 cannot reach it. Each half is 64 characters at most.";
                 ze:help "A key and a value carried with the announcement, so a later withdraw can name it.";
-                leaf key { type string { length "1..64"; } mandatory true; ze:help "Tag key"; }
-                leaf value { type string { length "1..64"; } mandatory true; ze:help "Tag value"; }
+                leaf key {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The value is free text of 64 characters at most. show announcements filters
+on it, and withdraw tag names it to withdraw every announcement that carries it.";
+                    ze:help "Tag key";
+                }
+                leaf value {
+                    type string { length "1..64"; }
+                    mandatory true;
+                    description "The value is free text of 64 characters at most. withdraw tag names the
+key and this value together to withdraw one group of announcements under a key.";
+                    ze:help "Tag value";
+                }
             }
 
             container for {
@@ -157,7 +249,14 @@ cannot reach it. Each half is 64 characters at most.";
 seconds. It is read only when the announcement also carries a tag, because the timer lives
 with the registry entry.";
                 ze:help "How long the announcement lives before ze withdraws it.";
-                leaf duration { type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; } mandatory true; ze:help "Lifetime, in Go duration syntax or in whole seconds"; }
+                leaf duration {
+                    type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; }
+                    mandatory true;
+                    description "The value is a Go duration such as 300s or 5m, or a whole number of seconds.
+It MUST be more than zero. When it elapses Ze withdraws the announcement and removes it
+from the registry.";
+                    ze:help "Lifetime, in Go duration syntax or in whole seconds";
+                }
             }
         }
     }
@@ -171,8 +270,21 @@ with the registry entry.";
             description "A key of * withdraws every tagged announcement. An absent
 value withdraws every value of the key.";
             ze:help "Withdraw the announcements carrying a tag.";
-            leaf key { type string; mandatory true; ze:help "Tag key, or * for every tagged announcement"; }
-            leaf value { type string; ze:help "Tag value; every value of the key when absent"; }
+            leaf key {
+                type string;
+                mandatory true;
+                description "The value is the key an announcement was made with, compared as text. Ze
+withdraws each announcement made to the selector that carries it. A key of * withdraws every
+tagged announcement made to the selector.";
+                ze:help "Tag key, or * for every tagged announcement";
+            }
+            leaf value {
+                type string;
+                description "The value is the tag value an announcement was made with, compared as text.
+With it, Ze withdraws the announcements under the key that carry this value alone. Absent,
+or *, every value of the key is withdrawn.";
+                ze:help "Tag value, or every value of the key when absent";
+            }
         }
 
         container id {
@@ -182,7 +294,14 @@ value withdraws every value of the key.";
 only when the selector typed after bgp is the one the announcement was made with, compared as
 text.";
             ze:help "Withdraw one announcement by the id that show announcements reports.";
-            leaf id { type string { length "1..20"; } mandatory true; ze:help "Announcement id, as show announcements reports it"; }
+            leaf id {
+                type string { length "1..20"; }
+                mandatory true;
+                description "The value is the whole number show announcements reports in its id column.
+A value that is not a number is refused, and an id that names no announcement of the
+selector answers 'not found'.";
+                ze:help "Announcement id, as show announcements reports it";
+            }
         }
 
         container all {
@@ -233,9 +352,25 @@ than the same act named twice, and it is the word RFC 4271 and ExaBGP both use."
 source and the creation time. An expiry time is present only when the announcement was made
 with for.";
             ze:help "List active on-demand announcements.";
-            leaf tag { type string { length "1..64"; } ze:help "Show only announcements carrying this tag key"; }
-            leaf selector { type string; ze:help "Show only announcements whose peer selector matches this pattern"; }
-            leaf family { type string { length "1..32"; } ze:help "Show only announcements of this address family"; }
+            leaf tag {
+                type string { length "1..64"; }
+                description "The value is a tag key, compared as text with the key each announcement was
+made with. Absent, announcements of every key are listed.";
+                ze:help "Show only announcements carrying this tag key";
+            }
+            leaf selector {
+                type string;
+                description "The value is compared as text with the selector the announcement was made
+with, so it MUST be spelled the way that announcement spelled it. Absent, announcements to
+every selector are listed.";
+                ze:help "Show only announcements whose peer selector matches this pattern";
+            }
+            leaf family {
+                type string { length "1..32"; }
+                description "The value is an address family as the family column reports it, such as
+ipv4/unicast. Absent, announcements of every family are listed.";
+                ze:help "Show only announcements of this address family";
+            }
         }
     }
 }

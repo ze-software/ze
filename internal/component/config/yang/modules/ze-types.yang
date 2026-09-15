@@ -11,36 +11,156 @@ module ze-types {
     // Grouping for common route attributes used in announce/static/etc.
     grouping route-attributes {
         description "Common BGP route attributes";
-        leaf next-hop { type string; ze:validate "nonzero-ipv4|literal-self"; ze:help "Next hop address"; }
+        leaf next-hop {
+            type string;
+            ze:validate "nonzero-ipv4|literal-self";
+            description "An IPv4 or IPv6 address, or the word self. The validator refuses 0.0.0.0.
+                         The NEXT_HOP attribute (RFC 4271 Section 5.1.3) carries an IPv4 value, and
+                         an IPv6 value travels in MP_REACH_NLRI.";
+            ze:help "Next hop address";
+        }
         leaf origin {
             type enumeration {
                 enum igp { ze:help "Interior Gateway Protocol"; }
                 enum egp { ze:help "Exterior Gateway Protocol"; }
                 enum incomplete { ze:help "Incomplete origin"; }
             }
+            description "One of igp, egp or incomplete. The value states how the route entered BGP,
+                         and the ORIGIN attribute carries it as 0, 1 or 2.";
             ze:help "Origin attribute (RFC 4271 Section 4.3)";
         }
-        leaf local-preference { type uint32; ze:help "Local preference"; }
-        leaf med { type uint32; ze:help "Multi-Exit Discriminator"; }
-        leaf-list community { type string; ze:validate "community-range"; ze:help "BGP communities"; }
-        leaf-list extended-community { type string; ze:help "Extended communities"; }
-        leaf-list large-community { type string; ze:help "Large communities"; }
-        leaf-list as-path { type string; ze:ordered; ze:help "AS path (ordered sequence; duplicate ASNs are meaningful prepends, not deduplicated)"; }
-        leaf path-information { type string; ze:help "Path information"; }
-        leaf label { type string; ze:help "MPLS label"; }
-        leaf-list labels { type string; ze:ordered; ze:help "MPLS labels (RFC 8277; ordered label stack, duplicates preserved)"; }
-        leaf rd { type string; ze:help "Route Distinguisher"; }
-        leaf aggregator { type string; ze:help "Aggregator attribute"; }
-        container atomic-aggregate { presence "Atomic aggregate flag"; ze:help "Atomic aggregate"; }
-        leaf originator-id { type ipv4-address; ze:help "Originator ID (RFC 4456)"; }
-        leaf cluster-list { type string; ze:help "Cluster list (RFC 4456)"; }
-        leaf name { type string; ze:help "Route name"; }
-        leaf split { type string; ze:help "Split horizon"; }
-        leaf watchdog { type string; ze:help "Watchdog name"; }
-        container withdraw { presence "Withdraw flag"; ze:help "Withdraw flag"; }
-        leaf-list attribute { type string; ze:help "Generic attributes"; }
-        container bgp-prefix-sid { presence "BGP Prefix SID enabled"; ze:help "BGP Prefix SID"; }
-        container bgp-prefix-sid-srv6 { presence "SRv6 Prefix SID enabled"; ze:help "SRv6 Prefix SID"; }
+        leaf local-preference {
+            type uint32;
+            description "The LOCAL_PREF attribute (RFC 4271 Section 5.1.5), an integer that iBGP
+                         peers compare first. A higher value is preferred.";
+            ze:help "Local preference";
+        }
+        leaf med {
+            type uint32;
+            description "The MULTI_EXIT_DISC attribute (RFC 4271 Section 5.1.4), an integer that tells
+                         an eBGP neighbor which entry point is preferred. A lower value wins.";
+            ze:help "Multi-Exit Discriminator";
+        }
+        leaf-list community {
+            type string;
+            ze:validate "community-range";
+            description "Each value is a standard community (RFC 1997), written as asn:value or as
+                         one of the well-known names. The validator refuses a value outside the
+                         16-bit range of each half.";
+            ze:help "BGP communities";
+        }
+        leaf-list extended-community {
+            type string;
+            description "Each value is an extended community (RFC 4360), written as its type keyword
+                         followed by the two fields, for example target:64500:100.";
+            ze:help "Extended communities";
+        }
+        leaf-list large-community {
+            type string;
+            description "Each value is a large community (RFC 8092), written as three 32-bit integers
+                         separated by colons, for example 64500:1:2.";
+            ze:help "Large communities";
+        }
+        leaf-list as-path {
+            type string;
+            ze:ordered;
+            description "The AS_PATH attribute (RFC 4271 Section 5.1.2). Each value is an ASN, and
+                         the order is the order on the wire. The same ASN written twice is sent
+                         twice, because a prepend is a meaningful repeat.";
+            ze:help "AS path (ordered sequence; duplicate ASNs are meaningful prepends, not deduplicated)";
+        }
+        leaf path-information {
+            type string;
+            description "The ADD-PATH path identifier (RFC 7911), a 32-bit integer that tells two
+                         routes to the same prefix apart.";
+            ze:help "Path information";
+        }
+        leaf label {
+            type string;
+            description "One MPLS label for a labeled route (RFC 8277), as a decimal integer. Use
+                         labels when the route carries a stack of more than one.";
+            ze:help "MPLS label";
+        }
+        leaf-list labels {
+            type string;
+            ze:ordered;
+            description "The label stack of a labeled route (RFC 8277), as decimal integers in the
+                         order written. A label written twice is sent twice.";
+            ze:help "MPLS labels (RFC 8277; ordered label stack, duplicates preserved)";
+        }
+        leaf rd {
+            type string;
+            description "The Route Distinguisher of a VPN route (RFC 4364), written as asn:number or
+                         as ip:number. It is prepended to the prefix in the NLRI.";
+            ze:help "Route Distinguisher";
+        }
+        leaf aggregator {
+            type string;
+            description "The AGGREGATOR attribute (RFC 4271 Section 5.1.7), written as asn:address.
+                         It names the AS and the router that formed the aggregate.";
+            ze:help "Aggregator attribute";
+        }
+        container atomic-aggregate {
+            presence "Atomic aggregate flag";
+            description "Present, the route carries the ATOMIC_AGGREGATE attribute (RFC 4271
+                         Section 5.1.6). It tells a receiver that a less specific route was chosen.";
+            ze:help "Atomic aggregate";
+        }
+        leaf originator-id {
+            type ipv4-address;
+            description "The ORIGINATOR_ID attribute, the router ID of the router that first
+                         announced the route into the cluster. A route reflector sets it.";
+            ze:help "Originator ID (RFC 4456)";
+        }
+        leaf cluster-list {
+            type string;
+            description "The CLUSTER_LIST attribute, the cluster IDs the route has crossed, written
+                         as IPv4 addresses. A reflector that finds its own ID in it drops the route.";
+            ze:help "Cluster list (RFC 4456)";
+        }
+        leaf name {
+            type string;
+            description "A label for the operator. It is stored beside the route and never reaches
+                         the wire.";
+            ze:help "Route name";
+        }
+        leaf split {
+            type string;
+            description "A prefix length, written as /24 or 24. The route is cut into every
+                         prefix of that length that the announced prefix covers, and each one is
+                         announced with the same attributes.";
+            ze:help "Split horizon";
+        }
+        leaf watchdog {
+            type string;
+            description "The name of a watchdog pool. The route is tagged with that pool, so a
+                         request bgp watchdog command announces or withdraws it with the rest.";
+            ze:help "Watchdog name";
+        }
+        container withdraw {
+            presence "Withdraw flag";
+            description "Present, the route is withdrawn instead of announced. The other attributes
+                         then only identify the route to withdraw.";
+            ze:help "Withdraw flag";
+        }
+        leaf-list attribute {
+            type string;
+            description "A raw attribute, written as hex bytes in brackets: the flags, the type code
+                         and the value. Use it for an attribute Ze has no keyword for.";
+            ze:help "Generic attributes";
+        }
+        container bgp-prefix-sid {
+            presence "BGP Prefix SID enabled";
+            description "Present, the route carries a BGP Prefix-SID attribute (RFC 8669), the
+                         segment routing label index of the prefix.";
+            ze:help "BGP Prefix SID";
+        }
+        container bgp-prefix-sid-srv6 {
+            presence "SRv6 Prefix SID enabled";
+            description "Present, the route carries a BGP Prefix-SID attribute with an SRv6 L3
+                         Service TLV (RFC 9252), the SRv6 SID of the prefix.";
+            ze:help "SRv6 Prefix SID";
+        }
     }
 
     // Grouping for network listener endpoints (ip + port).
@@ -259,55 +379,191 @@ module ze-types {
 
     grouping peer-info {
         description "Peer information returned by peer-list and peer-show";
-        leaf address { type ip-address; ze:help "Peer IP address"; }
-        leaf name { type string; ze:help "Peer name (YANG list key)"; }
-        leaf group { type string; ze:help "Peer-group name (empty if standalone)"; }
+        leaf address {
+            type ip-address;
+            description "The address the session is configured against, and the key of the answer.
+                         The BGP component fills it from the peer table.";
+            ze:help "Peer IP address";
+        }
+        leaf name {
+            type string;
+            description "The name the peer is configured under. The field is absent when the peer
+                         has no name.";
+            ze:help "Peer name (YANG list key)";
+        }
+        leaf group {
+            type string;
+            description "The name of the peer-group the peer inherits from. The field is absent for
+                         a peer configured on its own.";
+            ze:help "Peer-group name (empty if standalone)";
+        }
         container remote {
+            description "What the remote side of the session is. The BGP component fills it from
+                         the peer configuration.";
             ze:help "Remote peer identity";
-            leaf as { type asn; ze:help "Peer ASN"; }
+            leaf as {
+                type asn;
+                description "The autonomous system number the peer is configured with, as an
+                             integer. It is the AS the OPEN message of the peer must carry.";
+                ze:help "Peer ASN";
+            }
         }
         container local {
+            description "What this side of the session is. The BGP component fills it from the
+                         peer configuration.";
             ze:help "Local identity for this peer";
-            leaf as { type asn; ze:help "Local ASN"; }
-            leaf address { type ip-address; ze:help "Local bind address"; }
+            leaf as {
+                type asn;
+                description "The autonomous system number Ze sends in its OPEN message to this
+                             peer, as an integer.";
+                ze:help "Local ASN";
+            }
+            leaf address {
+                type ip-address;
+                description "The address Ze binds the TCP session to for this peer. It is the
+                             source address of an outbound connection.";
+                ze:help "Local bind address";
+            }
         }
-        leaf state { type string; ze:help "FSM state (idle, connect, active, opensent, openconfirm, established)"; }
-        leaf router-id { type ipv4-address; ze:help "Peer router ID"; }
-        leaf receive-hold-time { type uint16; ze:help "Configured receive hold time (RFC 4271)"; }
-        leaf send-hold-time { type uint16; ze:help "Configured send hold time (RFC 9687, 0=auto)"; }
-        leaf connect-retry { type uint16; ze:help "Connect retry interval"; }
-        leaf uptime { type uint32; ze:help "Seconds since established"; }
+        leaf state {
+            type string;
+            description "The current state of the BGP finite state machine (RFC 4271 Section 8), in
+                         lower case. Only established carries routes.";
+            ze:help "FSM state (idle, connect, active, opensent, openconfirm, established)";
+        }
+        leaf router-id {
+            type ipv4-address;
+            description "The BGP identifier Ze uses on the session with this peer, as a dotted IPv4
+                         address. It is the per-peer router-id when one is configured, and the
+                         global one otherwise.";
+            ze:help "Peer router ID";
+        }
+        leaf receive-hold-time {
+            type uint16;
+            description "The hold time in seconds configured for this peer, before negotiation with
+                         the peer. The negotiated value is the smaller of the two sides.";
+            ze:help "Configured receive hold time (RFC 4271)";
+        }
+        leaf send-hold-time {
+            type uint16;
+            description "The send hold time in seconds configured for this peer. A value of 0 means
+                         Ze uses the larger of 8 minutes and twice the receive hold time.";
+            ze:help "Configured send hold time (RFC 9687, 0=auto)";
+        }
+        leaf connect-retry {
+            type uint16;
+            description "The seconds Ze waits after a failed connection before it tries this peer
+                         again. It is the ConnectRetryTimer of RFC 4271 Section 8.";
+            ze:help "Connect retry interval";
+        }
+        leaf uptime {
+            type uint32;
+            description "The seconds since the session reached Established. It is 0 while the
+                         session is in any other state.";
+            ze:help "Seconds since established";
+        }
     }
 
     grouping command-info {
         description "Command descriptor for introspection";
-        leaf name { type string; ze:help "Command name"; }
-        leaf description { type string; ze:help "Command help text"; }
-        leaf args { type string; ze:help "Argument specification"; }
-        leaf source { type string; ze:help "Source (builtin or plugin name)"; }
-        leaf completable { type boolean; ze:help "Supports tab completion"; }
+        leaf name {
+            type string;
+            description "The full command name, as an operator types it. The dispatcher fills it
+                         from its builtin table.";
+            ze:help "Command name";
+        }
+        leaf description {
+            type string;
+            description "The one-line summary of the command. It is the text the completion row
+                         shows beside the name.";
+            ze:help "Command help text";
+        }
+        leaf args {
+            type string;
+            description "The arguments the command accepts, as one usage string. It is empty when
+                         the command takes none.";
+            ze:help "Argument specification";
+        }
+        leaf source {
+            type string;
+            description "Where the command is registered. It is builtin for the dispatcher table,
+                         and the plugin name for a command a plugin registered.";
+            ze:help "Source (builtin or plugin name)";
+        }
+        leaf completable {
+            type boolean;
+            description "True when the CLI can offer the arguments of the command on tab, and
+                         false when the operator types them with no help.";
+            ze:help "Supports tab completion";
+        }
     }
 
     grouping event-type-info {
         description "Event type descriptor for subscribe";
-        leaf name { type string; ze:help "Event type name"; }
-        leaf description { type string; ze:help "Event description"; }
+        leaf name {
+            type string;
+            description "The name subscribe takes to receive this event type. It is read from the
+                         event registry of the namespace.";
+            ze:help "Event type name";
+        }
+        leaf description {
+            type string;
+            description "The one-line text registered beside the event type, which says what the
+                         event reports.";
+            ze:help "Event description";
+        }
     }
 
     grouping transaction-result {
         description "Result of a route transaction (commit-end)";
-        leaf routes-announced { type uint32; ze:help "Routes announced"; }
-        leaf routes-withdrawn { type uint32; ze:help "Routes withdrawn"; }
-        leaf updates-sent { type uint32; ze:help "UPDATE messages sent"; }
-        leaf-list families { type address-family; ze:help "Affected address families"; }
+        leaf routes-announced {
+            type uint32;
+            description "The count of routes that left in UPDATE messages during the transaction,
+                         summed over the peers.";
+            ze:help "Routes announced";
+        }
+        leaf routes-withdrawn {
+            type uint32;
+            description "The count of routes withdrawn in UPDATE messages during the transaction,
+                         summed over the peers.";
+            ze:help "Routes withdrawn";
+        }
+        leaf updates-sent {
+            type uint32;
+            description "The count of UPDATE messages that left during the transaction. One message
+                         can carry many routes, so it is not the route count.";
+            ze:help "UPDATE messages sent";
+        }
+        leaf-list families {
+            type address-family;
+            description "The address families the transaction touched, one afi/safi pair each.";
+            ze:help "Affected address families";
+        }
     }
 
     grouping cache-entry {
         description "Cached BGP message descriptor";
-        leaf message-id { type uint64; ze:help "Cache message ID"; }
-        leaf peer { type ip-address; ze:help "Source peer address"; }
-        leaf age-ms { type uint32; ze:help "Age in milliseconds"; }
-        leaf size { type uint32; ze:help "Message size in bytes"; }
+        leaf message-id {
+            type uint64;
+            description "The identifier the cache assigned to the message. It is unique within the
+                         cache, and a later command names the message with it.";
+            ze:help "Cache message ID";
+        }
+        leaf peer {
+            type ip-address;
+            description "The address of the peer the message was received from.";
+            ze:help "Source peer address";
+        }
+        leaf age-ms {
+            type uint32;
+            description "The milliseconds elapsed since the message entered the cache.";
+            ze:help "Age in milliseconds";
+        }
+        leaf size {
+            type uint32;
+            description "The length of the message on the wire, in bytes, header included.";
+            ze:help "Message size in bytes";
+        }
     }
 
     typedef afi {

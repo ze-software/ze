@@ -168,8 +168,8 @@ module ze-ddos-detect-conf {
       ze:help "Allow and deny traffic policy applied to a detected attack.";
       leaf default-action {
         type enumeration {
-          enum allow;
-          enum deny;
+          enum allow { ze:help "Exempt an attack no rule matches from detection entirely."; }
+          enum deny { ze:help "Detect and mitigate an attack no rule matches."; }
         }
         default deny;
         description "Disposition when no rule matches. deny means defend, which is detection plus mitigation. allow means
@@ -190,8 +190,8 @@ module ze-ddos-detect-conf {
         }
         leaf action {
           type enumeration {
-            enum allow;
-            enum deny;
+            enum allow { ze:help "Exempt the matched traffic, as far as the scope leaf reaches."; }
+            enum deny { ze:help "Subject the matched traffic to DDoS handling, as far as the scope leaf reaches."; }
           }
           default deny;
           description "allow exempts the matched traffic and deny subjects it to DDoS handling. The scope leaf decides how
@@ -202,9 +202,9 @@ module ze-ddos-detect-conf {
         }
         leaf match {
           type enumeration {
-            enum source;
-            enum destination;
-            enum any;
+            enum source { ze:help "Match the prefix against the attack sources, once they are characterized."; }
+            enum destination { ze:help "Match the prefix against the victim destination."; }
+            enum any { ze:help "Match the prefix against the attack sources or the destination."; }
           }
           default any;
           description "Whether the prefix matches the attack source, the victim destination, or either. A source rule takes
@@ -213,8 +213,8 @@ module ze-ddos-detect-conf {
         }
         leaf scope {
           type enumeration {
-            enum detection;
-            enum mitigation;
+            enum detection { ze:help "The action governs detection, so allow suppresses the incident entirely."; }
+            enum mitigation { ze:help "The action governs mitigation, so the incident is recorded and allow blocks nothing."; }
           }
           default mitigation;
           description "Stage the action governs. mitigation means detect and record, and for allow it does not block.

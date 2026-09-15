@@ -46,9 +46,10 @@ gokrazy appliance and 'ze resolve dns' cannot target a specific server.";
 
                 leaf target {
                     type string;
-                    ze:help "Anycast service address to query; defaults to the
-                         address-family-appropriate on-box loopback when omitted
-                         (127.0.0.1, or ::1 when address-family is ipv6-only)";
+                    description "An IP address, queried on port 53. When it is absent the query
+goes to the on-box loopback of the configured address family: 127.0.0.1, or ::1 when
+address-family is ipv6-only.";
+                    ze:help "Anycast service address to query.";
                 }
             }
         }

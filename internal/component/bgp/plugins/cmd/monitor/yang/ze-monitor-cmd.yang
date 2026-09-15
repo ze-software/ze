@@ -7,7 +7,9 @@ module ze-monitor-cmd {
 
     container monitor {
         config false;
-        ze:help "Continuous monitoring commands (Ctrl-C to stop).";
+        // No text on this container. ze-cli-monitor-cmd owns the monitor root
+        // and states both halves, and a second module that restates one half
+        // is what mergeHelpText reports as a mismatch.
 
         container bgp {
             config false;

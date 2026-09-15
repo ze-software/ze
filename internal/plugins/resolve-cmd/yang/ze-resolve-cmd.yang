@@ -28,7 +28,14 @@ cache. A name that resolves to nothing is not cached, so the next lookup asks ag
                 description "The answer is the list of IPv4 addresses. A valid cache entry
 answers without a query, and a fresh answer is cached for the TTL the server gave.";
                 ze:help "Look up IPv4 addresses (A records) for a hostname.";
-                leaf hostname { type string { length "1..253"; } mandatory true; ze:help "Hostname to look up"; }
+                leaf hostname {
+                    type string { length "1..253"; }
+                    mandatory true;
+                    description "A DNS name of 1 to 253 characters, which the router's own resolver
+queries. The first word after the command is the name, and a call with no name is refused
+with a usage line.";
+                    ze:help "Hostname to look up.";
+                }
             }
             container aaaa {
                 config false;
@@ -36,14 +43,28 @@ answers without a query, and a fresh answer is cached for the TTL the server gav
                 description "The answer is the list of IPv6 addresses. A valid cache entry
 answers without a query, and a fresh answer is cached for the TTL the server gave.";
                 ze:help "Look up IPv6 addresses (AAAA records) for a hostname.";
-                leaf hostname { type string { length "1..253"; } mandatory true; ze:help "Hostname to look up"; }
+                leaf hostname {
+                    type string { length "1..253"; }
+                    mandatory true;
+                    description "A DNS name of 1 to 253 characters, which the router's own resolver
+queries. The first word after the command is the name, and a call with no name is refused
+with a usage line.";
+                    ze:help "Hostname to look up.";
+                }
             }
             container txt {
                 config false;
                 ze:command "ze-resolve:dns-txt";
                 description "Returns all TXT strings.";
                 ze:help "Look up TXT records for a hostname.";
-                leaf hostname { type string { length "1..253"; } mandatory true; ze:help "Hostname to look up"; }
+                leaf hostname {
+                    type string { length "1..253"; }
+                    mandatory true;
+                    description "A DNS name of 1 to 253 characters, which the router's own resolver
+queries. The first word after the command is the name, and a call with no name is refused
+with a usage line.";
+                    ze:help "Hostname to look up.";
+                }
             }
             container ptr {
                 config false;
@@ -52,7 +73,13 @@ answers without a query, and a fresh answer is cached for the TTL the server gav
 the query. The cache holds the answer under that name, so show dns cache record takes it in
 that form.";
                 ze:help "Reverse-lookup an IP address to its hostname (PTR).";
-                leaf ip-address { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; ze:help "IP address to reverse-look-up"; }
+                leaf ip-address {
+                    type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; }
+                    mandatory true;
+                    description "An IPv4 or IPv6 address in its usual text form. The resolver turns it
+into the reverse name itself, so pass the address and not the in-addr.arpa name.";
+                    ze:help "IP address to reverse-look-up.";
+                }
             }
         }
 
@@ -67,7 +94,13 @@ without one. An AS number Team Cymru does not name answers (unknown) instead of 
                 ze:command "ze-resolve:cymru-asn-name";
                 description "Queries Team Cymru DNS to return the organization name for the ASN.";
                 ze:help "Find out who owns an AS number.";
-                leaf asn { type zt:asn-notated; mandatory true; ze:help "AS number"; }
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The AS number in plain decimal or in asdot notation, which Ze parses to
+one 32-bit value before the query. A spelling that parses to no AS number is refused.";
+                    ze:help "AS number.";
+                }
             }
         }
 
@@ -82,14 +115,26 @@ fail without one. Each one takes an AS number.";
                 ze:command "ze-resolve:peeringdb-max-prefix";
                 description "Returns IPv4 and IPv6 prefix limits. Apply via the config editor.";
                 ze:help "Get max-prefix limits for an ASN from PeeringDB.";
-                leaf asn { type zt:asn-notated; mandatory true; ze:help "AS number"; }
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The AS number in plain decimal or in asdot notation, which Ze parses to
+one 32-bit value before the query. A spelling that parses to no AS number is refused.";
+                    ze:help "AS number.";
+                }
             }
             container as-set {
                 config false;
                 ze:command "ze-resolve:peeringdb-as-set";
                 description "Feed the result into 'resolve irr expand' to get the full member list.";
                 ze:help "Find the IRR AS-SET registered for an ASN in PeeringDB.";
-                leaf asn { type zt:asn-notated; mandatory true; ze:help "AS number"; }
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The AS number in plain decimal or in asdot notation, which Ze parses to
+one 32-bit value before the query. A spelling that parses to no AS number is refused.";
+                    ze:help "AS number.";
+                }
             }
         }
 
@@ -136,19 +181,24 @@ records, TTL, and query time. Supports A, AAAA, MX, NS, TXT, CNAME, and PTR.";
                 leaf hostname {
                     type string;
                     mandatory true;
-                    ze:help "Hostname to resolve";
+                    description "A DNS name of at most 253 characters. The first word that is not the
+type keyword is taken as the name, and a call with no name is refused.";
+                    ze:help "Hostname to resolve.";
                 }
                 leaf type {
                     type enumeration {
-                        enum A;
-                        enum AAAA;
-                        enum MX;
-                        enum NS;
-                        enum TXT;
-                        enum CNAME;
-                        enum PTR;
+                        enum A { ze:help "Ask for the IPv4 addresses of the name."; }
+                        enum AAAA { ze:help "Ask for the IPv6 addresses of the name."; }
+                        enum MX { ze:help "Ask for the mail exchanger hosts of the name."; }
+                        enum NS { ze:help "Ask for the name servers of the name."; }
+                        enum TXT { ze:help "Ask for the text strings published under the name."; }
+                        enum CNAME { ze:help "Ask for the canonical name the name is an alias of."; }
+                        enum PTR { ze:help "Ask for the host name a reverse name points to."; }
                     }
-                    ze:help "DNS record type";
+                    description "The record type to query, written after the type keyword. The default
+is A. Ze upper-cases the value, and a type outside this list is refused with the list of
+accepted ones.";
+                    ze:help "DNS record type.";
                 }
             }
 
@@ -184,7 +234,9 @@ list and a count of zero.";
                     leaf name {
                         type string;
                         mandatory true;
-                        ze:help "Record name to inspect";
+                        description "The cache key, compared as an exact string. Each entry reported
+under it carries the name, the type, the records and the seconds of TTL left.";
+                        ze:help "Record name to inspect.";
                     }
                 }
             }
@@ -205,7 +257,13 @@ registry, its whois server, and the delegated range that holds the AS number.
 An AS number in no delegated range and a table that cannot be read are two
 different answers.";
                 ze:help "Show which Regional Internet Registry holds an AS number.";
-                leaf asn { type zt:asn-notated; mandatory true; ze:help "AS number to look up"; }
+                leaf asn {
+                    type zt:asn-notated;
+                    mandatory true;
+                    description "The AS number in plain decimal or in asdot notation, which Ze parses to
+one 32-bit value before it searches the delegation table.";
+                    ze:help "AS number to look up.";
+                }
             }
         }
     }
@@ -258,19 +316,23 @@ give no other tail. An unknown type is reported inside the answer rather than as
                     leaf name {
                         type string;
                         mandatory true;
-                        ze:help "Record name to evict";
+                        description "The cache key, compared as an exact string. Alone, it evicts every
+type cached under the name and the answer counts the entries removed.";
+                        ze:help "Record name to evict.";
                     }
                     leaf type {
                         type enumeration {
-                            enum A;
-                            enum AAAA;
-                            enum MX;
-                            enum NS;
-                            enum TXT;
-                            enum CNAME;
-                            enum PTR;
+                            enum A { ze:help "Evict the cached IPv4 addresses of the name."; }
+                            enum AAAA { ze:help "Evict the cached IPv6 addresses of the name."; }
+                            enum MX { ze:help "Evict the cached mail exchanger hosts of the name."; }
+                            enum NS { ze:help "Evict the cached name servers of the name."; }
+                            enum TXT { ze:help "Evict the cached text strings of the name."; }
+                            enum CNAME { ze:help "Evict the cached canonical name of the name."; }
+                            enum PTR { ze:help "Evict the cached reverse mapping of the name."; }
                         }
-                        ze:help "Optional DNS record type to evict for the named record";
+                        description "Written after the type keyword, it evicts that one type and leaves
+the other types of the name in place. The answer reports found true or false.";
+                        ze:help "Optional DNS record type to evict for the named record.";
                     }
                 }
 

@@ -23,6 +23,8 @@ all monitored interfaces. With 'name <interface>', shows that one interface.";
                 ze:help "Show per-interface traffic byte counters captured by eBPF TCX.";
                 leaf name {
                     type string;
+                    description "The kernel interface name, as configured under traffic usage. An
+interface the plugin does not monitor fails with interface not monitored.";
                     ze:help "Interface name (used with 'name <interface>')";
                 }
             }

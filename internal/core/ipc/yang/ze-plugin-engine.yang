@@ -22,8 +22,17 @@ module ze-plugin-engine {
         input {
             list family {
                 key "name";
+                description
+                    "The engine adds each family to the encode or decode registry before the
+                     ready barrier. A family another plugin already claimed is a registration
+                     conflict and the whole registration is refused.";
+                ze:help "Address families this plugin encodes or decodes.";
                 leaf name {
                     type string;
+                    description
+                        "The form is afi/safi, and the engine refuses a name with no slash or an
+                         empty half. A family that no compiled plugin registered also needs its
+                         afi and safi numbers, or the engine refuses the declaration.";
                     ze:help "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
                 }
                 leaf mode {
@@ -32,49 +41,95 @@ module ze-plugin-engine {
                         enum decode { ze:help "Decode wire to JSON"; }
                         enum both { ze:help "Encode and decode"; }
                     }
+                    description
+                        "The mode decides which registry the engine adds the family to. Encode
+                         puts it in the encode set, decode in the decode set, and both in each.
+                         An absent mode is read as encode.";
                     ze:help "Family handling mode";
                 }
             }
             list command {
                 key "name";
+                description
+                    "Each entry becomes a row in the command registry, and the engine calls the
+                     plugin over execute-command when an operator runs it. The two help texts
+                     and the answer shape are validated before any row is stored.";
+                ze:help "Commands this plugin answers.";
                 leaf name {
                     type string;
+                    description
+                        "The engine registers the name in the command registry before the ready
+                         barrier, so another plugin can dispatch it as soon as startup ends. A name
+                         another plugin already registered is a registration conflict.";
                     ze:help "Command name";
                 }
                 leaf description {
                     type string;
+                    description
+                        "The long explanation the command's own help page prints under its summary.
+                         The engine stores it beside the short help, and it refuses a text that
+                         carries a control character. A plugin that sends none renders with an
+                         empty explanation.";
                     ze:help "Command description";
                 }
                 leaf-list args {
                     type string;
+                    description
+                        "The names are shown after the command name in the help listing and in the
+                         command-help answer. The engine reads them for display alone and does not
+                         validate a call against them.";
                     ze:help "Argument names";
                 }
                 leaf completable {
                     type boolean;
                     default false;
+                    description
+                        "When true, the engine forwards an argument completion request for this
+                         command to the plugin over execute-command. When false, the completion
+                         answer is empty and the plugin is not asked.";
                     ze:help "Supports tab completion";
                 }
             }
             leaf-list wants-config {
                 type string;
+                description
+                    "Each entry names one top-level config root, and the engine sends that subtree
+                     as one section on the Stage 2 configure callback. A root with no config is
+                     skipped. The single entry * asks for the whole tree.";
                 ze:help "Config roots to receive (e.g., bgp, environment, *)";
             }
             container schema {
+                description
+                    "The engine registers the module in the schema registry at Stage 1. A module
+                     name or a handler path another plugin already registered is refused.";
                 ze:help "YANG schema declaration";
                 leaf module {
                     type string;
+                    description
+                        "The registry is keyed by this name, and an empty name is refused. A
+                         second plugin declaring the same module name is a duplicate.";
                     ze:help "YANG module name";
                 }
                 leaf namespace {
                     type string;
+                    description
+                        "The namespace statement of the declared module. The engine stores it
+                         beside the module name and does not read it during registration.";
                     ze:help "YANG namespace URI";
                 }
                 leaf yang-text {
                     type string;
+                    description
+                        "The source text of the module, as the plugin ships it. The engine stores
+                         it with the declaration so the schema can be parsed later.";
                     ze:help "Full YANG module text";
                 }
                 leaf-list handlers {
                     type string;
+                    description
+                        "Each path names a config subtree this plugin handles. The engine maps each
+                         path to the module name, and a path another module already claimed is
+                         refused.";
                     ze:help "Handler paths (e.g., bgp, bgp.peer)";
                 }
             }
@@ -87,6 +142,10 @@ module ze-plugin-engine {
                     "Named route filters this plugin offers.";
                 leaf name {
                     type string;
+                    description
+                        "The engine looks the name up when a peer's filter chain reaches this
+                         plugin. The name * declares a wildcard filter that answers for any name
+                         the plugin did not declare.";
                     ze:help "Filter name (the part after : in <plugin>:<filter>)";
                 }
                 leaf direction {
@@ -95,20 +154,34 @@ module ze-plugin-engine {
                         enum export { ze:help "Egress filtering"; }
                         enum both { ze:help "Ingress and egress filtering"; }
                     }
+                    description
+                        "The engine stores the direction with the filter declaration. The peer
+                         config decides which chain calls the filter.";
                     ze:help "Which direction(s) this filter handles";
                 }
                 leaf-list attributes {
                     type string;
+                    description
+                        "The list bounds a modify answer. When the filter answers modify, the
+                         engine rejects the route if the delta touches an attribute not named here.
+                         An empty list leaves the delta unchecked.";
                     ze:help "Attribute names to receive (e.g., as-path, community)";
                 }
                 leaf nlri {
                     type boolean;
                     default true;
+                    description
+                        "The engine stores the flag with the filter declaration. An absent value
+                         is read as true.";
                     ze:help "Whether to include NLRI list in filter input";
                 }
                 leaf raw {
                     type boolean;
                     default false;
+                    description
+                        "When true, each filter-update call carries the raw UPDATE body in its raw
+                         field, and a default-originate check reads the flag too. When false, the
+                         raw field is absent.";
                     ze:help "Whether to include raw wire bytes";
                 }
                 leaf on-error {
@@ -117,10 +190,16 @@ module ze-plugin-engine {
                         enum accept { ze:help "Fail-open: pass update on error"; }
                     }
                     default reject;
+                    description
+                        "The policy applies when the filter-update call itself fails, not when
+                         the plugin answers reject. An absent value is read as reject.";
                     ze:help "Behavior when filter IPC fails";
                 }
                 leaf-list overrides {
                     type string;
+                    description
+                        "Each entry names a default filter in the form <plugin>:<filter>. The
+                         engine stores the list with the filter declaration.";
                     ze:help "Default filters this filter replaces (e.g., rfc:no-self-as)";
                 }
             }
@@ -133,18 +212,31 @@ module ze-plugin-engine {
                     "Pipe aliases this plugin offers for its own commands.";
                 leaf command {
                     type string;
+                    description
+                        "The path MUST name a command in the command list of this same message.
+                         The engine refuses an alias whose command the plugin did not declare.";
                     ze:help "Command path the alias sits on (one of this plugin's own declared commands)";
                 }
                 leaf name {
                     type string;
+                    description
+                        "The engine registers the word in the alias registry under this plugin's
+                         name. It is removed when the plugin stops.";
                     ze:help "The word an operator types after the pipe character (kebab-case)";
                 }
                 leaf description {
                     type string;
+                    description
+                        "An alias carries this one text and no longer one. The expansion is
+                         reported beside it as the whole of what the alias does.";
                     ze:help "The line completion and help show beside the name";
                 }
                 leaf expansion {
                     type string;
+                    description
+                        "The chain is written as an operator would type it after the pipe
+                         character. The daemon runs it in place of the alias, and it names no
+                         other alias.";
                     ze:help "The operator chain the name stands for, for example: display kind vrp-count";
                 }
             }
@@ -159,8 +251,16 @@ module ze-plugin-engine {
         input {
             list capability {
                 key "code";
+                description
+                    "The engine decodes every payload and checks every code for a conflict
+                     before it stores any of them, so a refused batch injects nothing.";
+                ze:help "Capabilities the engine adds to the OPEN it sends.";
                 leaf code {
                     type uint8;
+                    description
+                        "The engine keys injected capabilities by this code. A code another
+                         plugin already injected for the same peer, or globally, is a capability
+                         conflict and the whole batch is refused.";
                     ze:help "BGP capability code (RFC 5492)";
                 }
                 leaf encoding {
@@ -170,14 +270,24 @@ module ze-plugin-engine {
                         enum text { ze:help "Text payload"; }
                     }
                     default hex;
+                    description
+                        "The engine decodes the payload with this encoding before it writes the
+                         OPEN. A capability with no encoding and no payload is a flag with no
+                         value. An absent encoding with a payload is refused.";
                     ze:help "Payload encoding";
                 }
                 leaf payload {
                     type string;
+                    description
+                        "The decoded bytes become the capability value in the OPEN message. Leave
+                         it empty for a capability that carries no value.";
                     ze:help "Encoded capability value (empty for zero-length)";
                 }
                 leaf-list peers {
                     type string;
+                    description
+                        "With entries, the capability is stored for each listed peer address
+                         alone. With none, it is stored once and applies to every peer.";
                     ze:help "Peer addresses (empty = global/all peers)";
                 }
             }
@@ -204,21 +314,33 @@ every peer, so an omitted selector is not a no-op.";
             leaf peer-selector {
                 type string;
                 default "*";
+                description
+                    "The engine places the selector after send bgp when it builds the command
+                     it dispatches. An empty value is read as *.";
                 ze:help "Peer selector (* for all, or specific IP)";
             }
             leaf command {
                 type string;
                 mandatory true;
+                description
+                    "The text is appended to send bgp <selector> and dispatched as one command.
+                     It is the part after the selector, for example update text announce ....";
                 ze:help "Route command (e.g., announce/withdraw text)";
             }
         }
         output {
             leaf announced {
                 type uint32;
+                description
+                    "The count is read from the route result the dispatched command produced.
+                     A command the dispatcher silenced answers zero.";
                 ze:help "Number of NLRIs announced";
             }
             leaf withdrawn {
                 type uint32;
+                description
+                    "The count is read from the same route result as announced. A command the
+                     dispatcher silenced answers zero.";
                 ze:help "Number of NLRIs withdrawn";
             }
         }
@@ -236,16 +358,27 @@ extracts only route counters, this preserves structured responses.";
             leaf command {
                 type string;
                 mandatory true;
+                description
+                    "The engine gives the text to the same dispatcher the CLI uses, under the
+                     calling plugin's internal identity. It is not prefixed, so the plugin
+                     writes the whole command.";
                 ze:help "Command string to dispatch (e.g., bgp rib list)";
             }
         }
         output {
             leaf status {
                 type string;
+                description
+                    "The value is done when the target handler answered and error when it
+                     failed. On error, the error field carries the message.";
                 ze:help "Response status (done or error)";
             }
             leaf data {
                 type string;
+                description
+                    "The bytes are the handler's response as it produced them, decoded once by
+                     the caller. A handler that answered with records is collapsed into one
+                     document here.";
                 ze:help "JSON-encoded response data from target handler";
             }
         }
@@ -263,15 +396,26 @@ parsed pays the decode cost on every event.";
         input {
             leaf-list events {
                 type string;
+                description
+                    "Each entry is an event type, with an optional direction suffix in the form
+                     update direction sent. Without the suffix, both directions match. The entry
+                     * expands to every event type of the namespace at registration time.";
                 ze:help "Event types (update, open, notification, keepalive, state, all)";
             }
             leaf-list peers {
                 type string;
+                description
+                    "The engine reads the first entry alone as the peer selector for every
+                     subscription in this call. An empty list matches every peer.";
                 ze:help "Peer filter (empty = all peers)";
             }
             leaf format {
                 type string;
                 default "parsed";
+                description
+                    "The format is stored on the process, not on one subscription, so the last
+                     subscribe call decides it for every event the process receives. An empty
+                     value leaves the stored format unchanged.";
                 ze:help "Event format (hex, base64, parsed, full)";
             }
         }
@@ -294,17 +438,26 @@ unsubscribes and subscribes again with the set it wants.";
             leaf family {
                 type string;
                 mandatory true;
+                description
+                    "The form is afi/safi. The engine looks the name up in the family registry
+                     to find the decoder, and a family with no registered decoder fails.";
                 ze:help "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
             }
             leaf hex {
                 type string;
                 mandatory true;
+                description
+                    "The bytes are the NLRI field alone, without the MP_REACH_NLRI header.
+                     Text that is not valid hex fails before the decoder runs.";
                 ze:help "Hex-encoded NLRI wire bytes";
             }
         }
         output {
             leaf json {
                 type string;
+                description
+                    "The value is the JSON the family decoder produced, passed through without a
+                     second encoding.";
                 ze:help "JSON-encoded decoded NLRI";
             }
         }
@@ -317,16 +470,25 @@ unsubscribes and subscribes again with the set it wants.";
             leaf family {
                 type string;
                 mandatory true;
+                description
+                    "The form is afi/safi. The engine looks the name up in the family registry
+                     to find the encoder, and a family with no registered encoder fails.";
                 ze:help "Address family (e.g., ipv4/flow, l2vpn/evpn)";
             }
             leaf-list args {
                 type string;
+                description
+                    "The words are given to the family encoder in order. Each family defines
+                     its own argument form, and the engine does not read them.";
                 ze:help "Encoding arguments (family-specific)";
             }
         }
         output {
             leaf hex {
                 type string;
+                description
+                    "The value is the wire form the family encoder produced, as hex text with
+                     no separator.";
                 ze:help "Hex-encoded NLRI wire bytes";
             }
         }
@@ -339,25 +501,40 @@ unsubscribes and subscribes again with the set it wants.";
             leaf hex {
                 type string;
                 mandatory true;
+                description
+                    "The bytes start at the AFI field: AFI, SAFI, next-hop length, next-hop,
+                     reserved byte, then NLRI. Fewer than 5 bytes is refused.";
                 ze:help "Hex-encoded MP_REACH_NLRI value (after TLV header)";
             }
             leaf add-path {
                 type boolean;
                 default false;
+                description
+                    "When true, the decoder reads a 4-byte path identifier before each NLRI
+                     entry. Set it to match what the session negotiated, because the engine
+                     cannot tell from the bytes.";
                 ze:help "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
             }
         }
         output {
             leaf family {
                 type string;
+                description
+                    "The name is derived from the AFI and SAFI fields in the form afi/safi.";
                 ze:help "Decoded address family (e.g., ipv4/unicast)";
             }
             leaf next-hop {
                 type string;
+                description
+                    "The address is read from the next-hop field. It is absent when the field
+                     holds no valid address.";
                 ze:help "Decoded next-hop address";
             }
             leaf nlri {
                 type string;
+                description
+                    "Each entry is one NLRI decoded by the family decoder. A family with no
+                     decoder fails the whole call.";
                 ze:help "JSON array of decoded NLRI entries";
             }
         }
@@ -370,21 +547,32 @@ unsubscribes and subscribes again with the set it wants.";
             leaf hex {
                 type string;
                 mandatory true;
+                description
+                    "The bytes start at the AFI field: AFI, SAFI, then the withdrawn NLRI.
+                     There is no next-hop in this attribute.";
                 ze:help "Hex-encoded MP_UNREACH_NLRI value (after TLV header)";
             }
             leaf add-path {
                 type boolean;
                 default false;
+                description
+                    "When true, the decoder reads a 4-byte path identifier before each
+                     withdrawn entry. Set it to match what the session negotiated.";
                 ze:help "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
             }
         }
         output {
             leaf family {
                 type string;
+                description
+                    "The name is derived from the AFI and SAFI fields in the form afi/safi.";
                 ze:help "Decoded address family (e.g., ipv4/unicast)";
             }
             leaf nlri {
                 type string;
+                description
+                    "Each entry is one withdrawn NLRI decoded by the family decoder. A family
+                     with no decoder fails the whole call.";
                 ze:help "JSON array of decoded withdrawn NLRI entries";
             }
         }
@@ -398,17 +586,27 @@ Returns ze-bgp JSON format (same structure as deliver-event).";
             leaf hex {
                 type string;
                 mandatory true;
+                description
+                    "The bytes start at the withdrawn routes length field. Fewer than 4 bytes
+                     is refused. The decode uses no session state, so a 4-byte AS number is
+                     read where the message carries one.";
                 ze:help "Hex-encoded UPDATE body (after 19-byte BGP header)";
             }
             leaf add-path {
                 type boolean;
                 default false;
+                description
+                    "When true, the formatter reads a 4-byte path identifier before each NLRI
+                     entry. Set it to match what the session negotiated.";
                 ze:help "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
             }
         }
         output {
             leaf json {
                 type string;
+                description
+                    "The text is one JSON document holding the attributes, the announced NLRI
+                     and the withdrawn NLRI. It is the same shape a parsed update event carries.";
                 ze:help "ze-bgp JSON with update attributes and NLRI";
             }
         }
@@ -424,32 +622,53 @@ matching namespace and event-type.";
             leaf namespace {
                 type string;
                 mandatory true;
+                description
+                    "The namespace MUST be one the event registry knows. An empty namespace, or
+                     a namespace and type pair the registry does not hold, is refused.";
                 ze:help "Event namespace (e.g., bgp, rib)";
             }
             leaf event-type {
                 type string;
                 mandatory true;
+                description
+                    "The type MUST be registered under the namespace. A subscriber that
+                     subscribed to this type, or to *, receives the event.";
                 ze:help "Event type (e.g., rpki, update)";
             }
             leaf direction {
                 type string;
                 default "received";
+                description
+                    "The engine matches the direction against each subscription's direction.
+                     A subscription with no direction suffix matches both.";
                 ze:help "Event direction (received, sent, both)";
             }
             leaf peer-address {
                 type string;
                 default "*";
+                description
+                    "With an address, the event is peer-scoped and goes through the same
+                     delivery graph as the reactor's own events, so a peer's attach block
+                     decides who receives it. With an empty value, every matching subscription
+                     receives it.";
                 ze:help "Peer address for event routing (* for all)";
             }
             leaf event {
                 type string;
                 mandatory true;
+                description
+                    "The text is delivered to each matching plugin as the event body. When the
+                     type has a registered payload type and an engine subscriber, it is decoded
+                     once for that subscriber.";
                 ze:help "JSON-encoded event payload";
             }
         }
         output {
             leaf delivered {
                 type uint32;
+                description
+                    "The count covers plugin processes alone. Engine-side subscribers run after
+                     delivery and are not counted.";
                 ze:help "Number of plugins that received the event";
             }
         }

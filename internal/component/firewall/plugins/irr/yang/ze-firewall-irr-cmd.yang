@@ -18,6 +18,8 @@ module ze-firewall-irr-cmd {
             // Repeat the canonical description owned by ze-firewall-cmd.yang
             // verbatim so the command-tree merge does not warn on a mismatch.
             // This module only attaches the `irr` subtree to the shared node.
+            description "Ze programs nftables, so what is reported is the state Ze installed. A rule added
+                         outside Ze is not managed here and is not shown.";
             ze:help "Firewall rules and groups (nftables).";
 
             container irr {
@@ -34,7 +36,13 @@ loaded and current before committing firewall config.";
                     description "Lists all IPv4 and IPv6 prefixes in the cached
 prefix-list for the given ASN or AS-SET.";
                     ze:help "Show IRR-resolved prefixes for a cached entry.";
-                    leaf name { type string; mandatory true; ze:help "ASN or AS-SET name"; }
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "The cache key, as the update command stored it: an ASN
+in the form AS64500, or an AS-SET name. A key with no cached data is an error.";
+                        ze:help "ASN or AS-SET name";
+                    }
                 }
             }
         }
@@ -71,7 +79,13 @@ preserves the existing cache and reports an error.";
                     description "Queries the IRR server and saves resolved prefixes
 to the zefs cache. Creates the cache entry if it does not exist.";
                     ze:help "Fetch or refresh IRR prefix-list for an ASN.";
-                    leaf asn { type string; mandatory true; ze:help "ASN number"; }
+                    leaf asn {
+                        type string;
+                        mandatory true;
+                        description "The AS number, 1 to 4294967294, in plain or dotted form.
+The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name one entry.";
+                        ze:help "ASN number";
+                    }
                 }
 
                 container as-set {
@@ -80,7 +94,13 @@ to the zefs cache. Creates the cache entry if it does not exist.";
                     description "Queries the IRR server and saves resolved prefixes
 to the zefs cache.";
                     ze:help "Fetch or refresh IRR prefix-list for an AS-SET.";
-                    leaf as-set { type string; mandatory true; ze:help "AS-SET name"; }
+                    leaf as-set {
+                        type string;
+                        mandatory true;
+                        description "The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE.
+Letters, digits, hyphen, underscore, colon and period are accepted, and the name is the cache key.";
+                        ze:help "AS-SET name";
+                    }
                 }
             }
         }
@@ -118,7 +138,13 @@ cache, then re-applies the firewall tables. Config that still references the
 ASN fails to verify until it is fetched again with
 'update firewall irr asn <asn>'.";
                     ze:help "Remove the cached IRR prefix-list for an ASN.";
-                    leaf asn { type string; mandatory true; ze:help "ASN number"; }
+                    leaf asn {
+                        type string;
+                        mandatory true;
+                        description "The AS number, 1 to 4294967294, in plain or dotted form.
+The entry purged is the one the update command stored under the decimal spelling.";
+                        ze:help "ASN number";
+                    }
                 }
 
                 container as-set {
@@ -127,7 +153,13 @@ ASN fails to verify until it is fetched again with
                     description "Drops the entry from memory and from the persisted
 cache, then re-applies the firewall tables.";
                     ze:help "Remove the cached IRR prefix-list for an AS-SET.";
-                    leaf as-set { type string; mandatory true; ze:help "AS-SET name"; }
+                    leaf as-set {
+                        type string;
+                        mandatory true;
+                        description "The RPSL set name the update command stored, for example
+AS-EXAMPLE. The entry under that exact name is purged.";
+                        ze:help "AS-SET name";
+                    }
                 }
             }
         }

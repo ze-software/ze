@@ -51,6 +51,8 @@ Check here to find certificates approaching expiration.";
                     leaf name {
                         type string;
                         mandatory true;
+                        description "The name of a CA or device certificate in the store. An unknown
+                                     name is refused, and the refusal lists the names the store holds.";
                         ze:help "Certificate name";
                     }
 
@@ -62,6 +64,9 @@ Check here to find certificates approaching expiration.";
                         leaf name {
                             type string;
                             mandatory true;
+                            description "The name of a CA or device certificate in the store. An
+                                         unknown name is refused, and the refusal lists the names the
+                                         store holds.";
                             ze:help "Certificate name";
                         }
                     }
@@ -80,6 +85,9 @@ Check here to find certificates approaching expiration.";
                             leaf name {
                                 type string;
                                 mandatory true;
+                                description "The name of a device certificate in the store. A CA name
+                                             and a device certificate with no private key are each
+                                             refused.";
                                 ze:help "Certificate name";
                             }
                         }
@@ -93,6 +101,9 @@ Check here to find certificates approaching expiration.";
                         leaf name {
                             type string;
                             mandatory true;
+                            description "The name of a CA or device certificate in the store. The hash
+                                         is taken over its DER bytes. An unknown name is refused, and
+                                         the refusal lists the names the store holds.";
                             ze:help "Certificate name";
                         }
 
@@ -105,10 +116,13 @@ unsupported hash algorithm'. A second word after the algorithm is refused.";
                             ze:help "Which hash to take of the certificate.";
                             leaf algorithm {
                                 type enumeration {
-                                    enum sha256;
-                                    enum sha384;
-                                    enum sha512;
+                                    enum sha256 { ze:help "Hash the certificate with SHA-256, a 32-byte digest."; }
+                                    enum sha384 { ze:help "Hash the certificate with SHA-384, a 48-byte digest."; }
+                                    enum sha512 { ze:help "Hash the certificate with SHA-512, a 64-byte digest."; }
                                 }
+                                description "The digest is printed as hex bytes separated by colons, beside
+                                             the algorithm name. The word is lowered before it is matched,
+                                             and a word outside the three is refused.";
                                 ze:help "Hash algorithm. Without one, sha256.";
                             }
                         }
