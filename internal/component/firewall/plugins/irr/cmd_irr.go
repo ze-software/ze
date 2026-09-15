@@ -77,19 +77,19 @@ func forwardUpdateIRRAll(ctx *pluginserver.CommandContext, args []string) (*plug
 }
 
 func forwardUpdateIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, argsOrSelector(ctx, args, leafASN), ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
 }
 
 func forwardUpdateIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, argsOrSelector(ctx, args, leafASSet), ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
 }
 
 func forwardClearIRRAsn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsn, argsOrSelector(ctx, args, leafASN), ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsn, ctx.ArgsOrSelector(args, leafASN), ctx.PeerSelector())
 }
 
 func forwardClearIRRAsSet(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsSet, argsOrSelector(ctx, args, leafASSet), ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearIRRAsSet, ctx.ArgsOrSelector(args, leafASSet), ctx.PeerSelector())
 }
 
 // The four commands above end in the same word as the YANG leaf that carries
@@ -103,18 +103,3 @@ const (
 	leafASN   = "asn"
 	leafASSet = "as-set"
 )
-
-// argsOrSelector returns the positional arguments a plugin command was given,
-// recovering the value from the bound selector when the dispatcher consumed it.
-// Without it the plugin receives no argument at all and answers with its usage
-// line, which is what made every `update firewall irr asn|as-set` invocation
-// fail.
-func argsOrSelector(ctx *pluginserver.CommandContext, args []string, leaf string) []string {
-	if len(args) > 0 {
-		return args
-	}
-	if value := ctx.Selector(leaf); value != "" {
-		return []string{value}
-	}
-	return args
-}

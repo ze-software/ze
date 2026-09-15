@@ -10,11 +10,11 @@
 #
 # The command is a `-cmd` leaf on purpose. The admin form reads the node's
 # ArgDefs, which extractArgDefs (internal/component/config/yang/command.go)
-# fills from the leaves of the ze:command container alone. A builtin whose
-# only argument is an rpc input leaf, such as `system command help` (the
-# `name` leaf of rpc command-help in ze-system-api.yang), renders NO input
-# here: that leaf reaches the API and MCP schemas (AC-2, AC-6), never the
-# command tree.
+# fills from the leaves of the ze:command container alone. An rpc input leaf
+# of the `-api` module reaches the API and MCP schemas (AC-2, AC-6), never the
+# command tree, so a builtin whose only declaration was such a leaf rendered
+# NO input here. `system command help` was one until 2026-09-15; its page is
+# admin-command-help-posts-name.wb.
 # PREVENTS: HandleAdminExecute building the command from the URL path alone,
 # so the typed value is dropped in silence and the daemon answers for the
 # bare command. The web suite starts `ze start --web-only`, whose dispatcher

@@ -244,7 +244,7 @@ the bus from buggy or malicious producers.
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
 | `ze-show:tcp-check` | `HandleTCPCheck` in `internal/plugins/diag/cmd/tcp_check.go` | `{"host": "...", "port": N, "result": "...", "latency-ms": N}` |
-| `ze-show:traceroute` | `handleTraceroute` in `traceroute.go` | `{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}` |
+| `ze-show:traceroute` | `handleTraceroute` in `traceroute.go` | `{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}`. Under `do-not-fragment` a hop that refused the probe's size also carries `"next-hop-mtu-reported": bool` and, when true, `"next-hop-mtu": N`, and ends the trace (`docs/architecture/diagnostics/active-probes.md`) |
 | `ze-show:capture-interface` | `handleCaptureInterface` in `capture_interface_linux.go` | pcap: `{"format": "pcap", "packets": N, "pcap": "base64...", "snap-len": N}`; text: `{"format": "text", "packets": N, "lines": [...]}` (Linux only) |
 | `ze-show:system-file-descriptors` | `handleShowSystemFD` in `fd_linux.go` | `{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}` (Linux only) |
 | `ze-show:dns-lookup` | `handleDNSLookup` in `internal/component/resolve/cmd/show_dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
@@ -514,9 +514,9 @@ system version api       # Show IPC protocol version
 system subsystem list    # List available subsystems
 system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
-system command help "<name>" # Show command details
-system command complete "<partial>"  # Complete command names
-system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg completion
+system command help name "<name>"    # Show command details; the bare "<name>" is accepted too
+system command complete partial "<partial>"  # Complete command names; the bare "<partial>" is accepted too
+system command complete args "<cmd>" [<completed>...] "<partial>"  # Arg completion
 ```
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
 
@@ -1435,8 +1435,13 @@ module is merged, with `Anchor` set to the container's name, and the renderer
 places the value right after that keyword. The command under such a container
 that acts on no single member of the set states `ze:inherit "none"`:
 `show bgp peer list` reads every peer, and `request interface migrate` names two
-interfaces of its own. Nothing binds a value by `Anchor`: a positional token
-still goes to the definition whose type constrains it most (`positionalDef`).
+interfaces of its own. The dispatcher binds the bare token after the anchor
+keyword to the leaf anchored there (`anchoredDef`, `plugin/server/command.go`),
+and a surface that builds a command from a name-to-value map writes the value
+at that same place through `command.WriteInvocation` (`arguments.go`), which
+the web admin form and the MCP tool call share. A positional token after the
+command still goes to the definition whose type constrains it most
+(`positionalDef`).
 
 Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 `ValueHints` callbacks. Static hints (log levels, FD limit "max") are

@@ -15,6 +15,14 @@ var (
 	errMissingPartialInput = errors.New("missing partial input")
 )
 
+// The YANG leaves the command-introspection builtins declare on their -cmd
+// containers (ze-system-cmd.yang, ze-plugin-cmd.yang). The dispatcher binds
+// the keyword form by these names, and the handlers recover the value by them.
+const (
+	leafName    = "name"
+	leafPartial = "partial"
+)
+
 // The JSON keys the plugin and system RPC handlers answer with. One spelling
 // for each, so the two handler families cannot drift apart on a rename.
 const (
@@ -75,10 +83,11 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*plugin.Response,
 
 // handlePluginCommandHelp returns details for a plugin-registered command.
 func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	args = ctx.ArgsOrSelector(args, leafName)
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: plugin command help \"<name>\"",
+			Error:  "usage: plugin command help name \"<name>\"",
 		}, errMissingCommandName
 	}
 
@@ -107,10 +116,11 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 
 // handlePluginCommandComplete returns completions for plugin commands.
 func handlePluginCommandComplete(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	args = ctx.ArgsOrSelector(args, leafPartial)
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: plugin command complete \"<partial>\"",
+			Error:  "usage: plugin command complete partial \"<partial>\"",
 		}, errMissingPartialInput
 	}
 

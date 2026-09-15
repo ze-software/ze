@@ -471,10 +471,11 @@ type completionFault struct {
 
 // handleSystemCommandHelp returns detailed help for a specific command.
 func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	args = ctx.ArgsOrSelector(args, leafName)
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: system command help \"<name>\"",
+			Error:  "usage: system command help name \"<name>\"",
 		}, errMissingCommandName
 	}
 
@@ -521,14 +522,16 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 // handleSystemCommandComplete returns completions for partial input.
 // Usage:
 //
-//	system command complete "<partial>"                   - command completion
+//	system command complete partial "<partial>"           - command completion
+//	system command complete "<partial>"                   - the same, positional
 //	system command complete args "<cmd>" "<partial>"      - arg completion
 //	system command complete args "<cmd>" <done...> "<partial>"
 func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	args = ctx.ArgsOrSelector(args, leafPartial)
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: system command complete \"<partial>\"",
+			Error:  "usage: system command complete partial \"<partial>\"",
 		}, errMissingPartialInput
 	}
 

@@ -29,7 +29,7 @@ const (
 // which the command path does not spell, so the value stays in args; the
 // selector is read anyway, because a dispatcher that started binding it would
 // otherwise leave every invocation answering with its usage line, which is what
-// it did to `update firewall irr asn` until argsOrSelector was added there.
+// it did to `update firewall irr asn` until CommandContext.ArgsOrSelector recovered it.
 const leafName = "name"
 
 func init() {
@@ -53,27 +53,13 @@ func init() {
 }
 
 func forwardShowDomainGroup(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowDomainGroup, argsOrSelector(ctx, args), ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdShowDomainGroup, ctx.ArgsOrSelector(args, leafName), ctx.PeerSelector())
 }
 
 func forwardUpdateDomainGroup(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateDomainGroup, argsOrSelector(ctx, args), ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdUpdateDomainGroup, ctx.ArgsOrSelector(args, leafName), ctx.PeerSelector())
 }
 
 func forwardClearDomainGroup(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearDomainGroup, argsOrSelector(ctx, args), ctx.PeerSelector())
-}
-
-// argsOrSelector returns the positional arguments a plugin command was given,
-// recovering the value from the bound selector when the dispatcher consumed it.
-// Without it the plugin receives no argument at all and answers with its usage
-// line.
-func argsOrSelector(ctx *pluginserver.CommandContext, args []string) []string {
-	if len(args) > 0 {
-		return args
-	}
-	if value := ctx.Selector(leafName); value != "" {
-		return []string{value}
-	}
-	return args
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdClearDomainGroup, ctx.ArgsOrSelector(args, leafName), ctx.PeerSelector())
 }

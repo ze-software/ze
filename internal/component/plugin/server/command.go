@@ -437,6 +437,31 @@ func (c *CommandContext) Selector(name string) string {
 	return c.Selectors[strings.ToLower(name)]
 }
 
+// ArgsOrSelector answers the positional arguments a handler reads for the
+// value its YANG leaf named leaf declares, whichever form the operator used.
+//
+// Three forms reach a handler. `<value>` alone is answered as it is. `<leaf>
+// <value>`, keyword before value (ai/rules/cli.md), is what the web admin form
+// posts (commandArguments, internal/component/web/handler_admin.go): the
+// dispatcher validates the pair (validateCommandArgs) and still hands both
+// tokens over, so the keyword is dropped here and the value leads. A value the
+// dispatcher bound as a typed selector, because the leaf shares its name with
+// a key token of the command (matchCommandTokens), reaches the handler as no
+// argument at all and is answered from Selectors. A handler that reads args[0]
+// therefore answers every form through this one line. Nil-safe.
+func (c *CommandContext) ArgsOrSelector(args []string, leaf string) []string {
+	if len(args) >= 2 && strings.EqualFold(args[0], leaf) {
+		return args[1:]
+	}
+	if len(args) > 0 {
+		return args
+	}
+	if value := c.Selector(leaf); value != "" {
+		return []string{value}
+	}
+	return args
+}
+
 // Command represents a registered command with metadata.
 //
 // A Command is 168 bytes, past the 160-byte rangeValCopy bound .golangci.yml

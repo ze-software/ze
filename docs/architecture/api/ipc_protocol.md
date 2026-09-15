@@ -716,8 +716,8 @@ Plugin lifecycle operations:
 |---------|-------------|
 | `plugin help` | List plugin subcommands |
 | `plugin command list` | List plugin commands |
-| `plugin command help "<cmd>"` | Command details |
-| `plugin command complete "<partial>"` | Completion |
+| `plugin command help name "<cmd>"` | Command details |
+| `plugin command complete partial "<partial>"` | Completion |
 | `plugin session ready` | Signal plugin init complete |
 | `plugin session ping` | Health check. The answer carries the daemon process id as `{"pid": N}` |
 | `plugin session bye` | Disconnect |
@@ -807,8 +807,8 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 |---------|-------------|
 | `system help` | List system subcommands |
 | `system command list` | List system commands |
-| `system command help "<cmd>"` | Command details |
-| `system command complete "<partial>"` | Completion |
+| `system command help name "<cmd>"` | Command details |
+| `system command complete partial "<partial>"` | Completion |
 | `system subsystem list` | List available subsystems |
 | `system version software` | Ze version |
 | `system version api` | IPC protocol version |

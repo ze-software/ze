@@ -1,5 +1,5 @@
 // Design: docs/architecture/firewall/firewall-irr.md -- the server-side forwarders
-// Related: cmd_irr.go -- argsOrSelector under test
+// Related: cmd_irr.go -- the forwarders that read CommandContext.ArgsOrSelector
 
 package irr
 
@@ -33,9 +33,9 @@ func TestArgsOrSelectorRecoversTheBoundValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
-			got := argsOrSelector(ctx, tt.args, tt.leaf)
+			got := ctx.ArgsOrSelector(tt.args, tt.leaf)
 			if len(got) != 1 || got[0] != tt.want {
-				t.Fatalf("argsOrSelector = %v, want [%s]", got, tt.want)
+				t.Fatalf("ArgsOrSelector = %v, want [%s]", got, tt.want)
 			}
 		})
 	}
@@ -45,7 +45,7 @@ func TestArgsOrSelectorRecoversTheBoundValue(t *testing.T) {
 // answers with its usage line instead of acting on a stale selector.
 func TestArgsOrSelectorKeepsAMissingValueMissing(t *testing.T) {
 	ctx := &pluginserver.CommandContext{}
-	if got := argsOrSelector(ctx, nil, leafASN); len(got) != 0 {
-		t.Fatalf("argsOrSelector = %v, want no arguments", got)
+	if got := ctx.ArgsOrSelector(nil, leafASN); len(got) != 0 {
+		t.Fatalf("ArgsOrSelector = %v, want no arguments", got)
 	}
 }

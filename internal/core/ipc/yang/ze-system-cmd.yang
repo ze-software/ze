@@ -107,6 +107,13 @@ explanation. Add the word verbose to put the source of each row beside it.";
 plugin registered also carries args and its timeout. An unknown name fails
 with 'unknown command: <name>'.";
                 ze:help "Show the detailed help for one command.";
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "The full command name, as command list prints it. A name in
+neither registry fails with unknown command.";
+                    ze:help "Command name";
+                }
             }
 
             container complete {
@@ -116,6 +123,13 @@ with 'unknown command: <name>'.";
 command name to complete an ARGUMENT of that command instead, in the form
 'system command complete args <cmd> [<completed>...] <partial>'.";
                 ze:help "List the completion candidates for a partial command.";
+                leaf partial {
+                    type string;
+                    mandatory true;
+                    description "The text typed so far. The candidates match it on a
+case-insensitive prefix, and a prefix that matches nothing answers an empty list.";
+                    ze:help "Partial command text";
+                }
             }
         }
     }

@@ -1,0 +1,35 @@
+# Test: the admin form for `system command help` renders its name input and
+# posts the typed command name through the daemon
+# VALIDATES: the `help` container of ze-system-cmd.yang
+# (internal/core/ipc/yang/ze-system-cmd.yang) declares the `name` leaf under
+# its ze:command container, which is the one declaration extractArgDefs
+# (internal/component/config/yang/command.go) reads into the node's ArgDefs,
+# so the page renders one input carrying the leaf's two texts, and the value
+# typed into it reaches the command the web server dispatches: the result
+# card's title is `system command help name list`, keyword before value, and
+# its body is the dispatcher's answer. The value is one word because a `.wb`
+# text needle carries no quotes, and a value holding a space is quoted in the
+# title (writeArgumentValue, internal/component/web/handler_admin.go).
+# PREVENTS: the leaf living on the rpc input of ze-system-api.yang alone, which
+# the command tree never reads, so the page renders NO input and Execute posts
+# the bare `system command help`, which the daemon refuses with its usage line
+# (plan/journal/command-takes-an-untyped-positional-value.md, 2026-09-15).
+# The web suite starts `ze start --web-only`, whose dispatcher
+# (webOnlyDispatcher, cmd/ze/hub/service_web.go) answers every operational
+# command with the standalone-mode message, so the answer the card carries is
+# that message: it proves the POST reached the dispatcher and the title proves
+# what the dispatcher was handed. The daemon's own answer to both forms is
+# TestCommandHelpAnswersTheKeywordForm
+# (internal/component/plugin/server/command_help_argument_test.go).
+
+option=timeout:value=30s
+
+action=open:path=/admin/system/command/help
+expect=element:text=system command help
+expect=element:text=Command name
+expect=element:text=as command list prints it
+action=fill:id=param-name:value=list
+action=click:text=Execute
+expect=element:text=system command help name list
+expect=element:text=running in standalone mode
+expect=element:not-text=panic

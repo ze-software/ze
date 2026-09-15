@@ -44,6 +44,13 @@ else. Use plugin command help for the explanation, the argument form and the sou
 command is reported as unknown. The answer carries the summary, the long explanation, the
 argument form and the plugin that registered it.";
                 ze:help "Show one plugin command's summary, explanation, arguments, and source plugin.";
+                leaf name {
+                    type string;
+                    mandatory true;
+                    description "The full command name, as plugin command list prints it. A name
+no plugin registered fails with unknown plugin command.";
+                    ze:help "Plugin command name";
+                }
             }
 
             container complete {
@@ -52,6 +59,13 @@ argument form and the plugin that registered it.";
                 description "The candidates come from the plugin registry only, and a command
 marked hidden is left out. A built-in command is never offered here.";
                 ze:help "List the completion candidates for a partial plugin command.";
+                leaf partial {
+                    type string;
+                    mandatory true;
+                    description "The text typed so far. The candidates match it on a
+case-insensitive prefix over the plugin command names.";
+                    ze:help "Partial command text";
+                }
             }
         }
 
