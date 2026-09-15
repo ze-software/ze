@@ -1,0 +1,72 @@
+# Test: the FlowSpec family name an operator types reaches the RIB.
+# Spec: spec-the-fix-pass-for-restated-registries (AC-2).
+#
+# VALIDATES: `request bgp rib purge-stale <peer> ipv4/flow` is accepted, and the
+#            spelling no family carries, `ipv4/flowspec`, is refused with the
+#            family named. parseFamily (internal/component/bgp/plugins/rib/
+#            rib_nlri.go) answers from family.LookupFamily, so the RIB and the
+#            family registry hold one spelling.
+# PREVENTS:  the RIB drifting back to its own family table. Until 2026-09-14 a
+#            hand-written AFI/SAFI switch spelled the SAFI "flowspec" where the
+#            registrar (internal/component/bgp/plugins/nlri/flowspec/types.go)
+#            composes "flow", so the name an operator typed was refused and a
+#            name no family carries was accepted. The two commands below invert
+#            under that switch, so restoring it turns both assertions red.
+#
+# The peer never connects (accept false), so purge-stale finds no peer RIB and
+# answers purged 0. That is the point: the family word is resolved BEFORE the
+# lookup, so the answer discriminates the spelling and nothing else.
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/flow { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		attach process bgp-rib {
+			receive [ update state refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
+
+command=request bgp rib purge-stale 127.0.0.1 ipv4/flow
+expect=output:json=purged=0:timeout=10
+command=request bgp rib purge-stale 127.0.0.1 ipv4/flowspec
+expect=command-error:contains=unknown family "ipv4/flowspec"
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

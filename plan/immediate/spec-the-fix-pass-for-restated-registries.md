@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-14 |
+| Updated | 2026-09-15 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -323,7 +323,6 @@ types matched to the log backend leaf (`test/runner/record_parse_vocabulary.go`)
 |------|------|
 | Where the standard family registrations live, so the 7 family rows can derive and `kernelcap.labeledFamilies` stops being a fail-open guard | `plan/spec-standard-families-register-outside-the-bgp-tag.md` (skeleton) |
 | The 121 feature-owned `doctor-*` codes still declared in `internal/core/diagnostic/codes.go`; moving them breaks `ze explain` on a build without the feature's tag | `plan/spec-doctor-codes-move-to-their-owners.md` (skeleton) |
-| The gate learning to see an agreement test (Open decision, reading A) | this spec: the owner chose reading A on 2026-09-14, and the `enumeration: gated by TestX` marker is its implementation |
 
 ## Checklist
 
@@ -365,3 +364,147 @@ types matched to the log backend leaf (`test/runner/record_parse_vocabulary.go`)
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- The report fell from 230 rows to 25 findings plus 64 gated rows (`bin/le-close/le enumeration report`, 2026-09-15: YANG enumerations 8 findings and 64 gated, family names 7, plugin names 10). Every one of the 25 is named in Known Limitations.
+- Every doctor check registers from its owner (`130c8c54d7`): `runDoctorChecks` (`internal/component/doctor/registry.go`) iterates `diagnostic.DoctorChecksForPhase`, and `RegisterDoctorCheck` (`internal/core/diagnostic/doctor_registry.go`) refuses a duplicate name.
+- The RIB's family switch is deleted: `parseFamily` (`internal/component/bgp/plugins/rib/rib_nlri.go`) delegates to `family.LookupFamily` (AC-2).
+- `IsReadOnlyVerb` (`internal/component/command/verbs.go`) answers `Verbs[tok] == RoleRead`; the `readOnlyVerbs` map is deleted (AC-3). Its one product caller is `internal/component/plugin/server/command.go`.
+- 64 YANG rows whose Go table is the declaration carry an agreement test and the `enumeration: gated by TestX` marker (reading A, `fd28b8dc61`, `3df03d9ca9`). `readGatedMarker` (`internal/le/enumeration/enumeration.go`) refuses a marker naming a test its package does not declare; `findings` keeps a gated registry copy a finding; `deadMarkers` reports a marker that suppresses nothing.
+- The three drifts found on the way are fixed and listed under "Drift found and corrected" above; `354412bcc7` adds the refusal of a capability mode word the vocabulary does not name (`parseCapMode`, `internal/component/bgp/reactor/config_capabilities.go`).
+
+### Bugs Found/Fixed
+- `asn4` declared boolean while read as four modes, and every boolean leaf accepted `require`: `a730d00401`, `test/parse/asn4-refuses-boolean-spelling.ci`.
+- XFRM mapper defaulted an unknown algorithm to AES-CBC/HMAC-SHA256: `c23250a974`, `TestXfrmCipherVocabularyMatchesModel` and siblings in `internal/component/ike/dataplane/xfrm_vocabulary_test.go`.
+- PKI doctor findings printed twice: `130c8c54d7`, `TestRunChecksCallsNoDoctorOwnedCheckTwice` (`internal/component/doctor/doctor_checks_test.go`).
+- `config.Schema` handed the web form goyang's alphabetical enum order; the MCP form panicked on a nil schema: `c23250a974`.
+- `parseCapMode` answered `enable` for a word it did not know: `354412bcc7`, `internal/component/bgp/reactor/config_capmode_test.go`.
+
+### Documentation Updates
+- `ai/patterns/registration.md` (doctor check registry, `130c8c54d7`), `docs/guide/health-checks.md` (`130c8c54d7`), `docs/architecture/config/syntax.md`, `docs/guide/configuration.md`, `docs/config-reference.md`, `docs/features/configuration.md` (`capability-mode`, `a730d00401`, `354412bcc7`), `ai/INDEX.md` (the gated marker keywords, `fd28b8dc61`).
+- The gate's own report trailer (`Findings.Text`, `internal/le/enumeration/report.go`) carries the marker rule; no docs page copies it (`ai/rules/principles.md`, a rule does not copy what a command prints).
+
+### Deviations from Plan
+- Reading A of the Open decision was implemented inside this spec after the owner chose it (2026-09-14), so the third Work Not Done row of the body is done and was removed at closure.
+- Closure added `test/plugin/rib-flowspec-family-name.ci`: the TDD plan's Functional Tests row had no `.ci` driving the RIB with the FlowSpec name, and the review gate found the gap (Findings fixed, #1).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1 assumed every row has a registry call that can replace it | 7 family rows need a registry that only registers under `ze_bgp`; `kernelcap.labeledFamilies` would become a fail-open guard | deriving in `kernelcap` rendered `afi-1/safi-128` | `plan/spec-standard-families-register-outside-the-bgp-tag.md` |
+| approach | the implementation phase left the RIB FlowSpec `.ci` unwritten and the row unstatused | the entry point (`request bgp rib purge-stale <peer> ipv4/flow`) had only a unit test at the producer | closure review step 3 (functional coverage) | `test/plugin/rib-flowspec-family-name.ci`, RED observed with `parseFamily` refusing `ipv4/flow` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| End the 230 rows, deriving each from its registry | Done | `bin/le-close/le enumeration report`: 25 findings + 64 gated | the 25 are named in Known Limitations with a disposition each |
+| FlowSpec spelling: RIB and registry agree | Done | `internal/component/bgp/plugins/rib/rib_nlri.go:parseFamily` | `TestParseFamilyFlowSpecSpelling`, `test/plugin/rib-flowspec-family-name.ci` |
+| `readOnlyVerbs` classifies `resolve` as the registry does | Done | `internal/component/command/verbs.go:IsReadOnlyVerb` | `TestIsReadOnlyVerbTracksTheRegistry` |
+| No row silenced by a marker instead of fixed | Done | the six fix-pass commits add zero `enumeration: exempt` lines | the `gated by` marker is honoured only where a named test proves the agreement |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | the 25 report rows checked one by one against Known Limitations (2026-09-15) | 7 family, 10 plugin-name, 8 another-namespace YANG rows |
+| AC-2 | Done | `TestParseFamilyFlowSpecSpelling` (`internal/component/bgp/plugins/rib/rib_parsefamily_test.go`) reads `flowspec.IPv4FlowSpec.String()` and `parseFamily` | `.ci` at the entry point added at closure |
+| AC-3 | Done | `TestIsReadOnlyVerbTracksTheRegistry` (`internal/component/command/verbs_test.go`) | `resolve` carries `RoleRead` in `Verbs` |
+| AC-4 | Done | `git show <c> \| grep -c '^+.*enumeration: exempt'` is 0 for `130c8c54d7 c23250a974 a730d00401 fd28b8dc61 3df03d9ca9 354412bcc7` | the 30 markers in `b4fe90b943` belong to the closed gate spec's policy lists |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| per-row test at each fixed call site | Done | `Test*MatchTheYANGModel`, `*_vocabulary_test.go`, `Test*MatchTheModel` per the Known Limitations table; `doctor_test.go` per owner | `go test` over enumeration, command, rib, doctor, ike/dataplane, bgp/config: ok (2026-09-15) |
+| the FlowSpec family name an operator types | Done | `test/plugin/rib-flowspec-family-name.ci` | PASS 2.8s; RED observed with `parseFamily` refusing `ipv4/flow` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| one file per report row | Done | the report's list, across `130c8c54d7`, `c23250a974`, `a730d00401`, `fd28b8dc61`, `3df03d9ca9` and the wave-1 commits ending `9e3298e3d6` |
+| a row needing a registry becomes its own spec | Done | `plan/spec-standard-families-register-outside-the-bgp-tag.md`, `plan/spec-doctor-codes-move-to-their-owners.md` |
+
+### Audit Summary
+- **Total items:** 12
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (reading A implemented here; recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The rows the report names are ended, not silenced | tooling gate | `bin/le-close/le enumeration report`: 25 findings, 64 gated, zero `exempt` markers added by the fix-pass commits |
+| The FlowSpec SAFI spelling answers from one registry | functional test | `test/plugin/rib-flowspec-family-name.ci`: `purge-stale 127.0.0.1 ipv4/flow` answers `purged 0`, `ipv4/flowspec` is refused with `unknown family "ipv4/flowspec"`; RED under a `parseFamily` that refuses `ipv4/flow` |
+| `resolve` is classified as the registry classifies it | unit test at the producer | `TestIsReadOnlyVerbTracksTheRegistry` walks `Verbs` and compares `IsReadOnlyVerb` |
+| A drift between a YANG enumeration and its Go table cannot return | agreement tests | 64 `gated by` rows each name a test that loads the module and compares both ways; `readGatedMarker` refuses a marker naming a test the package does not declare (`TestGatedMarkerNamingAMissingTestIsAFinding`) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The 7 family-name rows (`chaos/peer`, `chaos/scenario`, `kernelcap`, `test/fixture`, `test/runner`) | only four families register outside the `ze_bgp` tag, and `kernelcap.labeledFamilies` is a fail-open guard until they do | `plan/spec-standard-families-register-outside-the-bgp-tag.md` |
+| The 121 feature-owned `doctor-*` codes in `internal/core/diagnostic/codes.go` | moving them breaks `ze explain` on a build without the feature's tag | `plan/spec-doctor-codes-move-to-their-owners.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/the-fix-pass-for-restated-registries-6f9665d6-e580-425f-aed1-7d814d81d774.md` (12 files, verdict=clean) |
+| `review check` | clean: `review_gate: OK (1 code files, clean, hashes match)` |
+| Rounds | 2 (round 1 over the committed diff found the missing `.ci`; round 2 over the `.ci` and the closure edits found nothing) |
+| Reviewer lenses used | wiring + functional coverage, fail-closed guards (`parseCapMode`, `xfrmEncName`, `readGatedMarker`, `IsReadOnlyVerb`), removed-behavior (`readOnlyVerbs`, the RIB switch, five emptied doctor test files), style pass over the changed Go (no peer-reachable `panic`: the two `BUG:` panics in `doctor/registry.go` and `doctor_checks.go` fire at init or on a runner defect) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | the FlowSpec spelling fix had no functional test at a RIB entry point; the encode `.ci` files reach the update text parser, not `parseFamily` | `internal/component/bgp/plugins/rib/rib_nlri.go:parseFamily` | `test/plugin/rib-flowspec-family-name.ci`, PASS then RED with the producer broken |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/rib-flowspec-family-name.ci` | yes | `ls test/plugin/rib-flowspec-family-name.ci` |
+| `test/parse/asn4-refuses-boolean-spelling.ci` | yes | `ls test/parse/asn4-refuses-boolean-spelling.ci` |
+| `plan/spec-standard-families-register-outside-the-bgp-tag.md` | yes | `git grep -c spec-the-fix-pass-for-restated-registries plan/spec-standard-families-register-outside-the-bgp-tag.md` = 2 |
+| `plan/spec-doctor-codes-move-to-their-owners.md` | yes | same grep, 2 hits |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | every remaining row is named in Known Limitations | report rows 2026-09-15: `chaos/peer` x2, `chaos/scenario`, `kernelcap`, `test/fixture`, `test/runner` x2 (7); `config/graph.go:sectionBGP`, `validate_sections.go` x2, `firewall/legacy_tables.go`, `firewall/protocol.go`, `support/modules.go`, `le/site/plugins.go`, `le/yang/glue/yangglue.go`, `le/yang/migration/commands.go` x2 (10); `ike/crypto/transform.go`, `config/graph.go:ifaceListKinds`, `iface/ra/doctor.go`, `flowexport/register.go`, `le/qemu/guest_linux.go`, `core/events/events.go`, `pkg/plugin/rpc/enums.go`, `test/runner/record_parse_vocabulary.go` (8) |
+| AC-2 | one spelling | `go test ./internal/component/bgp/plugins/rib/` ok; `.ci` 656 PASS 2.8s |
+| AC-3 | derived from `command.Verbs` | `go test ./internal/component/command/` ok; `grep -n 'Verbs\[tok\] == RoleRead' internal/component/command/verbs.go` |
+| AC-4 | no exemption marker added | zero `+ enumeration: exempt` lines in the six fix-pass commits |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le enumeration report` | n/a (tooling): `bin/le-close/le enumeration report` exit 0, 25 findings | yes |
+| `request bgp rib purge-stale <peer> ipv4/flow` | `test/plugin/rib-flowspec-family-name.ci` | yes, read and run |
+| `ze config validate` with `asn4 true` | `test/parse/asn4-refuses-boolean-spelling.ci` | yes, read |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken | 7 family rows need a registry that registers outside `ze_bgp`; homed in `plan/spec-standard-families-register-outside-the-bgp-tag.md` |
+| A-2 | broken | three drifts changed what the surface answers (`asn4`, XFRM default, PKI double print); each is R-1's case and the corrected answer carries its test |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #12 internal architecture: doctor checks register from their owner | `ai/patterns/registration.md` and `docs/guide/health-checks.md` edited in `130c8c54d7`; producer `runDoctorChecks` | yes |
+| #2 config syntax: `capability-mode` typedef | `docs/architecture/config/syntax.md`, `docs/guide/configuration.md` edited in `a730d00401`/`354412bcc7`; producer `parseCapMode` | yes |
+| #10 test infrastructure: the `gated by` marker | `ai/INDEX.md` keyword row (`fd28b8dc61`); the rule is printed by `Findings.Text` | yes |
+| #1, #3-#9, #11, #13-#17: No | `git grep -l 'enumeration: gated' docs/` is empty and no command, RPC, wire format or RFC row changed | yes |
+
+## Core Insight
+
+The closed corpus cannot tell which side of a "must agree" row declares. This pass judged 72 rows and found the Go side is the declaration in 64: it carries the wire value, the IANA number, the kernel name or the handler, and the YANG enumeration is the copy. The repair for that shape is an agreement test in the owner, not a derivation, and the gate learns to see the test through a marker that is red where it names nothing.

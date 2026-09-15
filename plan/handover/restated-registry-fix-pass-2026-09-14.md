@@ -4,7 +4,7 @@ Written 2026-09-14 when the session stopped at the weekly usage cap. Development
 is moving to a Linux machine, so this lives in the repo rather than under tmp/,
 which is gitignored and never left the Mac it was written on.
 
-Spec: `plan/immediate/spec-the-fix-pass-for-restated-registries.md`.
+Spec: `spec-the-fix-pass-for-restated-registries`.
 
 **Superseded on 2026-09-14 evening (Linux session).** Everything below the next
 section is history: the Mac tree was landed by `9e3298e3d6` ("sync to move
@@ -500,7 +500,7 @@ It cascades through the composition root, so it reddens any typecheck of
 ### How to restart
 ```
 ./le --update                      # ALWAYS FIRST: le does not rebuild itself
-./le spec session claim spec plan/immediate/spec-the-fix-pass-for-restated-registries.md
+./le spec session claim spec spec-the-fix-pass-for-restated-registries
 ./le enumeration report            # the work list, derived, never hand-copied
 ./le enumeration check             # blocks on the change set only
 ```
@@ -547,7 +547,7 @@ Template for outcome 2, already in the tree and closing the vacuity trap:
 - plan/journal/gate-excludes-part-of-its-population.md -- the gate's owner-package blind spot
 
 ### Spec hygiene owed before closure
-- plan/immediate/spec-the-fix-pass-for-restated-registries.md is in-progress, ACs AC-1..AC-4 unchanged.
+- spec-the-fix-pass-for-restated-registries is in-progress, ACs AC-1..AC-4 unchanged.
 - AC-1 says every REMAINING row is a set no registry holds, named in the spec. The 17 wave-1 survivors are NOT yet written into Known Limitations. Do that before any closure claim.
 - Work Not Done owes a named spec path for: where standard family registrations live (the kernelcap fail-open guard), and the 121 feature-owned doctor-* codes in the bottom tier.
 
@@ -561,7 +561,7 @@ Template for outcome 2, already in the tree and closing the vacuity trap:
 ### Step 0. Orient
 ```
 ./le --update                       # ALWAYS first; le does not rebuild itself
-./le spec session claim spec plan/immediate/spec-the-fix-pass-for-restated-registries.md
+./le spec session claim spec spec-the-fix-pass-for-restated-registries
 git status --short | wc -l          # derive the file list; never trust a written one
 ./le enumeration report             # the work list
 ```

@@ -22,7 +22,7 @@
      changes; the doctor registry and the code table are what it reads.
      Bucket: plan/ (the release goes out without it, plan/README.md). Named in
      the Work Not Done table of
-     plan/immediate/spec-the-fix-pass-for-restated-registries.md. -->
+     spec-the-fix-pass-for-restated-registries. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -61,7 +61,7 @@ The decision this spec makes, one of two:
   → Constraint: no `doctor-*` code is declared in two places (`ai/rules/principles.md`, declare once)
 - [ ] `internal/core/diagnostic/doctor_registry.go` - `diagnostic.RegisterDoctorCheck`, the doctor registry contract; a registered check's codes must resolve through `diagnostic.Lookup`
   → Decision: under reading B, this contract is the check that every emitted code has a declaration
-- [ ] `plan/immediate/spec-the-fix-pass-for-restated-registries.md` - Work Not Done, the 121 feature-owned codes; the vocabulary of this spec
+- [ ] `spec-the-fix-pass-for-restated-registries` - Work Not Done, the 121 feature-owned codes; the vocabulary of this spec
   → Constraint: moving an entry into its emitter breaks `ze explain <code>` on a build without that feature's tag
 
 ### RFC Summaries (Scope: protocol)

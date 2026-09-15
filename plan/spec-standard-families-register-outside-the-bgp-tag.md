@@ -22,7 +22,7 @@
      the subject; the kernelcap, chaos, fixture and runner rows follow from it.
      Bucket: plan/ (the release goes out without it, plan/README.md). Named in
      the Work Not Done table of
-     plan/immediate/spec-the-fix-pass-for-restated-registries.md. -->
+     spec-the-fix-pass-for-restated-registries. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -90,7 +90,7 @@ follow whatever the kernelcap answer is.
 - [ ] `internal/test/fixture/plugin_fixture_06.go` - `fixture06Registration`, one of the seven rows (tooling)
 - [ ] `internal/test/runner/json.go` - `isSupportedFamily`, one of the seven rows (tooling)
 - [ ] `internal/test/runner/runner_validate.go` - `nlriFamilyKeys`, one of the seven rows (tooling)
-- [ ] `plan/immediate/spec-the-fix-pass-for-restated-registries.md` - Known Limitations, "Family names, 7 rows"; the vocabulary of this spec
+- [ ] `spec-the-fix-pass-for-restated-registries` - Known Limitations, "Family names, 7 rows"; the vocabulary of this spec
   → Decision: the tooling rows follow the kernelcap answer
 
 ### RFC Summaries (Scope: protocol)
