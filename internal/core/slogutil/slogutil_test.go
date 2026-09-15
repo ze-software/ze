@@ -385,29 +385,31 @@ func TestLoggerWithOutputSubsystem(t *testing.T) {
 
 // TestAllLevelsParsing verifies all valid level strings parse correctly.
 //
-// VALIDATES: All documented level strings work.
-// PREVENTS: Undocumented level behavior.
+// VALIDATES: All documented level strings work. "disabled" is a level of its
+// own, disabledLevel with ok true, and only a word that names no level answers
+// ok false.
+// PREVENTS: Undocumented level behavior, and "disabled" read as a typo.
 func TestAllLevelsParsing(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    slog.Level
-		enabled bool
+		input string
+		want  slog.Level
+		ok    bool
 	}{
-		{"disabled", slog.LevelInfo, false},
+		{"disabled", disabledLevel, true},
 		{"debug", slog.LevelDebug, true},
 		{"info", slog.LevelInfo, true},
 		{"warn", slog.LevelWarn, true},
 		{"warning", slog.LevelWarn, true},
 		{"err", slog.LevelError, true},
 		{"error", slog.LevelError, true},
-		{"unknown", slog.LevelInfo, false},
-		{"", slog.LevelInfo, false},
+		{"unknown", disabledLevel, false},
+		{"", disabledLevel, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			level, enabled := parseLevel(tt.input)
+			level, ok := parseLevel(tt.input)
 			assert.Equal(t, tt.want, level)
-			assert.Equal(t, tt.enabled, enabled)
+			assert.Equal(t, tt.ok, ok)
 		})
 	}
 }
@@ -1095,20 +1097,71 @@ func TestSetLevelInvalidLevel(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid level")
 }
 
-// TestDisabledLoggerNotRegistered verifies disabled loggers are not in the registry.
+// TestDisabledLoggerRegisteredAndEnabledLater verifies that a logger created
+// from `ze.log.<subsystem>=disabled` is registered at the disabled level.
 //
-// VALIDATES: Disabled loggers (discardHandler) are NOT registered.
-// PREVENTS: Users seeing disabled subsystems they can't change.
-func TestDisabledLoggerNotRegistered(t *testing.T) {
+// VALIDATES: ListLevels reports the subsystem as "disabled", the logger writes
+// nothing, and SetLevel enables it later.
+// PREVENTS: A startup-disabled subsystem that no runtime command can reach, and
+// a second silencing mechanism beside the level variable.
+func TestDisabledLoggerRegisteredAndEnabledLater(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
 	resetEnvCache(t)
 
 	t.Setenv("ze.log.disabledregtest", "disabled")
-	_ = Logger("disabledregtest")
+	logger := Logger("disabledregtest")
 
 	levels := ListLevels()
-	assert.NotContains(t, levels, "disabledregtest")
+	if levels["disabledregtest"] != levelDisabled {
+		t.Fatalf("ListLevels()[disabledregtest] = %q, want %q", levels["disabledregtest"], levelDisabled)
+	}
+	if logger.Enabled(context.Background(), slog.LevelError) {
+		t.Fatal("a disabled logger enabled an ERROR record")
+	}
+
+	if err := SetLevel("disabledregtest", "info"); err != nil {
+		t.Fatalf("SetLevel(info) on a startup-disabled logger: %v", err)
+	}
+	if !logger.Enabled(context.Background(), slog.LevelInfo) {
+		t.Fatal("SetLevel(info) left the logger silent")
+	}
+}
+
+// TestSetLevelDisabledSilences verifies `request log level <subsystem> disabled`
+// at the producer: SetLevel accepts "disabled", the logger then enables no
+// record, ListLevels reports "disabled", and a later level enables it again.
+//
+// VALIDATES: SetLevel("disabled") silences a subsystem through the level
+// variable, the same mechanism the env var path uses.
+// PREVENTS: The runtime command refusing a value its enumeration offers.
+func TestSetLevelDisabledSilences(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+	resetEnvCache(t)
+
+	t.Setenv("ze.log.silencetest", "info")
+	logger := Logger("silencetest")
+	if !logger.Enabled(context.Background(), slog.LevelInfo) {
+		t.Fatal("precondition: the logger starts at info")
+	}
+
+	if err := SetLevel("silencetest", "disabled"); err != nil {
+		t.Fatalf("SetLevel(disabled): %v", err)
+	}
+	if logger.Enabled(context.Background(), slog.LevelError) {
+		t.Fatal("SetLevel(disabled) left an ERROR record enabled")
+	}
+	if got := ListLevels()["silencetest"]; got != levelDisabled {
+		t.Fatalf("ListLevels()[silencetest] = %q after SetLevel(disabled), want %q", got, levelDisabled)
+	}
+
+	if err := SetLevel("silencetest", "warn"); err != nil {
+		t.Fatalf("SetLevel(warn) after disabled: %v", err)
+	}
+	if !logger.Enabled(context.Background(), slog.LevelWarn) {
+		t.Fatal("SetLevel(warn) after disabled left the logger silent")
+	}
 }
 
 // TestDefaultLoggerRegistered verifies Logger() with no env var registers at WARN.

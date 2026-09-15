@@ -32,6 +32,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"math"
 	"os"
 	"slices"
 	"strings"
@@ -143,11 +144,19 @@ const (
 	backendKmsg   = "kmsg"
 )
 
-// validLevelNames lists accepted level strings for parseLevel (excluding "disabled").
-var validLevelNames = []string{levelDebug, levelInfo, levelWarn, "warning", "err", levelError}
+// validLevelNames lists the words parseLevel accepts.
+var validLevelNames = []string{levelDisabled, levelDebug, levelInfo, levelWarn, "warning", "err", levelError}
+
+// disabledLevel sits above every slog level, so a LevelVar holding it enables
+// no record. It is the one mechanism that silences a subsystem:
+// `ze.log.<subsystem>=disabled` at startup and `request log level <subsystem>
+// disabled` at runtime both store it, and levelString reports it as "disabled".
+const disabledLevel = slog.Level(math.MaxInt32)
 
 // levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
-// Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
+// Every logger Logger() or LazyLogger() creates from a level word is registered,
+// a disabled one included, so a later SetLevel can enable it. A logger created
+// from a word that names no level is not registered.
 var levelRegistry sync.Map // map[string]*slog.LevelVar
 
 // filterRegistry tracks subsystem names to their *filterHandler for runtime filter changes.
@@ -189,23 +198,19 @@ func getSpecialEnv(key string) string {
 // Each subsystem gets its own logger instance to allow independent enable/disable.
 // Uses hierarchical env var lookup: ze.log.<subsystem> → ze.log.<parent> → ze.log
 // Default: WARN level (shows warnings and errors). Use ze.log=disabled to silence.
-// Enabled loggers are registered in the level registry for runtime level changes.
+// A logger created from a level word, disabled included, is registered in the
+// level registry, so SetLevel can change it and ListLevels reports it. A word
+// that names no level gets a discard logger and no registration.
 func Logger(subsystem string) *slog.Logger {
 	registerSubsystem(subsystem)
-	v := getLogEnv(subsystem)
-	if v == "" {
-		// Default to WARN level - show warnings and errors
-		lv := &slog.LevelVar{}
-		lv.Set(slog.LevelWarn)
-		levelRegistry.Store(subsystem, lv)
-		handler := createHandler(lv)
-		fh := newFilterHandler(handler)
-		filterRegistry.Store(subsystem, fh)
-		return slog.New(fh).With("subsystem", subsystem)
-	}
-	lvl, enabled := parseLevel(v)
-	if !enabled {
-		return slog.New(discardHandler{})
+	// Default to WARN level - show warnings and errors
+	lvl := slog.LevelWarn
+	if v := getLogEnv(subsystem); v != "" {
+		parsed, ok := parseLevel(v)
+		if !ok {
+			return slog.New(discardHandler{})
+		}
+		lvl = parsed
 	}
 	lv := &slog.LevelVar{}
 	lv.Set(lvl)
@@ -223,8 +228,8 @@ func Logger(subsystem string) *slog.Logger {
 func PluginLogger(subsystem, cliLevel string) *slog.Logger {
 	// CLI flag takes precedence if it's a valid, enabled level
 	if cliLevel != "" && cliLevel != levelDisabled {
-		lvl, enabled := parseLevel(cliLevel)
-		if enabled {
+		lvl, ok := parseLevel(cliLevel)
+		if ok {
 			handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
 			return slog.New(handler).With("subsystem", subsystem)
 		}
@@ -237,8 +242,8 @@ func PluginLogger(subsystem, cliLevel string) *slog.Logger {
 		handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn})
 		return slog.New(handler).With("subsystem", subsystem)
 	}
-	lvl, enabled := parseLevel(v)
-	if !enabled {
+	lvl, ok := parseLevel(v)
+	if !ok {
 		return slog.New(discardHandler{})
 	}
 	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
@@ -248,8 +253,8 @@ func PluginLogger(subsystem, cliLevel string) *slog.Logger {
 // LoggerWithOutput returns a logger that writes to a specific output.
 // Used for testing and custom output destinations.
 func LoggerWithOutput(subsystem, level string, w io.Writer) *slog.Logger {
-	lvl, enabled := parseLevel(level)
-	if !enabled {
+	lvl, ok := parseLevel(level)
+	if !ok {
 		return slog.New(discardHandler{})
 	}
 	handler := slog.NewTextHandler(w, &slog.HandlerOptions{Level: lvl})
@@ -265,7 +270,8 @@ func RelayLevel() (slog.Level, bool) {
 		// Default to WARN level - show warnings and errors from plugins
 		return slog.LevelWarn, true
 	}
-	return parseLevel(v)
+	lvl, ok := parseLevel(v)
+	return lvl, ok && lvl != disabledLevel
 }
 
 // createHandler creates a slog.Handler based on ze.log.backend setting.
@@ -378,13 +384,15 @@ func writeWarn(w io.Writer, format string, args ...any) {
 	fmt.Fprintf(w, format, args...) //nolint:errcheck // pre-logger warning output
 }
 
-// parseLevel parses a log level string.
-// Returns (level, enabled). enabled=false means logging should be disabled.
-// Level strings are case-insensitive: disabled, debug, info, warn/warning, err/error.
+// parseLevel parses a log level word.
+// Returns (level, ok). ok is false for a word that names no level, and the
+// level it answers then is disabledLevel, so a caller that ignores ok logs
+// nothing. "disabled" is a level: it parses to disabledLevel with ok true.
+// Words are case-insensitive: disabled, debug, info, warn/warning, err/error.
 func parseLevel(s string) (slog.Level, bool) {
 	switch strings.ToLower(s) {
 	case levelDisabled:
-		return slog.LevelInfo, false
+		return disabledLevel, true
 	case levelDebug:
 		return slog.LevelDebug, true
 	case levelInfo:
@@ -394,7 +402,7 @@ func parseLevel(s string) (slog.Level, bool) {
 	case "err", levelError:
 		return slog.LevelError, true
 	default:
-		return slog.LevelInfo, false // unknown = disabled
+		return disabledLevel, false
 	}
 }
 
@@ -490,7 +498,7 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 		// Validate log level values
 		if isLevel {
 			_, valid := parseLevel(value)
-			if !valid && !strings.EqualFold(value, levelDisabled) {
+			if !valid {
 				_, _ = fmt.Fprintf(warnWriter, "warning: invalid log level %q for %s (must be disabled/debug/info/warn/err)\n", value, key) //nolint:errcheck // output
 				continue
 			}
@@ -523,17 +531,18 @@ func ListLevels() map[string]string {
 	return result
 }
 
-// ValidateLevel returns true if the level string is a valid log level.
+// ValidateLevel returns true if the level word names a level, "disabled" included.
 func ValidateLevel(level string) bool {
-	_, enabled := parseLevel(level)
-	return enabled
+	_, ok := parseLevel(level)
+	return ok
 }
 
-// SetLevel changes the log level for a subsystem at runtime.
-// Returns an error if the subsystem is unknown or the level string is invalid.
+// SetLevel changes the log level for a subsystem at runtime. "disabled"
+// silences the subsystem until a later call sets a level again.
+// Returns an error if the subsystem is unknown or the level word names no level.
 func SetLevel(subsystem, level string) error {
-	lvl, enabled := parseLevel(level)
-	if !enabled {
+	lvl, ok := parseLevel(level)
+	if !ok {
 		return fmt.Errorf("invalid level %q (valid: %s)", level, textbuf.Join(validLevelNames, ", "))
 	}
 
@@ -553,6 +562,8 @@ func SetLevel(subsystem, level string) error {
 // levelString converts a slog.Level to a human-readable string.
 func levelString(level slog.Level) string {
 	switch level {
+	case disabledLevel:
+		return levelDisabled
 	case slog.LevelDebug:
 		return levelDebug
 	case slog.LevelInfo:

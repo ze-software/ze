@@ -102,7 +102,7 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 		level := args[1]
 		if !slogutil.ValidateLevel(level) {
 			var tb textbuf.Buffer
-			stderrLine(tb.Str("error: invalid level ").Quoted(level).Str(" (valid: debug, info, warn, error)").String())
+			stderrLine(tb.Str("error: invalid level ").Quoted(level).Str(" (valid: disabled, debug, info, warn, error)").String())
 			return 1
 		}
 		p.SetLevel(module, level)
