@@ -416,7 +416,21 @@ A command that a plugin registers with `Hidden` never becomes a tool.
 `buildCommandMeta` skips it, so the tool list and the completion tree hide the
 same commands.
 
-<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
+A tool call becomes one text command (`dispatchGenerated`). The reserved
+`peer` argument goes after the command's own `peer` keyword
+(`spliceSelector`). Every typed parameter goes where the dispatcher binds it,
+and `command.WriteInvocation` is the one declaration of that placement, shared
+with the web admin form (`docs/architecture/web-interface.md`): a value whose
+`ParamInfo.Anchor` names a path keyword goes bare after that keyword, which is
+where `anchoredDef` binds the peer selector of `peer <selector> announce
+unicast`; every other value follows the command as `name value`, in
+declaration order. The anchor is the registered command's `ArgDef.Anchor`,
+which `buildCommandMeta` copies onto the parameter of the same name
+(`anchoredParams`). A call that carries both `peer` and a parameter anchored
+to `peer` names one slot twice and is refused by name.
+
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip, anchoredParams -->
+<!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 
 ## The Tasks Extension
 

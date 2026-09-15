@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/command"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -60,6 +61,10 @@ type commandParam struct {
 	ShortHelp   string // the ze:help summary
 	Description string // the YANG description explanation
 	Required    bool
+	// Anchor is the path keyword the value follows, read from the registered
+	// command's ArgDef of the same name (anchoredParams). Empty means the
+	// value follows the command.
+	Anchor string
 }
 
 // commandUIResource is the neutral counterpart of zemcp.UIResourceInfo.
@@ -136,7 +141,7 @@ func buildCommandMeta(
 			ShortHelp:     cmd.ShortHelp,
 			Description:   cmd.Description,
 			ReadOnly:      cmd.ReadOnly,
-			Params:        paramsByPath[cmd.Name],
+			Params:        anchoredParams(paramsByPath[cmd.Name], cmd.ArgDefs),
 			TaskSupport:   taskSupportByPath[cmd.Name],
 			TakesSelector: cmd.TakesInlineSelector(),
 		}
@@ -202,6 +207,30 @@ func buildCommandMeta(
 	})
 
 	return infos
+}
+
+// anchoredParams copies params with the Anchor each one carries in the
+// dispatcher's own definitions, matched by name. The RPC input names the
+// parameter and its type; where the dispatcher reads its value is a fact the
+// command tree holds (command.ArgDef.Anchor), and a surface that BUILDS a
+// command string, MCP, writes the value where the dispatcher binds it. A copy
+// is made because paramsByPath is shared by every call.
+func anchoredParams(params []commandParam, defs []command.ArgDef) []commandParam {
+	if len(params) == 0 {
+		return nil
+	}
+	anchored := make([]commandParam, len(params))
+	copy(anchored, params)
+	for i := range anchored {
+		for j := range defs {
+			if defs[j].Name != anchored[i].Name {
+				continue
+			}
+			anchored[i].Anchor = defs[j].Anchor
+			break
+		}
+	}
+	return anchored
 }
 
 // buildParamMeta extracts all RPC metadata from the YANG loader and builds a

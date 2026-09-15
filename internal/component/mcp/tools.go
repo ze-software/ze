@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/aihelp"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -90,6 +91,11 @@ type ParamInfo struct {
 	ShortHelp   string // One-line summary, from the ze:help extension
 	Description string // Long explanation, from the YANG description
 	Required    bool   // Mandatory in YANG
+	// Anchor names the path keyword the value follows, and it is empty for a
+	// value that follows the command. It is the dispatcher's own placement
+	// (command.ArgDef.Anchor, supplied by the hub from the registered
+	// command), and dispatchGenerated writes the value where it says.
+	Anchor string
 }
 
 // CommandLister returns all registered commands. Called at tools/list time
@@ -624,6 +630,28 @@ func spliceSelector(full, sel string) (string, bool) {
 	return "", false
 }
 
+// argDefs answers the argument definitions the lister registered for the
+// command named, as command.WriteInvocation reads them: the name and the
+// anchor of each typed parameter. It answers nil when the server holds no
+// lister or the lister does not know the name, and every value then follows
+// the command in keyword form, which is where an unanchored value goes.
+func (s *server) argDefs(commandName string) []command.ArgDef {
+	if s.commands == nil {
+		return nil
+	}
+	for _, info := range s.commands() {
+		if info.Name != commandName {
+			continue
+		}
+		defs := make([]command.ArgDef, len(info.Params))
+		for i, p := range info.Params {
+			defs[i] = command.ArgDef{Name: p.Name, Anchor: p.Anchor, Mandatory: p.Required}
+		}
+		return defs
+	}
+	return nil
+}
+
 // server runs one tool dispatch.
 //
 // Lifetime: one *server per HTTP request. `Streamable.callTool` creates it
@@ -688,9 +716,12 @@ func (s *server) context() context.Context {
 // takes a peer selector; membership in the map is what validates the action, so
 // an arbitrary token can never be injected as one.
 //
-// Typed YANG params (any JSON field not in reservedParams) are appended as
-// "key value" pairs after the action. This lets handlers receive structured
-// params through the standard text command interface.
+// Typed YANG params (any JSON field not in reservedParams) are written where
+// the dispatcher binds them, by command.WriteInvocation, the one declaration
+// the web admin form shares: a value anchored to a path keyword goes bare after
+// that keyword, and every other one follows the action as "key value". This
+// lets handlers receive structured params through the standard text command
+// interface.
 func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool, args json.RawMessage) map[string]any {
 	// Unmarshal into a generic map to capture typed params alongside standard ones.
 	var all map[string]any
@@ -724,11 +755,12 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 	// (`show bgp peer <selector> detail`), NOT in front of the whole command.
 	// Prefixing produced `peer <selector> show bgp peer detail`, which resolves
 	// nowhere -- every peer-scoped MCP tool call failed.
-	full := prefix
+	commandName := prefix
 	if action != "" {
 		var tb textbuf.Buffer
-		full = tb.Str(prefix).Byte(' ').Str(action).String()
+		commandName = tb.Str(prefix).Byte(' ').Str(action).String()
 	}
+	full := commandName
 	if peer != "" {
 		if !actionSelector[action] {
 			// Note for the reader: a few commands declare a YANG input leaf
@@ -755,9 +787,7 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 		full = spliced
 	}
 
-	var cmd textbuf.Buffer
-	cmd.Str(full)
-
+	values := make(map[string]string, len(all))
 	for key, val := range all {
 		if reservedParams[key] || val == nil {
 			continue
@@ -770,7 +800,30 @@ func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool
 			var tb textbuf.Buffer
 			return ErrResult(tb.Str("parameter ").Quoted(key).Str(" must not contain newlines or tabs").String())
 		}
-		cmd.Byte(' ').Str(key).Byte(' ').Str(sval)
+		values[key] = sval
+	}
+
+	// The command the client named, before the peer selector was spliced in:
+	// that is the name the lister registered its parameters under.
+	defs := s.argDefs(commandName)
+	if peer != "" {
+		// The peer selector already sits after the `peer` keyword. A typed
+		// parameter anchored to that same keyword names the same slot, so a
+		// call carrying both would put two values there and the dispatcher
+		// would read the second as the action. Refuse it by name rather than
+		// pick one.
+		for i := range defs {
+			if values[defs[i].Name] == "" || !strings.EqualFold(defs[i].Anchor, peerKeyword) {
+				continue
+			}
+			var tb textbuf.Buffer
+			return ErrResult(tb.Str("parameter ").Quoted(defs[i].Name).Str(" and \"peer\" both name the peer; supply one of them").String())
+		}
+	}
+
+	var cmd textbuf.Buffer
+	if err := command.WriteInvocation(&cmd, strings.Fields(full), defs, values); err != nil {
+		return ErrResult(err.Error())
 	}
 
 	if arguments != "" {

@@ -3,6 +3,7 @@ package hub
 import (
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
@@ -360,5 +361,36 @@ module ze-fixture-api {
 	label := params[1]
 	if label.ShortHelp != "A label to match." || label.Description != "" {
 		t.Errorf("label = %+v, want the summary alone and an empty explanation", label)
+	}
+}
+
+// TestBuildCommandMetaCarriesTheAnchorOfARegisteredArgument: a parameter the
+// RPC input names takes the anchor the registered command's ArgDef of the same
+// name carries, so the MCP builder writes its value where the dispatcher binds
+// it (command.WriteInvocation).
+//
+// VALIDATES: the peer-scoped selector reaches commandMeta anchored to `peer`,
+// and a parameter no ArgDef anchors stays unanchored.
+// PREVENTS: anchoredParams being dropped from buildCommandMeta, after which
+// every MCP call to a command that requires a selector answers "requires a
+// selector" for the value the client supplied.
+func TestBuildCommandMetaCarriesTheAnchorOfARegisteredArgument(t *testing.T) {
+	const name = "peer announce unicast"
+	got := buildCommandMeta(
+		[]*pluginserver.Command{{Name: name, ArgDefs: []command.ArgDef{
+			{Name: "selector", Kind: command.ArgString, Anchor: "peer"},
+			{Name: "prefix", Kind: command.ArgString},
+		}}},
+		nil,
+		map[string][]commandParam{name: {{Name: "selector", Type: "string"}, {Name: "prefix", Type: "string"}}},
+		nil, nil)
+	if len(got) != 1 || len(got[0].Params) != 2 {
+		t.Fatalf("got %+v, want one command with two parameters", got)
+	}
+	if got[0].Params[0].Anchor != "peer" {
+		t.Errorf("selector anchor = %q, want peer", got[0].Params[0].Anchor)
+	}
+	if got[0].Params[1].Anchor != "" {
+		t.Errorf("prefix anchor = %q, want none", got[0].Params[1].Anchor)
 	}
 }

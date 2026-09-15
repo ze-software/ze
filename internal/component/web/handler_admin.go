@@ -248,23 +248,11 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, tree *co
 // dispatcher through. A nil node declares no argument, so the command is the
 // path alone.
 //
-// A value goes where the dispatcher binds it (internal/component/plugin/server).
-// An argument a container ABOVE the command declares carries that container's
-// name as its Anchor, and matchCommandTokens binds it from the bare token that
-// follows that keyword (anchoredDef): `send bgp <selector> withdraw all` reads
-// the selector after `bgp`, so the value is printed there, with no keyword in
-// front of it. A keyword form after the command would pass validateCommandArgs
-// and still leave the selector unbound, and every command that requires one
-// would answer "requires a selector" for the one input the operator filled.
-// Every other argument follows the command as the keyword the leaf is named by
-// and then the value (ai/rules/cli.md: keyword before value), which is the form
-// the dispatcher's keyword phase binds (validateCommandArgs).
-//
-// An empty value is left out rather than sent: the dispatcher's own mandatory
-// check then names the missing argument, and an optional one is simply absent.
-// A value holding a space is quoted, which is the dispatcher's grouping rule
-// (tokenize). Its grammar carries no escape for a double quote, so a value
-// holding one is refused here: sent, it would split into tokens nobody typed.
+// Where each value goes is command.WriteInvocation, the one declaration the
+// MCP tool call shares: an anchored value bare after its anchor keyword, every
+// other one as keyword and value after the command. The form prints one input
+// for each declared argument, so only a declared name is read: a field nobody
+// declared is a crafted request and reaches nothing.
 func commandArguments(path []string, node *command.Node, form url.Values) (string, error) {
 	var tb textbuf.Buffer
 	if node == nil {
@@ -272,50 +260,15 @@ func commandArguments(path []string, node *command.Node, form url.Values) (strin
 		return tb.String(), nil
 	}
 
-	values := make([]string, len(node.ArgDefs))
+	values := make(map[string]string, len(node.ArgDefs))
 	for i := range node.ArgDefs {
-		def := &node.ArgDefs[i]
-		value := strings.TrimSpace(form.Get(def.Name))
-		if strings.ContainsRune(value, '"') {
-			return "", fmt.Errorf("argument %s: a value cannot hold a double quote", def.Name)
-		}
-		values[i] = value
+		name := node.ArgDefs[i].Name
+		values[name] = strings.TrimSpace(form.Get(name))
 	}
-
-	placed := make([]bool, len(node.ArgDefs))
-	for i, segment := range path {
-		if i > 0 {
-			tb.Byte(' ')
-		}
-		tb.Str(segment)
-		for j := range node.ArgDefs {
-			def := &node.ArgDefs[j]
-			if placed[j] || values[j] == "" || def.Anchor != segment {
-				continue
-			}
-			placed[j] = true
-			tb.Byte(' ')
-			writeArgumentValue(&tb, values[j])
-		}
-	}
-	for j := range node.ArgDefs {
-		if placed[j] || values[j] == "" {
-			continue
-		}
-		tb.Byte(' ').Str(node.ArgDefs[j].Name).Byte(' ')
-		writeArgumentValue(&tb, values[j])
+	if err := command.WriteInvocation(&tb, path, node.ArgDefs, values); err != nil {
+		return "", err
 	}
 	return tb.String(), nil
-}
-
-// writeArgumentValue writes one value as the dispatcher's tokenizer reads it:
-// bare, or double-quoted when it holds a space.
-func writeArgumentValue(tb *textbuf.Buffer, value string) {
-	if strings.ContainsAny(value, " \t") {
-		tb.Byte('"').Str(value).Byte('"')
-		return
-	}
-	tb.Str(value)
 }
 
 // buildAdminFragmentData builds FragmentData for the admin command tree,
