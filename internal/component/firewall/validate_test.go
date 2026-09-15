@@ -1,6 +1,7 @@
 package firewall
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
 )
@@ -590,5 +591,48 @@ func TestValidateTablesStillRefusesSetTypeMismatch(t *testing.T) {
 	err = ValidateTables([]Table{tbl})
 	if err == nil || !strings.Contains(err.Error(), "expects an inet-service set") {
 		t.Fatalf("a provided address set behind a port field must be refused, got %v", err)
+	}
+}
+
+// TestValidateRefusesQuotedDestinationOutsideIPv4 is AC-8 of the
+// quoted-destination spec and its boundary rows. The match reads a 4-octet
+// IPv4 address at a fixed offset inside a quoted IPv4 header. So a table
+// family where no nfproto guard is emitted, an unspecified address, and an
+// IPv6 address are each refused. A valid IPv4 address is accepted in `ip` and
+// `inet`.
+func TestValidateRefusesQuotedDestinationOutsideIPv4(t *testing.T) {
+	tests := []struct {
+		name    string
+		family  TableFamily
+		addr    netip.Addr
+		wantErr string // empty = accept
+	}{
+		{"ip accepts", FamilyIP, netip.MustParseAddr("192.0.2.2"), ""},
+		{"inet accepts", FamilyInet, netip.MustParseAddr("192.0.2.2"), ""},
+		{"last valid address accepts", FamilyInet, netip.MustParseAddr("255.255.255.254"), ""},
+		{"ip6 rejects", FamilyIP6, netip.MustParseAddr("192.0.2.2"), "icmp-quoted-destination match is IPv4-only"},
+		{"arp rejects", FamilyARP, netip.MustParseAddr("192.0.2.2"), "icmp-quoted-destination match is IPv4-only"},
+		{"zero address rejects", FamilyInet, netip.Addr{}, "icmp-quoted-destination names no IPv4 address"},
+		{"unspecified address rejects", FamilyInet, netip.MustParseAddr("0.0.0.0"), "icmp-quoted-destination names no IPv4 address"},
+		{"ipv6 address rejects", FamilyInet, netip.MustParseAddr("2001:db8::1"), "icmp-quoted-destination names no IPv4 address"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tbl := makeTable(tt.family)
+			tbl.Chains[0].Terms[0].Matches = []Match{MatchICMPErrorQuotedDestination{Addr: tt.addr}}
+			err := ValidateTables([]Table{tbl})
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected accept, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
 	}
 }

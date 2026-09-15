@@ -4,8 +4,16 @@
 #            publishes the peer to internal/component/gtsm, which installs a
 #            host route to the peer carrying hop limit 255 and the `ze_gtsm`
 #            nftables table; a reload without the `ttl` block withdraws both.
+#            spec-gtsm-related-icmp-quoted-destination AC-1 (story 2) -- each
+#            rendered term names the peer by the destination of the IPv4
+#            header the error QUOTES (`@th,192,32 0xc0000202` is 192.0.2.2 at
+#            transport offset 24), and no term reads the error's own source
+#            (the fixture refuses a ruleset carrying `ip saddr` before it
+#            reports `CONFIGURED: table present`).
 # PREVENTS: a `ttl` block accepted by the parser whose kernel state never
-#           reaches the kernel, or outlives the configuration that asked for it.
+#           reaches the kernel, or outlives the configuration that asked for it;
+#           a term keyed on the outer source, which a forged error from any
+#           other address walks past.
 #
 # The peer never connects: the kernel state is derived from the peer's
 # configuration, not from a session, and RFC 5082 Section 3 wants it in place
@@ -60,7 +68,7 @@ cmd=foreground:seq=2:exec=ze-test fixture firewall/gtsm-related-icmp:timeout=20s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_gtsm
 expect=stdout:contains=chain input
-expect=stdout:contains=ip saddr 192.0.2.2
+expect=stdout:contains=@th,192,32 0xc0000202
 expect=stdout:contains=drop
 expect=stdout:contains=hoplimit 255
 expect=stderr:contains=CONFIGURED: table present

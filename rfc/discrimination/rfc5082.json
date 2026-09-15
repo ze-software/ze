@@ -27,23 +27,23 @@
       "rid": "RFC5082-3-2",
       "polarity": "negative",
       "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAQuotedICMPErrorAtTTL255",
-      "unit-sha": "3657ab37975989c7",
-      "claim-sha": "b2a86dca299dc984",
+      "unit-sha": "cfc7e192d2f6df6e",
+      "claim-sha": "0f633d6916d6b6e3",
       "route": "revert",
       "producer": "internal/component/gtsm/gtsm.go::peerTerms",
-      "producer-sha": "9db15d76cc46bc57",
+      "producer-sha": "350abf968c674db7",
       "break": "body of peerTerms replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5082-3-2",
       "polarity": "positive",
       "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDropsADangerousQuotedICMPError",
-      "unit-sha": "c2a5c796e3f272bd",
-      "claim-sha": "5e07e9046706dc36",
+      "unit-sha": "8d681ef60afb9f06",
+      "claim-sha": "e2799312a1113b08",
       "route": "revert",
-      "producer": "internal/plugins/firewall/nft/lower_linux.go::lowerIPv4TTLBelowMatch",
-      "producer-sha": "80ea7dd1c4d5c4f7",
-      "break": "body of lowerIPv4TTLBelowMatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/gtsm/gtsm.go::peerTerms",
+      "producer-sha": "350abf968c674db7",
+      "break": "body of peerTerms replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5082-3-2",
@@ -132,6 +132,17 @@
       "producer": "internal/core/network/ttl_linux.go::setIPTTL",
       "producer-sha": "46e81fbdb8c0773f",
       "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-4",
+      "polarity": "positive",
+      "unit": "internal/component/gtsm/gtsm_rfc5082_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims",
+      "unit-sha": "88e46f293c6e7c9f",
+      "claim-sha": "a4dbf69c87c3f5e1",
+      "route": "revert",
+      "producer": "internal/plugins/firewall/nft/lower_linux.go::quotedIPv4HeaderGuard",
+      "producer-sha": "1a818f5437fd005d",
+      "break": "body of quotedIPv4HeaderGuard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5082-3-4",

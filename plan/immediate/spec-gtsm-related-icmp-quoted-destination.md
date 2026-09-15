@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Handoff | - |
 | Updated | 2026-09-15 |
 
@@ -134,9 +134,9 @@ and source (RFC5082-3-4).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An ICMP error ze receives about a GTSM session quotes a packet ZE sent, so the quoted destination is the peer | RFC 792: the error carries "the internet header + 64 bits of the original datagram's data" of the packet that caused it, and a router returns it to that packet's source | the term would need the quoted source too | `TestGTSMDropsADangerousQuotedICMPError` from a third source | unvalidated |
-| A-2 | `PayloadBaseTransportHeader` offset 24 is the quoted destination for a 20-octet quoted header | `lowerICMPErrorQuotedTCPPort` reads ports at 28 and 30 for the same layout | the match reads the wrong bytes and drops nothing | the lowering unit test and the kernel proof | unvalidated |
-| A-3 | The three receive proofs' frames (`packet_linux_test.go`) can carry an arbitrary outer source | the builder takes addresses as parameters | the proof needs a builder change | reading `packet_linux_test.go` at Phase 1 | unvalidated |
+| A-1 | An ICMP error ze receives about a GTSM session quotes a packet ZE sent, so the quoted destination is the peer | RFC 792: the error carries "the internet header + 64 bits of the original datagram's data" of the packet that caused it, and a router returns it to that packet's source | the term would need the quoted source too | `TestGTSMDropsADangerousQuotedICMPError` from a third source | confirmed (Phase 3): the `from another host` case quotes ze's own header toward the peer and is dropped at the quoted-destination term; the error's outer source is not read, and the same quote toward another host (`TestGTSMDeliversAnICMPErrorNoSessionClaims`, `the BGP port of another host`) is delivered |
+| A-2 | `PayloadBaseTransportHeader` offset 24 is the quoted destination for a 20-octet quoted header | `lowerICMPErrorQuotedTCPPort` reads ports at 28 and 30 for the same layout | the match reads the wrong bytes and drops nothing | the lowering unit test and the kernel proof | validated by `TestLowerICMPErrorQuotedDestinationReadsTheQuotedAddressUnderAnNfprotoGuard` (Phase 2): the read is 4 octets at transport offset 24 behind the nfproto and 0x45 guards; the kernel proof is Phase 3's |
+| A-3 | The three receive proofs' frames (`packet_linux_test.go`) can carry an arbitrary outer source | the builder takes addresses as parameters | the proof needs a builder change | reading `packet_linux_test.go` at Phase 1 | confirmed for the outer source (Phase 3): `ipv4Packet` takes the source as a parameter, and only the injector `injectQuotedICMPv4Error` pinned it to the peer, now `injectICMPv4Error(source, ttl, quoted)`; the AC-7 quoted header with options needed one builder extension, `ipv4PacketWithOptions` and `quotedTCPv4DatagramWithOptions` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -186,12 +186,12 @@ and source (RFC5082-3-4).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGTSMPublishesTheICMPFilterTableForAPeer` | `internal/component/gtsm/gtsm_test.go` | the term shape: quoted destination, no outer source (existing test, assertion changed) | |
-| `TestLowerICMPErrorQuotedDestinationReadsTheQuotedAddressUnderAnNfprotoGuard` | `internal/plugins/firewall/nft/lower_linux_test.go` | nfproto guard, the 0x45 check, the 4-octet read at offset 24 | |
-| `TestValidateRefusesQuotedDestinationOutsideIPv4` | `internal/component/firewall/validate_test.go` | AC-8, and a zero address refused | |
-| `TestGTSMDropsADangerousQuotedICMPError` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | AC-2 and AC-3: RFC5082-3-2 receive IPv4 positive, now from the peer AND from a third source | |
-| `TestGTSMDeliversAQuotedICMPErrorAtTTL255` | same | AC-4: RFC5082-3-2 receive IPv4 negative, from a third source too | |
-| `TestGTSMDeliversAnICMPErrorNoSessionClaims` | same | AC-5, AC-6, AC-7: the RFC5082-3-4 guard, three cases | |
+| `TestGTSMPublishesTheICMPFilterTableForAPeer` | `internal/component/gtsm/gtsm_test.go` | the term shape: quoted destination, no outer source (existing test, assertion changed; `TestGTSMEveryDropTermRequiresTheQuotedBGPPort` beside it asserts the same over `peerTerms`) | green, Phase 1 |
+| `TestLowerICMPErrorQuotedDestinationReadsTheQuotedAddressUnderAnNfprotoGuard` | `internal/plugins/firewall/nft/lower_linux_test.go` | nfproto guard, the 0x45 check, the 4-octet read at offset 24; `TestLowerICMPErrorQuotedDestinationRefusesAnAddressItCannotRead` beside it is the fail-closed half | green, Phase 2 |
+| `TestValidateRefusesQuotedDestinationOutsideIPv4` | `internal/component/firewall/validate_test.go` | AC-8, and a zero address refused | green, Phase 1 |
+| `TestGTSMDropsADangerousQuotedICMPError` | `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | AC-2 and AC-3: RFC5082-3-2 receive IPv4 positive, now from the peer AND from a third source | green, Phase 3; red with the outer-source match restored (`from another host`: "the kernel received 1 ICMP type 3 messages, want the 0 it had") |
+| `TestGTSMDeliversAQuotedICMPErrorAtTTL255` | same | AC-4: RFC5082-3-2 receive IPv4 negative, from a third source too | green, Phase 3 |
+| `TestGTSMDeliversAnICMPErrorNoSessionClaims` | same | AC-5, AC-6, AC-7: the RFC5082-3-4 guard, three cases, now tagged `RFC5082-3-4 positive` | green, Phase 3 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -202,7 +202,7 @@ and source (RFC5082-3-4).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `gtsm-related-icmp` | `test/firewall/gtsm-related-icmp.ci` | The rendered `ze_gtsm` terms are keyed on the quoted destination (existing test, assertion changed) | |
+| `gtsm-related-icmp` | `test/firewall/gtsm-related-icmp.ci` | The rendered `ze_gtsm` terms are keyed on the quoted destination (existing test, assertion changed) | green, Phase 4: asserts `@th,192,32 0xc0000202` (192.0.2.2 at transport offset 24) and the fixture refuses `ip saddr`. Red first on the old fixture (`gtsm-p4-draft-red.log`: "table never carried a term for 192.0.2.2", rendered terms carry no `ip saddr`), green as a draft under `ZE_TEST_NETNS=1` as root with `ZE_TEST_UID=1000` and file-capability binaries (`gtsm-p4-draft-v.log`, 19.5s PASS) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -250,18 +250,18 @@ and source (RFC5082-3-4).
 | 3 | CLI command added/changed? | No | - |
 | 4 | API/RPC added/changed? | No | - |
 | 5 | Plugin added/changed? | No | - |
-| 6 | Has a user guide page? | Yes | `docs/guide/firewall.md` "Tables another feature installs" names the `ze_gtsm` term shape |
+| 6 | Has a user guide page? | Yes | `docs/guide/firewall.md` "Tables another feature installs": the `ze_gtsm` paragraph now says the chain names the session by the quoted header, whoever sent the error, renders the read as `@th,192,32 0xc0000202`, and carries no `ip saddr` (edited, Phase 4; the page had no ruleset excerpt) |
 | 7 | Wire format changed? | No | - |
 | 8 | Plugin SDK/protocol changed? | No | - |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc5082.md`; `docs/features/rfc-status.md` is rendered |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc5082.md`: the Enrolment reason's "Receive, IPv4" sentence and the Support remaining cell now say each term matches the quoted IPv4 destination (the peer) and the quoted TCP port on either side, reads no outer source, and drops below the floor, citing `peerTerms` and `lowerICMPErrorQuotedDestinationMatch` (edited, Phase 4; no annotation, id or requirement text touched). `docs/features/rfc-status.md` re-rendered by `./le rfc index-update` (gitignored) |
 | 10 | Test infrastructure changed? | No | - |
-| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` GTSM row, if it describes related messages |
-| 12 | Internal architecture changed? | Yes | `docs/DESIGN.md` GTSM paragraph |
+| 11 | Affects daemon comparison? | No | `docs/comparison.md` "GTSM / TTL Security" row is a Yes/No/Partial capability row and names no related-message behavior, so it is unchanged (read, Phase 4) |
+| 12 | Internal architecture changed? | Yes | `docs/DESIGN.md` GTSM paragraph: now says the rule names the session by the quoted destination and the quoted BGP port and reads no outer source, because any router generates the error and a forged one carries any source (edited, Phase 4). `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` `ze_gtsm` row names only the table and `filterTableName`, not the match, so it is unchanged (read, Phase 4) |
 | 13 | Route metadata keys added/changed? | No | - |
 | 14 | Prometheus counters added/changed? | No | - |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | - |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/immediate/spec-gtsm-related-icmp-quoted-destination.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | The `ze_gtsm` ruleset excerpt in `docs/guide/firewall.md` is re-read against the new rendering |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | `./le spec citation anchors spec plan/immediate/spec-gtsm-related-icmp-quoted-destination.md` (Phase 4) names two pages: `docs/architecture/ddos/cp-survival-5-detect-5-characterization.md` (anchors `model.go -- MatchTCPFlags`) and `docs/architecture/firewall/firewall-irr.md` (anchors `validate.go -- validateMatch`, `model.go -- SetElement.IntervalEnd`). Neither describes the quoted match, so neither changes. `docs/DESIGN.md` and `docs/guide/firewall.md` anchor `gtsm.go -- peerTerms` and are edited above |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/firewall.md` carried no `ze_gtsm` ruleset excerpt. The paragraph now shows the rendered quoted read, `@th,192,32 0xc0000202` for 192.0.2.2, which is what `test/firewall/gtsm-related-icmp.ci` asserts |
 
 ## Implementation Steps
 
@@ -378,3 +378,163 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- `MatchICMPErrorQuotedDestination{Addr}` (`internal/component/firewall/model.go`), daemon-only, IPv4-only; `validateMatch` (`validate.go`) refuses it outside family `ip`/`inet` and refuses a non-IPv4 or unspecified address.
+- `peerTerms` (`internal/component/gtsm/gtsm.go`) carries that match in place of `MatchSourceAddress{peer/32}`: `grep -n MatchSourceAddress internal/component/gtsm/gtsm.go` returns nothing.
+- `lowerICMPErrorQuotedDestinationMatch` and the shared `quotedIPv4HeaderGuard` (`internal/plugins/firewall/nft/lower_linux.go`): nfproto IPv4 guard, `meta l4proto icmp`, `@th` byte 8 == 0x45, then a 4-octet compare at transport offset 24. `lowerICMPErrorQuotedTCPPortMatch` now uses the same guard helper.
+- The three receive proofs (`gtsm_rfc5082_linux_test.go`) run each case from the peer and from `otherHostV4`; the AC-7 case quotes a header with options whose option octets spell the BGP port at the fixed port offsets. `ipv4PacketWithOptions` and `quotedTCPv4DatagramWithOptions` (`packet_linux_test.go`) build it.
+- `rfc/discrimination/rfc5082.json`: two RFC5082-3-2 records re-observed against `peerTerms`, one RFC5082-3-4 positive record added against `quotedIPv4HeaderGuard`.
+- `test/firewall/gtsm-related-icmp.ci` and `netfilter_fixture_gtsm.go` assert the rendered `@th,192,32 0xc0000202` term and refuse a ruleset carrying `ip saddr`.
+- Pages: `docs/DESIGN.md` GTSM paragraph, `docs/guide/firewall.md` "Tables another feature installs", `rfc/short/rfc5082.md` Enrolment reason and Support remaining.
+
+### Bugs Found/Fixed
+- Closure review: `quotedDestinationRead` (`internal/test/fixture/netfilter_fixture_gtsm.go`) rendered the compared value with `%08x`. nft prints a raw payload compare with no zero padding (`@th,64,8 0x45`, `@th,136,8 0x6`, `@th,224,16 0x6fe` in the Phase 4 rendered term), so the poll would never match a peer whose first octet is below 0x10. Fixed to `%x`; identical output for 192.0.2.2. Test-only, NOTE severity: the poll fails loudly, never vacuously.
+
+### Documentation Updates
+- `docs/DESIGN.md` GTSM paragraph, anchor `internal/component/gtsm/gtsm.go -- SetPeers, peerTerms` (existing, unchanged).
+- `docs/guide/firewall.md` "Tables another feature installs", anchor `internal/component/gtsm/gtsm.go -- filterTables, peerTerms` (existing, unchanged).
+- `rfc/short/rfc5082.md` `Enrolment reason` and `Support remaining` cells name `peerTerms` and `lowerICMPErrorQuotedDestinationMatch`; `./le rfc index-update` regenerates `docs/features/rfc-status.md` (gitignored).
+- `./le doc check links`: 7 broken references, none in this spec's files (`internal/plugins/ospf/yang_vocabulary_test.go`, `plan/handover-rfc-conformance-c9bdcd62.md`, `continue.md`). `./le docs-to-code index-check`: 2 undeclared anchor symbols, both pre-existing on pages this spec does not touch (`docs/architecture/api/text-format.md` naming `FamilyIPv4Unicast`, `docs/features/formatting.md` naming `validCLIFormats`).
+
+### Deviations from Plan
+- Phase 3 added a third `TestGTSMDeliversAnICMPErrorNoSessionClaims` case and a tag (`RFC5082-3-4 positive`) the spec's TDD table did not list; the spec's AC-7 needed it.
+- The `test/rfc-changed/` rows the spec names no longer exist as a mechanism: since `spec-rfc-approval-lives-in-the-commit` (closed 2026-09-15) the owner's approval is `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"`, carried as an `RFC-approved:` trailer. Still the owner's; not run here.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Phase 4's fixture padded the rendered hex value to 8 digits | nft prints `0x%x`, no padding | Closure review compared the fixture against the rendered term Phase 4 itself recorded | `%x` in `quotedDestinationRead` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A term claims an error by quoted destination = peer, quoted BGP port, related type; outer source not read | Done | `peerTerms`, `internal/component/gtsm/gtsm.go` | `MatchICMPType`, `MatchICMPErrorQuotedDestination`, `MatchICMPErrorQuotedTCPPort`, `MatchIPv4TTLBelow` |
+| The outer TTL floor is unchanged | Done | `MatchIPv4TTLBelow{Floor: p.Floor}` in `peerTerms` | untouched by the diff |
+| An error quoting another destination or port stays Unknown and is delivered | Done | `TestGTSMDeliversAnICMPErrorNoSessionClaims` | three cases, all delivered, whole chain evaluated |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestGTSMPublishesTheICMPFilterTableForAPeer`, `TestGTSMEveryDropTermRequiresTheQuotedBGPPort` (`gtsm_test.go`); `test/firewall/gtsm-related-icmp.ci` | `MatchSourceAddress` in a term is a test error |
+| AC-2 | Done | `TestGTSMDropsADangerousQuotedICMPError/from_another_host` | `IcmpMsg InType3` and `TCPMinTTLDrop` unchanged, last term reached is the destination-side term |
+| AC-3 | Done | `TestGTSMDropsADangerousQuotedICMPError/from_the_peer` | |
+| AC-4 | Done | `TestGTSMDeliversAQuotedICMPErrorAtTTL255` (both sources) | |
+| AC-5 | Done | `TestGTSMDeliversAnICMPErrorNoSessionClaims/another_port_of_the_peer` | |
+| AC-6 | Done | `TestGTSMDeliversAnICMPErrorNoSessionClaims/the_BGP_port_of_another_host` | |
+| AC-7 | Done | `TestGTSMDeliversAnICMPErrorNoSessionClaims/a_quoted_header_with_options` | option octets spell the BGP port at offsets 28 and 30; only the 0x45 guard keeps it Unknown |
+| AC-8 | Done | `TestValidateRefusesQuotedDestinationOutsideIPv4/ip6_rejects` (`validate_test.go`) | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestGTSMPublishesTheICMPFilterTableForAPeer` | Done | `internal/component/gtsm/gtsm_test.go` | green, `gtsm-close-unit.log` |
+| `TestLowerICMPErrorQuotedDestinationReadsTheQuotedAddressUnderAnNfprotoGuard` | Done | `internal/plugins/firewall/nft/lower_linux_test.go` | whole expression list asserted |
+| `TestValidateRefusesQuotedDestinationOutsideIPv4` | Done | `internal/component/firewall/validate_test.go` | 8 cases |
+| `TestGTSMDropsADangerousQuotedICMPError` | Done | `gtsm_rfc5082_linux_test.go` | `ok internal/component/gtsm 23.153s` under `./le integration gtsm` |
+| `TestGTSMDeliversAQuotedICMPErrorAtTTL255` | Done | same | same run |
+| `TestGTSMDeliversAnICMPErrorNoSessionClaims` | Done | same | same run |
+| `gtsm-related-icmp` | Done | `test/firewall/gtsm-related-icmp.ci` | `1/1 PASS 6.3s`, `gtsm-close-ci.log` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/gtsm/gtsm.go` | Done | `termName` unchanged: it never carried the source |
+| `internal/component/firewall/model.go`, `validate.go` | Done | |
+| `internal/plugins/firewall/nft/lower_linux.go` | Done | plus the shared `quotedIPv4HeaderGuard` |
+| `gtsm_rfc5082_linux_test.go`, `packet_linux_test.go` | Done | |
+| `gtsm_test.go`, `lower_linux_test.go`, `validate_test.go` | Done | |
+| `internal/test/fixture/netfilter_fixture_gtsm.go` | Done | |
+| `rfc/short/rfc5082.md`, `rfc/discrimination/rfc5082.json` | Done | |
+| `test/rfc-changed/<session>.md` | Changed | mechanism replaced by `./le rfc approve`; the owner's, not run |
+| `docs/DESIGN.md` | Done | |
+| `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` | Done | read: the `ze_gtsm` row names the table and `filterTableName` only, no edit owed |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (the owner's approval route, recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A forged error from any address quoting the session, below the floor, never reaches `tcp_v4_err` | kernel proof (`integration && linux`) | `TestGTSMDropsADangerousQuotedICMPError/from_another_host`: `IcmpMsg InType3` unchanged, `TCPMinTTLDrop` unchanged, chain stopped at the destination-side term. Forced red recorded in Phase 3 (`gtsm-p3-red.log`: "the kernel received 1 ICMP type 3 messages, want the 0 it had") with `MatchSourceAddress` restored. Record: `rfc/discrimination/rfc5082.json`, RFC5082-3-2 positive against `peerTerms` |
+| The outer TTL floor is unchanged | kernel proof | `TestGTSMDeliversAQuotedICMPErrorAtTTL255` both sources delivered, whole chain evaluated; RFC5082-3-2 negative record against `peerTerms` |
+| An error quoting another destination or port stays Unknown and is delivered (RFC5082-3-4) | kernel proof | `TestGTSMDeliversAnICMPErrorNoSessionClaims`, three cases delivered; RFC5082-3-4 positive record against `quotedIPv4HeaderGuard`; `./le rfc check` names no rfc5082 row; `./le rfc discriminate stem rfc5082` lists nothing stale or unproven |
+| The operator sees terms keyed on the quoted destination | functional | `test/firewall/gtsm-related-icmp.ci` `1/1 PASS` under `ZE_TEST_NETNS=1` as root with `ZE_TEST_UID=1000` and file-capability binaries (`gtsm-close-ci.log`); the fixture refuses `ip saddr` |
+| Interop | scenario | None owed: a dropped forged error is invisible to the peer daemon, so no FRR-observable behavior changes (Key Design Decisions). `gtsm-related-icmp-ttl` (transmit half, IPv6) is unchanged |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/gtsm-related-icmp-quoted-destination-b2d741a4-c6a6-4265-8342-fb6ceed4dfd9.md` |
+| `review check` | `review_gate: OK (11 code files, clean, hashes match ...)` |
+| Rounds | 2: round 1 over the whole diff found one NOTE (the fixture pad); round 2 over that fix |
+| Reviewer lenses used | wiring + removed-behavior + test-rewrite; security + edge cases (attacker-chosen quoted bytes, short payload, options); RFC 5082 Section 3 against `rfc/full/rfc5082.txt`; style pass over every changed Go file |
+
+Round 1 findings: 0 BLOCKER, 0 ISSUE, 2 NOTE. NOTE 1: `quotedDestinationRead` padded the hex value (fixed, above). NOTE 2: `if !addr.Is4() || addr.IsUnspecified()` is a two-fact compound guard in `validateMatch` and `lowerICMPErrorQuotedDestinationMatch`; the sibling `peerTerms` guard has the same shape and the comment names both facts, left as is. Wiring: `MatchICMPErrorQuotedDestination` has three non-test consumers (`peerTerms`, `validateMatch`, `lowerMatch`); `quotedIPv4HeaderGuard` has two. Removed behavior: the outer-source read is the owner-ruled change; the old "from the peer" cases survive as subtests. A short ICMP payload fails the `@th` load and matches nothing (delivered, Unknown). `./le commit audit`: one `[WEAKENED]` on `injectQuotedICMPv4Error` replaced by `injectICMPv4Error`, a rename with the source made a parameter; no case dropped. Round 2 (the `%x` fix and its comment): clean.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| - | none above NOTE | | | |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/firewall/gtsm-related-icmp.ci` | Yes | `1/1 PASS gtsm-related-icmp` in `gtsm-close-ci.log` |
+| `internal/component/gtsm/gtsm_rfc5082_linux_test.go` | Yes | `ok internal/component/gtsm 23.153s` in `gtsm-close-integration.log` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | no term reads the outer source | `grep -n MatchSourceAddress internal/component/gtsm/gtsm.go` exit 1; `ok internal/component/gtsm` (`gtsm-close-unit.log`) |
+| AC-2, AC-3, AC-4, AC-5, AC-6, AC-7 | kernel behavior | `sudo -n -E env PATH ./le integration gtsm`: `ok internal/component/gtsm 23.153s`, `ok internal/core/network`, `ok bgp/reactor/filter`; `FAIL bgp/reactor` is the 2m0s timeout in `TestNoConfigFeedsSentUpdatesToAReceivedOnlyPlugin` (another session's row, `plan/journal/gate-verdict-depends-on-the-machine.md`) |
+| AC-8 | `ip6` refused | `ok internal/component/firewall 0.362s` (`gtsm-close-unit.log`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `gtsm.SetPeers` with one peer | `TestGTSMPublishesTheICMPFilterTableForAPeer` | Yes: walks the published chain's terms |
+| A term with the new match reaches the nft backend | `TestLowerICMPErrorQuotedDestinationReadsTheQuotedAddressUnderAnNfprotoGuard` | Yes: through `lowerMatch` |
+| Forged error from a third source below the floor | `TestGTSMDropsADangerousQuotedICMPError/from_another_host` | Yes: kernel counters |
+| Operator config to rendered ruleset | `test/firewall/gtsm-related-icmp.ci` | Yes: read; asserts `@th,192,32 0xc0000202`, `drop`, `hoplimit 255`, `CONFIGURED: table present` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `from another host` dropped at the destination-side term; `the BGP port of another host` delivered |
+| A-2 | confirmed | `TestLowerICMPErrorQuotedDestinationReadsTheQuotedAddressUnderAnNfprotoGuard` (offset 24, 4 octets) and the kernel drop |
+| A-3 | confirmed | `ipv4Packet` takes the source; one builder extension for the options case |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/DESIGN.md`: the rule names the session by the quoted destination and port, reads no outer source | `peerTerms` match list | Yes |
+| `docs/guide/firewall.md`: rendered `@th,192,32 0xc0000202`, no `ip saddr` | `lowerICMPErrorQuotedDestinationMatch` offset 24 len 4; `.ci` PASS | Yes |
+| `rfc/short/rfc5082.md` Enrolment reason and Support remaining | `peerTerms`, `lowerICMPErrorQuotedDestinationMatch` | Yes |
+| Row 11 No: `docs/comparison.md` GTSM row | `grep -n GTSM docs/comparison.md`: a Yes/Partial capability row, no related-message wording | Yes |
+| Row 16: other anchored pages | `docs/features.md` and `docs/architecture/core-design.md` anchor the Match type family generally (`model.go -- Match and Action type definitions`, `model.go -- Table, Chain, Term, Match, Action types`); `firewall-irr.md` and `cp-survival-5-detect-5-characterization.md` anchor unrelated symbols | Yes, no edit owed |
+| Doctor check | `gtsm-kernel-state` already reports a missing `ze_gtsm` table; no new runtime dependency | Yes |
+
+## Core Insight
+A guard that identifies a flow by a field its consumer never reads protects against one attacker only. `tcp_v4_err` finds the socket by the quoted 4-tuple, so the filter in front of it has to key on the same bytes, or the attacker picks the outer source and walks past.

@@ -189,6 +189,19 @@ func validateMatch(tbl *Table, ch *Chain, term *Term, m Match, sets map[string]S
 			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-tcp-port is 0, which no TCP session carries",
 				tbl.Name, ch.Name, term.Name)
 		}
+	case MatchICMPErrorQuotedDestination:
+		// The read is 4 octets at a fixed offset inside a quoted IPv4 header,
+		// so the family rule is the one MatchICMPErrorQuotedTCPPort follows.
+		if tbl.Family != FamilyIP && tbl.Family != FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-destination match is IPv4-only; move to a table with family ip or inet (got %s)",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
+		// The unspecified address is no peer. An IPv6 or zero address has no
+		// 4-octet form. Each would be a compare against bytes that name nothing.
+		if !v.Addr.Is4() || v.Addr.IsUnspecified() {
+			return fmt.Errorf("table %q chain %q term %q: icmp-quoted-destination names no IPv4 address (got %v)",
+				tbl.Name, ch.Name, term.Name, v.Addr)
+		}
 	}
 	return nil
 }

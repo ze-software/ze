@@ -56,15 +56,30 @@ func ethernetFrame(destination, source []byte, ethertype uint16, packet []byte) 
 //	byte 12: source address
 //	byte 16: destination address
 func ipv4Packet(source, destination netip.Addr, ttl, protocol uint8, payload []byte) []byte {
-	packet := make([]byte, ipv4HeaderLen+len(payload))
-	packet[0] = 0x45
+	return ipv4PacketWithOptions(source, destination, ttl, protocol, nil, payload)
+}
+
+// ipv4PacketWithOptions is ipv4Packet with an options field after the fixed
+// header. RFC 791 Section 3.1 counts the header length in 32-bit words, so the
+// options MUST be a multiple of four octets. The version and header length
+// byte then reads 0x46 for four octets of options, not 0x45.
+// A proof uses it for the one quoted header the fixed-offset reads cannot
+// take at face value.
+func ipv4PacketWithOptions(source, destination netip.Addr, ttl, protocol uint8, options, payload []byte) []byte {
+	if len(options)%4 != 0 {
+		panic("BUG: IPv4 options are counted in 32-bit words, so their length is a multiple of four")
+	}
+	headerLen := ipv4HeaderLen + len(options)
+	packet := make([]byte, headerLen+len(payload))
+	packet[0] = 0x40 | uint8(headerLen/4)
 	binary.BigEndian.PutUint16(packet[2:4], uint16(len(packet)))
 	packet[8] = ttl
 	packet[9] = protocol
 	copy(packet[12:16], source.AsSlice())
 	copy(packet[16:20], destination.AsSlice())
-	binary.BigEndian.PutUint16(packet[10:12], internetChecksum(packet[:ipv4HeaderLen]))
-	copy(packet[ipv4HeaderLen:], payload)
+	copy(packet[ipv4HeaderLen:headerLen], options)
+	binary.BigEndian.PutUint16(packet[10:12], internetChecksum(packet[:headerLen]))
+	copy(packet[headerLen:], payload)
 	return packet
 }
 
@@ -132,6 +147,13 @@ func icmpv6Message(messageType, code uint8, source, destination netip.Addr, body
 // eight bytes of the TCP header.
 func quotedTCPv4Datagram(source, destination netip.Addr, sourcePort, destinationPort uint16) []byte {
 	return ipv4Packet(source, destination, 255, unix.IPPROTO_TCP, tcpHeadEight(sourcePort, destinationPort))
+}
+
+// quotedTCPv4DatagramWithOptions is quotedTCPv4Datagram for a packet ze sent
+// with IP options in its header. The quoted TCP header then starts after the
+// options, not at the twentieth octet.
+func quotedTCPv4DatagramWithOptions(source, destination netip.Addr, options []byte, sourcePort, destinationPort uint16) []byte {
+	return ipv4PacketWithOptions(source, destination, 255, unix.IPPROTO_TCP, options, tcpHeadEight(sourcePort, destinationPort))
 }
 
 // quotedTCPv6Datagram is the IPv6 form, which RFC 4443 Section 3.1 lets the

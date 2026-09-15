@@ -694,9 +694,13 @@ packets, which RFC 5082 Section 3 requires. A GTSM peer gets a host route
 carrying hop limit 255, so an ICMP error the kernel generates toward that peer
 leaves with the TTL the peer's own check expects, and an nftables input rule
 that drops an ICMPv4 error quoting that session which arrives below the peer's
-TTL floor. An IPv6 error is refused by the kernel on the socket's
-IPV6_MINHOPCOUNT, so it needs no rule. An error about any other flow is never
-claimed, because Section 3 forbids dropping a packet no GTSM session claims.
+TTL floor. The rule names the session by the header the error quotes, the
+quoted destination (the peer) and the quoted BGP port, and reads no outer
+source. Any router on the path generates the error, and a forged one carries
+whatever source its sender chose. An IPv6 error is refused by the kernel on
+the socket's IPV6_MINHOPCOUNT, so it needs no rule. An error about any other
+flow is never claimed, because Section 3 forbids dropping a packet no GTSM
+session claims.
 <!-- source: internal/component/gtsm/gtsm.go -- SetPeers, peerTerms -->
 <!-- source: internal/component/gtsm/route_linux.go -- installHopLimitRoute -->
 
