@@ -84,10 +84,12 @@ const (
 )
 
 type publishedCommandArg struct {
-	Name      string   `json:"name"`
-	Type      string   `json:"type"`
-	Values    []string `json:"values,omitempty"`
-	Mandatory bool     `json:"mandatory,omitempty"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Values      []string `json:"values,omitempty"`
+	Mandatory   bool     `json:"mandatory,omitempty"`
+	ShortHelp   string   `json:"short-help,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 type publishedCommandPipe struct {
@@ -813,7 +815,9 @@ func validateGeneratedWikiCommandSurface(
 				Str(markdownCodeLiteral(commandMarkdownTableValue(arg.Name))).Str(" | ").
 				Str(markdownCodeLiteral(commandMarkdownTableValue(arg.Type))).
 				Str(" | ").Str(required).Str(" | ").
-				Str(wikiTableCodeList(arg.Values)).Str(" |")
+				Str(wikiTableCodeList(arg.Values)).Str(" | ").
+				Str(markdownLiteralProse(wikiTableProse(normalizeWikiDescription(arg.ShortHelp)))).Str(" | ").
+				Str(markdownLiteralProse(wikiTableProse(normalizeWikiDescription(arg.Description)))).Str(" |")
 			expectedArgs = append(expectedArgs, rendered.String())
 		}
 		issues = append(issues, compareCommandNamedGroup(
@@ -1763,7 +1767,7 @@ func markdownFirstCodeCell(line string) (string, bool) {
 func wikiArgumentRows(content string) []string {
 	lines := activeMarkdownLines(content)
 	for index, line := range lines {
-		if line != "| Name | Type | Required | Values |" {
+		if line != "| Name | Type | Required | Values | Summary | Description |" {
 			continue
 		}
 		var rows []string

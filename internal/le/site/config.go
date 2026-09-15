@@ -337,6 +337,11 @@ func configurationMirror(tree map[string]configNode, sections []string,
 		if line := configOwnerMirrorLine(owners[name]); line != "" {
 			mirror.Str(line).Str("\n\n")
 		}
+		// The summary and the explanation are two paragraphs, in that order,
+		// and a section that declares one prints that one alone.
+		if node.ShortHelp != "" {
+			mirror.Str(collapseWhitespace(node.ShortHelp)).Str("\n\n")
+		}
 		if node.Description != "" {
 			mirror.Str(collapseWhitespace(node.Description)).Str("\n\n")
 		}
@@ -348,7 +353,10 @@ func configurationMirror(tree map[string]configNode, sections []string,
 	return strings.TrimRight(mirror.String(), "\n") + "\n"
 }
 
-// writeConfigChildMirror writes one node and everything under it.
+// writeConfigChildMirror writes one node and everything under it: the node
+// line carries the ze:help summary, the description explanation is the line
+// under it, and an enumeration leaf's values follow, each with the summary it
+// declares. A text the node does not declare prints nothing.
 //
 // The recursion is over the YANG schema this repository compiles, which is a
 // finite tree fixed at build time and nothing an external peer can deepen. Its
@@ -362,12 +370,22 @@ func writeConfigChildMirror(mirror *textbuf.Buffer, node *configNode, path strin
 	if badge := configNodeBadge(node); badge != "" {
 		mirror.Str(" `").Str(badge).Str("`")
 	}
+	if node.ShortHelp != "" {
+		mirror.Str(": ").Str(collapseWhitespace(node.ShortHelp))
+	}
 	mirror.Byte('\n')
 	if line := configOwnerMirrorLine(owners[path]); line != "" {
 		mirror.Str(indent).Str("  ").Str(line).Byte('\n')
 	}
 	if node.Description != "" {
 		mirror.Str(indent).Str("  ").Str(collapseWhitespace(node.Description)).Byte('\n')
+	}
+	for _, value := range node.Values {
+		mirror.Str(indent).Str("  - `").Str(value.Name).Byte('`')
+		if value.ShortHelp != "" {
+			mirror.Str(": ").Str(collapseWhitespace(value.ShortHelp))
+		}
+		mirror.Byte('\n')
 	}
 	for _, child := range node.Children {
 		writeConfigChildMirror(mirror, &child, path+"/"+child.Name, owners, depth+1)

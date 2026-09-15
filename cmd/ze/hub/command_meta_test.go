@@ -281,3 +281,84 @@ func TestBuildCommandMetaCarriesBothHelpTexts(t *testing.T) {
 		t.Errorf("plugin-only command = %+v, want both halves carried", only)
 	}
 }
+
+// TestBuildParamMetaCarriesBothLeafTexts: an rpc input leaf's two texts reach
+// the command parameter the API, MCP and gRPC listers copy from, each on its
+// own, so a leaf that declares one text leaves the other empty.
+//
+// VALIDATES: AC-2 and AC-6 of spec-both-help-texts-reach-every-surface at the
+// hub boundary.
+// PREVENTS: `Description: leaf.Description` being dropped from buildParamMeta
+// with every test still green.
+func TestBuildParamMetaCarriesBothLeafTexts(t *testing.T) {
+	loader := yangloader.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		t.Fatalf("load the embedded modules: %v", err)
+	}
+	const cmdModule = `
+module ze-fixture-cmd {
+  namespace "urn:ze:fixture:cmd";
+  prefix zefix;
+  import ze-extensions { prefix ze; }
+  container show {
+    config false;
+    ze:help "Show operational state.";
+    container sockets {
+      config false;
+      ze:command "ze-fixture:sockets";
+      ze:help "List the open sockets.";
+    }
+  }
+}
+`
+	const apiModule = `
+module ze-fixture-api {
+  namespace "urn:ze:fixture:api";
+  prefix zefixapi;
+  import ze-extensions { prefix ze; }
+  rpc sockets {
+    ze:help "List the open sockets.";
+    input {
+      leaf port {
+        type uint16;
+        mandatory true;
+        ze:help "The TCP port to list.";
+        description "Only the sockets bound to this port are listed.";
+      }
+      leaf label {
+        type string;
+        ze:help "A label to match.";
+      }
+    }
+  }
+}
+`
+	if err := loader.AddModuleFromText("ze-fixture-cmd", cmdModule); err != nil {
+		t.Fatalf("load the fixture command module: %v", err)
+	}
+	if err := loader.AddModuleFromText("ze-fixture-api", apiModule); err != nil {
+		t.Fatalf("load the fixture API module: %v", err)
+	}
+	if err := loader.Resolve(); err != nil {
+		t.Fatalf("resolve the fixture modules: %v", err)
+	}
+
+	params := buildParamMeta(loader)["show sockets"]
+	if len(params) != 2 {
+		t.Fatalf("params = %+v, want the two input leaves", params)
+	}
+	port := params[0]
+	if port.Name != "port" || !port.Required {
+		t.Errorf("params[0] = %+v, want the mandatory port leaf", port)
+	}
+	if port.ShortHelp != "The TCP port to list." {
+		t.Errorf("ShortHelp = %q, want the leaf's ze:help", port.ShortHelp)
+	}
+	if port.Description != "Only the sockets bound to this port are listed." {
+		t.Errorf("Description = %q, want the leaf's description", port.Description)
+	}
+	label := params[1]
+	if label.ShortHelp != "A label to match." || label.Description != "" {
+		t.Errorf("label = %+v, want the summary alone and an empty explanation", label)
+	}
+}

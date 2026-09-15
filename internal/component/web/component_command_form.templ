@@ -31,6 +31,12 @@ templ commandForm(v *FragmentData) {
 						value={ p.Value }
 						placeholder={ p.Placeholder }
 					>
+					if p.ShortHelp != "" {
+						<span class="command-form-field-summary">{ p.ShortHelp }</span>
+					}
+					if p.Description != "" {
+						<p class="command-form-field-help">{ p.Description }</p>
+					}
 				</div>
 			}
 			<button type="submit" class="command-form-execute">Execute</button>

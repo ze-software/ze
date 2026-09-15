@@ -125,6 +125,17 @@ const configBrowserScript = `        <script>
                     return { node: node, children: kids };
                 }
 
+                // An enumeration leaf's values, each with the summary it
+                // declares; a value declaring none is its name alone.
+                function valuesFor(n) {
+                    var vals = n.values || [];
+                    if (!vals.length) return "";
+                    var items = "";
+                    for (var i = 0; i < vals.length; i++)
+                        items += "<li><code>" + esc(vals[i].name) + "</code>" +
+                            (vals[i]["short-help"] ? ": " + esc(ws(vals[i]["short-help"])) : "") + "</li>";
+                    return '<ul class="config-detail-values">' + items + "</ul>";
+                }
                 function tableFor(P, kids) {
                     if (!kids.length)
                         return '<p class="config-empty">No settings under this node.</p>';
@@ -133,8 +144,8 @@ const configBrowserScript = `        <script>
                         var c = kids[i];
                         var ps = P.concat([c.name]).join("/");
                         var drill = (c.children || []).length > 0;
-                        var desc = c.description
-                            ? esc(ws(c.description))
+                        var desc = c["short-help"]
+                            ? esc(ws(c["short-help"]))
                             : '<span class="config-index-nodesc">' +
                               (drill ? "" : "&mdash;") + "</span>";
                         rows += "<tr" +
@@ -175,9 +186,12 @@ const configBrowserScript = `        <script>
                             esc(nodeHead(n)) + "</code>" +
                             (badge ? ' <span class="yang-type">' + esc(badge) + "</span>" : "") +
                             "</h2>" + ownerDetail(P.join("/")) +
+                            (n["short-help"]
+                                ? '<p class="config-detail-summary">' + esc(ws(n["short-help"])) + "</p>"
+                                : "") +
                             (n.description
                                 ? '<p class="config-detail-desc">' + esc(ws(n.description)) + "</p>"
-                                : "") + "</div>";
+                                : "") + valuesFor(n) + "</div>";
                     } else {
                         html += '<p class="config-index-hint">' + rootChildren.length +
                             " configuration sections. Pick one to inspect its structure, " +
@@ -193,7 +207,7 @@ const configBrowserScript = `        <script>
                     function walk(n, P) {
                         var o = owners[P.join("/")];
                         var hay = (nodeHead(n) + " " + (n.type || "") + " " +
-                            (n.description || "")).toLowerCase();
+                            (n["short-help"] || "") + " " + (n.description || "")).toLowerCase();
                         if (o) hay += " " + o.label.toLowerCase() + " " +
                             o.plugins.map(function (p) { return p.name; }).join(" ").toLowerCase();
                         if (hay.indexOf(ql) !== -1) results.push({ n: n, P: P });
@@ -212,7 +226,7 @@ const configBrowserScript = `        <script>
                         rows += '<tr class="is-drillable" data-path="' + esc(target) + '">' +
                             '<th scope="row"><a href="#' + esc(target) + '">' + label + "</a></th>" +
                             "<td>" + ownerTag(r.P.join("/")) + "</td>" +
-                            "<td>" + (r.n.description ? esc(ws(r.n.description)) : "") +
+                            "<td>" + (r.n["short-help"] ? esc(ws(r.n["short-help"])) : "") +
                             "</td></tr>";
                     }
                     var head = '<p class="config-index-count">' + results.length +

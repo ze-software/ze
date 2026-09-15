@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // configurationPaths lays out one tree whose artifact carries the plugin
@@ -348,5 +350,91 @@ func TestAClosingScriptTagInASchemaDescriptionCannotEndThePayload(t *testing.T) 
 	decodeEmbeddedJSON(t, page, `<script id="config-tree" type="application/json">`, &tree)
 	if tree["static"].Description != "Static routes. See </script><b>here</b> for the rest." {
 		t.Errorf("the description reached the browser as %q", tree["static"].Description)
+	}
+}
+
+// VALIDATES: AC-3, AC-4, AC-5. The configuration reference prints a node's
+// ze:help summary on its own line, its description explanation as a paragraph
+// under it, and an enumeration leaf's values each with the summary it
+// declares, on the markdown mirror, in the page's embedded tree, and in
+// llms.txt. A node that declares one text prints that one and nothing for
+// the other.
+// PREVENTS: the site decoder ignoring the two new keys, so the page silently
+// prints nothing where an author wrote an explanation.
+func TestConfigurationReferencePrintsExplanation(t *testing.T) {
+	paths := configurationPaths(t)
+	// The published tree keeps every root the plugin registry declares; only
+	// bgp is restated, with both texts and an enumeration leaf.
+	_, published, err := readConfigTree(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	published["bgp"] = configNode{
+		Name: "bgp", Kind: "container",
+		ShortHelp:   "BGP speaker configuration.",
+		Description: "Every BGP session Ze speaks is declared under this section.",
+		Children: []configNode{{
+			Name: "as-notation", Kind: "leaf", Type: "enumeration",
+			ShortHelp:   "How Ze writes an AS number in the output an operator reads.",
+			Description: "RFC 5396 Section 2 names the three notations.",
+			Values: []configEnumValue{
+				{Name: "asdot", ShortHelp: "An AS number of 65536 or more is X.Y"},
+				{Name: "asplain", ShortHelp: "Every AS number is a decimal integer"},
+				{Name: "silent"},
+			},
+		}, {
+			Name: "router-id", Kind: "leaf", Type: "ipv4-address",
+			ShortHelp: "BGP Router ID for this speaker.",
+		}},
+	}
+	restated := make(map[string]any, len(published))
+	for name, node := range published {
+		restated[name] = node
+	}
+	writeConfigTree(t, paths, restated)
+	if _, err := renderConfiguration(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	mirror := readArtifact(t, paths.Output, configurationRoute+pageMirrorFile)
+	for _, line := range []string{
+		// The owner line sits between the heading and the two texts.
+		"\n\nBGP speaker configuration.\n\nEvery BGP session Ze speaks is declared under this section.\n\n- **as-notation**",
+		"- **as-notation** `enumeration`: How Ze writes an AS number in the output an operator reads.\n" +
+			"  RFC 5396 Section 2 names the three notations.\n" +
+			"  - `asdot`: An AS number of 65536 or more is X.Y\n" +
+			"  - `asplain`: Every AS number is a decimal integer\n" +
+			"  - `silent`\n",
+		"- **router-id** `ipv4-address`: BGP Router ID for this speaker.\n",
+	} {
+		if !strings.Contains(mirror, line) {
+			t.Errorf("the mirror does not carry %q\n%s", line, mirror)
+		}
+	}
+
+	page := readArtifact(t, paths.Output, configurationDest)
+	tree := map[string]configNode{}
+	decodeEmbeddedJSON(t, page, `<script id="config-tree" type="application/json">`, &tree)
+	notation := tree["bgp"].Children[0]
+	if notation.ShortHelp != "How Ze writes an AS number in the output an operator reads." ||
+		notation.Description != "RFC 5396 Section 2 names the three notations." {
+		t.Errorf("the embedded as-notation carries %q and %q", notation.ShortHelp, notation.Description)
+	}
+	if len(notation.Values) != 3 || notation.Values[2].Name != "silent" || notation.Values[2].ShortHelp != "" {
+		t.Errorf("the embedded as-notation values are %v", notation.Values)
+	}
+	// The browser script renders the three under the keys the tree spells.
+	for _, key := range []string{`n["short-help"]`, `n.description`, `n.values`} {
+		if !strings.Contains(page, key) {
+			t.Errorf("the config browser script never reads %s", key)
+		}
+	}
+
+	var llms textbuf.Buffer
+	writeLLMSConfigRoots(&llms, &llmsInputs{ConfigTree: tree})
+	want := "- `bgp`: BGP speaker configuration. Every BGP session Ze speaks is declared under this section. " +
+		"Children: as-notation, router-id.\n"
+	if !strings.Contains(llms.String(), want) {
+		t.Errorf("llms.txt carries\n%s\nwant\n%s", llms.String(), want)
 	}
 }

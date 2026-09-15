@@ -406,7 +406,10 @@ the `action` enum offers, one line for each action a model can pick.
 tool's own `description`, which is the one place an MCP client shows a
 paragraph. A tool that IS one command carries both there, the summary first
 (`commandText`). Neither text is derived from the other and neither is
-truncated. `docs/architecture/api/commands.md` names every surface and the half
+truncated. Each typed parameter (`ParamInfo`) carries the pair its YANG leaf
+declares, and `addYANGParams` writes the summary as the property's JSON Schema
+`title` and the explanation as its `description`, each only when declared.
+`docs/architecture/api/commands.md` names every surface and the half
 it reads.
 
 A command that a plugin registers with `Hidden` never becomes a tool.

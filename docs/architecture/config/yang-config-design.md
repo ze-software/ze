@@ -449,9 +449,14 @@ schema knows every key there can be. For every other list the set of keys is
 what the operator created, so there is nothing more the schema can offer and the
 placeholder hint `<value>` is shown instead.
 
-The help text is read off the leaf's parse-tree node: the resolved `EnumType`
-keeps only the name and the value. An enumeration that arrives through a typedef
-or a grouping therefore completes with no help rather than with the wrong help.
+The help text is read off the parse-tree type statements: the resolved
+`EnumType` keeps only the name and the value. An enumeration that arrives
+through a typedef, in whichever scope the typedef sits and through however many
+typedefs, completes with the help the typedef's own `enum` statements declare,
+because goyang leaves the typedef's type statement at `YangType.Base` when it
+resolves the reference and `yang.EnumValueSummaries` follows that chain. A value
+declared with no `ze:help` completes with no help rather than with the wrong
+help.
 
 <!-- source: internal/component/cli/completer.go -- listKeyCompletions, enumKeyVocabulary -->
 
@@ -603,10 +608,23 @@ two statements. Each text reaches its own surface of the interactive CLI.
 
 | Statement | Holds | Read by |
 |-----------|-------|---------|
-| `ze:help` | the one-line SUMMARY of the node | the message row under the completion menu, the web editor form, and every list that names the node |
-| `description` | the LONG explanation of that node | the box `?` opens on the highlighted candidate |
-<!-- source: internal/component/cli/completer.go -- entryShortHelp, entryDescription -->
+| `ze:help` | the one-line SUMMARY of the node | the message row under the completion menu, the tooltip of the web editor form, the node line of the published configuration reference and its `llms.txt` roots, `show yang tree --config \| json` as `short-help`, and every list that names the node |
+| `description` | the LONG explanation of that node | the box `?` opens on the highlighted candidate, the block under the input in the web editor form, the paragraph under the node in the configuration reference, and `show yang tree --config \| json` as `description` |
+| `ze:help` on an `enum` value | the one-line SUMMARY of that value | the value completion row for the leaf, `show yang tree --config \| json` as `values[].short-help`, and the value list under the leaf in the configuration reference |
+<!-- source: internal/component/cli/completer.go -- entryShortHelp, entryDescription, valueCompletions -->
 <!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation -->
+<!-- source: internal/component/config/yang/cli/tree.go -- walkYANGEntry, yangEnumValues -->
+<!-- source: internal/component/web/handler_config_leaf.go -- buildLeafField -->
+<!-- source: internal/le/site/config.go -- writeConfigChildMirror -->
+
+Every carrier fills the pair from the same two calls: `GetHelpExtension` for
+the summary and the goyang entry's `Description` for the explanation. An enum
+value's summary has one reader too, `EnumValueSummaries`
+(`internal/component/config/yang/enum.go`), which reads the value's own
+`ze:help` off the leaf's parse-tree node. The completer resolves it once per
+leaf and serves every later keystroke from that cache. A value that declares
+no `ze:help` renders an empty summary: nothing stands in for it, and nothing
+derives one text from the other on any surface.
 
 `matchChildren` and `matchEditTargets` put both texts on the `contract.Completion`
 they build, in `ShortHelp` and `Description`. The reader of the extension is

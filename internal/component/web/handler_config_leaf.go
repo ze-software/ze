@@ -54,6 +54,7 @@ func buildLeafField(name string, leaf *config.LeafNode, value string, configured
 	info.Default = leaf.Default
 	info.IsConfigured = configured
 	info.ShortHelp = leaf.ShortHelp
+	info.Description = leaf.Description
 	if len(leaf.Enums) > 0 {
 		info.InputType = leafInputSelect
 		info.Options = leaf.Enums

@@ -1,0 +1,55 @@
+# mcp-tools-list-argument-texts - a tool's inputSchema property carries the
+# argument leaf's two texts: `title` from the leaf's ze:help and `description`
+# from its description.
+#
+# VALIDATES: AC-6 of spec-both-help-texts-reach-every-surface. The `name`
+# input leaf of `ze-system:command-help` (internal/core/ipc/yang/ze-system-api.yang)
+# declares both texts, and `system command help` is the command it reaches,
+# so the `ze_system_command` tool carries both on its `name` property.
+#
+# Every needle below is pattern= rather than contains=: ParseKVPairs
+# (internal/test/ci/ciformat.go) splits a directive on ':' and only json=,
+# text=, hex= and pattern= keep a colon-bearing value.
+#
+# PREVENTS: buildParamMeta (cmd/ze/hub/command_meta.go), mcpCommandLister
+# (cmd/ze/hub/service_mcp.go) or addYANGParams (internal/component/mcp/tools.go)
+# dropping either text, so an MCP client reads the leaf's name and type and
+# never what it means.
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=200 code=ok
+expect=stdout:pattern="name":"ze_system_command"
+# One property, both texts, in the key order Go's JSON encoder writes them.
+expect=stdout:pattern="name":\{"description":"The full command name, as command-list prints it\. A name in\\nneither registry fails with unknown command\.","title":"Command name","type":"string"\}

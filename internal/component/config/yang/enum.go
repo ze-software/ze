@@ -111,3 +111,117 @@ func (l *Loader) moduleNames() []string {
 	slices.Sort(names)
 	return names
 }
+
+// EnumValueSummaries answers the ze:help summary each value of entry's
+// enumeration declares, keyed by value name, and nil when entry declares none.
+//
+// The resolved EnumType keeps only the name and the value, so the summary is
+// read off the parse-tree type statements, which still carry every enum
+// statement with its extensions. A union is read member by member, because
+// value completion offers every enumeration member's values. A typedef
+// reference is followed to the typedef's own type statement, whichever scope
+// declares it and however many typedefs sit between: goyang resolves the
+// reference once at load and leaves that statement at YangType.Base, so this
+// reader walks what the resolver found rather than resolving a name again.
+// A value declared with no ze:help stays absent: nothing derives a summary
+// from any other text.
+//
+// This is the ONE reader of an enum value's ze:help. The completion row, the
+// analysis tree the site reads and the help-shape gate all read through it,
+// so the three surfaces cannot disagree about which value carries which text.
+func EnumValueSummaries(entry *gyang.Entry) map[string]string {
+	if entry == nil {
+		return nil
+	}
+	var declared *gyang.Type
+	switch node := entry.Node.(type) {
+	case *gyang.Leaf:
+		declared = node.Type
+	case *gyang.LeafList:
+		declared = node.Type
+	}
+	if declared == nil {
+		return nil
+	}
+
+	summaries := make(map[string]string)
+	collectEnumSummaries(declared, summaries, 0)
+	if len(summaries) == 0 {
+		return nil
+	}
+	return summaries
+}
+
+// EnumValueNames lists the enumeration values a leaf renders: the values of
+// its own enumeration type and of every enumeration member of a union, sorted
+// and deduplicated, which is the order goyang's EnumType.Names answers in. It
+// answers nil for a leaf that is no enumeration and declares no enumeration
+// member.
+//
+// This is the ONE reader of which values a leaf renders. Value completion
+// (internal/component/cli, valueCompletions), the analysis tree
+// (internal/component/config/yang/cli, yangEnumValues) and the help-shape
+// gate (internal/le/docvalid, schemaEnums) all read through it, so the
+// population the gate judges is the population the two surfaces render.
+func EnumValueNames(entry *gyang.Entry) []string {
+	if entry == nil || entry.Type == nil {
+		return nil
+	}
+	var names []string
+	for _, member := range append([]*gyang.YangType{entry.Type}, entry.Type.Type...) {
+		if member == nil || member.Kind != gyang.Yenum || member.Enum == nil {
+			continue
+		}
+		names = append(names, member.Enum.Names()...)
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+// typeDepthMax bounds collectEnumSummaries. The walk follows the model's own
+// structure, which goyang resolved before this reader runs, and a typedef
+// chain that loops never resolves, so a model that reaches the bound is a
+// goyang defect rather than a shape the model can declare.
+const typeDepthMax = 16
+
+// collectEnumSummaries puts into summaries the ze:help of every enum statement
+// reachable from declared: its own, then each union member's, then those of
+// the typedef its name references, which goyang's resolver left at
+// YangType.Base as the typedef's type statement
+// (vendor/github.com/openconfig/goyang/pkg/yang/types.go, Type.resolve). A
+// typedef whose type is a builtin ends the chain with a Base of nil.
+//
+// The recursion is over the model, an internal structure, and typeDepthMax
+// bounds it. A name declared twice keeps the first declaration, which is the
+// statement nearest the leaf, as goyang's own resolution does.
+func collectEnumSummaries(declared *gyang.Type, summaries map[string]string, depth int) {
+	if declared == nil {
+		return
+	}
+	if depth > typeDepthMax {
+		return
+	}
+	for _, value := range declared.Enum {
+		if value == nil {
+			continue
+		}
+		summary := GetHelpExtension(value.Extensions)
+		if summary == "" {
+			continue
+		}
+		if _, held := summaries[value.Name]; held {
+			continue
+		}
+		summaries[value.Name] = strings.Join(strings.Fields(summary), " ")
+	}
+	for _, member := range declared.Type {
+		collectEnumSummaries(member, summaries, depth+1)
+	}
+	if declared.YangType == nil {
+		return
+	}
+	collectEnumSummaries(declared.YangType.Base, summaries, depth+1)
+}

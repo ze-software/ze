@@ -96,29 +96,56 @@ func TestHelpShapeCapsAnEnumButDoesNotDemandADescription(t *testing.T) {
 	}
 }
 
-// VALIDATES: an enum on a leaf that keys no list is not capped, however long
-// its ze:help runs.
-// PREVENTS: the cap reaching 278 enum summaries of which none renders.
-// `getListKeyEntry` answers the key leaf and nil for every other leaf, so an
-// enumeration on an ordinary leaf comes back with no help at all.
-func TestHelpShapeIgnoresAnEnumThatKeysNoList(t *testing.T) {
-	report := schemaReport(t, shapeConfModule(t))
+// VALIDATES: AC-7 -- every enumeration value the completer renders is judged
+// under the two caps, not only a list key's: the enum on `sockets/state`
+// keys no list and an over-long summary on it is refused. The report names
+// the count of rendered values and of those with a summary.
+// PREVENTS: the gate judging a narrower population than `valueCompletions`
+// (internal/component/cli/completer.go) renders, which left 278 rendered
+// summaries with no cap.
+func TestHelpShapeJudgesEveryRenderedEnum(t *testing.T) {
+	report := schemaReport(t, strings.Replace(shapeConfModule(t),
+		`ze:help "The socket accepts connections.";`,
+		`ze:help "`+summaryOfLength(command.MaxSummaryChars+1)+`";`, 1))
 
+	capped := shapeSchemaPaths(report, ruleCharCap)
+	if len(capped) != 1 || !strings.HasSuffix(capped[0], "sockets/state/open") {
+		t.Fatalf("the char cap names %v, want the enum value on sockets/state", capped)
+	}
 	for _, row := range report.Broken {
-		if strings.Contains(row.Path, "sockets/state") {
-			t.Errorf("the gate refuses %q under %s", row.Path, row.Rule)
+		if row.Rule == ruleMissingDescription && strings.Contains(row.Path, "sockets/state/open") {
+			t.Errorf("the gate demands a long help on an enum at %q", row.Path)
 		}
+	}
+	// open, ipv4 and ipv6 are the rendered values, and each declares a summary.
+	if report.SchemaEnumValues != 3 || report.SchemaEnumValuesWithSummary != 3 {
+		t.Errorf("the report counts %d rendered enum values with %d summaries, want 3 and 3",
+			report.SchemaEnumValues, report.SchemaEnumValuesWithSummary)
+	}
+	if !strings.Contains(report.Text(), "Enum values rendered: 3\n") {
+		t.Errorf("the report does not name the count:\n%s", report.Text())
 	}
 }
 
-// VALIDATES: a leaf in a command module is not capped and the same text in a
-// config module is.
-// PREVENTS: a cap on text that reaches nobody. `argDefFor`
-// (internal/component/config/yang/command.go) builds a command.ArgDef from
-// `leaf.Type` alone, and ArgDef holds no text field, so a command leaf's
-// ze:help is dropped at the tree boundary. A config leaf's ze:help is read by
-// `entryDescription` and put on the completion row.
-func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testing.T) {
+// shapePaths lists the broken paths of one surface under one rule, sorted.
+func shapePaths(report HelpShapeReport, surface, rule string) []string {
+	var out []string
+	for _, row := range report.Broken {
+		if row.Surface == surface && row.Rule == rule {
+			out = append(out, row.Path)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// VALIDATES: a command argument's ze:help is judged under the two caps, as a
+// config leaf's is, and counted on its own corpus line.
+// PREVENTS: an argument summary past the render bound reaching `ze help
+// command --json`, the web form and the site catalog with no gate saying so.
+// `argDefFor` (internal/component/config/yang/command.go) copies the leaf's
+// ze:help into `ArgDef.ShortHelp`, so the text renders and the cap applies.
+func TestHelpShapeCapsACommandArgumentSummary(t *testing.T) {
 	long := summaryOfLength(command.MaxSummaryChars + 1)
 
 	cmdModule := strings.Replace(shapeModule,
@@ -127,6 +154,9 @@ func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testi
       leaf port {
         type uint16;
         ze:help "`+long+`";
+      }
+      leaf label {
+        type string;
       }`, 1)
 
 	loader := shapeLoaderOver(t, cmdModule, shapeAPIModule, shapeConfModule(t))
@@ -136,16 +166,114 @@ func TestHelpShapeIgnoresALeafInACommandModuleButCapsOneInAConfigModule(t *testi
 	if err != nil {
 		t.Fatalf("the gate could not read the fixture: %v", err)
 	}
-	if !report.Valid {
-		t.Fatalf("the gate judged a command leaf's ze:help:\n%s", report.Text())
+	if got := shapePaths(report, surfaceArgument, ruleCharCap); len(got) != 1 || got[0] != "show sockets port" {
+		t.Fatalf("the char cap names %v, want the command argument", got)
 	}
+	if report.Arguments != 2 || report.ArgumentsWithSummary != 1 {
+		t.Fatalf("arguments judged %d with a summary %d, want 2 and 1", report.Arguments, report.ArgumentsWithSummary)
+	}
+	if !strings.Contains(report.Text(), "Argument texts judged: 2\n") {
+		t.Errorf("the report does not name the count:\n%s", report.Text())
+	}
+}
 
-	report = schemaReport(t, strings.Replace(shapeConfModule(t),
-		`ze:help "Address family the listener binds.";`,
-		`ze:help "`+long+`";`, 1))
-	if got := shapeSchemaPaths(report, ruleCharCap); len(got) != 1 ||
-		!strings.HasSuffix(got[0], "sockets/binding/family") {
-		t.Fatalf("the char cap names %v, want the config leaf", got)
+// VALIDATES: an argument a container ABOVE the command declares is judged once,
+// under the container that declares it, not once for each command below it.
+// PREVENTS: one over-cap declaration refused as many times as the commands that
+// inherit it.
+func TestHelpShapeJudgesAnInheritedArgumentOnce(t *testing.T) {
+	long := summaryOfLength(command.MaxSummaryChars + 1)
+
+	cmdModule := strings.Replace(shapeModule,
+		`    container sockets {`,
+		`    container peer {
+      config false;
+      ze:help "Act on one peer.";
+      description "The peer is named by its address.";
+      leaf name {
+        type string;
+        ze:help "`+long+`";
+      }
+      container open {
+        config false;
+        ze:command "ze-show:peer-open";
+        ze:help "Open the peer.";
+        description "The session is started.";
+      }
+      container close {
+        config false;
+        ze:command "ze-show:peer-close";
+        ze:help "Close the peer.";
+        description "The session is stopped.";
+      }
+    }
+    container sockets {`, 1)
+
+	loader := shapeLoaderOver(t, cmdModule, shapeAPIModule, shapeConfModule(t))
+	report, err := helpShapeContract(shapeInput(loader, shapeLocals()))
+	if err != nil {
+		t.Fatalf("the gate could not read the fixture: %v", err)
+	}
+	if got := shapePaths(report, surfaceArgument, ruleCharCap); len(got) != 1 || got[0] != "show peer name" {
+		t.Fatalf("the char cap names %v, want the one declaration under its container", got)
+	}
+	if report.Arguments != 1 {
+		t.Fatalf("arguments judged %d, want the one declaration", report.Arguments)
+	}
+}
+
+// VALIDATES: an rpc input, rpc output and notification leaf's ze:help is
+// judged under the two caps and counted on its own corpus line.
+// PREVENTS: a leaf summary past the render bound reaching `ze help ai --json`,
+// the MCP `title` and the gRPC schema with no gate saying so.
+func TestHelpShapeCapsAnRPCAndNotificationLeafSummary(t *testing.T) {
+	long := summaryOfLength(command.MaxSummaryChars + 1)
+
+	apiModule := strings.Replace(shapeAPIModule,
+		`  rpc socket-clear {`,
+		`  notification socket-closed {
+    ze:help "A socket closed.";
+    leaf reason {
+      type string;
+      ze:help "`+long+`";
+    }
+  }
+  rpc socket-clear {
+    input {
+      leaf idle {
+        type uint32;
+        ze:help "`+long+`";
+        description "Seconds a socket must have been idle.";
+      }
+    }
+    output {
+      leaf closed {
+        type uint32;
+        ze:help "Sockets closed.";
+      }
+      leaf kept {
+        type uint32;
+      }
+    }`, 1)
+
+	loader := shapeLoaderOver(t, shapeModule, apiModule, shapeConfModule(t))
+	report, err := helpShapeContract(shapeInput(loader, shapeLocals()))
+	if err != nil {
+		t.Fatalf("the gate could not read the fixture: %v", err)
+	}
+	want := []string{"ze-fixture-api:socket-clear/input/idle", "ze-fixture-api:socket-closed/reason"}
+	if got := shapePaths(report, surfaceLeaf, ruleCharCap); !slices.Equal(got, want) {
+		t.Fatalf("the char cap names %v, want %v", got, want)
+	}
+	if report.RPCLeaves != 3 || report.RPCLeavesWithSummary != 2 {
+		t.Fatalf("rpc leaves judged %d with a summary %d, want 3 and 2", report.RPCLeaves, report.RPCLeavesWithSummary)
+	}
+	if report.NotificationLeaves != 1 || report.NotificationLeavesWithSummary != 1 {
+		t.Fatalf("notification leaves judged %d with a summary %d, want 1 and 1",
+			report.NotificationLeaves, report.NotificationLeavesWithSummary)
+	}
+	if !strings.Contains(report.Text(), "RPC leaf texts judged: 3\n") {
+		t.Errorf("the report does not name the count:\n%s", report.Text())
 	}
 }
 
@@ -234,5 +362,28 @@ func TestHelpShapeRefusesAConfigNodeWithNoSummary(t *testing.T) {
 	}
 	if !strings.Contains(report.Text(), ruleMissingSummary) {
 		t.Errorf("the rendered report does not name the rule:\n%s", report.Text())
+	}
+}
+
+// VALIDATES: a config leaf whose ze:help runs past the character cap is refused
+// under `char-cap`, on the `schema` surface, at the path an operator types.
+// PREVENTS: the config half of the cap being deleted in silence. The summary
+// renders on one completion row, so a summary past the cap is cut on every
+// surface that shows it, and the argument, RPC leaf and enum tests each judge
+// a different population: none of them reaches `schema`, so without this case
+// `r.judgeCaps(surfaceSchema, ...)` could go and every test would stay green.
+func TestHelpShapeCapsAConfigLeafSummary(t *testing.T) {
+	const capped = "ze-fixture-conf:sockets/binding/family"
+
+	module := strings.Replace(shapeConfModule(t),
+		`        ze:help "Address family the listener binds.";`,
+		`        ze:help "`+summaryOfLength(command.MaxSummaryChars+1)+`";`, 1)
+	if module == shapeConfModule(t) {
+		t.Fatalf("the fixture no longer declares the family summary the test replaces")
+	}
+	report := schemaReport(t, module)
+
+	if got := shapeSchemaPaths(report, ruleCharCap); len(got) != 1 || got[0] != capped {
+		t.Fatalf("the char cap names %v, want exactly [%s]", got, capped)
 	}
 }

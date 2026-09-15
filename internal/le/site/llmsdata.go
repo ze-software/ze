@@ -48,15 +48,32 @@ type registryPlugin struct {
 }
 
 // configNode is one node of the YANG-derived configuration tree.
+//
+// ShortHelp is the one-line summary the node's ze:help declares and
+// Description the long explanation its description statement declares. They
+// are two declarations, so a node that declares one holds the other empty and
+// no surface derives one from the other.
 type configNode struct {
+	ShortHelp   string `json:"short-help"`
 	Description string `json:"description"`
 	Kind        string `json:"kind"`
 	Name        string `json:"name"`
 	// Type is the YANG type a leaf or a leaf-list holds, and is empty for a
 	// container and for a list. The configuration reference shows it as the
 	// node's badge, which is the one place a reader learns what to write.
-	Type     string       `json:"type"`
-	Children []configNode `json:"children"`
+	Type string `json:"type"`
+	// Values lists an enumeration leaf's values with the summary each one
+	// declares, and is empty for every other node.
+	Values   []configEnumValue `json:"values"`
+	Children []configNode      `json:"children"`
+}
+
+// configEnumValue is one value of an enumeration leaf. A value that declares
+// no ze:help carries an empty ShortHelp, and the reference prints its name
+// alone.
+type configEnumValue struct {
+	Name      string `json:"name"`
+	ShortHelp string `json:"short-help"`
 }
 
 // llmsInputs is everything one llms.txt render reads, loaded once.

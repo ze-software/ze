@@ -10,9 +10,10 @@
 // The choice and the case carry a paragraph each for the same reason. Neither
 // is emitted as a completion row: effectiveChildren walks through both.
 //
-// Two enumerations sit in it on purpose. The one on `family` keys a list, so
-// the completer renders each value's ze:help on a one-line row. The one on
-// `state` keys nothing, so no surface renders it and no bound reaches it.
+// Two enumerations sit in it on purpose. The one on `family` keys a list and
+// the one on `state` keys nothing: the completer renders each value's ze:help
+// on a one-line row either way, so both take the caps. The typedef one is
+// used by no leaf, so no row renders it and no bound reaches it.
 module ze-fixture-conf {
   namespace "urn:ze:fixture:conf";
   prefix zefixconf;
@@ -66,11 +67,7 @@ module ze-fixture-conf {
     leaf state {
       type enumeration {
         enum open {
-          ze:help
-            "An enumeration on a leaf that keys no list reaches no completion
-             row at all, because getListKeyEntry answers the key leaf and
-             nothing else, so this paragraph past both bounds is never
-             rendered.";
+          ze:help "The socket accepts connections.";
         }
       }
       description "The state is read from the kernel each time the row is drawn.";

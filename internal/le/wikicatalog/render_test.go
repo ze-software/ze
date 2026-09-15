@@ -29,7 +29,10 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 					Backend:       []string{"rib"},
 					TaskSupport:   "stream",
 					Args: []Argument{
-						{Name: "family", Type: "enum", Values: []string{"blue", "red"}, Mandatory: true},
+						{
+							Name: "family", Type: "enum", Values: []string{"blue", "red"}, Mandatory: true,
+							ShortHelp: "The color to show", Description: "Rows of the other color\nare left out.",
+						},
 					},
 					Pipes: []Pipe{
 						{Name: "detail", Description: "show detail", TakesArg: true},

@@ -29,7 +29,8 @@ const enrichedCommandCatalog = `[{
  "backend": ["netlink", "vpp"],
  "task-support": "required",
  "args": [
-  {"name": "family", "type": "enum", "values": ["ipv4", "ipv6"], "mandatory": true},
+  {"name": "family", "type": "enum", "values": ["ipv4", "ipv6"], "mandatory": true,
+   "short-help": "The address family to show", "description": "Rows of the other family are left out."},
   {"name": "level", "type": "string"}
  ],
  "usage": "show test <ipv4|ipv6> [detail <level>]",
@@ -126,6 +127,16 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 		Reason:    "a reader who cannot see that an argument is owed will type the command without it.",
 		Reference: []string{"required: yes"},
 		Detail:    []string{"Required", "yes"},
+	},
+	"args.short-help": {
+		Reason:    "the summary is the one line that says what the argument is for.",
+		Reference: []string{"The address family to show"},
+		Detail:    []string{"Summary", "The address family to show"},
+	},
+	"args.description": {
+		Reason:    "the explanation is what the leaf's author wrote for a reader who needs more than the summary.",
+		Reference: []string{"Rows of the other family are left out."},
+		Detail:    []string{"Description", "Rows of the other family are left out."},
 	},
 	"usage": {
 		Reason:    "the usage line is the invocation form an operator types.",

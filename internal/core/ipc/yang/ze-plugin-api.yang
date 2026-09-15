@@ -56,7 +56,7 @@ The long explanation is not in this list.";
     }
 
     rpc command-help {
-        description "The answer carries command, description, long-help, args and
+        description "The answer carries command, short-help, description, args and
 source. The source names the plugin process that registered the command. An
 unknown name fails with 'unknown plugin command: <name>'.";
         ze:help "Show one plugin command's summary, explanation, arguments, and source plugin.";

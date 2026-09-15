@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -273,4 +275,89 @@ func TestUnifiedTreeMergeEnrichesDescription(t *testing.T) {
 	// After merge, the plugin node should have a description from YANG (not empty).
 	assert.NotEmpty(t, plugin.ShortHelp,
 		"merged plugin node should have description from YANG config module")
+}
+
+// VALIDATES: AC-3, AC-4, AC-5 -- an AnalysisNode carries the ze:help summary
+// and the description explanation as two fields, and an enumeration leaf
+// carries its values with the summary each one declares. The JSON the site
+// build reads spells them short-help, description and values.
+// PREVENTS: the tree copying one text under the other's key, and an enum
+// value reaching the configuration reference with no summary at all.
+func TestAnalysisTreeCarriesBothTextsAndValues(t *testing.T) {
+	root, err := buildUnifiedTree()
+	require.NoError(t, err)
+
+	bgp, ok := root.Children["bgp"]
+	require.True(t, ok, "bgp should be in unified tree")
+	notation, ok := bgp.Children["as-notation"]
+	require.True(t, ok, "bgp > as-notation should exist")
+
+	assert.Equal(t, "How Ze writes an AS number in the output an operator reads.",
+		notation.ShortHelp)
+	assert.Contains(t, notation.Description, "RFC 5396 Section 2 names the three notations")
+	assert.NotEqual(t, notation.ShortHelp, notation.Description)
+
+	// The values are the declared set, in name order, each with its own summary.
+	require.Len(t, notation.Values, 3)
+	assert.Equal(t, EnumValue{Name: "asdot",
+		ShortHelp: "An AS number of 65536 or more is X.Y, and a lower one is a decimal integer"},
+		notation.Values[0])
+	assert.Equal(t, EnumValue{Name: "asdot+", ShortHelp: "Every AS number is X.Y"},
+		notation.Values[1])
+	assert.Equal(t, EnumValue{Name: "asplain", ShortHelp: "Every AS number is a decimal integer"},
+		notation.Values[2])
+
+	// A non-enumeration leaf carries no values, and a container carries none.
+	assert.Empty(t, bgp.Children["router-id"].Values)
+	assert.Empty(t, bgp.Values)
+
+	// The JSON the site reads spells the three under their kebab-case keys.
+	var buf bytes.Buffer
+	require.NoError(t, formatTreeJSON(&buf, root, SourceConfig))
+	var nodes []map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &nodes))
+	var bgpJSON map[string]any
+	for _, node := range nodes {
+		if node["name"] == "bgp" {
+			bgpJSON = node
+		}
+	}
+	require.NotNil(t, bgpJSON)
+	var notationJSON map[string]any
+	children, ok := bgpJSON["children"].([]any)
+	require.True(t, ok, "bgp children is a list")
+	for _, child := range children {
+		node, ok := child.(map[string]any)
+		require.True(t, ok, "a child is an object")
+		if node["name"] == "as-notation" {
+			notationJSON = node
+		}
+	}
+	require.NotNil(t, notationJSON)
+	assert.Equal(t, notation.ShortHelp, notationJSON["short-help"])
+	assert.Equal(t, notation.Description, notationJSON["description"])
+	values, ok := notationJSON["values"].([]any)
+	require.True(t, ok, "values is a list")
+	require.Len(t, values, 3)
+	first, ok := values[0].(map[string]any)
+	require.True(t, ok, "a value is an object")
+	assert.Equal(t, "asdot", first["name"])
+	assert.Equal(t, notation.Values[0].ShortHelp, first["short-help"])
+}
+
+// TestTreeJSONOmitsAnEmptyValueSummary: an enum value that declares no ze:help
+// prints no short-help key, as a node with no text prints none (AC-5: nothing
+// derives one text from another, and an absent text is an absent key).
+func TestTreeJSONOmitsAnEmptyValueSummary(t *testing.T) {
+	root := &AnalysisNode{Children: map[string]*AnalysisNode{
+		"mode": {Name: "mode", NodeKind: "leaf", Values: []EnumValue{
+			{Name: "active", ShortHelp: "Open the session"},
+			{Name: "silent"},
+		}},
+	}}
+	var buf bytes.Buffer
+	require.NoError(t, formatTreeJSON(&buf, root, ""))
+	assert.Contains(t, buf.String(), `"short-help": "Open the session"`)
+	assert.Contains(t, buf.String(), "\"name\": \"silent\"\n")
+	assert.NotContains(t, buf.String(), `"short-help": ""`)
 }

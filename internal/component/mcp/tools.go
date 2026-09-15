@@ -81,11 +81,15 @@ type CommandInfo struct {
 }
 
 // ParamInfo describes a single input parameter from YANG RPC metadata.
+// ShortHelp is the property's JSON Schema `title` and Description its
+// `description`; neither is derived from the other, and an empty one writes
+// no key.
 type ParamInfo struct {
-	Name      string // Parameter name (kebab-case from YANG)
-	Type      string // YANG type: "string", "uint32", "boolean", etc.
-	ShortHelp string // One-line summary, from the ze:help extension
-	Required  bool   // Mandatory in YANG
+	Name        string // Parameter name (kebab-case from YANG)
+	Type        string // YANG type: "string", "uint32", "boolean", etc.
+	ShortHelp   string // One-line summary, from the ze:help extension
+	Description string // Long explanation, from the YANG description
+	Required    bool   // Mandatory in YANG
 }
 
 // CommandLister returns all registered commands. Called at tools/list time
@@ -514,8 +518,13 @@ func addYANGParams(actions []action, properties map[string]any) (bool, []string)
 			prop := map[string]any{
 				schemaKeyType: yangTypeToJSON(p.Type),
 			}
+			// JSON Schema names the short text `title` and the long one
+			// `description`. Each is written only when the leaf declares it.
 			if p.ShortHelp != "" {
-				prop[schemaKeyDescription] = p.ShortHelp
+				prop[schemaKeyTitle] = p.ShortHelp
+			}
+			if p.Description != "" {
+				prop[schemaKeyDescription] = p.Description
 			}
 			properties[p.Name] = prop
 			added = true

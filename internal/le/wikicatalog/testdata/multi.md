@@ -48,9 +48,9 @@ Address fields: `address`
 
 **Arguments:**
 
-| Name | Type | Required | Values |
-|------|------|----------|--------|
-| `family` | `enum` | yes | `blue`, `red` |
+| Name | Type | Required | Values | Summary | Description |
+|------|------|----------|--------|---------|-------------|
+| `family` | `enum` | yes | `blue`, `red` | The color to show | Rows of the other color are left out\. |
 
 **Pipes:**
 Always: `json`, `save`

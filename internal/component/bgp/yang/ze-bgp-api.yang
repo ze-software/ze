@@ -48,8 +48,8 @@ argument its source too.";
     }
 
     rpc command-help {
-        description "The answer carries the one-line summary under 'description' and the long
-explanation under 'long-help'. Neither text is derived from the other. The
+        description "The answer carries the one-line summary under 'short-help' and the long
+explanation under 'description'. Neither text is derived from the other. The
 lookup reads the builtin table first and the plugin command registry after it.";
         ze:help "Show BGP command details.";
         input {
@@ -65,7 +65,7 @@ builtin table first and the plugin command registry after it.";
             leaf help {
                 type string;
                 description "The long explanation of the named command, as its author registered it. The
-one-line summary is answered beside it under 'description'.";
+one-line summary is answered beside it under 'short-help'.";
                 ze:help "Detailed help text";
             }
         }
@@ -919,7 +919,7 @@ notification today, so a subscriber that waits for it receives nothing.";
         leaf asn {
             type zt:asn;
             description "The AS number the peer announced in its OPEN, as a plain decimal integer.";
-            ze:help "Peer ASN, as a decimal value. No producer emits this notification today, so the type states the conservative form rather than a spelling nothing writes";
+            ze:help "Peer ASN, as a decimal value";
         }
     }
 

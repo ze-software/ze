@@ -1,0 +1,24 @@
+# Test: show yang tree --config | json carries both texts and the enum values
+# VALIDATES: AC-3, AC-4 -- a config leaf's ze:help summary is short-help and
+#   its description explanation is description, and an enumeration leaf lists
+#   values, each with the summary the value declares. The site build reads
+#   this JSON for the configuration reference.
+# PREVENTS: the tree copying the summary under the description key and
+#   carrying no enum values, which left the reference with one text and
+#   no value list.
+# NOTE: bgp/as-notation is the leaf because its three values each declare a
+#       ze:help and the leaf declares both texts
+#       (internal/component/bgp/yang/ze-bgp-conf.yang).
+
+cmd=foreground:seq=1:exec=ze cli -c "show yang tree --config | json"
+expect=exit:code=0
+
+# The leaf's own two texts, under their two keys.
+expect=stdout:pattern="short-help":\s*"How Ze writes an AS number in the output an operator reads\."
+expect=stdout:pattern="description":\s*"RFC 5396 Section 2 names the three notations\.
+
+# The values, each with its own summary.
+expect=stdout:pattern="name":\s*"asplain"
+expect=stdout:pattern="short-help":\s*"Every AS number is a decimal integer"
+expect=stdout:pattern="name":\s*"asdot\+"
+expect=stdout:pattern="short-help":\s*"Every AS number is X\.Y"

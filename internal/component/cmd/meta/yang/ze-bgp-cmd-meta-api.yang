@@ -27,8 +27,8 @@ argument and each row also carries its source, which is 'builtin'.";
   }
 
   rpc command-help {
-    description "The answer carries the one-line summary under 'description' and the long
-explanation under 'long-help'. Neither text is derived from the other. The
+    description "The answer carries the one-line summary under 'short-help' and the long
+explanation under 'description'. Neither text is derived from the other. The
 lookup reads the builtin table first and the plugin command registry after it.";
     ze:help "Show command details.";
   }

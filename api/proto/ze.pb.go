@@ -7,12 +7,11 @@
 package zepb
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -264,13 +263,17 @@ func (x *ListCommandsResponse) GetCommands() []*CommandInfo {
 	return nil
 }
 
-// CommandInfo describes a single command.
+// CommandInfo describes a single command. short_help is the one-line summary
+// from the YANG ze:help statement and description the long explanation from
+// the YANG description statement. Neither is derived from the other, and an
+// undeclared text is empty.
 type CommandInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	ReadOnly      bool                   `protobuf:"varint,3,opt,name=read_only,json=read-only,proto3" json:"read-only,omitempty"`
 	Params        []*ParamInfo           `protobuf:"bytes,4,rep,name=params,proto3" json:"params,omitempty"`
+	ShortHelp     string                 `protobuf:"bytes,5,opt,name=short_help,json=short-help,proto3" json:"short-help,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -333,13 +336,22 @@ func (x *CommandInfo) GetParams() []*ParamInfo {
 	return nil
 }
 
-// ParamInfo describes a command parameter.
+func (x *CommandInfo) GetShortHelp() string {
+	if x != nil {
+		return x.ShortHelp
+	}
+	return ""
+}
+
+// ParamInfo describes a command parameter. short_help and description are
+// the parameter's two declared texts, as on CommandInfo.
 type ParamInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Required      bool                   `protobuf:"varint,4,opt,name=required,proto3" json:"required,omitempty"`
+	ShortHelp     string                 `protobuf:"bytes,5,opt,name=short_help,json=short-help,proto3" json:"short-help,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -400,6 +412,13 @@ func (x *ParamInfo) GetRequired() bool {
 		return x.Required
 	}
 	return false
+}
+
+func (x *ParamInfo) GetShortHelp() string {
+	if x != nil {
+		return x.ShortHelp
+	}
+	return ""
 }
 
 // DescribeCommandRequest identifies a command by path.
@@ -1152,17 +1171,23 @@ const file_api_proto_ze_proto_rawDesc = "" +
 	"\x13ListCommandsRequest\x12\x16\n" +
 	"\x06prefix\x18\x01 \x01(\tR\x06prefix\"J\n" +
 	"\x14ListCommandsResponse\x122\n" +
-	"\bcommands\x18\x01 \x03(\v2\x16.ze.api.v1.CommandInfoR\bcommands\"\x8f\x01\n" +
+	"\bcommands\x18\x01 \x03(\v2\x16.ze.api.v1.CommandInfoR\bcommands\"\xaf\x01\n" +
 	"\vCommandInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +
 	"\tread_only\x18\x03 \x01(\bR\tread-only\x12,\n" +
-	"\x06params\x18\x04 \x03(\v2\x14.ze.api.v1.ParamInfoR\x06params\"q\n" +
+	"\x06params\x18\x04 \x03(\v2\x14.ze.api.v1.ParamInfoR\x06params\x12\x1e\n" +
+	"\n" +
+	"short_help\x18\x05 \x01(\tR\n" +
+	"short-help\"\x91\x01\n" +
 	"\tParamInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
-	"\brequired\x18\x04 \x01(\bR\brequired\",\n" +
+	"\brequired\x18\x04 \x01(\bR\brequired\x12\x1e\n" +
+	"\n" +
+	"short_help\x18\x05 \x01(\tR\n" +
+	"short-help\",\n" +
 	"\x16DescribeCommandRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"@\n" +
 	"\x12CommandDescription\x12*\n" +

@@ -563,7 +563,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// loader failure would surface as broken admin links rather than a clear
 	// error. A nil tree serves an empty console for the same reason.
 	adminViewHandler := zeweb.HandleAdminView(renderer, commandTree)
-	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch)
+	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch, commandTree)
 
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)

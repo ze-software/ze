@@ -26,6 +26,7 @@ type FieldMeta struct {
 	Value         string // Current configured value
 	Default       string // YANG default
 	ShortHelp     string // One-line summary from the ze:help extension
+	Description   string // Long explanation from the YANG description statement
 	Options       string // Comma-separated enum values
 	Min           string // Numeric min
 	Max           string // Numeric max
@@ -428,6 +429,7 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 		Value:         maskSecretLeaf(leaf, value),
 		Default:       leaf.Default,
 		ShortHelp:     leaf.ShortHelp,
+		Description:   leaf.Description,
 		DecoratorName: leaf.Decorate,
 	}
 

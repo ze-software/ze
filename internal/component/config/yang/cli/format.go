@@ -184,12 +184,21 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 
 // formatTreeJSON writes the unified tree as JSON.
 func formatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
+	// short-help is the ze:help summary and description the long explanation,
+	// the two keys every other help surface spells them under. values lists an
+	// enumeration leaf's values with the summary each one declares.
+	type valueJSON struct {
+		Name      string `json:"name"`
+		ShortHelp string `json:"short-help,omitempty"`
+	}
 	type nodeJSON struct {
 		Name        string      `json:"name"`
 		Source      string      `json:"source"`
 		Type        string      `json:"type,omitempty"`
 		Kind        string      `json:"kind,omitempty"`
+		ShortHelp   string      `json:"short-help,omitempty"`
 		Description string      `json:"description,omitempty"`
+		Values      []valueJSON `json:"values,omitempty"`
 		Children    []*nodeJSON `json:"children,omitempty"`
 	}
 
@@ -207,7 +216,11 @@ func formatTreeJSON(w io.Writer, root *AnalysisNode, filter string) error {
 			Source:      node.Source,
 			Type:        node.Type,
 			Kind:        node.NodeKind,
-			Description: node.ShortHelp,
+			ShortHelp:   node.ShortHelp,
+			Description: node.Description,
+		}
+		for _, value := range node.Values {
+			jn.Values = append(jn.Values, valueJSON(value))
 		}
 		for _, name := range node.sortedChildren() {
 			child := convert(node.Children[name], f)

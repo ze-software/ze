@@ -48,11 +48,16 @@ import (
 )
 
 // Argument describes one typed argument in the published command grammar.
+// ShortHelp is the leaf's ze:help summary and Description its long
+// explanation, the two keys `ze help command --json` carries for an argument.
+// Neither is derived from the other, and an undeclared text is absent.
 type Argument struct {
-	Name      string   `json:"name"`
-	Type      string   `json:"type"`
-	Values    []string `json:"values,omitempty"`
-	Mandatory bool     `json:"mandatory,omitempty"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Values      []string `json:"values,omitempty"`
+	Mandatory   bool     `json:"mandatory,omitempty"`
+	ShortHelp   string   `json:"short-help,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 // Pipe describes one command-specific pipe filter.
@@ -305,11 +310,14 @@ func extractArgs(node *command.Node) []Argument {
 		return nil
 	}
 	args := make([]Argument, 0, len(node.ArgDefs))
-	for _, definition := range node.ArgDefs {
+	for i := range node.ArgDefs {
+		definition := &node.ArgDefs[i]
 		arg := Argument{
-			Name:      definition.Name,
-			Type:      argumentKind(definition.Kind),
-			Mandatory: definition.Mandatory,
+			Name:        definition.Name,
+			Type:        argumentKind(definition.Kind),
+			Mandatory:   definition.Mandatory,
+			ShortHelp:   definition.ShortHelp,
+			Description: definition.Description,
 		}
 		if len(definition.EnumValues) > 0 {
 			arg.Values = definition.EnumValues

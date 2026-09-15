@@ -266,7 +266,15 @@ func writeLLMSConfigRoots(out *textbuf.Buffer, inputs *llmsInputs) {
 	slices.Sort(names)
 	for _, name := range names {
 		node := inputs.ConfigTree[name]
-		description := trimInline(node.Description, 180)
+		// The summary, then the explanation, each only where the root
+		// declares it; a root declaring neither states its kind.
+		description := trimInline(node.ShortHelp, 180)
+		if explanation := trimInline(node.Description, 180); explanation != "" {
+			if description != "" {
+				description += " "
+			}
+			description += explanation
+		}
 		if description == "" {
 			description = cleanInline(orConfigRoot(node.Kind))
 		}

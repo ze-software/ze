@@ -30,9 +30,14 @@
 //     publishes, and a comment is neither. All three passes were reverted.
 //   - A leaf reaches an operator only where it lands in the config tree. One
 //     `grouping` in `ze-types` supplies both an rpc payload and a config node,
-//     and only the second renders. A `-cmd` or `-api` leaf becomes a
-//     command.ArgDef, which holds no text field, so its ze:help is dropped
-//     at the tree boundary and reaches nobody.
+//     and only the second renders here. A `-cmd` leaf is a command argument,
+//     judged under the two caps by `arguments` (helpshape.go) off the command
+//     tree, where `argDefFor` carries its texts; an `-api` leaf is an rpc or
+//     notification leaf, judged by `leaves` off `ExtractRPCs` and
+//     `ExtractNotifications`. Neither is judged twice.
+//   - An enumeration leaf's values render on the value completion rows with
+//     the ze:help each value declares (`valueCompletions`), so every one of
+//     them is judged by `schemaEnums` under the two caps.
 //   - A node another module AUGMENTS in is in the tree, so `ze-role` and the
 //     other BGP plugin modules are judged under the module they augment,
 //     without this file knowing they exist.
@@ -168,52 +173,37 @@ func (r *HelpShapeReport) schema(label string, entry *gyang.Entry) {
 	r.judgePair(surfaceSchema, label, summary, long)
 }
 
-// schemaEnums judges the values of a list whose key is an enumeration.
+// schemaEnums judges the values of an enumeration leaf, which are the values
+// value completion renders: `valueCompletions`
+// (internal/component/cli/completer.go) puts every value of an enumeration
+// leaf, and of a union's enumeration members, on a completion row with the
+// ze:help summary the value declares, and `listKeyCompletions` does the same
+// for a list key. Both read the values through `yang.EnumValueNames` and the
+// summaries through `yang.EnumValueSummaries`, and so does this walk, so the
+// population judged is the population rendered.
 //
-// This is the ONE shape in which an enum's ze:help summary reaches an operator,
-// and the walk mirrors the two producers statement for statement.
-// `listKeyCompletions` is the only caller of `enumKeyVocabulary`, and the entry
-// it hands over comes from `getListKeyEntry`, which answers
-// `listEntry.Dir[listEntry.Key]` and nil for everything else
-// (internal/component/cli/completer.go, completer_validate.go). So an
-// enumeration on an ordinary leaf renders nowhere, and one reached through a
-// typedef has no enum statement on the leaf's own node at all. A cap on either
-// would report a defect that does not exist, which is the repair that cost
-// three earlier passes.
+// Every rendered value is counted. A value that declares a summary takes the
+// two caps, because the row is one line. A value that declares none is
+// counted and not refused: the row then carries an empty summary, and the
+// count is what tells an author how much of the corpus is still unwritten.
 //
-// None of the 278 enum summaries in the corpus keys a list today, so this
-// rule refuses nothing over the checkout. It is written for the
-// enumeration-keyed list a later spec adds, and it is written NARROW because a
-// gate that judges the wrong population is the failure this scoping exists to
-// prevent.
-//
-// An enum is never asked for a long text: nothing anywhere reads a description
-// on one, so demanding it would demand a declaration no surface prints.
-func (r *HelpShapeReport) schemaEnums(module string, path []string, list *gyang.Entry) {
-	if !list.IsList() || list.Key == "" {
+// An enum is never asked for a long text: nothing anywhere reads a
+// description on one, so demanding it would demand a declaration no surface
+// prints.
+func (r *HelpShapeReport) schemaEnums(module string, path []string, entry *gyang.Entry) {
+	names := yang.EnumValueNames(entry)
+	if len(names) == 0 {
 		return
 	}
-	key, held := list.Dir[list.Key]
-	if !held || key == nil || key.Type == nil || key.Type.Kind != gyang.Yenum {
-		return
-	}
-	leaf, ok := key.Node.(*gyang.Leaf)
-	if !ok || leaf.Type == nil {
-		return
-	}
-
-	for _, declared := range leaf.Type.Enum {
-		if declared == nil {
-			continue
-		}
-		// The enum value's summary is its ze:help extension.
-		summary := yang.GetHelpExtension(declared.Extensions)
+	summaries := yang.EnumValueSummaries(entry)
+	for _, name := range names {
+		r.SchemaEnumValues++
+		summary := summaries[name]
 		if strings.TrimSpace(summary) == "" {
 			continue
 		}
-		below := append(append([]string(nil), path...), list.Key, declared.Name)
-		r.Schema++
-		r.SchemaWithSummary++
+		r.SchemaEnumValuesWithSummary++
+		below := append(append([]string(nil), path...), name)
 		r.judgeCaps(surfaceSchema, schemaLabel(module, below), summary)
 	}
 }

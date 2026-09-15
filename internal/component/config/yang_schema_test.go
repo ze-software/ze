@@ -1493,3 +1493,35 @@ func TestLeafListWithoutDecorateIsNotRejected(t *testing.T) {
 	require.NotNil(t, yangToNode(entry, "bgp/update/attribute/labels"))
 	assert.NoError(t, flushSchemaBuildErrors(), "a leaf-list with no decorator is not an error")
 }
+
+// VALIDATES: AC-3, AC-5 -- a leaf, a container and a list each carry the
+// ze:help summary on ShortHelp and the description explanation on Description,
+// and neither is derived from the other.
+// PREVENTS: a schema node copying one text under the other's field, which is
+// what the web editor and the site read.
+func TestSchemaNodesCarryBothTexts(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	bgp, ok := schema.Get("bgp").(*ContainerNode)
+	require.True(t, ok, "bgp should be ContainerNode")
+	peer, ok := bgp.Get("peer").(*ListNode)
+	require.True(t, ok, "bgp/peer should be ListNode")
+	notation, ok := bgp.Get("as-notation").(*LeafNode)
+	require.True(t, ok, "bgp/as-notation should be LeafNode")
+
+	assert.Equal(t, "How Ze writes an AS number in the output an operator reads.", notation.ShortHelp)
+	assert.Contains(t, notation.Description, "RFC 5396 Section 2 names the three notations")
+	for _, node := range []struct {
+		path                   string
+		shortHelp, description string
+	}{
+		{"bgp", bgp.ShortHelp, bgp.Description},
+		{"bgp/peer", peer.ShortHelp, peer.Description},
+		{"bgp/as-notation", notation.ShortHelp, notation.Description},
+	} {
+		assert.NotEmpty(t, node.shortHelp, "%s carries no ze:help summary", node.path)
+		assert.NotEmpty(t, node.description, "%s carries no description", node.path)
+		assert.NotEqual(t, node.shortHelp, node.description, "%s repeats one text as the other", node.path)
+	}
+}

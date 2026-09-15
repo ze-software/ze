@@ -121,3 +121,65 @@ func TestRPCDescriptionCarriesSummaryAndHelp(t *testing.T) {
 	assert.Equal(t, "Close every idle socket.", silent.ShortHelp)
 	assert.Empty(t, silent.Description, "no description statement means no long explanation")
 }
+
+// TestExtractRPCsCarriesBothLeafTexts proves an rpc input leaf, an rpc output
+// leaf and a notification leaf each carry LeafMeta.ShortHelp from ze:help and
+// LeafMeta.Description from description, and that a leaf declaring one text
+// leaves the other empty.
+func TestExtractRPCsCarriesBothLeafTexts(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	module := `
+module ze-leaftexts-api {
+    namespace "urn:test:leaftexts";
+    prefix lt;
+
+    import ze-extensions { prefix ze; }
+
+    rpc socket-open {
+        ze:help "Open a socket.";
+        input {
+            leaf port {
+                type uint16;
+                mandatory true;
+                ze:help "The TCP port to listen on";
+                description "The port the socket binds.";
+            }
+        }
+        output {
+            leaf fd {
+                type int32;
+                ze:help "The descriptor of the open socket";
+                description "A descriptor the caller closes when it is done.";
+            }
+        }
+    }
+
+    notification socket-closed {
+        ze:help "A socket closed.";
+        leaf reason {
+            type string;
+            ze:help "Why the socket closed";
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("ze-leaftexts-api.yang", module))
+	require.NoError(t, loader.Resolve())
+
+	rpcs := ExtractRPCs(loader, "ze-leaftexts-api")
+	require.Len(t, rpcs, 1)
+	require.Len(t, rpcs[0].Input, 1)
+	assert.Equal(t, "The TCP port to listen on", rpcs[0].Input[0].ShortHelp)
+	assert.Equal(t, "The port the socket binds.", rpcs[0].Input[0].Description)
+	require.Len(t, rpcs[0].Output, 1)
+	assert.Equal(t, "The descriptor of the open socket", rpcs[0].Output[0].ShortHelp)
+	assert.Equal(t, "A descriptor the caller closes when it is done.", rpcs[0].Output[0].Description)
+
+	notifs := ExtractNotifications(loader, "ze-leaftexts-api")
+	require.Len(t, notifs, 1)
+	require.Len(t, notifs[0].Leaves, 1)
+	assert.Equal(t, "Why the socket closed", notifs[0].Leaves[0].ShortHelp)
+	assert.Empty(t, notifs[0].Leaves[0].Description, "no description statement means no explanation")
+}

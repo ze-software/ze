@@ -1,0 +1,36 @@
+# Test: an admin command form posts its argument value through the daemon
+# VALIDATES: AC-1 of spec-both-help-texts-reach-every-surface. The page for
+# `clear firewall domain-group` renders one input for the `name` leaf its
+# `-cmd` module declares under the ze:command container with both texts
+# (internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang),
+# so the form shows the summary and the explanation. A value typed into it is
+# carried into the command the web server dispatches: the result card's title
+# is the dispatched command, `clear firewall domain-group name blocked`,
+# keyword before value, and its body is the dispatcher's answer.
+#
+# The command is a `-cmd` leaf on purpose. The admin form reads the node's
+# ArgDefs, which extractArgDefs (internal/component/config/yang/command.go)
+# fills from the leaves of the ze:command container alone. A builtin whose
+# only argument is an rpc input leaf, such as `system command help` (the
+# `name` leaf of rpc command-help in ze-system-api.yang), renders NO input
+# here: that leaf reaches the API and MCP schemas (AC-2, AC-6), never the
+# command tree.
+# PREVENTS: HandleAdminExecute building the command from the URL path alone,
+# so the typed value is dropped in silence and the daemon answers for the
+# bare command. The web suite starts `ze start --web-only`, whose dispatcher
+# (webOnlyDispatcher, cmd/ze/hub/service_web.go) answers every operational
+# command with the standalone-mode message, so the answer the card carries is
+# that message: it proves the POST reached the dispatcher and its answer came
+# back to the card, and the title proves what the dispatcher was handed.
+
+option=timeout:value=30s
+
+action=open:path=/admin/clear/firewall/domain-group
+expect=element:text=clear firewall domain-group
+expect=element:text=Domain group name
+expect=element:text=A group from the firewall configuration.
+action=fill:id=param-name:value=blocked
+action=click:text=Execute
+expect=element:text=clear firewall domain-group name blocked
+expect=element:text=running in standalone mode
+expect=element:not-text=panic

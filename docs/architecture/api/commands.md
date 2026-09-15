@@ -1392,22 +1392,33 @@ nothing, so a missing mandatory argument is reported instead
 missing: direction`, and not a complaint about the `update` keyword the handler
 reads).
 
-A leaf's own `ze:help` and `description` reach no surface. `argDefFor`
+A leaf's own `ze:help` and `description` travel with the argument. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
-statement, and `command.ArgDef` carries no text field. State what an
-argument means in the command's own `description`.
+statement, then fills `ShortHelp` from `GetHelpExtension` over the leaf's
+`ze:help` and `Description` from the entry's `Description`, the same two readers
+every carrier uses. Neither text is derived from the other, and a leaf that
+declares one leaves the other empty. A merged command node keeps the
+definitions of the first module that declared them, the first-wins case of
+`mergeHelpText`. Four readers print the pair: `ze help command --json` (`args`
+entries carry `short-help` and `description`, each when declared), the site
+command catalog and the wiki catalog (`args` entries carry the same two keys,
+and their pages print the summary and the explanation beside each argument),
+and the web admin command form (the summary beside each input, the
+explanation under it).
 
 ```go
 type ArgDef struct {
-    Name       string         // YANG leaf name (kebab-case)
-    Kind       ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
-    EnumValues []string       // Valid enum values
-    UintBits   int            // 8, 16, 32, or 64
-    Ranges     []UintRange    // Valid ranges (disjoint segments supported)
-    Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
-    UnionDefs  []ArgDef       // Member types for ArgUnion
-    Mandatory  bool           // True if YANG leaf has mandatory true
-    Anchor     string         // Path keyword this value follows; "" for a trailing value
+    Name        string         // YANG leaf name (kebab-case)
+    Kind        ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
+    EnumValues  []string       // Valid enum values
+    UintBits    int            // 8, 16, 32, or 64
+    Ranges      []UintRange    // Valid ranges (disjoint segments supported)
+    Pattern     *regexp.Regexp // Compiled XSD pattern for ArgString
+    UnionDefs   []ArgDef       // Member types for ArgUnion
+    Mandatory   bool           // True if YANG leaf has mandatory true
+    ShortHelp   string         // The leaf's ze:help summary
+    Description string         // The leaf's description explanation
+    Anchor      string         // Path keyword this value follows; "" for a trailing value
 }
 ```
 
@@ -1572,7 +1583,15 @@ the help page prints its summary alone. An empty `ShortHelp` is a defect:
 
 An RPC carries the same two texts, in the same two YANG statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
-`RPCMeta.ShortHelp` and `RPCMeta.Description`. `GetHelpExtension` is the ONE reader
+`RPCMeta.ShortHelp` and `RPCMeta.Description`, and each input, output and
+notification leaf carries the same pair on `LeafMeta.ShortHelp` and
+`LeafMeta.Description` (`extractEntryLeaves`). The hub copies the leaf pair to
+`api.ParamMeta` and `mcp.ParamInfo`; `api.CommandSchema` and the MCP tool
+`inputSchema` write the summary as the property's JSON Schema `title` and the
+explanation as its `description`, each only when the leaf declares it; the
+gRPC `ParamInfo` message carries `short_help` and `description`; and
+`ze help ai --json` lists each rpc's `input` and `output` leaves and each
+notification's `leaves` with both keys. `GetHelpExtension` is the ONE reader
 of the extension for both carriers. A command container reaches it through
 `Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
 `./le docvalid help-shape` holds the two corpora to one shape.

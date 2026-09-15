@@ -29,8 +29,8 @@ also carries its source, which is 'builtin'.";
 
   rpc command-help {
     description "The same operation is spelled 'show command help' on the CLI. The answer carries
-the one-line summary under 'description' and the long explanation under
-'long-help'. Neither text is derived from the other.";
+the one-line summary under 'short-help' and the long explanation under
+'description'. Neither text is derived from the other.";
     ze:help "Show command details.";
   }
 

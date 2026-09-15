@@ -18,6 +18,7 @@ const (
 	schemaKeyProperties  = "properties"
 	schemaKeyRequired    = "required"
 	schemaKeySchema      = "schema"
+	schemaKeyTitle       = "title"
 	schemaKeyType        = "type"
 
 	schemaTypeInteger = "integer"
@@ -49,6 +50,9 @@ func jsonSchemaType(yangType string) string {
 }
 
 // CommandSchema generates a JSON Schema for a single command's parameters.
+// A parameter's summary is the property's `title` and its explanation the
+// property's `description`, which is how JSON Schema names a short and a long
+// text. Each key is written only when the YANG leaf declares that text.
 func CommandSchema(cmd CommandMeta) map[string]any {
 	properties := make(map[string]any, len(cmd.Params))
 	var required []string
@@ -58,7 +62,10 @@ func CommandSchema(cmd CommandMeta) map[string]any {
 			schemaKeyType: jsonSchemaType(p.Type),
 		}
 		if p.ShortHelp != "" {
-			prop[schemaKeyDescription] = p.ShortHelp
+			prop[schemaKeyTitle] = p.ShortHelp
+		}
+		if p.Description != "" {
+			prop[schemaKeyDescription] = p.Description
 		}
 		properties[p.Name] = prop
 		if p.Required {

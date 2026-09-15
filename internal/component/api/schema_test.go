@@ -187,3 +187,43 @@ func TestOpenAPICarriesSummaryAndDescription(t *testing.T) {
 	assert.Equal(t, "Reload the running configuration.", post["summary"])
 	assert.NotContains(t, post, "description")
 }
+
+// TestCommandSchemaWritesTitleAndDescription proves a property carries the
+// parameter's summary as JSON Schema `title` and its explanation as
+// `description`, each only when the parameter declares it, and that neither
+// is derived from the other.
+func TestCommandSchemaWritesTitleAndDescription(t *testing.T) {
+	cmd := CommandMeta{
+		Name: "request socket open",
+		Params: []ParamMeta{
+			{Name: "port", Type: "uint16", ShortHelp: "The TCP port to listen on", Description: "The port the socket binds.", Required: true},
+			{Name: "label", Type: "string", ShortHelp: "A label for the socket"},
+			{Name: "owner", Type: "string", Description: "The user the socket is opened for."},
+			{Name: "silent", Type: "string"},
+		},
+	}
+
+	props, ok := CommandSchema(cmd)["properties"].(map[string]any)
+	require.True(t, ok)
+
+	port, ok := props["port"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "The TCP port to listen on", port["title"])
+	assert.Equal(t, "The port the socket binds.", port["description"])
+
+	label, ok := props["label"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "A label for the socket", label["title"])
+	_, hasDescription := label["description"]
+	assert.False(t, hasDescription, "an undeclared explanation is not written, and not derived from the summary")
+
+	owner, ok := props["owner"].(map[string]any)
+	require.True(t, ok)
+	_, hasTitle := owner["title"]
+	assert.False(t, hasTitle, "an undeclared summary is not written, and not derived from the explanation")
+	assert.Equal(t, "The user the socket is opened for.", owner["description"])
+
+	silent, ok := props["silent"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{"type": "string"}, silent)
+}

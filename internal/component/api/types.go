@@ -44,11 +44,15 @@ type CommandMeta struct {
 }
 
 // ParamMeta describes a single input parameter from YANG RPC metadata.
+// ShortHelp is the JSON Schema `title` and Description the JSON Schema
+// `description`; neither is derived from the other, and an empty one writes
+// no key.
 type ParamMeta struct {
-	Name      string // Parameter name (kebab-case from YANG)
-	Type      string // YANG type: "string", "uint32", "boolean", etc.
-	ShortHelp string // One-line summary, from the ze:help extension
-	Required  bool   // Mandatory in YANG
+	Name        string // Parameter name (kebab-case from YANG)
+	Type        string // YANG type: "string", "uint32", "boolean", etc.
+	ShortHelp   string // One-line summary, from the ze:help extension
+	Description string // Long explanation, from the YANG description
+	Required    bool   // Mandatory in YANG
 }
 
 // ExecResult is the standard API response envelope. It is an alias for the

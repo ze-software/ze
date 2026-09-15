@@ -163,20 +163,24 @@ module ze-radius-conf {
                 leaf auth-method {
                     type enumeration {
                         enum pap {
-                            ze:help
+                            description
                                 "Send the password in a User-Password attribute, hidden with the shared secret (RFC 2865 Section 5.2).";
+                            ze:help "Send the password in a User-Password attribute, hidden with the shared secret.";
                         }
                         enum chap {
-                            ze:help
+                            description
                                 "Send MD5(identifier, password, challenge) in a CHAP-Password attribute, with the challenge in CHAP-Challenge (RFC 2865 Sections 5.3 and 5.40).";
+                            ze:help "Send a CHAP-Password digest with the challenge in CHAP-Challenge.";
                         }
                         enum eap-md5 {
-                            ze:help
+                            description
                                 "Run an EAP conversation with MD5-Challenge inside EAP-Message attributes (RFC 3579 Section 3.1, RFC 3748 Section 5.4).";
+                            ze:help "Run an EAP MD5-Challenge conversation inside EAP-Message attributes.";
                         }
                         enum eap-mschapv2 {
-                            ze:help
+                            description
                                 "Run an EAP conversation with MS-CHAPv2 inside EAP-Message attributes (RFC 3579 Section 3.1, RFC 2759).";
+                            ze:help "Run an EAP MS-CHAPv2 conversation inside EAP-Message attributes.";
                         }
                     }
                     default "pap";

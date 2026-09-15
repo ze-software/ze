@@ -1876,3 +1876,65 @@ func TestMergeYANGEntryWireMethodOverwriteIsPerField(t *testing.T) {
 	assert.Empty(t, node.Description, "a half the command's module does not state is empty, not inherited")
 	assert.Empty(t, buf.String(), "the command's own module is not in collision with a grouping container")
 }
+
+// TestArgDefForCarriesBothTexts proves argDefFor fills ArgDef.ShortHelp from
+// the leaf's ze:help and ArgDef.Description from its description, and that a
+// leaf declaring one text leaves the other empty rather than derived.
+func TestArgDefForCarriesBothTexts(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+
+	yangText := `
+module texts-cmd {
+    namespace "urn:test:texts-cmd";
+    prefix tx;
+
+    import ze-extensions { prefix ze; }
+
+    container socket {
+        config false;
+        ze:help "Socket operations";
+
+        container open {
+            config false;
+            ze:command "ze-test:socket-open";
+            ze:help "Open a socket";
+
+            leaf port {
+                type uint16;
+                mandatory true;
+                ze:help "The TCP port to listen on";
+                description
+                    "The port the socket binds. A port below 1024 needs
+                     the capability the service was started with.";
+            }
+            leaf label {
+                type string;
+                ze:help "A label for the socket";
+            }
+        }
+    }
+}
+`
+	require.NoError(t, loader.AddModuleFromText("texts-cmd.yang", yangText))
+	require.NoError(t, loader.Resolve())
+
+	open := loader.GetEntry("texts-cmd").Dir["socket"].Dir["open"]
+	require.NotNil(t, open)
+
+	port, ok := argDefFor(open.Dir["port"], "port")
+	require.True(t, ok)
+	assert.Equal(t, "The TCP port to listen on", port.ShortHelp)
+	assert.Contains(t, port.Description, "The port the socket binds.")
+	assert.Contains(t, port.Description, "\n", "the explanation keeps the line breaks its author wrote")
+	assert.True(t, port.Mandatory)
+
+	label, ok := argDefFor(open.Dir["label"], "label")
+	require.True(t, ok)
+	assert.Equal(t, "A label for the socket", label.ShortHelp)
+	assert.Empty(t, label.Description, "no description statement means no explanation")
+
+	defs := extractArgDefs(open)
+	require.Len(t, defs, 2)
+	assert.Equal(t, "The TCP port to listen on", defs[0].ShortHelp, "extractArgDefs keeps the texts argDefFor read")
+}

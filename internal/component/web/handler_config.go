@@ -67,6 +67,10 @@ type ConfigViewData struct {
 	LeafFields []LeafField
 	// Entries holds freeform node entries.
 	Entries []string
+	// Description is the container's or the list's long explanation, from its
+	// YANG description statement, rendered as a block under the heading. Empty
+	// means the node declares none, and it is never derived from the summary.
+	Description string
 }
 
 // The node kind names nodeKindString returns. They reach the browser as a CSS
@@ -97,7 +101,8 @@ type LeafField struct {
 	Default      string // YANG default, or ""
 	InputType    string // "text", "checkbox", "number", "select"
 	Placeholder  string
-	ShortHelp    string // from YANG, if available
+	ShortHelp    string // the ze:help summary, shown as the tooltip
+	Description  string // the description explanation, shown as a block under the input
 	Pattern      string // for text inputs
 	Min          string // for number inputs
 	Max          string // for number inputs

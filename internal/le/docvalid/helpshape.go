@@ -88,10 +88,12 @@ const (
 // `-api.yang` one, and an offline local command in the Go file that registers
 // it, and the three are different files.
 const (
-	surfaceCommand = "command"
-	surfaceRPC     = "rpc"
-	surfaceLocal   = "local"
-	surfaceSchema  = "schema"
+	surfaceCommand  = "command"
+	surfaceArgument = "argument"
+	surfaceRPC      = "rpc"
+	surfaceLeaf     = "leaf"
+	surfaceLocal    = "local"
+	surfaceSchema   = "schema"
 )
 
 // HelpShapeRow is one refusal: the surface it belongs to, the path that names
@@ -115,21 +117,45 @@ type HelpShapeRow struct {
 // The two numbers answer different questions: coverage says how much of the
 // tree has been written, and Broken says how much of what was written is wrong.
 type HelpShapeReport struct {
-	Nodes             int            `json:"nodes"`
-	Commands          int            `json:"commands"`
-	WithSummary       int            `json:"with-summary"`
-	WithHelp          int            `json:"with-help"`
-	RPCs              int            `json:"rpcs"`
-	RPCsWithSummary   int            `json:"rpcs-with-summary"`
-	RPCsWithHelp      int            `json:"rpcs-with-help"`
-	Locals            int            `json:"locals"`
-	LocalsWithSummary int            `json:"locals-with-summary"`
-	LocalsWithHelp    int            `json:"locals-with-help"`
-	Schema            int            `json:"schema"`
-	SchemaWithSummary int            `json:"schema-with-summary"`
-	SchemaWithHelp    int            `json:"schema-with-help"`
-	Broken            []HelpShapeRow `json:"broken"`
-	Valid             bool           `json:"valid"`
+	Nodes       int `json:"nodes"`
+	Commands    int `json:"commands"`
+	WithSummary int `json:"with-summary"`
+	WithHelp    int `json:"with-help"`
+	// Arguments counts every command argument declaration the usage line, the
+	// help JSON and the web form render, once for each declaration, and
+	// ArgumentsWithSummary those that declare a ze:help.
+	Arguments            int `json:"arguments"`
+	ArgumentsWithSummary int `json:"arguments-with-summary"`
+	RPCs                 int `json:"rpcs"`
+	RPCsWithSummary      int `json:"rpcs-with-summary"`
+	RPCsWithHelp         int `json:"rpcs-with-help"`
+	// RPCLeaves counts every rpc input and output leaf, NotificationLeaves
+	// every notification leaf, and the WithSummary pair those that declare a
+	// ze:help. Each reaches `ze help ai --json`, the MCP tool schema and the
+	// gRPC schema.
+	RPCLeaves                     int `json:"rpc-leaves"`
+	RPCLeavesWithSummary          int `json:"rpc-leaves-with-summary"`
+	NotificationLeaves            int `json:"notification-leaves"`
+	NotificationLeavesWithSummary int `json:"notification-leaves-with-summary"`
+	Locals                        int `json:"locals"`
+	LocalsWithSummary             int `json:"locals-with-summary"`
+	LocalsWithHelp                int `json:"locals-with-help"`
+	Schema                        int `json:"schema"`
+	SchemaWithSummary             int `json:"schema-with-summary"`
+	SchemaWithHelp                int `json:"schema-with-help"`
+	// SchemaEnumValues counts every enumeration value the completer renders,
+	// and SchemaEnumValuesWithSummary those that declare a ze:help.
+	SchemaEnumValues            int            `json:"schema-enum-values"`
+	SchemaEnumValuesWithSummary int            `json:"schema-enum-values-with-summary"`
+	Broken                      []HelpShapeRow `json:"broken"`
+	Valid                       bool           `json:"valid"`
+
+	// argumentsJudged holds the label of every argument declaration already
+	// judged. A leaf a container above the command declares is copied into
+	// the ArgDefs of every command below it (appendAnchored,
+	// internal/component/config/yang/command.go), and one declaration is
+	// judged once.
+	argumentsJudged map[string]bool
 }
 
 // node judges one command node's two texts and counts it.
@@ -163,6 +189,75 @@ func (r *HelpShapeReport) rpc(label string, meta yang.RPCMeta) {
 	}
 	r.RPCsWithSummary++
 	r.judgePair(surfaceRPC, label, meta.ShortHelp, meta.Description)
+}
+
+// arguments judges the summary of every argument one command node renders
+// under the two caps and counts each declaration once.
+//
+// The label is the path an operator types the value after: the command path
+// for a leaf the command declares, and the path down to the anchor keyword for
+// a leaf a container above it declares (ArgDef.Anchor). That path names the
+// declaration, so a leaf every command under `peer` inherits is judged under
+// `peer` and refused once.
+//
+// The caps are the whole judgement, as they are for a config node. A summary
+// that is missing is counted and not refused: the count is what tells an
+// author how much of the corpus is still unwritten, and a leaf that declares
+// no text renders its name and type alone on every surface.
+func (r *HelpShapeReport) arguments(cliPath string, defs []command.ArgDef) {
+	if r.argumentsJudged == nil {
+		r.argumentsJudged = map[string]bool{}
+	}
+	for i := range defs {
+		def := &defs[i]
+		label := argumentLabel(cliPath, def)
+		if r.argumentsJudged[label] {
+			continue
+		}
+		r.argumentsJudged[label] = true
+		r.Arguments++
+		if strings.TrimSpace(def.ShortHelp) == "" {
+			continue
+		}
+		r.ArgumentsWithSummary++
+		r.judgeCaps(surfaceArgument, label, def.ShortHelp)
+	}
+}
+
+// argumentLabel names one argument declaration: the command path and the leaf
+// name for a leaf the command declares, and the path cut after the anchor
+// keyword for a leaf declared above it. An anchor the path does not hold names
+// nothing, so the command path is kept: the label then repeats for each
+// command below, which over-counts rather than drops a declaration.
+func argumentLabel(cliPath string, def *command.ArgDef) string {
+	var tb textbuf.Buffer
+	if def.Anchor != "" {
+		tokens := strings.Fields(cliPath)
+		for i, token := range slices.Backward(tokens) {
+			if token != def.Anchor {
+				continue
+			}
+			return tb.Join(tokens[:i+1], " ").Byte(' ').Str(def.Name).String()
+		}
+	}
+	return tb.Str(cliPath).Byte(' ').Str(def.Name).String()
+}
+
+// leaves judges the summary of every rpc or notification leaf under the two
+// caps and counts each. The label is `<module>:<rpc>/input/<leaf>`,
+// `<module>:<rpc>/output/<leaf>` or `<module>:<notification>/<leaf>`, which
+// names the file and the statement an author has to open.
+func (r *HelpShapeReport) leaves(label string, leaves []yang.LeafMeta, judged, withSummary *int) {
+	for i := range leaves {
+		leaf := &leaves[i]
+		*judged++
+		if strings.TrimSpace(leaf.ShortHelp) == "" {
+			continue
+		}
+		*withSummary++
+		var tb textbuf.Buffer
+		r.judgeCaps(surfaceLeaf, tb.Str(label).Byte('/').Str(leaf.Name).String(), leaf.ShortHelp)
+	}
 }
 
 // local judges one offline local command's summary and counts it.
@@ -404,7 +499,15 @@ func collectRPCs(loader *yang.Loader, report *HelpShapeReport) {
 	for _, module := range modules {
 		for _, meta := range yang.ExtractRPCs(loader, module) {
 			tb.Reset()
-			report.rpc(tb.Str(module).Byte(':').Str(meta.Name).String(), meta)
+			label := tb.Str(module).Byte(':').Str(meta.Name).String()
+			report.rpc(label, meta)
+			report.leaves(label+"/input", meta.Input, &report.RPCLeaves, &report.RPCLeavesWithSummary)
+			report.leaves(label+"/output", meta.Output, &report.RPCLeaves, &report.RPCLeavesWithSummary)
+		}
+		for _, meta := range yang.ExtractNotifications(loader, module) {
+			tb.Reset()
+			report.leaves(tb.Str(module).Byte(':').Str(meta.Name).String(), meta.Leaves,
+				&report.NotificationLeaves, &report.NotificationLeavesWithSummary)
 		}
 	}
 }
@@ -654,24 +757,36 @@ func (r HelpShapeReport) Text() string {
 	tb.Str("Nodes that run a command: ").Int(int64(r.Commands)).Byte('\n')
 	tb.Str("Nodes with a summary: ").Int(int64(r.WithSummary)).Byte('\n')
 	tb.Str("Nodes with a long help: ").Int(int64(r.WithHelp)).Byte('\n')
+	tb.Str("Argument texts judged: ").Int(int64(r.Arguments)).Byte('\n')
+	tb.Str("Argument texts with a summary: ").Int(int64(r.ArgumentsWithSummary)).Byte('\n')
 	tb.Str("RPCs: ").Int(int64(r.RPCs)).Byte('\n')
 	tb.Str("RPCs with a summary: ").Int(int64(r.RPCsWithSummary)).Byte('\n')
 	tb.Str("RPCs with a long help: ").Int(int64(r.RPCsWithHelp)).Byte('\n')
+	tb.Str("RPC leaf texts judged: ").Int(int64(r.RPCLeaves)).Byte('\n')
+	tb.Str("RPC leaf texts with a summary: ").Int(int64(r.RPCLeavesWithSummary)).Byte('\n')
+	tb.Str("Notification leaf texts judged: ").Int(int64(r.NotificationLeaves)).Byte('\n')
+	tb.Str("Notification leaf texts with a summary: ").Int(int64(r.NotificationLeavesWithSummary)).Byte('\n')
 	tb.Str("Offline local commands: ").Int(int64(r.Locals)).Byte('\n')
 	tb.Str("Offline local commands with a summary: ").Int(int64(r.LocalsWithSummary)).Byte('\n')
 	tb.Str("Offline local commands with a long help: ").Int(int64(r.LocalsWithHelp)).Byte('\n')
 	tb.Str("Config nodes: ").Int(int64(r.Schema)).Byte('\n')
 	tb.Str("Config nodes with a summary: ").Int(int64(r.SchemaWithSummary)).Byte('\n')
-	tb.Str("Config nodes with a long help: ").Int(int64(r.SchemaWithHelp)).Str("\n\n")
+	tb.Str("Config nodes with a long help: ").Int(int64(r.SchemaWithHelp)).Byte('\n')
+	tb.Str("Enum values rendered: ").Int(int64(r.SchemaEnumValues)).Byte('\n')
+	tb.Str("Enum values with a summary: ").Int(int64(r.SchemaEnumValuesWithSummary)).Str("\n\n")
 
 	if len(r.Broken) == 0 {
 		tb.Str("Every command node, every RPC, every offline local command and every config node " +
-			"declares a summary a one-line row renders whole.\n")
+			"declares a summary a one-line row renders whole, and so does every argument and " +
+			"rpc or notification leaf that declares one.\n")
 		return tb.String()
 	}
 
 	tb.Str("Nodes with a broken summary: ").Int(int64(r.brokenPaths(surfaceCommand))).Byte('\n')
+	tb.Str("Arguments with a broken summary: ").Int(int64(r.brokenPaths(surfaceArgument))).Byte('\n')
 	tb.Str("RPCs with a broken summary: ").Int(int64(r.brokenPaths(surfaceRPC))).Byte('\n')
+	tb.Str("RPC and notification leaves with a broken summary: ").
+		Int(int64(r.brokenPaths(surfaceLeaf))).Byte('\n')
 	tb.Str("Offline local commands with a broken summary: ").
 		Int(int64(r.brokenPaths(surfaceLocal))).Byte('\n')
 	tb.Str("Config nodes with a broken summary: ").

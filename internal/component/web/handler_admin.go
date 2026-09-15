@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -56,6 +58,32 @@ type CommandParameter struct {
 	Value string
 	// Placeholder is the hint text for the input field.
 	Placeholder string
+	// ShortHelp is the leaf's one-line summary, from its YANG ze:help
+	// statement, printed beside the input. Empty means the leaf declares none.
+	ShortHelp string
+	// Description is the leaf's long explanation, from its YANG description
+	// statement, printed under the input. Empty means the leaf declares none,
+	// and it is never derived from the summary.
+	Description string
+}
+
+// commandFormParameters lists a command's arguments as form fields, in the
+// order the YANG module declares them, each carrying the two texts its leaf
+// declares.
+func commandFormParameters(defs []command.ArgDef) []CommandParameter {
+	if len(defs) == 0 {
+		return nil
+	}
+	parameters := make([]CommandParameter, 0, len(defs))
+	for i := range defs {
+		def := &defs[i]
+		parameters = append(parameters, CommandParameter{
+			Name:        def.Name,
+			ShortHelp:   def.ShortHelp,
+			Description: def.Description,
+		})
+	}
+	return parameters
 }
 
 // CommandDispatcher executes an admin command and returns the typed response.
@@ -131,14 +159,19 @@ func HandleAdminView(renderer *Renderer, tree *command.Node) http.HandlerFunc {
 }
 
 // HandleAdminExecute returns an HTTP handler that executes admin commands
-// via POST. It reconstructs the command string from the URL path segments,
+// via POST. It builds the command string from the URL path segments, then
+// appends the posted argument values the form carries (commandArguments),
 // dispatches the command through the provided dispatcher, and returns a
 // result in the detail panel.
+//
+// tree is the same merged command tree HandleAdminView renders the form from,
+// so the values the handler reads are the inputs the form printed. A nil tree
+// reads no value, which is what the form offers no input for.
 //
 // Content negotiation: JSON requests receive the raw command output as
 // a JSON object with "command", "output", and "error" fields.
 // HTMX requests receive the result rendered as a detail panel fragment.
-func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.HandlerFunc {
+func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher, tree *command.Node) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -150,9 +183,17 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
 
 		path := parsed.Path
-		commandStr := textbuf.Join(path, " ")
+		commandStr, err := commandArguments(path, adminNodeAt(tree, path), r.PostForm)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		if dispatch == nil {
 			http.Error(w, "admin commands not available in standalone mode", http.StatusServiceUnavailable)
@@ -203,6 +244,80 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 	}
 }
 
+// commandArguments builds the command the posted argument values reach the
+// dispatcher through. A nil node declares no argument, so the command is the
+// path alone.
+//
+// A value goes where the dispatcher binds it (internal/component/plugin/server).
+// An argument a container ABOVE the command declares carries that container's
+// name as its Anchor, and matchCommandTokens binds it from the bare token that
+// follows that keyword (anchoredDef): `send bgp <selector> withdraw all` reads
+// the selector after `bgp`, so the value is printed there, with no keyword in
+// front of it. A keyword form after the command would pass validateCommandArgs
+// and still leave the selector unbound, and every command that requires one
+// would answer "requires a selector" for the one input the operator filled.
+// Every other argument follows the command as the keyword the leaf is named by
+// and then the value (ai/rules/cli.md: keyword before value), which is the form
+// the dispatcher's keyword phase binds (validateCommandArgs).
+//
+// An empty value is left out rather than sent: the dispatcher's own mandatory
+// check then names the missing argument, and an optional one is simply absent.
+// A value holding a space is quoted, which is the dispatcher's grouping rule
+// (tokenize). Its grammar carries no escape for a double quote, so a value
+// holding one is refused here: sent, it would split into tokens nobody typed.
+func commandArguments(path []string, node *command.Node, form url.Values) (string, error) {
+	var tb textbuf.Buffer
+	if node == nil {
+		tb.Join(path, " ")
+		return tb.String(), nil
+	}
+
+	values := make([]string, len(node.ArgDefs))
+	for i := range node.ArgDefs {
+		def := &node.ArgDefs[i]
+		value := strings.TrimSpace(form.Get(def.Name))
+		if strings.ContainsRune(value, '"') {
+			return "", fmt.Errorf("argument %s: a value cannot hold a double quote", def.Name)
+		}
+		values[i] = value
+	}
+
+	placed := make([]bool, len(node.ArgDefs))
+	for i, segment := range path {
+		if i > 0 {
+			tb.Byte(' ')
+		}
+		tb.Str(segment)
+		for j := range node.ArgDefs {
+			def := &node.ArgDefs[j]
+			if placed[j] || values[j] == "" || def.Anchor != segment {
+				continue
+			}
+			placed[j] = true
+			tb.Byte(' ')
+			writeArgumentValue(&tb, values[j])
+		}
+	}
+	for j := range node.ArgDefs {
+		if placed[j] || values[j] == "" {
+			continue
+		}
+		tb.Byte(' ').Str(node.ArgDefs[j].Name).Byte(' ')
+		writeArgumentValue(&tb, values[j])
+	}
+	return tb.String(), nil
+}
+
+// writeArgumentValue writes one value as the dispatcher's tokenizer reads it:
+// bare, or double-quoted when it holds a space.
+func writeArgumentValue(tb *textbuf.Buffer, value string) {
+	if strings.ContainsAny(value, " \t") {
+		tb.Byte('"').Str(value).Byte('"')
+		return
+	}
+	tb.Str(value)
+}
+
 // buildAdminFragmentData builds FragmentData for the admin command tree,
 // using finder-style columns for navigation and a command form in the detail
 // panel for leaf commands.
@@ -235,6 +350,7 @@ func buildAdminFragmentData(path []string, tree *command.Node) *FragmentData {
 		if node != nil {
 			form.ShortHelp = node.ShortHelp
 			form.Description = node.Description
+			form.Parameters = commandFormParameters(node.ArgDefs)
 		}
 		data.CommandForm = form
 	}

@@ -294,10 +294,12 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
+		data.Description = n.Description
 		subtree := walkTree(tree, schema, path)
 		populateContainerView(data, n, subtree, prefix)
 
 	case *config.ListNode:
+		data.Description = n.Description
 		// When the path ends at the list itself (no key selected),
 		// show the list of keys with the base path for navigation.
 		data.Keys = collectListKeys(tree, schema, path)

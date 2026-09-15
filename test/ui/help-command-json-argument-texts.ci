@@ -1,0 +1,18 @@
+# Test: an argument leaf's two texts reach ze help command --json
+# VALIDATES: AC-1 of spec-both-help-texts-reach-every-surface -- an `args`
+#            entry carries `short-help` (the leaf's ze:help) and `description`
+#            (the leaf's description), and neither is derived from the other
+# PREVENTS: argDefFor dropping the leaf's texts, so a reader of the JSON help
+#           sees an argument's name and type and never what it means
+# NOTE: this file runs ONE command on purpose, because an expect matches the
+#       ACCUMULATED stdout of every command in the file. The `component` leaf of
+#       `show log recent` (internal/plugins/log/yang/ze-log-cmd.yang) declares
+#       both texts in the tree today.
+
+cmd=foreground:seq=1:exec=ze help command "show log recent" --json
+expect=exit:code=0
+
+expect=stdout:contains="path": "show log recent"
+expect=stdout:contains="name": "component"
+expect=stdout:contains="short-help": "Filter by component name"
+expect=stdout:contains="description": "Keeps the entries whose component name equals this value exactly.

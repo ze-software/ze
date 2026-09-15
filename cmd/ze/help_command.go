@@ -31,12 +31,17 @@ import (
 
 const pipeAvailabilityAlways = "always"
 
-// commandArg describes a typed argument for a command.
+// commandArg describes a typed argument for a command. ShortHelp is the
+// leaf's ze:help summary and Description its long explanation; each key is
+// written when the leaf declares that text, and neither is derived from the
+// other.
 type commandArg struct {
-	Name      string   `json:"name"`
-	Type      string   `json:"type"`
-	Values    []string `json:"values,omitempty"`
-	Mandatory bool     `json:"mandatory,omitempty"`
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`
+	Values      []string `json:"values,omitempty"`
+	Mandatory   bool     `json:"mandatory,omitempty"`
+	ShortHelp   string   `json:"short-help,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 // commandPipe describes a command-specific pipe filter.
@@ -503,11 +508,14 @@ func extractArgs(node *command.Node) []commandArg {
 		return nil
 	}
 	args := make([]commandArg, 0, len(node.ArgDefs))
-	for _, ad := range node.ArgDefs {
+	for i := range node.ArgDefs {
+		ad := &node.ArgDefs[i]
 		a := commandArg{
-			Name:      ad.Name,
-			Type:      argKindString(ad.Kind),
-			Mandatory: ad.Mandatory,
+			Name:        ad.Name,
+			Type:        argKindString(ad.Kind),
+			Mandatory:   ad.Mandatory,
+			ShortHelp:   ad.ShortHelp,
+			Description: ad.Description,
 		}
 		if len(ad.EnumValues) > 0 {
 			a.Values = ad.EnumValues

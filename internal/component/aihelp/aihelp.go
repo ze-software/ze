@@ -55,21 +55,63 @@ type Service struct {
 
 // Reference is the machine-readable AI reference (the `ze help ai --json` shape).
 type Reference struct {
-	Commands     []CLICommand      `json:"commands"`
-	RPCs         []RPC             `json:"rpcs"`
-	DispatchKeys map[string]string `json:"dispatch-keys"`
-	Plugins      []Plugin          `json:"plugins"`
-	Families     []string          `json:"families"`
-	Services     []ServiceRef      `json:"services"`
+	Commands      []CLICommand      `json:"commands"`
+	RPCs          []RPC             `json:"rpcs"`
+	Notifications []Notification    `json:"notifications,omitempty"`
+	DispatchKeys  map[string]string `json:"dispatch-keys"`
+	Plugins       []Plugin          `json:"plugins"`
+	Families      []string          `json:"families"`
+	Services      []ServiceRef      `json:"services"`
 }
 
 // RPC is one daemon API endpoint (wire method) with its two declared help
 // texts: the one-line summary, and the long explanation where one was written.
 // The keys match the pair `ze help command --json` carries for a command.
+// Input and Output list the rpc's leaves, each with the same pair.
 type RPC struct {
 	WireMethod  string `json:"wire-method"`
 	ShortHelp   string `json:"short-help,omitempty"`
 	Description string `json:"description,omitempty"`
+	Input       []Leaf `json:"input,omitempty"`
+	Output      []Leaf `json:"output,omitempty"`
+}
+
+// Leaf is one rpc input, rpc output or notification leaf with its two
+// declared texts. Neither is derived from the other, and an undeclared text
+// writes no key.
+type Leaf struct {
+	Name        string `json:"name"`
+	Type        string `json:"type,omitempty"`
+	Mandatory   bool   `json:"mandatory,omitempty"`
+	ShortHelp   string `json:"short-help,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// Notification is one daemon event (wire method) with its summary and the
+// leaves its body carries.
+type Notification struct {
+	WireMethod string `json:"wire-method"`
+	ShortHelp  string `json:"short-help,omitempty"`
+	Leaves     []Leaf `json:"leaves,omitempty"`
+}
+
+// leavesOf converts the schema registry's leaf metadata to the published
+// shape, keeping both texts.
+func leavesOf(metas []yang.LeafMeta) []Leaf {
+	if len(metas) == 0 {
+		return nil
+	}
+	leaves := make([]Leaf, 0, len(metas))
+	for _, meta := range metas {
+		leaves = append(leaves, Leaf{
+			Name:        meta.Name,
+			Type:        meta.Type,
+			Mandatory:   meta.Mandatory,
+			ShortHelp:   meta.ShortHelp,
+			Description: meta.Description,
+		})
+	}
+	return leaves
 }
 
 // Plugin is one loaded plugin with the address families it handles.
@@ -304,7 +346,20 @@ func Build() Reference {
 
 	schemaReg := SchemaRegistry()
 	for _, rpc := range schemaReg.ListRPCs("") {
-		ref.RPCs = append(ref.RPCs, RPC{WireMethod: rpc.WireMethod, ShortHelp: rpc.ShortHelp, Description: rpc.Description})
+		ref.RPCs = append(ref.RPCs, RPC{
+			WireMethod:  rpc.WireMethod,
+			ShortHelp:   rpc.ShortHelp,
+			Description: rpc.Description,
+			Input:       leavesOf(rpc.Input),
+			Output:      leavesOf(rpc.Output),
+		})
+	}
+	for _, notif := range schemaReg.ListNotifications("") {
+		ref.Notifications = append(ref.Notifications, Notification{
+			WireMethod: notif.WireMethod,
+			ShortHelp:  notif.ShortHelp,
+			Leaves:     leavesOf(notif.Leaves),
+		})
 	}
 	for _, brpc := range pluginserver.AllBuiltinRPCs() {
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})

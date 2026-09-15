@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
 // testCommandTree builds a static command tree for admin handler tests. One
@@ -180,7 +182,7 @@ func TestAdminCommandExecution(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -223,7 +225,7 @@ func TestCommandResultCardStack(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 
 	// First command.
 	req1 := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
@@ -261,7 +263,7 @@ func TestCommandErrorCard(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 
 	// The test dispatcher returns an error when the command contains "fail".
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/fail/command", http.NoBody)
@@ -286,7 +288,7 @@ func TestAdminContentNegotiation(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/192.168.1.1/teardown?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -352,7 +354,7 @@ func TestAdminExecuteCompletesAfterResponseWrite(t *testing.T) {
 		})
 		return resp, nil
 	})
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/request/shutdown?format=json", http.NoBody)
 
 	handler(recorder, req)
@@ -370,7 +372,7 @@ func TestAdminExecuteMethodNotAllowed(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/192.168.1.1/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -389,7 +391,7 @@ func TestAdminExecuteNilDispatcher(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	handler := HandleAdminExecute(renderer, nil)
+	handler := HandleAdminExecute(renderer, nil, nil)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/peer/teardown", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -439,7 +441,7 @@ func TestAdminErrorContentNegotiation(t *testing.T) {
 	require.NoError(t, err)
 
 	dispatch := testDispatcher()
-	handler := HandleAdminExecute(renderer, dispatch)
+	handler := HandleAdminExecute(renderer, dispatch, nil)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/fail/command?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -535,4 +537,168 @@ func TestAdminCommandFormEscapesHelp(t *testing.T) {
 	assert.NotContains(t, body, "<script>alert", "the explanation must reach the page escaped")
 	assert.NotContains(t, body, "<b>one</b>", "the summary must reach the page escaped")
 	assert.Contains(t, body, "&lt;script&gt;", "the explanation is still shown, as text")
+}
+
+// TestCommandFormPrintsArgumentTexts proves the admin command form lists the
+// command's arguments from its ArgDefs and prints each one's summary and
+// explanation beside its input, each only when the leaf declares it.
+//
+// VALIDATES: AC-1 of spec-both-help-texts-reach-every-surface at the web
+// admin form.
+func TestCommandFormPrintsArgumentTexts(t *testing.T) {
+	tree := &command.Node{Children: map[string]*command.Node{
+		"socket": {Name: "socket", Children: map[string]*command.Node{
+			"open": {Name: "open", WireMethod: "ze-test:socket-open", ArgDefs: []command.ArgDef{
+				{Name: "port", Kind: command.ArgUint, ShortHelp: "The TCP port to listen on", Description: "The port the socket binds."},
+				{Name: "label", Kind: command.ArgString, ShortHelp: "A label for the socket"},
+			}},
+		}},
+	}}
+
+	fragData := buildAdminFragmentData([]string{"socket", "open"}, tree)
+	require.NotNil(t, fragData.CommandForm)
+	require.Len(t, fragData.CommandForm.Parameters, 2)
+	assert.Equal(t, "port", fragData.CommandForm.Parameters[0].Name)
+	assert.Equal(t, "The TCP port to listen on", fragData.CommandForm.Parameters[0].ShortHelp)
+	assert.Equal(t, "The port the socket binds.", fragData.CommandForm.Parameters[0].Description)
+	assert.Empty(t, fragData.CommandForm.Parameters[1].Description, "an undeclared explanation stays empty")
+
+	var buf bytes.Buffer
+	require.NoError(t, commandForm(fragData).Render(context.Background(), &buf))
+	body := buf.String()
+	assert.Contains(t, body, `name="port"`)
+	assert.Contains(t, body, "The TCP port to listen on")
+	assert.Contains(t, body, "The port the socket binds.")
+	assert.Contains(t, body, "A label for the socket")
+}
+
+// TestAdminExecuteAppendsPostedArguments: the execute handler carries every
+// posted argument value into the dispatched command, keyword before value, in
+// the order the tree declares the arguments. An empty optional value is left
+// out, so the dispatcher's own mandatory check names a missing one.
+//
+// VALIDATES: AC-1 (the web admin form is a working entry point for an argument).
+// PREVENTS: HandleAdminExecute building the command from the URL path alone,
+// dropping a typed value in silence.
+func TestAdminExecuteAppendsPostedArguments(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	tree := &command.Node{Children: map[string]*command.Node{
+		"socket": {Name: "socket", Children: map[string]*command.Node{
+			"open": {Name: "open", WireMethod: "ze-test:socket-open", ArgDefs: []command.ArgDef{
+				{Name: "port", Kind: command.ArgUint, Mandatory: true},
+				{Name: "label", Kind: command.ArgString},
+			}},
+		}},
+	}}
+
+	cases := []struct {
+		name string
+		form string
+		want string
+	}{
+		{name: "one value", form: "port=8080", want: "socket open port 8080"},
+		{name: "declaration order", form: "label=edge&port=8080", want: "socket open port 8080 label edge"},
+		{name: "empty optional skipped", form: "port=8080&label=", want: "socket open port 8080"},
+		{name: "empty mandatory left to the dispatcher", form: "port=&label=edge", want: "socket open label edge"},
+		{name: "a value with a space is quoted", form: "port=8080&label=edge+router", want: `socket open port 8080 label "edge router"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got string
+			dispatch := func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+				got = cmd
+				return plugin.NewResponse(plugin.StatusDone, plugin.Map{"result": "executed"}), nil
+			}
+			handler := HandleAdminExecute(renderer, dispatch, tree)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/socket/open", strings.NewReader(tc.form))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			assert.Equal(t, http.StatusOK, rec.Code)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestAdminExecuteBindsAnAnchoredValueThroughTheDispatcher: a value posted for
+// an argument a container ABOVE the command declares reaches the REAL
+// dispatcher where it binds it, after the anchor keyword, so a command that
+// requires a selector runs with the one the operator filled.
+//
+// VALIDATES: AC-1 for `send bgp <selector> withdraw all`, the shape every
+// command below `bgp` shares: the handler dispatches
+// `send bgp 10.0.0.1 withdraw all` and the handler sees the selector.
+// PREVENTS: the keyword form `send bgp withdraw all selector 10.0.0.1`, which
+// validateCommandArgs accepts and Dispatch still refuses with "requires a
+// selector", because only matchCommandTokens binds an anchored value and it
+// reads the bare token after the anchor (anchoredDef). A stub dispatcher
+// cannot see that refusal, so this test runs the dispatcher itself.
+func TestAdminExecuteBindsAnAnchoredValueThroughTheDispatcher(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	selector := command.ArgDef{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "bgp"}
+	tree := &command.Node{Children: map[string]*command.Node{
+		"send": {Name: "send", Children: map[string]*command.Node{
+			"bgp": {Name: "bgp", ArgDefs: []command.ArgDef{selector}, Children: map[string]*command.Node{
+				"withdraw": {Name: "withdraw", ArgDefs: []command.ArgDef{selector}, Children: map[string]*command.Node{
+					"all": {Name: "all", WireMethod: "ze-bgp:withdraw-all", ArgDefs: []command.ArgDef{selector}},
+				}},
+			}},
+		}},
+	}}
+
+	d := pluginserver.NewDispatcher()
+	var gotSelector, gotInput string
+	d.RegisterWithOptions("send bgp withdraw all", func(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+		gotSelector = ctx.PeerSelector()
+		return plugin.NewResponse(plugin.StatusDone, plugin.Map{"withdrawn": "all"}), nil
+	}, "Withdraw every announcement", pluginserver.RegisterOptions{
+		RequiresSelector: true,
+		ArgDefs:          []command.ArgDef{selector},
+	})
+	dispatch := func(_ context.Context, _ plugin.CallerIdentity, input string) (*plugin.Response, error) {
+		gotInput = input
+		return d.Dispatch(&pluginserver.CommandContext{}, input)
+	}
+
+	handler := HandleAdminExecute(renderer, dispatch, tree)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/send/bgp/withdraw/all?format=json", strings.NewReader("selector=10.0.0.1"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "send bgp 10.0.0.1 withdraw all", gotInput)
+	assert.Equal(t, "10.0.0.1", gotSelector, "the dispatcher must hand the posted selector to the command")
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, false, body[jsonKeyError], "the result card must carry the answer, not a refusal: %s", rec.Body.String())
+	assert.Contains(t, body["output"], "withdrawn")
+}
+
+// TestAdminExecuteRefusesAQuoteInAValue: the dispatcher's grammar carries no
+// escape for a double quote, so a value holding one cannot reach it intact and
+// the handler refuses it rather than dispatching a mangled command.
+func TestAdminExecuteRefusesAQuoteInAValue(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	tree := &command.Node{Children: map[string]*command.Node{
+		"socket": {Name: "socket", Children: map[string]*command.Node{
+			"open": {Name: "open", ArgDefs: []command.ArgDef{{Name: "label", Kind: command.ArgString}}},
+		}},
+	}}
+	dispatched := false
+	dispatch := func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
+		dispatched = true
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	}
+	handler := HandleAdminExecute(renderer, dispatch, tree)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/admin/socket/open", strings.NewReader(`label=a%22b`))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.False(t, dispatched, "a value the grammar cannot carry must not be dispatched")
 }

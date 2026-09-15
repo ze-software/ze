@@ -39,6 +39,13 @@ type ArgDef struct {
 	UnionDefs  []ArgDef       // Member types for ArgUnion (tried in order)
 	Mandatory  bool           // True if YANG leaf has mandatory true
 
+	// ShortHelp is the leaf's one-line summary, from its ze:help statement, and
+	// Description is the long explanation, from its description statement.
+	// Neither is derived from the other: a leaf that declares one text leaves
+	// the other empty, and every reader prints the one it has.
+	ShortHelp   string
+	Description string
+
 	// Anchor names the path keyword this value follows, and it is set when the
 	// leaf is declared by a container ABOVE the command rather than by the
 	// command itself: `request interface <name> down` declares `name` on
@@ -48,10 +55,12 @@ type ArgDef struct {
 	// container whose name it repeats, and trails the last keyword when it
 	// repeats none, which is the rule the renderer already applied.
 	//
-	// Nothing binds a value by anchor: a positional token still goes to the
-	// definition whose type constrains it most (internal/component/plugin/server,
-	// positionalDef). The anchor decides where a value is PRINTED and nothing
-	// else.
+	// The anchor decides where a value is printed (usageAnchor) and where the
+	// dispatcher reads it: matchCommandTokens binds the bare token after the
+	// anchor keyword to the leaf anchored there (anchoredDef,
+	// internal/component/plugin/server), and the web admin form prints a
+	// posted value at that same place (commandArguments,
+	// internal/component/web).
 	Anchor string
 }
 

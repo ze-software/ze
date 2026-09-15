@@ -133,7 +133,7 @@ func buildAPIEngine(server *pluginserver.Server) *api.APIEngine {
 		resp, err := dispatch(ctx, caller, command)
 		return resp, apiDispatchError(resp, err, command)
 	}
-	return api.NewAPIEngine(exec, apiCommandLister(server), nil, apiStreamSource(server))
+	return api.NewAPIEngine(exec, apiCommandLister(commandMetaSource(server)), nil, apiStreamSource(server))
 }
 
 // apiDispatchError maps only the command dispatcher's canonical authorization
@@ -318,15 +318,15 @@ func (w *apiStreamLineWriter) markReady(err error) {
 }
 
 // apiCommandLister creates a CommandSource from the neutral, always-on command
-// metadata source (command_meta.go). The same source backs the MCP command
-// lister (service_mcp.go) when ze_mcp is compiled in; sharing the neutral type
-// -- not a zemcp type -- is what lets the API command lister stay always-on
-// while MCP is compiled out.
-func apiCommandLister(s *pluginserver.Server) api.CommandSource {
-	metaSource := commandMetaSource(s)
-
+// metadata source (commandMetaSource, command_meta.go). The same source backs
+// the MCP command lister (service_mcp.go) when ze_mcp is compiled in; sharing
+// the neutral type -- not a zemcp type -- is what lets the API command lister
+// stay always-on while MCP is compiled out. The source is a parameter, as it
+// is for mcpCommandLister, so a test can hand it one command and read what
+// the REST and gRPC listers publish for it.
+func apiCommandLister(src func() []commandMeta) api.CommandSource {
 	return func() []api.CommandMeta {
-		cmds := metaSource()
+		cmds := src()
 		if cmds == nil {
 			return nil
 		}
@@ -340,10 +340,11 @@ func apiCommandLister(s *pluginserver.Server) api.CommandSource {
 			}
 			for _, p := range cmd.Params {
 				infos[i].Params = append(infos[i].Params, api.ParamMeta{
-					Name:      p.Name,
-					Type:      p.Type,
-					ShortHelp: p.ShortHelp,
-					Required:  p.Required,
+					Name:        p.Name,
+					Type:        p.Type,
+					ShortHelp:   p.ShortHelp,
+					Description: p.Description,
+					Required:    p.Required,
 				})
 			}
 		}

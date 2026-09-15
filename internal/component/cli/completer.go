@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -46,6 +47,14 @@ type Completer struct {
 	tree     *config.Tree            // Config data for list key completion
 	registry *yang.ValidatorRegistry // Validator registry for ze:validate completions
 	backends map[string]string       // component root -> active backend name
+
+	// enumSummaries caches, per enumeration leaf, the ze:help summary each of
+	// its values declares (enumValueSummaries). Completion runs on every
+	// keystroke and the parse-tree walk allocates, so the walk runs once per
+	// leaf. The cache is bounded by the number of enumeration leaves the
+	// model declares, which is fixed once the loader resolves.
+	enumSummaries   map[*gyang.Entry]map[string]string
+	enumSummariesMu sync.Mutex
 }
 
 // NewCompleter creates a completer using YANG schema.
@@ -622,7 +631,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	for _, entry := range orderedEntries {
 		taken[entry.Key] = true
 	}
-	vocabulary := enumKeyVocabulary(keyEntry, taken)
+	vocabulary := enumKeyVocabulary(keyEntry, c.enumValueSummaries(keyEntry), taken)
 
 	// Single entry with no prefix — auto-select, no key needed.
 	// A list whose vocabulary still has an unused key is the exception: there
@@ -723,32 +732,14 @@ type enumKeyOption struct {
 // for those the set of keys is what the operator has created, and there is
 // nothing more the schema can offer.
 //
-// The help text comes from each enum's own `description`, read off the leaf's
-// parse-tree node, because the resolved EnumType keeps only the name and the
-// value. A leaf whose enumeration arrives through a typedef or a grouping has
-// no enum statement of its own here, so its values come back with no help
-// rather than with the wrong help.
-func enumKeyVocabulary(keyEntry *gyang.Entry, taken map[string]bool) []enumKeyOption {
+// help is the summary each value declares (enumValueSummaries); a value the
+// map does not name comes back with no help rather than with the wrong help.
+func enumKeyVocabulary(keyEntry *gyang.Entry, help map[string]string, taken map[string]bool) []enumKeyOption {
 	if keyEntry == nil || keyEntry.Type == nil || keyEntry.Type.Kind != gyang.Yenum {
 		return nil
 	}
 	if keyEntry.Type.Enum == nil {
 		return nil
-	}
-
-	help := make(map[string]string)
-	if leaf, ok := keyEntry.Node.(*gyang.Leaf); ok && leaf.Type != nil {
-		// The enum value's one-line summary is its ze:help extension.
-		for _, declared := range leaf.Type.Enum {
-			if declared == nil {
-				continue
-			}
-			summary := yang.GetHelpExtension(declared.Extensions)
-			if summary == "" {
-				continue
-			}
-			help[declared.Name] = textbuf.Join(strings.Fields(summary), " ")
-		}
 	}
 
 	options := make([]enumKeyOption, 0, len(keyEntry.Type.Enum.Names()))
@@ -759,6 +750,27 @@ func enumKeyVocabulary(keyEntry *gyang.Entry, taken map[string]bool) []enumKeyOp
 		options = append(options, enumKeyOption{name: name, help: help[name]})
 	}
 	return options
+}
+
+// enumValueSummaries answers the ze:help summary each value of entry's
+// enumeration declares, resolved once per entry through
+// yang.EnumValueSummaries and then served from the cache. A value that
+// declares none is absent from the map, so the row it renders carries an
+// empty summary: nothing stands in for a declaration the author did not
+// write. Safe for concurrent use.
+func (c *Completer) enumValueSummaries(entry *gyang.Entry) map[string]string {
+	c.enumSummariesMu.Lock()
+	defer c.enumSummariesMu.Unlock()
+
+	if summaries, held := c.enumSummaries[entry]; held {
+		return summaries
+	}
+	if c.enumSummaries == nil {
+		c.enumSummaries = make(map[*gyang.Entry]map[string]string)
+	}
+	summaries := yang.EnumValueSummaries(entry)
+	c.enumSummaries[entry] = summaries
+	return summaries
 }
 
 // isDefaultKey returns true if the key is auto-generated (KeyDefault or KeyDefault#N).
@@ -936,21 +948,6 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 		return completions
 	}
 
-	// Handle enums (static YANG values, used when no ze:validate is present)
-	if entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
-		var completions []Completion
-		for _, name := range entry.Type.Enum.Names() {
-			if prefix == "" || strings.HasPrefix(name, prefix) {
-				completions = append(completions, Completion{
-					Text:      name,
-					ShortHelp: "enum value",
-					Type:      completionValue,
-				})
-			}
-		}
-		return completions
-	}
-
 	// Handle booleans
 	if entry.Type.Kind == gyang.Ybool {
 		return filterCompletions([]Completion{
@@ -959,23 +956,25 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 		}, prefix)
 	}
 
-	// Handle unions: collect enum values from member types, add type hint for non-enum members.
-	if entry.Type.Kind == gyang.Yunion {
+	// Handle enums (static YANG values, used when no ze:validate is present):
+	// an enumeration leaf's own values and every enumeration member of a
+	// union, through the one reader every surface shares. The row's summary is
+	// the ze:help the value itself declares. A union whose enumeration values
+	// none match the prefix falls through to the type hint, because its other
+	// members still accept a value; an enumeration leaf accepts nothing else.
+	if names := yang.EnumValueNames(entry); len(names) > 0 {
+		summaries := c.enumValueSummaries(entry)
 		var completions []Completion
-		for _, t := range entry.Type.Type {
-			if t.Kind == gyang.Yenum && t.Enum != nil {
-				for _, name := range t.Enum.Names() {
-					if prefix == "" || strings.HasPrefix(name, prefix) {
-						completions = append(completions, Completion{
-							Text:      name,
-							ShortHelp: "enum value",
-							Type:      completionValue,
-						})
-					}
-				}
+		for _, name := range names {
+			if prefix == "" || strings.HasPrefix(name, prefix) {
+				completions = append(completions, Completion{
+					Text:      name,
+					ShortHelp: summaries[name],
+					Type:      completionValue,
+				})
 			}
 		}
-		if len(completions) > 0 {
+		if len(completions) > 0 || entry.Type.Kind == gyang.Yenum {
 			return completions
 		}
 	}

@@ -232,11 +232,13 @@ func equivalentArgumentTable(command *catalogCommand) string {
 	}
 	var out textbuf.Buffer
 	out.Str(`<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th>`).
-		Str("<th>Required</th><th>Values</th></tr></thead><tbody>\n")
+		Str("<th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>\n")
 	for _, argument := range command.Args {
 		out.Str("<tr><td><code>").Str(html.EscapeString(argument.Name)).Str("</code></td><td>").
 			Str(html.EscapeString(argument.Type)).Str("</td><td>").Str(argumentRequiredLabel(argument)).
-			Str("</td><td>").Str(argumentValuesHTML(argument)).Str("</td></tr>\n")
+			Str("</td><td>").Str(argumentValuesHTML(argument)).
+			Str("</td><td>").Str(html.EscapeString(argument.ShortHelp)).
+			Str("</td><td>").Str(html.EscapeString(argument.Description)).Str("</td></tr>\n")
 	}
 	out.Str("</tbody></table>")
 	return out.String()
@@ -422,14 +424,15 @@ func argumentMirrorTable(command *catalogCommand) string {
 		out.Str("No command-specific arguments listed.\n\n")
 		return out.String()
 	}
-	out.Str("| Name | Type | Required | Values |\n| --- | --- | --- | --- |\n")
+	out.Str("| Name | Type | Required | Values | Summary | Description |\n| --- | --- | --- | --- | --- | --- |\n")
 	for _, argument := range command.Args {
 		values := argumentValuesAny
 		if len(argument.Values) != 0 {
 			values = markdownCodeList(argument.Values)
 		}
 		out.Str("| `").Str(markdownCell(argument.Name)).Str("` | ").Str(markdownCell(argument.Type)).Str(" | ").
-			Str(argumentRequiredLabel(argument)).Str(" | ").Str(values).Str(" |\n")
+			Str(argumentRequiredLabel(argument)).Str(" | ").Str(values).Str(" | ").
+			Str(markdownCell(argument.ShortHelp)).Str(" | ").Str(markdownCell(argument.Description)).Str(" |\n")
 	}
 	out.Byte('\n')
 	return out.String()

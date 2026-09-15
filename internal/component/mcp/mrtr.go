@@ -225,6 +225,7 @@ const (
 	schemaKeyProperties  = "properties"
 	schemaKeyType        = "type"
 	schemaKeyDescription = "description"
+	schemaKeyTitle       = "title"
 	toolKeyName          = "name"
 )
 

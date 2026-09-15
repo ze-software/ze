@@ -332,6 +332,11 @@ The published `inputSchema` says the same thing, and says it per request. The
 `required` array names `command` for a client that declared no form-mode
 elicitation. The array is absent for a client that did declare it.
 
+A generated tool's typed parameters carry the two texts their YANG leaf
+declares: the property's `title` is the leaf's `ze:help` summary and its
+`description` is the leaf's `description` explanation. A text the leaf does not
+declare writes no key, and neither is derived from the other.
+
 Ze cannot advertise a single answer here, because the two clients get different
 behaviour. A schema-validating host would otherwise refuse to make the very call
 that reaches the prompt.
@@ -385,7 +390,7 @@ so it is never out of date.
 | Command | Content |
 |---------|---------|
 | `ze help ai` | Summary with counts and quick start |
-| `ze help ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services. An RPC carries its one-line summary under `short-help` and its long explanation under `description`, and omits `description` when the module declares no `description` |
+| `ze help ai --json` | Machine-readable JSON with commands, RPCs, notifications, plugins, families, services. An RPC carries its one-line summary under `short-help` and its long explanation under `description`, and omits `description` when the module declares no `description`. Its `input` and `output` leaves, and a notification's `leaves`, carry the same two keys from the leaf's own `ze:help` and `description` |
 | `ze help ai cli` | CLI subcommands (ze bgp, ze config, ...) |
 | `ze help ai api` | Daemon API commands with parameters (YANG RPCs) |
 | `ze help ai mcp` | MCP tools with parameters and examples |

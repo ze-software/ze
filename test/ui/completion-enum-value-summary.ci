@@ -1,0 +1,56 @@
+# Test: Tab on an enumeration config leaf shows each value's declared summary
+# VALIDATES: AC-4 -- the operator types a value prefix on an enumeration leaf,
+#   presses Tab, and the message row under the menu shows the ze:help the
+#   highlighted value declares.
+# PREVENTS: the literal `enum value` placeholder standing on the message row
+#   for every enumeration leaf that keys no list.
+# NOTE: bgp/as-notation is the leaf because its three values each declare a
+#       ze:help (internal/component/bgp/yang/ze-bgp-conf.yang). "as" matches
+#       all three, so Tab opens the menu rather than completing one, and the
+#       first candidate in name order is asdot.
+#
+# accept-only: the value assertion is the expect=hint:contains= line of the
+# embedded completion-enum-value-summary.et below. `ze-test editor --dir .
+# --all` runs that file and exits non-zero when the summary is missing, so
+# the exit code carries it.
+
+option=timeout:value=30s
+
+# go.mod marker: ze-test editor roots its base dir at the first go.mod above
+# the working directory, so --dir . resolves to this test's temp dir.
+tmpfs=go.mod:terminator=EOF_MOD
+module ze-ui-completion-enum-value-summary-fixture
+EOF_MOD
+
+tmpfs=completion-enum-value-summary.et:terminator=EOF_ET
+# Test: an enumeration value's declared summary reaches the completion row
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+input=type:text=set as-notation as
+expect=completion:contains=asdot,asplain
+input=tab
+expect=dropdown:visible
+
+# The first candidate is asdot, and the message row holds the ze:help its
+# enum statement declares.
+expect=hint:contains=An AS number of 65536 or more is X.Y
+EOF_ET
+
+cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+expect=exit:code=0

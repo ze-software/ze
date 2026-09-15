@@ -183,8 +183,11 @@ set is entered and committed with no warning.
 
 A menu row is the config key alone. The second message line above the prompt
 shows the summary of the selected key, which the YANG `ze:help` statement
-declares.
+declares. Tab on the value of an enumeration key does the same for each value:
+the message line shows the `ze:help` that value declares, and a value that
+declares none shows an empty line rather than a placeholder.
 <!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
+<!-- source: internal/component/cli/completer.go -- valueCompletions -->
 
 Press `?` on a highlighted key to read its long explanation, in a box above the
 prompt. That text is the `description` statement the schema declares, and it

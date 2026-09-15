@@ -1,11 +1,10 @@
 
-
             <section aria-labelledby="config-ref-title" class="md-content reveal cat-operate">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Reference</span>
-                    <h1 id="config-ref-title">Configuration Reference</h1>
-                    <p>The complete Ze configuration in one place: <strong>36 sections</strong> (27 provided by plugins, the rest core), generated live from the YANG schema with <code>ze yang tree</code>. Every level -- sections and the containers inside them -- is browsed the same way: pick a setting to step into it, or search across the whole configuration. Where a setting is provided by a plugin, its owner and YANG source are shown. See the <a href="../../docs/features/configuration/">Configuration guide</a> for a narrative walkthrough of BGP peer config specifically.</p>
-                </div>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Reference</span>
+    <h1 id="config-ref-title">Configuration Reference</h1>
+    <p>The complete Ze configuration in one place: <strong>36 sections</strong> (27 provided by plugins, the rest core), generated live from the YANG schema with <code>ze yang tree</code>. Every level -- sections and the containers inside them -- is browsed the same way: pick a setting to step into it, or search across the whole configuration. Where a setting is provided by a plugin, its owner and YANG source are shown. See the <a href="../../features/bgp-configuration/">Configuration guide</a> for a narrative walkthrough of BGP peer config specifically.</p>
+</div>
                 <div class="config-explorer" data-config-explorer>
 <script>document.documentElement.classList.add("config-js")</script>
                 <input id="config-search" type="search" placeholder="Search the whole configuration (setting, type, plugin)..." aria-label="Search the configuration" />
@@ -131,6 +130,17 @@
                     return { node: node, children: kids };
                 }
 
+                // An enumeration leaf's values, each with the summary it
+                // declares; a value declaring none is its name alone.
+                function valuesFor(n) {
+                    var vals = n.values || [];
+                    if (!vals.length) return "";
+                    var items = "";
+                    for (var i = 0; i < vals.length; i++)
+                        items += "<li><code>" + esc(vals[i].name) + "</code>" +
+                            (vals[i]["short-help"] ? ": " + esc(ws(vals[i]["short-help"])) : "") + "</li>";
+                    return '<ul class="config-detail-values">' + items + "</ul>";
+                }
                 function tableFor(P, kids) {
                     if (!kids.length)
                         return '<p class="config-empty">No settings under this node.</p>';
@@ -139,8 +149,8 @@
                         var c = kids[i];
                         var ps = P.concat([c.name]).join("/");
                         var drill = (c.children || []).length > 0;
-                        var desc = c.description
-                            ? esc(ws(c.description))
+                        var desc = c["short-help"]
+                            ? esc(ws(c["short-help"]))
                             : '<span class="config-index-nodesc">' +
                               (drill ? "" : "&mdash;") + "</span>";
                         rows += "<tr" +
@@ -181,9 +191,12 @@
                             esc(nodeHead(n)) + "</code>" +
                             (badge ? ' <span class="yang-type">' + esc(badge) + "</span>" : "") +
                             "</h2>" + ownerDetail(P.join("/")) +
+                            (n["short-help"]
+                                ? '<p class="config-detail-summary">' + esc(ws(n["short-help"])) + "</p>"
+                                : "") +
                             (n.description
                                 ? '<p class="config-detail-desc">' + esc(ws(n.description)) + "</p>"
-                                : "") + "</div>";
+                                : "") + valuesFor(n) + "</div>";
                     } else {
                         html += '<p class="config-index-hint">' + rootChildren.length +
                             " configuration sections. Pick one to inspect its structure, " +
@@ -199,7 +212,7 @@
                     function walk(n, P) {
                         var o = owners[P.join("/")];
                         var hay = (nodeHead(n) + " " + (n.type || "") + " " +
-                            (n.description || "")).toLowerCase();
+                            (n["short-help"] || "") + " " + (n.description || "")).toLowerCase();
                         if (o) hay += " " + o.label.toLowerCase() + " " +
                             o.plugins.map(function (p) { return p.name; }).join(" ").toLowerCase();
                         if (hay.indexOf(ql) !== -1) results.push({ n: n, P: P });
@@ -218,7 +231,7 @@
                         rows += '<tr class="is-drillable" data-path="' + esc(target) + '">' +
                             '<th scope="row"><a href="#' + esc(target) + '">' + label + "</a></th>" +
                             "<td>" + ownerTag(r.P.join("/")) + "</td>" +
-                            "<td>" + (r.n.description ? esc(ws(r.n.description)) : "") +
+                            "<td>" + (r.n["short-help"] ? esc(ws(r.n["short-help"])) : "") +
                             "</td></tr>";
                     }
                     var head = '<p class="config-index-count">' + results.length +
@@ -257,7 +270,6 @@
                 refresh();
             })();
         </script>
-
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Reference</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">

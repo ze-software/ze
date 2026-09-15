@@ -85,6 +85,11 @@ type catalogArg struct {
 	// argument of type enum accepts.
 	Values    []string `json:"values,omitempty"`
 	Mandatory bool     `json:"mandatory,omitempty"`
+	// ShortHelp is the leaf's ze:help summary and Description its long
+	// explanation, as `ze help command --json` publishes them. Neither is
+	// derived from the other, and an undeclared text is absent.
+	ShortHelp   string `json:"short-help,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // catalogToken is one element of a command's invocation form

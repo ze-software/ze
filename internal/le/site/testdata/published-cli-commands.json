@@ -8,7 +8,9 @@
    {
     "name": "selector",
     "type": "string",
-    "mandatory": true
+    "mandatory": true,
+    "short-help": "The peers the route is announced to",
+    "description": "A peer name, a peer address, or all for every configured peer."
    }
   ],
   "operators": [

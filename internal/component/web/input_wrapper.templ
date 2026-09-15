@@ -45,5 +45,11 @@ templ fieldWrapper(f FieldMeta, input templ.Component) {
 		// tags are inline, so the space has to be an expression to survive.
 		{ " " }
 		@input
+		// The explanation the leaf's description declares, as a block under
+		// the editor. The tooltip above keeps the summary; the two are separate
+		// declarations and neither stands in for the other.
+		if f.Description != "" {
+			<p class="ze-field-help">{ f.Description }</p>
+		}
 	</div>
 }

@@ -281,9 +281,9 @@ func inheritArgDefs(node *command.Node, inherited []command.ArgDef) (taken bool)
 func appendAnchored(inherited []command.ArgDef, container string, defs []command.ArgDef) []command.ArgDef {
 	next := make([]command.ArgDef, 0, len(inherited)+len(defs))
 	next = append(next, inherited...)
-	for _, def := range defs {
-		def.Anchor = container
-		next = append(next, def)
+	for i := range defs {
+		next = append(next, defs[i])
+		next[len(next)-1].Anchor = container
 	}
 	return next
 }
@@ -299,11 +299,11 @@ func withInheritedArgDefs(inherited, own []command.ArgDef) []command.ArgDef {
 		return own
 	}
 	defs := make([]command.ArgDef, 0, len(inherited)+len(own))
-	for _, def := range inherited {
-		if argDefNamed(own, def.Name) {
+	for i := range inherited {
+		if argDefNamed(own, inherited[i].Name) {
 			continue
 		}
-		defs = append(defs, def)
+		defs = append(defs, inherited[i])
 	}
 	return append(defs, own...)
 }
@@ -631,6 +631,13 @@ func declaredLeafNames(entry *gyang.Entry) []string {
 // argDefFor converts one leaf entry into an argument definition. It answers
 // false for a leaf that declares no type, for a type no command argument can
 // carry, and for a name the statement holds while the directory does not.
+//
+// The two texts come from the same two readers every carrier uses: the
+// summary from GetHelpExtension over the leaf's ze:help statement, and the
+// explanation from the entry's Description. A merged command node keeps the
+// definitions of the first module that declared them (mergeYANGEntry fills
+// ArgDefs only while they are empty), so its texts follow the first-wins case
+// of mergeHelpText.
 func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 	if leaf == nil || leaf.Type == nil {
 		return command.ArgDef{}, false
@@ -642,6 +649,8 @@ func argDefFor(leaf *gyang.Entry, name string) (command.ArgDef, bool) {
 	if leaf.Mandatory == gyang.TSTrue {
 		def.Mandatory = true
 	}
+	def.ShortHelp = GetHelpExtension(leaf.Exts) // the ze:help summary
+	def.Description = leaf.Description          // the YANG description explanation
 	return def, true
 }
 

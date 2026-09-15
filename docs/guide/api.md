@@ -206,8 +206,11 @@ Bearer authentication policy as the API when auth is configured.
 Each command operation carries the two help texts the command declares. The
 `summary` is the one-line summary from the YANG `ze:help` statement, and
 the `description` is the long explanation from the YANG `description`. A command that
-declares no explanation carries no `description` key. The gRPC `CommandInfo`
-message carries the summary only.
+declares no explanation carries no `description` key. Each parameter property
+in the operation's request schema carries the same pair from its YANG leaf:
+`title` is the leaf's `ze:help` and `description` is the leaf's `description`,
+and a text the leaf does not declare writes no key. The gRPC `CommandInfo` and
+`ParamInfo` messages carry both texts as `short_help` and `description`.
 <!-- source: internal/component/api/rest/server.go -- registerRoutes documentation handlers use withAuth -->
 
 ## gRPC Services

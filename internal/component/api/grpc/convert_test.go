@@ -64,18 +64,22 @@ func TestExecResultToProtoNil(t *testing.T) {
 
 func TestCommandMetaToProto(t *testing.T) {
 	cmd := api.CommandMeta{
-		Name:      "show bgp rib",
-		ShortHelp: "Show RIB routes",
-		ReadOnly:  true,
+		Name:        "show bgp rib",
+		ShortHelp:   "Show RIB routes",
+		Description: "One row for each route the RIB holds.",
+		ReadOnly:    true,
 		Params: []api.ParamMeta{
-			{Name: "family", Type: "string", ShortHelp: "Address family", Required: false},
+			{Name: "family", Type: "string", ShortHelp: "Address family", Description: "The family whose routes are shown.", Required: false},
 		},
 	}
 
 	info := commandMetaToProto(cmd)
 	assert.Equal(t, "show bgp rib", info.Name)
-	assert.Equal(t, "Show RIB routes", info.Description)
+	assert.Equal(t, "Show RIB routes", info.ShortHelp)
+	assert.Equal(t, "One row for each route the RIB holds.", info.Description)
 	assert.True(t, info.ReadOnly)
 	require.Len(t, info.Params, 1)
 	assert.Equal(t, "family", info.Params[0].Name)
+	assert.Equal(t, "Address family", info.Params[0].ShortHelp, "the summary is short_help")
+	assert.Equal(t, "The family whose routes are shown.", info.Params[0].Description, "the explanation is description")
 }

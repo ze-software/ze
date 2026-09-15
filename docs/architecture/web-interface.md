@@ -18,7 +18,7 @@ All source files in `internal/component/web/` reference this document via `// De
 | `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
 | `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
 | `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `configViewComponent`, breadcrumbs |
-| `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes the merged YANG command tree itself. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `ze:help` summary as the lede, the `description` explanation as the body. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
+| `handler_admin.go` | Admin command tree navigation and execution. `HandleAdminView` takes the merged YANG command tree itself. The finder columns read the tree shape. The command form reads the two help texts of the node it shows: the `ze:help` summary as the lede, the `description` explanation as the body, and one text input for each argument the node declares, each carrying that leaf's two texts. `HandleAdminExecute` takes the same tree: it builds the command from the URL path and places every posted argument value the node declares (`commandArguments`). A value whose `ArgDef.Anchor` names a path keyword goes bare after that keyword, inside the path, which is where `anchoredDef` binds a peer selector; every other value is appended after the command as `name value`, in declaration order. An empty value is left out, so the dispatcher's own mandatory check names a missing argument. When the YANG loader fails at hub startup the tree is nil. The admin nav is then empty, and the failure is logged to stderr, rather than a stale static map taking its place. An empty admin nav tells the operator that the hub did not load its command modules. |
 | `cli.go` | CLI bar (integrated + terminal modes), tab completion |
 | `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
 | `render.go` | `Renderer`: embedded assets, decorators, and the entry points the hub calls (`RenderLayout`, `RenderLogin`, `RenderWorkbench`, `RenderField`, `RenderDiffModal`) |
@@ -141,10 +141,13 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 | `LeafNode.ShortHelp` | Three renderings of one string. The (i) tooltip on hover, on the field label and the sidebar heading. The `title=` attribute of the label and the input. The placeholder of an input whose leaf is unset and has no default (`fieldPlaceholder`, `view.go`). On the workbench editor it is also the editor's `aria-describedby` target, which is the tooltip element itself (`fieldDescriptionID`, `view.go`) |
 | `ContainerNode.ShortHelp` | (i) tooltip on sidebar heading |
 | `ListNode.ShortHelp` | (i) tooltip on sidebar heading |
-| `LeafNode.Description`, `ContainerNode.Description`, `ListNode.Description` | Nothing. The config editor renders no long explanation |
+| `LeafNode.Description` | The long explanation, as a block under the editor: `<p class="config-help">` in the config view (`leafInput`) and `<p class="ze-field-help">` in the workbench editor (`fieldWrapper`). A leaf that declares none renders no block. The tooltip keeps the summary, so a multi-line explanation never lands in a `title=` attribute |
+| `ContainerNode.Description`, `ListNode.Description` | The long explanation, as a `<p class="config-help">` block in the config view: at the top of the container view (`configContainer`, before the child list) and under the `Entries` heading of the list view (`configList`). `buildConfigViewData` (`handler_config_walk.go`) copies it into `ConfigViewData.Description`. A node that declares none renders no block. The sidebar heading keeps the summary |
 
 <!-- source: internal/component/config/schema.go -- LeafNode, ContainerNode, ListNode -->
 <!-- source: internal/component/web/fragment.go -- buildFieldMeta, nodeDescription -->
+<!-- source: internal/component/web/handler_config_leaf.go -- buildLeafField -->
+<!-- source: internal/component/web/handler_config_walk.go -- buildConfigViewData -->
 <!-- source: internal/component/web/view.go -- fieldPlaceholder -->
 
 ## TLS

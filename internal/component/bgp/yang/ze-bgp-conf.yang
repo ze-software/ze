@@ -507,8 +507,9 @@ module ze-bgp-conf {
                         type zt:ip-address;
                         type enumeration {
                             enum dynamic {
-                                ze:help "Accept BGP sessions from any IP in the group's range.
-                                         Valid at group level only; rejected at peer level.";
+                                description "The group accepts a session from any address in its range. The
+                                             value is valid at group level only and is rejected on a peer.";
+                                ze:help "Accept BGP sessions from any IP in the group's range.";
                             }
                         }
                     }
@@ -730,17 +731,19 @@ module ze-bgp-conf {
                 leaf-list local-options {
                     type enumeration {
                         enum no-prepend {
-                            ze:help "RFC 7705 Section 3.3 'No Prepend Inbound': the local-as is
-                                     not added to a route received from this peer, so it is
-                                     absent when the route is installed and when it goes to an
-                                     iBGP neighbor. Ze never adds an AS to a received AS_PATH,
-                                     so this option states the behavior ze already has. It does
-                                     not change what this peer receives.";
+                            description "RFC 7705 Section 3.3 'No Prepend Inbound': the local-as is
+                                         not added to a route received from this peer, so it is
+                                         absent when the route is installed and when it goes to an
+                                         iBGP neighbor. Ze never adds an AS to a received AS_PATH,
+                                         so this option states the behavior ze already has. It does
+                                         not change what this peer receives.";
+                            ze:help "Do not add the local-as to a route received from this peer.";
                         }
                         enum replace-as {
-                            ze:help "RFC 7705 Section 3.3 'Replace Old AS': toward this peer the
-                                     globally configured ASN is not prepended, and the local-as
-                                     is the only AS number added to AS_PATH.";
+                            description "RFC 7705 Section 3.3 'Replace Old AS': toward this peer the
+                                         globally configured ASN is not prepended, and the local-as
+                                         is the only AS number added to AS_PATH.";
+                            ze:help "Send the local-as alone toward this peer, without the global ASN.";
                         }
                     }
                     description "The two options act in different directions, so each one is set on its own. no-prepend acts inbound:
@@ -918,10 +921,15 @@ module ze-bgp-conf {
                     leaf count {
                         type enumeration {
                             enum offered {
-                                ze:help "Count every announcement the peer sends, the announcements of a dropped UPDATE included. A prefix announced twice counts twice.";
+                                description "Count every announcement the peer sends, the announcements of a
+                                             dropped UPDATE included. A prefix announced twice counts twice.";
+                                ze:help "Count every announcement the peer sends, repeats included.";
                             }
                             enum installed {
-                                ze:help "Count the prefixes this family currently holds. A re-announced prefix is one prefix, a dropped UPDATE moves nothing, and a withdrawal of a prefix ze does not hold moves nothing.";
+                                description "Count the prefixes this family currently holds. A re-announced
+                                             prefix is one prefix, a dropped UPDATE moves nothing, and a
+                                             withdrawal of a prefix ze does not hold moves nothing.";
+                                ze:help "Count the prefixes this family holds now.";
                             }
                         }
                         default "offered";

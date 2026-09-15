@@ -1,0 +1,18 @@
+# Test: an rpc input leaf's two texts reach ze help ai --json
+# VALIDATES: AC-2 of spec-both-help-texts-reach-every-surface -- an rpc entry
+#            lists its input leaves, and each leaf carries `short-help` (the
+#            leaf's ze:help) and `description` (the leaf's description)
+# PREVENTS: extractEntryLeaves dropping the description, or the reference
+#           publishing an rpc with no leaves, so an agent reads a wire method
+#           and never what its parameters mean
+# NOTE: this file runs ONE command on purpose, because an expect matches the
+#       ACCUMULATED stdout of every command in the file. The `name` input leaf
+#       of `ze-system:command-help` (internal/core/ipc/yang/ze-system-api.yang)
+#       declares both texts in the tree today.
+
+cmd=foreground:seq=1:exec=ze help ai --json
+expect=exit:code=0
+
+expect=stdout:contains="wire-method": "ze-system:command-help"
+expect=stdout:contains="short-help": "Command name"
+expect=stdout:contains="description": "The full command name, as command-list prints it. A name in

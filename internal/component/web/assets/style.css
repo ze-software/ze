@@ -413,6 +413,16 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   min-width: 0;
 }
 
+/* The long explanation a leaf's YANG description declares, under its editor. */
+.config-help,
+.ze-field-help {
+  flex-basis: 100%;
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
 .config-label {
   flex: 0 0 14rem;
   font-family: var(--font-mono);
@@ -2047,6 +2057,21 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .command-form-field {
   margin-bottom: 0.75rem;
+}
+
+/* An argument's summary sits beside its input and its explanation under it,
+   keeping the line breaks its author wrote. */
+.command-form-field-summary {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.command-form-field-help {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0;
+  white-space: pre-line;
 }
 
 .command-form-label {

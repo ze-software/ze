@@ -279,6 +279,9 @@ func flattenConfigSection(node *configNode, heads, descriptions *[]string) {
 	if node.Type != "" {
 		*heads = append(*heads, node.Type)
 	}
+	if node.ShortHelp != "" {
+		*descriptions = append(*descriptions, strings.Join(strings.Fields(node.ShortHelp), " "))
+	}
 	if node.Description != "" {
 		*descriptions = append(*descriptions, strings.Join(strings.Fields(node.Description), " "))
 	}

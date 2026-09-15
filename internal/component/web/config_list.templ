@@ -2,12 +2,16 @@
 
 package web
 
-// configList is the config view of a YANG list: the entry keys on the left and
-// the selected entry's detail on the right.
+// configList is the config view of a YANG list: the entry keys on the left,
+// under the list's explanation when it declares one, and the selected entry's
+// detail on the right.
 templ configList(v *ConfigViewData) {
 	<div class="config-list-layout">
 		<div class="config-key-panel">
 			<h3 class="config-section-title">Entries</h3>
+			if v.Description != "" {
+				<p class="config-help">{ v.Description }</p>
+			}
 			<ul class="config-key-list">
 				for _, k := range v.Keys {
 					<li>

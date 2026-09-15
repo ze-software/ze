@@ -103,7 +103,7 @@ explanation. Add the word verbose to put the source of each row beside it.";
             container help {
                 config false;
                 ze:command "ze-system:command-help";
-                description "The answer carries command, description, long-help and source. A command a
+                description "The answer carries command, short-help, description and source. A command a
 plugin registered also carries args and its timeout. An unknown name fails
 with 'unknown command: <name>'.";
                 ze:help "Show the detailed help for one command.";

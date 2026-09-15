@@ -551,3 +551,48 @@ func TestConfigValidationHookRunsFullValidation(t *testing.T) {
 	assert.Contains(t, err.Error(), "config validation failed")
 	assert.Contains(t, err.Error(), "address")
 }
+
+// TestAPICommandListerCarriesBothLeafTexts: a parameter's summary and its
+// explanation each reach the REST and gRPC command list as their own field,
+// so a client that renders one text is never handed the other in its place.
+//
+// VALIDATES: AC-2 and AC-6 of spec-both-help-texts-reach-every-surface at the
+// API boundary.
+// PREVENTS: `Description: p.Description` being dropped from apiCommandLister
+// with every test still green; the hub test over buildParamMeta stops one copy
+// short of this lister.
+func TestAPICommandListerCarriesBothLeafTexts(t *testing.T) {
+	src := func() []commandMeta {
+		return []commandMeta{{
+			Name:        "show sockets",
+			ShortHelp:   "List the open sockets.",
+			Description: "One row for each socket the daemon holds open.",
+			ReadOnly:    true,
+			Params: []commandParam{
+				{Name: "port", Type: "uint16", ShortHelp: "The TCP port to list.", Description: "Only the sockets bound to this port are listed.", Required: true},
+				{Name: "label", Type: "string", ShortHelp: "A label to match."},
+			},
+		}}
+	}
+
+	metas := apiCommandLister(src)()
+	require.Len(t, metas, 1)
+	assert.Equal(t, "show sockets", metas[0].Name)
+	assert.Equal(t, "List the open sockets.", metas[0].ShortHelp)
+	assert.Equal(t, "One row for each socket the daemon holds open.", metas[0].Description)
+	assert.True(t, metas[0].ReadOnly)
+	require.Len(t, metas[0].Params, 2)
+
+	port := metas[0].Params[0]
+	assert.Equal(t, "port", port.Name)
+	assert.Equal(t, "uint16", port.Type)
+	assert.True(t, port.Required)
+	assert.Equal(t, "The TCP port to list.", port.ShortHelp)
+	assert.Equal(t, "Only the sockets bound to this port are listed.", port.Description)
+
+	label := metas[0].Params[1]
+	assert.Equal(t, "A label to match.", label.ShortHelp)
+	assert.Equal(t, "", label.Description, "a leaf that declares no explanation publishes none")
+
+	assert.Nil(t, apiCommandLister(func() []commandMeta { return nil })())
+}

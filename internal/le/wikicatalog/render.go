@@ -165,8 +165,8 @@ func renderDetail(out *bytes.Buffer, entry *Entry) error {
 		line(out, "")
 		line(out, "**Arguments:**")
 		line(out, "")
-		line(out, "| Name | Type | Required | Values |")
-		line(out, "|------|------|----------|--------|")
+		line(out, "| Name | Type | Required | Values | Summary | Description |")
+		line(out, "|------|------|----------|--------|---------|-------------|")
 		for _, argument := range entry.Args {
 			out.WriteString("| ")
 			writeCodeSpan(out, tableCodeValue(argument.Name))
@@ -178,6 +178,12 @@ func renderDetail(out *bytes.Buffer, entry *Entry) error {
 			}
 			out.WriteString(" | ")
 			writeTableCodeList(out, argument.Values)
+			// The two declared texts, each empty when undeclared. A cell cannot
+			// hold a line break, so tableProse joins the lines.
+			out.WriteString(" | ")
+			out.WriteString(markdownLiteralProse(tableProse(argument.ShortHelp)))
+			out.WriteString(" | ")
+			out.WriteString(markdownLiteralProse(tableProse(argument.Description)))
 			line(out, " |")
 		}
 	}

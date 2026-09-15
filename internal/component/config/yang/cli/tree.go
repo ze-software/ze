@@ -31,16 +31,30 @@ import (
 )
 
 // AnalysisNode is a node in the unified analysis tree.
+//
+// ShortHelp is the one-line summary the node's ze:help declares, and
+// Description the long explanation its description statement declares. They
+// are two declarations: neither is derived from the other, and a node that
+// declares one holds the other empty.
 type AnalysisNode struct {
+	Name        string
+	Source      string // SourceConfig, SourceCommand, or SourceBoth
+	Type        string // YANG type name (config nodes) or empty
+	ShortHelp   string
+	Description string
+	NodeKind    string      // "container", "list", "leaf", "leaf-list", SourceCommand, "branch"
+	Mandatory   bool        // YANG mandatory constraint
+	Default     string      // YANG default value (first element if multiple)
+	Range       string      // YANG range constraint (e.g., "0..65535")
+	Values      []EnumValue // the values of an enumeration leaf, in name order; nil otherwise
+	Children    map[string]*AnalysisNode
+}
+
+// EnumValue is one value of an enumeration leaf with the summary it declares.
+// A value that declares no ze:help carries an empty ShortHelp.
+type EnumValue struct {
 	Name      string
-	Source    string // SourceConfig, SourceCommand, or SourceBoth
-	Type      string // YANG type name (config nodes) or empty
 	ShortHelp string
-	NodeKind  string // "container", "list", "leaf", "leaf-list", SourceCommand, "branch"
-	Mandatory bool   // YANG mandatory constraint
-	Default   string // YANG default value (first element if multiple)
-	Range     string // YANG range constraint (e.g., "0..65535")
-	Children  map[string]*AnalysisNode
 }
 
 // buildUnifiedTree loads YANG schemas and RPC registrations, then merges
@@ -107,20 +121,28 @@ func walkYANGEntry(parent *AnalysisNode, name string, entry *gyang.Entry) {
 		if existing.ShortHelp == "" {
 			existing.ShortHelp = yang.GetHelpExtension(entry.Exts) // the ze:help summary
 		}
+		if existing.Description == "" {
+			existing.Description = entry.Description // the long explanation
+		}
+		if existing.Values == nil {
+			existing.Values = yangEnumValues(entry)
+		}
 		if existing.NodeKind == "" || existing.NodeKind == "branch" || existing.NodeKind == SourceCommand {
 			existing.NodeKind = yangNodeKind(entry)
 		}
 	} else {
 		existing = &AnalysisNode{
-			Name:      name,
-			Source:    SourceConfig,
-			Type:      yangTypeName(entry),
-			ShortHelp: yang.GetHelpExtension(entry.Exts), // the ze:help summary
-			NodeKind:  yangNodeKind(entry),
-			Mandatory: entry.Mandatory == gyang.TSTrue,
-			Default:   yangDefault(entry),
-			Range:     yangRange(entry),
-			Children:  make(map[string]*AnalysisNode),
+			Name:        name,
+			Source:      SourceConfig,
+			Type:        yangTypeName(entry),
+			ShortHelp:   yang.GetHelpExtension(entry.Exts), // the ze:help summary
+			Description: entry.Description,                 // the long explanation
+			NodeKind:    yangNodeKind(entry),
+			Mandatory:   entry.Mandatory == gyang.TSTrue,
+			Default:     yangDefault(entry),
+			Range:       yangRange(entry),
+			Values:      yangEnumValues(entry),
+			Children:    make(map[string]*AnalysisNode),
 		}
 		parent.Children[name] = existing
 	}
@@ -163,17 +185,21 @@ func walkCommandNode(parent *AnalysisNode, node *command.Node) {
 			if existing.ShortHelp == "" && child.ShortHelp != "" {
 				existing.ShortHelp = child.ShortHelp
 			}
+			if existing.Description == "" && child.Description != "" {
+				existing.Description = child.Description
+			}
 		} else {
 			kind := "branch"
 			if len(child.Children) == 0 {
 				kind = SourceCommand
 			}
 			existing = &AnalysisNode{
-				Name:      name,
-				Source:    SourceCommand,
-				ShortHelp: child.ShortHelp,
-				NodeKind:  kind,
-				Children:  make(map[string]*AnalysisNode),
+				Name:        name,
+				Source:      SourceCommand,
+				ShortHelp:   child.ShortHelp,
+				Description: child.Description,
+				NodeKind:    kind,
+				Children:    make(map[string]*AnalysisNode),
 			}
 			parent.Children[name] = existing
 		}
@@ -239,6 +265,22 @@ func yangTypeName(entry *gyang.Entry) string {
 		return ""
 	}
 	return entry.Type.Name
+}
+
+// yangEnumValues answers the values an enumeration leaf declares, in name
+// order, each with the ze:help summary it declares, and nil for every other
+// node. A union is read member by member, as value completion offers it.
+func yangEnumValues(entry *gyang.Entry) []EnumValue {
+	names := yang.EnumValueNames(entry)
+	if len(names) == 0 {
+		return nil
+	}
+	summaries := yang.EnumValueSummaries(entry)
+	values := make([]EnumValue, 0, len(names))
+	for _, name := range names {
+		values = append(values, EnumValue{Name: name, ShortHelp: summaries[name]})
+	}
+	return values
 }
 
 // yangDefault returns the first default value from a YANG entry, or empty string.

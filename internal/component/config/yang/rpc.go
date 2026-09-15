@@ -24,12 +24,16 @@ type RPCMeta struct {
 	Output      []LeafMeta // Output parameter leaves
 }
 
-// LeafMeta describes a leaf parameter from a YANG RPC input/output.
+// LeafMeta describes a leaf parameter from a YANG RPC input/output or a
+// notification body. ShortHelp and Description are the leaf's two declared
+// texts; neither is derived from the other, and an empty Description means
+// nobody has written the explanation yet.
 type LeafMeta struct {
-	Name      string // Leaf name
-	Type      string // YANG type name
-	ShortHelp string // One-line summary, from the ze:help extension
-	Mandatory bool   // Whether this parameter is required
+	Name        string // Leaf name
+	Type        string // YANG type name
+	ShortHelp   string // One-line summary, from the ze:help extension
+	Description string // Long explanation, from the YANG description
+	Mandatory   bool   // Whether this parameter is required
 }
 
 // NotificationMeta describes a notification extracted from a YANG module.
@@ -129,9 +133,10 @@ func extractEntryLeaves(parent *gyang.Entry) []LeafMeta {
 			continue
 		}
 		leaf := LeafMeta{
-			Name:      name,
-			ShortHelp: GetHelpExtension(child.Exts), // the ze:help summary
-			Mandatory: child.Mandatory == gyang.TSTrue,
+			Name:        name,
+			ShortHelp:   GetHelpExtension(child.Exts), // the ze:help summary
+			Description: child.Description,            // the YANG description explanation
+			Mandatory:   child.Mandatory == gyang.TSTrue,
 		}
 		if child.Type != nil {
 			leaf.Type = child.Type.Name

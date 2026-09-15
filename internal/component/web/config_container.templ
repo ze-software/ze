@@ -2,10 +2,13 @@
 
 package web
 
-// configContainer is the config view of a YANG container: its navigable
-// children, then a set form per leaf.
+// configContainer is the config view of a YANG container: its explanation
+// when it declares one, its navigable children, then a set form per leaf.
 templ configContainer(v *ConfigViewData) {
 	<div class="config-container" id="content-area">
+		if v.Description != "" {
+			<p class="config-help">{ v.Description }</p>
+		}
 		if len(v.Children) > 0 {
 			<section class="config-section">
 				<ul class="config-nav-list">

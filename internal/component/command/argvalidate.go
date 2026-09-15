@@ -75,7 +75,8 @@ func validateUnion(arg string, def *ArgDef) error {
 		}
 	}
 	var hint string
-	for _, m := range def.UnionDefs {
+	for i := range def.UnionDefs {
+		m := &def.UnionDefs[i]
 		if m.Kind == ArgEnum {
 			hint = joinEnum(m.EnumValues)
 			break

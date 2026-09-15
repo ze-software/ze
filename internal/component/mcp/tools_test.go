@@ -944,23 +944,23 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 	}
 	var schema struct {
 		Properties map[string]struct {
-			Type        string `json:"type"`
-			Description string `json:"description"`
+			Type  string `json:"type"`
+			Title string `json:"title"`
 		} `json:"properties"`
 	}
 	if err := json.Unmarshal(schemaRaw, &schema); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	// "family" should be string type.
+	// "family" should be string type, with its summary as the title.
 	if fam, ok := schema.Properties["family"]; !ok {
 		t.Error("missing 'family' property from YANG params")
 	} else {
 		if fam.Type != "string" {
 			t.Errorf("family type = %q, want string", fam.Type)
 		}
-		if fam.Description != "Address family" {
-			t.Errorf("family description = %q, want 'Address family'", fam.Description)
+		if fam.Title != "Address family" {
+			t.Errorf("family title = %q, want 'Address family'", fam.Title)
 		}
 	}
 
@@ -1433,5 +1433,64 @@ func TestMCPToolDefUsesSummaryAndHelp(t *testing.T) {
 	}
 	if bareDesc != "Print the version.\n\nThe build stamp is the git SHA." {
 		t.Errorf("bare tool description = %q, want the summary then the explanation", bareDesc)
+	}
+}
+
+// TestToolInputSchemaCarriesArgumentTexts proves a tool's inputSchema property
+// carries the parameter's summary as `title` and its explanation as
+// `description`, each only when declared, so an MCP client can show a model
+// what an argument means.
+func TestToolInputSchemaCarriesArgumentTexts(t *testing.T) {
+	s := &Streamable{cfg: StreamableConfig{
+		Commands: func() []CommandInfo {
+			return []CommandInfo{
+				{
+					Name:      "show socket open",
+					ShortHelp: "Show an open socket",
+					Params: []ParamInfo{
+						{Name: "port", Type: "uint16", ShortHelp: "The TCP port to listen on", Description: "The port the socket binds.", Required: true},
+						{Name: "label", Type: "string", ShortHelp: "A label for the socket"},
+						{Name: "owner", Type: "string", Description: "The user the socket is opened for."},
+					},
+				},
+				{Name: "show socket list", ShortHelp: "List the open sockets"},
+				// A second subgroup under the verb makes the grouping depth two,
+				// as the real tree does, so the socket tool is ze_show_socket.
+				{Name: "show config dump", ShortHelp: "Dump config"},
+			}
+		},
+	}}
+
+	var tool map[string]any
+	for _, candidate := range s.allTools(clientCapabilities{}) {
+		if candidate["name"] == "ze_show_socket" {
+			tool = candidate
+		}
+	}
+	if tool == nil {
+		t.Fatal("ze_show_socket tool not found")
+	}
+	schemaRaw, ok := tool["inputSchema"].(json.RawMessage)
+	if !ok {
+		t.Fatal("inputSchema not json.RawMessage")
+	}
+	var schema struct {
+		Properties map[string]map[string]any `json:"properties"`
+	}
+	if err := json.Unmarshal(schemaRaw, &schema); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	port := schema.Properties["port"]
+	if port["title"] != "The TCP port to listen on" || port["description"] != "The port the socket binds." {
+		t.Errorf("port property = %v, want title and description", port)
+	}
+	label := schema.Properties["label"]
+	if _, has := label["description"]; has || label["title"] != "A label for the socket" {
+		t.Errorf("label property = %v, want title alone", label)
+	}
+	owner := schema.Properties["owner"]
+	if _, has := owner["title"]; has || owner["description"] != "The user the socket is opened for." {
+		t.Errorf("owner property = %v, want description alone", owner)
 	}
 }

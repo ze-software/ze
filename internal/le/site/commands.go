@@ -249,7 +249,8 @@ func writeCommandFacts(out *textbuf.Buffer, command *catalogCommand) {
 }
 
 // argumentLines writes one line for each argument: its name, its type, whether
-// the command needs it, and the closed set its type states.
+// the command needs it, the closed set its type states, and the two texts the
+// leaf declares, the summary first and the explanation after it.
 func argumentLines(command *catalogCommand) []string {
 	lines := make([]string, 0, len(command.Args))
 	for _, argument := range command.Args {
@@ -259,9 +260,23 @@ func argumentLines(command *catalogCommand) []string {
 		}
 		lines = append(lines, "<code>"+html.EscapeString(argument.Name)+"</code> "+
 			html.EscapeString(argument.Type)+", required: "+argumentRequiredLabel(argument)+
-			", "+values)
+			", "+values+argumentTextsHTML(argument))
 	}
 	return lines
+}
+
+// argumentTextsHTML writes the texts an argument declares after its facts:
+// the summary as a sentence and the explanation after it. An undeclared text
+// writes nothing, and neither is derived from the other.
+func argumentTextsHTML(argument catalogArg) string {
+	var out textbuf.Buffer
+	if argument.ShortHelp != "" {
+		out.Str(": ").Str(html.EscapeString(argument.ShortHelp))
+	}
+	if argument.Description != "" {
+		out.Str(" <span class=\"cmd-arg-help\">").Str(html.EscapeString(argument.Description)).Str("</span>")
+	}
+	return out.String()
 }
 
 // codeSpanList writes several values as the code spans a reader scans.
@@ -453,9 +468,22 @@ func argumentMirrorLines(command *catalogCommand) []string {
 			values = "one of " + markdownCodeList(argument.Values)
 		}
 		lines = append(lines, "`"+markdownCell(argument.Name)+"` "+markdownCell(argument.Type)+
-			", required: "+argumentRequiredLabel(argument)+", "+values)
+			", required: "+argumentRequiredLabel(argument)+", "+values+argumentTextsMarkdown(argument))
 	}
 	return lines
+}
+
+// argumentTextsMarkdown is argumentTextsHTML for the mirrors: the summary as
+// a sentence, then the explanation, each only when declared.
+func argumentTextsMarkdown(argument catalogArg) string {
+	var out textbuf.Buffer
+	if argument.ShortHelp != "" {
+		out.Str(": ").Str(markdownCell(argument.ShortHelp))
+	}
+	if argument.Description != "" {
+		out.Byte(' ').Str(markdownCell(argument.Description))
+	}
+	return out.String()
 }
 
 // commandMirrorPipes writes one command's pipe contract as one table cell.

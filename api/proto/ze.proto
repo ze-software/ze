@@ -73,20 +73,26 @@ message ListCommandsResponse {
   repeated CommandInfo commands = 1;
 }
 
-// CommandInfo describes a single command.
+// CommandInfo describes a single command. short_help is the one-line summary
+// from the YANG ze:help statement and description the long explanation from
+// the YANG description statement. Neither is derived from the other, and an
+// undeclared text is empty.
 message CommandInfo {
   string name = 1;
   string description = 2;
   bool read_only = 3 [json_name = "read-only"];
   repeated ParamInfo params = 4;
+  string short_help = 5 [json_name = "short-help"];
 }
 
-// ParamInfo describes a command parameter.
+// ParamInfo describes a command parameter. short_help and description are
+// the parameter's two declared texts, as on CommandInfo.
 message ParamInfo {
   string name = 1;
   string type = 2;
   string description = 3;
   bool required = 4;
+  string short_help = 5 [json_name = "short-help"];
 }
 
 // DescribeCommandRequest identifies a command by path.

@@ -55,10 +55,11 @@ type commandMeta struct {
 // commandParam is one input parameter, neutral counterpart of zemcp.ParamInfo
 // and api.ParamMeta.
 type commandParam struct {
-	Name      string
-	Type      string
-	ShortHelp string
-	Required  bool
+	Name        string
+	Type        string
+	ShortHelp   string // the ze:help summary
+	Description string // the YANG description explanation
+	Required    bool
 }
 
 // commandUIResource is the neutral counterpart of zemcp.UIResourceInfo.
@@ -245,10 +246,11 @@ func buildParamMeta(loader *yangloader.Loader) map[string][]commandParam {
 			params := make([]commandParam, len(rpc.Input))
 			for i, leaf := range rpc.Input {
 				params[i] = commandParam{
-					Name:      leaf.Name,
-					Type:      leaf.Type,
-					ShortHelp: leaf.ShortHelp,
-					Required:  leaf.Mandatory,
+					Name:        leaf.Name,
+					Type:        leaf.Type,
+					ShortHelp:   leaf.ShortHelp,
+					Description: leaf.Description,
+					Required:    leaf.Mandatory,
 				}
 			}
 			result[path] = params

@@ -88,5 +88,11 @@ templ leafInput(f LeafField) {
 					title={ f.ShortHelp }
 				>
 		}
+		// The explanation is a block under the editor, never the tooltip: it is
+		// a paragraph, and a title attribute shows its newlines raw. A leaf that
+		// declares none renders no block, and nothing stands in for it.
+		if f.Description != "" {
+			<p class="config-help">{ f.Description }</p>
+		}
 	</div>
 }

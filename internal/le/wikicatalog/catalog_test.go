@@ -1,6 +1,7 @@
 package wikicatalog
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -144,4 +145,51 @@ func TestWikiCatalogReportsAPluginDeclaredAlias(t *testing.T) {
 		return
 	}
 	t.Fatalf("the catalog names no %q", path)
+}
+
+// TestCatalogArgCarriesBothTexts proves an `args` entry carries the leaf's
+// ze:help under `short-help` and its description under `description`, read
+// off command.ArgDef, and that the wiki page prints both beside the argument.
+//
+// The subject is the `component` leaf of `show log recent`
+// (internal/plugins/log/yang/ze-log-cmd.yang), which declares both texts.
+func TestCatalogArgCarriesBothTexts(t *testing.T) {
+	var subject *Entry
+	for _, entry := range Collect() {
+		if entry.Path == "show log recent" {
+			subject = &entry
+			break
+		}
+	}
+	if subject == nil {
+		t.Fatal("show log recent is not in the catalog")
+	}
+	var component *Argument
+	for i := range subject.Args {
+		if subject.Args[i].Name == "component" {
+			component = &subject.Args[i]
+		}
+	}
+	if component == nil {
+		t.Fatalf("show log recent publishes no component argument: %+v", subject.Args)
+	}
+	if component.ShortHelp != "Filter by component name" {
+		t.Errorf("short-help = %q, want the leaf's ze:help", component.ShortHelp)
+	}
+	if !strings.HasPrefix(component.Description, "Keeps the entries whose component name equals this value exactly.") {
+		t.Errorf("description = %q, want the leaf's description", component.Description)
+	}
+
+	rendered, err := Render([]Entry{*subject})
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	page := string(rendered)
+	if !strings.Contains(page, "| Name | Type | Required | Values | Summary | Description |") {
+		t.Errorf("the wiki argument table names no Summary and Description column:\n%s", page)
+	}
+	// The wiki escapes Markdown punctuation and joins the description's lines.
+	if !strings.Contains(page, `| Filter by component name | Keeps the entries whose component name equals this value exactly\. Without it every component is shown\. |`) {
+		t.Errorf("the wiki argument row carries neither text:\n%s", page)
+	}
 }

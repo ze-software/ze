@@ -218,6 +218,7 @@ func collectUsage(node *command.Node, path []string, walk *usageWalk) {
 			continue
 		}
 		walk.shape.node(cliPath, child)
+		walk.shape.arguments(cliPath, child.ArgDefs)
 		if child.WireMethod != "" {
 			walk.report.Commands++
 		}
