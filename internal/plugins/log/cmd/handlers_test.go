@@ -149,3 +149,86 @@ func TestLogSetDisabledSilencesSubsystem(t *testing.T) {
 		t.Fatal("request log level info after disabled left the logger silent")
 	}
 }
+
+// recentMessages answers the messages `show log recent` returns for args,
+// through the registered log-recent handler.
+func recentMessages(t *testing.T, args []string) []string {
+	t.Helper()
+	recent := registeredHandler(t, "ze-bgp:log-recent")
+	resp, err := recent(nil, args)
+	if err != nil {
+		t.Fatalf("log-recent %v transport error: %v", args, err)
+	}
+	if resp.Status != plugin.StatusDone {
+		t.Fatalf("log-recent %v: status %v, error %q, want StatusDone", args, resp.Status, resp.Error)
+	}
+	data, ok := resp.Data.(plugin.Map)
+	if !ok {
+		t.Fatalf("log-recent Data is %T, want plugin.Map", resp.Data)
+	}
+	entries, ok := data["entries"].([]map[string]any)
+	if !ok {
+		t.Fatalf("log-recent entries is %T, want []map[string]any", data["entries"])
+	}
+	messages := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry["component"] != "test.log.recent.level" {
+			continue
+		}
+		message, ok := entry["message"].(string)
+		if !ok {
+			t.Fatalf("log-recent message is %T, want string", entry["message"])
+		}
+		level, ok := entry["level"].(string)
+		if !ok {
+			t.Fatalf("log-recent level is %T, want string", entry["level"])
+		}
+		messages = append(messages, message+" at "+level)
+	}
+	return messages
+}
+
+// TestLogRecentLevelFilterMatchesTypedWord writes one record at info and one
+// at error, then drives `show log recent level <word>` through the registered
+// log-recent handler with the words the enumeration offers. Each filter
+// answers the entry written at that level and no other, the level field of
+// the answer carries the spelling `show log levels` reports, and a word that
+// names no level is refused.
+//
+// VALIDATES: the filter word an operator types selects the entries the ring
+// stored, whatever case slog spells the level in.
+// PREVENTS: every level filter answering no entry because the ring stored
+// slog's upper-case name and the enumeration offers the lower-case one.
+func TestLogRecentLevelFilterMatchesTypedWord(t *testing.T) {
+	const subsystem = "test.log.recent.level"
+	logger := slogutil.Logger(subsystem)
+	if err := slogutil.SetLevel(subsystem, "info"); err != nil {
+		t.Fatalf("SetLevel(info): %v", err)
+	}
+	logger.Info("recent filter probe")
+	logger.Error("recent filter failure")
+
+	got := recentMessages(t, []string{"level", "info"})
+	if len(got) != 1 || got[0] != "recent filter probe at info" {
+		t.Fatalf("show log recent level info answered %q, want the one info entry", got)
+	}
+
+	got = recentMessages(t, []string{"level", "err"})
+	if len(got) != 1 || got[0] != "recent filter failure at error" {
+		t.Fatalf("show log recent level err answered %q, want the one error entry", got)
+	}
+
+	got = recentMessages(t, []string{"level", "warn", "component", subsystem})
+	if len(got) != 0 {
+		t.Fatalf("show log recent level warn answered %q, want no entry", got)
+	}
+
+	recent := registeredHandler(t, "ze-bgp:log-recent")
+	resp, err := recent(nil, []string{"level", "verbose"})
+	if err != nil {
+		t.Fatalf("log-recent transport error: %v", err)
+	}
+	if resp.Status != plugin.StatusError {
+		t.Fatalf("show log recent level verbose: status %v, want StatusError for a word that names no level", resp.Status)
+	}
+}

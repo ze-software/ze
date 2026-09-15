@@ -189,7 +189,7 @@ func needsQuoting(s string) bool {
 
 func buildCrashReport(panicValue any, stack []byte) string {
 	ring := slogutil.GlobalLogRing()
-	entries := ring.Snapshot(64, "", "")
+	entries := ring.Recent(64)
 
 	var b []byte
 	b = appendCrashMetadata(b)

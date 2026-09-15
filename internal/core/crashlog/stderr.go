@@ -123,7 +123,7 @@ func relayStderr(r io.Reader, syslogW *syslog.Writer) ([]byte, bool, error) {
 		if !inPanic && panicPattern.MatchString(line) {
 			inPanic = true
 			ring := slogutil.GlobalLogRing()
-			entries := ring.Snapshot(64, "", "")
+			entries := ring.Recent(64)
 			panicBuf = appendCrashMetadata(panicBuf)
 			panicBuf = appendRingHeader(panicBuf, entries)
 			panicBuf = append(panicBuf, "\n=== Panic ===\n"...)

@@ -4,9 +4,12 @@ package slogutil
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const defaultLogRingCapacity = 512
@@ -14,6 +17,8 @@ const defaultLogRingCapacity = 512
 // LogEntry is one record in the log ring buffer.
 type LogEntry struct {
 	Timestamp time.Time
+	// Level is the name levelString writes (debug, info, warn, error), the
+	// same spelling ListLevels reports and an operator types in a level word.
 	Level     string
 	Component string
 	Message   string
@@ -46,9 +51,31 @@ func (r *LogRing) append(entry LogEntry) {
 	r.mu.Unlock()
 }
 
+// Recent returns the newest entries at every level and component, newest
+// first. Limit <= 0 returns all.
+func (r *LogRing) Recent(limit int) []LogEntry {
+	return r.collect(limit, "", "")
+}
+
 // Snapshot returns log entries newest-first, filtered by level and component.
-// Empty strings mean no filter. Limit <= 0 returns all.
-func (r *LogRing) Snapshot(limit int, level, component string) []LogEntry {
+// Empty strings mean no filter. Limit <= 0 returns all. The level is a word
+// parseLevel accepts, in any case, so `err` and `error` both select the
+// entries stored as error. A word that names no level is refused, because an
+// empty answer would read as an empty ring.
+func (r *LogRing) Snapshot(limit int, level, component string) ([]LogEntry, error) {
+	if level == "" {
+		return r.collect(limit, "", component), nil
+	}
+	lvl, ok := parseLevel(level)
+	if !ok {
+		return nil, fmt.Errorf("invalid level %q (valid: %s)", level, textbuf.Join(validLevelNames, ", "))
+	}
+	return r.collect(limit, levelString(lvl), component), nil
+}
+
+// collect walks the ring newest-first and keeps the entries whose level name
+// and component equal the non-empty filters. Limit <= 0 keeps all.
+func (r *LogRing) collect(limit int, level, component string) []LogEntry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -114,7 +141,7 @@ func (h *ringHandler) Handle(ctx context.Context, r slog.Record) error { //nolin
 
 	h.ring.append(LogEntry{
 		Timestamp: r.Time,
-		Level:     r.Level.String(),
+		Level:     levelString(r.Level),
 		Component: component,
 		Message:   r.Message,
 	})

@@ -99,7 +99,10 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 			}, nil
 		}
 	}
-	entries := ring.Snapshot(limit, level, component)
+	entries, err := ring.Snapshot(limit, level, component)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: "log recent: " + err.Error()}, nil //nolint:nilerr // the operator's error travels in the Response, the transport succeeded
+	}
 	out := make([]map[string]any, 0, len(entries))
 	for i := range entries {
 		out = append(out, map[string]any{

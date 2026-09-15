@@ -252,7 +252,7 @@ func buildKernelReport(record KernelRecord) string {
 		b = append(b, '\n')
 	}
 
-	entries := slogutil.GlobalLogRing().Snapshot(64, "", "")
+	entries := slogutil.GlobalLogRing().Recent(64)
 	if len(entries) > 0 {
 		b = append(b, "\n=== Harvest Boot Log (last "...)
 		b = strconv.AppendInt(b, int64(len(entries)), 10)
