@@ -114,7 +114,10 @@ a written excuse attached.
 The compiled weakening detector in `internal/le/testweakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
 assertion that cannot fail. Its escape hatch is a row naming the test the edit
-weakens, written in the ledger shard your own commit session owns.
+weakens, written in the ledger shard your own commit session owns. The owner's
+approval of an RFC-tagged test change is not a shard: `./le rfc approve` writes
+it under `tmp/` and the commit carries it as an `RFC-approved:` trailer
+(`docs/contributing/rfc-implementation-guide.md`).
 
 | | |
 |---|---|

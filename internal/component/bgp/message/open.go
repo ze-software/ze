@@ -228,7 +228,7 @@ func UnpackOpen(data []byte) (*Open, error) {
 	// Changing it means correcting a subtest of TestOpenUnpackExtendedParams
 	// (open_test.go) that asserts the opposite and cites a sentence absent from
 	// RFC 9072. That subtest carries an RFC9072-2-2 tag, so the correction needs
-	// the owner's row in test/rfc-changed.md before it can be made.
+	// the owner's approval (`./le rfc approve`) before it can be made.
 	if optLen == 255 && len(data) > 10 && data[10] == ExtendedParamMarker {
 		// Extended format: need at least 4 bytes after fixed fields
 		// (Non-Ext OP Len + Non-Ext OP Type + Extended Length)

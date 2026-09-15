@@ -301,7 +301,12 @@ func taggedScopeBlockedMessage(path string, changes []TaggedScopeChange) string 
 	for _, change := range changes {
 		out.Str("\n  ").Str(change.Name).Str(": ").Join(change.Tags, ", ")
 	}
-	return out.Str("\nRecord the owner's approval for each named unit in test/rfc-changed.md before writing.").String()
+	out.Str("\nRecord the owner's approval for each named unit before writing:")
+	packageName := filepath.Base(filepath.Dir(path))
+	for _, change := range changes {
+		out.Str("\n  ").Str(ApproveCommand(packageName + "." + change.Name))
+	}
+	return out.String()
 }
 
 func taggedScopeError(path string, err error) taggedScopeActionReport {

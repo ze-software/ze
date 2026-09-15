@@ -151,7 +151,7 @@ func Answer(args []string) (any, int) {
 		if err != nil {
 			return commandError(err, 2)
 		}
-		message, err := Message(values.one("subject"), values["body"])
+		message, err := Message(values.one("subject"), values["body"], nil)
 		if err != nil {
 			return commandError(err, 2)
 		}

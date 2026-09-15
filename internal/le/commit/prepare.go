@@ -59,6 +59,9 @@ type Prepared struct {
 	Removed     []string               `json:"removed"`
 	Weakened    []testweakened.Finding `json:"weakened,omitempty"`
 	RFCChanges  []RFCChange            `json:"rfc-changes,omitempty"`
+	// RFCApprovals is what the commit carries as RFC-approved: trailers and
+	// what its script drops from the session's approval file once it lands.
+	RFCApprovals RFCApprovals `json:"rfc-approvals"`
 	// Stats is how much of each staged path this commit carries, measured
 	// against HEAD. See FileStat: it is printed, never enforced.
 	Stats []FileStat `json:"stats,omitempty"`
@@ -82,7 +85,10 @@ func Create(root string, options *Options) (Prepared, error) {
 	if len(paths) == 0 && len(removed) == 0 {
 		return result, errors.New("at least one file or remove path is required")
 	}
-	message, err := Message(options.Subject, options.Body)
+	// The message is judged before any gate runs, so a bad subject is the
+	// first refusal; it is composed again below once the gates have answered
+	// which RFC approvals it carries as trailers.
+	message, err := Message(options.Subject, options.Body, nil)
 	if err != nil {
 		return result, err
 	}
@@ -130,6 +136,10 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	reviewCheck := ""
 	if native {
+		message, err = Message(options.Subject, options.Body, result.RFCApprovals.Trailers)
+		if err != nil {
+			return result, err
+		}
 		paths, reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed)
 		if err != nil {
 			return result, err
@@ -175,6 +185,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	block := commitBlock{
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,
 		IndexEntries: entries, MessagePath: messagePath, ReviewCheck: reviewCheck,
+		ApprovalsPath: result.RFCApprovals.Path, ApprovalsDropped: result.RFCApprovals.Dropped,
 	}
 	if options.Replace && existing != "" {
 		if err := refuseForeignReplace(existing, append(paths, removed...)); err != nil {
@@ -233,29 +244,22 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 	if len(weakening.Problems) != 0 {
 		return errors.New(strings.Join(weakening.Problems, "\n\n"))
 	}
-	rfcShard := testweakened.ShardPath(testweakened.RFCChangedDir, session)
-	rfcChanges, rfcKeep, rfcProblems := rfcChangeProblems(
-		root, rfcShard, prospective, slices.Contains(paths, rfcShard),
-	)
+	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, session, prospective)
 	result.RFCChanges = rfcChanges
+	result.RFCApprovals = rfcApprovals
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
 		return errors.New(strings.Join(rfcProblems, "\n\n"))
 	}
-	// The shards this commit carries hold the rows this commit uses. Every
-	// other row in them is one an earlier commit of this session landed, and
+	// The shard this commit carries holds the rows this commit uses. Every
+	// other row in it is one an earlier commit of this session landed, and
 	// the gate drops it here rather than asking the author to. That deletion
 	// by hand is what made a stale row block three commits it had nothing to
-	// do with (plan/journal/concurrent-session-corruption.md).
-	if !options.DryRun {
-		if carriesLedger {
-			if err := testweakened.PruneLanded(root, weakenedShard, weakening.Keep); err != nil {
-				return fmt.Errorf("prune landed rows from %s: %w", weakenedShard, err)
-			}
-		}
-		if slices.Contains(paths, rfcShard) {
-			if err := testweakened.PruneLanded(root, rfcShard, rfcKeep); err != nil {
-				return fmt.Errorf("prune landed rows from %s: %w", rfcShard, err)
-			}
+	// do with (plan/journal/concurrent-session-corruption.md). The RFC
+	// approval rows are pruned by the SCRIPT instead, after the commit that
+	// carries their trailers succeeds (renderApprovalPrune).
+	if !options.DryRun && carriesLedger {
+		if err := testweakened.PruneLanded(root, weakenedShard, weakening.Keep); err != nil {
+			return fmt.Errorf("prune landed rows from %s: %w", weakenedShard, err)
 		}
 	}
 

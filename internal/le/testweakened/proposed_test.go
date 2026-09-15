@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 func TestProposedWriteRequiresMatchingWeakeningRow(t *testing.T) {
@@ -74,11 +76,15 @@ func TestProposedRFCChangeRequiresOwnerLedgerBeforeWeakeningLedger(t *testing.T)
 		Path: path, Tool: "Edit", Old: &oldText, New: &newText,
 	})
 	if err != nil || report.ExitCode() != 2 || len(report.RFCChanges) != 1 ||
-		len(report.Ledgers) == 0 || report.Ledgers[0].Path != fixtureRFCShard {
+		len(report.Ledgers) == 0 || report.Ledgers[0].Path != rfc.ApprovalPath(fixtureSession) {
 		t.Fatalf("unapproved RFC proposal = %#v, %v", report, err)
 	}
-	writeProposedFile(t, root, fixtureRFCShard,
-		fixtureLedgerHeader+"| TestRFC | Thomas approved the evidence change |\n")
+	if text := report.Text(); !strings.Contains(text, "./le rfc approve unit pkg.TestRFC reason") {
+		t.Fatalf("the refusal does not name the command:\n%s", text)
+	}
+	if _, err := rfc.Approve(root, fixtureSession, "pkg.TestRFC", "Thomas approved the evidence change"); err != nil {
+		t.Fatal(err)
+	}
 	report, err = proposedFixture(root, ProposedRequest{
 		Path: path, Tool: "Edit", Old: &oldText, New: &newText,
 	})
@@ -173,5 +179,48 @@ func writeProposedBytes(t *testing.T, root, path string, content []byte) {
 	}
 	if err := os.WriteFile(full, content, 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestApproveHookAndCommitReadOneFile proves A-1 and AC-2: the row `./le rfc
+// approve` writes for one commit session is the row the hook reads for the
+// same session, at the one path rfc.ApprovalPath derives, and an edit to a
+// tagged unit is refused until that row exists.
+func TestApproveHookAndCommitReadOneFile(t *testing.T) {
+	root := t.TempDir()
+	path := "pkg/rfc_test.go"
+	oldText := "package a\n// RFC requirement: RFC2119-1-1 positive\nfunc TestRFC(t *testing.T) { require.Equal(t, 1, got) }\n"
+	newText := strings.Replace(oldText, "Equal(t, 1, got)", "Equal(t, 2, got)", 1)
+	writeProposedFile(t, root, path, oldText)
+
+	report, err := proposedFixture(root, ProposedRequest{Path: path, Tool: "Edit", Old: &oldText, New: &newText})
+	if err != nil || report.ExitCode() != 2 {
+		t.Fatalf("an edit with no approval file = %#v, %v", report, err)
+	}
+	// A row for another unit buys nothing.
+	if _, err := rfc.Approve(root, fixtureSession, "pkg.TestOther", "approved, but not this one"); err != nil {
+		t.Fatal(err)
+	}
+	report, err = proposedFixture(root, ProposedRequest{Path: path, Tool: "Edit", Old: &oldText, New: &newText})
+	if err != nil || report.ExitCode() != 2 {
+		t.Fatalf("an edit with a row for another unit = %#v, %v", report, err)
+	}
+	// A row written for another session buys nothing either.
+	if _, err := rfc.Approve(root, "ffffffff", "pkg.TestRFC", "approved under another session"); err != nil {
+		t.Fatal(err)
+	}
+	report, err = proposedFixture(root, ProposedRequest{Path: path, Tool: "Edit", Old: &oldText, New: &newText})
+	if err != nil || report.ExitCode() != 2 {
+		t.Fatalf("an edit with another session's row = %#v, %v", report, err)
+	}
+	if _, err := rfc.Approve(root, fixtureSession, "pkg.TestRFC", "Thomas approved the evidence change"); err != nil {
+		t.Fatal(err)
+	}
+	report, err = proposedFixture(root, ProposedRequest{Path: path, Tool: "Edit", Old: &oldText, New: &newText})
+	if err != nil || report.ExitCode() != 0 || report.Blocking {
+		t.Fatalf("an edit with the row = %#v, %v", report, err)
+	}
+	if len(report.Ledgers) == 0 || report.Ledgers[0].Path != rfc.ApprovalPath(fixtureSession) {
+		t.Fatalf("the hook read %#v, want %s", report.Ledgers, rfc.ApprovalPath(fixtureSession))
 	}
 }

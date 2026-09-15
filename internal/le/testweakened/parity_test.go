@@ -14,10 +14,7 @@ import (
 // uses: a shard is ShardPath(dir, session) and nothing else names it.
 const fixtureSession = "0f1e2d3c"
 
-var (
-	fixtureShard    = ShardPath(WeakenedDir, fixtureSession)
-	fixtureRFCShard = ShardPath(RFCChangedDir, fixtureSession)
-)
+var fixtureShard = ShardPath(WeakenedDir, fixtureSession)
 
 func TestSelfTestCoversEveryDetectorVerdictThroughCheck(t *testing.T) {
 	t.Parallel()

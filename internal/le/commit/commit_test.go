@@ -69,13 +69,13 @@ func TestAddAndRemoveValidationProtectExplicitStaging(t *testing.T) {
 
 func TestMessageAndKeywordGrammarAreClosed(t *testing.T) {
 	t.Parallel()
-	if _, err := Message("", nil); err == nil {
+	if _, err := Message("", nil, nil); err == nil {
 		t.Fatal("Message accepted an empty subject")
 	}
-	if _, err := Message(strings.Repeat("x", 73), nil); err == nil {
+	if _, err := Message(strings.Repeat("x", 73), nil, nil); err == nil {
 		t.Fatal("Message accepted a 73-character subject")
 	}
-	message, err := Message("safe subject", []string{"one two three", "", "four"})
+	message, err := Message("safe subject", []string{"one two three", "", "four"}, nil)
 	if err != nil || message != "safe subject\n\none two three\n\nfour\n" {
 		t.Fatalf("Message = %q, %v", message, err)
 	}

@@ -793,6 +793,7 @@ count of tags that carry one is published in `ai/RFC-REQUIREMENTS.md`, under
 "Claim discrimination", beside the backlog that does not.
 
 A weakening row in `test/weakened/<session>.md` is self-service, and it does NOT
-authorize weakening an RFC-tagged test. The owner's approval is a row in
-`test/rfc-changed/<session>.md`, and `docs/contributing/rfc-implementation-guide.md`
-says who may write one.
+authorize weakening an RFC-tagged test. The owner's approval is recorded by
+`./le rfc approve unit <package>.<TestName> reason "<the owner's words>"` and
+carried by the commit as an `RFC-approved:` trailer;
+`docs/contributing/rfc-implementation-guide.md` says what the reason names.

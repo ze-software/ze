@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 const messageWidth = 72
@@ -178,15 +180,21 @@ func unique(values []string) []string {
 	return result
 }
 
-// Message returns a commit message with a one-line 72-column subject and a
-// body wrapped without breaking words.
-func Message(subject string, body []string) (string, error) {
+// Message returns a commit message with a one-line 72-column subject, a body
+// wrapped without breaking words, and the trailer lines after a blank line.
+// A trailer is a record a script reads back, so it is never wrapped, and a
+// subject or body line the author writes as one is refused: the record is
+// the owner's, and `create` writes it from `./le rfc approve` alone.
+func Message(subject string, body []string, trailers []string) (string, error) {
 	subject = strings.TrimSpace(subject)
 	if subject == "" {
 		return "", errors.New("subject is required")
 	}
 	if strings.ContainsAny(subject, "\r\n") {
 		return "", errors.New("subject must be a single line")
+	}
+	if err := refuseHandWrittenTrailer(subject); err != nil {
+		return "", err
 	}
 	if utf8.RuneCountInString(subject) > messageWidth {
 		length := utf8.RuneCountInString(subject)
@@ -197,10 +205,14 @@ func Message(subject string, body []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if wrapped == "" {
-		return subject + "\n", nil
+	message := subject + "\n"
+	if wrapped != "" {
+		message += "\n" + wrapped + "\n"
 	}
-	return subject + "\n\n" + wrapped + "\n", nil
+	if len(trailers) != 0 {
+		message += "\n" + strings.Join(trailers, "\n") + "\n"
+	}
+	return message, nil
 }
 
 func wrapBody(chunks []string) (string, error) {
@@ -245,5 +257,25 @@ func wrapBody(chunks []string) (string, error) {
 	for len(lines) != 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
+	// The refusal reads the lines the commit will carry, after the wrap: a
+	// key that sits past the wrap column of an input line lands at the start
+	// of the emitted line, where trailerLanded would read it as the record.
+	for _, line := range lines {
+		if err := refuseHandWrittenTrailer(line); err != nil {
+			return "", err
+		}
+	}
 	return strings.Join(lines, "\n"), nil
+}
+
+// refuseHandWrittenTrailer refuses one message line that starts with the
+// approval trailer key. The key inside a line is prose; at its start it is
+// the owner's record, which only `./le rfc approve` puts in a commit.
+func refuseHandWrittenTrailer(line string) error {
+	key := strings.TrimSpace(rfc.ApprovalTrailer)
+	if !strings.HasPrefix(strings.TrimSpace(line), key) {
+		return nil
+	}
+	return fmt.Errorf("the line %q starts with %s: that trailer is written by create from ./le rfc approve alone, never by hand",
+		strings.TrimSpace(line), key)
 }

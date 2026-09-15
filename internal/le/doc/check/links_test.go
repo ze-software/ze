@@ -287,7 +287,6 @@ func TestRecordTreesAreExcludedFromCitationPolicing(t *testing.T) {
 		why      string
 	}{
 		{"test/weakened/8c4ad6c3.md", true, "a weakened row names the test a commit deleted"},
-		{"test/rfc-changed/8ac7a711.md", true, "an approval row names what the owner approved, once"},
 		{"plan/journal/removal-leaves-the-file-on-disk.md", true, "already a record before this change"},
 		{"plan/verification-debt/20476e05.md", true, "already a record before this change"},
 		{"internal/le/site/testdata/published-plugins-index.md", true,

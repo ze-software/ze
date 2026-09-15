@@ -858,7 +858,7 @@ func TestRadiusAdminEapLongPacketCrossesTheAttributeBoundary(t *testing.T) {
 // before the method runs leaves the peer in peerStateIdentity, where the same
 // Failure produces ErrEAPFailure and the early return would end the login.
 // Recorded in plan/journal/green-that-could-not-have-been-red.md; the fixture
-// change is Thomas's, approved 2026-09-04 and recorded in test/rfc-changed.md.
+// change is Thomas's, approved 2026-09-04 and recorded in the owner-approval ledger of that day.
 //
 // RFC requirement: RFC3579-2.6.3-1 negative -- a decision that followed
 // anything OTHER than the RADIUS Packet Type would refuse this login; it

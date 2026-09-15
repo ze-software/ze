@@ -646,36 +646,36 @@ never sums the two, because a nightly tier is not merge-gate proof.
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
-  Changing its behavior needs the owner's approval. Write it as one row in
-  `test/rfc-changed/<session>.md`, your own session's shard of the approval
-  ledger, and commit that shard with the change. The native weakening check
-  reads it and blocks the edit until a row names the test.
+  Changing its behavior needs the owner's approval.
 
-### Who writes an owner-approval row
+### The owner's approval lives in the commit
 
-This is the one difference between the two ledgers, and it decides everything
-else. A weakening row in `test/weakened/<session>.md` is the author's own
-justification, and a reviewer reads it to judge the author. A row in
-`test/rfc-changed/<session>.md` is the OWNER's decision, written down by the
-author who asked for it.
+An author cannot approve their own change. A weakening row in
+`test/weakened/<session>.md` is the author's own justification, and a reviewer
+reads it to judge the author; it approves nothing here. Once the owner has
+answered, record his words, once:
 
-An author cannot approve their own change. `ai/rules/testing.md` says it in one
-line: a weakening row does not authorize changing a tagged test, because
-self-service justification is not user approval. **A row here with no answer
-from the owner behind it is a forgery, not a shortcut.** So the Reason column
-holds what the owner approved, not what the author wanted.
+```
+./le rfc approve unit <package>.<TestName> reason "<the owner's words>"
+```
 
-The shard layout serves that rule rather than bending it. A row you did not
-write sits in a file named after its writer, no commit but that writer's own can
-carry it (`./le commit create` refuses a foreign shard), and the gate drops a
-row only after proving git holds it at HEAD. Reason: an approval published under
-the wrong commit's subject is a forged record of an owner decision, and it is
-the one failure of this file that leaves no trace.
-
-Name what the owner approved, and say why the tagged requirement is still proven
-after the change. Quote the requirement id, so a reader can open `rfc/short/`
-beside it. A reason that does not answer the second question approves a
-compliance claim losing its evidence.
+The command writes one row into `tmp/commit-rfc-approved-<session>.md`, the
+file this commit session owns (`./le commit session`) and git never sees. A
+second call for the same unit replaces the reason. The Write/Edit hook and
+`./le commit create` both read that file, and both refuse a change to a tagged
+unit that no row names, printing the command. `./le commit create` then carries
+each row it used into the commit message as one trailer line,
+`RFC-approved: <package>.<TestName>: <reason>`, and the generated script drops
+the used rows from the file once the commit succeeds. The commit that changed
+the test is the record, where a reader looks first: `git log --grep
+RFC-approved:` lists every approval. A row whose whole trailer line a commit
+already carries approves nothing further: `trailerLanded`
+(`internal/le/commit/rfcchange.go`) compares each message line to the trailer,
+and the refusal names that commit by short hash and subject. A row with no
+answer from the owner behind
+it is a forgery, not a shortcut, so the reason names what the owner approved
+and why the tagged requirement is still proven after the change, quoting the
+requirement id.
 
 <!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->

@@ -34,6 +34,12 @@ type commitBlock struct {
 	IndexEntries []string
 	MessagePath  string
 	ReviewCheck  string
+	// ApprovalsPath is the session's RFC approval file and ApprovalsDropped
+	// the exact lines the block removes from it once its commit succeeds:
+	// the rows the commit carries as trailers, and any row a landed commit
+	// already carried. renderApprovalPrune writes it.
+	ApprovalsPath    string
+	ApprovalsDropped []string
 }
 
 // indexInfoDelimiter closes the heredoc that feeds the snapshot to git. A
@@ -53,7 +59,30 @@ func renderBlock(block commitBlock, scriptPath string) string {
 		renderPrivateIndex(block, scriptPath),
 		`GIT_INDEX_FILE="$_ze_index" git commit -F `+shellQuote(block.MessagePath),
 		renderSharedIndexRepair(block))
+	if len(block.ApprovalsDropped) != 0 {
+		lines = append(lines, renderApprovalPrune(block))
+	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+// renderApprovalPrune emits the step that drops the used RFC approval rows
+// from the session file. It sits after `git commit` under `set -e`, so it
+// runs only once git holds the trailers: a row removed before that would be
+// an approval lost with nothing to show for it. `grep -v` answers 1 when no
+// line is left to print, which is not a failure here.
+func renderApprovalPrune(block commitBlock) string {
+	var page textbuf.Buffer
+	page.Str("# RFC approvals this commit carries as trailers, dropped now that git holds them.\n")
+	page.Str("_ze_approved=").Str(shellQuote(block.ApprovalsPath)).Byte('\n')
+	page.Str(`if [ -f "$_ze_approved" ]; then`).Byte('\n')
+	page.Str("  grep -v -x -F")
+	for _, line := range block.ApprovalsDropped {
+		page.Str(" -e ").Str(shellQuote(line))
+	}
+	page.Str(` -- "$_ze_approved" > "$_ze_approved.pruned" || [ "$?" -eq 1 ]`).Byte('\n')
+	page.Str(`  mv -- "$_ze_approved.pruned" "$_ze_approved"`).Byte('\n')
+	page.Str("fi")
+	return page.String()
 }
 
 // renderPrivateIndex emits the staging half of a block: an index of this

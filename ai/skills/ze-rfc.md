@@ -521,7 +521,9 @@ is the only thing standing between a regression and a shipped protocol violation
 
 A weakening row in `test/weakened/<session>.md` does **not** authorize changing a
 tagged test. It is self-service: you would be writing your own approval. Only
-the user can approve, and their answer is a row in `test/rfc-changed/<session>.md`.
+the user can approve, and their answer is recorded with `./le rfc approve unit
+<package>.<TestName> reason "<the owner's words>"`, which the commit carries as
+an `RFC-approved:` trailer.
 
 ### Error Handling
 | Condition | Detect How | Response | Code/Subcode |

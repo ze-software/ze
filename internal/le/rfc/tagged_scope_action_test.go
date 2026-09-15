@@ -97,7 +97,7 @@ func TestTaggedScopeStdinHandlesWriteAndEditProposals(t *testing.T) {
 			t.Fatalf("overwrite Write answered code %d, report %+v", code, report)
 		}
 		if report.Changes[0].Name != "TestOne" ||
-			!strings.Contains(report.Message, "test/rfc-changed.md") {
+			!strings.Contains(report.Message, "./le rfc approve unit ") {
 			t.Errorf("overwrite Write is not actionable: %+v", report)
 		}
 	})

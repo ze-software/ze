@@ -96,7 +96,6 @@ func citationExcludes() []string {
 		// again, and the gate reported a line nobody in the repository is
 		// permitted to touch.
 		"test/weakened/",
-		"test/rfc-changed/",
 		// The site fixtures are FROZEN PUBLICATIONS, and they have no
 		// reachable repair either. published-plugin-registry.json is the
 		// registry as gh-pages 2fa8fa2ad published it, and the .md and .html

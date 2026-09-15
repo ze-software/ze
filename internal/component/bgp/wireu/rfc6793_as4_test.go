@@ -176,7 +176,7 @@ func rfc6793EgressAS4Path(t *testing.T, mods *filterapi.ModAccumulator, payload 
 // resolves the AS-path family as attribute operations that the exactly-sized
 // one-pass writer emits into the destination buffer. It replaced the
 // whole-payload rewrite these tests used to drive, and the rewrite was deleted
-// on 2026-09-09 (test/rfc-changed/49b0956f.md).
+// on 2026-09-09 with the owner's approval (commit session 49b0956f).
 func rfc6793Prepend(t *testing.T, payload []byte, srcASN4, dstASN4 bool) *filterapi.ModAccumulator {
 	t.Helper()
 	mods := &filterapi.ModAccumulator{}

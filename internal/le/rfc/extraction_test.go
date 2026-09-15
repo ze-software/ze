@@ -504,16 +504,18 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 			writes[row.Verb] = true
 		}
 	}
-	// Exactly five actions change the tree, and each one owns its output:
+	// Exactly six actions change the tree, and each one owns its output:
 	// extraction-create and extraction-classify own one rfc/extraction
 	// artifact between them, the first deriving it and the second applying an
 	// authored walk to it; discriminate-record owns one rfc/discrimination
-	// artifact, re-seal owns rfc/audit/, and the generator owns
-	// ai/RFC-REQUIREMENTS.md plus rfc/requirements/. Read-only is the default
+	// artifact, re-seal owns rfc/audit/, the generator owns
+	// ai/RFC-REQUIREMENTS.md plus rfc/requirements/, and approve owns the
+	// session's tmp/commit-rfc-approved-<session>.md. Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
-	if len(writes) != 5 || !writes["extraction-create"] || !writes["extraction-classify"] ||
-		!writes["discriminate-record"] || !writes["reseal"] || !writes["index-update"] {
-		t.Errorf("the actions that write are %v, want exactly [discriminate-record "+
+	if len(writes) != 6 || !writes["extraction-create"] || !writes["extraction-classify"] ||
+		!writes["discriminate-record"] || !writes["reseal"] || !writes["index-update"] ||
+		!writes["approve"] {
+		t.Errorf("the actions that write are %v, want exactly [approve discriminate-record "+
 			"extraction-classify extraction-create index-update reseal]", sortedKeys(writes))
 	}
 	if Subs() == "" {

@@ -14,14 +14,15 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-// The two per-session ledger directories. A session writes its rows into the
-// shard its own commit namespace names, so two authors never resolve to one
-// path and neither can replace the other's rows. The gate assembles the
+// WeakenedDir is the per-session ledger directory. A session writes its rows
+// into the shard its own commit namespace names, so two authors never resolve
+// to one path and neither can replace the other's rows. The gate assembles the
 // population from the shards; nobody merges by hand.
-const (
-	WeakenedDir   = "test/weakened"
-	RFCChangedDir = "test/rfc-changed"
-)
+//
+// The owner's approval of an RFC-tagged test change is NOT a shard here: it
+// lives in the session's tmp/ file rfc.ApprovalPath names, and the commit
+// that used it carries it as a trailer line.
+const WeakenedDir = "test/weakened"
 
 // ShardPath answers the ledger shard one commit session owns inside dir.
 func ShardPath(dir, session string) string {
@@ -105,17 +106,15 @@ func ForeignShardProblems(session string, paths []string) []string {
 	problems := make([]string, 0)
 	var text textbuf.Buffer
 	for _, path := range paths {
-		for _, dir := range []string{WeakenedDir, RFCChangedDir} {
-			owner, isShard := ShardSession(dir, path)
-			if !isShard || owner == session {
-				continue
-			}
-			problems = append(problems, text.Reset().Str(path).
-				Str(" is session ").Str(owner).Str("'s ledger shard, and this commit is session ").
-				Str(session).Str("'s. A shard records what its own author justified, so carrying ").
-				Str("another one publishes their record under your subject. Name ").
-				Str(ShardPath(dir, session)).Str(" instead.").String())
+		owner, isShard := ShardSession(WeakenedDir, path)
+		if !isShard || owner == session {
+			continue
 		}
+		problems = append(problems, text.Reset().Str(path).
+			Str(" is session ").Str(owner).Str("'s ledger shard, and this commit is session ").
+			Str(session).Str("'s. A shard records what its own author justified, so carrying ").
+			Str("another one publishes their record under your subject. Name ").
+			Str(ShardPath(WeakenedDir, session)).Str(" instead.").String())
 	}
 	return problems
 }

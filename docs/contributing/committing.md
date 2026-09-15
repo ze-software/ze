@@ -46,9 +46,18 @@ to an author who had been warned about those exact files minutes beforehand.
 | `tag` | no | The block tag inside the script |
 | `push` | no | The owner's authorisation text. The script pushes after every commit succeeds |
 | `no-test` | no | The reason a commit carries no test evidence |
+| `rfc-change-ok` | no | The reason a commit changes an RFC-tagged test unit the owner has not approved yet. It records a verification-debt row naming the owner's answer as owed, instead of refusing |
 
 `Message` in `internal/le/commit/input.go` enforces the subject limit and the
-body wrap.
+body wrap, and appends one `RFC-approved: <package>.<TestName>: <reason>`
+trailer line, never wrapped, for each owner approval the commit uses. The
+approval is written once, by `./le rfc approve unit <package>.<TestName> reason
+"<the owner's words>"`, into `tmp/commit-rfc-approved-<session>.md`; the
+generated script drops the used rows from that file after `git commit`
+succeeds, so the trailer in the commit is the only record
+(`docs/contributing/rfc-implementation-guide.md`). `Message` refuses a
+subject or a body line that starts with `RFC-approved:`, naming the line: the
+trailer is the owner's record, and `create` writes it from that file alone.
 
 ## What the command refuses
 
@@ -66,6 +75,13 @@ path before the script is written:
 
 `validateRemovePath` refuses a `remove` path that is not tracked, so you never
 have to run `git ls-files --error-unmatch` yourself.
+
+`rfcChangeProblems` (`internal/le/commit/rfcchange.go`) refuses a commit that
+changes an RFC-tagged test unit no row in this session's
+`tmp/commit-rfc-approved-<session>.md` names, and prints the `./le rfc approve`
+command for each unit. `rfc-change-ok "<reason>"` admits the commit with a
+debt row instead. A row a landed commit already carries as a trailer approves
+nothing further, and the next successful commit drops it from the file.
 
 A list keyword buys one thing: a population too large to type stays explicit. It
 broadens nothing else. Every line is validated as its own path, and the script

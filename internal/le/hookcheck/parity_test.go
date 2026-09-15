@@ -140,9 +140,9 @@ func TestEveryBehavioralCategoryHasTypedProducerMapping(t *testing.T) {
 
 func TestNativeWeakeningProducerBindings(t *testing.T) {
 	wantCategories := map[string]struct{}{
-		"rfc-test-guard":     {},
-		"weakened-hatch":     {},
-		"rfc-changed-ledger": {},
+		"rfc-test-guard": {},
+		"weakened-hatch": {},
+		"rfc-approval":   {},
 	}
 	for _, category := range fixtureCategories {
 		if _, governed := wantCategories[category.name]; !governed {
@@ -232,10 +232,10 @@ func TestFixtureCatalogExactPopulationAndContent(t *testing.T) {
 		identities[identity] = struct{}{}
 		names[fixture.name]++
 	}
-	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 323, 0: 186, 1: 13, 2: 94}) {
+	if !reflect.DeepEqual(exitCounts, map[int]int{-1: 316, 0: 184, 1: 13, 2: 96}) {
 		t.Fatalf("fixture exit populations = %v", exitCounts)
 	}
-	wantMessages := map[string]int{"contains": 102, "not-contains": 14, "equals": 6, "suffix": 3}
+	wantMessages := map[string]int{"contains": 101, "not-contains": 13, "equals": 6, "suffix": 3}
 	if !reflect.DeepEqual(messageCounts, wantMessages) {
 		t.Fatalf("fixture message populations = %v, want %v", messageCounts, wantMessages)
 	}

@@ -942,10 +942,11 @@ Rules the gate enforces:
   tagged test moves needs no regeneration and owes no commit.
 - **Do not edit a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag its behavior cannot change without the owner's approval.
-  Write it as one row in `test/rfc-changed/<session>.md`, your own session's
-  shard of the owner-approval ledger, and commit that file with the change. Fix
-  the code instead. The native weakening check reads the shard and blocks the
-  edit until a row names the test.
+  Fix the code instead. Once the owner has answered, record his words with
+  `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"`: the
+  native weakening check reads that session file and blocks the edit until a
+  row names the unit, and the commit carries the row as an `RFC-approved:`
+  trailer (`docs/contributing/rfc-implementation-guide.md`).
 
 <!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 

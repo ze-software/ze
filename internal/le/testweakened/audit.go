@@ -208,7 +208,7 @@ func auditDiff(root, oldRevision, newRevision string, accepted []Row) ([]AuditFi
 		if len(rfcTags) != 0 {
 			rfcDetails = append(rfcDetails,
 				"RFC-TAGGED test changed: "+strings.Join(rfcTags, ", "),
-				"only the OWNER approves this, and the approval is a row in this session's "+RFCChangedDir+" shard in the commit that carries the change",
+				"only the OWNER approves this, and the approval is recorded with `./le rfc approve unit <package>.<TestName> reason \"<the owner's words>\"`, which the commit carries as an RFC-approved: trailer",
 			)
 		}
 		rfcReported := false

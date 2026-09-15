@@ -11,7 +11,7 @@
 //
 // This is a separate function from TestRadiusAuthMethodEnum, in a separate
 // file, on purpose. That test carries `RFC requirement:` tags, so changing its
-// body needs an owner row in test/rfc-changed.md that its author may not write.
+// body needs an owner approval (`./le rfc approve`) that its author may not give.
 // New coverage in a new function needs no such row and loses nothing: the two
 // functions together assert every value the enum defines.
 package config

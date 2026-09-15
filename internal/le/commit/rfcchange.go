@@ -27,13 +27,26 @@ type RFCChange struct {
 	Tags    []string `json:"tags"`
 }
 
+// RFCApprovals is what the gate learned from this session's approval file:
+// the trailer line for each row the commit uses, and the exact file lines the
+// generated script drops once the commit lands. Dropped holds the used rows
+// and every row whose trailer git already carries (R-1: a row a landed
+// commit used approves nothing further, even when the prune that should have
+// removed it failed).
+type RFCApprovals struct {
+	Path     string   `json:"path"`
+	Trailers []string `json:"trailers,omitempty"`
+	Dropped  []string `json:"dropped,omitempty"`
+}
+
 // rfcChangeProblems judges the tagged tests a prospective commit changes
-// against this session's own shard of the RFC-changed ledger. It answers the
-// rows the commit uses, so the caller can drop the ones an earlier commit of
-// this session already landed.
+// against this session's approval file, the one `./le rfc approve` writes.
+// A changed unit no live row names is a problem naming the command; a row
+// the commit does not use stays in the file for a later commit.
 func rfcChangeProblems(
-	root, shard string, prospective testweakened.Prospective, carriesLedger bool,
-) ([]RFCChange, []testweakened.Row, []string) {
+	root, session string, prospective testweakened.Prospective,
+) ([]RFCChange, RFCApprovals, []string) {
+	approvals := RFCApprovals{Path: rfc.ApprovalPath(session)}
 	pairsByOld := make(map[string]testweakened.RenamePair)
 	pairedNew := make(map[string]bool)
 	for _, pair := range prospective.RenamePairs {
@@ -59,7 +72,7 @@ func rfcChangeProblems(
 		}
 		oldText, _, problem := committedText(root, "HEAD", oldPath)
 		if problem != "" {
-			return nil, nil, []string{"RFC-tagged change gate could not run: " + problem}
+			return nil, approvals, []string{"RFC-tagged change gate could not run: " + problem}
 		}
 		if oldText == "" || !rfcTagPattern.MatchString(oldText) {
 			continue
@@ -68,59 +81,109 @@ func rfcChangeProblems(
 		if newPath != "" {
 			content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(newPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
-				return nil, nil, []string{"RFC-tagged change gate could not read " + newPath + ": " + err.Error()}
+				return nil, approvals, []string{"RFC-tagged change gate could not read " + newPath + ": " + err.Error()}
 			}
 			newText = string(content)
 		}
 		changes = append(changes, changedRFCUnits(newPathOrOld(newPath, oldPath), oldText, newText)...)
 	}
-	if len(changes) == 0 {
-		return nil, nil, nil
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(approvals.Path))) //nolint:gosec // the path is this session's own tmp/ file under the checkout root
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return changes, approvals, []string{"cannot read " + approvals.Path + ": " + err.Error()}
 	}
-	if !carriesLedger {
-		return changes, nil, []string{fmt.Sprintf(
-			"this commit changes %d RFC-tagged test(s) and does not carry %s.\n"+
-				"  The row records what the OWNER approved, and it is the only place a "+
-				"later reader finds that approval beside the change it authorizes.\n"+
-				"  Name the file too:\n    file %s", len(changes), shard, shard)}
+	rows := []testweakened.Row(nil)
+	lines := []string(nil)
+	if err == nil {
+		var problems []string
+		rows, problems = testweakened.ParseLedger(string(content), approvals.Path)
+		if len(problems) != 0 {
+			return changes, approvals, problems
+		}
+		lines = strings.Split(string(content), "\n")
 	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(shard))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
-	if err != nil {
-		return changes, nil, []string{"cannot read " + shard + ": " + err.Error()}
-	}
-	rows, problems := testweakened.ParseLedger(string(content), shard)
-	if len(problems) != 0 {
-		return changes, nil, problems
-	}
-	landed := testweakened.LandedRows(root, shard)
 	claimed := make([]bool, len(changes))
-	keep := make([]testweakened.Row, 0, len(rows))
+	landedBy := make([]string, len(changes))
 	for _, row := range rows {
-		hits := 0
+		line := lines[row.Line-1]
+		trailer := rfc.ApprovalTrailerLine(row.Name, row.Reason)
+		carrier, landed, problem := trailerLanded(root, trailer)
+		if problem != "" {
+			return changes, approvals, []string{"RFC-tagged change gate could not run: " + problem}
+		}
+		if landed {
+			// A commit already carries this trailer, so the row did its work
+			// and the prune that should have removed it did not run. It
+			// approves nothing further and leaves with this commit; the
+			// refusal for a unit it names says which commit used it.
+			approvals.Dropped = append(approvals.Dropped, line)
+			for index, change := range changes {
+				if testweakened.RowMatches(row.Name, change.Package, change.Name) {
+					landedBy[index] = carrier
+				}
+			}
+			continue
+		}
+		used := false
 		for index, change := range changes {
 			if testweakened.RowMatches(row.Name, change.Package, change.Name) {
 				claimed[index] = true
-				hits++
+				used = true
 			}
 		}
-		if hits != 0 {
-			keep = append(keep, row)
-			continue
+		if used {
+			approvals.Trailers = append(approvals.Trailers, trailer)
+			approvals.Dropped = append(approvals.Dropped, line)
 		}
-		// An approval this session already committed is not a leftover to
-		// clear: git holds it beside the change it authorized, it approves
-		// nothing further, and the prune drops it from the shard.
-		if landed[row.Key()] {
-			continue
-		}
-		problems = append(problems, fmt.Sprintf("%s:%d names %s, which this commit does not change", shard, row.Line, row.Name))
 	}
+	problems := make([]string, 0)
 	for index, change := range changes {
-		if !claimed[index] {
-			problems = append(problems, fmt.Sprintf("%s changes RFC-tagged test %s and %s has no owner-approval row", change.Path, change.Name, shard))
+		if claimed[index] {
+			continue
+		}
+		why := "no approval names it"
+		if landedBy[index] != "" {
+			why = "the approval row naming it was already used by commit " + landedBy[index] + ", so it approves nothing further"
+		}
+		problems = append(problems, fmt.Sprintf(
+			"%s changes RFC-tagged test %s and %s.\n"+
+				"  Only the OWNER approves a change to a tagged test. Once Thomas has answered, record his words and retry:\n"+
+				"    %s", change.Path, change.Name, why, rfc.ApproveCommand(change.Package+"."+change.Name)))
+	}
+	return changes, approvals, problems
+}
+
+// trailerLanded reports whether a commit in this repository already carries
+// one trailer line, which is how the gate knows a row was used, and names
+// that commit as `<short hash> <subject>` for the refusal.
+//
+// `git log --grep` matches a substring, so a landed trailer whose reason
+// EXTENDS this one would answer for it. It only narrows the candidates: the
+// verdict is a whole message line equal to the trailer.
+func trailerLanded(root, trailer string) (carrier string, landed bool, problem string) {
+	command := exec.CommandContext(context.Background(), "git", "log", "--fixed-strings", "--grep="+trailer, "--format=%x1e%h %s%x1f%B") // #nosec G204 -- fixed Git query; the trailer is one argv operand.
+	command.Dir = root
+	var stdout bytes.Buffer
+	var complaint bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &complaint
+	if err := command.Run(); err != nil {
+		if _, ok := errors.AsType[*exec.ExitError](err); ok && strings.Contains(complaint.String(), "does not have any commits") {
+			return "", false, ""
+		}
+		return "", false, "git log --grep failed: " + strings.TrimSpace(complaint.String())
+	}
+	for record := range strings.SplitSeq(stdout.String(), "\x1e") {
+		name, body, found := strings.Cut(record, "\x1f")
+		if !found {
+			continue
+		}
+		for line := range strings.SplitSeq(body, "\n") {
+			if strings.TrimSpace(line) == trailer {
+				return strings.TrimSpace(name), true, ""
+			}
 		}
 	}
-	return changes, keep, problems
+	return "", false, ""
 }
 
 func changedRFCUnits(path, oldText, newText string) []RFCChange {

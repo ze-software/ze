@@ -85,6 +85,20 @@ var actions = leaction.New(area,
 			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateRecordAnswer},
+	leaction.Action{
+		Verb: "approve",
+		Why: "record the OWNER's approval of a change to one RFC-tagged test unit, as one row in " +
+			"this commit session's tmp/commit-rfc-approved-<session>.md. The edit hook and " +
+			"`./le commit create` read that file; the commit carries each row it used as an " +
+			"`RFC-approved:` trailer line and drops it from the file once the commit lands. A " +
+			"second call for the same unit replaces the reason. The reason is the owner's words, " +
+			"and an author cannot approve their own change by running this",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyUnit, Value: "<package>.<TestName>", Requirement: leaction.Required},
+			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Required},
+		},
+		AnswerArgs: approveAnswer},
 	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
 		"verdicts and extraction sign-off, judged from the summaries and the tags and " +
 		"never from a generated page, without writing",

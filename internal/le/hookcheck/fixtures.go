@@ -20,40 +20,41 @@ import (
 	"github.com/ze-software/ze/internal/le/consistency"
 	"github.com/ze-software/ze/internal/le/hookruntime"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
 
 const (
-	fixtureSitesExpected       = 457
-	fixtureChecksExpected      = 616
-	fixtureUniqueNamesExpected = 615
+	fixtureSitesExpected       = 450
+	fixtureChecksExpected      = 609
+	fixtureUniqueNamesExpected = 608
 	fixtureCategoriesExpected  = 26
 )
 
 var (
 	fixtureSiteDigest = [sha256.Size]byte{
-		0xb4, 0xb6, 0x68, 0xaa, 0x44, 0xc0, 0xb5, 0x60,
-		0xc1, 0x04, 0xb5, 0xe1, 0xb5, 0x27, 0xcb, 0xcb,
-		0x93, 0xaa, 0xca, 0x9c, 0x2e, 0xa0, 0x6e, 0x5e,
-		0xce, 0xa8, 0xff, 0x76, 0x9d, 0xc1, 0xb8, 0xb3,
+		0x61, 0xf2, 0x2e, 0xf7, 0xce, 0x0e, 0xcc, 0x9e,
+		0x3c, 0xe1, 0x8d, 0x03, 0x62, 0xd2, 0x7d, 0x97,
+		0x1e, 0x70, 0xc9, 0x62, 0x42, 0x24, 0xd8, 0x69,
+		0x75, 0x31, 0xfb, 0xd3, 0x85, 0x36, 0x38, 0xfe,
 	}
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0x1e, 0x86, 0xb5, 0xa5, 0x0b, 0x16, 0x29, 0x59,
-		0xa5, 0xb2, 0xa3, 0x77, 0x61, 0xc6, 0x2a, 0x8a,
-		0xae, 0x8a, 0x88, 0xbf, 0x0e, 0x5d, 0x98, 0x53,
-		0x16, 0x29, 0x9c, 0x10, 0xc5, 0xf7, 0xbd, 0x3d,
+		0xf7, 0xe8, 0x96, 0xd6, 0xf6, 0x96, 0xc3, 0x02,
+		0xf8, 0xa0, 0xc3, 0x2b, 0xbb, 0x79, 0x87, 0xb8,
+		0xe7, 0xa9, 0x66, 0x31, 0x26, 0x93, 0xde, 0x7b,
+		0x2b, 0x38, 0x11, 0x13, 0x94, 0x66, 0xb0, 0xd8,
 	}
 	fixtureCategoryDigest = [sha256.Size]byte{
-		0xe9, 0x56, 0xe6, 0x03, 0x21, 0x5a, 0xaa, 0x65,
-		0xbe, 0xff, 0xde, 0xd5, 0x74, 0x72, 0x34, 0x4b,
-		0xdb, 0x51, 0x5f, 0x1e, 0x4d, 0x06, 0x5f, 0x8d,
-		0x5c, 0x6d, 0xa8, 0xa6, 0xa4, 0xce, 0xd4, 0x41,
+		0xd4, 0xf6, 0xc5, 0xca, 0x5a, 0x73, 0x76, 0x52,
+		0x2a, 0x52, 0x60, 0x2e, 0x3a, 0x43, 0xf1, 0x17,
+		0xb2, 0x48, 0x29, 0x56, 0xec, 0x6a, 0x99, 0xd6,
+		0x6b, 0x7d, 0xeb, 0x9e, 0xdf, 0x63, 0x31, 0x7f,
 	}
 	fixtureBoundaryDigest = [sha256.Size]byte{
-		0x5f, 0xe8, 0x52, 0x9b, 0xf0, 0x53, 0x49, 0xb9,
-		0xf7, 0x65, 0x27, 0xdd, 0xd0, 0xd8, 0xa9, 0x6d,
-		0x4b, 0xf3, 0x3e, 0x0b, 0x93, 0xbf, 0x9a, 0x83,
-		0xe0, 0x5b, 0x55, 0x96, 0xd8, 0xf4, 0xf5, 0xfd,
+		0x0e, 0x2e, 0xe0, 0x74, 0x92, 0x99, 0x21, 0xd2,
+		0x03, 0x19, 0x46, 0x59, 0x7b, 0x6b, 0x10, 0x72,
+		0x58, 0x14, 0x83, 0x9c, 0x06, 0xb1, 0xd4, 0x1c,
+		0x9f, 0xb3, 0x2d, 0xfa, 0x05, 0xb1, 0x2c, 0xe7,
 	}
 	// Updated 2026-09-11: postInvalidateDerived joined posttool-writeedit and
 	// preMaterializeDerived joined pretool-bash, with the two hardcoded
@@ -89,10 +90,10 @@ var (
 	// (removeArtifact, postwrite.go). None of the three adds a refusal this
 	// population describes, so no fixture is owed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x28, 0xb9, 0xd1, 0xc2, 0x2f, 0xde, 0x1f, 0xef,
-		0x7c, 0xd7, 0x4b, 0xd5, 0x37, 0xd5, 0x35, 0x18,
-		0xd9, 0x38, 0x8d, 0xc7, 0x13, 0x46, 0xe2, 0x8b,
-		0xcc, 0x27, 0x8c, 0x41, 0x83, 0x4a, 0xcf, 0x3c,
+		0x35, 0x4b, 0xf3, 0xea, 0xe9, 0xb2, 0xb8, 0x5e,
+		0x47, 0x96, 0x23, 0xc6, 0x7d, 0xa7, 0x6d, 0xda,
+		0xbc, 0xf6, 0x06, 0x11, 0xbc, 0xcc, 0x4f, 0x79,
+		0x16, 0x41, 0x38, 0x6b, 0xb4, 0xb2, 0x37, 0x06,
 	}
 )
 
@@ -144,7 +145,7 @@ var fixtureCategories = [...]fixtureCategory{
 	{categorySessionID, "run_session_id", "internal/le/hookruntime/session.go", "func runSessionID(", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "../shared"},
 	{categoryRFCTestGuard, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, probeUntaggedEdit, probeTaggedEdit},
 	{categoryWeakenedHatch, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, probeLedgeredSkip, probeUnledgeredSkip},
-	{categoryRFCChangedLedger, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, probeLedgeredEdit, probeUnledgeredEdit},
+	{categoryRFCApproval, weakenedProposedFixture, hookWriteEditFile, writeWeakeningAnchor, probeLedgeredEdit, probeUnledgeredEdit},
 	{categoryDraftIncubator, "run_draft_incubator", hookWriteEditFile, writeWeakeningAnchor, "test/draft/probe_test.go", "test/unit/probe_test.go"},
 	{categoryGovernedDocEdit, "run_governed_doc_edit", hookBashFile, "func bashGovernedWrite(", "cat plan/spec-x.md", "echo x > plan/spec-x.md"},
 	{categoryMarkSourceRead, "run_mark_source_read", hookLifecycleFile, "func hookSourceRead(", "internal/probe/probe.go", "docs/probe.md"},
@@ -186,7 +187,7 @@ var fixtureProducerBoundaries = [...]fixtureProducerBoundary{
 		"func proposedFindings(",
 	},
 	{
-		categoryRFCChangedLedger,
+		categoryRFCApproval,
 		weakenedActionsFile,
 		proposedVerbAnchor,
 		weakenedProposedFile,
@@ -454,12 +455,13 @@ func producerBoundaryDigest(boundaries []fixtureProducerBoundary) [sha256.Size]b
 	return sha256.Sum256([]byte(tb.String()))
 }
 
-// yangProbeAllow and yangProbeRefuse are the two YANG bodies the description
-// gate must separate: a summary inside the bounds, and one past the 96-character
-// cap writeYangDescription enforces.
+// yangProbeAllow and yangProbeRefuse are the two YANG bodies the summary gate
+// must separate: a ze:help inside the bounds, and one past the 96-character cap
+// writeYangDescription enforces. The summary is the ze:help statement; the
+// description beside it is the long explanation and carries no cap.
 const (
-	yangProbeAllow  = "leaf a {\n  description \"A short summary.\";\n}"
-	yangProbeRefuse = "leaf a {\n  description \"" +
+	yangProbeAllow  = "leaf a {\n  ze:help \"A short summary.\";\n}"
+	yangProbeRefuse = "leaf a {\n  ze:help \"" +
 		"A summary written far past the ninety-six character cap so the gate has something it must refuse here.\";\n}"
 )
 
@@ -632,7 +634,7 @@ func TestPlain(t *testing.T) {
 )
 
 // Two tagged units, and the edit of each. Which unit an edit reaches is the
-// whole difference the RFC-changed ledger turns on.
+// whole difference the RFC approval file turns on.
 const (
 	probeTwoTaggedTests = `package probe
 
@@ -734,35 +736,37 @@ func TestUnledgered(t *testing.T) {
 `
 )
 
-// probeLedgerRows is a ledger holding one row, naming TestLedgered. Both
-// weakening ledgers parse through the same table grammar, so one body serves
-// the weakening ledger and the RFC-changed ledger alike.
+// probeLedgerRows is a ledger holding one row, naming TestLedgered. The
+// weakening ledger and the session's RFC approval file parse through the
+// same table grammar, so one body serves both.
 const probeLedgerRows = "| Test | Reason |\n| --- | --- |\n| TestLedgered | the row the probe authorizes |\n"
 
 // rfcGuardTree builds a checkout holding the tagged test as it stands and no
-// RFC-changed ledger, so an edit that changes what the tagged unit proves has
+// RFC approval file, so an edit that changes what the tagged unit proves has
 // nowhere to be authorized.
 func rfcGuardTree(string) (string, error) {
 	return probeTree("rfc-guard", map[string]string{probeTestPath: probeTaggedTest})
 }
 
-// rfcLedgerTree adds the RFC-changed ledger to two tagged units, one of which
-// a row names.
-func rfcLedgerTree(string) (string, error) {
-	return probeLedgerTree("rfc-ledger", probeTwoTaggedTests, testweakened.RFCChangedDir)
+// rfcApprovalTree adds the session's RFC approval file, the one `./le rfc
+// approve` writes under tmp/, to two tagged units, one of which a row names.
+func rfcApprovalTree(string) (string, error) {
+	return probeLedgerTree("rfc-approval", probeTwoTaggedTests, rfc.ApprovalPath)
 }
 
 // weakenedHatchTree adds the weakening ledger to two untagged units, one of
 // which a row names.
 func weakenedHatchTree(string) (string, error) {
-	return probeLedgerTree("weakened-hatch", probeUntaggedTests, testweakened.WeakenedDir)
+	return probeLedgerTree("weakened-hatch", probeUntaggedTests, func(session string) string {
+		return testweakened.ShardPath(testweakened.WeakenedDir, session)
+	})
 }
 
-// probeLedgerTree writes the ledger shard at the path THIS tree resolves for
+// probeLedgerTree writes the ledger rows at the path THIS tree resolves for
 // the running session, rather than at a fixed file name. The hook derives the
 // same path from the same identity, so the fixture proves the derivation as
-// well as the row matching: a shard written anywhere else would read as absent.
-func probeLedgerTree(name, test, dir string) (string, error) {
+// well as the row matching: a file written anywhere else would read as absent.
+func probeLedgerTree(name, test string, ledgerPath func(session string) string) (string, error) {
 	root, err := probeTree(name, map[string]string{probeTestPath: test})
 	if err != nil {
 		return root, err
@@ -771,11 +775,11 @@ func probeLedgerTree(name, test, dir string) (string, error) {
 	if err != nil {
 		return root, err
 	}
-	shard := filepath.Join(root, filepath.FromSlash(testweakened.ShardPath(dir, session)))
-	if err := os.MkdirAll(filepath.Dir(shard), 0o750); err != nil {
+	ledger := filepath.Join(root, filepath.FromSlash(ledgerPath(session)))
+	if err := os.MkdirAll(filepath.Dir(ledger), 0o750); err != nil {
 		return root, err
 	}
-	return root, os.WriteFile(shard, []byte(probeLedgerRows), 0o600)
+	return root, os.WriteFile(ledger, []byte(probeLedgerRows), 0o600)
 }
 
 // draftIncubatorTree holds one tagged test twice, inside the draft incubator
@@ -1027,7 +1031,7 @@ var categoryProbes = map[string]categoryProbe{
 	categoryJournalRowShape:      {check: "postJournal", tool: toolWriteName, file: probeJournalPath, slot: slotOffPayload, tree: journalTree},
 	categoryPhaseGates:           {check: "agentSkill", tool: "Agent", slot: slotPrompt},
 	categoryRFCTestGuard:         {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcGuardTree},
-	categoryRFCChangedLedger:     {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcLedgerTree},
+	categoryRFCApproval:          {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: rfcApprovalTree},
 	categoryWeakenedHatch:        {check: weakeningCheckName, tool: toolWriteName, file: probeTestPath, slot: slotContent, tree: weakenedHatchTree},
 	categoryDraftIncubator:       {check: weakeningCheckName, tool: toolWriteName, slot: slotPath, tree: draftIncubatorTree},
 	categoryValidateSpec:         {lifecycle: "validate-spec", tool: toolWriteName, file: "plan/" + probeSpecName, slot: slotOffPayload, tree: validateSpecTree},
@@ -1170,7 +1174,7 @@ const (
 	categoryCommitGate           = "commit-gate"
 	categorySessionID            = "session-id"
 	categoryWeakenedHatch        = "weakened-hatch"
-	categoryRFCChangedLedger     = "rfc-changed-ledger"
+	categoryRFCApproval          = "rfc-approval"
 	categoryDraftIncubator       = "draft-incubator"
 	categoryGovernedDocEdit      = "governed-doc-edit"
 	categoryDelegation           = "delegation"

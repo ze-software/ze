@@ -189,7 +189,7 @@ the shared staging area. A refused gate writes no script.
 | Gate | Producer | Override keyword |
 |---|---|---|
 | test-weakening | `testweakened.ProspectiveCommit`, `testweakened.CheckCommit` | none |
-| rfc-changed | `rfcChangeProblems` (`rfcchange.go`) | `rfc-change-ok` |
+| rfc-approval | `rfcChangeProblems` (`rfcchange.go`), reading `tmp/commit-rfc-approved-<session>.md` and writing the `RFC-approved:` trailer | `rfc-change-ok` |
 | test-coverage | `testCoverageProblems` (`prepare.go`) | `no-test` |
 | verify-status | `verificationState` (`verification.go`) | `unverified`, `missing-full-verify-ok` |
 | structural-gate | `structuralGateReds` (`verification.go`) | `structural-red-ok`, `broken-head-fix` |
