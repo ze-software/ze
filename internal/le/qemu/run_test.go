@@ -328,11 +328,11 @@ func TestScratchSymlinkResolvesHostAndGuestPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := NewRun(root, RunOptions{})
-	host, guest, shared, err := run.scratchShare()
+	shares, err := run.scratchShares()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// scratchShare resolves the host path (it becomes QEMU's virtfs path=, a
+	// The share resolves the host path (it becomes QEMU's virtfs path=, a
 	// real host directory) but keeps the guest path as the symlink's literal
 	// target text (it becomes a fresh mount point inside the guest VM, no
 	// host filesystem lookup involved). On macOS target's own /var/folders/...
@@ -342,11 +342,50 @@ func TestScratchSymlinkResolvesHostAndGuestPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !shared || host != resolvedTarget || guest != target {
-		t.Fatalf("scratch share = host %q, guest %q, shared %v", host, guest, shared)
+	if len(shares) != 1 || shares[0].Host != resolvedTarget || shares[0].Guest != target {
+		t.Fatalf("scratch shares = %+v", shares)
 	}
-	if count := strings.Count(strings.Join(run.virtfsArgs(), "\n"), "mount_tag="); count != 2 {
+	virtfs, err := run.virtfsArgs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(strings.Join(virtfs, "\n"), "mount_tag="); count != 2 {
 		t.Fatalf("virtfs exports = %d, want 2", count)
+	}
+}
+
+// VALIDATES: a real checkout tmp whose qemu child is a symlink out of the tree
+// gets that child's target exported and mounted at its own absolute path,
+// before the guest creates /workspace/tmp/qemu/go-dl through the link.
+// PREVENTS: the way every `./le qemu run` failed on 2026-09-15. `le scratch
+// migrate` had relocated tmp/qemu and left tmp itself real, the launcher
+// exported nothing, and the guest's mkdir followed a dangling symlink.
+func TestARealTmpWithASymlinkedQemuChildIsShared(t *testing.T) {
+	run := fixtureRun(t, ArchAMD64)
+	target := t.TempDir()
+	if err := os.Symlink(target, filepath.Join(run.Tree, "tmp", "qemu")); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := run.Plan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	export := "local,path=" + resolved + ",mount_tag=zescratch-qemu,security_model=none,id=zescratch-qemu,readonly=off"
+	if !slices.Contains(plan.QEMUArgv, export) {
+		t.Errorf("QEMU argv misses %q:\n%s", export, strings.Join(plan.QEMUArgv, "\n"))
+	}
+	mount := "mkdir -p " + shellQuote(target) +
+		" && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 zescratch-qemu " + shellQuote(target)
+	at := strings.Index(plan.SetupCommand, mount)
+	if at < 0 {
+		t.Fatalf("setup command misses %q:\n%s", mount, plan.SetupCommand)
+	}
+	if strings.Index(plan.SetupCommand, "mkdir -p /workspace/tmp/qemu/go-dl") < at {
+		t.Errorf("the guest reaches /workspace/tmp/qemu before the share is mounted:\n%s", plan.SetupCommand)
 	}
 }
 

@@ -18,7 +18,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/tmplink"
 	"github.com/ze-software/ze/internal/le/goversion"
 	"github.com/ze-software/ze/internal/le/leaction"
 )
@@ -41,7 +41,6 @@ const (
 	DefaultRunCPUs        = "8"
 	DefaultBootTimeout    = 300 * time.Second
 	DefaultCommandTimeout = 1200 * time.Second
-	ScratchMountTag       = "zescratch"
 	sshPollInterval       = 2 * time.Second
 	sshReadyTimeout       = 30 * time.Second
 	bootstrapTimeout      = 90 * time.Second
@@ -232,8 +231,6 @@ type runFileSystem interface {
 	Rename(string, string) error
 	Remove(string) error
 	RemoveAll(string) error
-	Readlink(string) (string, error)
-	EvalSymlinks(string) (string, error)
 }
 
 type osRunFS struct{}
@@ -257,8 +254,6 @@ func (osRunFS) MkdirTemp(dir, pattern string) (string, error)    { return os.Mkd
 func (osRunFS) Rename(oldPath, newPath string) error             { return os.Rename(oldPath, newPath) }
 func (osRunFS) Remove(name string) error                         { return os.Remove(name) }
 func (osRunFS) RemoveAll(name string) error                      { return os.RemoveAll(name) }
-func (osRunFS) Readlink(name string) (string, error)             { return os.Readlink(name) }
-func (osRunFS) EvalSymlinks(name string) (string, error)         { return filepath.EvalSymlinks(name) }
 
 type runOps struct {
 	FS      runFileSystem
@@ -464,7 +459,11 @@ func (r *Run) qemuArgs(ctx context.Context, iso, kernel string, port int) ([]str
 		"-cdrom", iso, "-boot", "d", "-nographic", "-serial", "mon:stdio",
 		"-netdev", forward, "-device", "virtio-net-pci,netdev=net0",
 	)
-	argv = append(argv, r.virtfsArgs()...)
+	virtfs, err := r.virtfsArgs()
+	if err != nil {
+		return nil, err
+	}
+	argv = append(argv, virtfs...)
 	if kernel != "" {
 		initrd, err := r.extractAlpineInitramfs(ctx, iso)
 		if err != nil {
@@ -491,46 +490,33 @@ func (r *Run) arm64BIOS() (string, error) {
 	return "", errors.New("cannot find aarch64 UEFI firmware edk2-aarch64-code.fd")
 }
 
-func (r *Run) scratchShare() (string, string, bool, error) {
-	tmp := filepath.Join(r.Tree, "tmp")
-	info, err := r.ops.FS.Lstat(tmp)
+// scratchShares answers the 9p exports the guest needs to follow the checkout
+// tmp symlinks it meets under /workspace: tmp itself, or the relocated
+// children of a real tmp (internal/core/tmplink, Shares).
+func (r *Run) scratchShares() ([]tmplink.Share, error) {
+	shares, err := tmplink.Shares(r.Tree, "/workspace")
 	if err != nil {
-		return "", "", false, err
+		return nil, fmt.Errorf("find the tmp directories relocated out of the checkout: %w", err)
 	}
-	if info.Mode()&os.ModeSymlink == 0 {
-		return "", "", false, nil
-	}
-	link, err := r.ops.FS.Readlink(tmp)
-	if err != nil {
-		return "", "", false, err
-	}
-	host, err := r.ops.FS.EvalSymlinks(tmp)
-	if err != nil {
-		return "", "", false, err
-	}
-	guest := link
-	if !filepath.IsAbs(link) {
-		guest = path.Clean(path.Join("/workspace", filepath.ToSlash(link)))
-	}
-	return host, guest, true, nil
+	return shares, nil
 }
 
-func (r *Run) virtfsArgs() []string {
+func (r *Run) virtfsArgs() ([]string, error) {
 	var b textbuf.Buffer
 	workspace := b.Str("local,path=").Str(r.Tree).Str(",mount_tag=workspace,security_model=none,id=ws0,readonly=off").String()
-	argv := make([]string, 0, 4)
-	argv = append(argv, "-virtfs", workspace)
-	host, _, shared, err := r.scratchShare()
+	shares, err := r.scratchShares()
 	if err != nil {
-		return argv
+		return nil, err
 	}
-	if !shared {
-		return argv
+	argv := make([]string, 0, 2+2*len(shares))
+	argv = append(argv, "-virtfs", workspace)
+	for _, share := range shares {
+		b.Reset()
+		export := b.Str("local,path=").Str(share.Host).Str(",mount_tag=").Str(share.Tag).
+			Str(",security_model=none,id=").Str(share.Tag).Str(",readonly=off").String()
+		argv = append(argv, "-virtfs", export)
 	}
-	b.Reset()
-	scratch := b.Str("local,path=").Str(host).Str(",mount_tag=").Str(ScratchMountTag).
-		Str(",security_model=none,id=ws1,readonly=off").String()
-	return append(argv, "-virtfs", scratch)
+	return argv, nil
 }
 
 const runBootstrapCommand = "setup-interfaces -a 2>/dev/null; ifup eth0 2>/dev/null; ifup lo 2>/dev/null; echo nameserver 8.8.8.8 > /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes >> /etc/ssh/sshd_config; echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2>/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2>/dev/null; /usr/sbin/sshd; echo SSHD_READY"
@@ -586,16 +572,16 @@ func (r *Run) setupCommand(goRelease string) (string, error) {
 		"mkdir -p /workspace",
 		"mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace",
 	)
-	_, guest, shared, err := r.scratchShare()
+	shares, err := r.scratchShares()
 	if err != nil {
 		return "", err
 	}
-	if shared {
+	for _, share := range shares {
 		b.Reset()
-		mkdir := b.Str("mkdir -p ").Str(shellQuote(guest)).String()
+		mkdir := b.Str("mkdir -p ").Str(shellQuote(share.Guest)).String()
 		b.Reset()
 		mount := b.Str("mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 ").
-			Str(ScratchMountTag).Byte(' ').Str(shellQuote(guest)).String()
+			Str(share.Tag).Byte(' ').Str(shellQuote(share.Guest)).String()
 		parts = append(parts, mkdir, mount)
 	}
 	b.Reset()

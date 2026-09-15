@@ -14,8 +14,11 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/tmplink"
 )
 
 func TestSelectBuilder(t *testing.T) {
@@ -268,7 +271,7 @@ func TestQEMUArgsLifecycleMounts(t *testing.T) {
 	}
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join(root, "external-output"), FirmwareDir: filepath.Join(root, "firmware")}
-	args, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"))
+	args, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,6 +279,66 @@ func TestQEMUArgsLifecycleMounts(t *testing.T) {
 	for _, want := range []string{"-accel kvm", "-accel tcg,thread=multi,tb-size=512", "hostfwd=tcp::22022-:22", "mount_tag=workspace", "mount_tag=ccache", "mount_tag=builddir", "mount_tag=output", "mount_tag=firmware", "readonly=on"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("QEMU argv missing %q: %s", want, joined)
+		}
+	}
+}
+
+// VALIDATES: a real checkout tmp whose qemu child is a symlink out of the tree
+// gets that child's target exported and mounted at its own absolute path
+// before the worker under /workspace/tmp/qemu runs, and the kernel child the
+// output lands under gets the same.
+// PREVENTS: `sh: /workspace/tmp/qemu/bin/amd64/ze-kernel-builder: not found`,
+// observed on 2026-09-15 after `le scratch migrate` relocated tmp/qemu.
+func TestARealTmpWithSymlinkedChildrenIsSharedWithTheGuest(t *testing.T) {
+	root := t.TempDir()
+	scratch := t.TempDir()
+	tmp := filepath.Join(root, "tmp")
+	if err := os.MkdirAll(tmp, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"qemu", "kernel"} {
+		if err := os.MkdirAll(filepath.Join(scratch, name), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(scratch, name), filepath.Join(tmp, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	shares, err := tmplink.Shares(root, "/workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fakeBin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	qemu := filepath.Join(fakeBin, "qemu-system-x86_64")
+	if err := os.WriteFile(qemu, []byte("#!/bin/sh\nprintf 'kvm\\ntcg\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	req := Request{Root: root, Arch: "amd64", OutputDir: filepath.Join("tmp", "kernel", "build")}
+	args, err := qemuArgs(context.Background(), req, "alpine.iso", 22022, 9216, filepath.Join(root, "ccache"), filepath.Join(root, "build"), shares)
+	if err != nil {
+		t.Fatal(err)
+	}
+	setup, guestOutput := guestSetup(req, shares)
+	if guestOutput != "/workspace/tmp/kernel/build" {
+		t.Errorf("guest output = %q", guestOutput)
+	}
+	for _, name := range []string{"qemu", "kernel"} {
+		resolved, err := filepath.EvalSymlinks(filepath.Join(scratch, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		export := "local,path=" + resolved + ",mount_tag=zescratch-" + name + ",security_model=none,id=zescratch-" + name + ",readonly=off"
+		if !slices.Contains(args, export) {
+			t.Errorf("QEMU argv misses %q:\n%s", export, strings.Join(args, "\n"))
+		}
+		guest := filepath.Join(scratch, name)
+		mount := "mkdir -p " + shellQuote(guest) + " && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 zescratch-" + name + " " + shellQuote(guest)
+		if !strings.Contains(setup, mount) {
+			t.Errorf("guest setup misses %q:\n%s", mount, setup)
 		}
 	}
 }

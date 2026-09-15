@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/core/tmplink"
 )
 
 const (
@@ -43,13 +44,10 @@ go 1.25
 
 // migratableScratch is the closed allowlist of build-artifact directories that
 // can leave a real tmp directory. Unclassified names stay beside session work.
-var migratableScratch = [...]string{
-	"qemu",
-	"kernel",
-	"gokrazy",
-	"golangci-lint-cache",
-	"terminal-demos",
-}
+// It is declared in internal/core/tmplink, because the QEMU launchers that
+// hand a guest the checkout over 9p share each relocated child, and the
+// appliance launcher cannot import this package.
+var migratableScratch = tmplink.Migratable
 
 // Result is one status line and the stream on which the Python producer wrote it.
 type Result struct {

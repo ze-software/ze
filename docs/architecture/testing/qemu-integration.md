@@ -205,9 +205,20 @@ personality; the `ze_le` crossing selects the same `qemu all-tests` action the
 standalone root launcher exposes. Guest-side VRRP, PPPoE, network-namespace, and
 full-suite work is Go in `internal/le/qemu`, not an interpreted guest driver.
 
-A shared checkout hands the guest a symlink as a symlink. When `tmp/` points
-outside the checkout, `Run.scratchShare` adds a second 9p share for that target.
-<!-- source: internal/le/qemu/run.go -- Run.scratchShare -->
+A shared checkout hands the guest a symlink as a symlink, so a `tmp/` path that
+`./le scratch migrate` relocated out of the tree dangles inside the guest until
+its target is mounted there. `tmplink.Shares` walks the two layouts the
+migration leaves: `tmp/` itself a symlink, or a real `tmp/` whose migratable
+children (the `tmplink.Migratable` allowlist) are each a symlink. Every link found
+becomes one 9p share, tagged `zescratch` for `tmp/` or `zescratch-<child>`, that
+the guest mounts at the link's own absolute target before it touches
+`/workspace/tmp`. `Run.scratchShares` adds them to the `./le qemu run` argv and
+setup line, and `guestSetup` plus `qemuArgs` in the kernel builder do the same
+for `ze appliance kernel --builder qemu`, whose worker binary and runtime output
+both sit under `/workspace/tmp`.
+<!-- source: internal/core/tmplink/tmplink.go -- Shares -->
+<!-- source: internal/le/qemu/run.go -- Run.scratchShares -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- guestSetup -->
 
 ```text
 host                                      QEMU Alpine VM

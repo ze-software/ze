@@ -14,9 +14,11 @@ COPY go.mod go.sum ./
 # worker.go runs in here; driver.go and space.go are the HOST side and come
 # along for the compile. So a host-side import lands in this image too, and
 # leaving one out fails the build at `go build`, not at run time. diskspace is
-# space.go's (internal/appliance/kernelbuilder/space.go).
+# space.go's (internal/appliance/kernelbuilder/space.go) and tmplink is
+# qemu.go's.
 COPY internal/appliance/kernelbuilder ./internal/appliance/kernelbuilder
 COPY internal/core/diskspace ./internal/core/diskspace
+COPY internal/core/tmplink ./internal/core/tmplink
 COPY tools/kernel-builder/main.go ./tools/kernel-builder/main.go
 RUN CGO_ENABLED=0 go build -o /ze-kernel-builder ./tools/kernel-builder
 

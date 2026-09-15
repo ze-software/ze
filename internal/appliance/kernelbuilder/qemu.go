@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/tmplink"
 )
 
 const (
@@ -224,7 +226,11 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 		}
 	}
 	memory := vmMemoryMiB(ctx)
-	args, err := qemuArgs(ctx, req, iso, port, memory, ccache, build)
+	shares, err := tmplink.Shares(req.Root, "/workspace")
+	if err != nil {
+		return fmt.Errorf("find the tmp directories relocated out of the checkout: %w", err)
+	}
+	args, err := qemuArgs(ctx, req, iso, port, memory, ccache, build, shares)
 	if err != nil {
 		return err
 	}
@@ -280,15 +286,7 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 		return errors.New("VM bootstrap failed: SSH not reachable")
 	}
 	fmt.Fprintln(req.Stderr, "  VM ready, installing build dependencies...") //nolint:errcheck // progress output
-	setup := fmt.Sprintf("set -e && printf 'https://dl-cdn.alpinelinux.org/alpine/v%s/main\\nhttps://dl-cdn.alpinelinux.org/alpine/v%s/community\\n' > /etc/apk/repositories && apk update && apk add --no-cache %s ccache && mkdir -p /workspace && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace && mkdir -p /ccache && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 ccache /ccache && mkdir -p /build && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 builddir /build", alpineVersion, alpineVersion, buildPackages)
-	guestOutput := "/workspace/" + filepath.ToSlash(req.OutputDir)
-	if filepath.IsAbs(req.OutputDir) {
-		setup += " && mkdir -p /output && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 output /output"
-		guestOutput = "/output"
-	}
-	if req.FirmwareDir != "" {
-		setup += " && mkdir -p /firmware && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576,ro firmware /firmware"
-	}
+	setup, guestOutput := guestSetup(req, shares)
 	workerArgs := []string{"/workspace/" + workerRel, "--version", req.Version, "--arch", req.Arch, "--profile", req.Profile, "--src-dir", "/workspace/" + filepath.ToSlash(req.SourceDir), "--out-dir", guestOutput, "--modules", req.Modules}
 	for _, fragment := range req.Fragments {
 		workerArgs = append(workerArgs, "--fragment", "/workspace/"+filepath.ToSlash(fragment))
@@ -323,7 +321,30 @@ func runQEMUBuild(ctx context.Context, req Request, iso, workerRel string) error
 	return nil
 }
 
-func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, ccache, build string) ([]string, error) {
+// guestSetup answers the shell line the guest runs before the worker, and the
+// guest path the worker writes its output to. shares are the checkout tmp
+// directories that live outside the tree (internal/core/tmplink).
+func guestSetup(req Request, shares []tmplink.Share) (string, string) {
+	setup := fmt.Sprintf("set -e && printf 'https://dl-cdn.alpinelinux.org/alpine/v%s/main\\nhttps://dl-cdn.alpinelinux.org/alpine/v%s/community\\n' > /etc/apk/repositories && apk update && apk add --no-cache %s ccache && mkdir -p /workspace && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace && mkdir -p /ccache && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 ccache /ccache && mkdir -p /build && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 builddir /build", alpineVersion, alpineVersion, buildPackages)
+	guestOutput := "/workspace/" + filepath.ToSlash(req.OutputDir)
+	if filepath.IsAbs(req.OutputDir) {
+		setup += " && mkdir -p /output && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 output /output"
+		guestOutput = "/output"
+	}
+	if req.FirmwareDir != "" {
+		setup += " && mkdir -p /firmware && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576,ro firmware /firmware"
+	}
+	// The worker binary and the runtime output both sit under /workspace/tmp,
+	// so a relocated tmp child is mounted at its own absolute path before the
+	// worker follows the symlink the 9p mount hands it.
+	var mounts strings.Builder
+	for _, share := range shares {
+		mounts.WriteString(" && mkdir -p " + shellQuote(share.Guest) + " && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 " + share.Tag + " " + shellQuote(share.Guest))
+	}
+	return setup + mounts.String(), guestOutput
+}
+
+func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, ccache, build string, shares []tmplink.Share) ([]string, error) {
 	args := make([]string, 0, 40)
 	if req.Arch == archARM64 {
 		firmware, err := findAArch64Firmware()
@@ -347,6 +368,9 @@ func qemuArgs(ctx context.Context, req Request, iso string, port, memory int, cc
 	}
 	if req.FirmwareDir != "" {
 		args = append(args, "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=firmware,security_model=none,id=fw0,readonly=on", req.FirmwareDir))
+	}
+	for _, share := range shares {
+		args = append(args, "-virtfs", fmt.Sprintf("local,path=%s,mount_tag=%s,security_model=none,id=%s,readonly=off", share.Host, share.Tag, share.Tag))
 	}
 	return args, nil
 }
