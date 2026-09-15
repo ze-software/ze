@@ -2331,10 +2331,13 @@ func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
 		// named the page rather than this line (2026-09-03). A kind with no
 		// bucket is TestEveryAnnotationKindHasABucket's failure, so it is
 		// skipped here rather than counted as a hole twice.
+		//
+		// A Derived bucket is skipped too: the gate leaves its rows out of
+		// Annotated, so its counter is a count apart rather than a part.
 		split, counted := 0, make([]string, 0, len(rfc.AnnotationKinds()))
 		for _, kind := range rfc.AnnotationKinds() {
 			bucket, known := rfcAnnotationBucket(kind)
-			if !known {
+			if !known || rfcBucketDerived(bucket) {
 				continue
 			}
 			held := entry.Coverage.Bucket(bucket)

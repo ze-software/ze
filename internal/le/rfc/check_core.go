@@ -15,16 +15,19 @@ import (
 // annotationBarsATest answers the kinds whose claim is contradicted by a tagged
 // test on the same requirement.
 //
-// Each of the four says NO test carries this id, for a different reason: the
+// Each of the five says NO test carries this id, for a different reason: the
 // obligation does not bind Ze, Ze does not meet it, a layer under Ze meets it
-// and Ze's own boundary holds nothing to assert, or its condition is a feature
-// Ze declined. A tag falsifies all four the same way, so the annotation is
-// stale rather than the tag being wrong. It is also what keeps {lower-layer}
-// and {feature-declined} out of the proven numerator by more than bookkeeping:
-// a requirement Ze can prove is one this annotation may not cover.
+// and Ze's own boundary holds nothing to assert, its condition is a feature
+// Ze declined, or its status is derived from other rows and a test on it would
+// claim more than its body checks. A tag falsifies all five the same way, so
+// the annotation is stale rather than the tag being wrong. It is also what
+// keeps {lower-layer}, {feature-declined} and {rollup} out of the proven
+// numerator by more than bookkeeping: a requirement Ze can prove is one this
+// annotation MUST NOT cover.
 func annotationBarsATest(kind string) bool {
 	return kind == AnnotationNotApplicable || kind == AnnotationGap ||
-		kind == AnnotationLowerLayer || kind == AnnotationFeatureDeclined
+		kind == AnnotationLowerLayer || kind == AnnotationFeatureDeclined ||
+		kind == AnnotationRollup
 }
 
 // evaluate answers one finding per coverage violation, in the PARTS it had
@@ -35,22 +38,30 @@ func annotationBarsATest(kind string) bool {
 // table of columns is worth having for the population that fills it, and
 // re-parsing the sentence back into fields would be a second reader of a format
 // nobody declared (owner review, 2026-09-01).
+//
+// It also FILLS Requirement.Derived and DerivedCause on every
+// {rollup} row, in place, through the slice it was given (rollupDeriver.fill):
+// the derivation reads the state this loop computes for the other rows, so no
+// second reader of the tags exists. A rollup raises no finding: what it
+// derives from is reported once, under the target's own id. A renderer fills
+// the same fields through deriveRollups.
 func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) []Finding {
 	known := map[string]bool{}
 	for _, req := range requirements {
 		known[req.RID] = true
 	}
-	byRID := map[string][]Tag{}
 	var errs []Finding
 	for _, tag := range tags {
-		if !known[tag.RID] {
-			var tb textbuf.Buffer
-			errs = append(errs, note(tb.Str(tag.File).Byte(':').Int(int64(tag.Line)).
-				Str(": unknown RFC requirement: ").Str(tag.RID).String()))
+		if known[tag.RID] {
 			continue
 		}
-		byRID[tag.RID] = append(byRID[tag.RID], tag)
+		var tb textbuf.Buffer
+		errs = append(errs, note(tb.Str(tag.File).Byte(':').Int(int64(tag.Line)).
+			Str(": unknown RFC requirement: ").Str(tag.RID).String()))
 	}
+	// A tag naming no requirement is keyed under an id no row reads.
+	byRID := tagsByRID(tags)
+	newRollupDeriver(requirements, byRID, enrolled).fill(requirements)
 	for _, req := range requirements {
 		if !enrolled[req.RFC] {
 			continue
@@ -83,6 +94,11 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 						Str(annotation.Kind).Str("} but IS tested (").Str(strings.Join(locations, ", ")).
 						Str("); the annotation is stale -- remove it").String()))
 			}
+			// A rollup raises no finding of its own: fill wrote its derived
+			// state and cause onto the row, and every state it can derive is
+			// already reported once under the target's own id, a {gap} by
+			// the Remaining cell and an unproven row by the arm below
+			// (owner decision, 2026-09-15).
 			continue
 		}
 		if !req.Gated() {
@@ -314,6 +330,331 @@ func resolveProducer(reader *sourceReader, producer string) (producerState, stri
 		return producerSymbolAbsent, path, symbol
 	}
 	return producerFound, path, symbol
+}
+
+// checkRollupTargets holds every {rollup} annotation against the corpus: each
+// target has to be a row of an enrolled summary or an enrolled summary itself,
+// no target is the row itself, and no walk over rollup-to-rollup targets leads
+// back to it.
+//
+// The parser holds a target to its FORM alone, because it reads one line and
+// the corpus is loaded after. This is where the target is shown to exist, and
+// the refusal is what keeps the kind apart from {not-applicable}: a rollup
+// over a row nobody can open is a judgement, and the kind's value is that a
+// reader can check it (ai/rules/principles.md). An unenrolled target is
+// refused too, because the gate holds no state for it to derive from.
+//
+// The parser stores no id-versus-stem classification, and a draft stem
+// matches idRE as well as stemRE, so a target is resolved against BOTH the id
+// set and the stem set rather than by its shape. A name in both sets is read
+// as an id: the id set is consulted first, and that order is the whole rule.
+//
+// The cycle walk (R-1 in the spec) runs per row, from each target that is a
+// rollup, following id targets that are rollups and stopping at every other
+// target: a stem expands to the rows of a summary and never to a rollup. Every
+// step adds one rollup the walk has not seen, so its depth is bounded by the
+// number of rollups in the corpus, and it refuses when it meets the row it
+// started from. A row in the cycle is refused on its own walk, so two rollups
+// naming each other produce one refusal each, and a rollup that merely leads
+// INTO a cycle is silent here: the rows in the cycle already carry the
+// finding, and its own targets are shown to exist above.
+func checkRollupTargets(requirements []Requirement, enrolled map[string]bool) []string {
+	stems := map[string]bool{}
+	ids := map[string]string{}
+	rollups := map[string][]string{}
+	for _, req := range requirements {
+		stems[req.RFC] = true
+		ids[req.RID] = req.RFC
+		if req.Rollup() {
+			rollups[req.RID] = req.Annotation.Targets
+		}
+	}
+	var errs []string
+	for _, req := range requirements {
+		if !req.Rollup() {
+			continue
+		}
+		where := requirementWhere(req)
+		for _, target := range req.Annotation.Targets {
+			var tb textbuf.Buffer
+			tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {rollup} and names ")
+			if target == req.RID {
+				errs = append(errs, tb.Str("itself. A rollup derives from OTHER rows; drop the target. ").
+					Str(rollupFormat).String())
+				continue
+			}
+			tb.Str(pyRepr(target)).Str(", ")
+			if stem, isID := ids[target]; isID {
+				if !enrolled[stem] {
+					errs = append(errs, tb.Str("a row of ").Str(stem).
+						Str(", which is not enrolled. A rollup derives only from gated rows: enroll ").
+						Str(stem).Str(" first, or drop the target. ").Str(rollupFormat).String())
+					continue
+				}
+				if leadsBackTo(rollups, target, req.RID) {
+					errs = append(errs, tb.Str("a rollup whose targets lead back to ").Str(req.RID).
+						Str(". A rollup derives from rows that derive from nothing that includes it; break the cycle. ").
+						Str(rollupFormat).String())
+				}
+				continue
+			}
+			if enrolled[target] {
+				continue
+			}
+			if stems[target] {
+				errs = append(errs, tb.Str("a summary that is not enrolled. A rollup derives only from gated rows: enroll ").
+					Str(target).Str(" first, or drop the target. ").Str(rollupFormat).String())
+				continue
+			}
+			errs = append(errs, tb.Str("which no summary holds as a requirement id and no summary answers to as a stem. ").
+				Str("Name a row or a summary this corpus can show. ").Str(rollupFormat).String())
+		}
+	}
+	return errs
+}
+
+// leadsBackTo answers whether following rollup targets from start reaches
+// origin.
+//
+// The walk is breadth-first over rollups keyed by id, and seen holds every
+// rollup it has queued, so each rollup is queued at most once and the walk
+// ends after at most len(rollups) steps whatever the graph's shape. A target
+// that is not a rollup is a leaf: a plain row, a stem, or a target the caller
+// refused separately, none of which leads anywhere.
+func leadsBackTo(rollups map[string][]string, start, origin string) bool {
+	seen := map[string]bool{start: true}
+	queue := []string{start}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		for _, target := range rollups[current] {
+			if target == origin {
+				return true
+			}
+			if _, isRollup := rollups[target]; !isRollup {
+				continue
+			}
+			if seen[target] {
+				continue
+			}
+			seen[target] = true
+			queue = append(queue, target)
+		}
+	}
+	return false
+}
+
+// rollupVerdict is one derived state and, where the state is not met, the
+// sentence naming the first row that decided it.
+type rollupVerdict struct {
+	State RollupState
+	Cause string
+}
+
+// rollupDeriver answers the derived state of every {rollup} row from the state
+// evaluate computed for the rows they name.
+//
+// states is what each gated, enrolled row that is not a rollup contributes;
+// targets is every rollup's target list, enrolled or not; stemRows is the gated,
+// non-rollup ids of each enrolled summary, in summary order, which is what a
+// stem target expands to. memo holds every rollup already answered and
+// visiting every rollup on the path being answered, so a derivation enters
+// each rollup at most once.
+type rollupDeriver struct {
+	states   map[string]RollupState
+	targets  map[string][]string
+	stemRows map[string][]string
+	enrolled map[string]bool
+	memo     map[string]rollupVerdict
+	visiting map[string]bool
+}
+
+// deriveRollups fills Requirement.Derived on every {rollup} row of
+// requirements, in place, for a renderer.
+//
+// It is the fill evaluate performs, without the findings: those are the gate's
+// to report (Check), and a page that repeated them would be a second gate.
+func deriveRollups(requirements []Requirement, tags []Tag, enrolled map[string]bool) {
+	newRollupDeriver(requirements, tagsByRID(tags), enrolled).fill(requirements)
+}
+
+// newRollupDeriver makes one pass over the rows and records what
+// each contributes, so derive reads a map rather than the tags.
+func newRollupDeriver(requirements []Requirement, byRID map[string][]Tag,
+	enrolled map[string]bool) *rollupDeriver {
+	deriver := &rollupDeriver{
+		states:   map[string]RollupState{},
+		targets:  map[string][]string{},
+		stemRows: map[string][]string{},
+		enrolled: enrolled,
+		memo:     map[string]rollupVerdict{},
+		visiting: map[string]bool{},
+	}
+	for _, req := range requirements {
+		// Every rollup is recorded, enrolled or not: a renderer prints every
+		// summary, and a rollup row it reads MUST carry a derived state
+		// (Requirement.DerivedMark). What a rollup derives FROM is the
+		// enrolled, gated rows alone, so a rollup in a summary nobody
+		// enrolled derives unproven from its own rows, and
+		// checkRollupTargets names the row for the same reason.
+		if req.Rollup() {
+			deriver.targets[req.RID] = req.Annotation.Targets
+			continue
+		}
+		if !enrolled[req.RFC] {
+			continue
+		}
+		if !req.Gated() {
+			continue
+		}
+		polarity := map[string]bool{}
+		for _, tag := range byRID[req.RID] {
+			polarity[tag.Polarity] = true
+		}
+		deriver.states[req.RID] = rollupTargetState(req, polarity)
+		deriver.stemRows[req.RFC] = append(deriver.stemRows[req.RFC], req.RID)
+	}
+	return deriver
+}
+
+// rollupTargetState answers what one gated row contributes to a rollup that
+// names it: met when the row is proven or excused, a gap when it is one, and
+// unproven otherwise.
+//
+// A {single-polarity} row is met by the one test its annotation requires. An
+// excusing annotation is met even beside a stale tag: the stale finding is the
+// row's own, and either the annotation or the test meets the obligation. A
+// {not-applicable} row is met because an obligation excluded from Ze is not
+// one a rollup can owe; the exclusion is that row's claim, reviewed there.
+func rollupTargetState(req Requirement, polarity map[string]bool) RollupState {
+	annotation := req.Annotation
+	if annotation == nil {
+		if polarity[PolarityPositive] && polarity[PolarityNegative] {
+			return RollupMet
+		}
+		return RollupUnproven
+	}
+	switch annotation.Kind {
+	case AnnotationGap:
+		return RollupGap
+	case AnnotationSinglePolarity:
+		if polarity[annotation.Polarity] {
+			return RollupMet
+		}
+		return RollupUnproven
+	case AnnotationNotApplicable, AnnotationLowerLayer, AnnotationFeatureDeclined:
+		return RollupMet
+	default:
+		// A kind this switch does not name contributes nothing a rollup can
+		// rest on. The parser refuses an unknown kind and the builder above
+		// never passes a rollup here, so this arm is the closed answer
+		// rather than a case.
+		return RollupUnproven
+	}
+}
+
+// fill writes the derived state and its cause onto every rollup row, whatever
+// its level and whether or not its summary is enrolled, so a renderer can
+// show them. This is the ONE place Derived and DerivedCause are written.
+func (d *rollupDeriver) fill(requirements []Requirement) {
+	for index := range requirements {
+		req := &requirements[index]
+		if !req.Rollup() {
+			continue
+		}
+		verdict := d.derive(req.RID)
+		req.Derived = verdict.State
+		req.DerivedCause = verdict.Cause
+	}
+}
+
+// derive answers one rollup's state.
+//
+// The recursion is over rollup-to-rollup targets only, and it is bounded by
+// the number of rollups in the corpus: memo answers a rollup already derived
+// and does not enter it again, and visiting turns a rollup met on its own path
+// into an unproven verdict rather than a second entry. checkRollupTargets
+// refuses a rollup ON a cycle, but a rollup that leads INTO one is silent
+// there, so the bound is this function's own.
+func (d *rollupDeriver) derive(rid string) rollupVerdict {
+	if verdict, done := d.memo[rid]; done {
+		return verdict
+	}
+	if d.visiting[rid] {
+		return rollupVerdict{State: RollupUnproven,
+			Cause: rid + " is a rollup whose derivation leads back into a cycle"}
+	}
+	d.visiting[rid] = true
+	verdict := d.answer(rid)
+	delete(d.visiting, rid)
+	d.memo[rid] = verdict
+	return verdict
+}
+
+// answer reads every target of one rollup, in author order, and settles the
+// state: the first gap decides, else the first unproven row, else met.
+func (d *rollupDeriver) answer(rid string) rollupVerdict {
+	var unproven rollupVerdict
+	for _, target := range d.targets[rid] {
+		for _, one := range d.verdictsOf(target) {
+			if one.State == RollupGap {
+				return one
+			}
+			if one.State == RollupUnproven && unproven.State == RollupNone {
+				unproven = one
+			}
+		}
+	}
+	if unproven.State == RollupUnproven {
+		return unproven
+	}
+	return rollupVerdict{State: RollupMet}
+}
+
+// verdictsOf answers what one target contributes: a rollup's own derived
+// verdict, a row's state, or one verdict per gated row of a stem.
+//
+// A target the deriver holds no state for is UNPROVEN, never skipped: a row of
+// a summary that is not enrolled, an id that is not gated, and a name that is
+// neither a row nor an enrolled summary are each refused by checkRollupTargets
+// in the gate, and a unit test that builds rows in code and skips that check
+// still cannot derive met from a target nobody can show. A stem that holds no
+// gated row is unproven for the same reason: a rollup over nothing is refused
+// at parse time, and a stem that expands to nothing is the same rollup.
+func (d *rollupDeriver) verdictsOf(target string) []rollupVerdict {
+	if _, isRollup := d.targets[target]; isRollup {
+		return []rollupVerdict{d.derive(target)}
+	}
+	if state, held := d.states[target]; held {
+		return []rollupVerdict{rollupRowVerdict(target, state)}
+	}
+	if !d.enrolled[target] {
+		return []rollupVerdict{{State: RollupUnproven, Cause: pyRepr(target) +
+			" is neither a gated row of an enrolled summary nor an enrolled summary, so the gate holds no state for it"}}
+	}
+	rows := d.stemRows[target]
+	if len(rows) == 0 {
+		return []rollupVerdict{{State: RollupUnproven,
+			Cause: target + " holds no gated row to derive from"}}
+	}
+	out := make([]rollupVerdict, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, rollupRowVerdict(row, d.states[row]))
+	}
+	return out
+}
+
+// rollupRowVerdict words one row's contribution, so the cause names the row
+// that owes the work rather than the rollup.
+func rollupRowVerdict(rid string, state RollupState) rollupVerdict {
+	switch state {
+	case RollupGap:
+		return rollupVerdict{State: state, Cause: rid + " is annotated {gap}"}
+	case RollupUnproven:
+		return rollupVerdict{State: state, Cause: rid + " is not proven"}
+	default:
+		return rollupVerdict{State: state}
+	}
 }
 
 // checkFeatureDeclined holds every {feature-declined} annotation against the

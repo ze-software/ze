@@ -42,15 +42,27 @@ func TestNoAnnotationExceptSinglePolarityMovesThePublishedShare(t *testing.T) {
 			// The counterfactual corpus: the same requirements with this kind
 			// removed, which is what the tree held before the annotations were
 			// written.
-			stripped := make([]Requirement, len(collected.Requirements))
-			copy(stripped, collected.Requirements)
+			//
+			// A {rollup} row is the one kind whose counterfactual is the LINE
+			// removed rather than the annotation stripped (AC-9 of
+			// spec-rfc-ledger-rollup-annotation). Stripped, the row is a bare
+			// MUST nobody tests, which re-enters Gated and moves the share:
+			// that would prove the row is out of the denominator, which
+			// TestRollupMovesNeitherShareNorGatedCount already holds, and
+			// nothing about the annotation.
+			stripped := make([]Requirement, 0, len(collected.Requirements))
 			annotated := 0
-			for index := range stripped {
-				if stripped[index].Annotation == nil || stripped[index].Annotation.Kind != kind {
+			for _, requirement := range collected.Requirements {
+				if requirement.Annotation == nil || requirement.Annotation.Kind != kind {
+					stripped = append(stripped, requirement)
 					continue
 				}
-				stripped[index].Annotation = nil
 				annotated++
+				if kind == AnnotationRollup {
+					continue
+				}
+				requirement.Annotation = nil
+				stripped = append(stripped, requirement)
 			}
 			if annotated == 0 {
 				t.Fatalf("no requirement of this corpus carries {%s}, so this case proves nothing", kind)

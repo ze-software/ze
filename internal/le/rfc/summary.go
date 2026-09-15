@@ -126,6 +126,9 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	if kind == AnnotationFeatureDeclined {
 		return parseFeatureDeclined(rest, where)
 	}
+	if kind == AnnotationRollup {
+		return parseRollup(rest, where)
+	}
 	return &Annotation{Kind: kind, Reason: rest}, nil
 }
 
@@ -247,6 +250,66 @@ func parseFeatureDeclined(rest, where string) (*Annotation, error) {
 	// both facts with no knowledge of this kind.
 	return &Annotation{Kind: AnnotationFeatureDeclined, Quote: quote, Producer: producer,
 		Reason: strings.TrimSpace(rest)}, nil
+}
+
+// rollupFormat is the one format sentence every {rollup} refusal ends with, so
+// an author reading any of them is shown the same shape.
+const rollupFormat = "Format: {rollup: <target>, <target>; why}, where a target is a requirement id (RFC4302-2.4-2) or a summary stem (rfc4301)"
+
+// parseRollup reads `{rollup: <target>, <target>; why}` and demands the one
+// fact the kind rests on: the rows it derives from.
+//
+// A target is a requirement id, held to idRE, or a summary stem, held to
+// stemRE, and it is the FORM that is checked here: whether the corpus holds the
+// row is checkRollupTargets's question, asked once every summary is loaded. A
+// rollup with no target would assert a status nothing derives, which is the
+// judgement this kind exists not to be; a target written twice is an author's
+// slip that would otherwise count one row's state twice in the derivation.
+//
+// Reason keeps the WHOLE body, targets included, for the same reason
+// {lower-layer} does: every renderer that prints `{kind} reason` publishes the
+// target list with no knowledge of this kind, so a reader of any page can check
+// the rows a rollup rests on.
+func parseRollup(rest, where string) (*Annotation, error) {
+	var tb textbuf.Buffer
+	head, why, found := strings.Cut(rest, ";")
+	head = strings.TrimSpace(head)
+	why = strings.TrimSpace(why)
+	if !found || head == "" || why == "" {
+		return nil, parseErr(tb.Str(where).
+			Str(": {rollup} needs at least one target, then a reason. ").Str(rollupFormat))
+	}
+	targets := strings.Split(head, ",")
+	seen := make(map[string]bool, len(targets))
+	for index, target := range targets {
+		target = strings.TrimSpace(target)
+		if !isRollupTargetForm(target) {
+			return nil, parseErr(tb.Str(where).Str(": {rollup} target ").Str(pyRepr(target)).
+				Str(" is neither a requirement id nor a summary stem. ").Str(rollupFormat))
+		}
+		if seen[target] {
+			return nil, parseErr(tb.Str(where).Str(": {rollup} names ").Str(pyRepr(target)).
+				Str(" twice. Each target derives once. ").Str(rollupFormat))
+		}
+		seen[target] = true
+		targets[index] = target
+	}
+	return &Annotation{Kind: AnnotationRollup, Targets: targets,
+		Reason: strings.TrimSpace(rest)}, nil
+}
+
+// isRollupTargetForm answers whether one target is shaped like a requirement
+// id or like a summary stem. Neither form carries whitespace, so two ids an
+// author forgot the comma between are refused as one malformed target rather
+// than read as an id whose section contains a space.
+func isRollupTargetForm(target string) bool {
+	if target == "" || strings.ContainsAny(target, " \t") {
+		return false
+	}
+	if idRE.MatchString(target) {
+		return true
+	}
+	return stemRE.MatchString(target)
 }
 
 // producerFile answers the path half of a `<path>.go::<Symbol>` key, and the

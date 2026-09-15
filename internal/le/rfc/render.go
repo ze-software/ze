@@ -80,6 +80,9 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 		Rows:         rows,
 		Dispositions: dispositions,
 	}
+	// Every renderer reads the derived state through this one assembly, so a
+	// page cannot show a rollup the gate has not derived.
+	deriveRollups(in.Requirements, in.Tags, in.Enrolled)
 	var err error
 	if in.Stems, err = summaryStems(tree); err != nil {
 		return RenderInput{}, err
@@ -401,8 +404,13 @@ func requirementRow(req Requirement, found []Tag, audited string, in RenderInput
 	}
 	if req.Annotation != nil {
 		var tb textbuf.Buffer
-		marks = append(marks, tb.Byte('{').Str(req.Annotation.Kind).Str("} ").
-			Str(req.Annotation.Reason).String())
+		tb.Byte('{').Str(req.Annotation.Kind).Str("} ").Str(req.Annotation.Reason)
+		// A rollup's reason is its target list and its why; the state those
+		// targets derive follows, because the row asserts nothing itself.
+		if req.Rollup() {
+			tb.Str(", derived: ").Str(req.DerivedMark())
+		}
+		marks = append(marks, tb.String())
 	}
 	if req.Superseded != nil {
 		// Both marks render when both are present. They answer different

@@ -116,6 +116,12 @@ func coverageByRFC(rows []CoverageRow) map[string]CoverageRow {
 //
 // A hand-kept TODO list of missing tests would rot the moment someone wrote one
 // and forgot the list. Counting the tags is the only version that cannot lie.
+//
+// A {rollup} row is in NO column, Gated included. It carries no obligation of
+// its own: every row it names is already counted once here under its own id,
+// and counting the rollup too would bill a document twice and hold the share
+// at less than 100% for a fully conformant RFC. The other five kinds stay in Gated
+// because their obligation is Ze's.
 func CoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []CoverageRow {
 	byRID := tagsByRID(tags)
 	order, byRFC := requirementsByRFC(requirements)
@@ -126,6 +132,9 @@ func CoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []
 		gated := 0
 		for _, req := range byRFC[rfc] {
 			if !req.Gated() {
+				continue
+			}
+			if req.Rollup() {
 				continue
 			}
 			gated++

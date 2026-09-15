@@ -56,7 +56,24 @@ jobs:
       - run: ./le integration interop
 `
 
-const selftestSummary = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2) {single-polarity: positive; no receiver input exists} {superseded: restated RFC10000-3-1; the successor states the same rule}\n- [ ] [RFC9999-2-2] [MUST NOT] A receiver MUST NOT drop the widget (§2)\n\nCorrection 2026-08-26: The row `RFC9999-2-1` quotes \"A speaker SHOULD send the widget and preserve its state.\".\n"
+// selftestSummary is the fixture summary every selftest reads: two gated rows
+// and one correction. selftestRollupSummary is the same summary with one
+// {rollup} row over the two, for the coverage selftest alone, so the rollup
+// changes no other selftest's population.
+const (
+	selftestSummaryHead   = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2) {single-polarity: positive; no receiver input exists} {superseded: restated RFC10000-3-1; the successor states the same rule}\n- [ ] [RFC9999-2-2] [MUST NOT] A receiver MUST NOT drop the widget (§2)\n"
+	selftestSummaryTail   = "\nCorrection 2026-08-26: The row `RFC9999-2-1` quotes \"A speaker SHOULD send the widget and preserve its state.\".\n"
+	selftestRIDRollup     = "RFC9999-5-1"
+	selftestRollupRow     = "- [ ] [RFC9999-5-1] [MUST] A conforming speaker MUST do all of the above (§5) {rollup: RFC9999-2-1, RFC9999-2-2; the row names the two rows and asserts nothing of its own}\n"
+	selftestSummary       = selftestSummaryHead + selftestSummaryTail
+	selftestRollupSummary = selftestSummaryHead + selftestRollupRow + selftestSummaryTail
+)
+
+// selftestCarriers answers the one functional suite the fixture tree gates,
+// so every selftest counts coverage against the same carriers.
+func selftestCarriers() []Carrier {
+	return carriersFor([]string{"plugin"}, map[string]string{})
+}
 
 type summaryFixture struct {
 	text        string
@@ -190,11 +207,15 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 	clean := evaluate(requirements, tags, enrolled)
 	missing := evaluate(requirements, tags[:2], enrolled)
 	unknown := evaluate(requirements, append(tags, Tag{RID: "RFC9999-9-9", Polarity: PolarityPositive}), enrolled)
-	rows := CoverageRows(requirements, tags, carriersFor([]string{"plugin"}, map[string]string{}))
-	rollupOK := len(rows) == 1
-	if rollupOK {
-		rollupOK = rows[0].Gated == 2 && rows[0].Both == 1 && rows[0].Annotated == 1
-		rollupOK = rollupOK && rows[0].Outstanding() == 0
+	rows := CoverageRows(requirements, tags, selftestCarriers())
+	partitionOK := len(rows) == 1
+	if partitionOK {
+		partitionOK = rows[0].Gated == 2 && rows[0].Both == 1 && rows[0].Annotated == 1
+		partitionOK = partitionOK && rows[0].Outstanding() == 0
+	}
+	derived, err := selftestDerivedRollup(tags, enrolled)
+	if err != nil {
+		return nil, err
 	}
 
 	return []leroot.SelftestResult{
@@ -204,9 +225,58 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 			"removing the negative test did not produce the named violation"),
 		selftestResult("coverage/unknown-id", len(unknown) == 1 && strings.Contains(unknown[0].Message, "RFC9999-9-9"),
 			"a tag for an unknown requirement id was accepted"),
-		selftestResult("coverage/rollup", rollupOK,
-			"the annotated and both-polarity populations did not partition the rollup"),
+		selftestResult("coverage/partition", partitionOK,
+			"the annotated and both-polarity populations did not partition the gated total"),
+		selftestResult("coverage/derived-rollup", derived.met,
+			"a {rollup} over two met rows did not derive as met, or moved the gated count"),
+		selftestResult("coverage/derived-rollup-unproven", derived.unproven,
+			"a {rollup} over a row that lost its negative test did not derive as unproven naming "+
+				"that row on the row itself, or raised a finding of its own"),
 	}, nil
+}
+
+// selftestDerivation is what the rollup selftest observed over the fixture
+// with its {rollup} row: met with every test present, and unproven naming the
+// row that lost its test with one test removed, on the row and with no finding
+// of the rollup's own.
+type selftestDerivation struct {
+	met      bool
+	unproven bool
+}
+
+// selftestDerivedRollup parses the fixture with its {rollup} row and reads the
+// derivation both ways, so the registered action proves the kind without a
+// checkout: the row's state follows its targets, and the row itself is
+// outside every coverage count.
+func selftestDerivedRollup(tags []Tag, enrolled map[string]bool) (selftestDerivation, error) {
+	requirements, err := parseSummaryText(selftestRollupSummary, selftestStem, selftestSummaryRel)
+	if err != nil {
+		return selftestDerivation{}, err
+	}
+	if refused := checkRollupTargets(requirements, enrolled); len(refused) > 0 {
+		return selftestDerivation{}, errors.New("the fixture's rollup targets were refused: " + refused[0])
+	}
+	rollup := -1
+	for index := range requirements {
+		if requirements[index].RID == selftestRIDRollup {
+			rollup = index
+		}
+	}
+	if rollup < 0 {
+		return selftestDerivation{}, errors.New("the fixture holds no " + selftestRIDRollup + " row")
+	}
+	clean := evaluate(requirements, tags, enrolled)
+	rows := CoverageRows(requirements, tags, selftestCarriers())
+	met := len(clean) == 0 && requirements[rollup].Derived == RollupMet
+	met = met && len(rows) == 1 && rows[0].Gated == 2
+
+	// One test removed: the rollup derives unproven and names the row that
+	// lost it, and the one finding is that row's own, not the rollup's.
+	missing := evaluate(requirements, tags[:2], enrolled)
+	unproven := requirements[rollup].Derived == RollupUnproven &&
+		strings.HasPrefix(requirements[rollup].DerivedCause, selftestRIDDrop)
+	unproven = unproven && len(missing) == 1 && missing[0].RID == selftestRIDDrop
+	return selftestDerivation{met: met, unproven: unproven}, nil
 }
 
 func runStatusSelftest() ([]leroot.SelftestResult, error) {
@@ -284,7 +354,7 @@ var Gating = []string{suiteParse, suiteUI}
 		map[string]map[string]bool{req.RID: {PolarityNegative: true}}, baselineEnrolled,
 	)
 	evidenceLoss := checkEvidenceRatchet(
-		[]Requirement{req}, nil, enrolled, carriersFor([]string{"plugin"}, map[string]string{}),
+		[]Requirement{req}, nil, enrolled, selftestCarriers(),
 		map[string]map[string]bool{req.RID: {"functional/verify": true}}, baselineEnrolled,
 	)
 	retired := checkRetiredRequirements(

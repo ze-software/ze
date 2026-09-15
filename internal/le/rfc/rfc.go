@@ -174,12 +174,12 @@ var escapeReasons = map[string]bool{
 // escapeReasonNames answers them sorted, for a refusal message.
 func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 
-// annotationKinds are the five `{...}` kinds that say something about Ze's
+// annotationKinds are the six `{...}` kinds that say something about Ze's
 // COVERAGE. SupersededKind is named apart because it says something about the
 // DOCUMENT, and the two registers must never share a slot: had superseded
 // joined this set, marking a requirement would have EVICTED its {gap} and a
 // document's obsolescence would have become a way out of the gated population.
-// The five annotation kinds a checklist line can carry. Named, because
+// The six annotation kinds a checklist line can carry. Named, because
 // AnnotationSinglePolarity is read in three places -- the parser that demands a
 // polarity beside it, the coverage rule that treats it as complete cover, and
 // the audit schema that lets one test carry an `enforced` verdict -- and a
@@ -220,12 +220,34 @@ func escapeReasonNames() []string { return sortedKeys(escapeReasons) }
 // QUOTED sentence that makes the feature optional is held against the RFC's own
 // text in rfc/full/, and the producer that does the narrower thing Ze chose is
 // held against this checkout (checkFeatureDeclined, check_core.go).
+//
+// AnnotationRollup says the row ASSERTS nothing of its own: it is true exactly
+// when every row it names is true. RFC4302-5-1 and RFC4302-5-2 are the case it
+// was added for (2026-09-14): "MUST fully implement the AH syntax and
+// processing described here" is met by the other rows of that summary and not
+// by any producer, so {gap} would accuse Ze of owing behavior its constituents
+// already meet, {lower-layer} refuses a rollup by name, and no tagged test can
+// carry it: the test would claim more than its body checks.
+//
+// Its status is DERIVED at check time from the targets' own state and never
+// written by an author: met when every target is met, a gap while any target
+// is a gap, unproven while any target is unproven (rollupDeriver.derive,
+// check_core.go). A target is a requirement id or a summary stem, and one the
+// corpus cannot show is refused (checkRollupTargets), exactly as a
+// {lower-layer} producer the tree cannot show is. The other five kinds each
+// sit in the gated denominator because the obligation is Ze's; this one sits
+// outside it, because every obligation it carries is already counted once
+// under its own id (CoverageRows, coverage.go). For the same reason the gate
+// raises no finding for a rollup: its derived state and the cause are
+// published on the row, and the row that owes the work is reported once,
+// under its own id (owner decision, 2026-09-15).
 const (
 	AnnotationNotApplicable   = "not-applicable"
 	AnnotationGap             = "gap"
 	AnnotationSinglePolarity  = "single-polarity"
 	AnnotationLowerLayer      = "lower-layer"
 	AnnotationFeatureDeclined = "feature-declined"
+	AnnotationRollup          = "rollup"
 )
 
 var annotationKinds = map[string]bool{
@@ -234,6 +256,7 @@ var annotationKinds = map[string]bool{
 	AnnotationSinglePolarity:  true,
 	AnnotationLowerLayer:      true,
 	AnnotationFeatureDeclined: true,
+	AnnotationRollup:          true,
 }
 
 // AnnotationKinds answers them sorted.
@@ -376,10 +399,10 @@ func isParseError(err error) bool {
 // requirement owes less than a positive and a negative test.
 // Annotation is one coverage disposition a checklist line carries.
 //
-// Polarity, Layer, Quote and Producer are each read by ONE kind and empty on
-// every other, except Producer, which two kinds name: the parser fills them
-// where that kind's format demands them, so a reader that has the kind never
-// re-parses the reason to recover them.
+// Polarity, Layer, Quote, Producer and Targets are each read by ONE kind and
+// empty on every other, except Producer, which two kinds name: the parser
+// fills them where that kind's format demands them, so a reader that has the
+// kind never re-parses the reason to recover them.
 type Annotation struct {
 	Kind     string `json:"kind"`
 	Polarity string `json:"polarity,omitempty"`
@@ -399,7 +422,13 @@ type Annotation struct {
 	// chose. Both die the same way, when the code is renamed or deleted under
 	// the annotation.
 	Producer string `json:"producer,omitempty"`
-	Reason   string `json:"reason"`
+	// Targets are the rows a rollup derives from, each a requirement id or a
+	// summary stem, in the order the author wrote them. It is {rollup}'s
+	// alone: checkRollupTargets holds every one against the corpus and
+	// rollupDeriver reads their state, so a target nobody can find is a
+	// refusal rather than prose.
+	Targets []string `json:"targets,omitempty"`
+	Reason  string   `json:"reason"`
 }
 
 // Successor is where one requirement of a superseded document now lives.
@@ -430,11 +459,85 @@ type Requirement struct {
 	// Superseded is where this obligation now lives, when the document stating
 	// it has been obsoleted. Its OWN field, never a member of Annotation.
 	Superseded *Successor `json:"superseded,omitempty"`
+	// Derived is the state a {rollup} row takes from the rows it names, and
+	// RollupNone on every other row. rollupDeriver.fill writes it, for evaluate
+	// and for deriveRollups (check_core.go). A reader that finds RollupNone on
+	// a rollup row is reading a requirement nobody has evaluated, never a
+	// rollup with no state.
+	Derived RollupState `json:"derived,omitempty"`
+	// DerivedCause is the sentence naming the first target that decided a
+	// derived gap or unproven state, and empty on a met rollup and on every
+	// other row. The gate raises no finding for a rollup, so this is the one
+	// place the cause is published: the Proof column and the site print it.
+	DerivedCause string `json:"derived-cause,omitempty"`
 }
 
 // Gated reports whether this requirement's level creates an obligation the
 // gate enforces.
 func (r Requirement) Gated() bool { return gatedLevels[r.Level] }
+
+// Rollup reports whether this requirement is annotated {rollup}: a row that
+// asserts nothing of its own and is left out of every gated population.
+func (r Requirement) Rollup() bool {
+	return r.Annotation != nil && r.Annotation.Kind == AnnotationRollup
+}
+
+// DerivedMark answers what a page prints for a rollup row's derived state: the
+// state, then the cause where one decided it (`gap: RFC4302-2.5-5 is annotated
+// {gap}`), so a reader lands on the row that owes the work.
+//
+// A rollup that reaches a page with no derived state is a renderer that read
+// the row before deriveRollups ran, which NewRenderInput does for every
+// renderer. That is a defect and not a fourth state, so it stops here rather
+// than printing a blank a reader would take for data (ai/rules/principles.md).
+func (r Requirement) DerivedMark() string {
+	if r.Derived == RollupNone {
+		panic("BUG: " + r.RID + " is a {rollup} row rendered before deriveRollups filled it")
+	}
+	if r.DerivedCause == "" {
+		return r.Derived.String()
+	}
+	return r.Derived.String() + ": " + r.DerivedCause
+}
+
+// RollupState is what the gate derives for a {rollup} row from the rows it
+// names, and what each named row contributes to that derivation.
+//
+// The zero value is RollupNone, "not a rollup", so a Requirement nobody
+// derived cannot read as met. Nothing compares the three real states by
+// value: rollupDeriver.answer settles a gap before an unproven row by reading
+// the targets in author order, because a rollup over one gap and nine
+// untested rows owes the gap first.
+type RollupState int
+
+const (
+	RollupNone RollupState = iota
+	// RollupMet says every named row is met: proven in both polarities, or in
+	// its one under {single-polarity}, or excused by {lower-layer},
+	// {feature-declined} or {not-applicable}, or a met rollup.
+	RollupMet
+	// RollupGap says a named row is annotated {gap}, or is a gap rollup.
+	RollupGap
+	// RollupUnproven says no named row is a gap and one is not met: no test,
+	// one polarity, a target the gate holds no state for, or a rollup whose
+	// derivation leads into a cycle.
+	RollupUnproven
+)
+
+// String answers the word the ledger prints for a derived state, and nothing
+// for RollupNone: a row that is not a rollup has no derived state to print.
+func (s RollupState) String() string {
+	switch s {
+	case RollupMet:
+		return "met"
+	case RollupGap:
+		return "gap"
+	case RollupUnproven:
+		return "unproven"
+	default:
+		return ""
+	}
+}
 
 // correction is one `correction <date>:` paragraph in a summary: the recorded
 // authorisation for a change to the rows it names. Quotes holds every

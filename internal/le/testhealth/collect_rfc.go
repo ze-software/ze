@@ -331,9 +331,18 @@ func (a annotationCounts) get(kind string) int { return a.counts[kind] }
 
 // total answers the split's sum, which the partition check compares against the
 // ledger's remainder.
+//
+// A {rollup} row is counted in the split, so the page can state how many rows
+// derive, and left out of this sum: rfc.CoverageRows leaves it out of every
+// count, because it asserts nothing of its own and every obligation it names is
+// already counted once under that row's id. Summing it here would compare the
+// split against a population one row wider than the ledger's.
 func (a annotationCounts) total() int {
 	sum := 0
-	for _, count := range a.counts {
+	for kind, count := range a.counts {
+		if kind == rfc.AnnotationRollup {
+			continue
+		}
 		sum += count
 	}
 	return sum
@@ -431,7 +440,11 @@ func densityMetric(rows, unproven []coverageRow, kinds annotationCounts, density
 			"sentence that makes it optional: the condition is false, so nothing is owed, and ").
 		Int(int64(noTest)).
 		Str(" with no test and no annotation at all, which is what `./le rfc check` is red " +
-			"about. Only the gap column and that last one are untested work.").String()
+			"about. Only the gap column and that last one are untested work. Apart from every " +
+			"figure above, ").
+		Int(int64(kinds.get(rfc.AnnotationRollup))).
+		Str(" rows carry {rollup}: each derives its state from rows already counted here, " +
+			"and none is in the denominator.").String()
 
 	tb.Reset()
 	value := tb.Int(int64(share.Proven)).Str(" / ").Int(int64(share.Gated)).String()

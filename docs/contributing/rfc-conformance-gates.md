@@ -236,8 +236,9 @@ Four rules decide whether it is the right kind:
   `{lower-layer}` row makes the annotation stale, exactly as it does on a
   `{gap}` or a `{not-applicable}` one.
 - **It is not a conformance rollup.** A requirement whose content is "implement
-  all of this document" is met by the other rows and not by a layer, so this
-  kind would launder a whole document behind one claim.
+  all of this document" is met by the other rows and not by a layer. That row
+  takes `{rollup}` (below), which derives its state from those rows and asserts
+  nothing of its own.
 
 It stays INSIDE the gated denominator and OUT of the proven numerator
 (`ProvenShareOf`, `internal/le/rfc/provenshare.go`): the requirement is met, and
@@ -314,6 +315,87 @@ each one says.
 It cannot take a `{gap}`'s slot, for the reason recorded about `SupersededKind`:
 one checklist line carries ONE disposition, so a line carrying both is refused
 rather than silently relabeled.
+
+## The rollup annotation
+
+`{rollup}` says the row asserts nothing of its own. The row is true exactly
+when every row it names is true. RFC 4302 §5 is the case it was added for:
+"Implementations that claim conformance or compliance with this specification
+MUST fully implement the AH syntax and processing described here for unicast
+traffic, and MUST comply with all requirements of the Security Architecture
+document". No test can prove that sentence on its own row. A tagged test proves
+one requirement, and a test on this row would claim more than its body checks.
+Every other kind asserts something about the row that carries it, and none of
+those assertions is true here. `{gap}` accuses Ze of owing behavior its
+constituents already meet. `{lower-layer}` names no layer. `{not-applicable}`
+denies a role Ze fills. `{feature-declined}` needs an optional feature.
+
+```
+- [ ] [RFC4302-5-2] [MUST] An implementation claiming to support multicast traffic MUST comply with the additional requirements specified for such traffic (§5) {rollup: RFC4302-2.4-2, RFC4302-2.4-3, RFC4302-2.4-4; Section 5 binds a multicast implementation to "the additional requirements specified for support of such traffic", which are the three multicast rows of Section 2.4}
+```
+
+The body is a target list, then `;`, then why those rows are the ones the
+sentence binds. A target is a requirement id (`RFC4302-2.4-2`) or a summary
+stem (`rfc4301`). A stem means every gated row of that enrolled summary except
+its own rollups. `RFC4302-5-1` names the stem, because it binds all of RFC 4301.
+A list of that summary's ids would go stale on the first row it gains.
+
+The gate DERIVES the row's state from the rows it names, and never reads a
+state the author wrote:
+
+| Derived state | When | What the row publishes |
+|---------------|------|------------------------|
+| `met` | every target is proven both ways, or `{single-polarity}` proven its one way, or excused by `{lower-layer}`, `{feature-declined}` or `{not-applicable}`, or a met rollup | `derived: met` |
+| `gap` | any target is `{gap}` or a gap rollup | `derived: gap: <target> is annotated {gap}`, naming the first target that decided it |
+| `unproven` | any other target: no test, one polarity, a row with no state | `derived: unproven: <target> is not proven`, naming the first target that decided it |
+
+The gate raises NO finding for a rollup, in any state (owner decision,
+2026-09-15). A `{gap}` target is a declared state, disclosed under its own id
+by the Remaining cell. An unproven target is already reported under its own id.
+A finding on the rollup would report one fact twice, and the cause on the row
+already names the constituent where the work is owed.
+
+The rollup itself owes nothing. It changes state the day its constituents do,
+with nobody editing it. A `{not-applicable}` target counts as met because the
+exclusion is that row's own claim, presumed wrong and reviewed there. A stem
+target with no gated row is unproven, because a rollup over nothing proves
+nothing.
+
+Five refusals hold the kind to the corpus. Each ends in the format sentence
+`rollupFormat` (`internal/le/rfc/summary.go`):
+
+| Refused | Where |
+|---------|-------|
+| No target, no `;`, or an empty reason | `parseRollup` |
+| A target that is neither a requirement id nor a summary stem, or one named twice | `parseRollup` |
+| The row's own id, an id no enrolled summary holds, or a stem that is not enrolled | `checkRollupTargets` (`internal/le/rfc/check_core.go`) |
+| A rollup whose targets lead back to the row, at any depth | `checkRollupTargets`, a walk bounded by the number of rollups in the corpus |
+| A tagged test on the row | `evaluate`, as a stale annotation, exactly as beside `{lower-layer}` |
+
+A target the corpus cannot show is refused rather than accepted as prose, for
+the reason `{lower-layer}` refuses a producer the tree cannot show. The kind's
+value is that a reader can check it, and an unchecked target is a judgement.
+`RFC9190-2.4-1` and `RFC9190-5.6-4` point at RFC 8446 and RFC 7542, which have
+no summary. They stay unannotated until those RFCs enroll.
+
+It sits OUTSIDE the gated denominator and OUTSIDE the proven numerator, which is
+the opposite of the two kinds above. A rollup carries no obligation of its own.
+Every obligation it names is already counted once under that row's id, so
+counting the rollup would bill a document twice. It would also hold a fully
+conformant RFC's share one row short of 100%. `CoverageRows`
+(`internal/le/rfc/coverage.go`) leaves it out of every count, and
+`TestRollupMovesNeitherShareNorGatedCount` holds that over this checkout's
+corpus in both directions.
+
+The public ledger prints the derived state after the
+reason in the Proof column (`{rollup} <targets>; <why>, derived: met`, or
+`derived: gap: RFC4302-2.5-5 is annotated {gap}`). On the
+site it is its own bucket, `rollup`, labeled `Derived from other rows`, in no
+ratio card and no bucket table. The stem page lists it apart from the parts,
+with the derived state as a mark on the row beside the target list.
+
+It cannot take a `{gap}`'s slot, for the reason the two kinds above cannot: one
+checklist line carries ONE disposition.
 
 ## The superseded marker
 

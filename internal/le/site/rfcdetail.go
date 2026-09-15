@@ -546,16 +546,31 @@ type rfcCoverageBucket struct {
 	// requirements a partitioning bucket already counted, and adding it would
 	// make the total exceed the population it is meant to equal.
 	Partitions bool
+	// Derived says this bucket's rows are OUTSIDE the gated population: each
+	// asserts nothing and derives its state from the rows it names, which the
+	// partitioning buckets already count. Neither a part nor an overlay.
+	Derived bool
 }
 
-// rfcCoverageBuckets answers the six per-RFC counters with the ids behind each
-// weakness.
+// rfcCoverageBuckets answers the per-RFC counters with the ids behind each
+// weakness, and the rows derived from other rows apart from them.
 func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
-	var both, one, missing, nightly, annotated []string
+	var both, one, missing, nightly, annotated, derived []string
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
 		if !requirement.Gated {
 			continue
+		}
+		// A row whose annotation kind is a Derived bucket is outside the
+		// gated population these buckets partition: rfc.CoverageRows never
+		// counted it, so listing it under Annotated would name one id more
+		// than the count. It is listed apart, so a reader can see which
+		// rows derive and follow each to its targets.
+		if requirement.Annotation != nil {
+			if bucket, known := rfcAnnotationBucket(requirement.Annotation.Kind); known && rfcBucketDerived(bucket) {
+				derived = append(derived, requirement.RID)
+				continue
+			}
 		}
 		if requirement.NightlyOnly {
 			nightly = append(nightly, requirement.RID)
@@ -580,6 +595,7 @@ func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
 		{Label: "No test and no annotation", Count: entry.Coverage.Missing, IDs: missing,
 			Partitions: true},
 		{Label: "Evidence that runs nightly only", Count: entry.Coverage.NightlyOnly, IDs: nightly},
+		{Label: rfcRollupLabel, Count: entry.Coverage.Rollup, IDs: derived, Derived: true},
 	}
 }
 
@@ -624,6 +640,11 @@ func rfcCoverageAccountedNote(total, gated int) string {
 func rfcCoverageRoleNote(bucket rfcCoverageBucket) string {
 	if bucket.Partitions {
 		return "one part of the gated population" + rfcCoverageWalkNote(bucket)
+	}
+	if bucket.Derived {
+		return "outside the gated population: each asserts nothing and derives its state " +
+			"from the rows it names, which the parts above already count" +
+			rfcCoverageWalkNote(bucket)
 	}
 	return "an overlay: each of these is also counted by the part it falls in" +
 		rfcCoverageWalkNote(bucket)
@@ -888,6 +909,11 @@ func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
 	if requirement.Annotation != nil {
 		marks = append(marks, [2]string{"{" + requirement.Annotation.Kind + "}",
 			requirement.Annotation.Reason})
+		// A rollup asserts nothing itself, so its derived state is a mark of
+		// its own: what the rows its reason names add up to today.
+		if requirement.Annotation.Derived != "" {
+			marks = append(marks, [2]string{"derived", requirement.Annotation.Derived})
+		}
 	}
 	if requirement.NightlyOnly {
 		marks = append(marks, [2]string{"nightly-only",

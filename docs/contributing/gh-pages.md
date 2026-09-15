@@ -148,6 +148,19 @@ between the index's bucket keys and a stem's own counters, so the two pages
 cannot publish different partitions of one idea. The proof ratio is over TAGGED
 UNITS, a different population, and the sentence under the grid says so.
 
+The one bucket in no card is `rollup`, marked `Derived` in `rfcSatisfaction`. A
+`{rollup}` row carries no obligation of its own, and `rfc.CoverageRows` never
+counts it. So the bucket is outside the gated population, and it enters no
+card, no tape segment and no row of the bucket table. The gate derives each
+such row's state from the rows it names. `rollupDeriver.fill` writes `Requirement.Derived`
+for the gate and for `rfc.NewRenderInput`, so every renderer reads the state
+the gate reported.
+
+The stem page lists those rows under `Derived from other rows`, apart from the
+parts and marked as outside the population. Each row's marks carry a `derived`
+mark beside the `{rollup}` reason that names its targets. The mark reads `met`,
+or `gap` or `unproven` with the cause naming the target that decided it.
+
 **A color names what the measure MEANS, never how well Ze scores on it.** Green
 is a good outcome at any value, red a bad one above zero, and neither a
 population nor a scope count is an outcome, so both take the neutral tone. The

@@ -1035,6 +1035,9 @@ func TestTheBucketTableAccountsForEveryGatedRequirement(t *testing.T) {
 	split := rfcBindingOf(&snapshot)
 	binding, scope := 0, 0
 	for _, bucket := range rfcSatisfaction {
+		if bucket.Derived {
+			continue
+		}
 		if bucket.Binds {
 			binding += snapshotCount(&snapshot, bucket.Key)
 			continue
@@ -1334,6 +1337,98 @@ func TestARatioLeadsAndAPopulationFollows(t *testing.T) {
 	}
 }
 
+// VALIDATES: a Derived bucket is counted apart from the gated population on
+// every surface that sums or shares it (AC-9 of
+// spec-rfc-ledger-rollup-annotation, the site half).
+//
+// The producer leaves a {rollup} row out of Gated, so a bucket that still
+// entered the binding split, the accounting total, the tape or a ratio card
+// would sum the buckets to more than the denominator on the index, and a stem
+// page that listed the row under Annotated would name one id more than the
+// count. The fixture states a snapshot whose rollup bucket is populated, which
+// this checkout's own snapshot is not yet.
+func TestADerivedBucketIsOutsideEveryPartitionSum(t *testing.T) {
+	snapshot := publishedRFCCompliance(t)
+	// The fixture predates the derived bucket, so the buckets are rebuilt
+	// from the vocabulary, as rfcBuckets builds them: every declared bucket,
+	// the fixture's count where it has one, and two rows in the derived one.
+	fixture := map[string]int{}
+	for _, bucket := range snapshot.Satisfaction {
+		fixture[bucket.Key] = bucket.Count
+	}
+	snapshot.Satisfaction = snapshot.Satisfaction[:0]
+	placed := 0
+	for _, bucket := range rfcSatisfaction {
+		count := fixture[bucket.Key]
+		if bucket.Derived {
+			count = 2
+			placed++
+		}
+		snapshot.Satisfaction = append(snapshot.Satisfaction, rfcBucket{Key: bucket.Key, Count: count})
+	}
+	if placed == 0 {
+		t.Fatal("the vocabulary declares no derived bucket, so nothing here is exercised")
+	}
+	split := rfcBindingOf(&snapshot)
+	if split.Obligations+split.OutOfScope != snapshot.Share.Gated {
+		t.Errorf("the split counts %d binding and %d out of scope against %d gated, so the "+
+			"derived bucket entered the population", split.Obligations, split.OutOfScope,
+			snapshot.Share.Gated)
+	}
+	counted := map[string]int{}
+	for _, bucket := range snapshot.Satisfaction {
+		counted[bucket.Key] = bucket.Count
+	}
+	rows := rfcSatisfactionRows(counted, split)
+	if !strings.Contains(rows, "every gated MUST falls in exactly one bucket above") {
+		t.Errorf("the accounting row does not close over the derived bucket: %s", rows)
+	}
+	if strings.Contains(rows, rfcRollupLabel) {
+		t.Error("the bucket table carries a row for the derived bucket, a count the total does not carry")
+	}
+	if page := rfcSatisfactionHTML(&snapshot); strings.Contains(page, "rfc-tape-"+rfcRollupBucket) {
+		t.Error("the tape draws a derived segment as a share of a denominator it is not in")
+	}
+	for _, card := range rfcComplianceCards(&snapshot, twoStemLedger()) {
+		if card.Label == rfcRollupLabel {
+			t.Errorf("the index publishes a %q card: %+v", rfcRollupLabel, card)
+		}
+	}
+
+	// The stem page: one gated row proven both ways and one rollup over it.
+	// Gated is what rfc.CoverageRows answers, which is the one row.
+	entry := twoStemLedger().Stems[0]
+	entry.Requirements = append(entry.Requirements, rfcLedgerRequirement{
+		RID: "RFC9998-5-1", Level: "MUST", Section: "5", Text: "A speaker MUST do all of it.",
+		Gated: true, Annotation: &rfcLedgerAnnotation{Kind: rfc.AnnotationRollup,
+			Reason: "RFC9998-2-1; the row is the other rows"},
+	})
+	entry.Coverage = rfcLedgerCoverageOf(rfc.CoverageRow{RFC: "rfc9998", Gated: 1, Both: 1},
+		entry.Requirements)
+	if entry.Coverage.Rollup != 1 || entry.Coverage.Annotated != 0 {
+		t.Fatalf("the stem counts %d rollup(s) and %d annotated, want 1 and 0", entry.Coverage.Rollup,
+			entry.Coverage.Annotated)
+	}
+	buckets := rfcCoverageBuckets(&entry)
+	if total := rfcCoverageTotal(buckets); total != entry.Coverage.Gated {
+		t.Errorf("the stem's buckets account for %d of %d gated", total, entry.Coverage.Gated)
+	}
+	for _, bucket := range buckets {
+		if len(bucket.IDs) != bucket.Count {
+			t.Errorf("%q counts %d and names %d", bucket.Label, bucket.Count, len(bucket.IDs))
+		}
+	}
+	sum := 0
+	for _, card := range rfcDetailCards(&entry) {
+		if card.Partition {
+			sum += card.Part
+		}
+	}
+	if sum != entry.Coverage.Gated {
+		t.Errorf("the stem's cards sum to %d of %d gated", sum, entry.Coverage.Gated)
+	}
+}
+
 // VALIDATES: AC-39 -- the ratio cards PARTITION the binding population, so a
 // reader who adds the shares lands on the whole rather than on 96.7% with
 // nowhere to look for the rest.
@@ -1355,12 +1450,27 @@ func TestTheRatioCardsPartitionTheirDenominator(t *testing.T) {
 	}
 	// EVERY bucket, whether or not the obligation binds Ze. A bucket in no
 	// group left the denominator with it until 2026-09-02, which is how the
-	// not-applicable obligations vanished from the page.
+	// not-applicable obligations vanished from the page. The one exception is
+	// a Derived bucket, whose rows the producer never put in the denominator:
+	// a card for it would publish a share of a population it is not in.
+	derived := 0
 	for _, bucket := range rfcSatisfaction {
-		if _, held := grouped[bucket.Key]; !held {
+		_, held := grouped[bucket.Key]
+		if bucket.Derived {
+			derived++
+			if held {
+				t.Errorf("%s is derived and in a ratio card, so the shares add up to more "+
+					"than the gated count", bucket.Key)
+			}
+			continue
+		}
+		if !held {
 			t.Errorf("%s is in no ratio card, so the shares do not add up to the gated count",
 				bucket.Key)
 		}
+	}
+	if derived == 0 {
+		t.Error("no bucket is derived, so the exception above is untested")
 	}
 
 	// Over the real snapshot and over one stated stem, the parts sum to the
@@ -1816,5 +1926,48 @@ func TestAnAnnotationWithNoBucketIsNeverPublishedAsUnexcused(t *testing.T) {
 	split := rfcBinding{Gated: len(gated), Unmapped: unmapped}
 	if note := rfcAccountedNote(split, total); !strings.Contains(note, "no bucket for") {
 		t.Errorf("the accounting row does not name the unmapped kind: %q", note)
+	}
+}
+
+// TestRollupRendersInItsOwnBucket proves the stem page shows a {rollup} row
+// under its own label, with the state the gate derived and the rows it names,
+// on the page and in the mirror alike.
+//
+// The method: one gated row proven both ways and one rollup over it, derived
+// met, rendered through the same functions the page calls.
+func TestRollupRendersInItsOwnBucket(t *testing.T) {
+	entry := twoStemLedger().Stems[0]
+	const targets = "RFC9998-2-1, RFC9998-2-2"
+	entry.Requirements = append(entry.Requirements, rfcLedgerRequirement{
+		RID: "RFC9998-5-1", Level: "MUST", Section: "5", Text: "A speaker MUST do all of it.",
+		Gated: true, Annotation: &rfcLedgerAnnotation{Kind: rfc.AnnotationRollup,
+			Reason: targets + "; the row is the other rows", Derived: rfc.RollupMet.String(),
+			Targets: []string{"RFC9998-2-1", "RFC9998-2-2"}},
+	})
+	entry.Coverage = rfcLedgerCoverageOf(rfc.CoverageRow{RFC: "rfc9998", Gated: 1, Both: 1},
+		entry.Requirements)
+	if entry.Coverage.Rollup != 1 {
+		t.Fatalf("the stem counts %d rollup(s), want 1", entry.Coverage.Rollup)
+	}
+
+	coverage := rfcCoverageHTML(&entry)
+	for _, want := range []string{rfcRollupLabel, "RFC9998-5-1", "outside the gated population"} {
+		if !strings.Contains(coverage, want) {
+			t.Errorf("the coverage table lacks %q:\n%s", want, coverage)
+		}
+	}
+	if mirror := rfcCoverageMirror(&entry); !strings.Contains(mirror, rfcRollupLabel+" (1)") {
+		t.Errorf("the coverage mirror does not list the rollup under %q:\n%s", rfcRollupLabel, mirror)
+	}
+
+	rollup := &entry.Requirements[len(entry.Requirements)-1]
+	tests := rfcRequirementTestsHTML(rollup, nil)
+	for _, want := range []string{"{" + rfc.AnnotationRollup + "}", targets, "derived", "met"} {
+		if !strings.Contains(tests, want) {
+			t.Errorf("the row's marks lack %q:\n%s", want, tests)
+		}
+	}
+	if mirror := rfcRequirementTestsMirror(rollup, nil); !strings.Contains(mirror, "**derived:** met") {
+		t.Errorf("the row's mirror does not state the derived state:\n%s", mirror)
 	}
 }

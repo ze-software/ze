@@ -516,9 +516,12 @@ inside a `terminator=` block):
   under Ze performs on state Ze installs, where Ze's own boundary carries no
   value to assert, and `{feature-declined: "<RFC sentence>"; <path>.go::<Symbol>
   ...}` covers an obligation conditional on a feature the RFC makes optional and
-  Ze declined. Each needs a reason (a bare annotation is rejected), and the last
-  two need the facts their gates check: the layer and the producer, or the
-  quoted sentence and the producer
+  Ze declined. `{rollup: <id or stem>, ...; why}` is for a row that asserts
+  nothing of its own ("implement all of this document"). The gate derives its
+  state from the rows it names, and refuses a target no enrolled summary holds.
+  Each needs a reason (a bare annotation is rejected). The last three need the
+  facts their gates check: the layer and the producer, the quoted sentence and
+  the producer, or the target list
   (`docs/contributing/rfc-conformance-gates.md`).
 - **Place the tag inline at the table case** when one function covers many
   requirements. One id per line, polarity mandatory. The tag is the only authored

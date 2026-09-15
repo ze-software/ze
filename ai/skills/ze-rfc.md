@@ -357,7 +357,16 @@ rows? The feature is an implementation gap a later scope decision can revisit, a
 conformance gap. This kind is the coverage register's word for what an extraction sign-off
 records as `feature-out-of-scope`.
 
-**Writing any of the five is Thomas's call, not yours** (owner directive 2026-07-27,
+**`{rollup: <id or stem>, ...; why}`** is for a row that asserts nothing of its own,
+such as RFC 4302 §5 "MUST fully implement the AH syntax and processing described here".
+It names the rows the sentence binds: a requirement id, or a summary stem for every
+gated row of that enrolled summary. The gate DERIVES its state from them. The row is met
+when every target is met, a gap while any target is a gap, and unproven otherwise. A
+target the corpus cannot show, the row itself, or a cycle is refused. The row sits outside
+the gated denominator, so it moves no share (`docs/contributing/rfc-conformance-gates.md`,
+"The rollup annotation").
+
+**Writing any of the six is Thomas's call, not yours** (owner directive 2026-07-27,
 `ai/rules/rfc-compliance.md` "Implement Full Compliance. Ask Thomas Only Before Doing LESS").
 Implementing the requirement fully and proving it with a tagged test is always an
 available answer, and when it is reachable you take it WITHOUT asking. Choosing an
@@ -408,9 +417,10 @@ word would collide with the requirement tables.
 | `unresolved; why` | the successor's text is not in this repository | that text is ABSENT |
 
 **This marker is a fact about the DOCUMENT, never about coverage.** It composes with
-`{not-applicable}`, `{gap}`, `{single-polarity}`, `{lower-layer}` and `{feature-declined}` instead of replacing one. It lowers
-nothing. A marked requirement stays gated, stays counted and stays ratcheted.
-Writing one is therefore NOT the owner-reserved judgement the five annotations above
+`{not-applicable}`, `{gap}`, `{single-polarity}`, `{lower-layer}`, `{feature-declined}` and
+`{rollup}` instead of replacing one. It lowers nothing. A marked requirement stays
+gated, stays counted and stays ratcheted.
+Writing one is therefore NOT the owner-reserved judgement the six annotations above
 are. It records where the IETF put the obligation, and it says nothing about what Ze
 owes.
 

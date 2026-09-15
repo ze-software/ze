@@ -124,10 +124,21 @@ type rfcLedgerCoverage struct {
 	// TestTheSiteReadsItsRFCVocabularyFromThePackage refuses a closed set's own
 	// word written a second time in this file.
 	FeatureDeclined int `json:"optional-not-offered"`
+	// Rollup counts the MUST-level rows a `{rollup}` annotation says derive
+	// their state from the rows they name. A rollup asserts nothing of its
+	// own, so it is neither proven, nor a gap, nor excused: its state is
+	// whichever its targets share, and the row is shown under that derived
+	// state rather than under a claim of its own. It is a count APART: the
+	// gate leaves a rollup out of Gated and Annotated (rfc.CoverageRows), so
+	// this counter is never a part of the split the counters above make.
+	//
+	// The JSON key describes the state rather than spelling the annotation
+	// kind, as the three keys above it do.
+	Rollup int `json:"derived-from-other-rows"`
 	// UnmappedAnnotations counts the gated requirements whose annotation kind
 	// this page has no bucket for.
 	//
-	// It is the arithmetic hole made visible. The three counters above split
+	// It is the arithmetic hole made visible. The counters above split
 	// the gate's own Annotated total, and a kind none of them claims would
 	// otherwise vanish from the shares while the gate went on counting it: the
 	// cards would sum to less than their whole and the page would say they add
@@ -194,10 +205,16 @@ type rfcLedgerRequirement struct {
 
 // rfcLedgerAnnotation is a `{kind: reason}` marker: why this requirement owes
 // less than a positive and a negative test.
+//
+// Targets and Derived belong to the one kind that asserts nothing of its own:
+// the rows it names, and the state the gate derived from them (met, gap or
+// unproven). Both are empty on every other kind.
 type rfcLedgerAnnotation struct {
-	Kind     string `json:"kind"`
-	Polarity string `json:"polarity,omitempty"`
-	Reason   string `json:"reason"`
+	Kind     string   `json:"kind"`
+	Polarity string   `json:"polarity,omitempty"`
+	Reason   string   `json:"reason"`
+	Targets  []string `json:"targets,omitempty"`
+	Derived  string   `json:"derived,omitempty"`
 }
 
 // rfcLedgerSuccessor is where one requirement of a superseded document lives now.
@@ -460,7 +477,11 @@ func rfcLedgerRequirementOf(in *rfcLedgerInput, requirement *rfc.Requirement,
 	}
 	if requirement.Annotation != nil {
 		entry.Annotation = &rfcLedgerAnnotation{Kind: requirement.Annotation.Kind,
-			Polarity: requirement.Annotation.Polarity, Reason: requirement.Annotation.Reason}
+			Polarity: requirement.Annotation.Polarity, Reason: requirement.Annotation.Reason,
+			Targets: requirement.Annotation.Targets}
+		if requirement.Rollup() {
+			entry.Annotation.Derived = requirement.DerivedMark()
+		}
 	}
 	if requirement.Superseded != nil {
 		entry.Superseded = &rfcLedgerSuccessor{Disposition: requirement.Superseded.Disposition,
@@ -542,6 +563,8 @@ func rfcLedgerCoverageOf(bucket rfc.CoverageRow, requirements []rfcLedgerRequire
 				coverage.LowerLayer++
 			case bucket == rfcFeatureDeclinedBucket:
 				coverage.FeatureDeclined++
+			case bucket == rfcRollupBucket:
+				coverage.Rollup++
 			}
 		}
 		if requirement.Audit != nil {

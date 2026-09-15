@@ -56,6 +56,12 @@ const (
 	// bind, and unlike not-applicable it says WHY in a form a reader can check:
 	// the annotation quotes the sentence that makes the feature optional.
 	rfcFeatureDeclinedBucket = "feature_declined"
+	// rfcRollupBucket is the row that asserts nothing of its own and derives
+	// its state from the rows it names. It is shown apart from every other
+	// bucket because none of them describes it: it is not proven, not a gap,
+	// not excused and not out of scope, it is whatever its targets are, and the
+	// derived state is what this bucket displays once evaluate fills it.
+	rfcRollupBucket = "rollup"
 	// rfcUnmappedBucket is where a gated requirement goes when it carries an
 	// annotation this page has no bucket for. It is deliberately NOT one of
 	// rfcSatisfaction, so nothing publishes it as a share: it leaves a hole in
@@ -99,6 +105,8 @@ const (
 	// The label the feature-declined bucket carries, spelled once for the same
 	// reason.
 	rfcFeatureDeclinedLabel = "Optional feature declined"
+	// The label the rollup bucket carries, spelled once for the same reason.
+	rfcRollupLabel = "Derived from other rows"
 	// rfcIssuesShown bounds the open issues the page inlines. A gate that goes
 	// red on a bad merge answers thousands of diagnostics, and a page is not a
 	// log file.
@@ -244,6 +252,16 @@ var rfcSatisfaction = []struct {
 	// tape, the key, the cards and the total, and every share around it rose
 	// with nothing on the page to say why (owner decision, 2026-09-02).
 	Binds bool
+	// Derived says the bucket's rows are OUTSIDE the gated population every
+	// share on this page is taken over, because each carries no obligation of
+	// its own: a {rollup} names rows already counted once under their own
+	// ids, and rfc.CoverageRows leaves it out of every count. So the bucket
+	// is in no partition sum, no tape segment, no card and no total row, and
+	// a stem page shows its rows under the state the gate derived for them.
+	// This is the one bucket the 2026-09-02 rule above does not reach: what
+	// leaves the denominator here was never an obligation, so nothing is
+	// annotated away.
+	Derived bool
 }{
 	{Key: rfcBothBucket, Label: "Positive and negative tests", Short: "Test pair",
 		Condition: "positive tag + negative tag", Binds: true},
@@ -261,6 +279,29 @@ var rfcSatisfaction = []struct {
 		Condition: "{lower-layer} annotation + named producer", Binds: true},
 	{Key: rfcFeatureDeclinedBucket, Label: rfcFeatureDeclinedLabel, Short: "Feature declined",
 		Condition: "{feature-declined} annotation + quoted RFC sentence", Binds: false},
+	// Binds is TRUE for a rollup. The obligation is addressed to Ze and Ze
+	// meets it or not through the rows it names, so marking it non-binding
+	// would publish it as scope beside {not-applicable} and rfcScopeNote would
+	// say it does not bind Ze, which is false. What a rollup does NOT do is
+	// carry an obligation of its own: every row it names is already counted
+	// once under its own id, so the producer leaves it out of the gated
+	// population (CoverageRows, internal/le/rfc/coverage.go), Derived keeps
+	// this bucket out of every sum taken over that population, and a stem
+	// page shows the row under its derived state.
+	{Key: rfcRollupBucket, Label: rfcRollupLabel, Short: "Rollup",
+		Condition: "{rollup} annotation + every named row on the ledger", Binds: true,
+		Derived: true},
+}
+
+// rfcBucketDerived answers whether one bucket key is a Derived bucket of the
+// vocabulary: outside the gated population, so outside every sum over it.
+func rfcBucketDerived(key string) bool {
+	for _, bucket := range rfcSatisfaction {
+		if bucket.Key == key {
+			return bucket.Derived
+		}
+	}
+	return false
 }
 
 // rfcAnnotationBucket answers the bucket one annotation kind satisfies, and
@@ -289,6 +330,8 @@ func rfcAnnotationBucket(kind string) (string, bool) {
 		return rfcLowerLayerBucket, true
 	case rfc.AnnotationFeatureDeclined:
 		return rfcFeatureDeclinedBucket, true
+	case rfc.AnnotationRollup:
+		return rfcRollupBucket, true
 	default:
 		return "", false
 	}
@@ -504,9 +547,17 @@ func collectRFCCompliance(tree string) (rfcCompliance, error) {
 	// own public row says it does not implement measures a decision rather than
 	// a defect. rfc.Implements is the one definition of that set, read here
 	// rather than restated (ai/rules/principles.md).
+	//
+	// A {rollup} row is in NEITHER. It carries no obligation of its own, so
+	// rfc.CoverageRows leaves it out of every count, and a population here
+	// that held it would sum the buckets to more than the share's denominator
+	// and hold the gate to one more MUST than the share inspects.
 	var inspected, implemented []rfc.Requirement
 	for _, requirement := range collected.Requirements {
 		if !requirement.Gated() {
+			continue
+		}
+		if requirement.Rollup() {
 			continue
 		}
 		meta, held := collected.Metas[requirement.RFC]
@@ -1056,7 +1107,9 @@ func rfcTotalsOf(ledger rfcLedger) rfcLedgerTotals {
 // the shares lands on 100% rather than on 96.7% with nowhere to look for the
 // rest -- which is what the owner found on 2026-09-01.
 // TestTheRatioCardsPartitionTheirDenominator holds the property rather than
-// trusting this table.
+// trusting this table. The one bucket in NO group is the Derived one: its rows
+// are outside the denominator, so a card showing them as a share of it would
+// be the arithmetic the test exists to refuse.
 //
 // The denominator is the GATED count. It was the gated count less the
 // not-applicable obligations until 2026-09-02, and that subtraction existed
@@ -1169,6 +1222,8 @@ func (c rfcLedgerCoverage) Bucket(key string) int {
 		return c.LowerLayer
 	case rfcFeatureDeclinedBucket:
 		return c.FeatureDeclined
+	case rfcRollupBucket:
+		return c.Rollup
 	default:
 		return 0
 	}
@@ -1214,6 +1269,9 @@ func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
 	}
 	split := rfcBinding{Gated: snapshot.Share.Gated, Unmapped: snapshot.Unmapped}
 	for _, bucket := range rfcSatisfaction {
+		if bucket.Derived {
+			continue
+		}
 		if bucket.Binds {
 			split.Obligations += counted[bucket.Key]
 			continue
@@ -1423,7 +1481,7 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 	var out textbuf.Buffer
 	out.Str(`<div class="rfc-tape" role="img" aria-label="How every gated MUST is answered">`).Byte('\n')
 	for _, bucket := range rfcSatisfaction {
-		if counted[bucket.Key] == 0 {
+		if counted[bucket.Key] == 0 || bucket.Derived {
 			continue
 		}
 		out.Str(`<span class="rfc-tape-`).Str(bucket.Key).Str(`" style="--w: `).
@@ -1432,7 +1490,7 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 	}
 	out.Str("</div>\n<ul class=\"rfc-tape-key\">\n")
 	for _, bucket := range rfcSatisfaction {
-		if counted[bucket.Key] == 0 {
+		if counted[bucket.Key] == 0 || bucket.Derived {
 			continue
 		}
 		out.Str(`<li><span class="rfc-swatch rfc-tape-`).Str(bucket.Key).Str(`"></span> `).
@@ -1451,10 +1509,17 @@ func rfcSatisfactionHTML(snapshot *rfcCompliance) string {
 // totals until 2026-09-02, because the not-applicable bucket was published
 // below a subtotal it had been subtracted out of. It is a row like the others
 // now, and its Source condition still says the obligation does not bind Ze.
+//
+// A Derived bucket has no row: the table partitions the gated population and
+// its rows are not in it, so a row would show a count of a population the
+// total does not carry and a share of a denominator it is not in.
 func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
 	var rows textbuf.Buffer
 	accounted := 0
 	for _, bucket := range rfcSatisfaction {
+		if bucket.Derived {
+			continue
+		}
 		accounted += counted[bucket.Key]
 		condition := "<code>" + html.EscapeString(bucket.Condition) + "</code>"
 		if !bucket.Binds {
@@ -1777,6 +1842,9 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	mirror.Str("| Bucket | Count | Share of gated | Source condition |\n|---|---:|---:|---|\n")
 	accounted := 0
 	for _, bucket := range rfcSatisfaction {
+		if bucket.Derived {
+			continue
+		}
 		accounted += counted[bucket.Key]
 		condition := "`" + bucket.Condition + "`"
 		if !bucket.Binds {
@@ -1887,6 +1955,7 @@ const rfcComplianceStyle = `<style>
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }

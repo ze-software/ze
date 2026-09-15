@@ -30,7 +30,9 @@ type ProvenShare struct {
 	// not-applicable requirement STAYS in this denominator, and so does a
 	// lower-layer one: that requirement is MET, by a layer under Ze, and it is
 	// not proven BY ZE, so it belongs in neither the numerator nor a smaller
-	// denominator. Annotating one may not move this share by a point.
+	// denominator. Annotating one may not move this share by a point. A
+	// {rollup} row is the one exception, and it is out of both: it carries no
+	// obligation of its own, so CoverageRows never counts it.
 	Gated int
 	// RFCs is how many enrolled RFCs Ze implements, and Inspected is how many
 	// it has enrolled at all. GatedInspected is the obligation count across
