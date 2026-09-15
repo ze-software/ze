@@ -148,7 +148,9 @@ func TestShowProtocolPipelineWalkSurvivesConcurrentUpdates(t *testing.T) {
 	r.ribInPool[bmpProtocolID]["router1:peer1"] = peerRIB
 
 	walkBesideRIBWriter(t, peerRIB, nlris, func() {
-		result := r.showProtocolPipeline("bmp", "", nil)
+		status, result, err := r.showProtocolPipeline("bmp", nil)
+		require.NoError(t, err)
+		require.Equal(t, statusDone, status)
 		require.NotNil(t, result)
 	})
 }

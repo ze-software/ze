@@ -219,7 +219,9 @@ func doRegisterBuiltinCommands() {
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.rpfLookup(args)
 			}},
-		{[]string{"request bgp rib fastpath"}, "Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): <enable|disable|status>",
+		// The three words are the model's (ze-rib-cmd.yang), not this
+		// sentence's.
+		{[]string{"request bgp rib fastpath"}, "Switch or report the zero-copy forward-handle fast path (rib-arch-6)",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				return r.fastpathCommand(args)
 			}},

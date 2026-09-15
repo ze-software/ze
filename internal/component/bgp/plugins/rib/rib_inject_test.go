@@ -200,7 +200,9 @@ func TestShowProtocolPipelineBMP(t *testing.T) {
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")
 	bmpPeers["router1:peer1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
 
-	result := r.showProtocolPipeline("bmp", "", nil)
+	status, result, err := r.showProtocolPipeline("bmp", nil)
+	require.NoError(t, err)
+	require.Equal(t, statusDone, status)
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
@@ -215,7 +217,9 @@ func TestShowProtocolPipelineBMP(t *testing.T) {
 // TestShowProtocolPipelineSelector verifies showProtocolPipeline filters
 // by peer selector when provided.
 //
-// VALIDATES: LG routes endpoint filters by peer name.
+// VALIDATES: LG routes endpoint filters by peer name. The selector arrives as
+// the pipeline's own `peer <selector>` words, which is the only spelling the
+// model states (ze-rib-cmd.yang): a bare token after the protocol is not one.
 func TestShowProtocolPipelineSelector(t *testing.T) {
 	r := newTestRIBManager(t)
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
@@ -227,7 +231,9 @@ func TestShowProtocolPipelineSelector(t *testing.T) {
 	bmpPeers["router1:peer2"] = storage.NewPeerRIB("router1:peer2")
 	bmpPeers["router1:peer2"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 1})
 
-	result := r.showProtocolPipeline("bmp", "router1:peer1", nil)
+	status, result, err := r.showProtocolPipeline("bmp", []string{"peer", "router1:peer1"})
+	require.NoError(t, err)
+	require.Equal(t, statusDone, status)
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(mustMarshal(t, result), &parsed))
@@ -236,6 +242,19 @@ func TestShowProtocolPipelineSelector(t *testing.T) {
 	require.NotEmpty(t, ribIn, "the answer carries received routes")
 	assert.Contains(t, ribIn, "router1:peer1")
 	assert.NotContains(t, ribIn, "router1:peer2")
+}
+
+// TestShowProtocolPipelineRefusesUnknownProtocol proves a protocol the
+// registry does not hold is an error that names the registered ones, rather
+// than an answer that reads as data.
+func TestShowProtocolPipelineRefusesUnknownProtocol(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.showProtocolPipeline("nosuch", nil)
+	require.Error(t, err)
+	assert.Equal(t, statusError, status)
+	assert.Contains(t, err.Error(), `"nosuch" is not a registered protocol`)
+	assert.Contains(t, err.Error(), "bmp")
 }
 
 // TestInjectWireRouteShortBody verifies that a too-short UPDATE body

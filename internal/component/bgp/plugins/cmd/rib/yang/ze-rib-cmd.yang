@@ -3,6 +3,7 @@ module ze-rib-cmd {
     prefix ribcmd;
     import ze-extensions { prefix ze; }
     description "BGP RIB operations: query routes, manage Adj-RIB, inject test routes";
+    revision 2026-09-15 { description "show bgp rib protocol and request bgp rib fastpath are declared here, each stating its own argument. Both were reachable only through the plugin dispatch fallback, and each spelled its grammar in the summary sentence because the model declared no argument. The protocol leaf is a string the bgp-rib plugin checks against the protocol registry, which is the one list of the protocols this binary carries. The fastpath action is a closed set of three words, so it is an enumeration and the dispatcher refuses any other word by name."; }
     revision 2026-03-16 { description "Initial revision"; }
 
     container show {
@@ -55,6 +56,25 @@ peer comes up.";
                     description "Performs a longest-prefix-match and returns the best-path entry.
 Use this to verify RPF checks would pass for a given source.";
                     ze:help "Reverse-path forwarding lookup in the Loc-RIB.";
+                }
+
+                container protocol {
+                    config false;
+                    ze:command "ze-rib-api:protocol";
+                    description "Answers the same rows as show bgp rib, limited to the Adj-RIB-In
+tables one protocol feeds. bgp reads the BGP peers. Every other protocol, bmp for
+example, reads the tables its monitored peers fill. The pipeline words after the
+protocol are the ones show bgp rib takes: peer <selector> limits the answer to
+the matching peers, then filters, then one terminal.";
+                    ze:help "Query the routes one protocol feeds into the RIB.";
+
+                    leaf protocol {
+                        type string { length "1..32"; }
+                        mandatory true;
+                        description "The name of a registered protocol. The bgp-rib plugin refuses a
+name the protocol registry does not hold and names the registered ones.";
+                        ze:help "Registered protocol name";
+                    }
                 }
             }
         }
@@ -131,6 +151,27 @@ testing policy filters or simulating route announcements.";
                     description "Removes a previously injected or received route from a peer's
 Adj-RIB-In, triggering best-path recomputation.";
                     ze:help "Withdraw a route from the Adj-RIB-In.";
+                }
+
+                container fastpath {
+                    config false;
+                    ze:command "ze-rib-api:fastpath";
+                    ze:task-support forbidden;
+                    description "The fast path hands a forward handle to the Loc-RIB consumer
+without copying the route. enable and disable switch it, and status reports the
+counters. Each of the three answers the same counter snapshot.";
+                    ze:help "Switch or report the zero-copy forward-handle fast path.";
+
+                    leaf action {
+                        type enumeration {
+                            enum enable { description "Start handing forward handles to the consumer."; }
+                            enum disable { description "Stop handing forward handles to the consumer."; }
+                            enum status { description "Report the counters and change nothing."; }
+                        }
+                        mandatory true;
+                        description "One of the three words. Any other word is refused by name.";
+                        ze:help "enable, disable or status";
+                    }
                 }
             }
         }

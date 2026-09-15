@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	errFastpathRequiresArg = errors.New("request bgp rib fastpath: requires <enable|disable>")
+	errFastpathRequiresArg = errors.New("request bgp rib fastpath: requires enable, disable or status")
 	errFastpathNoLocRIB    = errors.New("request bgp rib fastpath: no Loc-RIB wired (fast path unavailable)")
 )
 
@@ -230,17 +230,20 @@ func (r *RIBManager) fastpathCommand(args []string) (string, any, error) {
 	if t == nil {
 		return statusError, "", errFastpathNoLocRIB
 	}
+	// One word for each action (ai/rules/writing.md, habit 1). The model
+	// declares the same three, so the dispatcher refuses any other word
+	// before this runs; the check stays for the plugin's own dispatch route.
 	action := args[0]
-	if action == "status" || action == "show" {
+	if action == "status" {
 		return statusDone, t.snapshot(), nil
 	}
-	if action == "enable" || action == "on" {
+	if action == "enable" {
 		t.Enable()
 		return statusDone, t.snapshot(), nil
 	}
-	if action == "disable" || action == "off" {
+	if action == "disable" {
 		t.Disable()
 		return statusDone, t.snapshot(), nil
 	}
-	return statusError, "", fmt.Errorf("unknown fastpath action %q (use enable|disable|status)", action)
+	return statusError, "", fmt.Errorf("unknown fastpath action %q (use enable, disable or status)", action)
 }

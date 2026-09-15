@@ -28,6 +28,8 @@ const (
 	cmdRibInject     = "request bgp rib inject"
 	cmdRibWithdraw   = "request bgp rib withdraw"
 	cmdRibRPF        = "show bgp rib rpf"
+	cmdRibProtocol   = "show bgp rib protocol"
+	cmdRibFastpath   = "request bgp rib fastpath"
 	// The three META-commands. This package forwards none of them: they are
 	// dispatched through the plugin, and they are named here because a
 	// declaration resolves by command PATH and these three sit under
@@ -89,6 +91,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:rpf", Handler: forwardRibRPF, PluginCommand: cmdRibRPF},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:protocol", Handler: forwardRibProtocol, PluginCommand: cmdRibProtocol},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:fastpath", Handler: forwardRibFastpath, PluginCommand: cmdRibFastpath},
 	)
 }
 
@@ -295,4 +299,28 @@ func forwardRibWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugi
 
 func forwardRibRPF(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibRPF, args, ctx.PeerSelector())
+}
+
+// protocolLeaf is the leaf `show bgp rib protocol` declares (ze-rib-cmd.yang).
+// It repeats the keyword it follows, so the dispatcher binds the token after
+// `protocol` to it and lifts that token out of the tail (matchCommandTokens,
+// internal/component/plugin/server).
+const protocolLeaf = "protocol"
+
+// protocolArgs puts the bound protocol back in front of the pipeline words,
+// which is where the bgp-rib plugin reads it: the plugin's own dispatch route
+// (`DispatchCommandArgs`, used by bmp) hands the protocol as the first
+// argument, and the handler holds one reading for both routes.
+func protocolArgs(ctx *pluginserver.CommandContext, args []string) []string {
+	out := make([]string, 0, len(args)+1)
+	out = append(out, ctx.Selector(protocolLeaf))
+	return append(out, args...)
+}
+
+func forwardRibProtocol(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibProtocol, protocolArgs(ctx, args), ctx.PeerSelector())
+}
+
+func forwardRibFastpath(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibFastpath, args, ctx.PeerSelector())
 }

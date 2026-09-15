@@ -8,6 +8,8 @@ package rib
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
@@ -151,18 +153,17 @@ func registerInjectCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{"show bgp rib protocol", "Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]",
+		// The grammar is the model's, not this sentence's: ze-rib-cmd.yang
+		// declares the protocol leaf, and the pipeline words after it are the
+		// ones `show bgp rib` takes, `peer <selector>` included. The first
+		// argument is the protocol on both routes that reach here, the
+		// forwarder in cmd/rib and the plugin's own dispatch.
+		{"show bgp rib protocol", "Show the routes one protocol feeds into the RIB",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
 				if len(args) < 1 {
 					return statusError, "", errShowProtocolRequiresProtocol
 				}
-				selector := ""
-				pipelineArgs := args[1:]
-				if len(args) >= 2 && !filterKeywords[args[1]] && !terminalKeywords[args[1]] && scopeKeywords[args[1]] == "" {
-					selector = args[1]
-					pipelineArgs = args[2:]
-				}
-				return statusDone, r.showProtocolPipeline(args[0], selector, pipelineArgs), nil
+				return r.showProtocolPipeline(args[0], args[1:])
 			}},
 		{"request bgp rib withdraw-protocol", "Withdraw all routes for a peer under a protocol",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -191,10 +192,19 @@ func registerInjectCommands() {
 // showProtocolPipeline runs the show pipeline filtered to a single protocol's peers.
 // Protocol "bgp" reads from the netip.Addr-keyed bgpPeers map; every other
 // protocol reads its string-keyed ribInPool namespace.
-func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []string) any {
+//
+// The peer selector arrives inside args as `peer <selector>`, the pipeline's
+// own word for it, so nothing here guesses whether a bare token is a selector
+// or a keyword (ai/rules/cli.md, keyword before value).
+//
+// A protocol the registry does not hold is an error rather than an answer,
+// and the error names the registered protocols, because an operator who typed
+// a name Ze does not know needs the list rather than a verdict.
+func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (string, any, error) {
 	protoID, ok := redistevents.ProtocolIDOf(protocol)
 	if !ok {
-		return json.RawMessage(`{"error":"unknown protocol"}`)
+		return statusError, "", fmt.Errorf("show bgp rib protocol: %q is not a registered protocol (registered: %s)",
+			protocol, strings.Join(redistevents.ProtocolNames(), ", "))
 	}
 
 	// peerMu is taken for the map READS and given straight back. Holding it
@@ -212,15 +222,12 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 	// `{"adj-rib-in":{}}` here while the populated path answered flat rows, so
 	// a caller parsing the empty case saw a shape the command no longer uses.
 	if empty {
-		return json.RawMessage(`{"routes":[]}`)
+		return statusDone, json.RawMessage(`{"routes":[]}`), nil
 	}
 
-	_, pipeSelector, stages, errMsg := parsePipelineArgs(args)
+	_, selector, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		return map[string]any{jsonKeyError: errMsg}
-	}
-	if pipeSelector != "" {
-		selector = pipeSelector
+		return statusError, "", errors.New(errMsg)
 	}
 
 	// Construction reads the peer-keyed maps, so it takes the lock again, for
@@ -245,14 +252,14 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 
 	if !hasTerminal(stages) {
 		jt := newJSONTerminal(current)
-		return json.RawMessage(jt.Meta().JSON)
+		return statusDone, json.RawMessage(jt.Meta().JSON), nil
 	}
 
 	meta := current.Meta()
 	if meta.JSON != "" {
-		return json.RawMessage(meta.JSON)
+		return statusDone, json.RawMessage(meta.JSON), nil
 	}
-	return map[string]any{jsonKeyCount: meta.Count}
+	return statusDone, map[string]any{jsonKeyCount: meta.Count}, nil
 }
 
 // withdrawAllForPeer removes all routes for a peer under a given protocol.

@@ -1,0 +1,24 @@
+# Test: show bgp rib protocol and request bgp rib fastpath state their arguments
+# VALIDATES: each usage line carries the argument the model declares, so the
+#            protocol name and the three fastpath words are read from the
+#            model rather than from the summary sentence
+# PREVENTS: a grammar spelled in the summary, where `<protocol>` is inline
+#           HTML under CommonMark and vanishes from the published reference
+#           (plan/journal/command-takes-an-untyped-positional-value.md,
+#           2026-09-15)
+#
+# The line each command states is the one the MODEL renders
+# (internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang). The summary
+# is rejected where it used to spell the grammar, so a reader of the help page
+# meets each token once.
+
+cmd=foreground:seq=1:exec=ze show bgp rib protocol help
+expect=exit:code=0
+expect=stderr:contains=ze show bgp rib protocol <protocol>
+reject=stderr:pattern=\[peer-selector\]
+reject=stderr:pattern=\[pipeline-args
+
+cmd=foreground:seq=2:exec=ze request bgp rib fastpath help
+expect=exit:code=0
+expect=stderr:contains=ze request bgp rib fastpath <enable|disable|status>
+reject=stderr:pattern=fast path \(rib-arch-6\): <
