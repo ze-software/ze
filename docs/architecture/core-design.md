@@ -1876,6 +1876,15 @@ concrete interface names. Platform backends: Linux writes to `/proc/sys/`, Darwi
 `sysctlbyname(3)`. Original kernel values are saved before first write and restored on
 clean daemon stop.
 
+`sysctl.Read` (`backend.go`) is the one exported read, for a component that reports a
+tunable it does not manage: the path MTU diagnostic reads `tcp_mtu_probing` and
+`route.mtu_expires` through it. It answers the kernel's current value through the
+platform backend, so the key-to-path mapping (`keyToPath`, `backend_linux.go`) keeps
+one declaration, and a platform with no backend or a key the kernel does not hold
+answers an error rather than an empty string.
+<!-- source: internal/component/sysctl/backend.go -- Read -->
+<!-- source: internal/component/sysctl/backend_linux.go -- keyToPath -->
+
 A profile registry (`internal/core/sysctl/profiles.go`) holds named collections of
 kernel tunables. Five built-in profiles (dsr, router, hardened, multihomed, proxy) are
 registered at init time. User-defined profiles are registered from sysctl config at
@@ -2009,6 +2018,7 @@ Cross-component coupling follows a strict hierarchy:
 | ike | command, config (and config/yang, config/secret, config/redistribute), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf rather than being imported for them |
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
 | mcp | audit |
+| mtu | command, config/yang (the two YANG modules register), iface (dispatch calls only), plugin, plugin/server (CLI RPC), sysctl (`Read`), ike/crypto and ike/ipsec (untagged leaves, for the transform ids); reads live tunnels through the `internal/core/ipsecinventory` leaf and probes through `internal/core/probe`, and never imports `ike/engine` |
 | plugin/server | aaa, audit |
 | ppp | none (leaf: PPP/LCP/NCP state machines; only `internal/core/textbuf` outside stdlib) |
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |

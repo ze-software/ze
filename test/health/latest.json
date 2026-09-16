@@ -120,7 +120,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 30233,
+        "denominator": 30333,
         "numerator": 132,
         "percent": 0.4
       },
@@ -128,7 +128,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "132 / 30233 (floor 132)",
+      "value": "132 / 30333 (floor 132)",
       "worst": [
         {
           "file": "internal/chaos/chaos_test.go",
@@ -187,18 +187,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 133,
-        "ci_files": 2033,
+        "ci_files": 2042,
         "et_files": 170,
         "fuzz_funcs": 83,
-        "test_files": 4198,
-        "test_funcs": 30267
+        "test_files": 4223,
+        "test_funcs": 30367
       },
-      "detail": "4198 Go test files, 83 fuzz targets, 133 benchmarks, 2033 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "4223 Go test files, 83 fuzz targets, 133 benchmarks, 2042 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "30267 test functions"
+      "value": "30367 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
@@ -218,13 +218,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 4198,
-        "numerator": 1495,
-        "percent": 35.6
+        "denominator": 4223,
+        "numerator": 1515,
+        "percent": 35.9
       },
       "question": "Q2",
       "status": "warn",
-      "value": "1495 / 4198",
+      "value": "1515 / 4223",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -235,12 +235,6 @@
         {
           "area": "internal/chaos/web",
           "files": 10,
-          "negative": 0,
-          "percent": 0.0
-        },
-        {
-          "area": "internal/component/gtsm",
-          "files": 6,
           "negative": 0,
           "percent": 0.0
         },
@@ -285,6 +279,12 @@
           "files": 11,
           "negative": 1,
           "percent": 9.1
+        },
+        {
+          "area": "internal/component/lg",
+          "files": 21,
+          "negative": 2,
+          "percent": 9.5
         }
       ]
     },
@@ -298,7 +298,7 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 632,
+          "packages": 633,
           "with_ci": 35,
           "with_fuzz": 32,
           "with_rfc_tag": 105

@@ -241,11 +241,11 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (internal/le/archmap.Update; ./le arch-map update) -->
-45 directories under `internal/component/`:
+46 directories under `internal/component/`:
 
 aaa, aihelp, api, authz, bfd, bgp, cli, cmd, command, config, debug, doctor,
 engine, firewall, gnmi, gokrazy, gtsm, host, hub, iface, ike, kernelcap, l2tp,
-lg, managed, mcp, mpls, ping, pki, plugin, radius, resolve, ssh, storage,
+lg, managed, mcp, mpls, mtu, ping, pki, plugin, radius, resolve, ssh, storage,
 support, sysctl, sysrib, tacacs, telemetry, traceroute, traffic,
 trafficfeature, trafficstat, vpp, web
 <!-- END GENERATED: arch-components -->
@@ -253,16 +253,16 @@ trafficfeature, trafficstat, vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (internal/le/archmap.Update; ./le arch-map update) -->
-65 directories under `internal/plugins/`:
+66 directories under `internal/plugins/`:
 
 aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
 config-schema, config-storage, config-yang, connect, connected, copp, cos,
 crashes, ddos, debug, dhcpserver, diag, env, exabgp, explain, fib, firewall,
 flowexport, flowexport-cmd, flowspec-firewall, geodns, gnmi-cmd, host,
 host-cmd, iface, imageserver, init, isis, kernel, ldp, local, log, memlock,
-meta, mpls-cmd, mrt, ntp, ospf, passwd, ping-cmd, pki-cmd, policyroute,
-provision, resolve-cmd, routingtable, rsvpte, signal, skills, static,
-storage-cmd, support, systemd, tftpserver, traceroute-cmd, traffic,
+meta, mpls-cmd, mrt, mtu-cmd, ntp, ospf, passwd, ping-cmd, pki-cmd,
+policyroute, provision, resolve-cmd, routingtable, rsvpte, signal, skills,
+static, storage-cmd, support, systemd, tftpserver, traceroute-cmd, traffic,
 traffic-cmd, trafficusage, update-cmd, vrrp
 <!-- END GENERATED: arch-system-plugins -->
 

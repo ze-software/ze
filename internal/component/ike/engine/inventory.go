@@ -53,6 +53,15 @@ func tunnelOf(info *PeerInfo) ipsecinventory.Tunnel {
 	t.IfID = info.ChildIfID
 	t.UDPEncap = info.ChildUDPEncap
 	t.Mode = inventoryMode(info.ChildMode)
+	// PeerInfo carries each selector as the text of the child's *net.IPNet, so the
+	// parse cannot fail for a selector the child holds; an empty string (no
+	// selector) leaves the prefix invalid, which is what the reader tests for.
+	if prefix, err := netip.ParsePrefix(info.TSLocal); err == nil {
+		t.TSLocal = prefix
+	}
+	if prefix, err := netip.ParsePrefix(info.TSRemote); err == nil {
+		t.TSRemote = prefix
+	}
 	t.EncryptionName = info.ESPEncryption
 	t.IntegrityName = info.ESPIntegrity
 	t.Encryption = ipsecinventory.EncryptionID(info.ESPEncryptionID)

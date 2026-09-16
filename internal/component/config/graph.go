@@ -271,6 +271,9 @@ const (
 	sectionWeb          = "web"
 	sectionLookingGlass = "looking-glass"
 	sectionTelemetry    = "telemetry"
+	// sectionMTU is the environment container the mtu component declares in
+	// ze-mtu-conf.yang (internal/component/mtu/yang).
+	sectionMTU = "mtu"
 )
 
 // addPluginRegistryEdges adds edges from registered plugins to their declared config roots.

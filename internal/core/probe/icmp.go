@@ -36,6 +36,23 @@ func BuildICMPEcho(typ byte, id, seq uint16, data []byte) []byte {
 	return b
 }
 
+// ParseEchoReply reads the header of one datagram a probe socket delivered
+// and answers the identifier and sequence it carries when the datagram is
+// an echo reply of replyType (0 for ICMPv4, 129 for ICMPv6). It is the
+// parser half of BuildICMPEcho, so a reply is matched on the same two
+// fields the request was built with; ok is false for a datagram too short
+// to carry the header or of any other type, and the caller then reads the
+// next one.
+func ParseEchoReply(b []byte, replyType byte) (id, seq uint16, ok bool) {
+	if len(b) < 8 {
+		return 0, 0, false
+	}
+	if b[0] != replyType {
+		return 0, 0, false
+	}
+	return binary.BigEndian.Uint16(b[4:6]), binary.BigEndian.Uint16(b[6:8]), true
+}
+
 // icmpChecksum computes the standard 16-bit one's-complement ICMP checksum.
 func icmpChecksum(b []byte) uint16 {
 	var sum uint32

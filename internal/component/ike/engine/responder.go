@@ -920,7 +920,10 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	sa.ChildInboundSPI = espSPI
 
 	dp := dataplane.Get()
-	ifID := resolveIfID(sa.PeerCfg)
+	ifID, err := resolveIfID(&sa.PeerCfg)
+	if err != nil {
+		return nil, nil, err
+	}
 	// Install with the negotiated single-proposal group (sa.ESPGroup), not the full
 	// configured ps.espGroup, so the Child SA keys the algorithm the peer accepted.
 	child, err := createFirstChildSA(sa, sa.ESPGroup, sa.PeerCfg.LocalAddress, sa.PeerCfg.RemoteAddress, ifID, dp, log)

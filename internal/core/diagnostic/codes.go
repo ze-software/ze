@@ -628,6 +628,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-icmp-probe-unprivileged"},
 	},
 	{
+		Code:        "doctor-mtu-local-state",
+		Title:       "show mtu cannot read a local-state source",
+		Description: "One of the two kernel sources show mtu reads beside the wire cannot be read: the fragmentation counters of /proc/net/snmp (through procfs) or net.ipv4.tcp_mtu_probing (through the sysctl component). The measurement and the tunnel sizing still run; the payload reports the finding that source feeds as unreadable instead of a value. The message names the source and its error. Mount procfs at /proc, or run on a host whose sysctl backend the daemon can read.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-mtu-local-state"},
+	},
+	{
 		Code:        "doctor-crash-capture-unarmed",
 		Title:       "Kernel crash capture configured but not armed",
 		Description: "system crash-dump enabled is set, but the running kernel booted without the reserved memory region the capture writes into. A reservation is a kernel boot argument, so a commit records the intent and the next boot arms it: build the appliance image with image.crash-dump and reboot. Until then a kernel panic leaves no record, and the appliance has no shell to diagnose one with.",

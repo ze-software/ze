@@ -596,28 +596,58 @@ capability bits the probe tests.
 
 #### A clamped path built by the test itself
 
-A `.ci` that needs a path with a known MTU builds it in a `tmpfs=` shell
-script and runs the daemon inside it: three network namespaces named after
-`$PORT` (sender, router, far) joined by two veth pairs, the router's far link
-set to 1400, forwarding on in the router, and `ip netns exec <sender> ze start
-<conf>` as the script's last command, so the script's exit code is the
-daemon's and its `trap` removes the namespaces on every exit. The near link is
-1600 so a 1528-octet probe leaves the sender and the ROUTER refuses it, which
-is the answer under test. The script runs as the last `cmd=` line under
-`expect=exit:code=0`, so the runner waits for it, and the fixture plugin
-inside the daemon (`ze-test fixture plugin/ping-do-not-fragment`) dispatches
-`show ping` and reads the payload. `capsh --drop=cap_net_raw --shell=/bin/sh`
-in front of the daemon is how the unprivileged variant loses `CAP_NET_RAW`
-while staying root, and it refuses to start the daemon when `CapEff` still
-holds the bit. The doctor variant needs only a fresh namespace, whose
-`ping_group_range` is the kernel default. The three tests are
+A `.ci` that needs a path with a known MTU runs the daemon through the
+compiled fixture `ze-test fixture plugin/clamped-path netns <prefix> [route-mtu
+<octets>] [far-daemon <conf>]... [without-net-raw] run <argv...>`
+(`internal/test/fixture/plugin_fixture_clamped_path_linux.go`). The fixture
+builds three named network namespaces (`<prefix>-s`, `-r`, `-f`: sender,
+router, far) joined by two veth pairs over netlink, the router's far link set
+to 1400, forwarding on in the router, then forks the `run` command from a
+thread it placed in the sender namespace, so the daemon inherits it. The near
+link is 1600 so a 1528-octet probe leaves the sender and the ROUTER refuses
+it, which is the answer under test. The fixture's exit is the daemon's, an
+error when the daemon exits non-zero, and it removes the namespaces on every
+exit. It is the last `cmd=` line under `expect=exit:code=0`, so the runner
+waits for it, and the fixture plugin inside the daemon (`ze-test fixture
+plugin/ping-do-not-fragment`) dispatches `show ping` and reads the payload.
+`without-net-raw` is how the unprivileged variant loses `CAP_NET_RAW` while
+staying root: the fixture drops the bit from its thread's bounding set
+(`PR_CAPBSET_DROP`, which root re-derives its permitted set from at exec),
+widens the sender namespace's `ping_group_range`, and after the start reads
+the daemon's own `CapEff` from `/proc`, printing `DROPPED:` or refusing with
+`GUARD:` when the bit is still held. The doctor variant runs
+`ze-test fixture plugin/isolated-netns netns <name> without-net-raw run ze
+doctor --json <conf>`: one fresh namespace whose `ping_group_range` is the
+kernel default. No shell, `ip` or `capsh` is involved, which is what the
+repository contract `TestNoPythonLeRemains` (`internal/le/contract_test.go`)
+requires of a tracked `.ci`. The three tests are
 `test/plugin/ping-do-not-fragment-reports-mtu.ci`,
 `ping-do-not-fragment-unprivileged.ci` and `doctor-icmp-probe-missing.ci`,
 marked `option=needs-linux:caps=net-admin,net-raw` (the doctor one
-`caps=net-admin`), so their home is the QEMU guest with `iproute2` and
-`libcap` installed.
-<!-- source: test/plugin/ping-do-not-fragment-reports-mtu.ci -- clamped-path.sh -->
+`caps=net-admin`), so their home is the QEMU guest.
+<!-- source: internal/test/fixture/plugin_fixture_clamped_path_linux.go -- clampedPathDriver, isolatedNetnsDriver, runInNetns, confirmNetRawDropped -->
 <!-- source: internal/test/fixture/plugin_fixture_ping_df.go -- pingDoNotFragment -->
+
+The five `show mtu` tests use the same fixture, each with its own namespace
+prefix and config names because the runner writes every test's `tmpfs=`
+files into one directory. `test/plugin/show-mtu-host.ci` measures the far
+address at 1400 `via ICMP` and lists every probe under `detail`;
+`show-mtu-exhaustive.ci` passes `route-mtu 1300`, a host route to the far
+address at that MTU in the sender namespace, so the honor-cache run answers
+1300 `via local iface MTU` and the `exhaustive` run 1400 with the stale 1300
+named beside it; `show-mtu-json.ci` checks the document every pipe renders
+from; `show-mtu-no-ipsec-component.ci` checks a registered inventory holding
+no tunnel answers `no-tunnels` (the not-registered half is a unit test,
+because one `ze` links every component); `show-mtu-oversized-tunnels.ci`
+passes two `far-daemon` configurations, which the fixture starts in the far
+namespace on the noop dataplane before the sender, negotiates aes128gcm to
+each from the sender with a Child SA bound to its own xfrm interface (`vti
+bind`) at 1500, and reads both tunnels oversized by 154 octets with their
+commands, plus the circuit-clamped underlay advice from a reference address
+on the far side. All five carry `option=needs-linux:caps=net-admin,net-raw`;
+the fixture bodies are `internal/test/fixture/plugin_fixture_show_mtu.go`.
+<!-- source: test/plugin/show-mtu-oversized-tunnels.ci -- far-daemon -->
+<!-- source: internal/test/fixture/plugin_fixture_show_mtu.go -- showMTUOversized -->
 
 The `traffic` suite is enrolled
 in `allTestsRun.Run` in `internal/le/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and

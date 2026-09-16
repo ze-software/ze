@@ -53,6 +53,8 @@ var envPlumbingTable = []envPlumbing{
 	{section: "exabgp.api", option: "ack", envKey: "exabgp.api.ack"},
 	{section: "cli.format", option: "default", envKey: "ze.cli.format"},
 	{section: "cli", option: "transcript", envKey: "ze.cli.transcript"},
+	// The key is registered by internal/component/mtu/cmd, which reads it.
+	{section: sectionMTU, option: "reference-address", envKey: "ze.mtu.reference-address"},
 	{section: "", option: "pprof", envKey: "ze.pprof"},
 	// The key is registered by internal/core/version, which reads it, rather
 	// than by environment.go: env.Set ends the process on an unregistered key,

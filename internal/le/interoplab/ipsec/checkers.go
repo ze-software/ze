@@ -38,7 +38,9 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":                   checkInvalidKERetry,
 	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
+	"mtu-nat-installed-endpoint":         checkMTUNATInstalledEndpoint,
 	"mtu-negotiated-transform":           checkMTUNegotiatedTransform,
+	"mtu-tunnel-sizing-strongswan":       checkMTUTunnelSizingStrongSwan,
 	"natt-transport-inner-checksum":      checkNATTTransportInnerChecksum,
 	"natt-tunnel-inner-checksum":         checkNATTTunnelInnerChecksum,
 	"peer-reload-narrowing":              checkPeerReloadNarrowing,
@@ -1944,4 +1946,129 @@ func requireLiveDataplaneHealth(ctx context.Context, lab *scenarioLab, drifting 
 		return nil
 	}
 	return fmt.Errorf("live health omitted the IPsec probe: %s", answer)
+}
+
+// The path MTU diagnostic over the NAT box (spec-path-mtu-diagnostic).
+//
+// mtuClampedPath is the route MTU the checker installs on the NAT box for each peer's
+// real address. Linux honors a route's MTU when it FORWARDS (the kernel comment on
+// ip_dst_mtu_maybe_forward says the forwarding case always takes it), so every datagram the
+// box relays that is larger than this and carries Don't Fragment is answered with an
+// ICMP frag-needed naming it, while the box's own eth0 stays at 1500 and still
+// receives the full-size probe. The box's OWN address answers at 1500, which is what
+// makes it the reference address of the sizing scenario.
+const (
+	mtuClampedPath      = 1400
+	mtuXfrmInterface    = "xa"
+	mtuXfrmInterfaceMTU = 1500
+	// mtuGCMUDPCeiling and mtuGCMUDPRecommended are the aes256gcm figures over an
+	// IPv4 underlay WITH UDP encapsulation at a 1400 path: 20 IP + 8 UDP + 8 ESP +
+	// 8 IV + 16 ICV = 60 octets of overhead, 1340 aligned to the 4-octet AEAD
+	// boundary, less the 2-octet trailer, and the recommended value 32 below it.
+	mtuGCMUDPCeiling     = 1338
+	mtuGCMUDPRecommended = 1306
+	// mtuPingHeaders is what ping adds to -s: the IPv4 header and the ICMP header.
+	mtuPingHeaders = 28
+	mtuPingCount   = 3
+)
+
+// checkMTUTunnelSizingStrongSwan proves `show mtu` against a real peer over a clamped
+// path: the strongSwan peer's path MTU is measured at the clamp, the tunnel bound to
+// xa (MTU 1500) is reported oversized with the recommended value derived from the
+// transform the two daemons negotiated, and that recommended value carries a
+// Don't Fragment ping through the tunnel where a packet the current interface MTU
+// admits is refused by the path (AC-1, AC-3, AC-4, AC-12 of spec-path-mtu-diagnostic).
+//
+// The failing size is the clamp itself, 1400 inner octets: the outer datagram is 1460,
+// which Ze's eth0 at 1500 sends and the NAT box refuses. A 1500-octet inner packet
+// would be refused by Ze's own kernel before it reached the box, so it says nothing
+// about the path.
+func checkMTUTunnelSizingStrongSwan(ctx context.Context, lab *scenarioLab) error {
+	if err := lab.clampForwardedPath(ctx); err != nil {
+		return err
+	}
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	if err := lab.natInnerAddress(ctx, swanPeer, natTunnelSwanInner, natTunnelZeInner); err != nil {
+		return err
+	}
+	if err := lab.xfrmInnerAddress(ctx, natTunnelZeInner, natTunnelSwanInner); err != nil {
+		return err
+	}
+
+	run, answer, err := lab.zeShowMTU(ctx)
+	if err != nil {
+		return err
+	}
+	if err := requireMeasurement(run, "peer", swanPublicIP, mtuClampedPath); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireReference(run, natIP, mtuXfrmInterfaceMTU); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	tunnel, err := tunnelRowOf(run, swanConfigPeer)
+	if err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireOversizedTunnel(tunnel); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireCommand(run, "set interface xfrm "+mtuXfrmInterface+" mtu "+strconv.Itoa(mtuGCMUDPRecommended)); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireUnderlayAdvice(run, "not-clamped"); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+
+	// The recommended MTU carries traffic where the current one does not.
+	oversized := pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner, size: mtuClampedPath - mtuPingHeaders}
+	if err := lab.requireLossyPing(ctx, oversized); err != nil {
+		return err
+	}
+	sized := pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner, size: mtuGCMUDPRecommended - mtuPingHeaders}
+	return lab.requireLosslessPingFrom(ctx, sized, mtuPingCount)
+}
+
+// checkMTUNATInstalledEndpoint proves that `show mtu` probes the endpoint the Child SA
+// is INSTALLED on. strongSwan sits behind the NAT box, so the ESP rides to the address
+// the box presents and not to the address strongSwan's own stack holds. The
+// measurement's target and the tunnel row's remote MUST both equal the remote-address
+// `show vpn ipsec sa` reports for the Child SA, and that address MUST be the
+// translated one (A-3, AC-17 of spec-path-mtu-diagnostic).
+func checkMTUNATInstalledEndpoint(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.assertNATVerdict(ctx); err != nil {
+		return err
+	}
+	installed, err := lab.zeChildRemoteAddress(ctx, swanConfigPeer)
+	if err != nil {
+		return err
+	}
+	if installed != swanPublicIP {
+		return fmt.Errorf("the Child SA is installed on %s, want the NAT box's %s; %s sees no ESP", installed, swanPublicIP, swanIP)
+	}
+	run, answer, err := lab.zeShowMTU(ctx)
+	if err != nil {
+		return err
+	}
+	if err := requireMeasurement(run, "peer", installed, mtuXfrmInterfaceMTU); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	tunnel, err := tunnelRowOf(run, swanConfigPeer)
+	if err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if tunnel["remote"] != installed {
+		return fmt.Errorf("the tunnel row names remote %v, want the installed endpoint %s; answer: %s", tunnel["remote"], installed, answer)
+	}
+	return nil
 }

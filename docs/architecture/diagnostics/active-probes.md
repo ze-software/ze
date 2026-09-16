@@ -91,10 +91,14 @@ The kernel matches a queued ICMP error to a raw socket by protocol and bound
 address only, so an unconnected probe socket receives every error quoting an
 ICMP datagram from this host (`TestProbeErrorQueueAndAnotherFlow` observed
 one foreign entry). Each entry therefore carries the quoted echo header, and
-both receive loops match its identifier and sequence against the probe they
-sent before they believe the value, which is the validation RFC 8201 Section
-4 and RFC 8899 Section 4.6.1 ask for. An entry quoting another probe leaves
-ours to time out as before.
+every reader matches its identifier and sequence against the probe it sent
+before it believes the value, which is the validation RFC 8201 Section 4
+and RFC 8899 Section 4.6.1 ask for. `QueuedError.SizeRefusalOf` is that
+match, shared by the ping session and the path MTU search
+(`docs/architecture/diagnostics/path-mtu.md`), and `probe.ParseEchoReply`
+is its twin for an ordinary read: the parser half of `BuildICMPEcho`, so a
+reply is matched on the two fields the request was built with. An entry
+quoting another probe leaves ours to time out as before.
 
 ### What the payload says
 
@@ -165,7 +169,8 @@ whose bounding set lost the capability, and `doctor-icmp-probe-missing`
 reads `doctor-icmp-probe` from `ze doctor` in a namespace where neither
 socket opens.
 
-<!-- source: internal/core/probe/errqueue.go -- ErrQueueOutcome, QueuedError, FieldNextHopMTU -->
+<!-- source: internal/core/probe/errqueue.go -- ErrQueueOutcome, QueuedError, SizeRefusalOf, FieldNextHopMTU -->
+<!-- source: internal/core/probe/icmp.go -- BuildICMPEcho, ParseEchoReply -->
 <!-- source: internal/core/probe/errqueue_linux.go -- drainErrorQueue, classifyReportedMTU, KernelPathMTU -->
 <!-- source: internal/component/ping/cmd/stream.go -- runPingSession, tooBigResult -->
 

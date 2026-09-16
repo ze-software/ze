@@ -102,6 +102,26 @@ type QueuedError struct {
 	Echo QuotedEcho
 }
 
+// SizeRefusalOf reports whether q is a router's size refusal quoting a
+// probe sent under id: not a local refusal, EMSGSIZE, and a quoted echo
+// whose identifier is this socket's. The kernel matches a queued error to a
+// raw socket by protocol alone, so an entry can quote another flow's probe,
+// and every prober asks this before it believes the entry (RFC 8201
+// Section 4, RFC 8899 Section 4.6.1). The caller then reads q.Echo.Seq to
+// find which of its probes was refused.
+func (q *QueuedError) SizeRefusalOf(id uint16) bool {
+	if q.Local {
+		return false
+	}
+	if !q.Echo.Present {
+		return false
+	}
+	if q.Echo.ID != id {
+		return false
+	}
+	return q.Errno == syscall.EMSGSIZE
+}
+
 // Payload keys a refused probe carries, the same two on every prober. A
 // refused row always carries FieldNextHopMTUReported, and FieldNextHopMTU
 // only when it is true: a zero is never written in place of an absent value,

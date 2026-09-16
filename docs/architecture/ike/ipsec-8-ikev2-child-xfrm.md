@@ -49,8 +49,15 @@ Section 3.1.2's third alternative for transport mode, which
 
 <!-- source: internal/component/ike/engine/child.go -- createFirstChildSA -->
 
-**The XFRM interface id comes from config, not from a runtime lookup.** The
-engine runs as a plugin subprocess and has no access to the interface backend.
+**The XFRM interface id comes from the interface the peer's `vti { bind }` names.**
+`resolveIfID` reads the if_id of that xfrm interface through the iface component
+(`GetXFRMInfo`) when the first Child SA is created, on both roles. A peer with no
+binding installs its SA with if_id 0, policy-based. A binding that names no xfrm
+interface, or one whose if_id is 0, fails the Child SA with an error naming the
+interface, so a misspelled binding is a refused tunnel rather than a tunnel that
+silently installs unbound (that was the failure until 2026-09-16: `SiteToSitePeer.IfID`
+was never assigned, so every bound peer installed with if_id 0). `show mtu` sizes a
+tunnel by that if_id, which is how it finds the interface whose MTU it reports.
 
 <!-- source: internal/component/ike/engine/established.go -- resolveIfID -->
 
@@ -114,8 +121,9 @@ closes it. A new call path that installs SAs must not reintroduce the silent
 skip.
 
 **A hardcoded interface id only works by accident.** `resolveIfID` was 1, which
-worked only if an XFRM interface happened to carry that id. It is now the value
-from config, and 0 means unbound.
+worked only if an XFRM interface happened to carry that id. It then read a config
+field nothing assigned, so every bound peer installed unbound. It now resolves the
+bound interface's if_id, 0 means no binding, and a dangling binding is an error.
 
 **Dead peer detection needs its last-sent time initialized.** A zero value fires
 a probe immediately on creation.

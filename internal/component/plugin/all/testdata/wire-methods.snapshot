@@ -221,6 +221,7 @@ ze-show:l2tp-health
 ze-show:ldp-binding
 ze-show:ldp-neighbor
 ze-show:metrics-query
+ze-show:mtu
 ze-show:mpls-forwarding
 ze-show:neighbor
 ze-show:ospf

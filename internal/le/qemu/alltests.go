@@ -339,6 +339,11 @@ var integrationPackages = []string{
 	// the socket error queue, the bypass mode and the DF bit against a Linux
 	// router in a clamped three-namespace path.
 	"./internal/core/probe",
+	// Added 2026-09-16 with search_integration_linux_test.go, which proves
+	// the path MTU search against the same clamped router: the reported
+	// clamp confirmed on the wire, the ladder and bisection with the router's
+	// ICMP errors dropped, and force disagreeing with a poisoned cache.
+	"./internal/component/mtu/cmd",
 }
 
 // excludedIntegrationPackages names a package that holds integration tests and

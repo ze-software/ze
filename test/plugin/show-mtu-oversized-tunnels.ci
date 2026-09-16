@@ -1,0 +1,213 @@
+# Test: show mtu sizes two bound tunnels over a clamped path as oversized
+# Spec: spec-path-mtu-diagnostic -- user story 1, AC-2, AC-4, AC-13, AC-15, AC-17
+# VALIDATES: peer-a in the sender namespace negotiates aes128gcm to two responders
+#            in the far namespace, each Child SA bound to its own xfrm interface
+#            (`vti bind`, if_id 7 and 8) configured at 1500. The path is clamped
+#            at 1400, so each tunnel's ceiling is 1346 and each interface is
+#            oversized by 154 octets with `set interface xfrm <name> mtu 1314`
+#            listed. The reference address 10.99.2.9 sits on the far side and
+#            measures the same 1400, so the underlay advice is circuit-clamped
+#            and `set interface veth sr0 mtu 1400` is listed.
+# PREVENTS: a tunnel sized from the configured rather than the negotiated
+#           transform, a Child SA installed with if_id 0 under a bound interface,
+#           and a verdict computed for a path nobody measured.
+#
+# The path is three network namespaces joined by veth pairs, built by the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, netlink): the
+# daemon runs in the sender namespace, the router forwards with its far link at
+# 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
+# the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
+# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# fixture removes the namespaces when the daemon exits, whatever its exit code.
+
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.storage.blob:value=false
+
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=180s
+
+tmpfs=mtu-oversized.conf:terminator=EOF_A
+plugin {
+	external show-mtu-test {
+		run "ze-test fixture plugin/show-mtu-oversized"
+		encoder json
+	}
+}
+environment {
+	mtu {
+		reference-address 10.99.2.9
+	}
+}
+interface {
+	xfrm xa {
+		if-id 7
+		mtu 1500
+	}
+	xfrm xb {
+		if-id 8
+		mtu 1500
+	}
+}
+vpn {
+	ipsec {
+		esp-group esp-gcm {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site-b {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type initiate
+				local-address 10.99.1.1
+				remote-address 10.99.2.1
+				mode tunnel
+				vti {
+					bind xa
+				}
+				traffic-selector 1 {
+					local {
+						prefix 10.99.1.1/32
+					}
+					remote {
+						prefix 10.99.2.1/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer site-c {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type initiate
+				local-address 10.99.1.1
+				remote-address 10.99.2.3
+				mode tunnel
+				vti {
+					bind xb
+				}
+				traffic-selector 1 {
+					local {
+						prefix 10.99.1.1/32
+					}
+					remote {
+						prefix 10.99.2.3/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_A
+
+tmpfs=mtu-oversized-b.conf:terminator=EOF_B
+vpn {
+	ipsec {
+		esp-group esp-gcm {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site-a {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type respond
+				local-address 10.99.2.1
+				remote-address 10.99.1.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.99.2.1/32
+					}
+					remote {
+						prefix 10.99.1.1/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_B
+
+tmpfs=mtu-oversized-c.conf:terminator=EOF_C
+vpn {
+	ipsec {
+		esp-group esp-gcm {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site-a {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type respond
+				local-address 10.99.2.3
+				remote-address 10.99.1.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.99.2.3/32
+					}
+					remote {
+						prefix 10.99.1.1/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_C
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtuoversized$PORT far-daemon mtu-oversized-b.conf far-daemon mtu-oversized-c.conf run ze start mtu-oversized.conf:timeout=170s
+expect=exit:code=0
+expect=stderr:contains=OK: both bound tunnels are oversized against the 1400 clamp and the circuit is clamped
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

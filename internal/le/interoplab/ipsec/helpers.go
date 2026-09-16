@@ -44,6 +44,10 @@ const (
 	// natHost is the NAT box's host octet on the lab network. It sits after FRR so a
 	// scenario that wants both keeps its addresses.
 	natHost = 5
+	// natIP is the NAT box's own primary address, natHost on the lab network. It is
+	// the one address the box answers for itself rather than forwards, which is what
+	// makes it the reference address of the sizing scenario.
+	natIP = "172.28.0.5"
 
 	// zePublicIP and swanPublicIP are the two secondary addresses the NAT box owns,
 	// and they are the addresses each peer sees the OTHER at.
@@ -432,12 +436,7 @@ func (l *scenarioLab) requireLosslessPing(ctx context.Context, peer, target stri
 // requireLosslessPingFrom is requireLosslessPing with an optional source address, so a
 // tunnel-mode flow can be stimulated from the inner address its policy selects on.
 func (l *scenarioLab) requireLosslessPingFrom(ctx context.Context, probe pingProbe, count int) error {
-	command := []string{"ping", "-c", strconv.Itoa(count), "-W", "2"}
-	if probe.source != "" {
-		command = append(command, "-I", probe.source)
-	}
-	command = append(command, probe.target)
-	output := l.execQuiet(ctx, probe.peer, command...)
+	output := l.execQuiet(ctx, probe.peer, pingCommand(probe, count)...)
 	loss, err := pingLoss(output)
 	if err != nil {
 		return fmt.Errorf("ping from %s to %s %w", probe.peer, probe.target, err)
@@ -496,6 +495,10 @@ type pingProbe struct {
 	peer   string
 	target string
 	source string
+	// size is the ICMP payload in octets (ping -s), and zero leaves ping's default.
+	// A size sets Don't Fragment too (ping -M do), because a sized probe exists to
+	// learn whether the path CARRIES that size rather than whether it fragments it.
+	size int
 }
 
 // verifyESPDirectionsToward is verifyESPDirections with the stimulating round trip
@@ -1616,4 +1619,235 @@ func (l *scenarioLab) requireUnreadableDataplane(ctx context.Context, wantBefore
 		return err
 	}
 	return requireLiveDataplaneHealth(ctx, l, true)
+}
+
+// pingCommand is the argv of one probe: count echo requests, a two-second wait, the
+// source when the probe names one, and the size with Don't Fragment when it names one.
+func pingCommand(probe pingProbe, count int) []string {
+	command := []string{"ping", "-c", strconv.Itoa(count), "-W", "2"}
+	if probe.source != "" {
+		command = append(command, "-I", probe.source)
+	}
+	if probe.size != 0 {
+		command = append(command, "-M", "do", "-s", strconv.Itoa(probe.size))
+	}
+	return append(command, probe.target)
+}
+
+// requireLossyPing drives mtuPingCount sized echo requests and refuses unless EVERY
+// one is lost: a path that refuses the size answers none of them. Any loss short of
+// all of them says the size sometimes passes, which is a different path from the one
+// the caller claims, and a summary it cannot read is refused too.
+func (l *scenarioLab) requireLossyPing(ctx context.Context, probe pingProbe) error {
+	output := l.execQuiet(ctx, probe.peer, pingCommand(probe, mtuPingCount)...)
+	loss, err := pingLoss(output)
+	if err != nil {
+		return fmt.Errorf("ping from %s to %s at %d octets %w", probe.peer, probe.target, probe.size, err)
+	}
+	if loss != 100 {
+		return fmt.Errorf("ping from %s to %s at %d octets lost %d%%, want every packet refused by the clamped path: %s",
+			probe.peer, probe.target, probe.size, loss, output)
+	}
+	return nil
+}
+
+// clampForwardedPath installs, on the NAT box, a route to each peer's real address
+// carrying mtuClampedPath, so every datagram the box forwards above that size with
+// Don't Fragment set is refused with an ICMP frag-needed naming the clamp.
+func (l *scenarioLab) clampForwardedPath(ctx context.Context) error {
+	for _, real := range []string{zeIP, swanIP} {
+		if _, err := l.exec(ctx, natPeer, "ip", "route", "replace", real+"/32", "dev", "eth0", "mtu", strconv.Itoa(mtuClampedPath)); err != nil {
+			return fmt.Errorf("clamp the forwarded path to %s on the NAT box: %w", real, err)
+		}
+	}
+	return nil
+}
+
+// xfrmInnerAddress is natInnerAddress for a tunnel bound to the xfrm interface: the
+// inner route leaves by that interface, which is what selects the if_id-bound policy.
+func (l *scenarioLab) xfrmInnerAddress(ctx context.Context, local, remote string) error {
+	if _, err := l.exec(ctx, zePeer, "ip", "address", "replace", local+"/32", "dev", "lo"); err != nil {
+		return fmt.Errorf("install inner address %s on ze: %w", local, err)
+	}
+	if _, err := l.exec(ctx, zePeer, "ip", "route", "replace", remote+"/32", "dev", mtuXfrmInterface, "src", local); err != nil {
+		return fmt.Errorf("install inner route to %s over %s on ze: %w", remote, mtuXfrmInterface, err)
+	}
+	return nil
+}
+
+// zeShowMTU runs `show mtu | json` in the ze container and decodes the one document
+// it answers. A shape that does not decode is an error naming the answer.
+func (l *scenarioLab) zeShowMTU(ctx context.Context) (map[string]any, string, error) {
+	answer, err := l.zeCLI(ctx, "show mtu | json")
+	if err != nil {
+		return nil, answer, err
+	}
+	var run map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &run); err != nil {
+		return nil, answer, fmt.Errorf("show mtu | json did not answer one document: %w; answer: %s", err, answer)
+	}
+	return run, answer, nil
+}
+
+// zeChildRemoteAddress reads one peer's Child SA remote-address out of
+// `show vpn ipsec sa | json`: the endpoint the SA is installed on. No record, no
+// child-sa, and a remote-address that is not a string are each an error rather than
+// "", because an empty address compares unequal to every target.
+func (l *scenarioLab) zeChildRemoteAddress(ctx context.Context, peer string) (string, error) {
+	records, answer, err := l.zeIKESAs(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, record := range records {
+		if record["peer-name"] != peer {
+			continue
+		}
+		child, ok := record["child-sa"].(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("the IKE SA for %s carries no child-sa; answer: %s", peer, answer)
+		}
+		remote, ok := child["remote-address"].(string)
+		if !ok || remote == "" {
+			return "", fmt.Errorf("the Child SA for %s carries no installed remote-address; answer: %s", peer, answer)
+		}
+		return remote, nil
+	}
+	return "", fmt.Errorf("show vpn ipsec sa reports no IKE SA for %s; answer: %s", peer, answer)
+}
+
+// rowsOf reads a list of objects out of one key of the `show mtu` document.
+func rowsOf(run map[string]any, key string) ([]map[string]any, error) {
+	list, ok := run[key].([]any)
+	if !ok {
+		return nil, fmt.Errorf("show mtu carries no %s list", key)
+	}
+	rows := make([]map[string]any, 0, len(list))
+	for _, item := range list {
+		row, ok := item.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("show mtu %s carries a row that is not an object: %v", key, item)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+// requireMeasurement refuses unless ONE measurement row carries the label, the target
+// and the path MTU. The three are asserted on one row rather than anywhere in the
+// list, because a label from one row and a figure from another describe a measurement
+// that was never made.
+func requireMeasurement(run map[string]any, label, target string, pathMTU int) error {
+	rows, err := rowsOf(run, "measurements")
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if row["label"] != label || row["target"] != target {
+			continue
+		}
+		got, ok := row["path-mtu"].(float64)
+		if !ok {
+			return fmt.Errorf("the %s measurement of %s carries no path-mtu: %v", label, target, row)
+		}
+		if int(got) != pathMTU {
+			return fmt.Errorf("the %s measurement of %s answers path-mtu %d, want %d (%v)", label, target, int(got), pathMTU, row)
+		}
+		return nil
+	}
+	return fmt.Errorf("show mtu carries no %s measurement of %s", label, target)
+}
+
+// requireReference refuses unless the reference row names the host and the path
+// MTU. The reference is its own row rather than a measurement, so the peers list
+// carries only what the tunnels ride.
+func requireReference(run map[string]any, host string, pathMTU int) error {
+	reference, ok := run["reference"].(map[string]any)
+	if !ok {
+		return errors.New("show mtu carries no reference row")
+	}
+	if reference["host"] != host {
+		return fmt.Errorf("the reference row names host %v, want %s: %v", reference["host"], host, reference)
+	}
+	got, ok := reference["path-mtu"].(float64)
+	if !ok {
+		return fmt.Errorf("the reference row carries no path-mtu: %v", reference)
+	}
+	if int(got) != pathMTU {
+		return fmt.Errorf("the reference %s answers path-mtu %d, want %d: %v", host, int(got), pathMTU, reference)
+	}
+	return nil
+}
+
+// tunnelRowOf reads the one tunnel row named peer.
+func tunnelRowOf(run map[string]any, peer string) (map[string]any, error) {
+	rows, err := rowsOf(run, "tunnels")
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row["peer"] == peer {
+			return row, nil
+		}
+	}
+	return nil, fmt.Errorf("show mtu carries no tunnel row for %s", peer)
+}
+
+// requireOversizedTunnel pins the sizing of the bound tunnel: measured (not assumed)
+// at the clamp, UDP-encapsulated aes256gcm, the xfrm interface at 1500 against the
+// ceiling and the recommended value the transform derives.
+func requireOversizedTunnel(row map[string]any) error {
+	if row["verdict"] != "oversized" {
+		return fmt.Errorf("tunnel verdict %v, want oversized: %v", row["verdict"], row)
+	}
+	if row["assumed"] != false {
+		return fmt.Errorf("the tunnel's path is assumed, want measured: %v", row)
+	}
+	if row["encapsulation"] != true {
+		return fmt.Errorf("tunnel encapsulation %v, want true across the NAT: %v", row["encapsulation"], row)
+	}
+	if row["interface"] != mtuXfrmInterface {
+		return fmt.Errorf("tunnel interface %v, want %s: %v", row["interface"], mtuXfrmInterface, row)
+	}
+	for key, want := range map[string]int{
+		"path-mtu":    mtuClampedPath,
+		"current-mtu": mtuXfrmInterfaceMTU,
+		"ceiling":     mtuGCMUDPCeiling,
+		"recommended": mtuGCMUDPRecommended,
+		"octets":      mtuXfrmInterfaceMTU - mtuGCMUDPCeiling,
+	} {
+		got, ok := row[key].(float64)
+		if !ok {
+			return fmt.Errorf("tunnel row carries no %s: %v", key, row)
+		}
+		if int(got) != want {
+			return fmt.Errorf("tunnel %s %d, want %d: %v", key, int(got), want, row)
+		}
+	}
+	return nil
+}
+
+// requireCommand refuses unless the remediation list carries the command.
+func requireCommand(run map[string]any, want string) error {
+	commands, ok := run["commands"].([]any)
+	if !ok {
+		return errors.New("show mtu carries no commands list")
+	}
+	for _, command := range commands {
+		if command == want {
+			return nil
+		}
+	}
+	return fmt.Errorf("show mtu commands %v lack %q", commands, want)
+}
+
+// requireUnderlayAdvice refuses unless the underlay row carries the advice.
+func requireUnderlayAdvice(run map[string]any, want string) error {
+	underlay, ok := run["underlay"].(map[string]any)
+	if !ok {
+		return errors.New("show mtu carries no underlay row")
+	}
+	if underlay["advice"] != want {
+		return fmt.Errorf("underlay advice %v, want %s: %v", underlay["advice"], want, underlay)
+	}
+	return nil
 }

@@ -1,0 +1,35 @@
+# Test: show mtu host measures one clamped path and names how
+# Spec: spec-path-mtu-diagnostic -- user story 2, AC-1
+# VALIDATES: an operator runs `show mtu host 10.99.2.1` over a path whose middle
+#            router clamps its far link to 1400. The payload's one measurement
+#            targets that address, carries path-mtu 1400 found `via ICMP`, names
+#            the underlay interface the route leaves by, carries no inventory,
+#            verdict or reference key, and `detail` lists every probe sent.
+# PREVENTS: a host run that consults the tunnel inventory, a measurement whose
+#           method is a zero, and a figure reported that the wire never confirmed.
+#
+# The path is three network namespaces joined by veth pairs, built by the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, netlink): the
+# daemon runs in the sender namespace, the router forwards with its far link at
+# 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
+# the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
+# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# fixture removes the namespaces when the daemon exits, whatever its exit code.
+
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.storage.blob:value=false
+
+tmpfs=mtu-host.conf:terminator=EOF_CONF
+plugin {
+	external show-mtu-test {
+		run "ze-test fixture plugin/show-mtu-host"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtuhost$PORT run ze start mtu-host.conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: show mtu host measured the clamp at 1400 via ICMP over sr0
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

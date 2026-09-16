@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | spec-path-mtu-diagnostic |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-11 |
@@ -13,7 +13,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`plan/spec-path-mtu-diagnostic.md` measures a path with ICMP echo, and prints
+`show mtu` (`docs/architecture/diagnostics/path-mtu.md`, closed as spec-path-mtu-diagnostic) measures a path with ICMP echo, and prints
 the caveat that the figure is optimistic: a path can treat ICMP, UDP/4500 and
 ESP differently, and the number that matters for a tunnel is the one the ESP
 traffic actually meets. The VyOS tool it was ported from prints the same caveat
@@ -116,7 +116,7 @@ scheduled rather than forgotten.
 |----------|--------|
 | What breaks if this is wrong? | A live IKE SA. This sends traffic on a production tunnel's control channel, which is a sharper blast radius than the ICMP prober has |
 | How is it reverted? | Single commit revert; the MTU module falls back to the ICMP prober it already has |
-| Who else touches this path? | `plan/spec-path-mtu-diagnostic.md` is the consumer, `plan/immediate/spec-rfc4301-architecture-gaps.md` touches the same engine |
+| Who else touches this path? | `internal/component/mtu/cmd` (`docs/architecture/diagnostics/path-mtu.md`) is the consumer, `plan/immediate/spec-rfc4301-architecture-gaps.md` touches the same engine |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -178,7 +178,7 @@ scheduled rather than forgotten.
 | CLI grammar (keyword before value) | N-A | no new command |
 | Editor autocomplete | N-A | no new leaf |
 | Functional test for new RPC/API | Yes | `test/plugin/*.ci`, listed above |
-| Pipe completeness | N-A | the payload shape is `plan/spec-path-mtu-diagnostic.md`'s and is unchanged apart from naming the prober |
+| Pipe completeness | N-A | the payload shape is `show mtu`'s (`docs/architecture/diagnostics/path-mtu.md`, "The payload") and is unchanged apart from naming the prober |
 | Env var registration | N-A | no leaf under `environment/` |
 | Doctor check for runtime dependencies | N-A | no new runtime dependency: the IKE socket already exists and already has its checks |
 | Prometheus counters/metrics | N-A | operator-invoked, no continuous state |

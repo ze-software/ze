@@ -11,7 +11,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **33 / 182** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Test files that expect a specific error | Q2 | **1495 / 4198** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Test files that expect a specific error | Q2 | **1515 / 4223** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 6 further metric(s) are within threshold and are listed in full below.
@@ -22,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**132 / 30233 (floor 132)** (ok)
+**132 / 30333 (floor 132)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -63,7 +63,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1495 / 4198** (attention)
+**1515 / 4223** (attention)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -73,7 +73,6 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 |---|---|---|---|
 | internal/chaos/report | 0 | 6 | 0.0 |
 | internal/chaos/web | 0 | 10 | 0.0 |
-| internal/component/gtsm | 0 | 6 | 0.0 |
 | internal/core/rib | 0 | 13 | 0.0 |
 | internal/core/stats | 0 | 5 | 0.0 |
 | internal/le/hookruntime | 0 | 7 | 0.0 |
@@ -81,6 +80,7 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/plugins/completion | 0 | 7 | 0.0 |
 | internal/component/doctor | 1 | 19 | 5.3 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
+| internal/component/lg | 2 | 21 | 9.5 |
 
 ### RFC MUST requirements proven by test, over the RFCs ze implements
 
@@ -105,9 +105,9 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**30267 test functions** (ok)
+**30367 test functions** (ok)
 
-4198 Go test files, 83 fuzz targets, 133 benchmarks, 2033 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+4223 Go test files, 83 fuzz targets, 133 benchmarks, 2042 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
@@ -122,7 +122,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 632 | 32 | 105 | 35 |
+| 2026 | 633 | 32 | 105 | 35 |
 
 ## Integrity
 

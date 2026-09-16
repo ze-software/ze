@@ -3118,6 +3118,9 @@ environment {
         }
         transcript enabled;  # record session commands and output to local file
     }
+    mtu {
+        reference-address 1.1.1.1;  # the address show mtu measures beside the peers
+    }
 }
 ```
 
@@ -3140,7 +3143,15 @@ output to `$XDG_DATA_HOME/ze/transcripts/` (defaults to
 timestamp, username, and remote host. Transcript writes are best-effort and
 never block CLI operation. Default is `disabled`.
 
+The `mtu { reference-address }` leaf names the address `show mtu` measures
+beside the IPsec peers. A reference outside the tunnels is what tells a clamped
+access circuit from a clamped peer path. The value is one IPv4 or IPv6 address
+and the default is `1.1.1.1`. The environment variable
+`ze.mtu.reference-address` overrides the leaf. The command is described in
+`docs/architecture/diagnostics/path-mtu.md`.
+
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
+<!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
 <!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->

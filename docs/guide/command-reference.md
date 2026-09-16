@@ -1182,6 +1182,52 @@ Returns result (connected/refused/timeout) and latency-ms.
 
 <!-- source: internal/plugins/diag/cmd/tcp_check.go -- HandleTCPCheck -->
 
+### show mtu
+
+```
+ze show mtu                          # Measure every IPsec peer and the reference address
+ze show mtu host 192.0.2.1           # Measure one address instead of the peers
+ze show mtu exhaustive               # Probe every size on the wire, discarding the cached and the reported path MTU
+ze show mtu host 2001:db8::1 detail  # Report every probe sent and every reply received
+```
+
+`host` takes one IPv4 or IPv6 address, and a value that is not an address is
+refused by the grammar. `exhaustive` and `detail` are bare words and go with either
+form. The answer is one document: `status`, `measurements`, `tunnels`,
+`commands`, `notes` and `caveats` always; `inventory`, `verdict` and
+`reference` on a run over the peers; `underlay` once the route's interface
+was read. The reference address is the `environment { mtu { reference-address
+} }` leaf. The payload keys, the run and its outcomes are
+`docs/architecture/diagnostics/path-mtu.md`. The command changes nothing on
+the router: the commands it lists are for the operator to apply.
+
+A run over two aes128gcm tunnels whose path is clamped at 1400, as
+`test/plugin/show-mtu-oversized-tunnels.ci` builds it, answers (the notes and
+the caveat elided):
+
+```json
+{
+  "status": "ok",
+  "inventory": "registered",
+  "verdict": "action-needed",
+  "measurements": [
+    {"target": "10.99.2.1", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false},
+    {"target": "10.99.2.3", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false}
+  ],
+  "reference": {"host": "10.99.2.9", "path-mtu": 1400, "method": "via ICMP"},
+  "underlay": {"interface": "sr0", "kind": "veth", "mtu": 1600, "source": "route to 10.99.2.1", "advice": "circuit-clamped"},
+  "tunnels": [
+    {"peer": "site-b", "remote": "10.99.2.1", "interface": "xa", "mode": "tunnel", "encapsulation": false, "transform": "aes128gcm/none",
+     "path-mtu": 1400, "assumed": false, "current-mtu": 1500, "ceiling": 1346, "recommended": 1314, "mss": 1274,
+     "verdict": "oversized", "octets": 154, "sized": true}
+  ],
+  "commands": ["set interface xfrm xa mtu 1314", "set interface xfrm xb mtu 1314", "set interface veth sr0 mtu 1400"]
+}
+```
+
+<!-- source: internal/component/mtu/cmd/mtu.go -- handleShowMTU -->
+<!-- source: internal/component/mtu/cmd/run.go -- runMTU -->
+
 ### show traceroute
 
 ```

@@ -1117,6 +1117,7 @@ func TestArgDefsPopulated(t *testing.T) {
 		"../../../plugins/host-cmd/yang/ze-host-cmd.yang",
 		"../../../plugins/host-cmd/yang/ze-host-set-cmd.yang",
 		"../../../plugins/log/yang/ze-log-cmd.yang",
+		"../../../plugins/mtu-cmd/yang/ze-mtu-cmd.yang",
 		"../../../plugins/ping-cmd/yang/ze-ping-cmd.yang",
 		"../../../plugins/resolve-cmd/yang/ze-resolve-cmd.yang",
 		"../../../plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang",
@@ -1137,6 +1138,7 @@ func TestArgDefsPopulated(t *testing.T) {
 		"show system profile":          2, // type, duration
 		"show audit":                   6, // action, actor, surface, since, until, count
 		"show ping":                    5, // dest, count, size, timeout, do-not-fragment
+		"show mtu":                     3, // host, search, view
 		"show traceroute":              5, // dest, max-hops, timeout, probes, do-not-fragment
 		"show tcp-check":               4, // host, port, source, timeout
 		"show probe-round":             4, // dest, probes, max-hops, timeout
@@ -1190,6 +1192,33 @@ func TestArgDefsPopulated(t *testing.T) {
 		if !slices.Equal(def.EnumValues, []string{"honor-cache", "bypass-cache"}) {
 			t.Errorf("command %q: do-not-fragment values = %v, want [honor-cache bypass-cache]", path, def.EnumValues)
 		}
+	}
+}
+
+// TestShowMTUArgDefsByName asserts the three leaves of the mtu feature module by
+// name, because the count in TestArgDefsPopulated cannot tell one leaf from
+// another: host is the typed address, and search and view are the enumerations
+// whose one value each is the bare word the grammar offers.
+func TestShowMTUArgDefsByName(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	loadCmdModule(t, loader, cmdBase+"show/yang/ze-cli-show-cmd.yang")
+	loadCmdModule(t, loader, "../../../plugins/mtu-cmd/yang/ze-mtu-cmd.yang")
+	require.NoError(t, loader.Resolve())
+	node := navigateTree(BuildCommandTree(loader), "show mtu")
+	require.NotNil(t, node, "show mtu not found in tree")
+	byName := map[string]command.ArgDef{}
+	for _, def := range node.ArgDefs {
+		byName[def.Name] = def
+	}
+	host, ok := byName["host"]
+	require.True(t, ok, "no ArgDef named host: %v", node.ArgDefs)
+	assert.NotEqual(t, command.ArgEnum, host.Kind, "host is a typed address, not an enumeration")
+	for name, want := range map[string]string{"search": "exhaustive", "view": "detail"} {
+		def, ok := byName[name]
+		require.True(t, ok, "no ArgDef named %s: %v", name, node.ArgDefs)
+		assert.Equal(t, command.ArgEnum, def.Kind, "%s kind", name)
+		assert.Equal(t, []string{want}, def.EnumValues, "%s values", name)
 	}
 }
 

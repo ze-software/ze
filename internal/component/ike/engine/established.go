@@ -4,9 +4,11 @@
 package engine
 
 import (
+	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
@@ -84,7 +86,11 @@ func (ps *PeerSession) runEstablished(
 		ps.setPendingIKESwap(nil)
 	}()
 
-	ifID := resolveIfID(peer)
+	ifID, err := resolveIfID(&peer)
+	if err != nil {
+		log.Warn("ike: child SA creation failed", "peer", ps.peerName, "error", err)
+		return err
+	}
 
 	var child *ChildSA
 	if sa.IsInitiator {
@@ -783,10 +789,39 @@ func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log
 	}
 }
 
-// resolveIfID returns the XFRM if_id for SA binding.
-// The if_id must match the XFRM interface created by ipsec-2.
-func resolveIfID(peer ipsec.SiteToSitePeer) uint32 {
-	return peer.IfID
+// xfrmIfIDOf answers the if_id of the XFRM interface an operator named under
+// `vti bind`, through the iface component (GetXFRMInfo reads IFLA_XFRM_IF_ID
+// off the link). It is a variable so a test stands a fixed answer in its
+// place without an interface backend.
+//
+//nolint:gochecknoglobals // Injection seam, replaced only by tests.
+var xfrmIfIDOf = func(name string) (uint32, error) {
+	info, err := iface.GetXFRMInfo(name)
+	if err != nil {
+		return 0, err
+	}
+	return info.IfID, nil
+}
+
+// resolveIfID answers the XFRM if_id the Child SA is installed with: the
+// if_id of the interface named under the peer's `vti bind`, which is what
+// makes the kernel route the SA's traffic through that interface, and 0 for
+// a peer with no binding, whose SA is policy-based. A binding that names no
+// XFRM interface is an error rather than 0: an SA installed with if_id 0
+// under a bound interface carries nothing and reports nothing, which is the
+// zero-value trap plan/journal/silent-fall-through.md records for this leaf.
+func resolveIfID(peer *ipsec.SiteToSitePeer) (uint32, error) {
+	if peer.VTIBind == "" {
+		return 0, nil
+	}
+	ifID, err := xfrmIfIDOf(peer.VTIBind)
+	if err != nil {
+		return 0, fmt.Errorf("ike: peer %s binds vti %s, which is not an XFRM interface: %w", peer.Name, peer.VTIBind, err)
+	}
+	if ifID == 0 {
+		return 0, fmt.Errorf("ike: peer %s binds vti %s, whose if_id is 0 and cannot carry a bound SA", peer.Name, peer.VTIBind)
+	}
+	return ifID, nil
 }
 
 func emitChildUp(bus ze.EventBus, peerName string, child *ChildSA, log *slog.Logger) {

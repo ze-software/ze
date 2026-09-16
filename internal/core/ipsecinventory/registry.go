@@ -80,6 +80,11 @@ type Tunnel struct {
 	UDPEncap bool
 	// Mode is the installed encapsulation mode.
 	Mode Mode
+	// TSLocal and TSRemote are the Child SA's traffic selectors, the prefixes whose
+	// traffic the SA carries. Each is invalid when the child holds no selector on
+	// that side; the family of TSRemote is the inner family of the tunnel.
+	TSLocal  netip.Prefix
+	TSRemote netip.Prefix
 	// EncryptionName and IntegrityName are the negotiated transforms for display, in
 	// the configuration vocabulary. IntegrityName is "none" for an AEAD cipher.
 	EncryptionName string

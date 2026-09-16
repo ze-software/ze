@@ -941,6 +941,16 @@ allowed when they share that one address, for example to negotiate several ports
 
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
 
+A tunnel-mode peer's `vti { bind <name> }` names an `interface { xfrm <name> { if-id } }`
+block. The Child SA is installed with that interface's if_id, so the tunnel's traffic
+enters and leaves through the named interface and the interface's MTU is the tunnel's.
+The interface has to exist when the peer's first Child SA is created: a binding that names
+no xfrm interface, or one configured with `if-id 0`, fails the Child SA with an error
+naming the interface. `show mtu` reports whether that interface's MTU fits the measured
+path (`docs/architecture/diagnostics/path-mtu.md`).
+
+<!-- source: internal/component/ike/engine/established.go -- resolveIfID -->
+
 A peer that declines the request establishes the Child SA in tunnel mode. Set
 `transport-required true` when that downgrade is unacceptable: Ze then deletes the SA
 instead, which is what Section 1.3.1 asks of an initiator. It defaults to false, so a peer

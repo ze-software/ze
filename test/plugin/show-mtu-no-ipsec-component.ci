@@ -1,0 +1,35 @@
+# Test: show mtu with an IKE engine that holds no tunnel says no-tunnels
+# Spec: spec-path-mtu-diagnostic -- AC-18, the registered half
+# VALIDATES: a daemon whose IKE engine is linked but configures no peer answers
+#            `inventory` registered and verdict `no-tunnels`, with no note that
+#            the inventory is unregistered. The other half of AC-18, a build
+#            without the IKE engine answering `not-registered`, cannot be built
+#            by the functional runner (one `ze` links every component), so
+#            TestShowMTUNoInventoryIsNotZeroTunnels pins it over the seam.
+# PREVENTS: an empty inventory read as an absent one, or the reverse.
+#
+# The path is three network namespaces joined by veth pairs, built by the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, netlink): the
+# daemon runs in the sender namespace, the router forwards with its far link at
+# 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
+# the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
+# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# fixture removes the namespaces when the daemon exits, whatever its exit code.
+
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.storage.blob:value=false
+
+tmpfs=mtu-none.conf:terminator=EOF_CONF
+plugin {
+	external show-mtu-test {
+		run "ze-test fixture plugin/show-mtu-no-tunnels"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtunone$PORT run ze start mtu-none.conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: a registered inventory with no tunnel answers verdict no-tunnels
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

@@ -5,6 +5,7 @@
 package engine
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"testing"
@@ -43,6 +44,8 @@ func TestIPsecInventoryRegisteredByIKE(t *testing.T) {
 		ESPGroup:    negotiated,
 		Mode:        modeTunnel,
 		UDPEncap:    true,
+		TSLocal:     mustIPNet(t, "10.1.0.0/16"),
+		TSRemote:    mustIPNet(t, "2001:db8:2::/48"),
 	})
 	down := &PeerSession{
 		peerName: "site-a",
@@ -75,6 +78,8 @@ func TestIPsecInventoryRegisteredByIKE(t *testing.T) {
 		Encryption:        ipsecinventory.EncryptionID(crypto.ENCR_AES_GCM_16),
 		EncryptionKeyBits: 128,
 		Integrity:         ipsecinventory.IntegrityID(crypto.AUTH_NONE),
+		TSLocal:           netip.MustParsePrefix("10.1.0.0/16"),
+		TSRemote:          netip.MustParsePrefix("2001:db8:2::/48"),
 	}
 	if tunnels[1] != want {
 		t.Errorf("up tunnel:\n got %+v\nwant %+v", tunnels[1], want)
@@ -86,5 +91,56 @@ func TestIPsecInventoryRegisteredByIKE(t *testing.T) {
 	}
 	if tunnels[0].ConfiguredRemote.IsValid() {
 		t.Error("a remote of any was reported as an address")
+	}
+}
+
+// mustIPNet parses one selector the way the child holds it.
+func mustIPNet(t *testing.T, cidr string) *net.IPNet {
+	t.Helper()
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		t.Fatalf("parse %s: %v", cidr, err)
+	}
+	return ipNet
+}
+
+// TestResolveIfIDReadsTheBoundInterface pins the vti binding: a peer bound to
+// an XFRM interface installs its Child SA with that interface's if_id, an
+// unbound peer installs a policy-based SA with if_id 0, and a binding that
+// names no XFRM interface, or one whose if_id is 0, is refused rather than
+// installed unbound (plan/journal/silent-fall-through.md, the VTI half).
+func TestResolveIfIDReadsTheBoundInterface(t *testing.T) {
+	previous := xfrmIfIDOf
+	xfrmIfIDOf = func(name string) (uint32, error) {
+		switch name {
+		case "xfrm7":
+			return 7, nil
+		case "xfrm0":
+			return 0, nil
+		default:
+			return 0, errors.New("no such interface")
+		}
+	}
+	t.Cleanup(func() { xfrmIfIDOf = previous })
+
+	ifID, err := resolveIfID(&ipsec.SiteToSitePeer{Name: "bound", VTIBind: "xfrm7"})
+	if err != nil {
+		t.Fatalf("bound peer: %v", err)
+	}
+	if ifID != 7 {
+		t.Errorf("bound peer if_id %d, want 7", ifID)
+	}
+	ifID, err = resolveIfID(&ipsec.SiteToSitePeer{Name: "policy"})
+	if err != nil {
+		t.Fatalf("unbound peer: %v", err)
+	}
+	if ifID != 0 {
+		t.Errorf("unbound peer if_id %d, want 0", ifID)
+	}
+	if _, err := resolveIfID(&ipsec.SiteToSitePeer{Name: "dangling", VTIBind: "missing"}); err == nil {
+		t.Error("a binding to no interface was accepted; want a refusal")
+	}
+	if _, err := resolveIfID(&ipsec.SiteToSitePeer{Name: "zero", VTIBind: "xfrm0"}); err == nil {
+		t.Error("a binding to an interface with if_id 0 was accepted; want a refusal")
 	}
 }

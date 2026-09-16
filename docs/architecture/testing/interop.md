@@ -269,6 +269,21 @@ it makes a red transport scenario readable, because a broken topology reds it to
 Its selectors are INNER addresses the box never sees, which is the one selector pair
 in this lab a translation cannot move.
 
+Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
+real NAT. `mtu-tunnel-sizing-strongswan` binds the tunnel to an xfrm interface,
+clamps the route the box forwards over to 1400 (`ip route replace ... mtu 1400`,
+which Linux honors when it forwards), and requires the measured path, the derived
+ceiling over the negotiated transform behind UDP encapsulation, the recommended
+interface MTU and its command; an iputils `ping -M do` at the old size MUST lose
+every packet and one at the recommended size MUST lose none. `mtu-nat-installed-endpoint`
+requires the peer measurement and the tunnel row to target the box's face, the
+address the Child SA carries ESP to, and never the peer's real address, where no
+ESP arrives. The ze lab image installs `iputils` for `-M do`, so every IPsec
+scenario's ping is the iputils one.
+
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkMTUTunnelSizingStrongSwan, checkMTUNATInstalledEndpoint, mtuClampedPath -->
+<!-- source: test/interop-ipsec/Dockerfile.ze -- iputils -->
+
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
 

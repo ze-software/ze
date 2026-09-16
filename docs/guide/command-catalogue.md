@@ -319,7 +319,7 @@ subsystem lands.
 | Packet capture (live) | `monitor traffic interface <i>` | `monitor traffic interface <i>` | `tools dump eth <i>` | `tcpdump interface <i>` | - | | scope | - | Use host tcpdump |
 | Bandwidth monitor | `monitor bandwidth <i>` | `monitor interface <i>` | - | - | - | | planned | nl+vpp-stats | Counter delta loop |
 | Port scan | `execute port-scan` | - | - | - | - | | scope | - | Not operator tooling ze intends to ship |
-| MTU discover / path MTU | `force mtu-host` | - | - | `traceroute mtu` | - | | planned | shell | ping -M |
+| MTU discover / path MTU | `force mtu-host` | - | - | `traceroute mtu` | - | `show mtu`, `show mtu host <address>`, `exhaustive`, `detail` | shipped | process | in-daemon ICMP probes with Don't Fragment; the reported MTU is confirmed on the wire, and each IPsec tunnel is sized from its negotiated ESP transform |
 | Wake-on-LAN | `wake-on-lan <mac>` | - | - | - | - | | scope | - | |
 | DNS lookup | `force dns update` | `request dns resolve` | - | - | - | | scope | - | |
 

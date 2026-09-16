@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"net"
 	"net/netip"
@@ -187,14 +186,13 @@ func runPingSession(
 				continue
 			}
 			readErrors = 0
-			if n < 8 || rb[0] != icmpEchoReply {
-				continue
-			}
 			// RFC 792: the Identifier and Sequence Number fields "may be used by
 			// the echo sender to aid in matching the replies with the requests."
 			// Matching by sequence is exactly the mechanism this fix relies on.
-			replyID := binary.BigEndian.Uint16(rb[4:6])
-			replySeq := binary.BigEndian.Uint16(rb[6:8])
+			replyID, replySeq, isReply := probe.ParseEchoReply(rb[:n], icmpEchoReply)
+			if !isReply {
+				continue
+			}
 			if replyID != echoID {
 				continue
 			}
@@ -353,13 +351,7 @@ func runPingSession(
 				}
 				continue
 			}
-			if !q.Echo.Present {
-				continue
-			}
-			if q.Echo.ID != echoID {
-				continue
-			}
-			if q.Errno != syscall.EMSGSIZE {
+			if !q.SizeRefusalOf(echoID) {
 				continue
 			}
 			if !resolve(q.Echo.Seq, tooBigResult(statusTooBig, q)) {

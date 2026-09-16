@@ -1,0 +1,35 @@
+# Test: show mtu answers one document every pipe renders
+# Spec: spec-path-mtu-diagnostic -- user story 4, AC-19
+# VALIDATES: the payload the RPC answers is one kebab-case document whose lists
+#            are lists and whose identifiers carry no marker, which is what
+#            `| json`, `| yaml` and `| table` each render (the three renderings
+#            of the same document are pinned by
+#            TestShowMTUEveryPipeRendersOnePayload in internal/component/mtu/cmd).
+# PREVENTS: a payload pre-formatted as text, a snake_case key, or a verdict
+#           glued to a name.
+#
+# The path is three network namespaces joined by veth pairs, built by the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, netlink): the
+# daemon runs in the sender namespace, the router forwards with its far link at
+# 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
+# the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
+# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# fixture removes the namespaces when the daemon exits, whatever its exit code.
+
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.storage.blob:value=false
+
+tmpfs=mtu-json.conf:terminator=EOF_CONF
+plugin {
+	external show-mtu-test {
+		run "ze-test fixture plugin/show-mtu-json"
+		encoder json
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtujson$PORT run ze start mtu-json.conf:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: show mtu answers one kebab-case document with its lists as lists
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

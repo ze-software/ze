@@ -4,7 +4,9 @@
 
 FROM alpine:3.21
 
-RUN apk add --no-cache tini iproute2 python3
+# iputils replaces busybox ping: the sizing checker sends a sized probe with Don't
+# Fragment (`ping -M do -s`), which busybox ping cannot express.
+RUN apk add --no-cache tini iproute2 python3 iputils
 
 COPY test/interop-ipsec/ze-linux /usr/local/bin/ze
 
