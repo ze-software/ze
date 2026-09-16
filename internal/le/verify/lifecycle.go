@@ -356,6 +356,31 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 			Str(" exit=").Int(int64(stage.Code)).Str(", log ").
 			Str(filepath.Base(stage.Log)).String())
 	}
+	// The verdict is published to the checkout that asked for it. The engine
+	// wrote the certificate under the worktree, which the deferred cleanup
+	// removes, so without this copy `./le verify status check` at root keeps
+	// answering from whatever run last wrote there: on 2026-09-16 that was a
+	// 2026-09-05 exit=130 line, after a green run of HEAD
+	// (plan/journal/unwired-feature.md). The copy is byte
+	// for byte: the certificate describes the commit and the clean tree the
+	// worktree held, and that is what a scoped check at root compares against.
+	// A cut run publishes its piece, exactly as the engine records it, so a
+	// piece never reads as a whole verification (CheckCertificate). A run the
+	// engine refused before its first stage wrote no certificate, and its own
+	// Failure already names why, so that absence is reported and not charged.
+	switch publishErr := verifyengine.CopyCertificate(path, root); {
+	case publishErr == nil:
+		report.Diagnostics = append(report.Diagnostics, text.Reset().
+			Str("verify-worktree: certificate published to ").Str(verifyengine.StatusPath).String())
+	case errors.Is(publishErr, os.ErrNotExist):
+		report.Diagnostics = append(report.Diagnostics, text.Reset().
+			Str("verify-worktree: no certificate to publish (").Err(publishErr).Byte(')').String())
+	default:
+		report.Code = defeatedCode(report.Code, publishErr)
+		report.Failure = &verifyengine.Failure{Kind: "status-publish", Message: publishErr.Error()}
+		report.Diagnostics = append(report.Diagnostics,
+			text.Reset().Str("verify-worktree: publish certificate failed: ").Err(publishErr).String())
+	}
 	if verification.Code != 0 {
 		logs, logErr := deps.logs(root, path, filepath.Base(path))
 		switch {

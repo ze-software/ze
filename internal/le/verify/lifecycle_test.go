@@ -3,8 +3,9 @@
 // is an injected in-process call. Also that a whole checkout and a ref read run
 // under separate deadlines, that a deadline verify chose is reported as such,
 // that a failed add leaves no worktree behind, locked or not, that the worktree
-// shares the checkout's Go build cache, and that the printed verdict is the
-// status the process exits with.
+// shares the checkout's Go build cache, that the printed verdict is the status
+// the process exits with, and that the certificate the engine wrote under the
+// worktree is published to the checkout before the worktree is removed.
 // PREVENTS: a mutable branch, missing runner result, or failed cleanup being
 // reported as a verified commit; a checkout aborted by the bound meant for git
 // plumbing being reported as a git failure; and a run a full device defeated
@@ -779,5 +780,75 @@ func TestARunWithEveryStageGreenIsUnchanged(t *testing.T) {
 	}
 	if verdictLine(t, report) != "verify-worktree: full exit=0" {
 		t.Fatalf("verdict line = %q", verdictLine(t, report))
+	}
+}
+
+// TestTheRunPublishesItsCertificateToTheCheckoutItVerified proves the verdict
+// of a worktree run reaches the checkout that asked for it. The engine writes
+// the certificate under the throwaway worktree, which the run removes, so
+// until 2026-09-16 `./le verify status check` at the checkout kept answering
+// from the last in-place run (plan/journal/unwired-feature.md). A red
+// run then a green one of the same commit MUST leave the green verdict, carrying
+// the verified commit, and the commit's own scoped question MUST answer FRESH.
+func TestTheRunPublishesItsCertificateToTheCheckoutItVerified(t *testing.T) {
+	repo := newFixtureRepo(t)
+	head := repo.git(t, "rev-parse", "HEAD")
+
+	red := Run(context.Background(), repo.root, Options{}, failingRunner())
+	if red.Code != 1 {
+		t.Fatalf("red run = %#v", red)
+	}
+	certificate, err := verifyengine.ReadCertificate(repo.root)
+	if err != nil {
+		t.Fatalf("red run published no certificate at the checkout: %v", err)
+	}
+	if certificate.Exit != 1 || certificate.GitSHA != head {
+		t.Fatalf("red certificate = %#v, want exit 1 for %s", certificate, head)
+	}
+	if freshness := verifyengine.CheckCertificate(repo.root, []string{"tracked.txt"}); freshness.Fresh {
+		t.Fatalf("a red run reads as FRESH: %#v", freshness)
+	}
+
+	green := Run(context.Background(), repo.root, Options{}, passingRunner)
+	if green.Code != 0 || green.Failure != nil {
+		t.Fatalf("green run = %#v", green)
+	}
+	certificate, err = verifyengine.ReadCertificate(repo.root)
+	if err != nil {
+		t.Fatalf("green run published no certificate at the checkout: %v", err)
+	}
+	if certificate.Exit != 0 || certificate.GitSHA != head || certificate.Mode != verifyengine.Mode {
+		t.Fatalf("green certificate = %#v, want exit 0, mode %s, sha %s", certificate, verifyengine.Mode, head)
+	}
+	if freshness := verifyengine.CheckCertificate(repo.root, []string{"tracked.txt"}); !freshness.Fresh {
+		t.Fatalf("the committed path is not FRESH after a green run of HEAD: %s", freshness.Reason)
+	}
+	if _, err := os.Stat(green.Worktree); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("green worktree remains: %v", err)
+	}
+	if !strings.Contains(green.Text(), "verify-worktree: certificate published to "+verifyengine.StatusPath) {
+		t.Fatalf("the run does not say it published: %s", green.Text())
+	}
+}
+
+// TestACutRunPublishesItsPieceAndNeverAWholeVerification proves a piece keeps
+// the engine's own spelling of what it ran, so the checkout's certificate can
+// not credit the stages the piece skipped.
+func TestACutRunPublishesItsPieceAndNeverAWholeVerification(t *testing.T) {
+	repo := newFixtureRepo(t)
+
+	report := Run(context.Background(), repo.root, Options{Part: 1, Parts: 2}, passingRunner)
+	if report.Code != 0 || report.Failure != nil {
+		t.Fatalf("piece run = %#v", report)
+	}
+	certificate, err := verifyengine.ReadCertificate(repo.root)
+	if err != nil {
+		t.Fatalf("piece published no certificate at the checkout: %v", err)
+	}
+	if certificate.Mode != verifyengine.Mode+"-part-1-of-2" {
+		t.Fatalf("piece certificate mode = %q", certificate.Mode)
+	}
+	if freshness := verifyengine.CheckCertificate(repo.root, []string{"tracked.txt"}); freshness.Fresh {
+		t.Fatalf("one piece reads as a whole verification: %#v", freshness)
 	}
 }

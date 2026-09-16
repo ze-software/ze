@@ -393,6 +393,10 @@ process exits with:
 verify-worktree: full exit=3
 ```
 
+The run publishes its certificate to this checkout's `tmp/ze-verify.status`
+before it removes the worktree, so `./le verify status check` answers about the
+run that just ended (`../architecture/testing/verify-freshness-scope.md`).
+
 ## Session binaries
 
 Native test actions build their binaries inside the current session's private

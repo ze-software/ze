@@ -153,6 +153,34 @@ func manifestText(start, end map[string]string) string {
 	return text.String()
 }
 
+// CopyCertificate publishes the certificate and the manifest that one checkout
+// wrote into another, byte for byte, atomically, so the target's readers see
+// the old pair or the whole new pair.
+//
+// A verification runs in a throwaway worktree (internal/le/verify/lifecycle.go)
+// and WriteCertificate records its verdict THERE, under a root the lifecycle
+// removes when the run ends. The verdict is a statement about the commit and
+// the clean tree the worktree held, so it is republished as it was written:
+// re-deriving it at the target would snapshot the target's dirty tree against
+// the worktree's start and record every path as moved during the run.
+//
+// A source with no certificate is an error that wraps os.ErrNotExist rather
+// than a no-op. The caller asked for a verdict to be published, and publishing
+// nothing in silence is how a target keeps reading a verdict from an earlier
+// run as the last one.
+func CopyCertificate(source, target string) error {
+	for _, rel := range []string{StatusPath, ManifestPath} {
+		content, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(rel))) //nolint:gosec // the path is a verification artifact under the source root
+		if err != nil {
+			return fmt.Errorf("read %s: %w", rel, err)
+		}
+		if err := atomicWrite(target, rel, content); err != nil {
+			return fmt.Errorf("publish %s: %w", rel, err)
+		}
+	}
+	return nil
+}
+
 // ReadCertificate reads the status file without evaluating its freshness.
 func ReadCertificate(root string) (Certificate, error) {
 	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(StatusPath))) //nolint:gosec // the path is a verification artifact under the checkout root

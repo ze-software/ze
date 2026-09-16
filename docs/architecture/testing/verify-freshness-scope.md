@@ -6,6 +6,10 @@ Verification is a statement about one commit and the files the run read. The nat
 
 `internal/le/verify/engine.WriteCertificate` writes `tmp/ze-verify.status` and its manifest atomically after a native verification run. The certificate records the mode, commit, time, result, and the tree hash captured for the run. The manifest records each path at the content the stages read.
 
+The engine writes both under the root it ran in. `./le verify worktree` runs in a throwaway worktree, so the pair lands THERE, and the lifecycle publishes it to the checkout that asked for the run before the worktree is removed (`CopyCertificate`, called from `run` in `internal/le/verify/lifecycle.go`). The copy is byte for byte: the certificate describes the commit and the clean tree the worktree held, and re-deriving it at the checkout would snapshot that checkout's dirty tree against the worktree's start and record every path as moved during the run. A cut run publishes its piece, spelled the way the engine spelled it, so the checkout never holds a piece that reads as a whole verification. A run the engine refused before its first stage wrote no certificate, and the lifecycle reports that absence rather than charging it: the engine's own failure already names the cause. Until 2026-09-16 nothing published the pair, so `./le verify status check` at the checkout kept answering from the last in-place run (`plan/journal/unwired-feature.md`).
+
+What the published certificate answers at the checkout follows from the two questions below. The scoped question, which is the one a commit asks, is FRESH for every path the verified commit holds unchanged. The whole-tree question is FRESH only while the checkout is clean at that commit, because an uncommitted edit or an untracked file was judged by no stage.
+
 `./le verify status check` calls `internal/le/verify/engine.CheckCertificate`. With no paths it compares the whole checkout, and any change to it, `HEAD` included, returns STALE. Repeated `path <path>` selectors restrict the answer to a prospective commit's files. A missing manifest, an unreadable one, a scoped path whose content differs from what the stages read, and a scoped path that moved while the run was in progress each return STALE.
 
 Four properties of the narrower question matter to a caller:
@@ -18,7 +22,7 @@ Four properties of the narrower question matter to a caller:
 
 `verificationState` (`internal/le/commit/verification.go`) is what asks the scoped question on a prospective commit's behalf: it passes the commit's own explicit path list, so an edit another session makes outside that list does not make the evidence STALE.
 
-<!-- source: internal/le/verify/engine/status.go -- WriteCertificate, CheckCertificate, scopedChange, movedDuringRun -->
+<!-- source: internal/le/verify/engine/status.go -- WriteCertificate, CopyCertificate, CheckCertificate, scopedChange, movedDuringRun -->
 <!-- source: internal/le/verify/engine/part.go -- Part, deal, Name -->
 <!-- source: internal/le/job/treehash.go -- Fingerprint, PathsChangedBetween -->
 <!-- source: internal/le/verify/engine/stages.go -- changedStages -->
