@@ -33,6 +33,20 @@ copies. The snapshot names each child SA half as a destination-qualified
 carries whether removal of that child SA has started, read under the observation
 mutex.
 
+**`PeerInfo` describes the Child SA as INSTALLED, never as configured.** Its
+`ESPEncryption` and `ESPIntegrity` are read from `ChildSA.ESPGroup`, which holds
+the ONE proposal the peer accepted: `selectResponderESP` narrows it on the
+responder, the IKE_AUTH response path narrows it on the initiator, and each rekey
+narrows the replacement's copy. Until 2026-09-16 `Info` read the session's
+configured group instead, so a peer that accepted the second of two proposals was
+reported as running the first. The typed `ESPEncryptionID`, `ESPKeyBits` and
+`ESPIntegrityID` beside the names are the RFC 7296 Section 3.3.2 transform ids,
+for a reader that derives from the algorithm. An AEAD proposal reports its
+integrity as `none`, the transform's AUTH_NONE, rather than the config enum's zero.
+The snapshot also carries `ChildRemoteAddr` and `ChildLocalAddr` (the installed
+endpoints, as `netip.Addr`), `ChildMode` and `ChildUDPEncap`: with the transform,
+those are the facts that size an ESP packet.
+
 <!-- source: internal/component/ike/engine/reconcile.go -- PeerInfo, Info, Stop, StopGraceful -->
 
 **`show vpn ipsec sa` reports WHICH side of a NAT each end is on.** The payload
@@ -50,7 +64,18 @@ null on an SA that read no transport-mode selector set, which is every
 tunnel-mode SA. Null says the SA never held the fact; an empty string would read
 as an address nobody holds.
 
-<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap, selectorAddressText -->
+**`child-sa` carries the installed transform and the three facts that size an
+ESP packet.** `esp-encryption` and `esp-integrity` name the proposal the peer
+accepted, not the first one configured. `mode` is `tunnel` or `transport` as
+installed, `udp-encapsulation` is a boolean saying the SA receives ESP inside UDP
+(RFC 3948), and `remote-address` is the endpoint the SA was installed on, which
+behind a NAT differs from the peer's configured address. `remote-address` is null
+only when the Child SA carries no parseable endpoint, which no install path
+produces. The `mtu-negotiated-transform` interop scenario proves the transform
+against strongSwan: ze offers two proposals, charon accepts the second, and the
+payload names the second.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap, selectorAddressText, installedAddressText -->
 
 **Metrics and the health check live in the engine package.** They query engine
 internal state, and the host metric registration pattern already does the same.

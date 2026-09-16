@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 )
@@ -675,5 +676,65 @@ func TestUnbindablePeersReportsOnlyTheDependentCase(t *testing.T) {
 	}
 	if errors.Is(err, lookupErr) {
 		t.Errorf("refusal %q blames a lookup failure that did not happen", err)
+	}
+}
+
+// TestPeerInfoReportsNegotiatedTransform proves that Info reports the transform the
+// Child SA was keyed with, not the first proposal the operator configured (AC-15 of
+// spec-path-mtu-diagnostic). The configured group carries two proposals; the child's
+// group holds only the second, exactly as selectResponderESP (responder.go) and the
+// IKE_AUTH response path (fsm.go) leave it. The snapshot also carries the three
+// installed facts the ESP overhead depends on: the encapsulation, the mode and the
+// endpoint the SA was installed on.
+//
+// MUTATION: reading ps.espGroup.Proposals[0] in Info instead of child.ESPGroup makes
+// this test report aes256 where aes128gcm was negotiated.
+func TestPeerInfoReportsNegotiatedTransform(t *testing.T) {
+	first := ipsec.ESPProposal{Number: 1, Encryption: ipsec.EncryptionAES256, Hash: ipsec.HashSHA256}
+	second := ipsec.ESPProposal{Number: 2, Encryption: ipsec.EncryptionAES128GCM}
+	configured := ipsec.ESPGroup{Name: "two", Lifetime: 3600, Proposals: []ipsec.ESPProposal{first, second}}
+	negotiated := configured
+	negotiated.Proposals = []ipsec.ESPProposal{second}
+
+	ps := &PeerSession{peerName: "site-a", espGroup: configured}
+	ps.setChildSA(&ChildSA{
+		InboundSPI:  0x1001,
+		OutboundSPI: 0x2002,
+		LocalAddr:   net.ParseIP("192.0.2.1"),
+		RemoteAddr:  net.ParseIP("198.51.100.7"),
+		ESPGroup:    negotiated,
+		Mode:        modeTransport,
+		UDPEncap:    true,
+	})
+
+	info := ps.Info()
+	if !info.HasChild {
+		t.Fatal("a session holding a Child SA reported none")
+	}
+	if info.ESPEncryption != second.Encryption.String() {
+		t.Errorf("esp encryption = %q, want the negotiated %q", info.ESPEncryption, second.Encryption.String())
+	}
+	// RFC 4106 Section 3: AES-GCM carries its own ICV, so the negotiated integrity of
+	// an AEAD proposal is none, and the snapshot MUST NOT print the config enum's zero.
+	if info.ESPIntegrity != "none" {
+		t.Errorf("esp integrity = %q, want %q for an AEAD proposal", info.ESPIntegrity, "none")
+	}
+	if info.ESPEncryptionID != crypto.ENCR_AES_GCM_16 {
+		t.Errorf("esp encryption id = %d, want ENCR_AES_GCM_16 (%d)", info.ESPEncryptionID, crypto.ENCR_AES_GCM_16)
+	}
+	if info.ESPKeyBits != 128 {
+		t.Errorf("esp key bits = %d, want 128", info.ESPKeyBits)
+	}
+	if info.ESPIntegrityID != crypto.AUTH_NONE {
+		t.Errorf("esp integrity id = %d, want AUTH_NONE", info.ESPIntegrityID)
+	}
+	if !info.ChildUDPEncap {
+		t.Error("udp encapsulation was installed and the snapshot says it was not")
+	}
+	if info.ChildMode != modeTransport {
+		t.Errorf("child mode = %d, want transport (%d)", info.ChildMode, modeTransport)
+	}
+	if want := netip.MustParseAddr("198.51.100.7"); info.ChildRemoteAddr != want {
+		t.Errorf("child remote address = %v, want the installed %v", info.ChildRemoteAddr, want)
 	}
 }

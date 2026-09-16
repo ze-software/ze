@@ -2006,6 +2006,7 @@ Cross-component coupling follows a strict hierarchy:
 | config | plugin, plugin/registry, command |
 | hub | everything (orchestrator) |
 | iface | config/yang, plugin, plugin/registry |
+| ike | command, config (and config/yang, config/secret, config/redistribute), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf rather than being imported for them |
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
 | mcp | audit |
 | plugin/server | aaa, audit |
@@ -2013,6 +2014,20 @@ Cross-component coupling follows a strict hierarchy:
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |
 | ssh | audit, cli, authz, config, plugin/server |
 | web | aaa, audit, cli, authz, config |
+
+**The IPsec inventory is a core leaf, so a feature reads live tunnels without
+importing the IKE engine.** `internal/core/ipsecinventory` imports the standard
+library only. The IKE engine registers one snapshot function at `init()`, and a
+reader calls `Tunnels()` for a list of value-type `Tunnel` records: the peer, the
+configured and installed endpoints, the interface id, the encapsulation, the
+mode and the negotiated ESP transform as its name and its RFC 7296 transform
+ids. `Tunnels()` answers `ErrNotRegistered` when no engine registered, which is
+distinct from a registered engine holding no tunnel, so a build without the IKE
+component cannot be read as a box with no tunnels (`ai/rules/principles.md`).
+The doctor check registry is the shape it copies.
+
+<!-- source: internal/core/ipsecinventory/registry.go -- Register, Tunnels, Tunnel -->
+<!-- source: internal/component/ike/engine/inventory.go -- inventorySnapshot -->
 
 **Local authentication data** and the base `system.authentication.user` schema
 live in `authz`, not `ssh`. `ze-ssh-conf` owns the SSH listener settings and

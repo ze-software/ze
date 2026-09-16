@@ -38,6 +38,7 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":                   checkInvalidKERetry,
 	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
+	"mtu-negotiated-transform":           checkMTUNegotiatedTransform,
 	"natt-transport-inner-checksum":      checkNATTTransportInnerChecksum,
 	"natt-tunnel-inner-checksum":         checkNATTTunnelInnerChecksum,
 	"peer-reload-narrowing":              checkPeerReloadNarrowing,
@@ -168,6 +169,46 @@ func checkIKEAESCCM16(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the AES CCM tunnel")
+}
+
+// zeSecondESPProposal is what ze answers for the second configured ESP proposal of
+// the scenario, in the configuration vocabulary that ipsec.EncryptionAlgo.String
+// renders and `show vpn ipsec sa` reports as the Child SA's esp-encryption field.
+const zeSecondESPProposal = "aes128gcm"
+
+// swanSecondESPProposal is charon's own record of the ESP proposal it selected out of
+// the two ze offered, written through proposal_t's %P printer with the "ESP:" prefix
+// that tells it from the IKE proposal logged in the same words.
+const swanSecondESPProposal = "selected proposal: ESP:AES_GCM_16_128/"
+
+// checkMTUNegotiatedTransform proves that `show vpn ipsec sa` reports the ESP transform
+// the peer ACCEPTED rather than the first one configured (AC-15 of
+// spec-path-mtu-diagnostic). ze initiates with two ESP proposals and charon is
+// configured to accept only the second, so charon's log names the second and ze's
+// Child SA must name the same one. The tunnel then carries traffic, which proves the
+// installed SA is keyed with what both sides report.
+func checkMTUNegotiatedTransform(ctx context.Context, lab *scenarioLab) error {
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if err := lab.waitLog(ctx, swanPeer, swanSecondESPProposal, lab.timeout); err != nil {
+		return err
+	}
+	encryption, err := lab.zeChildESPEncryption(ctx, swanConfigPeer)
+	if err != nil {
+		return err
+	}
+	if encryption != zeSecondESPProposal {
+		return fmt.Errorf("ze reports the Child SA esp-encryption as %q, want the accepted second proposal %q",
+			encryption, zeSecondESPProposal)
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the tunnel keyed with the second proposal")
 }
 
 func checkEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {

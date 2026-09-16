@@ -1097,6 +1097,16 @@ exactly one request id.
 
 <!-- source: internal/component/ike/engine/msgid.go -- reserveRequestWindow, releaseRequestWindow -->
 
+The `child-sa` object of `show vpn ipsec sa` describes the Child SA as installed.
+`esp-encryption` and `esp-integrity` name the proposal the peer accepted: with two
+proposals in the `esp-group` and a peer that accepts only the second, the payload names
+the second. `mode` is `tunnel` or `transport`, `udp-encapsulation` says the SA receives
+ESP inside UDP on port 4500, and `remote-address` is the endpoint the SA was installed
+on, which behind a NAT differs from the configured `remote-address` of the peer. Those
+three, with the transform, are what size an ESP packet on the tunnel.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
+
 `clear vpn ipsec sa` sends a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is
 lost, the normal DPD path still removes the stale remote SA.

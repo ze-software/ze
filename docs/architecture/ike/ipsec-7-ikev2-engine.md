@@ -27,6 +27,23 @@ engine updates. The XFRM interface id comes from peer config.
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
 <!-- source: internal/component/plugin/process/process.go -- startInternal -->
 
+**The engine publishes its live tunnels through a registered inventory, so a
+feature outside this component reads them without importing it.** `init()`
+registers `inventorySnapshot` with `internal/core/ipsecinventory`, a
+standard-library-only leaf. The snapshot is built from the same `PeerInfoMap`
+that `show vpn ipsec sa` reads, under the same locks, so a reader sees what the
+operator sees: one value-type `Tunnel` per active peer session, sorted by name,
+carrying the configured and the installed endpoints, the interface id, the
+encapsulation, the mode and the NEGOTIATED ESP transform, as its name and as the
+RFC 7296 transform ids. A peer whose Child SA is down still appears with `Up`
+false, so a reader tells "down" from "absent". A build that does not link this
+package makes `ipsecinventory.Tunnels` answer `ErrNotRegistered`, which is a
+named outcome distinct from a registered engine holding no tunnel. The leaf was
+added for the path MTU diagnostic (spec-path-mtu-diagnostic), its first reader.
+
+<!-- source: internal/component/ike/engine/inventory.go -- inventorySnapshot, tunnelOf -->
+<!-- source: internal/core/ipsecinventory/registry.go -- Register, Tunnels, Tunnel -->
+
 **Startup opens the sockets before it starts peers.** `OnConfigure` applies the
 configuration and starts the IKE and NAT-T receive loops, then stages the peer
 configuration for `OnAllPluginsReady`. On successful startup, that callback runs

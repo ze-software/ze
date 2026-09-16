@@ -23,6 +23,20 @@ are the proposal names an operator already knows from other IPsec stacks.
 
 <!-- source: internal/component/ike/ipsec/types.go -- EncryptionAlgo.String, HashAlgo.String, ParseEncryptionAlgo -->
 
+**An `ESPGroup` on a live Child SA holds ONE proposal, the accepted one.** The
+configured group lists every proposal the operator offers, in order. After
+negotiation the engine narrows the Child SA's own copy to the proposal the peer
+selected, on both roles and on every rekey, so `ChildSA.ESPGroup.Proposals[0]` is
+the installed transform and the configured list is never read for it. The
+published Child SA state (`engine.PeerInfo`, and the `child-sa` object of `show
+vpn ipsec sa`) reports that proposal and the three installed facts beside it that
+size an ESP packet: the mode, the UDP encapsulation and the installed remote
+endpoint. Reading the configured group there was the defect AC-15 of
+spec-path-mtu-diagnostic removed.
+
+<!-- source: internal/component/ike/engine/responder.go -- selectResponderESP -->
+<!-- source: internal/component/ike/engine/reconcile.go -- PeerInfo, Info -->
+
 **The DH group is a `uint8` with a range check, not an enum.** RFC 7296 Section
 3.3.2 identifies Diffie-Hellman groups by number, so a new group must not
 require a code change. The range is 1 to 31.

@@ -5,10 +5,12 @@ package engine
 import (
 	"log/slog"
 	"maps"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
@@ -267,6 +269,12 @@ func (ps *PeerSession) incRekeyCount() {
 }
 
 // PeerInfo is a snapshot of a peer session's state for display.
+//
+// The Child SA fields describe the SA as INSTALLED, never as configured. ESPEncryption
+// and ESPIntegrity name the proposal the peer accepted (ChildSA.ESPGroup holds exactly
+// that one after negotiation), ChildRemoteAddr is the endpoint the SA was installed on,
+// which differs from RemoteAddress behind a NAT, and ChildMode and ChildUDPEncap are
+// the two facts beside the transform that decide the ESP overhead of the tunnel.
 type PeerInfo struct {
 	PeerName      string
 	RemoteAddress string
@@ -277,14 +285,31 @@ type PeerInfo struct {
 	ChildIfID     uint32
 	ChildInID     dataplane.SAIdentity
 	ChildOutID    dataplane.SAIdentity
+	// ChildRemoteAddr is the installed endpoint. It is invalid (netip.Addr{}) when
+	// the Child SA carries no parseable address, which no install path produces, so a
+	// reader tells "no child" (HasChild false) from "no address" without a sentinel.
+	ChildRemoteAddr netip.Addr
+	// ChildLocalAddr is the installed local endpoint, with the same validity rule.
+	ChildLocalAddr netip.Addr
+	// ChildMode is dataplane.ModeTunnel or dataplane.ModeTransport, as installed.
+	ChildMode uint8
+	// ChildUDPEncap is ChildSA.UDPEncap: the SA receives UDP-encapsulated ESP.
+	ChildUDPEncap bool
 	TSLocal       string
 	TSRemote      string
-	ESPEncryption string
-	ESPIntegrity  string
-	Lifetime      uint32
-	RekeyCount    uint64
-	HasChild      bool
-	childRemoving bool
+	// ESPEncryption and ESPIntegrity name the NEGOTIATED transforms for display. The
+	// three typed fields beside them are the same transforms as the RFC 7296 Section
+	// 3.3.2 transform ids and the key length, for a reader that derives from the
+	// algorithm rather than its name (the ESP overhead of the tunnel).
+	ESPEncryption   string
+	ESPIntegrity    string
+	ESPEncryptionID crypto.EncryptionID
+	ESPKeyBits      uint16
+	ESPIntegrityID  crypto.IntegrityID
+	Lifetime        uint32
+	RekeyCount      uint64
+	HasChild        bool
+	childRemoving   bool
 }
 
 // Info returns a snapshot of the peer session for display.
@@ -313,15 +338,36 @@ func (ps *PeerSession) Info() PeerInfo {
 		// These are the endpoints and protocol installChildSA passes to InstallSA.
 		info.ChildInID = dataplane.IdentityOf(child.InboundSPI, child.LocalAddr, protoESP, child.IfID)
 		info.ChildOutID = dataplane.IdentityOf(child.OutboundSPI, child.RemoteAddr, protoESP, child.IfID)
+		if addr, ok := netip.AddrFromSlice(child.RemoteAddr); ok {
+			info.ChildRemoteAddr = addr.Unmap()
+		}
+		if addr, ok := netip.AddrFromSlice(child.LocalAddr); ok {
+			info.ChildLocalAddr = addr.Unmap()
+		}
+		info.ChildMode = child.Mode
+		info.ChildUDPEncap = child.UDPEncap
 		if child.TSLocal != nil {
 			info.TSLocal = child.TSLocal.String()
 		}
 		if child.TSRemote != nil {
 			info.TSRemote = child.TSRemote.String()
 		}
-		if len(ps.espGroup.Proposals) > 0 {
-			info.ESPEncryption = ps.espGroup.Proposals[0].Encryption.String()
-			info.ESPIntegrity = ps.espGroup.Proposals[0].Hash.String()
+		// The child's group holds the ONE proposal the peer accepted: selectResponderESP
+		// (responder.go) and the IKE_AUTH response path (fsm.go) narrow it before the
+		// first Child SA is keyed, and each rekey path narrows the replacement's copy.
+		// ps.espGroup is the configured list, and its first entry is not always the one
+		// installed, so its proposals are never read here; only its Lifetime is, above
+		// (AC-15 of spec-path-mtu-diagnostic).
+		if len(child.ESPGroup.Proposals) > 0 {
+			prop := child.ESPGroup.Proposals[0]
+			enc, integ := espTransforms(prop)
+			info.ESPEncryption = prop.Encryption.String()
+			// An AEAD proposal configures no hash, so its integrity is the transform's
+			// AUTH_NONE ("none") rather than the config enum's zero ("unknown").
+			info.ESPIntegrity = integ.ID.String()
+			info.ESPEncryptionID = enc.ID
+			info.ESPKeyBits = enc.KeyLength
+			info.ESPIntegrityID = integ.ID
 		}
 	}
 	return info

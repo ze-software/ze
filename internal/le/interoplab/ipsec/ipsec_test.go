@@ -1378,3 +1378,91 @@ func TestDataplaneGaugesRejectFalseCleanAndStaleSeries(t *testing.T) {
 		}
 	}
 }
+
+// negotiatedScriptedLab scripts one run of mtu-negotiated-transform, with charon's
+// selected-proposal line and ze's reported Child SA transform as the two variables a
+// test moves.
+func negotiatedScriptedLab(swanLog, zeESPEncryption string) *fakeCheckerLab {
+	fake := scriptedLab()
+	fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
+	fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: swanLog}
+	fake.answer(zePeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\n")
+	fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "proto esp spi 0x1\nproto esp spi 0x2\n")
+	fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 600))
+	fake.answer(zePeer, []string{"ping", "-c", "4", "-W", "2", swanIP}, losslessPing(4))
+	fake.answer(zePeer, zeCLICommand("show vpn ipsec sa | json"),
+		`[{"peer-name":"swan","encryption":"aes-gcm","child-sa":{"esp-encryption":"`+zeESPEncryption+`"}}]`)
+	return fake
+}
+
+// VALIDATES: mtu-negotiated-transform passes only when charon logs the second ESP
+// proposal as selected AND ze's Child SA names the same transform.
+// PREVENTS: the scenario reading "a tunnel came up" as "the second proposal came up".
+func TestNegotiatedTransformCheckerRequiresBothViews(t *testing.T) {
+	fake := negotiatedScriptedLab(swanSecondESPProposal+"NO_EXT_SEQ\n", zeSecondESPProposal)
+
+	if err := checkMTUNegotiatedTransform(context.Background(), checkerFixture(fake)); err != nil {
+		t.Fatalf("a tunnel both peers report under the second proposal was rejected: %v", err)
+	}
+}
+
+// VALIDATES: ze naming the FIRST configured proposal while charon selected the second
+// fails, which is the defect AC-15 of spec-path-mtu-diagnostic removes.
+// PREVENTS: a one-sided proof passing while `show vpn ipsec sa` reports the
+// configured transform rather than the negotiated one.
+func TestNegotiatedTransformCheckerRejectsConfiguredTransform(t *testing.T) {
+	fake := negotiatedScriptedLab(swanSecondESPProposal+"NO_EXT_SEQ\n", "aes256gcm")
+
+	err := checkMTUNegotiatedTransform(context.Background(), checkerFixture(fake))
+	if err == nil || !strings.Contains(err.Error(), "aes256gcm") {
+		t.Fatalf("the checker accepted ze reporting the configured transform: %v", err)
+	}
+}
+
+// VALIDATES: charon selecting the first proposal fails before ze's answer is read.
+// PREVENTS: a peer that accepted the first proposal passing as proof of narrowing.
+func TestNegotiatedTransformCheckerRejectsFirstProposalAtThePeer(t *testing.T) {
+	fake := negotiatedScriptedLab("selected proposal: ESP:AES_GCM_16_256/NO_EXT_SEQ\n", zeSecondESPProposal)
+
+	err := checkMTUNegotiatedTransform(context.Background(), checkerFixture(fake))
+	if err == nil || !strings.Contains(err.Error(), swanSecondESPProposal) {
+		t.Fatalf("the checker accepted a peer that selected the first proposal: %v", err)
+	}
+}
+
+// VALIDATES: childESPEncryptionOf answers only when exactly one readable Child SA
+// transform is there for the peer, and returns an error for every other answer.
+// PREVENTS: an unreadable answer producing "", which compares unequal to every
+// transform name and so reads as a verdict about the daemon.
+func TestChildESPEncryptionOfRefusesEveryUnreadableAnswer(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		records []map[string]any
+		want    string
+		failure string
+	}{
+		{name: "one child", records: []map[string]any{{"peer-name": "swan", "child-sa": map[string]any{"esp-encryption": "aes128gcm"}}}, want: "aes128gcm"},
+		{name: "no record", records: nil, failure: "no IKE SA for swan"},
+		{name: "no child", records: []map[string]any{{"peer-name": "swan"}}, failure: "no child-sa"},
+		{name: "no transform", records: []map[string]any{{"peer-name": "swan", "child-sa": map[string]any{}}}, failure: "no esp-encryption"},
+		{name: "empty transform", records: []map[string]any{{"peer-name": "swan", "child-sa": map[string]any{"esp-encryption": ""}}}, failure: "empty esp-encryption"},
+		{name: "two children disagree", records: []map[string]any{
+			{"peer-name": "swan", "child-sa": map[string]any{"esp-encryption": "aes128gcm"}},
+			{"peer-name": "swan", "child-sa": map[string]any{"esp-encryption": "aes256gcm"}},
+		}, failure: "disagree"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			encryption, err := childESPEncryptionOf(testCase.records, swanConfigPeer)
+			if testCase.failure == "" {
+				if err != nil || encryption != testCase.want {
+					t.Fatalf("got (%q, %v), want (%q, nil)", encryption, err, testCase.want)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), testCase.failure) {
+				t.Fatalf("got (%q, %v), want an error naming %q", encryption, err, testCase.failure)
+			}
+		})
+	}
+}

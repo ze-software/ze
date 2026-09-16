@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
@@ -279,6 +280,7 @@ func init() {
 	loggerPtr.Store(d)
 	RegisterHealthCheck()
 	registerIPsecRedistSources()
+	ipsecinventory.Register(inventorySnapshot)
 
 	reg := registry.Registration{
 		Name:        "ike",

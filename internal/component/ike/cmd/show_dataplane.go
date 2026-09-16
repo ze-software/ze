@@ -158,7 +158,11 @@ func dataplaneSPISelector(ctx *pluginserver.CommandContext, args []string) (uint
 
 // jsonKeyIfID names the XFRM interface ID member. Three record shapes carry it:
 // an SA, a policy, and a Child SA (show_ipsec.go).
-const jsonKeyIfID = "if-id"
+const (
+	jsonKeyIfID = "if-id"
+	// jsonKeyMode is the encapsulation mode key every SA and policy row shares.
+	jsonKeyMode = "mode"
+)
 
 func saInfoToMap(sa *dataplane.SAInfo) map[string]any {
 	return map[string]any{
@@ -167,7 +171,7 @@ func saInfoToMap(sa *dataplane.SAInfo) map[string]any {
 		"dst":                ipString(sa.Dst),
 		jsonKeyIfID:          sa.IfID,
 		"proto":              ipsecProtoName(sa.Proto),
-		"mode":               ipsecModeName(sa.Mode),
+		jsonKeyMode:          ipsecModeName(sa.Mode),
 		"reqid":              sa.ReqID,
 		"encryption":         sa.Encryption,
 		"encryption-keybits": sa.EncryptionKeyBits,
@@ -213,7 +217,7 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 		"priority":    p.Priority,
 		jsonKeyIfID:   p.IfID,
 		"action":      policyActionName(p.Action),
-		"mode":        ipsecModeName(p.Mode),
+		jsonKeyMode:   ipsecModeName(p.Mode),
 		"reqid":       p.ReqID,
 		"tunnel-src":  ipString(p.TunnelSrc),
 		"tunnel-dst":  ipString(p.TunnelDst),

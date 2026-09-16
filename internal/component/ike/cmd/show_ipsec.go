@@ -11,6 +11,7 @@ package cmd
 
 import (
 	"net"
+	"net/netip"
 	"sort"
 	"time"
 
@@ -229,13 +230,34 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 				"esp-encryption": info.ESPEncryption,
 				"esp-integrity":  info.ESPIntegrity,
 				"lifetime":       info.Lifetime,
+				// The three installed facts beside the transform that size an ESP packet.
+				// mode is the RFC 4301 encapsulation mode, udp-encapsulation says whether
+				// the SA receives ESP inside UDP (RFC 3948), and remote-address is the
+				// endpoint the SA was installed on, which behind a NAT is not the
+				// configured one. esp-encryption and esp-integrity above name the
+				// proposal the peer ACCEPTED, not the first one configured.
+				jsonKeyMode:         ipsecModeName(info.ChildMode),
+				"udp-encapsulation": info.ChildUDPEncap,
+				"remote-address":    installedAddressText(info.ChildRemoteAddr),
 			}
-			addChildCounters(child, info, kernel)
+			addChildCounters(child, &info, kernel)
 			m["child-sa"] = child
 		}
 	}
 
 	return m
+}
+
+// installedAddressText renders an installed Child SA endpoint for the SA payload.
+//
+// An invalid address answers null. It is invalid only when the Child SA carries no
+// parseable endpoint, which no install path produces, so null there reads as "no
+// address" rather than as an address nobody holds (ai/rules/principles.md).
+func installedAddressText(addr netip.Addr) any {
+	if !addr.IsValid() {
+		return nil
+	}
+	return addr.String()
 }
 
 // selectorAddressText renders a stored pre-substitution selector address for the SA
@@ -263,7 +285,7 @@ func selectorAddressText(ip net.IP) any {
 // The two are different answers: zero says the SA carried nothing, null says
 // nobody could ask. A caller that renders null as 0 would reintroduce exactly the
 // false-green this spec exists to remove (ai/rules/evidence.md).
-func addChildCounters(child map[string]any, info engine.PeerInfo, kernel sadCounters) {
+func addChildCounters(child map[string]any, info *engine.PeerInfo, kernel sadCounters) {
 	inBytes, inPackets, inKnown := kernel.lookup(info.ChildInID)
 	outBytes, outPackets, outKnown := kernel.lookup(info.ChildOutID)
 

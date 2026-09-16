@@ -723,6 +723,58 @@ func ikeEncryptionOf(records []map[string]any, peer string) (string, error) {
 	return found, nil
 }
 
+// zeChildESPEncryption returns the ESP encryption transform ze reports for the Child
+// SA of one peer, read out of the structured answer of `show vpn ipsec sa`.
+func (l *scenarioLab) zeChildESPEncryption(ctx context.Context, peer string) (string, error) {
+	records, answer, err := l.zeIKESAs(ctx)
+	if err != nil {
+		return "", err
+	}
+	encryption, err := childESPEncryptionOf(records, peer)
+	if err != nil {
+		return "", fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	return encryption, nil
+}
+
+// childESPEncryptionOf reads one peer's Child SA esp-encryption out of the records
+// `show vpn ipsec sa | json` answered. The value is what ipsec.EncryptionAlgo.String
+// renders for the proposal the peer accepted (engine.PeerInfo.ESPEncryption).
+//
+// It is a pure predicate with the same refusals as ikeEncryptionOf: no record for the
+// peer, a record with no child-sa, a child-sa with no string esp-encryption, an empty
+// one, and two Child SAs that disagree each return an error rather than "", because an
+// empty transform compares unequal to every name and a failure to READ the daemon
+// would read as a verdict ABOUT it (ai/rules/principles.md).
+func childESPEncryptionOf(records []map[string]any, peer string) (string, error) {
+	found := ""
+	for _, record := range records {
+		if record["peer-name"] != peer {
+			continue
+		}
+		child, ok := record["child-sa"].(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("the IKE SA for %s carries no child-sa", peer)
+		}
+		encryption, ok := child["esp-encryption"].(string)
+		if !ok {
+			return "", fmt.Errorf("the Child SA for %s carries no esp-encryption transform", peer)
+		}
+		if encryption == "" {
+			return "", fmt.Errorf("the Child SA for %s reports an empty esp-encryption transform", peer)
+		}
+		if found != "" && found != encryption {
+			return "", fmt.Errorf("the Child SAs for %s disagree on the esp-encryption transform: %s and %s",
+				peer, found, encryption)
+		}
+		found = encryption
+	}
+	if found == "" {
+		return "", fmt.Errorf("show vpn ipsec sa reports no IKE SA for %s", peer)
+	}
+	return found, nil
+}
+
 // zeIKESAs returns the IKE SAs `show vpn ipsec sa` reports, and the answer they were
 // decoded from.
 //
