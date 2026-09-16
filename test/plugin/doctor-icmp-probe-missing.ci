@@ -10,38 +10,24 @@
 # PREVENTS: a missing probe dependency that surfaces as a socket error at the
 #           operator's first ping instead of a diagnostic with a code.
 #
-# The condition is FORCED rather than found: a fresh network namespace holds
-# the kernel's default ping_group_range, and capsh drops cap_net_raw from the
-# bounding set before `ze doctor` starts. So the test reaches the diagnostic on
-# a healthy host and on the QEMU guest as root, where the ordinary run would
+# The condition is FORCED rather than found: the compiled fixture
+# `plugin/isolated-netns` creates a fresh network namespace, which holds the
+# kernel's default ping_group_range, and drops cap_net_raw from its bounding
+# set before `ze doctor` starts. So the test reaches the diagnostic on a
+# healthy host and on the QEMU guest as root, where the ordinary run would
 # open the raw socket and report nothing (the vacuity trap in
 # ai/rules/interop-and-goal-validation.md). Needs CAP_NET_ADMIN for the
-# namespace; `packages "iproute2 libcap"` in the guest.
+# namespace.
 
 option=needs-linux:caps=net-admin
 
 tmpfs=probe.conf:terminator=EOF_CONF
 EOF_CONF
 
-tmpfs=no-icmp-socket.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-N=zedfd$PORT
-cleanup() {
-	ip netns del "$N" 2>/dev/null
-}
-trap cleanup EXIT
-set -e
-ip netns add "$N"
-ip -n "$N" link set lo up
-set +e
-ip netns exec "$N" capsh --drop=cap_net_raw --shell=/bin/sh -- -c 'exec ze doctor --json probe.conf'
-exit $?
-EOF_SH
-
 # A missing probe socket is a WARNING: the daemon still routes, so readiness
 # stays true and doctor exits 0. The diagnostic, not the exit code, is the
 # answer here.
-cmd=foreground:seq=1:exec=sh no-icmp-socket.sh:timeout=20s
+cmd=foreground:seq=1:exec=ze-test fixture plugin/isolated-netns netns zedfd$PORT without-net-raw run ze doctor --json probe.conf:timeout=20s
 expect=exit:code=0
 # The JSON row, quotes and comma included: a bare `doctor-icmp-probe` is also a
 # prefix of the unprivileged code and of the `ze explain` line below.
