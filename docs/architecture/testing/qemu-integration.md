@@ -444,7 +444,10 @@ run needs therefore has to be `=y` in `gokrazy/kernel/*.config`, and the
 matching `gokrazy/kernel/*.require` manifest is what makes a silent demotion to
 `=m` fail the build instead of the test. `CONFIG_PPP`, `CONFIG_L2TP`,
 `CONFIG_PPPOE`, `CONFIG_VLAN_8021Q`, `CONFIG_DUMMY` and the qdisc set are all
-`=y` for this reason.
+`=y` for this reason. So is `CONFIG_XFRM_INTERFACE`, the device `set interface
+xfrm` creates and a `vti bind` IPsec peer installs its Child SA against: the
+first QEMU run of `test/plugin/show-mtu-oversized-tunnels.ci` found it unset,
+and the shipped kernel answered `link add: operation not supported`.
 
 `Run.setupCommand` still issues `modprobe` for ppp, l2tp and netfilter modules,
 each with `|| true`. Those lines are best-effort and load nothing on a
