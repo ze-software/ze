@@ -24,7 +24,6 @@ import (
 	"golang.org/x/tools/gopls/internal/settings"
 	"golang.org/x/tools/gopls/internal/vulncheck/govulncheck"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/moremaps"
 )
 
 // ParseDiagnostics returns diagnostics from parsing the go.mod files in the workspace.
@@ -422,9 +421,12 @@ func foundVuln(finding *govulncheck.Finding) (*govulncheck.Frame, vulnFindingTyp
 }
 
 func sortedKeys(m map[string]bool) []string {
-	keys := moremaps.KeySlice(m)
-	sort.Strings(keys)
-	return keys
+	ret := make([]string, 0, len(m))
+	for k := range m {
+		ret = append(ret, k)
+	}
+	sort.Strings(ret)
+	return ret
 }
 
 // suggestGovulncheckAction returns a code action that suggests either run govulncheck
@@ -434,7 +436,7 @@ func sortedKeys(m map[string]bool) []string {
 func suggestGovulncheckAction(fromGovulncheck bool, uri protocol.DocumentURI) (cache.SuggestedFix, error) {
 	if fromGovulncheck {
 		resetVulncheck := command.NewResetGoModDiagnosticsCommand("Reset govulncheck result", command.ResetGoModDiagnosticsArgs{
-			URI:              uri,
+			URIArg:           command.URIArg{URI: uri},
 			DiagnosticSource: string(cache.Govulncheck),
 		})
 		return cache.SuggestedFixFromCommand(resetVulncheck, protocol.QuickFix), nil

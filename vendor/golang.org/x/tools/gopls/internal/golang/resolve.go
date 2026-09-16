@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/gopls/internal/protocol"
 	"golang.org/x/tools/gopls/internal/protocol/command"
 	"golang.org/x/tools/gopls/internal/settings"
+	"golang.org/x/tools/gopls/internal/util/morestrings"
 )
 
 // Ths file contains the code to mediate user dialogs in the client
@@ -49,7 +50,7 @@ var addTagsForm = []protocol.FormField{
 	{
 		ID:          "tags",
 		Description: `comma-separated list of tags to add; e.g.. "json,xml"`,
-		Type:        protocol.FormFieldTypeString{Kind: protocol.FormFieldKindString},
+		Type:        protocol.FormFieldTypeString{Kind: "string"},
 		Required:    true,
 		Default:     "json",
 	},
@@ -57,7 +58,7 @@ var addTagsForm = []protocol.FormField{
 		ID:          "transform",
 		Description: `transform rule for added tags, e.g., "camelcase' or 'snakecase"`,
 		Type: protocol.FormFieldTypeEnum{
-			Kind: protocol.FormFieldKindEnum,
+			Kind: "enum",
 			Entries: []protocol.FormEnumEntry{
 				{
 					Value:       "camelcase",
@@ -90,7 +91,7 @@ var removeTagsForm = []protocol.FormField{
 	{
 		ID:          "tags",
 		Description: `comma-separated list of tags to remove; e.g., "json,xml"`,
-		Type:        protocol.FormFieldTypeString{Kind: protocol.FormFieldKindString},
+		Type:        protocol.FormFieldTypeString{Kind: "string"},
 		Required:    true,
 		Default:     "json", // TODO(?): put the existing tags here?
 	},
@@ -112,10 +113,6 @@ func ResolveCommand(ctx context.Context, params *protocol.ExecuteCommandParams, 
 		}
 	case "gopls.implement_interface":
 		if err := resolveImplementInterface(options, params); err != nil {
-			return nil, err
-		}
-	case "gopls.move_declaration":
-		if err := resolveMoveDeclaration(options, params); err != nil {
 			return nil, err
 		}
 	}
@@ -201,7 +198,7 @@ var implementInterfaceFormLazyEnum = []protocol.FormField{
 		ID:          "interface",
 		Description: `fully qualified interface identifier path/to/pkg.interface; e.g., "net.Error"`,
 		Type: protocol.FormFieldTypeLazyEnum{
-			Kind:   protocol.FormFieldKindLazyEnum,
+			Kind:   "lazyEnum",
 			Source: "workspaceSymbol",
 			Config: mustMarshal(InteractiveWorkspaceSymbolEnumConfig{
 				Kinds: []protocol.SymbolKind{protocol.Interface},
@@ -217,32 +214,10 @@ var implementInterfaceFormString = []protocol.FormField{
 		ID:          "interface",
 		Description: `fully qualified interface identifier path/to/pkg.interface; e.g., "net.Error"`,
 		Type: protocol.FormFieldTypeString{
-			Kind: protocol.FormFieldKindString,
-		},
-		Required: true,
-		Default:  "error",
-	},
-}
-
-var moveDeclarationFormString = []protocol.FormField{
-	{
-		ID:          "file",
-		Description: "destination file uri for the moved declaration, e.g. file:///path/to/file.go",
-		Type: protocol.FormFieldTypeFile{
 			Kind: "string",
 		},
 		Required: true,
-	},
-}
-
-var moveDeclarationFormFile = []protocol.FormField{
-	{
-		ID:          "file",
-		Description: "destination file for the moved declaration",
-		Type: protocol.FormFieldTypeFile{
-			Kind: "file",
-		},
-		Required: true,
+		Default:  "error",
 	},
 }
 
@@ -280,7 +255,7 @@ func resolveImplementInterface(options settings.ClientOptions, param *protocol.E
 		if ifaceStr == "error" {
 			return nil
 		}
-		pkgPath, ifaceName, ok := strings.CutLast(ifaceStr, ".")
+		pkgPath, ifaceName, ok := morestrings.CutLast(ifaceStr, ".")
 		if !ok {
 			return fmt.Errorf(`invalid interface type name: want string of form "example.com/pkg.Type", got %q`, ifaceStr)
 		}
@@ -306,39 +281,6 @@ func resolveImplementInterface(options settings.ClientOptions, param *protocol.E
 		return nil
 	}
 
-	param.FormFields = nil
-	return nil
-}
-
-func resolveMoveDeclaration(options settings.ClientOptions, param *protocol.ExecuteCommandParams) error {
-	var a0 command.MoveDeclarationArgs
-	if err := command.UnmarshalArgs(param.Arguments, &a0); err != nil {
-		return err
-	}
-	var form []protocol.FormField
-	if ok := options.SupportedInteractiveInputTypes[settings.InteractiveInputTypeFile]; ok {
-		form = moveDeclarationFormFile
-	} else if ok := options.SupportedInteractiveInputTypes[settings.InteractiveInputTypeString]; ok {
-		form = moveDeclarationFormString
-	} else {
-		// This should not happen because gopls should not offer this code action if the
-		// language client does not support any kind above.
-		return fmt.Errorf("internal error: unsupported interactive input types: %v", options.SupportedInteractiveInputTypes)
-	}
-
-	// First call, return the empty form.
-	if len(param.FormAnswers) == 0 {
-		param.FormFields = form
-		return nil
-	}
-
-	file, err := FormAnswer[string](&param.InteractiveParams, "file")
-	if err != nil {
-		return err
-	}
-	if _, err := protocol.ParseDocumentURI(file); err != nil {
-		return err
-	}
 	param.FormFields = nil
 	return nil
 }

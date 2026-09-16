@@ -16,7 +16,7 @@ import (
 // vulncheck implements the vulncheck command.
 // TODO(hakim): hide from the public.
 type vulncheck struct {
-	app *application
+	app *Application
 }
 
 func (v *vulncheck) Name() string   { return "vulncheck" }
