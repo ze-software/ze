@@ -1851,3 +1851,294 @@ func requireUnderlayAdvice(run map[string]any, want string) error {
 	}
 	return nil
 }
+
+// The padded IKE path probe scenario (ike-padded-probe-strongswan) reshapes the NAT
+// box so that ICMP cannot see the clamp and only the SA's own channel can.
+const (
+	// icmpRouteTable is the NAT box's policy-routing table that carries ICMP past
+	// the clamp: its routes name no mtu, so a forwarded echo crosses at eth0's 1500.
+	icmpRouteTable = "100"
+	// mtuUnclampedPath is what the ICMP search then measures to the peer: the box's
+	// full link, and the ceiling the IKE probe starts from and refutes.
+	mtuUnclampedPath = 1500
+	// zeShowMTUOutput is where a detached `show mtu | json` writes its document in
+	// the ze container, and zeShowMTUDone the marker the shell writes after it. The
+	// run is detached because a probe the peer never answers holds the request
+	// window for requestWindowTimeout (30 s) before the SA is deemed failed, which
+	// is longer than one docker exec is given.
+	zeShowMTUOutput = "/root/show-mtu.json"
+	zeShowMTUDone   = "/root/show-mtu.done"
+	// showMTUDetachedTimeout bounds the wait for a detached run: two ICMP searches
+	// that can each run 45 s on silence, the IKE descent and one full
+	// request-window timeout.
+	showMTUDetachedTimeout = 300 * time.Second
+	// detachedLogTail is how many log lines of each daemon a detached run that
+	// never finished names in its error, so the failure says what the daemons
+	// were doing rather than only that the marker never appeared.
+	detachedLogTail = 60
+	// rekeyRaceDelay is how long after the detached run starts that strongSwan is
+	// told to rekey the IKE SA. The ICMP search over an unclamped path answers in
+	// well under a second, and the IKE descent that follows spends several seconds
+	// on retransmit timers, so the rekey lands inside it.
+	rekeyRaceDelay = 3 * time.Second
+	// probeSAFailedMark is what the measurement row's ike-declined starts with when
+	// the SA was deemed failed under an exchange (ikeProbeEnded, mtu/cmd/search.go).
+	probeSAFailedMark = "sa-failed at "
+	// probeRefusedMark is the ike-declined prefix of a refusal by name.
+	probeRefusedMark = "refused: "
+)
+
+// peerReassemblyMarks are the per-namespace sysctls bounding the memory the kernel
+// spends reassembling fragmented datagrams, high mark first.
+var peerReassemblyMarks = []string{"net.ipv4.ipfrag_high_thresh", "net.ipv4.ipfrag_low_thresh"}
+
+// exemptICMPFromClamp installs, on the NAT box, a policy route that carries every
+// ICMP datagram it forwards, and every one it sends itself, over routes that name no
+// mtu. An echo and its reply then cross at 1500 while every UDP and ESP datagram
+// meets clampForwardedPath's 1400: the ICMP search believes 1500 and only a probe
+// on the tunnel's own channel meets the clamp.
+func (l *scenarioLab) exemptICMPFromClamp(ctx context.Context) error {
+	for _, real := range []string{zeIP, swanIP} {
+		if _, err := l.exec(ctx, natPeer, "ip", "route", "replace", real+"/32", "dev", "eth0", "table", icmpRouteTable); err != nil {
+			return fmt.Errorf("install the unclamped ICMP route to %s on the NAT box: %w", real, err)
+		}
+	}
+	if _, err := l.exec(ctx, natPeer, "ip", "rule", "add", "ipproto", "icmp", "lookup", icmpRouteTable); err != nil {
+		return fmt.Errorf("route ICMP past the clamp on the NAT box: %w", err)
+	}
+	return nil
+}
+
+// dropTooBigToward drops, on the NAT box, every Fragmentation Needed the box itself
+// would send the target, so a Don't Fragment datagram the clamp refuses vanishes in
+// silence: the filtered path of AC-1.
+func (l *scenarioLab) dropTooBigToward(ctx context.Context, target string) error {
+	_, err := l.exec(ctx, natPeer, "iptables", "-I", "OUTPUT", "1", "-d", target, "-p", "icmp", "--icmp-type", "fragmentation-needed", "-j", "DROP")
+	if err != nil {
+		return fmt.Errorf("drop Fragmentation Needed toward %s on the NAT box: %w", target, err)
+	}
+	return nil
+}
+
+// dropFragmentsAtPeer makes every fragmented datagram vanish at the strongSwan peer:
+// its reassembly memory (net.ipv4.ipfrag_high_thresh, and the low mark it MUST stay
+// above) is cut to zero, so the kernel refuses every fragment queue and no datagram
+// the NAT box fragmented is ever reassembled or parsed (ReasmFails counts them). A
+// drop at a netfilter chain cannot do this: conntrack's defragmentation runs before
+// any chain on both the box and the peer, so `iptables -f` matches nothing there and
+// the DF-clear copy is answered as if the path carried fragments (measured
+// 2026-09-16: 16 exchanges and `prober: ike` under that rule). Seen from Ze the
+// path drops fragments either way. Nothing else in the scenario is fragmented:
+// the echo crosses whole and ESP stays under the clamp. The function returned
+// puts both marks back, high before low, the order the kernel's bounds accept.
+func (l *scenarioLab) dropFragmentsAtPeer(ctx context.Context) (restore func(context.Context) error, err error) {
+	previous := make([]string, len(peerReassemblyMarks))
+	for i, mark := range peerReassemblyMarks {
+		value, err := l.exec(ctx, swanPeer, "sysctl", "-n", mark)
+		if err != nil {
+			return nil, fmt.Errorf("read strongSwan's %s: %w", mark, err)
+		}
+		previous[i] = strings.TrimSpace(value)
+	}
+	// Low first: high may not go below low.
+	for _, mark := range slices.Backward(peerReassemblyMarks) {
+		if _, err := l.exec(ctx, swanPeer, "sysctl", "-w", mark+"=0"); err != nil {
+			return nil, fmt.Errorf("cut strongSwan's %s: %w", mark, err)
+		}
+	}
+	return func(ctx context.Context) error {
+		for i, mark := range peerReassemblyMarks {
+			if _, err := l.exec(ctx, swanPeer, "sysctl", "-w", mark+"="+previous[i]); err != nil {
+				return fmt.Errorf("restore strongSwan's %s to %s: %w", mark, previous[i], err)
+			}
+		}
+		return nil
+	}, nil
+}
+
+// zeShowMTUDetached starts `show mtu | json` in the ze container without waiting
+// for it, runs `during` once it is started, and answers the document once the run
+// wrote it. A run whose IKE probe is never answered outlasts one docker exec, so
+// the shell writes the answer to a file and a marker after it, and this polls for
+// the marker.
+func (l *scenarioLab) zeShowMTUDetached(ctx context.Context, during func(context.Context) error) (map[string]any, string, error) {
+	if _, err := l.exec(ctx, zePeer, "rm", "-f", zeShowMTUOutput, zeShowMTUDone); err != nil {
+		return nil, "", fmt.Errorf("clear the previous detached show mtu answer: %w", err)
+	}
+	argv := zeCLICommand("show mtu | json")
+	var tb textbuf.Buffer
+	shell := tb.Str("{ ").Str(argv[len(argv)-1]).Str(" ; } > ").Str(zeShowMTUOutput).Str(" 2>&1; echo done > ").Str(zeShowMTUDone).String()
+	if err := l.check.Lab.ExecDetached(ctx, zePeer, []string{"sh", "-c", shell}, nil); err != nil {
+		return nil, "", fmt.Errorf("start the detached show mtu: %w", err)
+	}
+	if during != nil {
+		if err := during(ctx); err != nil {
+			return nil, "", err
+		}
+	}
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: showMTUDetachedTimeout, Interval: 2 * time.Second, Description: "the detached show mtu to finish",
+	}, func(probe context.Context) (string, error) {
+		return l.execQuiet(probe, zePeer, "cat", zeShowMTUDone), nil
+	}, func(marker string) bool { return strings.TrimSpace(marker) == "done" })
+	if err != nil {
+		return nil, "", fmt.Errorf("%w; ze log tail: %s; strongSwan log tail: %s", err, l.logTail(ctx, zePeer), l.logTail(ctx, swanPeer))
+	}
+	answer, err := l.exec(ctx, zePeer, "cat", zeShowMTUOutput)
+	if err != nil {
+		return nil, answer, fmt.Errorf("read the detached show mtu answer: %w", err)
+	}
+	var run map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &run); err != nil {
+		return nil, answer, fmt.Errorf("the detached show mtu | json did not answer one document: %w; answer: %s", err, answer)
+	}
+	return run, answer, nil
+}
+
+// swanRekeyIKE asks strongSwan to rekey the IKE SA now. In IKE_REKEYED charon drops
+// a request that is not a Delete (task_manager_v2.c reject_request), which is the
+// race R-5 names.
+func (l *scenarioLab) swanRekeyIKE(ctx context.Context) error {
+	if _, err := l.exec(ctx, swanPeer, "swanctl", "--rekey", "--ike", swanConnection); err != nil {
+		return fmt.Errorf("swanctl --rekey --ike %s: %w", swanConnection, err)
+	}
+	return nil
+}
+
+// measurementRowOf answers the ONE measurement row carrying the label and the
+// target, or an error naming what the list holds instead.
+func measurementRowOf(run map[string]any, label, target string) (map[string]any, error) {
+	rows, err := rowsOf(run, "measurements")
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row["label"] == label && row["target"] == target {
+			return row, nil
+		}
+	}
+	return nil, fmt.Errorf("show mtu carries no %s measurement of %s: %v", label, target, rows)
+}
+
+// rowNumber reads one numeric key of a row, refusing a row that lacks it.
+func rowNumber(row map[string]any, key string) (int, error) {
+	value, ok := row[key].(float64)
+	if !ok {
+		return 0, fmt.Errorf("the row carries no numeric %s: %v", key, row)
+	}
+	return int(value), nil
+}
+
+// requireIKEMeasured refuses unless the row was measured by the padded IKE
+// exchange: prober ike, no ike-declined, path-mtu and ike-confirmed at the size
+// given, at least two exchanges (the refuted ask and the size that fit, so a
+// DF-clear copy was answered across the box, A-3), and no different-path caveat
+// (the SA rides UDP/4500 where ESP rides, AC-7).
+func requireIKEMeasured(row map[string]any, pathMTU int) error {
+	if row["prober"] != "ike" {
+		return fmt.Errorf("the measurement's prober is %v, want ike: %v", row["prober"], row)
+	}
+	if declined, present := row["ike-declined"]; present {
+		return fmt.Errorf("the IKE prober declined: %v", declined)
+	}
+	for _, key := range []string{"path-mtu", "ike-confirmed"} {
+		got, err := rowNumber(row, key)
+		if err != nil {
+			return err
+		}
+		if got != pathMTU {
+			return fmt.Errorf("the measurement's %s is %d, want %d: %v", key, got, pathMTU, row)
+		}
+	}
+	exchanges, err := rowNumber(row, "exchanges")
+	if err != nil {
+		return err
+	}
+	if exchanges < 2 {
+		return fmt.Errorf("the measurement spent %d IKE exchanges, want at least two: the ask above the clamp and the size that fit", exchanges)
+	}
+	if strings.Contains(fmt.Sprint(row["caveats"]), "UDP/500") {
+		return fmt.Errorf("the measurement carries the different-path caveat on a NAT-T SA: %v", row["caveats"])
+	}
+	return nil
+}
+
+// requireProbeFailedSA refuses unless the row says the IKE prober was declined
+// because the SA was deemed failed under the ONE exchange at the size given: prober
+// icmp, ike-declined naming sa-failed and the size, exactly one exchange (no second
+// size was tried), and the ICMP figure kept as path-mtu (AC-13).
+func requireProbeFailedSA(row map[string]any, size, icmpFigure int) error {
+	if row["prober"] != "icmp" {
+		return fmt.Errorf("the measurement's prober is %v, want icmp after the SA failed: %v", row["prober"], row)
+	}
+	declined, ok := row["ike-declined"].(string)
+	if !ok {
+		return fmt.Errorf("the measurement carries no ike-declined: %v", row)
+	}
+	want := probeSAFailedMark + strconv.Itoa(size) + " octets"
+	if !strings.HasPrefix(declined, want) {
+		return fmt.Errorf("ike-declined is %q, want it to start with %q", declined, want)
+	}
+	exchanges, err := rowNumber(row, "exchanges")
+	if err != nil {
+		return err
+	}
+	if exchanges != 1 {
+		return fmt.Errorf("the measurement spent %d IKE exchanges, want exactly the one the SA failed under", exchanges)
+	}
+	pathMTU, err := rowNumber(row, "path-mtu")
+	if err != nil {
+		return err
+	}
+	if pathMTU != icmpFigure {
+		return fmt.Errorf("the measurement's path-mtu is %d, want the ICMP figure %d kept", pathMTU, icmpFigure)
+	}
+	return nil
+}
+
+// requireCharonParsedProbes refuses unless charon's log shows INFORMATIONAL requests
+// parsed and no parse failure or INVALID_SYNTAX: the positive clause proves the log
+// was read and the padded requests reached the parser (A-2, R-1).
+func requireCharonParsedProbes(logs string) error {
+	if !strings.Contains(logs, "parsed INFORMATIONAL request") {
+		return errors.New("charon's log shows no INFORMATIONAL request parsed")
+	}
+	if strings.Contains(logs, "INVALID_SYNTAX") {
+		return errors.New("charon answered INVALID_SYNTAX")
+	}
+	for line := range strings.SplitSeq(logs, "\n") {
+		if strings.Contains(line, "pars") && strings.Contains(line, "failed") {
+			return fmt.Errorf("charon reported a parse failure: %s", line)
+		}
+	}
+	return nil
+}
+
+// requireZeIKEEstablished refuses unless `show vpn ipsec sa` lists an established
+// IKE SA for the configured peer.
+func (l *scenarioLab) requireZeIKEEstablished(ctx context.Context, peer string) error {
+	records, answer, err := l.zeIKESAs(ctx)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record["peer-name"] == peer && record["state"] == "established" {
+			return nil
+		}
+	}
+	return fmt.Errorf("ze lists no established IKE SA for %s; answer: %s", peer, answer)
+}
+
+// logTail answers the last detachedLogTail lines of one peer's log, or the read
+// error's text, for an error message about a run that never finished.
+func (l *scenarioLab) logTail(ctx context.Context, peer string) string {
+	logs, err := l.logs(ctx, peer)
+	if err != nil {
+		return "(unreadable: " + err.Error() + ")"
+	}
+	lines := strings.Split(strings.TrimSpace(logs), "\n")
+	if len(lines) > detachedLogTail {
+		lines = lines[len(lines)-detachedLogTail:]
+	}
+	return "\n" + strings.Join(lines, "\n")
+}

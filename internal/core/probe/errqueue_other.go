@@ -20,9 +20,9 @@ import (
 	"net/netip"
 )
 
-// drainErrorQueue reports the capability absent. The signature matches
+// DrainErrorQueue reports the capability absent. The signature matches
 // errqueue_linux.go so every caller is written once.
-func drainErrorQueue(_ net.PacketConn, _ Family, _ func(QueuedError)) error {
+func DrainErrorQueue(_ net.PacketConn, _ Family, _ func(QueuedError)) error {
 	return ErrErrQueueUnsupported
 }
 

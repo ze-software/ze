@@ -75,6 +75,18 @@ value, which is an option and never data.
    with `outcome: error` and a fault note while the others are still measured
    (AC-7). A target that answers the 10000-octet gate ends the run as
    `df-gate-failed`: the later targets are not probed.
+   A measured peer target whose tunnel is up is then offered to the IKE
+   prober (`measureByIKE`), which confirms the ICMP figure first and descends
+   below it only when the figure is too big: "The IKE prober" below. The IKE
+   figure replaces the ICMP one only when IKE refuted it; a fit at the ask
+   confirms the ICMP figure and the row's `ike-confirmed` names the size
+   proven. It
+   reaches the engine through the `internal/core/ikeprobe` leaf (`ikeProber`,
+   `search.go`) and never builds an IKE message. A prober that declines, by a
+   refusal the engine names, by an SA the exchange failed, by the exchange
+   budget, or by no engine being registered, leaves the ICMP figure and
+   `prober: icmp` in place, and the row's `ike-declined` and a caution note
+   say why the figure is unconfirmed.
 4. **Reference.** On a default run only, the `reference-address` leaf is
    measured unless it is already a target, in which case that measurement is
    the reference. A silent reference makes the underlay advice undecidable
@@ -122,13 +134,13 @@ never a marker glued to another field's text.
 | `status` | one of `ok`, `nothing-measured`, `df-gate-failed` | always |
 | `inventory` | `registered` or `not-registered` | on a default run |
 | `verdict` | the run-level ladder, first match wins: `action-needed`, `check`, `no-tunnels`, `ok` | on a default run with a registered inventory |
-| `measurements` | one row per target: `target`, `label` (`host`, `peer`), `outcome` (`measured`, `unmeasurable`, `df-gate-failed`, `error`), `probes`, `lossy`, `cached-path-mtu` when the kernel held one, `path-mtu` and `method` under `measured`, `reason` under `error`, and `probes-sent` (`payload`, `wire`, `outcome`, `reported-mtu`) under `detail` | always |
-| `reference` | `host`, then `path-mtu` and `method` when measured, else `outcome` | on a default run |
+| `measurements` | one row per target: `target`, `label` (`host`, `peer`), `outcome` (`measured`, `unmeasurable`, `df-gate-failed`, `error`), `probes` (the ICMP probes sent, on every prober), `lossy`, `prober` (`icmp`, or `ike` when the peer's live SA confirmed or measured the figure), `ike-confirmed` under `prober: ike` (the largest wire size the padded exchange proved the path carries whole, the size the engine sent; equal to `path-mtu` when IKE refuted the ICMP figure, below it when a cipher grid sent a smaller datagram than the ask), `ike-declined` when the IKE prober was asked and produced no figure (the refusal by name, `sa-failed at <size> octets`, the budget, or `not in this build`), `cached-path-mtu` when the kernel held one, `path-mtu`, `method` (how the ICMP search found its figure) and `caveats` (the row's own, by its prober: the ICMP caveat, the different-path caveat, or none) under `measured`, `exchanges` (the IKE exchanges spent, 0 when it declined before sending) under `measured` for a target with a live SA, `reason` under `error`, and `probes-sent` (`payload`, `wire`, `outcome`, `reported-mtu`) under `detail` | always |
+| `reference` | `host`, then `path-mtu`, `method` and `prober` when measured, else `outcome` | on a default run |
 | `underlay` | `interface`, `mtu`, `source`, `kind` when the link type has an interface list in the iface YANG (`iface.CanonicalInterfaceType`), and `advice` once the matrix ran | once the underlay was read |
 | `tunnels` | one row per tunnel: `peer`, `remote`, `interface`, `mode`, `encapsulation`, `transform`, `path-mtu`, `assumed`, `current-mtu`, `ceiling`, `recommended`, `mss`, `verdict`, `octets` (the excess, spare or gain the verdict names), `sized`, `reason` when not sized | on a default run |
 | `commands` | the remediation commands, one string each, in Ze's own config syntax | always |
 | `notes` | rows of `severity` (`info`, `caution`, `fault`) and `text` | always |
-| `caveats` | strings naming what the measurement cannot see: the ICMP caveat, always | always |
+| `caveats` | the run's summary of what its figures cannot see: the ICMP caveat while any figure in the payload, a measurement or the reference, is ICMP-measured; empty when every figure is IKE-measured. Each measurement row carries its own | always |
 | `tcp-mtu-probing` | `disabled`, `on-blackhole`, `always` | once the sysctl was read |
 
 A key listed as present under a condition is ABSENT otherwise, never zero: an
@@ -241,7 +253,85 @@ number line find 1400 as `ICMP filtered`; and after honor-cache poisoned
 the cache with 1400 and the clamp was lifted, `exhaustive` answers 1500 while
 `probe.KernelPathMTU` still says 1400.
 
+### The IKE prober
+
+A peer target whose tunnel has a live IKE SA is measured a second time, over
+the SA itself: `ikeProber` (`search.go`) is the `prober` whose one operation is
+a padded INFORMATIONAL exchange asked of the engine through the
+`internal/core/ikeprobe` leaf, so the reply comes back over the port, the
+encapsulation and the path the tunnel's control channel rides. The search
+speaks in ICMP payload octets and the engine in datagram octets, so the adapter
+adds the family's ICMP overhead back: the size on the wire is what a path MTU
+is a property of. `measureByIKE` (`run.go`) drives it, in this order.
+
+| Step | What it does | Bound |
+|------|--------------|-------|
+| The ceiling | an ICMP figure above `ikeWireMax` = 3000, the largest IKE message (RFC 7296 Section 2), is not offered at all and the row says so; the engine refuses a size above its interface MTU by name, so between the two no probe exceeds min(interface MTU, 3000) (AC-6) | none sent |
+| Confirm-first | the ICMP figure itself is asked. A fit CONFIRMS it: the path carried it whole for an authenticated request and its reply, the ICMP figure stands as `path-mtu`, the row says `prober: ike`, and `ike-confirmed` carries the size sent. No exchange is ever asked above the ICMP figure (A-6): that figure is what the path carried whole for ICMP, so a larger size is exactly the DF-clear copy a fragment-dropping path loses | `probesPerSizeMax` = 3 exchanges |
+| The size sent | the engine sends the largest datagram the SA's cipher suite produces at or below the size asked, never above (a CBC suite sends on a 16-octet grid, an AEAD suite reaches every size), and names it in the answer. `ike-confirmed` is the largest size that FIT as sent (`ikeProber.fitOctets`): asked 1400 on a CBC SA, the exchange leaves at 1392, and a fit keeps `path-mtu` 1400 (the exchange tested nothing above 1392, so it refuted nothing) with `ike-confirmed` 1392 and a caution note saying IKE confirmed the path down to 1392 | none: the rounding costs no exchange |
+| A rekey in flight | a probe the peer's IKE rekey retires is answered `rekeyed` with the size it sent (`retirePendingProbe`, `engine/probe.go`): the exchange counts, and the size is asked again on the new SA, up to `probesPerSizeMax` like a silence (AC-10, R-5) | one exchange per rekey |
+| The descent | a figure that is too big is REFUTED: `pathSearch.refine`, the same ladder-then-bisect search the ICMP path runs, descends from a bracket whose top is the ICMP figure, and the size it finds replaces the ICMP figure as `path-mtu` (equal to `ike-confirmed`), with an info note naming both figures | `ikeExchangesPerRunMax` = 16 exchanges per run, confirm included (the Boundary row: 1..16) |
+
+Each exchange holds the SA's request window (RFC 7296 Section 2.3), so no DPD,
+Delete or rekey leaves while one is out: exchanges are what a run spends on a
+live tunnel, and the budget of 16 is what bounds how long DPD is held off. The
+engine keeps its own budget, the ordinary retransmit schedule, which bounds how
+long ONE exchange stays outstanding. The two are not one number because they
+bound different things.
+
+An IKE `too-big` is the DF copy drawing no answer and the DF-clear copy being
+answered. Unlike an ICMP refusal, it can be a lost DF copy (a drop, or a
+strongSwan peer in IKE_REKEYED dropping the request), so `attempt` retries it
+the way it retries a silence: RFC 4821 Section 7.6.4 and RFC 8899 Section 5.1.3
+apply to both probers, the same size is asked again, and only the third
+`too-big` is believed (AC-3; `TestIKEProbeRetriesTooBigBeforeBelievingIt`).
+
+A budget spent after a size fitted is a coarser figure, not a missing one: the
+largest size the peer answered whole is a floor the path is proven to carry,
+which is what a tunnel is sized to. The row reports it as the IKE figure and a
+caution note carries the bracket the search stopped inside. A budget spent
+before any size fitted leaves the ICMP figure, unconfirmed, with the budget
+named in `ike-declined`.
+
+**Stop at the first silence.** An `sa-failed` outcome ends the IKE attempt for
+that tunnel at once (`ikeProbeStopAtFirstSilence`, true, read by `ikeProber`
+and never by the ICMP path): no smaller size is asked, the row keeps the ICMP
+figure with `prober: icmp` and `ike-declined: sa-failed at <size> octets`, and
+a caution note says the figure is unconfirmed (AC-13). The reason is stated
+plainly: on a path that drops IP fragments, a probe can take the tunnel down
+the way any IKE request larger than the path would. The DF copy is too big,
+the DF-clear copies are fragmented and lost, and after the full retransmit
+budget the SA is deemed failed (RFC 7296 Section 2.1) and re-established by the
+owner loop. The engine gains no probe-aware exit, because a request forgotten
+while its SA runs is the third exit Section 2.1 does not offer. The mitigation
+is this module's: confirm-first means a size the path carries whole is answered
+on the DF copy and never reaches a DF-clear copy, and stop-at-first-silence
+means one run fails a tunnel at most once. Owner ruling (a), 2026-09-16.
+
+**The caveat rules.** Each measured row carries its own `caveats`. An ICMP
+figure carries the ICMP optimism caveat. An IKE figure drops it: the reply is
+authenticated and rode the SA's own channel. An IKE figure over an SA without
+UDP encapsulation (the inventory's `UDPEncap`) carries the different-path
+caveat instead: the exchange rode UDP/500 while ESP rides protocol 50, and a
+middlebox can treat the two differently. An IKE figure over a NAT-T SA carries
+none: the exchange left from 4500 with the four-octet non-ESP marker, on the
+path ESP-in-UDP rides (AC-7). The run's own `caveats` holds the ICMP caveat
+while any figure in the payload is ICMP-measured, the reference included.
+
+`probes` keeps its meaning on every row: the ICMP probes sent. The IKE
+exchanges are the row's `exchanges`, present for a target with a live SA once
+the ICMP search measured, and 0 when the IKE prober declined before sending
+(a refusal by name builds nothing, and so does an empty leaf).
+
+`TestIKEProbeConfirmsThenDescends`, `TestIKEProbeSAFailedEndsTheRun`,
+`TestIKEProbeNeverExceedsTheCeiling`, `TestIKEProbeUnregisteredIsNotSilence`,
+`TestMeasurementRowNamesTheProber` and `TestIKEExchangeBudgetBoundary`
+(`run_test.go`) drive the module over a scripted `ikeprobe.Prober` in the leaf;
+the engine's exchange is proven on its own page.
+
 <!-- source: internal/component/mtu/cmd/search.go -- searchPathMTU, pathSearch, wireProber, runProbeBudget -->
+<!-- source: internal/component/mtu/cmd/search.go -- ikeProber, ikeExchangesPerRunMax, ikeProbeStopAtFirstSilence, ikeWireMax -->
+<!-- source: internal/component/mtu/cmd/run.go -- measureByIKE, declineIKE, icmpCaveat, ikePathCaveat -->
 <!-- source: internal/component/mtu/cmd/search_test.go -- fakePath, the search tests -->
 <!-- source: internal/component/mtu/cmd/search_integration_linux_test.go -- the clamped path, dropRouterICMPErrors -->
 

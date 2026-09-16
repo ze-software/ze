@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/eap"
+	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -281,6 +282,7 @@ func init() {
 	RegisterHealthCheck()
 	registerIPsecRedistSources()
 	ipsecinventory.Register(inventorySnapshot)
+	ikeprobe.Register(probePeer)
 
 	reg := registry.Registration{
 		Name:        "ike",

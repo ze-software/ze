@@ -35,6 +35,7 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"esn-extended-only-refused":          checkESNExtendedOnlyRefused,
 	"esp-form-change":                    checkESPFormChange,
 	"ike-aes-ccm16":                      checkIKEAESCCM16,
+	"ike-padded-probe-strongswan":        checkIKEPaddedProbeStrongSwan,
 	"initiator-rekey-answer-narrows":     checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":                   checkInvalidKERetry,
 	"ipsec-bgp-redistribute-frr":         checkIPsecBGPRedistributeFRR,
@@ -2071,4 +2072,184 @@ func checkMTUNATInstalledEndpoint(ctx context.Context, lab *scenarioLab) error {
 		return fmt.Errorf("the tunnel row names remote %v, want the installed endpoint %s; answer: %s", tunnel["remote"], installed, answer)
 	}
 	return nil
+}
+
+// checkIKEPaddedProbeStrongSwan proves the padded IKE path probe against a real
+// responder over a real NAT (spec ike-padded-path-probe). The box floats IKE to 4500
+// and clamps every forwarded UDP and ESP datagram at 1400, but it carries ICMP over
+// an unclamped route and drops every Fragmentation Needed toward Ze, so the ICMP
+// search measures 1500 and cannot see the clamp. The padded INFORMATIONAL then asks
+// 1500 on the SA's own channel: the DF copy is refused in silence, the DF-clear
+// retransmission crosses the box fragmented and strongSwan answers it (A-2, A-3),
+// the ask is refuted, and the descent settles on the clamp with `prober: ike` and
+// `ike-confirmed` 1400 (AC-1, AC-7). charon parses every request and keeps the SA,
+// which carries traffic afterwards (R-1).
+//
+// Two more steps follow. A rekey strongSwan raises during a second run (AC-10, R-5):
+// the SA survives it and the row is either the same IKE figure or a refusal by name,
+// never an SA deemed failed. Then the peer drops the fragments of every DF-clear copy
+// (A-6, R-7, AC-13; its reassembly memory is cut so no fragmented datagram is ever
+// reassembled): the SA fails exactly once, the row keeps the ICMP figure with
+// `ike-declined` naming sa-failed and the 1500 the SA failed under, no second size is
+// tried, and the SA is re-established once the fragments pass again.
+func checkIKEPaddedProbeStrongSwan(ctx context.Context, lab *scenarioLab) error {
+	if err := lab.clampForwardedPath(ctx); err != nil {
+		return err
+	}
+	if err := lab.exemptICMPFromClamp(ctx); err != nil {
+		return err
+	}
+	if err := lab.dropTooBigToward(ctx, zeIP); err != nil {
+		return err
+	}
+	if err := establish(ctx, lab); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return err
+	}
+	if err := lab.natInnerAddress(ctx, swanPeer, natTunnelSwanInner, natTunnelZeInner); err != nil {
+		return err
+	}
+	if err := lab.xfrmInnerAddress(ctx, natTunnelZeInner, natTunnelSwanInner); err != nil {
+		return err
+	}
+
+	// Step 1: the probe refutes the ICMP figure and measures the clamp.
+	run, answer, err := lab.zeShowMTUDetached(ctx, nil)
+	if err != nil {
+		return err
+	}
+	row, err := measurementRowOf(run, "peer", swanPublicIP)
+	if err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireIKEMeasured(row, mtuClampedPath); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireReference(run, natIP, mtuUnclampedPath); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	tunnel, err := tunnelRowOf(run, swanConfigPeer)
+	if err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireOversizedTunnel(tunnel); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireCommand(run, "set interface xfrm "+mtuXfrmInterface+" mtu "+strconv.Itoa(mtuGCMUDPRecommended)); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	logs, err := lab.logs(ctx, swanPeer)
+	if err != nil {
+		return err
+	}
+	if err := requireCharonParsedProbes(logs); err != nil {
+		return err
+	}
+	if err := lab.requirePaddedProbeSAAlive(ctx); err != nil {
+		return fmt.Errorf("after the padded probe: %w", err)
+	}
+
+	// Step 2: a rekey strongSwan raises while the probe runs (AC-10, R-5).
+	run, answer, err = lab.zeShowMTUDetached(ctx, func(ctx context.Context) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(rekeyRaceDelay):
+		}
+		return lab.swanRekeyIKE(ctx)
+	})
+	if err != nil {
+		return err
+	}
+	row, err = measurementRowOf(run, "peer", swanPublicIP)
+	if err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireProbeSurvivedRekey(row, mtuClampedPath); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := lab.requirePaddedProbeSAAlive(ctx); err != nil {
+		return fmt.Errorf("after the rekey race: %w", err)
+	}
+
+	// Step 3: the peer drops the fragments of the DF-clear copy (A-6, AC-13).
+	restoreFragments, err := lab.dropFragmentsAtPeer(ctx)
+	if err != nil {
+		return err
+	}
+	run, answer, err = lab.zeShowMTUDetached(ctx, nil)
+	if err != nil {
+		return err
+	}
+	row, err = measurementRowOf(run, "peer", swanPublicIP)
+	if err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := requireProbeFailedSA(row, mtuUnclampedPath, mtuUnclampedPath); err != nil {
+		return fmt.Errorf("%w; answer: %s", err, answer)
+	}
+	if err := restoreFragments(ctx); err != nil {
+		return err
+	}
+	if err := lab.waitZeIKEEstablished(ctx); err != nil {
+		return fmt.Errorf("after the SA failed under the probe: %w", err)
+	}
+	if err := lab.requirePaddedProbeSAAlive(ctx); err != nil {
+		return fmt.Errorf("after the SA was re-established: %w", err)
+	}
+	return nil
+}
+
+// requireProbeSurvivedRekey refuses unless the row read across the rekey is one of
+// the two outcomes AC-10 allows: the IKE figure at the clamp (the dropped copy was
+// absorbed as a too-big and retried), or a refusal by name (the probe met the rekey
+// hold before it was sent). An SA deemed failed is the one outcome it forbids.
+func requireProbeSurvivedRekey(row map[string]any, pathMTU int) error {
+	declined, present := row["ike-declined"].(string)
+	if !present {
+		return requireIKEMeasured(row, pathMTU)
+	}
+	if strings.HasPrefix(declined, probeRefusedMark) {
+		return nil
+	}
+	return fmt.Errorf("the probe across the rekey was declined %q, want the IKE figure or a refusal by name, never an SA deemed failed", declined)
+}
+
+// requirePaddedProbeSAAlive refuses unless both daemons list an established IKE SA
+// and the tunnel carries a lossless Don't Fragment ping at the recommended size.
+func (l *scenarioLab) requirePaddedProbeSAAlive(ctx context.Context) error {
+	if err := l.requireZeIKEEstablished(ctx, swanConfigPeer); err != nil {
+		return err
+	}
+	sas, err := l.listSAs(ctx)
+	if err != nil {
+		return err
+	}
+	if err := requireContains(sas, "ESTABLISHED", "strongSwan lists no ESTABLISHED IKE SA"); err != nil {
+		return err
+	}
+	sized := pingProbe{peer: zePeer, target: natTunnelSwanInner, source: natTunnelZeInner, size: mtuGCMUDPRecommended - mtuPingHeaders}
+	return l.requireLosslessPingFrom(ctx, sized, mtuPingCount)
+}
+
+// waitZeIKEEstablished waits for ze to list an established IKE SA for the peer
+// again, which is the reconnect PeerSession.run performs after the SA was deemed
+// failed.
+func (l *scenarioLab) waitZeIKEEstablished(ctx context.Context) error {
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: l.timeout, Interval: 2 * time.Second, Description: "ze to re-establish the IKE SA",
+	}, func(probe context.Context) (bool, error) {
+		// A missing SA is a transient Wait absorbs until the timeout; the last
+		// error names what ze listed instead.
+		if err := l.requireZeIKEEstablished(probe, swanConfigPeer); err != nil {
+			return false, err
+		}
+		return true, nil
+	}, func(established bool) bool { return established })
+	return err
 }

@@ -67,7 +67,7 @@ parsing the ICMP error itself).
 | A router on the path answers Fragmentation Needed or Packet Too Big | queues a `sock_extended_err` with `ee_errno=EMSGSIZE`, `ee_origin=ICMP`, `ee_info` = the reported next-hop MTU, the router's address as the offender, and the quoted echo header as the data; then sets `sk_err`, so the next ordinary read on the socket returns `EMSGSIZE` once | the receive loop treats that read error as the wake and drains the queue |
 | This host's kernel refuses a send larger than its cached path MTU (honor-cache mode) | `WriteTo` fails with `EMSGSIZE`, and a `LOCAL` entry carrying the cached estimate is queued, quoting nothing | the sender drains the queue right after the failed write, before anything else reads it. On ping that drain is the same one that resolves a router's answer, so an answer queued for an earlier probe is not dropped by it |
 
-`Socket.DrainErrors` (`internal/core/probe/socket.go`, over `drainErrorQueue`
+`Socket.DrainErrors` (`internal/core/probe/socket.go`, over `DrainErrorQueue`
 in `errqueue_linux.go`) reads the queue with `MSG_ERRQUEUE|MSG_DONTWAIT`, never blocks, and reads at most
 `probe.ErrQueueDrainMax` entries in one call: a host flooding ICMP errors
 cannot hold a probe goroutine in the drain. Each entry is a `probe.QueuedError`
@@ -99,6 +99,27 @@ match, shared by the ping session and the path MTU search
 is its twin for an ordinary read: the parser half of `BuildICMPEcho`, so a
 reply is matched on the two fields the request was built with. An entry
 quoting another probe leaves ours to time out as before.
+
+Each entry also carries `Dest`, the destination of the refused datagram as
+the kernel names the `MSG_ERRQUEUE` read. On a raw ICMP socket it is the
+address alone; on a UDP socket it carries the port the refused datagram was
+sent to, and a `LOCAL` entry carries port 0 there because the kernel fills
+that entry from the socket's connected port, which an unconnected socket
+has not got.
+
+### A foreign socket
+
+The option table and the parser are declared once and exported for a
+socket this package did not open. The IKE transport
+(`internal/component/ike/transport`, `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md`)
+is the second consumer: `probe.EnableErrorQueue` installs `IP_RECVERR` on
+its two UDP sockets at creation, `probe.WithDFMode` toggles
+`IP_MTU_DISCOVER` around one write and restores the prior value on every
+exit path, and `probe.DrainErrorQueue` reads the queue. `WithDFMode` sets
+a socket-wide option, so its caller MUST hold whatever serializes every
+write on that socket for the whole call. Neither export has a non-Linux
+stub of its own: the transport's Linux file is the only caller, and the
+transport's own stub answers `probe.ErrDFUnsupported` there.
 
 ### What the payload says
 
@@ -171,7 +192,8 @@ socket opens.
 
 <!-- source: internal/core/probe/errqueue.go -- ErrQueueOutcome, QueuedError, SizeRefusalOf, FieldNextHopMTU -->
 <!-- source: internal/core/probe/icmp.go -- BuildICMPEcho, ParseEchoReply -->
-<!-- source: internal/core/probe/errqueue_linux.go -- drainErrorQueue, classifyReportedMTU, KernelPathMTU -->
+<!-- source: internal/core/probe/errqueue_linux.go -- DrainErrorQueue, classifyReportedMTU, KernelPathMTU -->
+<!-- source: internal/core/probe/socket_linux.go -- EnableErrorQueue, WithDFMode -->
 <!-- source: internal/component/ping/cmd/stream.go -- runPingSession, tooBigResult -->
 
 Traceroute reuses ping's echo construction (`probe.BuildICMPEcho`) instead of

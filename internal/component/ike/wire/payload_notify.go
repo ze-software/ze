@@ -61,6 +61,20 @@ const (
 	NotifyNonFirstFragmentsAlso     uint16 = 16395
 	NotifyFragmentationSupported    uint16 = 16430
 	NotifySignatureHashAlgorithms   uint16 = 16431
+
+	// NotifyZePathProbePadding is the status notify Ze's padded path probe carries: one
+	// per INFORMATIONAL request, its Notification Data sized so the datagram reaches
+	// the wire size the MTU diagnostic asked for (engine/probe.go). It is a status
+	// type in the private-use range (40960-65535, IANA "IKEv2 Notify Message Status
+	// Types"), so a peer that does not know it ignores it and still answers.
+	//
+	// RFC 7296 Section 3.10.1: "Notify payloads with status types MAY be added to any
+	// message and MUST be ignored if not recognized."
+	//
+	// The value sits at the top of the range rather than at its floor: strongSwan
+	// spends 40960 and its neighbors on its own mediation and RADIUS notifies, and a
+	// peer that recognizes a private value acts on it.
+	NotifyZePathProbePadding uint16 = 65280
 )
 
 // NotifyStatusFloor is the first notify message type that reports status.
@@ -106,6 +120,7 @@ var notifyTypeNames = map[uint16]string{
 	NotifyNonFirstFragmentsAlso:     "NON_FIRST_FRAGMENTS_ALSO",
 	NotifyFragmentationSupported:    "IKEV2_FRAGMENTATION_SUPPORTED",
 	NotifySignatureHashAlgorithms:   "SIGNATURE_HASH_ALGORITHMS",
+	NotifyZePathProbePadding:        "ZE_PATH_PROBE_PADDING",
 }
 
 // NotifyIsError reports whether a notify message type reports an error.

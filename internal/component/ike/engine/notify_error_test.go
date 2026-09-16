@@ -361,8 +361,12 @@ var ntfNotifyLiteral = regexp.MustCompile(`NotifyMsgType:\s*(\d+)`)
 // RFC requirement: RFC7296-2.21.2-3 positive -- the set of notify types ze transmits
 // is DERIVED from a scan of the ike source for references.
 // It never comes from a list written beside the assertion.
-// Each member is in the wire package registry of RFC-defined types.
+// Each member is in the wire package registry, whose ERROR types are all RFC-defined.
 // Ze therefore uses no extension error notification at all.
+// The one private-use member, wire.NotifyZePathProbePadding, is a STATUS type: it
+// carries the padding of the path probe (engine/probe.go), and Section 3.10.1 has a
+// peer ignore an unrecognized status type, so it is not an extension error
+// notification and Section 2.21.2 does not bind it.
 // That is the strongest form the obligation can take.
 // Ze cannot use one "unless the peer has been shown to understand them", and it
 // defines none.
@@ -510,6 +514,7 @@ func ntfConstantValue(name string) (uint16, bool) {
 		"NotifyNonFirstFragmentsAlso":      wire.NotifyNonFirstFragmentsAlso,
 		"NotifyFragmentationSupported":     wire.NotifyFragmentationSupported,
 		"NotifySignatureHashAlgorithms":    wire.NotifySignatureHashAlgorithms,
+		"NotifyZePathProbePadding":         wire.NotifyZePathProbePadding,
 		"NotifyStatusFloor":                wire.NotifyStatusFloor,
 		"NotifyIsError":                    0,
 		"NotifyTypeRecognized":             0,

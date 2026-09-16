@@ -339,6 +339,12 @@ var integrationPackages = []string{
 	// the socket error queue, the bypass mode and the DF bit against a Linux
 	// router in a clamped three-namespace path.
 	"./internal/core/probe",
+	// Added 2026-09-16 with udp_df_integration_linux_test.go, which proves
+	// the IKE transport's per-datagram DF send and its error queue against
+	// the same clamped router: the DF copy then the identical DF-clear copy on
+	// the router's link, no plain send leaking under the toggled option, and
+	// the router's Fragmentation Needed delivered with the peer it names.
+	"./internal/component/ike/transport",
 	// Added 2026-09-16 with search_integration_linux_test.go, which proves
 	// the path MTU search against the same clamped router: the reported
 	// clamp confirmed on the wire, the ladder and bisection with the router's

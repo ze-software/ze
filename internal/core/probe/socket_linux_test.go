@@ -94,3 +94,85 @@ func TestOpenICMPInstallsDFMode(t *testing.T) {
 		}
 	})
 }
+
+// rawConnOf is the raw descriptor access of a loopback UDP socket, the kind
+// of foreign socket the two exports serve.
+func rawConnOf(t *testing.T, conn net.PacketConn) syscall.RawConn {
+	t.Helper()
+	sc, ok := conn.(syscall.Conn)
+	if !ok {
+		t.Fatalf("conn %T carries no SyscallConn", conn)
+	}
+	raw, err := sc.SyscallConn()
+	if err != nil {
+		t.Fatalf("SyscallConn: %v", err)
+	}
+	return raw
+}
+
+// TestWithDFModeInstallsThenRestores proves the export the IKE transport
+// sends its probe through: during send the socket holds the mode's
+// IP_MTU_DISCOVER value, after send it holds the value it had before, and
+// a send that fails restores it too. Needs no privilege: a UDP socket on
+// loopback carries the option.
+func TestWithDFModeInstallsThenRestores(t *testing.T) {
+	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), "udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenPacket: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	raw := rawConnOf(t, conn)
+	prior := readIntOption(t, conn, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER)
+
+	cases := []struct {
+		df   DFMode
+		want int
+	}{{DFHonorCache, unix.IP_PMTUDISC_DO}, {DFBypassCache, unix.IP_PMTUDISC_PROBE}, {DFOff, unix.IP_PMTUDISC_DONT}}
+	for _, c := range cases {
+		during := -1
+		err := WithDFMode(raw, FamilyIPv4, c.df, func() error {
+			during = readIntOption(t, conn, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER)
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("%v: WithDFMode: %v", c.df, err)
+		}
+		if during != c.want {
+			t.Errorf("%v: IP_MTU_DISCOVER during send = %d, want %d", c.df, during, c.want)
+		}
+		if after := readIntOption(t, conn, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER); after != prior {
+			t.Errorf("%v: IP_MTU_DISCOVER after send = %d, want the prior %d", c.df, after, prior)
+		}
+	}
+
+	sendErr := errors.New("send refused")
+	if err := WithDFMode(raw, FamilyIPv4, DFHonorCache, func() error { return sendErr }); !errors.Is(err, sendErr) {
+		t.Errorf("a failed send answered %v, want the send's own error", err)
+	}
+	if after := readIntOption(t, conn, unix.IPPROTO_IP, unix.IP_MTU_DISCOVER); after != prior {
+		t.Errorf("IP_MTU_DISCOVER after a failed send = %d, want the prior %d", after, prior)
+	}
+	if err := WithDFMode(raw, FamilyIPv4, DFUnspecified, func() error { return nil }); !errors.Is(err, ErrDFUnspecified) {
+		t.Errorf("the zero mode answered %v, want ErrDFUnspecified", err)
+	}
+}
+
+// TestEnableErrorQueueSetsRecvErr proves the export the IKE transport
+// installs at creation reaches the kernel as IP_RECVERR=1 on a socket this
+// package did not open.
+func TestEnableErrorQueueSetsRecvErr(t *testing.T) {
+	conn, err := (&net.ListenConfig{}).ListenPacket(context.Background(), "udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("ListenPacket: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	if before := readIntOption(t, conn, unix.IPPROTO_IP, unix.IP_RECVERR); before != 0 {
+		t.Fatalf("IP_RECVERR before = %d, want the kernel default 0", before)
+	}
+	if err := EnableErrorQueue(rawConnOf(t, conn), FamilyIPv4); err != nil {
+		t.Fatalf("EnableErrorQueue: %v", err)
+	}
+	if after := readIntOption(t, conn, unix.IPPROTO_IP, unix.IP_RECVERR); after != 1 {
+		t.Errorf("IP_RECVERR after = %d, want 1", after)
+	}
+}

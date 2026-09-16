@@ -32,12 +32,12 @@ func TestProbeCapabilityAbsentOffLinux(t *testing.T) {
 // capability must never read the same.
 func TestErrorQueueAbsentOffLinux(t *testing.T) {
 	visited := 0
-	err := drainErrorQueue(nil, FamilyIPv4, func(QueuedError) { visited++ })
+	err := DrainErrorQueue(nil, FamilyIPv4, func(QueuedError) { visited++ })
 	if !errors.Is(err, ErrErrQueueUnsupported) {
-		t.Errorf("drainErrorQueue err = %v, want ErrErrQueueUnsupported", err)
+		t.Errorf("DrainErrorQueue err = %v, want ErrErrQueueUnsupported", err)
 	}
 	if visited != 0 {
-		t.Errorf("drainErrorQueue visited %d entries off Linux, want 0", visited)
+		t.Errorf("DrainErrorQueue visited %d entries off Linux, want 0", visited)
 	}
 }
 

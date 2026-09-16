@@ -19,8 +19,8 @@ import (
 // post-establishment exchange: a newly installed Child SA (reset childLT, emit),
 // a replacement IKE SA (swap the loop SA, re-key the SATable, reset ikeLT),
 // peerAlive (an in-window authenticated inbound proves liveness), and/or an
-// authenticated INFORMATIONAL response's message ID (a possible DPD-probe reply
-// the caller correlates against the outstanding probe before crediting liveness).
+// authenticated INFORMATIONAL response's message ID (a possible DPD-probe or
+// path-probe reply the caller correlates against each outstanding probe by id).
 type ownedOutcome struct {
 	newChild     *ChildSA
 	newSA        *SA
@@ -112,11 +112,13 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		}
 		return ownedOutcome{}
 	case inboundInvalid:
-		// Responses to our own fire-and-forget requests (DPD probe, Delete) match no
-		// pending exchange. Authenticate an INFORMATIONAL response and report its
-		// message ID; the caller correlates it against the outstanding DPD probe (by
-		// message ID) before crediting liveness, so a replayed/out-of-window response
-		// cannot mask a dead peer.
+		// Responses to our own fire-and-forget requests (DPD probe, Delete, padded
+		// path probe) match no pending exchange. Authenticate an INFORMATIONAL
+		// response and report its message ID; the caller correlates it against the
+		// outstanding DPD probe and, separately, against the outstanding path probe
+		// (settleProbe, probe.go), each by message ID, so a replayed/out-of-window
+		// response cannot mask a dead peer and a path probe's answer credits no
+		// liveness.
 		if isResponse && msg.Header.ExchangeType == wire.ExchangeInformational {
 			if _, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
 				// Release site one of two, after authentication. RFC 7296 §2.3: this

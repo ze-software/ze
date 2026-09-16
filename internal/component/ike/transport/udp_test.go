@@ -3,8 +3,12 @@ package transport
 import (
 	"log/slog"
 	"net"
+	"net/netip"
+	"syscall"
 	"testing"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/probe"
 )
 
 func TestUDPTransportSendReceive(t *testing.T) {
@@ -118,5 +122,62 @@ func TestUDPTransportDropsShortPackets(t *testing.T) {
 	case <-tr.Recv():
 		t.Fatal("should not receive short packets")
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// TestQueuedSizeRefusalReachesTheEventChannel proves what the read loop
+// hands the engine: an EMSGSIZE entry becomes one SizeRefusal carrying the
+// peer the datagram was sent to, the reported MTU under its outcome, the
+// offender and the local flag, stamped with the socket's role; an entry
+// that is not a size refusal is dropped; and a full channel drops the
+// newest entry rather than blocking the loop.
+func TestQueuedSizeRefusalReachesTheEventChannel(t *testing.T) {
+	tr, err := NewNATTTransport("127.0.0.1:0", slog.Default())
+	if err != nil {
+		t.Fatalf("NewNATTTransport: %v", err)
+	}
+	t.Cleanup(func() { _ = tr.Close() })
+
+	peer := netip.MustParseAddrPort("192.0.2.9:4500")
+	router := netip.MustParseAddr("192.0.2.1")
+	tr.deliverQueuedError(probe.QueuedError{
+		Outcome: probe.ErrQueueMTUReported, MTU: 1400, Errno: syscall.EMSGSIZE,
+		Offender: router, Dest: peer,
+	})
+	tr.deliverQueuedError(probe.QueuedError{
+		Outcome: probe.ErrQueueMTUUnreported, Errno: syscall.ECONNREFUSED,
+		Offender: router, Dest: peer,
+	})
+	tr.deliverQueuedError(probe.QueuedError{
+		Outcome: probe.ErrQueueMTUReported, MTU: 1300, Errno: syscall.EMSGSIZE, Local: true, Dest: peer,
+	})
+
+	want := []SizeRefusal{
+		{Peer: peer, Outcome: probe.ErrQueueMTUReported, MTU: 1400, Offender: router, NATT: true},
+		{Peer: peer, Outcome: probe.ErrQueueMTUReported, MTU: 1300, Local: true, NATT: true},
+	}
+	for i, w := range want {
+		select {
+		case got := <-tr.Refusals():
+			if got != w {
+				t.Errorf("refusal %d = %+v, want %+v", i, got, w)
+			}
+		default:
+			t.Fatalf("refusal %d never reached the channel", i)
+		}
+	}
+	select {
+	case got := <-tr.Refusals():
+		t.Fatalf("an entry that is not a size refusal reached the channel: %+v", got)
+	default:
+	}
+
+	for range refusalQueueDepth + 1 {
+		tr.deliverQueuedError(probe.QueuedError{
+			Outcome: probe.ErrQueueMTUReported, MTU: 1400, Errno: syscall.EMSGSIZE, Dest: peer,
+		})
+	}
+	if got := len(tr.Refusals()); got != refusalQueueDepth {
+		t.Errorf("channel holds %d refusals after an overflow, want the declared depth %d", got, refusalQueueDepth)
 	}
 }

@@ -3,6 +3,7 @@
 // Design: docs/architecture/diagnostics/active-probes.md -- the socket options behind a DF mode
 // Related: socket.go -- OpenICMP, which installs the Control this file builds
 // Related: socket_other.go -- the non-Linux stub with the same signatures
+// Related: errqueue_linux.go -- DrainErrorQueue, the reader EnableErrorQueue feeds
 //
 // Linux-specific socket options for the probe socket, and the unprivileged
 // ICMP datagram socket. Split from socket.go because IP_MTU_DISCOVER,
@@ -71,7 +72,7 @@ func pmtuDiscValue(df DFMode) int {
 // family f. The Control sets IP_MTU_DISCOVER for the DF bit and the cache
 // policy on every mode, and for a mode that sets DF it also sets IP_RECVERR
 // so the kernel queues a router's Fragmentation Needed or Packet Too Big
-// answer on the socket's error queue, where drainErrorQueue collects the
+// answer on the socket's error queue, where DrainErrorQueue collects the
 // reported next-hop MTU. DFOff installs no IP_RECVERR: with the bit clear
 // nothing is refused, and the queue would only carry errors the probers do
 // not read.
@@ -101,16 +102,104 @@ func applyDFOptions(c syscall.RawConn, opts dfOptions, discover int, recvErr boo
 // setDFOptions sets the options on a bare descriptor: the raw socket's
 // Control and the datagram socket's opener both end here.
 func setDFOptions(fd int, opts dfOptions, discover int, recvErr bool) error {
-	if err := unix.SetsockoptInt(fd, opts.level, opts.mtuDiscover, discover); err != nil {
-		return fmt.Errorf("setsockopt IP_MTU_DISCOVER=%d: %w", discover, err)
+	if err := setMTUDiscover(fd, opts, discover); err != nil {
+		return err
 	}
 	if !recvErr {
 		return nil
 	}
+	return setRecvErr(fd, opts)
+}
+
+func setMTUDiscover(fd int, opts dfOptions, discover int) error {
+	if err := unix.SetsockoptInt(fd, opts.level, opts.mtuDiscover, discover); err != nil {
+		return fmt.Errorf("setsockopt IP_MTU_DISCOVER=%d: %w", discover, err)
+	}
+	return nil
+}
+
+func setRecvErr(fd int, opts dfOptions) error {
 	if err := unix.SetsockoptInt(fd, opts.level, opts.recvErr, 1); err != nil {
 		return fmt.Errorf("setsockopt IP_RECVERR: %w", err)
 	}
 	return nil
+}
+
+// EnableErrorQueue sets IP_RECVERR (IPV6_RECVERR for FamilyIPv6) on a socket
+// this package did not open, so the kernel queues a router's Fragmentation
+// Needed or Packet Too Big answer, and its own EMSGSIZE, where
+// DrainErrorQueue reads them. The IKE transport installs it on its UDP
+// sockets at creation; OpenICMP installs the same option through dfControl.
+// The option also makes an ordinary read on the socket return the queued
+// errno once, so a caller MUST expect read errors it never saw before and
+// MUST drain the queue when one arrives.
+func EnableErrorQueue(c syscall.RawConn, family Family) error {
+	opts := dfOptionsOf(family)
+	var innerErr error
+	controlErr := c.Control(func(fd uintptr) {
+		innerErr = setRecvErr(int(fd), opts)
+	})
+	if controlErr != nil {
+		return fmt.Errorf("rawconn Control: %w", controlErr)
+	}
+	return innerErr
+}
+
+// WithDFMode runs send with the DF mode df installed on the socket behind c,
+// and restores the IP_MTU_DISCOVER value the socket held before on every
+// exit path, the send's own failure included, so a later send by another
+// caller never inherits DO or PROBE. The option is a property of the
+// socket, not of one datagram, so the caller MUST hold whatever lock
+// serializes every write on that socket for the whole call; a write that
+// interleaves from another goroutine leaves with the toggled option. The
+// IKE transport is the caller, for the probe datagram of one SA on the
+// socket every SA shares. A zero df is refused with ErrDFUnspecified.
+func WithDFMode(c syscall.RawConn, family Family, df DFMode, send func() error) error {
+	if df == DFUnspecified {
+		return ErrDFUnspecified
+	}
+	opts := dfOptionsOf(family)
+	prior, err := mtuDiscoverOf(c, opts)
+	if err != nil {
+		return err
+	}
+	if err := controlMTUDiscover(c, opts, pmtuDiscValue(df)); err != nil {
+		return err
+	}
+	sendErr := send()
+	if err := controlMTUDiscover(c, opts, prior); err != nil {
+		return errors.Join(sendErr, fmt.Errorf("restore IP_MTU_DISCOVER=%d: %w", prior, err))
+	}
+	return sendErr
+}
+
+// mtuDiscoverOf reads the socket's current IP_MTU_DISCOVER value.
+func mtuDiscoverOf(c syscall.RawConn, opts dfOptions) (int, error) {
+	var value int
+	var innerErr error
+	controlErr := c.Control(func(fd uintptr) {
+		value, innerErr = unix.GetsockoptInt(int(fd), opts.level, opts.mtuDiscover)
+	})
+	if controlErr != nil {
+		return 0, fmt.Errorf("rawconn Control: %w", controlErr)
+	}
+	if innerErr != nil {
+		return 0, fmt.Errorf("getsockopt IP_MTU_DISCOVER: %w", innerErr)
+	}
+	return value, nil
+}
+
+// controlMTUDiscover sets IP_MTU_DISCOVER to discover through the raw
+// conn's Control.
+func controlMTUDiscover(c syscall.RawConn, opts dfOptions, discover int) error {
+	var innerErr error
+	controlErr := c.Control(func(fd uintptr) {
+		innerErr = setMTUDiscover(int(fd), opts, discover)
+	})
+	if controlErr != nil {
+		return fmt.Errorf("rawconn Control: %w", controlErr)
+	}
+	return innerErr
 }
 
 // listenDatagramICMP opens Linux's unprivileged ICMP socket for family with

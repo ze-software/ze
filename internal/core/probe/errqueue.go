@@ -98,6 +98,16 @@ type QueuedError struct {
 	// Offender is the address of the router that answered, for a refusal
 	// from the network. It is the zero Addr for a local refusal.
 	Offender netip.Addr
+	// Dest is the destination of the datagram the refusal is about: the
+	// address the socket sent to, and on a UDP socket the port too. The
+	// kernel writes it as the name of the MSG_ERRQUEUE read (ip_recv_error
+	// fills it from the entry's stored address, for a router's answer and a
+	// local refusal alike), so a socket shared by many flows learns which
+	// flow was refused. The port is the one the refused datagram carried
+	// for a router's answer (the kernel reads it off the quoted UDP header),
+	// and the socket's connected port for a LOCAL refusal, so an unconnected
+	// UDP socket and a raw ICMP socket read port 0 there.
+	Dest netip.AddrPort
 	// Echo is the probe the refusal quotes, when it quotes one.
 	Echo QuotedEcho
 }

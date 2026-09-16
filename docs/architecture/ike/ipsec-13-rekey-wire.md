@@ -149,12 +149,17 @@ the first child was allowed to establish. `installChildTolerant` is that path.
 
 <!-- source: internal/component/ike/engine/child.go -- installChildTolerant, isXFRMUnsupported -->
 
-**Dead peer detection interferes with the owner loop.** The probe is an
+**Dead peer detection shares the owner loop with the rekey.** The probe is an
 SK-protected INFORMATIONAL request with an empty inner chain, which RFC 7296
-Section 1.4 requires. Responses to Ze's own probes and Delete
-requests land in the owner loop and are dropped as out of window, because
-pending state is tracked only for rekeys. This is harmless to the rekey.
+Section 1.4 requires. A response to Ze's own probe or Delete request matches no
+pending rekey, so `classifyInbound` reports it as `inboundInvalid`. That arm of
+`handleOwnedInbound` decrypts an INFORMATIONAL response, frees the request
+window through `answerAuthenticatedResponse`, and hands its Message ID back to
+`maintainSA`, which credits liveness only when `dpdState.matchesProbe` agrees.
+A response that fails to decrypt frees nothing and credits nothing. The rekey's
+own responses take the `inboundResponse` arm and never reach this one.
 
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound -->
 <!-- source: internal/component/ike/engine/dpd.go -- dpdState -->
 
 **Each end keeps its own request counter.** RFC 7296 Section 2.2 gives an

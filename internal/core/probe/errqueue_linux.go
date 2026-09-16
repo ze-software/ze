@@ -15,7 +15,7 @@
 // EMSGSIZE, and the queued entry (net/ipv4/ip_sockglue.c ip_local_error)
 // carries the cached estimate the send was measured against and quotes
 // nothing. So a prober reads the queue when its ordinary read fails and
-// when its send fails, and both reads go through drainErrorQueue.
+// when its send fails, and both reads go through DrainErrorQueue.
 //
 // The queued data for a raw socket without IP_HDRINCL starts at the ICMP
 // header of the datagram the error quotes (raw_err hands ip_icmp_error the
@@ -82,13 +82,19 @@ const sockExtendedErrLen = 16
 // under this by its callers.
 const errQueueDatagramMax = 1500
 
-// drainErrorQueue reads the queued errors off conn, up to ErrQueueDrainMax
+// DrainErrorQueue reads the queued errors off conn, up to ErrQueueDrainMax
 // of them, and hands each one to visit. It never blocks: the queue is read
 // with MSG_DONTWAIT and an empty queue ends the drain. It answers
 // ErrErrQueueUnsupported off Linux, and errNoErrQueueAccess for a conn that
 // exposes no raw descriptor. family selects the control message level and
 // the floor rule the reported value is held to.
-func drainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)) error {
+//
+// It is exported for a socket this package did not open: the IKE transport
+// (internal/component/ike/transport) drains its own UDP socket through it,
+// so the control-message parser is declared once. conn MUST carry
+// IP_RECVERR, which EnableErrorQueue installs; without it the kernel queues
+// nothing and every drain reads an empty queue.
+func DrainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)) error {
 	sc, ok := conn.(syscall.Conn)
 	if !ok {
 		return errNoErrQueueAccess
@@ -102,7 +108,7 @@ func drainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)
 	var readErr error
 	controlErr := raw.Control(func(fd uintptr) {
 		for range ErrQueueDrainMax {
-			n, oobn, _, _, recvErr := unix.Recvmsg(int(fd), data, oob, unix.MSG_ERRQUEUE|unix.MSG_DONTWAIT)
+			n, oobn, _, from, recvErr := unix.Recvmsg(int(fd), data, oob, unix.MSG_ERRQUEUE|unix.MSG_DONTWAIT)
 			if errors.Is(recvErr, unix.EAGAIN) {
 				return
 			}
@@ -110,7 +116,7 @@ func drainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)
 				readErr = fmt.Errorf("probe: read error queue: %w", recvErr)
 				return
 			}
-			entry, parseErr := parseQueuedError(family, data[:n], oob[:oobn])
+			entry, parseErr := parseQueuedError(family, data[:n], oob[:oobn], from)
 			if parseErr != nil {
 				readErr = parseErr
 				return
@@ -125,9 +131,11 @@ func drainErrorQueue(conn net.PacketConn, family Family, visit func(QueuedError)
 }
 
 // parseQueuedError turns one MSG_ERRQUEUE read into a QueuedError. data is
-// the quoted datagram, oob the control messages. A read with no IP_RECVERR
-// control message is refused rather than answered with a zero entry.
-func parseQueuedError(family Family, data, oob []byte) (QueuedError, error) {
+// the quoted datagram, oob the control messages, from the name of the read,
+// which the kernel fills with the refused datagram's destination. A read
+// with no IP_RECVERR control message is refused rather than answered with a
+// zero entry.
+func parseQueuedError(family Family, data, oob []byte, from unix.Sockaddr) (QueuedError, error) {
 	level, kind := recvErrCmsg(family)
 	cmsgs, err := unix.ParseSocketControlMessage(oob)
 	if err != nil {
@@ -140,7 +148,12 @@ func parseQueuedError(family Family, data, oob []byte) (QueuedError, error) {
 		if cmsg.Header.Type != kind {
 			continue
 		}
-		return parseExtendedErr(family, cmsg.Data, data)
+		entry, err := parseExtendedErr(family, cmsg.Data, data)
+		if err != nil {
+			return QueuedError{}, err
+		}
+		entry.Dest = destOf(from)
+		return entry, nil
 	}
 	return QueuedError{}, errors.New("probe: error-queue read carried no IP_RECVERR control message")
 }
@@ -229,6 +242,20 @@ func offenderAddr(sa []byte) netip.Addr {
 		return netip.AddrFrom16([16]byte(sa[8:24]))
 	default:
 		return netip.Addr{}
+	}
+}
+
+// destOf reads the refused datagram's destination off the name the kernel
+// gave the MSG_ERRQUEUE read. A name of another family, or none, answers
+// the zero AddrPort, which IsValid reports.
+func destOf(from unix.Sockaddr) netip.AddrPort {
+	switch sa := from.(type) {
+	case *unix.SockaddrInet4:
+		return netip.AddrPortFrom(netip.AddrFrom4(sa.Addr), uint16(sa.Port))
+	case *unix.SockaddrInet6:
+		return netip.AddrPortFrom(netip.AddrFrom16(sa.Addr), uint16(sa.Port))
+	default:
+		return netip.AddrPort{}
 	}
 }
 

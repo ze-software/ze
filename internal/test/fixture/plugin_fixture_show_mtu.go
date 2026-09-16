@@ -27,6 +27,8 @@ import (
 const (
 	// showMTUFarAddr is the far namespace's address, two hops from the daemon.
 	showMTUFarAddr = "10.99.2.1"
+	// showMTUSecondPeer is the second far-side IKE responder's address.
+	showMTUSecondPeer = "10.99.2.3"
 	// showMTUClampMTU is the MTU the router's far link is clamped to.
 	showMTUClampMTU = 1400
 	// showMTUPoisonMTU is the route MTU the exhaustive test writes on the far
@@ -38,8 +40,17 @@ const (
 	// showMTUGCMCeiling and showMTURecommended are the aes128gcm figures over
 	// a 1400 path with IPv4 endpoints and no UDP: overhead 52, ceiling
 	// alignDown(1348, 4) - 2, recommended alignDown(1346 - 32 + 2, 4) - 2.
+	// They size the host measurement of the far address (ICMP, 1400).
 	showMTUGCMCeiling  = 1346
 	showMTURecommended = 1314
+	// showMTUIKEConfirmed is the largest size the padded IKE exchange proves
+	// on a live tunnel here. The IKE SA is aes256-cbc (RFC 7296 Section 3.14
+	// grid of 16 octets), so the exchange asked at the 1400 clamp is sent at
+	// the grid point below, 1388, and answered whole. A fit below the ask
+	// refutes nothing, so the ICMP figure 1400 stays the path MTU and the row
+	// carries `ike-confirmed: 1388` (spec ike-padded-path-probe, design point
+	// 0 and the 2026-09-16 ruling).
+	showMTUIKEConfirmed = 1388
 	// showMTUXfrmMTU is the MTU both bound xfrm interfaces are configured at.
 	showMTUXfrmMTU = 1500
 	// showMTUKeyVerdict is the payload key of a run's and a tunnel's verdict.
@@ -263,9 +274,24 @@ func showMTUNoTunnels(ctx context.Context, _ []string) error {
 // showMTUOversized waits for both bound tunnels to be sized, then checks each
 // is oversized against the 1400 clamp with the aes128gcm figures, that both
 // commands are listed, and that the reference on the far side makes the
-// circuit-clamped underlay advice (AC-13).
+// circuit-clamped underlay advice (AC-13). The tunnels are measured over
+// their live IKE SAs: the padded exchange confirms the 1400 clamp down to
+// the 1388 grid point (`ike-confirmed`) and the clamp stays the figure.
 func showMTUOversized(ctx context.Context, _ []string) error {
 	return observe13(ctx, "show-mtu-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		// The tunnels are measured over their live IKE SAs, so the run waits
+		// for both SAs to be established before it sizes; inventory Up (the
+		// child SA installed) can lead the IKE SA being probe-ready by a tick,
+		// and a probe refused sa-down in that window would leave the ICMP
+		// figure and read as a flake.
+		var saErr error
+		established := Poll(ctx, 20, 3*time.Second, func() bool {
+			saErr = showMTUSAsEstablished(ctx, plugin, "site-b", "site-c")
+			return saErr == nil
+		})
+		if !established {
+			return fmt.Errorf("both IKE SAs were not established within the poll: %w", saErr)
+		}
 		var doc map[string]any
 		sized := Poll(ctx, 20, 3*time.Second, func() bool {
 			d, err := showMTUResult(ctx, plugin, "show mtu")
@@ -289,6 +315,18 @@ func showMTUOversized(ctx context.Context, _ []string) error {
 		for _, row := range rows {
 			if err := showMTUOversizedRow(row); err != nil {
 				return err
+			}
+		}
+		measurements, err := showMTURows(doc, "measurements")
+		if err != nil {
+			return err
+		}
+		for _, row := range measurements {
+			if row["target"] != showMTUFarAddr && row["target"] != showMTUSecondPeer {
+				continue
+			}
+			if err := showMTUIKEProbeRow(row); err != nil {
+				return fmt.Errorf("%w; row %v; notes %v", err, row, doc["notes"])
 			}
 		}
 		commands, ok := doc["commands"].([]any)
@@ -316,12 +354,149 @@ func showMTUOversized(ctx context.Context, _ []string) error {
 	})
 }
 
+// showMTUIKEProbe proves a live tunnel's path is measured by the padded IKE
+// exchange: each peer measurement row names `ike` as its prober, keeps the
+// 1400 clamp as its figure with `ike-confirmed` at the 1388 grid point the
+// exchange proved, spent at least one exchange, carries the different-path
+// caveat (the SAs run on UDP/500, not NAT-T) and never the ICMP optimism
+// caveat, and both IKE SAs are still established afterwards. A run-level
+// caution note names the CBC grid rounding as a confirmation. The ICMP figure
+// comes from the router's Fragmentation Needed on the ESP path (the far
+// dataplane is noop, so echo never round-trips), and the IKE prober confirms
+// it: this is the confirm-first path, prover of AC-1 and AC-7 and design
+// point 0.
+func showMTUIKEProbe(ctx context.Context, _ []string) error {
+	return observe13(ctx, "show-mtu-test", func(ctx context.Context, plugin *sdk.Plugin) error {
+		// With the router's errors dropped every ICMP search runs on silence,
+		// about 45 s per target, so the SAs are waited for first and `show
+		// mtu` runs once against two live tunnels.
+		var saErr error
+		established := Poll(ctx, 20, 3*time.Second, func() bool {
+			saErr = showMTUSAsEstablished(ctx, plugin, "site-b", "site-c")
+			return saErr == nil
+		})
+		if !established {
+			return fmt.Errorf("both IKE SAs were not established within the poll: %w", saErr)
+		}
+		doc, err := showMTUResult(ctx, plugin, "show mtu")
+		if err != nil {
+			return err
+		}
+		rows, err := showMTURows(doc, "measurements")
+		if err != nil {
+			return err
+		}
+		measured := 0
+		for _, row := range rows {
+			if row["target"] != showMTUFarAddr && row["target"] != showMTUSecondPeer {
+				continue
+			}
+			if err := showMTUIKEProbeRow(row); err != nil {
+				return fmt.Errorf("%w; row %v; notes %v", err, row, doc["notes"])
+			}
+			measured++
+		}
+		if measured != 2 {
+			return fmt.Errorf("%d peer measurements, want 2: %v", measured, rows)
+		}
+		tunnels, err := showMTURows(doc, "tunnels")
+		if err != nil {
+			return err
+		}
+		if len(tunnels) != 2 {
+			return fmt.Errorf("%d tunnel rows, want 2: %v", len(tunnels), tunnels)
+		}
+		for _, row := range tunnels {
+			if row["sized"] != true {
+				return fmt.Errorf("tunnel %v is not sized: %v", row["peer"], row)
+			}
+			if got := number13(row["path-mtu"]); got != showMTUClampMTU {
+				return fmt.Errorf("tunnel %v path-mtu %d, want the clamp %d", row["peer"], got, showMTUClampMTU)
+			}
+		}
+		if !showMTUHasNote(doc, "IKE confirmed the path down to 1388 octets") {
+			return fmt.Errorf("no caution note names the CBC grid rounding as a confirmation: %v", doc["notes"])
+		}
+		if err := showMTUSAsEstablished(ctx, plugin, "site-b", "site-c"); err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, "OK: both tunnels keep the 1400 clamp, confirmed by the padded IKE exchange down to the 1388 grid point, and both SAs are still established")
+		return nil
+	})
+}
+
+func showMTUIKEProbeRow(row map[string]any) error {
+	if row["prober"] != "ike" {
+		return fmt.Errorf("target %v prober %v, want ike: %v", row["target"], row["prober"], row)
+	}
+	if declined, present := row["ike-declined"]; present {
+		return fmt.Errorf("target %v: the IKE prober declined: %v", row["target"], declined)
+	}
+	// The IKE SA is aes256-cbc, so the padded exchange asked at the 1400 clamp
+	// is sent at the 1388 grid point below it: a fit there confirms the clamp
+	// down to 1388 and refutes nothing, so the clamp stays the figure.
+	if got := number13(row["path-mtu"]); got != showMTUClampMTU {
+		return fmt.Errorf("target %v path-mtu %d, want the ICMP clamp %d", row["target"], got, showMTUClampMTU)
+	}
+	if got := number13(row["ike-confirmed"]); got != showMTUIKEConfirmed {
+		return fmt.Errorf("target %v ike-confirmed %d, want the grid point %d", row["target"], got, showMTUIKEConfirmed)
+	}
+	if got := number13(row["exchanges"]); got < 1 {
+		return fmt.Errorf("target %v exchanges %d, want at least 1", row["target"], got)
+	}
+	caveats, ok := row["caveats"].([]any)
+	if !ok {
+		return fmt.Errorf("target %v caveats is not a list: %v", row["target"], row["caveats"])
+	}
+	joined := fmt.Sprint(caveats)
+	if !strings.Contains(joined, "UDP/500") {
+		return fmt.Errorf("target %v caveats %v lack the different-path caveat", row["target"], caveats)
+	}
+	if strings.Contains(joined, "ICMP echo") {
+		return fmt.Errorf("target %v caveats %v carry the ICMP optimism caveat on an IKE-measured row", row["target"], caveats)
+	}
+	return nil
+}
+
+// showMTUSAsEstablished refuses unless `show vpn ipsec peer name <peer>` lists
+// an established IKE SA for every named peer.
+func showMTUSAsEstablished(ctx context.Context, plugin *sdk.Plugin, peers ...string) error {
+	for _, peer := range peers {
+		command := "show vpn ipsec peer name " + peer
+		result := command13(ctx, plugin, command)
+		if err := requireStatus13(command, result, statusDone); err != nil {
+			return err
+		}
+		var doc map[string]any
+		if err := decodeJSON13(result.raw, &doc); err != nil {
+			return fmt.Errorf("%s: decode: %w", command, err)
+		}
+		records, err := showMTURows(doc, "ike-sas")
+		if err != nil {
+			return fmt.Errorf("%s: %w", command, err)
+		}
+		found := false
+		for _, record := range records {
+			if record["state"] == "established" {
+				found = true
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s lists no established IKE SA: %v", command, records)
+		}
+	}
+	return nil
+}
+
 func showMTUOversizedRow(row map[string]any) error {
 	if row[showMTUKeyVerdict] != "oversized" {
 		return fmt.Errorf("peer %v verdict %v, want oversized: %v", row["peer"], row[showMTUKeyVerdict], row)
 	}
+	// The tunnel is measured over its live IKE SA (spec ike-padded-path-probe);
+	// the padded exchange confirms the 1400 clamp and the clamp stays the
+	// figure the tunnel is sized to.
 	if got := number13(row["path-mtu"]); got != showMTUClampMTU {
-		return fmt.Errorf("peer %v path-mtu %d, want %d", row["peer"], got, showMTUClampMTU)
+		return fmt.Errorf("peer %v path-mtu %d, want the clamp %d", row["peer"], got, showMTUClampMTU)
 	}
 	if row["assumed"] != false {
 		return fmt.Errorf("peer %v path is assumed; each peer answered", row["peer"])

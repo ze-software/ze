@@ -189,6 +189,56 @@ unpaired emit drifts once per reconnect rather than once per process.
 <!-- source: internal/component/ike/engine/events.go -- SA lifecycle event registration -->
 <!-- source: internal/component/ike/engine/fsm.go -- runInitiator, runResponder, the emitSADown pair -->
 
+## The padded path probe on the wire
+
+`show mtu` measures a live tunnel's path with an INFORMATIONAL request the
+owner loop pads to an exact datagram size (`engine/probe.go`; the loop, the
+window and the outcomes are on `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`).
+The request carries exactly one payload: a status Notify of the private-use
+type `ZE_PATH_PROBE_PADDING` (65280, `wire.NotifyZePathProbePadding`) with an
+empty SPI, whose zeroed Notification Data is the padding. RFC 7296 Section 3.10.1
+has a peer that does not know the type ignore it and answer with an empty
+INFORMATIONAL response; SK padding is not the carrier, because its Pad Length
+is one octet (Section 3.14) and an AEAD suite pads nothing (RFC 5282).
+
+The Notification Data length is the requested size minus every other octet of
+the datagram. `probeNotifyOctets` computes it from the SA's suite and send path:
+
+| Octets | Part | Present |
+|--------|------|---------|
+| 20 | IPv4 header | always (the transport is `udp4`; IPv6 is refused `family`) |
+| 8 | UDP header | always |
+| 4 | non-ESP marker (RFC 3948 Section 2.2) | when the SA sends from port 4500 (`SA.sendPath`) |
+| 28 | IKE header | always |
+| 4 | SK payload generic header | always |
+| 16 or 8 | IV | 16 under CBC, 8 under an AEAD suite (RFC 5282 Section 3.1) |
+| 4 + 4 | Notify generic header, then Protocol ID, SPI Size, Notify Message Type | always |
+| N | Notification Data | the padding |
+| 0..15 | SK Padding | CBC only, to the 16-octet block |
+| 1 | Pad Length | always |
+| 16 or 12, or the AEAD tag | ICV | the negotiated integrity truncation under CBC; inside the ciphertext under AEAD |
+
+Under CBC the encrypted span is a multiple of 16, so the reachable datagram
+sizes sit on a 16-octet grid. A request between two grid points is rounded
+DOWN to the grid point below it, never up: a datagram larger than the one asked
+for is the one thing a path probe must never send, and a smaller one that fits
+is a true lower bound. The size sent travels back in the answer
+(`ikeprobe.Result.WireOctets`), so the caller reads the outcome at that size:
+asked 1400 on a suite whose grid reaches 1392, the datagram is 1392 octets and
+the fit is a fit at 1392. Under AEAD every size from the smallest datagram to
+the 3000-octet ceiling (Section 2, `transport.MaxMsgSize`) is reachable and the
+size sent is the size asked. The first copy leaves with Don't Fragment set; the
+retransmission is the same bytes from the IKE header on (Section 2.1) with DF
+clear. A probe is one IKE message and is never IKE-fragmented: Ze negotiates no
+RFC 7383 fragmentation today (`wire.NotifyFragmentationSupported` is declared
+and never sent), and an implementation of it MUST leave the probe exchange whole
+whatever threshold it negotiates, because RFC 7383 Section 2.5.2 searches
+fragmentation thresholds downward and a fragmented probe would measure the
+threshold rather than the path (`plan/immediate/spec-ike-fragmentation-rfc7383.md`).
+
+<!-- source: internal/component/ike/engine/probe.go -- probeNotifyOctets -->
+<!-- source: internal/component/ike/wire/payload_notify.go -- NotifyZePathProbePadding -->
+
 ## RFC obligations carried by this code
 
 - RFC 7296 Section 2.6 defines the COOKIE mechanism. The responder issues a

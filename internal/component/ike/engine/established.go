@@ -158,7 +158,7 @@ func (ps *PeerSession) runEstablished(
 			log.Warn("ike: NAT detected but no keepalive path, the NAT binding will expire",
 				"peer", ps.peerName, "local-port", sa.localPort)
 		default:
-			ka := transport.NewKeepalive(out.Conn(), remote, transport.DefaultKeepaliveInterval, log)
+			ka := transport.NewKeepalive(out, remote, transport.DefaultKeepaliveInterval, log)
 			go ka.Run()
 			defer ka.Stop()
 			log.Info("ike: NAT keepalive started", "peer", ps.peerName, "remote", remote)
@@ -194,6 +194,11 @@ func (ps *PeerSession) maintainSA(
 	} else {
 		sa.setHardExpiry(time.Time{})
 	}
+
+	// A padded path probe still outstanding when this loop returns is answered
+	// sa-failed on the way out, whatever took the SA: the request window's timeout
+	// (serviceRequestWindow, then the StateDead arm below) or any other exit.
+	defer ps.failPendingProbe(log)
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -252,6 +257,18 @@ func (ps *PeerSession) maintainSA(
 			if child := ps.getChildSA(); child != nil {
 				emitRouteAdd(bus, child.TSRemote, log)
 			}
+		case request := <-ps.probeRequests:
+			// A padded path probe asked for by the MTU diagnostic through the
+			// ikeprobe leaf. It is answered HERE, on the owner goroutine, for the
+			// reason the stopCh arm builds its Delete here: a probe is built under
+			// sa.SKKeys and takes a message id from sa.NextMsgID, state this loop
+			// owns alone (probe.go).
+			ps.answerProbeRequest(sa, tr, request, log)
+		case refusal := <-probeRefusals(sa, tr):
+			// The kernel queued an EMSGSIZE for a datagram this SA's socket sent
+			// with Don't Fragment. Only a path probe sends one, and a router's
+			// refusal for this SA's peer sends the DF-clear copy at once (AC-11).
+			ps.handleSizeRefusal(sa, tr, refusal, log)
 		case pkt := <-ps.inbound:
 			out := ps.handleOwnedInbound(sa, pkt, tr, dp, log)
 			// RFC 7296 Section 4: the peer refused a rekey with NO_ADDITIONAL_SAS, so
@@ -263,6 +280,13 @@ func (ps *PeerSession) maintainSA(
 			if out.reestablish {
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
+			}
+			// An authenticated INFORMATIONAL response is correlated twice, against two
+			// requesters that never share state: the path probe by its own id
+			// (settleProbe, probe.go), and the DPD probe below. A response at the
+			// path probe's id answers the diagnostic and credits no liveness.
+			if out.dpdResp {
+				ps.settleProbe(out.dpdRespMsgID, log)
 			}
 			// Clear the DPD wait on an in-window authenticated inbound (peerAlive), or
 			// on an authenticated INFORMATIONAL response whose message ID matches the
@@ -287,6 +311,10 @@ func (ps *PeerSession) maintainSA(
 				oldSA := sa
 				sa = out.newSA
 				ps.ownedSA.Store(sa)
+				// A path probe that left on the retired SA can no longer be
+				// answered or retransmitted: answer it now, before the swap
+				// forgets the window it held.
+				ps.retirePendingProbe(log)
 				// The session pointer follows the swap too. TerminatePeerSA and
 				// TerminateAllSAs remove the SA that ps.getSA returns. A pointer
 				// left on the retired SA deletes a key that is already gone, and
@@ -507,14 +535,25 @@ func (ps *PeerSession) startIKERekey(sa *SA, ikeGroup ipsec.IKEGroup, tr *transp
 // repeats. A repeat therefore spends no further id.
 //
 // Only a request with no retransmission machine of its own arms the slot. That is the
-// INVALID_MESSAGE_ID notify and every Delete (writeDelete, delete.go). The rekey and
-// the DPD probe keep their own copies, and the guard below excludes both, so neither is
-// repeated twice.
+// INVALID_MESSAGE_ID notify, every Delete (writeDelete, delete.go) and the padded path
+// probe (answerProbeRequest, probe.go). The rekey and the DPD probe keep their own
+// copies, and the guard below excludes both, so neither is repeated twice.
+//
+// A path probe's repeat is the same bytes with the IP header's Don't Fragment bit
+// clear, which RFC 7296 Section 2.1 allows: "A retransmission from the initiator MUST
+// be bitwise identical to the original request. That is, everything starting from the
+// IKE header (the IKE SA initiator's SPI onwards) must be bitwise identical; items
+// before it (such as the IP and UDP headers) do not have to be identical." The bytes
+// are sa.requestMsg either way; sendProbeDFClear (probe.go) changes the IP header only.
 func (ps *PeerSession) serviceRequestRetransmit(sa *SA, dpd *dpdState, tr *transport.UDPTransport, now time.Time, log *slog.Logger) {
 	if ps.pendingRekey != nil || dpd.awaitingReply() {
 		return
 	}
 	if !sa.shouldRetransmitRequest(now) {
+		return
+	}
+	if ps.pendingProbe != nil {
+		ps.sendProbeDFClear(sa, tr, now, log)
 		return
 	}
 	sendRaw(sa, tr, sa.requestMsg, log)
@@ -539,8 +578,12 @@ func (ps *PeerSession) serviceRequestRetransmit(sa *SA, dpd *dpdState, tr *trans
 //
 // A rekey and a DPD probe each end their own hold. The first uses its retransmit
 // budget, and the second uses the liveness budget. Both already fail the SA when they
-// run out, so the guard below leaves them to it. What reaches here is a Delete or the
-// INVALID_MESSAGE_ID notify.
+// run out, so the guard below leaves them to it. What reaches here is a Delete, the
+// INVALID_MESSAGE_ID notify, or a padded path probe: the probe is an ordinary request
+// under Section 2.1 and takes the same two exits, so it gains no branch here, no window
+// is released without a response and no message id is rewound (owner ruling (a),
+// 2026-09-16, spec-ike-padded-path-probe; the ruling is recorded on
+// docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md, "The padded path probe").
 func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time, log *slog.Logger) {
 	if ps.pendingRekey != nil || dpd.awaitingReply() {
 		return

@@ -284,3 +284,80 @@ flag propagates to child creation without a second decision.
 <!-- source: internal/component/ike/engine/udpencap.go -- UDP encapsulation readiness -->
 <!-- source: internal/component/ike/transport/encap_linux.go -- UDP encapsulation of ESP on Linux -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- SAParams UDP encapsulation fields -->
+
+## The two IKE sockets
+
+`UDPTransport` (`internal/component/ike/transport/udp.go`) is one UDP socket
+with a read loop. The engine opens two: the plain one on port 500 and the
+NAT-T one on port 4500 (`NewUDPTransport`, `NewNATTTransport`). Each socket
+knows its own role at construction (`IsNATT`) and stamps it on every inbound
+`Packet.NATT`, so no handler infers the role from a port number, which reads
+wrong under the `ze.test.ike.port` override. RFC 7296 Section 2.23: "The UDP
+payload of all packets containing IKE messages sent on port 4500 MUST begin
+with the prefix of four zeros", so a sender holding the NAT-T socket frames
+its message with the non-ESP marker of RFC 3948 Section 2.2
+(`AddNonESPMarker`) and the read loop strips it. Both sockets are IPv4
+(`net.ListenUDP("udp4")`), so the socket options below are the IPv4 ones.
+
+Two writes exist, and both hold the transport's lock across the write, so no
+two datagrams from different SAs interleave on the socket. The NAT keepalive
+(`Keepalive`) writes through `Send` too; `Conn()` exists for the socket
+option `EnableESPInUDP` sets and nothing writes through it.
+
+| Write | DF policy | Use |
+|-------|-----------|-----|
+| `Send` | the kernel default (`IP_PMTUDISC_WANT`: DF set on a datagram that fits the cached path MTU, fragmented otherwise) | every IKE message today |
+| `SendDF` | one `probe.DFMode` for that datagram: `DFHonorCache` is `IP_PMTUDISC_DO`, `DFBypassCache` is `IP_PMTUDISC_PROBE`, `DFOff` is `IP_PMTUDISC_DONT` | the padded path probe (`docs/architecture/diagnostics/path-mtu.md`): the first copy with DF, the retransmission with DF clear |
+
+`SendDF` sets `IP_MTU_DISCOVER` on the socket through `probe.WithDFMode`
+(`docs/architecture/diagnostics/active-probes.md`), writes, and restores the
+value the socket held before, on every exit path including a refused write.
+The option is socket-wide, which is why `Send` takes the same lock around its
+write: a datagram from another SA that left while the option was toggled
+would carry the probe's DF setting. `TestDFSendRestoresSocketMode` reads the
+option back after each mode, and `TestPlainSendNeverLeavesUnderTheProbeOption`
+(`udp_df_integration_linux_test.go`, root, three namespaces) races plain
+sends against DF-off sends and reads the DF bit of every datagram off an
+AF_PACKET capture on the router. Off Linux `SendDF` answers
+`probe.ErrDFUnsupported` and writes nothing (`udp_other.go`).
+
+Both sockets carry `IP_RECVERR` from creation (`probe.EnableErrorQueue`), so
+a router's Fragmentation Needed for a DF datagram, and the kernel's own
+`EMSGSIZE` for a send larger than its cached path MTU, are queued on the
+socket's error queue rather than dropped. The read loop, on a read error that
+is not the close, drains the queue with `probe.DrainErrorQueue` and delivers
+each `EMSGSIZE` entry on `Refusals()` as a `SizeRefusal`: the peer the datagram
+was sent to (`Peer`, address and port, the entry's own destination), the
+reported next-hop MTU under `Outcome`, the router as `Offender`, `Local` for
+a cache refusal, and which socket it arrived on (`NATT`). The engine matches
+`Peer` against the SA that holds a probe; the socket is shared by every SA,
+and the destination is the one thing the kernel records per refused datagram.
+Every established SA's owner loop reads the one channel, so an entry reaches
+one of them: an entry another SA's loop read is dropped there, and the probe
+it was about is repeated with DF clear at the retransmit timer instead
+(`handleSizeRefusal`, `engine/probe.go`).
+A `Local` entry carries the address and port 0, because the kernel fills it
+from the socket's connected port, so the engine learns a local refusal from
+`SendDF`'s own `EMSGSIZE` and reads the event as confirmation. An entry that is
+not a size refusal (a port unreachable, a host unreachable) is logged at Debug
+and dropped. The channel holds `refusalQueueDepth` (16) entries; an entry that
+finds it full is dropped with a log line, because the read loop must return to
+the socket and the engine's retransmit timer carries the DF-clear copy in any
+case. `TestOversizedDFSendQueuesRefusalForThePeer` proves the router's
+refusal and the local one against a clamped Linux router.
+
+`IP_RECVERR` has one side effect the transport absorbs. With it set, the
+kernel hands an ICMP error about an EARLIER datagram to the next send on the
+socket as that send's failure (`net/core/sock.c sock_alloc_send_pskb` returns
+the pending `sk_err` before it allocates), and that datagram is never sent.
+Without the option an unconnected UDP socket drops the error, which is why
+`Send` never failed this way before. So every failed write first drains the
+queue: entries found mean the error was a report about earlier traffic, now
+delivered on `Refusals`, and the write is made once more; none found means the
+error is about this write; a `LOCAL` entry found means this write was refused
+by the cache, and a second attempt would draw the same answer.
+`TestSendSurvivesAnErrorQueuedForAnEarlierDatagram` drives it on loopback.
+
+<!-- source: internal/component/ike/transport/udp.go -- UDPTransport, Send, SendDF, Run, SizeRefusal, Refusals -->
+<!-- source: internal/component/ike/transport/udp_linux.go -- installErrorQueue, writeWithDF, drainErrorQueue -->
+<!-- source: internal/component/ike/transport/udp_other.go -- the non-Linux stubs -->

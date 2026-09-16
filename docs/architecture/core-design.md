@@ -2015,10 +2015,10 @@ Cross-component coupling follows a strict hierarchy:
 | config | plugin, plugin/registry, command |
 | hub | everything (orchestrator) |
 | iface | config/yang, plugin, plugin/registry |
-| ike | command, config (and config/yang, config/secret, config/redistribute), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf rather than being imported for them |
+| ike | command, config (and config/yang, config/secret, config/redistribute), iface, kernelcap, pki (callbacks), plugin, plugin/registry, plugin/server (CLI RPCs), vpp; publishes its live tunnels through the `internal/core/ipsecinventory` leaf and its padded path probe through the `internal/core/ikeprobe` leaf rather than being imported for either |
 | l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
 | mcp | audit |
-| mtu | command, config/yang (the two YANG modules register), iface (dispatch calls only), plugin, plugin/server (CLI RPC), sysctl (`Read`), ike/crypto and ike/ipsec (untagged leaves, for the transform ids); reads live tunnels through the `internal/core/ipsecinventory` leaf and probes through `internal/core/probe`, and never imports `ike/engine` |
+| mtu | command, config/yang (the two YANG modules register), iface (dispatch calls only), plugin, plugin/server (CLI RPC), sysctl (`Read`), ike/crypto and ike/ipsec (untagged leaves, for the transform ids); reads live tunnels through the `internal/core/ipsecinventory` leaf, probes through `internal/core/probe`, asks a live SA to confirm a figure through the `internal/core/ikeprobe` leaf, and never imports `ike/engine` |
 | plugin/server | aaa, audit |
 | ppp | none (leaf: PPP/LCP/NCP state machines; only `internal/core/textbuf` outside stdlib) |
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |
@@ -2038,6 +2038,21 @@ The doctor check registry is the shape it copies.
 
 <!-- source: internal/core/ipsecinventory/registry.go -- Register, Tunnels, Tunnel -->
 <!-- source: internal/component/ike/engine/inventory.go -- inventorySnapshot -->
+
+**The IKE path probe is a second core leaf of the same shape, so the MTU
+diagnostic measures over a live IKE SA without importing the engine.**
+`internal/core/ikeprobe` imports the standard library and `internal/core/probe`
+(for `DFMode`) only. The IKE engine registers one `Prober` at `init()`, beside
+the inventory snapshot, and a caller passes `Probe()` a value-type `Request`
+(the peer name, the wire size in octets, the DF mode) and reads a value-type
+`Result`: an `Outcome` (`fits`, `too-big`, `sa-failed`, `refused`) and, under
+`refused`, the `Refusal` that names why. `Probe()` answers `ErrNotRegistered`
+when no engine registered, distinct from an engine refusing. The engine's
+prober (`probePeer`) finds the peer's session and hands the request to the
+SA's owner loop over a channel, so no caller touches SA state.
+
+<!-- source: internal/core/ikeprobe/registry.go -- Register, Probe, Request, Result -->
+<!-- source: internal/component/ike/engine/probe.go -- probePeer -->
 
 **Local authentication data** and the base `system.authentication.user` schema
 live in `authz`, not `ssh`. `ze-ssh-conf` owns the SSH listener settings and

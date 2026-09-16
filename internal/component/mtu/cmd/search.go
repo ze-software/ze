@@ -23,9 +23,11 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/probe"
 )
 
@@ -82,6 +84,41 @@ const (
 	readErrorsMax = 32
 )
 
+// The bounds of the IKE prober. Each exchange holds the SA's request window
+// (RFC 7296 Section 2.3: "An IKE endpoint MUST wait for a response to each
+// of its messages before sending a subsequent message"), so no DPD, Delete
+// or rekey leaves while one is out: exchanges, not octets, are what a run
+// spends on a live tunnel.
+const (
+	// ikeWireMax is the largest datagram the IKE prober asks for. RFC 7296
+	// Section 2: "All IKEv2 implementations MUST be able to send, receive,
+	// and process IKE messages that are up to 1280 octets long, and they
+	// SHOULD be able to send, receive, and process messages that are up to
+	// 3000 octets long." The engine refuses a size above its interface MTU
+	// by name, so between the two every probe stays under min(interface MTU,
+	// 3000) (AC-6). An ICMP figure above it is not offered at all.
+	ikeWireMax = 3000
+	// ikeExchangesPerRunMax bounds the exchanges one run spends on one
+	// tunnel: the confirm at the ICMP figure and, when it is too big, the
+	// ladder below it. The engine bounds how long ONE exchange stays
+	// outstanding (its retransmit budget); this bounds how long DPD is held
+	// off across the run. The Boundary row: 1..16 exchanges per run;
+	// TestIKEExchangeBudgetBoundary pins the 17th refused.
+	ikeExchangesPerRunMax = 16
+	// ikeProbeStopAtFirstSilence: an sa-failed outcome ends the IKE attempt
+	// for that tunnel at once, and no smaller size is asked. On a path that
+	// drops IP fragments a probe can take the tunnel down the way any IKE
+	// request larger than the path would: the DF copy is too big, the
+	// DF-clear copies are fragmented and lost, and after the full retransmit
+	// budget the SA is deemed failed (RFC 7296 Section 2.1) and re-established
+	// by the owner loop. The engine gains no probe-aware exit, so the
+	// mitigation is here: the IKE prober is asked only at or below the ICMP
+	// figure, and the first size that stays unanswered is the last one asked,
+	// so a run fails a tunnel at most once. Read by ikeProber only; the ICMP
+	// path has no failed SA to stop on. Owner ruling (a), 2026-09-16.
+	ikeProbeStopAtFirstSilence = true
+)
+
 // candidateLadder is the 31 wire sizes real paths cluster on, largest
 // first, tried inside the bracket before the number line. It is the ported
 // tool's list, tuned on degraded customer paths; RFC 1191 Section 7 calls
@@ -98,6 +135,11 @@ var candidateLadder = [31]int{
 // so reaching it is a defect in the arithmetic above, reported rather than
 // probed through.
 var errProbeBudget = errors.New("mtu: the search asked for more probes than its budget")
+
+// errIKEExchangeBudget ends the IKE attempt when the search asks for an
+// exchange past ikeExchangesPerRunMax: the ICMP figure stands, unconfirmed,
+// and the row carries this text.
+var errIKEExchangeBudget = errors.New("the budget of " + strconv.Itoa(ikeExchangesPerRunMax) + " IKE exchanges was spent before the search converged")
 
 // probeOutcome is what one DF probe came back with. Zero is unspecified,
 // never an answer.
@@ -117,6 +159,12 @@ const (
 	probeRefusedUnreported
 	// probeSilent: nothing came back inside probeWait.
 	probeSilent
+	// probeTooBig: the padded exchange was answered only on the copy sent
+	// with Don't Fragment clear (ikeprobe.OutcomeTooBig). Unlike a refusal
+	// off the error queue it can be a lost DF copy (a drop, or a peer in
+	// IKE_REKEYED dropping the request), so the search retries it as it
+	// retries a silence before it believes it (AC-3).
+	probeTooBig
 )
 
 // String answers the wire spelling of the outcome, for the detail view. It
@@ -131,6 +179,8 @@ func (o probeOutcome) String() string {
 		return "refused-unreported"
 	case probeSilent:
 		return "silent"
+	case probeTooBig:
+		return "too-big"
 	default:
 		panic("BUG: probeOutcome written to the payload before it was set")
 	}
@@ -496,7 +546,9 @@ func (s *pathSearch) refine() error {
 // and the same-sized probe SHOULD be attempted again". RFC 8899 Section
 // 5.1.3: "Some probe loss is expected while searching, therefore loss of a
 // single probe is not an indication of a PMTU problem." Only the
-// probesPerSizeMax-th silence is believed, and then the size fails.
+// probesPerSizeMax-th silence is believed, and then the size fails. An IKE
+// too-big is a DF copy that drew no answer, so it is retried the same way
+// (the Boundary row: 1..3 probes per size, for both probers).
 func (s *pathSearch) attempt(payload int) (bool, error) {
 	for range probesPerSizeMax {
 		if s.result.probes >= runProbeBudget {
@@ -523,7 +575,7 @@ func (s *pathSearch) attempt(payload int) (bool, error) {
 			s.reportedLocal = answer.local
 			s.fail(payload)
 			return false, nil
-		case probeSilent:
+		case probeSilent, probeTooBig:
 			continue
 		case probeOutcomeUnspecified:
 			panic("BUG: prober answered an unspecified outcome")
@@ -734,6 +786,116 @@ func (w *wireProber) localRefusal(ctx context.Context) (probeAnswer, error) {
 		return probeAnswer{outcome: probeRefusedUnreported, local: true}, nil //nolint:nilerr // no estimate is an answer by name, not a failure
 	}
 	return probeAnswer{outcome: probeRefusedReported, local: true, mtu: estimate}, nil
+}
+
+// ikeProber is the prober bound to a live IKE SA: each probe is one padded
+// INFORMATIONAL exchange the IKE engine runs on the SA's own socket, asked
+// for through the ikeprobe leaf so this package never imports the engine. The
+// search speaks in ICMP payload octets and the engine in datagram octets, so
+// the adapter adds the ICMP overhead back: the size on the wire is what a
+// path MTU is a property of, whichever protocol carries it.
+//
+// A fit is a reply and a too-big is retried like a silence, the two answers
+// the search brackets on. Three things end the attempt instead of answering:
+// an exchange past ikeExchangesPerRunMax (errIKEExchangeBudget, refused
+// before the leaf is asked), a refusal or a failed SA (ikeProbeEnded, by
+// name), and a leaf with no engine registered (ErrNotRegistered, passed
+// through). ceiling is the ICMP figure in wire octets: the search is built
+// so no size above it is asked, and asking one is a defect.
+//
+// The engine sends the largest datagram the SA's cipher suite produces at or
+// below the size asked (a CBC suite sends on a 16-octet grid), never above,
+// and names that size in its answer. A fit at the size sent is a fit the
+// search reads at the size asked, which is a true lower bound; fitOctets
+// keeps the largest size that fit as sent, and fitAsked the ask that
+// produced it, so the row reports the size the path is proven to carry.
+type ikeProber struct {
+	peer      string
+	overhead  int
+	df        probe.DFMode
+	ceiling   int
+	ask       ikeprobe.Prober
+	exchanges int
+	fitOctets int
+	fitAsked  int
+}
+
+func (p *ikeProber) probe(ctx context.Context, payload int) (probeAnswer, error) {
+	wire := payload + p.overhead
+	if wire > p.ceiling {
+		panic("BUG: an IKE probe above the ICMP figure was asked for; the search descends from it and never rises")
+	}
+	if p.exchanges >= ikeExchangesPerRunMax {
+		return probeAnswer{}, errIKEExchangeBudget
+	}
+	result, err := p.ask(ctx, ikeprobe.Request{Peer: p.peer, WireOctets: uint16(wire), DF: p.df})
+	if err != nil {
+		return probeAnswer{}, err
+	}
+	// An exchange is a message that left: a refusal built nothing and
+	// spends none.
+	switch result.Outcome {
+	case ikeprobe.OutcomeFits:
+		sent := p.spend(&result, wire)
+		if sent > p.fitOctets {
+			p.fitOctets = sent
+			p.fitAsked = wire
+		}
+		return probeAnswer{outcome: probeReplied}, nil
+	case ikeprobe.OutcomeTooBig:
+		p.spend(&result, wire)
+		return probeAnswer{outcome: probeTooBig}, nil
+	case ikeprobe.OutcomeSAFailed:
+		sent := p.spend(&result, wire)
+		// The SA is being re-established; a further size would be refused
+		// sa-down, and the one that failed it is what the row reports.
+		if ikeProbeStopAtFirstSilence {
+			return probeAnswer{}, &ikeProbeEnded{result: result, wire: sent}
+		}
+		return probeAnswer{outcome: probeSilent}, nil
+	case ikeprobe.OutcomeRefused:
+		if result.Refusal == ikeprobe.RefusalRekeyed {
+			// The exchange left and was lost to the peer's rekey (AC-10): it
+			// counts, says nothing about the path, and attempt asks the size
+			// again on the SA that replaced the retired one.
+			p.spend(&result, wire)
+			return probeAnswer{outcome: probeSilent}, nil
+		}
+		return probeAnswer{}, &ikeProbeEnded{result: result, wire: wire}
+	case ikeprobe.OutcomeUnspecified:
+		panic("BUG: the IKE prober answered an unspecified outcome")
+	default:
+		panic("BUG: the IKE prober answered an unknown outcome")
+	}
+}
+
+// spend counts one exchange and answers the size the engine sent for it. An
+// outcome about a datagram names that size; none, or one above the size
+// asked, is a Ze defect rather than an answer about the path.
+func (p *ikeProber) spend(result *ikeprobe.Result, asked int) int {
+	sent := int(result.WireOctets)
+	if sent == 0 || sent > asked {
+		panic("BUG: the IKE prober answered an exchange without the size it sent, or one above the size asked")
+	}
+	p.exchanges++
+	return sent
+}
+
+// ikeProbeEnded is the error an IKE probe ends the search with when the
+// engine produced no answer about the path: it refused by name, or the SA
+// failed under the exchange of wire octets. The text names the outcome, the
+// refusal's condition, or the size the SA failed at, and the row and the note
+// carry it as written (AC-13: the row says sa-failed and names the size).
+type ikeProbeEnded struct {
+	result ikeprobe.Result
+	wire   int
+}
+
+func (e *ikeProbeEnded) Error() string {
+	if e.result.Outcome == ikeprobe.OutcomeRefused {
+		return e.result.Outcome.String() + ": " + e.result.Refusal.String()
+	}
+	return e.result.Outcome.String() + " at " + strconv.Itoa(e.wire) + " octets: no copy of the padded exchange was answered inside the retransmit budget, so the IKE SA was deemed failed (RFC 7296 Section 2.1) and is being re-established"
 }
 
 // refusalAnswer converts one queued refusal to the search's answer: the

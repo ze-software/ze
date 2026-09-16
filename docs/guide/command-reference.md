@@ -1196,14 +1196,21 @@ refused by the grammar. `exhaustive` and `detail` are bare words and go with eit
 form. The answer is one document: `status`, `measurements`, `tunnels`,
 `commands`, `notes` and `caveats` always; `inventory`, `verdict` and
 `reference` on a run over the peers; `underlay` once the route's interface
-was read. The reference address is the `environment { mtu { reference-address
-} }` leaf. The payload keys, the run and its outcomes are
+was read. Every measurement row says which prober produced its figure:
+`prober: ike` when the peer's live IKE SA confirmed or measured the path with
+a padded exchange (`ike-confirmed` is the largest size it proved; `path-mtu`
+stays the ICMP figure unless IKE refuted it), `prober: icmp` otherwise, with
+`ike-declined` saying why a live SA was not used and each row's `caveats`
+naming what its prober cannot see. The
+reference address is the `environment { mtu { reference-address } }` leaf. The
+payload keys, the run and its outcomes are
 `docs/architecture/diagnostics/path-mtu.md`. The command changes nothing on
 the router: the commands it lists are for the operator to apply.
 
 A run over two aes128gcm tunnels whose path is clamped at 1400, as
-`test/plugin/show-mtu-oversized-tunnels.ci` builds it, answers (the notes and
-the caveat elided):
+`test/plugin/show-mtu-oversized-tunnels.ci` builds it, answers (the notes, the
+caveats and each row's `exchanges` elided; the IKE SAs are aes256-cbc, so the
+padded exchange asked at 1400 left at the 1388 grid point and confirmed it):
 
 ```json
 {
@@ -1211,10 +1218,10 @@ the caveat elided):
   "inventory": "registered",
   "verdict": "action-needed",
   "measurements": [
-    {"target": "10.99.2.1", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false},
-    {"target": "10.99.2.3", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false}
+    {"target": "10.99.2.1", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false, "prober": "ike", "ike-confirmed": 1388},
+    {"target": "10.99.2.3", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false, "prober": "ike", "ike-confirmed": 1388}
   ],
-  "reference": {"host": "10.99.2.9", "path-mtu": 1400, "method": "via ICMP"},
+  "reference": {"host": "10.99.2.9", "path-mtu": 1400, "method": "via ICMP", "prober": "icmp"},
   "underlay": {"interface": "sr0", "kind": "veth", "mtu": 1600, "source": "route to 10.99.2.1", "advice": "circuit-clamped"},
   "tunnels": [
     {"peer": "site-b", "remote": "10.99.2.1", "interface": "xa", "mode": "tunnel", "encapsulation": false, "transform": "aes128gcm/none",

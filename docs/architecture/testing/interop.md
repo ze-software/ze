@@ -281,7 +281,26 @@ address the Child SA carries ESP to, and never the peer's real address, where no
 ESP arrives. The ze lab image installs `iputils` for `-M do`, so every IPsec
 scenario's ping is the iputils one.
 
-<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkMTUTunnelSizingStrongSwan, checkMTUNATInstalledEndpoint, mtuClampedPath -->
+`ike-padded-probe-strongswan` reuses the sizing topology to drive the padded IKE
+path probe (`docs/architecture/diagnostics/path-mtu.md`, "The IKE prober") where
+ICMP cannot see the clamp. The checker keeps the 1400 clamp for UDP and ESP, routes
+ICMP past it through a policy-routing table (`exemptICMPFromClamp`, so an echo
+crosses at 1500), and drops every Fragmentation Needed the box would send Ze
+(`dropTooBigToward`). The ICMP search then measures 1500, the padded INFORMATIONAL
+asks 1500 on UDP/4500, its DF copy vanishes, its DF-clear retransmission crosses
+the box fragmented and strongSwan answers it, and the descent settles on 1400 with
+`prober: ike`. Each `show mtu` runs DETACHED (`zeShowMTUDetached`): a probe the
+peer never answers holds the request window for 30 s before the SA is deemed
+failed, longer than one docker exec is given, so the shell writes the document to
+a file and the checker polls for the marker. A second run races `swanctl --rekey`,
+and a third cuts strongSwan's reassembly memory (`dropFragmentsAtPeer`,
+`net.ipv4.ipfrag_high_thresh`) so no fragmented datagram is ever reassembled: an
+`iptables -f` rule matches nothing on either container, because conntrack
+defragments before any chain runs. The SA then fails exactly once and the row
+names `sa-failed` and the size.
+
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkMTUTunnelSizingStrongSwan, checkMTUNATInstalledEndpoint, checkIKEPaddedProbeStrongSwan, mtuClampedPath -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- exemptICMPFromClamp, dropTooBigToward, dropFragmentsAtPeer, zeShowMTUDetached -->
 <!-- source: test/interop-ipsec/Dockerfile.ze -- iputils -->
 
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->

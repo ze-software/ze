@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/probe"
 )
@@ -92,6 +93,10 @@ func (f *fakeDeps) install(t *testing.T) {
 			f.probers = append(f.probers, p)
 			return p, nil
 		},
+		// The real leaf: it is empty in this binary, which links no engine, so a
+		// test that wants an IKE answer registers a fake through registerFakeIKEProber
+		// and every other test sees the leaf's own ErrNotRegistered.
+		probeIKE: ikeprobe.Probe,
 		kernelPathMTU: func(_ context.Context, target netip.Addr) (uint32, error) {
 			if f.cacheErr != nil {
 				return 0, f.cacheErr
@@ -887,5 +892,606 @@ func TestShowMTUDetailListsEveryProbe(t *testing.T) {
 	}
 	if sent[0][fieldOutcome] == nil {
 		t.Errorf("a probe row carries no outcome: %v", sent[0])
+	}
+}
+
+// registerFakeIKEProber stands a prober in the ikeprobe leaf for one test. The
+// engine is not linked into this test binary, so the leaf starts empty and every
+// request the run makes reaches fn through the real ikeprobe.Probe.
+func registerFakeIKEProber(t *testing.T, fn ikeprobe.Prober) {
+	t.Helper()
+	ikeprobe.ResetForTest()
+	t.Cleanup(ikeprobe.ResetForTest)
+	ikeprobe.Register(fn)
+}
+
+// TestShowMTUUsesIKEProbeWhenSAIsUp pins the wiring row "show mtu with a live SA
+// to the peer": a tunnel whose inventory Up is true is confirmed over IKE, the
+// request goes through the ikeprobe leaf with the peer's name and the ICMP figure
+// as the wire size, one exchange confirms it (no exchange above the ICMP figure,
+// A-6), and the measurement row names `ike` as its prober. The reference row,
+// which has no SA, names `icmp`.
+func TestShowMTUUsesIKEProbeWhenSAIsUp(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+	var asked []ikeprobe.Request
+	registerFakeIKEProber(t, func(_ context.Context, req ikeprobe.Request) (ikeprobe.Result, error) {
+		asked = append(asked, req)
+		if req.WireOctets <= 1400 {
+			return ikeprobe.Result{Outcome: ikeprobe.OutcomeFits, WireOctets: req.WireOctets}, nil
+		}
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeTooBig, WireOctets: req.WireOctets}, nil
+	})
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("the live peer's prober is %q, want ike", got)
+	}
+	if _, declined := rows[0][fieldIKEDeclined]; declined {
+		t.Errorf("the live peer's row says the IKE prober declined: %v", rows[0][fieldIKEDeclined])
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 1400 {
+		t.Errorf("path MTU %v, want 1400", got)
+	}
+	if got := number(t, rows[0], fieldIKEConfirmed); got != 1400 {
+		t.Errorf("ike-confirmed %v, want the size answered whole, 1400", got)
+	}
+	if len(asked) != 1 {
+		t.Fatalf("the IKE prober was asked %d times (%+v), want the figure once", len(asked), asked)
+	}
+	for i, req := range asked {
+		if req.Peer != "site-a" {
+			t.Errorf("request %d names peer %q, want site-a", i, req.Peer)
+		}
+		if req.DF != probe.DFHonorCache {
+			t.Errorf("request %d carries DF mode %v, want honor-cache on a default run", i, req.DF)
+		}
+	}
+	if asked[0].WireOctets != 1400 {
+		t.Errorf("the IKE prober was asked %d octets, want the ICMP figure 1400", asked[0].WireOctets)
+	}
+	reference, ok := doc[fieldReference].(map[string]any)
+	if !ok {
+		t.Fatalf("the payload carries no reference row: %v", doc[fieldReference])
+	}
+	if got := text(t, reference, fieldProber); got != "icmp" {
+		t.Errorf("the reference row's prober is %q, want icmp", got)
+	}
+}
+
+// gridProber is a scripted CBC-suite prober: every ask is sent at the largest
+// size on the suite's 16-octet grid at or below it (the grid below 1400 is
+// 1392), a sent size at or below fitsUpTo fits and one above it is too big.
+func gridProber(fitsUpTo uint16, asked *[]ikeprobe.Request) ikeprobe.Prober {
+	return func(_ context.Context, req ikeprobe.Request) (ikeprobe.Result, error) {
+		*asked = append(*asked, req)
+		sent := req.WireOctets - (req.WireOctets-1392)%16
+		if sent <= fitsUpTo {
+			return ikeprobe.Result{Outcome: ikeprobe.OutcomeFits, WireOctets: sent}, nil
+		}
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeTooBig, WireOctets: sent}, nil
+	}
+}
+
+// TestIKEProbeReportsTheSizeThatFit pins the refuted half of the rule on a
+// cipher grid: the ask at the ICMP figure 1400 is sent at 1392 and answered
+// too big, so IKE refuted the ICMP figure, the descent finds a smaller grid
+// size the peer answered whole, and THAT size is the path MTU, equal to
+// ike-confirmed, with a note naming both figures.
+func TestIKEProbeReportsTheSizeThatFit(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+	var asked []ikeprobe.Request
+	registerFakeIKEProber(t, gridProber(1300, &asked))
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("prober %q, want ike", got)
+	}
+	if _, declined := rows[0][fieldIKEDeclined]; declined {
+		t.Errorf("the row says the IKE prober declined: %v", rows[0][fieldIKEDeclined])
+	}
+	pathMTU := number(t, rows[0], fieldPathMTU)
+	if pathMTU > 1300 || pathMTU < 1280 || (1392-int(pathMTU))%16 != 0 {
+		t.Errorf("path MTU %v, want a grid size the path carries, between 1280 and 1300", pathMTU)
+	}
+	if got := number(t, rows[0], fieldIKEConfirmed); got != pathMTU {
+		t.Errorf("ike-confirmed %v, want the path MTU %v: IKE refuted the ICMP figure", got, pathMTU)
+	}
+	if len(asked) == 0 || asked[0].WireOctets != 1400 {
+		t.Fatalf("the IKE prober was asked %+v, want the ICMP figure 1400 first", asked)
+	}
+	if got := largestAsked(asked); got != 1400 {
+		t.Errorf("the largest exchange was %d octets, want nothing above the ICMP figure 1400", got)
+	}
+	if !hasNoteContaining(t, doc, "octets where ICMP measured 1400") {
+		t.Errorf("no note names the two figures: %v", noteTexts(t, doc))
+	}
+}
+
+// TestIKEFitBelowTheAskKeepsTheICMPFigure pins the confirmed half of the rule:
+// an ask at the ICMP figure 1400 sent on the grid at 1392 and answered whole
+// tested nothing above 1392, so it refutes nothing. The ICMP figure stands as
+// the path MTU, the row says prober ike, ike-confirmed carries 1392, one
+// exchange was spent, the caution note says IKE confirmed down to 1392, and no
+// note claims a second measurement.
+func TestIKEFitBelowTheAskKeepsTheICMPFigure(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+	var asked []ikeprobe.Request
+	registerFakeIKEProber(t, gridProber(1400, &asked))
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("prober %q, want ike", got)
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 1400 {
+		t.Errorf("path MTU %v, want the ICMP figure 1400: a fit below the ask refutes nothing", got)
+	}
+	if got := number(t, rows[0], fieldIKEConfirmed); got != 1392 {
+		t.Errorf("ike-confirmed %v, want the size sent and answered whole, 1392", got)
+	}
+	if _, declined := rows[0][fieldIKEDeclined]; declined {
+		t.Errorf("the row says the IKE prober declined: %v", rows[0][fieldIKEDeclined])
+	}
+	if len(asked) != 1 || asked[0].WireOctets != 1400 {
+		t.Fatalf("the IKE prober was asked %+v, want the ICMP figure 1400 once", asked)
+	}
+	if got := number(t, rows[0], fieldExchanges); got != 1 {
+		t.Errorf("exchanges %v, want 1", got)
+	}
+	if !hasNoteContaining(t, doc, "asked at 1400 octets was sent at 1392; IKE confirmed the path down to 1392 octets") {
+		t.Errorf("no note names the grid rounding as a confirmation: %v", noteTexts(t, doc))
+	}
+	if hasNoteContaining(t, doc, "where ICMP measured") {
+		t.Errorf("a note claims IKE measured a second figure: %v", noteTexts(t, doc))
+	}
+}
+
+// TestShowMTUFallsBackToICMPWhenSAIsDown pins the wiring row "show mtu with the
+// tunnel down" and AC-2's refusal half: a tunnel whose Up is false is never
+// offered to the IKE prober and its row names `icmp` with no reason; a live tunnel
+// the engine refuses by name keeps its ICMP figure, names `icmp`, and says why in
+// the row and in a note; and a build with no prober registered is named as such
+// rather than read as a refusal (AC-9).
+func TestShowMTUFallsBackToICMPWhenSAIsDown(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[peerB] = clampedAt(1300)
+	f.paths[refV4] = clampedAt(1500)
+	down := gcmTunnel("site-a", peerA)
+	down.Up = false
+	f.tunnels = []ipsecinventory.Tunnel{down, gcmTunnel("site-b", peerB)}
+	f.install(t)
+	registerFakeIKEProber(t, func(_ context.Context, req ikeprobe.Request) (ikeprobe.Result, error) {
+		if req.Peer != "site-b" {
+			t.Errorf("the IKE prober was asked for %q; only the live site-b may be asked", req.Peer)
+		}
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeRefused, Refusal: ikeprobe.RefusalSADown}, nil
+	})
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "icmp" {
+		t.Errorf("the down tunnel's prober is %q, want icmp", got)
+	}
+	if _, declined := rows[0][fieldIKEDeclined]; declined {
+		t.Errorf("the down tunnel was offered to the IKE prober: %v", rows[0][fieldIKEDeclined])
+	}
+	if got := text(t, rows[1], fieldProber); got != "icmp" {
+		t.Errorf("the refused tunnel's prober is %q, want icmp", got)
+	}
+	if got := text(t, rows[1], fieldIKEDeclined); got != "refused: sa-down" {
+		t.Errorf("the refused tunnel's row says %q, want refused: sa-down", got)
+	}
+	if got := number(t, rows[1], fieldPathMTU); got != 1300 {
+		t.Errorf("the refused tunnel's path MTU is %v, want the ICMP figure 1300", got)
+	}
+	if !hasNoteContaining(t, doc, peerB.String()+" keeps its ICMP figure") {
+		t.Errorf("no note says the IKE prober declined for %s: %v", peerB, noteTexts(t, doc))
+	}
+
+	ikeprobe.ResetForTest()
+	doc = showMTU(t)
+	rows = rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[1], fieldProber); got != "icmp" {
+		t.Errorf("with no prober registered the prober is %q, want icmp", got)
+	}
+	if got := text(t, rows[1], fieldIKEDeclined); !strings.Contains(got, "not in this build") {
+		t.Errorf("with no prober registered the row says %q, want the leaf's own reason", got)
+	}
+}
+
+// ikeAnswers is a scripted IKE prober for one test: fits at or below fitsUpTo,
+// too-big above it, and every request recorded. tooBigFirst answers too-big
+// that many times at a size before the size's real answer, the lost DF copy
+// of AC-3; tooBigAt limits it to one size, and zero applies it to every size.
+type ikeAnswers struct {
+	fitsUpTo    int
+	tooBigFirst int
+	tooBigAt    uint16
+	seen        map[uint16]int
+	asked       []ikeprobe.Request
+}
+
+func (a *ikeAnswers) probe(_ context.Context, req ikeprobe.Request) (ikeprobe.Result, error) {
+	a.asked = append(a.asked, req)
+	if a.seen == nil {
+		a.seen = map[uint16]int{}
+	}
+	a.seen[req.WireOctets]++
+	scripted := a.tooBigAt == 0 || a.tooBigAt == req.WireOctets
+	if scripted && a.seen[req.WireOctets] <= a.tooBigFirst {
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeTooBig, WireOctets: req.WireOctets}, nil
+	}
+	if int(req.WireOctets) <= a.fitsUpTo {
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeFits, WireOctets: req.WireOctets}, nil
+	}
+	return ikeprobe.Result{Outcome: ikeprobe.OutcomeTooBig, WireOctets: req.WireOctets}, nil
+}
+
+// largestAsked answers the largest wire size the IKE prober was asked for.
+func largestAsked(asked []ikeprobe.Request) int {
+	largest := 0
+	for _, req := range asked {
+		largest = max(largest, int(req.WireOctets))
+	}
+	return largest
+}
+
+// TestIKEProbeConfirmsThenDescends pins the IKE prober's search: the ICMP figure
+// is asked first and, when it fits, is the answer with no exchange above it;
+// when it is too big the same ladder-then-bisect search the ICMP path runs
+// descends below it and the row carries the IKE figure, `prober: ike`, and the
+// exchange count; and the budget of ikeExchangesPerRunMax exchanges ends the
+// attempt with the ICMP figure kept and the reason named.
+func TestIKEProbeConfirmsThenDescends(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+
+	// The path carries 1300 over UDP where ICMP measured 1400.
+	answers := &ikeAnswers{fitsUpTo: 1300}
+	registerFakeIKEProber(t, answers.probe)
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("prober %q, want ike", got)
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 1300 {
+		t.Errorf("path MTU %v, want the IKE figure 1300", got)
+	}
+	if got := number(t, rows[0], fieldIKEConfirmed); got != 1300 {
+		t.Errorf("ike-confirmed %v, want 1300", got)
+	}
+	if _, declined := rows[0][fieldIKEDeclined]; declined {
+		t.Errorf("the row says the IKE prober declined: %v", rows[0][fieldIKEDeclined])
+	}
+	if got := largestAsked(answers.asked); got != 1400 {
+		t.Errorf("the largest exchange was %d octets, want the ICMP figure 1400 and nothing above it", got)
+	}
+	if answers.asked[0].WireOctets != 1400 {
+		t.Errorf("the first exchange was %d octets, want the ICMP figure first", answers.asked[0].WireOctets)
+	}
+	if got := number(t, rows[0], fieldExchanges); got != float64(len(answers.asked)) {
+		t.Errorf("exchanges %v, want the %d exchanges spent", got, len(answers.asked))
+	}
+	if len(answers.asked) > ikeExchangesPerRunMax {
+		t.Errorf("%d exchanges spent, above the budget of %d", len(answers.asked), ikeExchangesPerRunMax)
+	}
+	if got := number(t, rows[0], fieldProbes); got != float64(len(f.probers[0].sent)) {
+		t.Errorf("probes %v, want the %d ICMP probes only", got, len(f.probers[0].sent))
+	}
+	if !hasNoteContaining(t, doc, "1300 octets where ICMP measured 1400") {
+		t.Errorf("no note names the two figures: %v", noteTexts(t, doc))
+	}
+
+	// Nothing fits: the budget ends the attempt and the ICMP figure stands.
+	answers = &ikeAnswers{fitsUpTo: 0}
+	registerFakeIKEProber(t, answers.probe)
+	doc = showMTU(t)
+	rows = rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "icmp" {
+		t.Errorf("after the budget the prober is %q, want icmp", got)
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 1400 {
+		t.Errorf("after the budget the path MTU is %v, want the ICMP figure 1400", got)
+	}
+	if got := text(t, rows[0], fieldIKEDeclined); !strings.Contains(got, "budget of 16") {
+		t.Errorf("ike-declined %q, want the budget named", got)
+	}
+	if len(answers.asked) != ikeExchangesPerRunMax {
+		t.Errorf("%d exchanges spent, want exactly the budget of %d", len(answers.asked), ikeExchangesPerRunMax)
+	}
+	if got := largestAsked(answers.asked); got != 1400 {
+		t.Errorf("the largest exchange was %d octets, want nothing above the ICMP figure 1400", got)
+	}
+	if got := number(t, rows[0], fieldExchanges); got != ikeExchangesPerRunMax {
+		t.Errorf("exchanges %v, want %d", got, ikeExchangesPerRunMax)
+	}
+}
+
+// TestIKEProbeRetriesTooBigBeforeBelievingIt pins AC-3 and the probes-per-size
+// boundary: one too-big can be a lost DF copy, so the same size is asked again
+// and fits on the retry (two too-bigs then a fit passes), while the third
+// too-big is believed and the size fails (RFC 4821 Section 7.6.4, RFC 8899
+// Section 5.1.3).
+func TestIKEProbeRetriesTooBigBeforeBelievingIt(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+
+	answers := &ikeAnswers{fitsUpTo: 1400, tooBigFirst: probesPerSizeMax - 1}
+	registerFakeIKEProber(t, answers.probe)
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("after two too-bigs and a fit the prober is %q, want ike", got)
+	}
+	if len(answers.asked) != probesPerSizeMax {
+		t.Errorf("%d exchanges at 1400, want %d: two too-bigs retried, the fit believed", len(answers.asked), probesPerSizeMax)
+	}
+
+	answers = &ikeAnswers{fitsUpTo: 1400, tooBigFirst: probesPerSizeMax, tooBigAt: 1400}
+	registerFakeIKEProber(t, answers.probe)
+	doc = showMTU(t)
+	rows = rowsOf(t, doc, fieldMeasurements)
+	if answers.seen[1400] != probesPerSizeMax {
+		t.Errorf("1400 was asked %d times, want %d before the too-big is believed", answers.seen[1400], probesPerSizeMax)
+	}
+	if got := largestAsked(answers.asked[probesPerSizeMax:]); got >= 1400 {
+		t.Errorf("after %d too-bigs the search asked %d octets, want the descent below 1400", probesPerSizeMax, got)
+	}
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("the descended figure's prober is %q, want ike", got)
+	}
+}
+
+// TestIKEProbeUnregisteredIsNotSilence pins AC-9's half of the leaf: a build
+// with no prober registered selects ICMP with the leaf's own reason, spends no
+// exchange, and the reason is never read as a silent or an unanswered probe.
+func TestIKEProbeUnregisteredIsNotSilence(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+	ikeprobe.ResetForTest()
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "icmp" {
+		t.Errorf("prober %q, want icmp", got)
+	}
+	reason := text(t, rows[0], fieldIKEDeclined)
+	if !strings.Contains(reason, "not in this build") {
+		t.Errorf("ike-declined %q, want the leaf's own reason", reason)
+	}
+	for _, word := range []string{"silent", "unanswered", "sa-failed"} {
+		if strings.Contains(reason, word) {
+			t.Errorf("ike-declined %q reads as %s", reason, word)
+		}
+	}
+	if got := number(t, rows[0], fieldExchanges); got != 0 {
+		t.Errorf("exchanges %v, want 0 spent on an empty leaf", got)
+	}
+	if got := number(t, rows[0], fieldProbes); got != float64(len(f.probers[0].sent)) {
+		t.Errorf("probes %v, want the %d ICMP probes only", got, len(f.probers[0].sent))
+	}
+}
+
+// TestIKEProbeSAFailedEndsTheRun pins AC-13 on the MTU side: an sa-failed
+// outcome ends the IKE attempt for that tunnel at the first size
+// (ikeProbeStopAtFirstSilence), no second size is asked, the row keeps the
+// ICMP figure with `prober: icmp` and an ike-declined naming sa-failed and the
+// size, a caution note says the figure is unconfirmed, and the other tunnel's
+// IKE attempt still runs.
+func TestIKEProbeSAFailedEndsTheRun(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[peerB] = clampedAt(1300)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA), gcmTunnel("site-b", peerB)}
+	f.install(t)
+	var asked []ikeprobe.Request
+	registerFakeIKEProber(t, func(_ context.Context, req ikeprobe.Request) (ikeprobe.Result, error) {
+		asked = append(asked, req)
+		if req.Peer == "site-a" {
+			return ikeprobe.Result{Outcome: ikeprobe.OutcomeSAFailed, WireOctets: req.WireOctets}, nil
+		}
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeFits, WireOctets: req.WireOctets}, nil
+	})
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "icmp" {
+		t.Errorf("the failed tunnel's prober is %q, want icmp", got)
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 1400 {
+		t.Errorf("the failed tunnel's path MTU is %v, want the ICMP figure 1400", got)
+	}
+	reason := text(t, rows[0], fieldIKEDeclined)
+	if !strings.Contains(reason, "sa-failed") || !strings.Contains(reason, "1400") {
+		t.Errorf("ike-declined %q, want sa-failed and the size 1400", reason)
+	}
+	if got := number(t, rows[0], fieldExchanges); got != 1 {
+		t.Errorf("exchanges %v, want the one that failed the SA", got)
+	}
+	siteA := 0
+	for _, req := range asked {
+		if req.Peer == "site-a" {
+			siteA++
+		}
+	}
+	if siteA != 1 {
+		t.Errorf("site-a was asked %d times (%+v), want once: sa-failed ends the attempt", siteA, asked)
+	}
+	if !hasNoteContaining(t, doc, peerA.String()+" keeps its ICMP figure, unconfirmed: sa-failed at 1400 octets") {
+		t.Errorf("no caution note names the unconfirmed figure and the size: %v", noteTexts(t, doc))
+	}
+	if got := text(t, rows[1], fieldProber); got != "ike" {
+		t.Errorf("the second tunnel's prober is %q, want ike: one failed SA ends only its own attempt", got)
+	}
+}
+
+// TestIKEProbeNeverExceedsTheCeiling pins AC-6 on the MTU side: an ICMP figure
+// above ikeWireMax (RFC 7296 Section 2's 3000) is not offered to the IKE
+// prober at all, the reason names the ceiling, and no exchange is spent.
+func TestIKEProbeNeverExceedsTheCeiling(t *testing.T) {
+	f := newFakeDeps()
+	f.underlayMTU = 9000
+	f.paths[peerA] = &fakePath{overhead: icmpOverheadIPv4, ifaceMTU: 9000, pathMTU: 3200, reportsMTU: true}
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+	answers := &ikeAnswers{fitsUpTo: 9000}
+	registerFakeIKEProber(t, answers.probe)
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if len(answers.asked) != 0 {
+		t.Errorf("the IKE prober was asked %+v, want nothing above %d octets", answers.asked, ikeWireMax)
+	}
+	if got := text(t, rows[0], fieldProber); got != "icmp" {
+		t.Errorf("prober %q, want icmp", got)
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 3200 {
+		t.Errorf("path MTU %v, want the ICMP figure 3200", got)
+	}
+	if got := text(t, rows[0], fieldIKEDeclined); !strings.Contains(got, "3000") {
+		t.Errorf("ike-declined %q, want the ceiling named", got)
+	}
+}
+
+// TestMeasurementRowNamesTheProber pins the payload rules: every measurement
+// row carries prober and its own caveats; the ICMP row carries the ICMP
+// optimism caveat; the IKE row over a NAT-T SA carries none; the IKE row
+// without UDP encapsulation carries the different-path caveat (UDP/500 against
+// protocol 50); and the run's caveats carry the ICMP caveat only while an ICMP
+// figure is in the payload.
+func TestMeasurementRowNamesTheProber(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[peerB] = clampedAt(1300)
+	f.paths[refV4] = clampedAt(1500)
+	natT := gcmTunnel("site-b", peerB)
+	natT.UDPEncap = true
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA), natT}
+	f.install(t)
+	answers := &ikeAnswers{fitsUpTo: 1500}
+	registerFakeIKEProber(t, answers.probe)
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	for i, row := range rows {
+		if got := text(t, row, fieldProber); got != "ike" {
+			t.Errorf("row %d prober %q, want ike", i, got)
+		}
+	}
+	plain := stringsOf(t, rows[0], fieldCaveats)
+	if len(plain) != 1 || !strings.Contains(plain[0], "UDP/500") {
+		t.Errorf("the non-NAT IKE row's caveats are %v, want the different-path caveat alone", plain)
+	}
+	for _, caveat := range plain {
+		if strings.Contains(caveat, "ICMP") {
+			t.Errorf("the IKE row carries the ICMP caveat: %q", caveat)
+		}
+	}
+	if encap := stringsOf(t, rows[1], fieldCaveats); len(encap) != 0 {
+		t.Errorf("the NAT-T IKE row's caveats are %v, want none", encap)
+	}
+	// The reference is ICMP-measured, so the run still carries the ICMP caveat.
+	if run := stringsOf(t, doc, fieldCaveats); len(run) != 1 || !strings.Contains(run[0], "ICMP") {
+		t.Errorf("the run's caveats are %v, want the ICMP caveat for the reference", run)
+	}
+
+	// A host run is ICMP only: the row and the run both carry the ICMP caveat.
+	f.paths[netip.MustParseAddr("203.0.113.9")] = clampedAt(1400)
+	doc = showMTU(t, "host", "203.0.113.9")
+	rows = rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "icmp" {
+		t.Errorf("the host row's prober is %q, want icmp", got)
+	}
+	if got := stringsOf(t, rows[0], fieldCaveats); len(got) != 1 || !strings.Contains(got[0], "ICMP") {
+		t.Errorf("the host row's caveats are %v, want the ICMP caveat", got)
+	}
+}
+
+// TestIKEExchangeBudgetBoundary pins the exchanges-per-run boundary on the
+// adapter itself: ikeExchangesPerRunMax exchanges are asked, the next is
+// refused with errIKEExchangeBudget before the leaf is asked, and the count is
+// what the adapter reports.
+func TestIKEExchangeBudgetBoundary(t *testing.T) {
+	answers := &ikeAnswers{fitsUpTo: 1400}
+	p := &ikeProber{peer: "site-a", overhead: icmpOverheadIPv4, df: probe.DFHonorCache, ceiling: 1400, ask: answers.probe}
+	for i := range ikeExchangesPerRunMax {
+		if _, err := p.probe(context.Background(), 1400-icmpOverheadIPv4); err != nil {
+			t.Fatalf("exchange %d: %v", i+1, err)
+		}
+	}
+	_, err := p.probe(context.Background(), 1400-icmpOverheadIPv4)
+	if !errors.Is(err, errIKEExchangeBudget) {
+		t.Errorf("exchange %d answered %v, want errIKEExchangeBudget", ikeExchangesPerRunMax+1, err)
+	}
+	if len(answers.asked) != ikeExchangesPerRunMax {
+		t.Errorf("the leaf was asked %d times, want %d: the refusal happens before the ask", len(answers.asked), ikeExchangesPerRunMax)
+	}
+	if p.exchanges != ikeExchangesPerRunMax {
+		t.Errorf("the adapter counts %d exchanges, want %d", p.exchanges, ikeExchangesPerRunMax)
+	}
+}
+
+// TestIKEProbeRekeyedIsRetriedAtTheSameSize pins AC-10 on the module side: an
+// exchange the peer's IKE rekey retired is answered `refused: rekeyed` with the
+// size it sent, and that is neither a refusal that ends the search nor an answer
+// about the path. The same size is asked again on the new SA, the fit confirms the
+// ICMP figure, both exchanges are counted, and the row says nothing declined.
+func TestIKEProbeRekeyedIsRetriedAtTheSameSize(t *testing.T) {
+	f := newFakeDeps()
+	f.paths[peerA] = clampedAt(1400)
+	f.paths[refV4] = clampedAt(1500)
+	f.tunnels = []ipsecinventory.Tunnel{gcmTunnel("site-a", peerA)}
+	f.install(t)
+	var asked []ikeprobe.Request
+	registerFakeIKEProber(t, func(_ context.Context, req ikeprobe.Request) (ikeprobe.Result, error) {
+		asked = append(asked, req)
+		if len(asked) == 1 {
+			return ikeprobe.Result{Outcome: ikeprobe.OutcomeRefused, Refusal: ikeprobe.RefusalRekeyed, WireOctets: req.WireOctets}, nil
+		}
+		return ikeprobe.Result{Outcome: ikeprobe.OutcomeFits, WireOctets: req.WireOctets}, nil
+	})
+
+	doc := showMTU(t)
+	rows := rowsOf(t, doc, fieldMeasurements)
+	if got := text(t, rows[0], fieldProber); got != "ike" {
+		t.Errorf("prober %q, want ike: %v", got, rows[0])
+	}
+	if _, declined := rows[0][fieldIKEDeclined]; declined {
+		t.Errorf("the row says the IKE prober declined across the rekey: %v", rows[0][fieldIKEDeclined])
+	}
+	if got := number(t, rows[0], fieldPathMTU); got != 1400 {
+		t.Errorf("path MTU %v, want the ICMP figure 1400 confirmed on the retry", got)
+	}
+	if len(asked) != 2 || asked[0].WireOctets != 1400 || asked[1].WireOctets != 1400 {
+		t.Fatalf("the IKE prober was asked %+v, want 1400 twice: the retired exchange and its retry", asked)
+	}
+	if got := number(t, rows[0], fieldExchanges); got != 2 {
+		t.Errorf("exchanges %v, want 2: the retired exchange counts", got)
 	}
 }

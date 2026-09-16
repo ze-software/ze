@@ -256,3 +256,102 @@ in `docs/architecture/ike/ipsec-13-rekey-wire.md`.
 <!-- source: internal/component/ike/engine/inbound.go -- inbound message classification -->
 <!-- source: internal/component/ike/engine/delete.go -- Child SA teardown over INFORMATIONAL -->
 <!-- source: internal/component/ike/engine/bypass.go -- IKE control-plane bypass policies -->
+
+## INFORMATIONAL requests, the window and retransmission
+
+`maintainSA` (`established.go`) is the owner loop of an established SA: one
+goroutine, a one-second ticker, and sole ownership of `sa.NextMsgID`, the SK keys
+and the request window. Every request Ze raises after IKE_AUTH is built there:
+the DPD probe (`sendDPD`, `dpd.go`), the rekey (`startChildRekey`,
+`startIKERekey`), the Delete (`delete.go`), the INVALID_MESSAGE_ID notify and the
+padded path probe below.
+
+Ze declares a window of one (RFC 7296 Section 2.3), so `reserveRequestWindow`
+(`msgid.go`) claims the one slot before a request is built and binds it to the
+current `NextMsgID`; `advanceMsgID` moves the counter after the send. Only an
+AUTHENTICATED response frees the slot (`answerAuthenticatedResponse`, called from
+the two post-decrypt sites in `handleOwnedInbound`), and a request that holds it
+is repeated until it is answered or the SA is deemed failed (Section 2.1):
+
+| Holder | Repeats through | Fails the SA through |
+|--------|-----------------|----------------------|
+| DPD probe | its own copy, on the liveness backoff (`retransmitDPD`) | the liveness budget (`dpdState.timedOut`) |
+| rekey | its own copy (`serviceRekeyRetransmit`) | its retransmit budget |
+| Delete, INVALID_MESSAGE_ID, path probe | the window's slot, `armRequestRetransmit` then `serviceRequestRetransmit`: 3 repeats, 500 ms doubling to 60 s | `serviceRequestWindow`: `StateDead` once `requestWindowTimeout` (30 s) passes |
+
+`serviceRequestWindow` has two exits and no third: a response, or `StateDead`.
+It releases no window without a response and rewinds no message id. The loop's
+`StateDead` arm then runs `cleanupChild` and returns `errSADeletedByPeer`, so
+`PeerSession.run` reconnects.
+
+## The padded path probe
+
+The MTU diagnostic can ask a live SA to measure its path with a padded
+INFORMATIONAL exchange. The engine registers `probePeer` into the
+`internal/core/ikeprobe` leaf at `init()`, beside the inventory snapshot, so
+`internal/component/mtu/cmd` reaches it without importing the engine.
+
+`probePeer` runs on the caller's goroutine and touches no SA state. It finds
+the session by peer name (`lookupPeerSession`), refuses `sa-down` at once when
+the session owns no established SA (`ownedSA` is nil), and otherwise sends the
+request on `PeerSession.probeRequests`, an unbuffered channel `maintainSA`
+receives on its select beside `stopCh` and `supersede`. Each request carries its
+own reply channel, buffered 1, so the loop answers without blocking. The owner
+loop is the only goroutine that builds under `sa.SKKeys` and advances
+`sa.NextMsgID`, which is why the request crosses to it rather than being built
+where it was asked.
+
+`answerProbeRequest` (`probe.go`) answers on the loop. It refuses by name, before
+anything is built, spending no message id and taking no window:
+
+| Refusal | Condition |
+|---------|-----------|
+| `sa-down` | the SA is below `StateEstablished`, or has no send path or peer address |
+| `rekey-pending` | `pendingRekey` holds the window |
+| `rekey-held` | a TEMPORARY_FAILURE hold is in force (`ikeRekeyHoldUntil`, `childRekeyHoldUntil`) |
+| `window-held` | a Delete, a DPD probe or an earlier path probe holds the window |
+| `family` | the peer address is not IPv4 (the transport is `udp4`) |
+| `size` | the size is above 3000, or below the smallest datagram the suite produces (a size off a CBC suite's 16-octet grid is sent at the grid point below it, and the answer names that size) |
+| `send-failed` | the build or the write failed; nothing left the host and the window was handed back |
+| `rekeyed` | the request left, then the peer rekeyed the IKE SA it left on (`maintainSA`, the `out.newSA` swap): the retired SA is forgotten with its window, so `retirePendingProbe` answers the probe with the size it sent and the MTU diagnostic asks that size again on the new SA (AC-10) |
+
+Otherwise it runs the exchange in the order `sendDPD` uses: reserve the window,
+build ONE INFORMATIONAL request whose one payload is a status Notify of the
+private-use type `ZE_PATH_PROBE_PADDING` with its Notification Data sized so the
+datagram is exactly the requested size, or the largest size at or below it a
+CBC suite's grid reaches (the arithmetic is on
+`docs/architecture/ike/ipsec-7-ikev2-engine.md`), send it through
+`UDPTransport.SendDF` with the request's DF mode, advance the id, and arm the
+window's retransmit slot with the same bytes. The probe's own state
+(`PeerSession.pendingProbe`: id, size, whether a DF-clear copy went out, the
+reported MTU, the reply channel) never touches `dpdState`.
+
+Three things end it:
+
+| Event | Mechanism | Outcome |
+|-------|-----------|---------|
+| an authenticated response at the probe's id, no DF-clear copy sent | the `inboundInvalid` arm frees the window; `settleProbe` matches the id | `fits` |
+| an authenticated response after a DF-clear copy | as above; the copy went out on the retransmit schedule (`serviceRequestRetransmit` sends a probe holder through `SendDF` with DF clear) or at once when the socket's `Refusals()` channel reported a router's Fragmentation Needed for this SA's peer (`handleSizeRefusal`, matched on the peer's address and port, never on the router). Every established SA's owner loop on that socket reads the one channel (`probeRefusals`), so a refusal is read by one of them: read by another SA's loop it is dropped there, and the DF-clear copy then leaves at the retransmit timer (500 ms) rather than at once | `too-big`, with the reported MTU |
+| no response through the full budget | `serviceRequestWindow`, unchanged: `StateDead`, then the loop's teardown; `failPendingProbe` answers on the way out of `maintainSA`, whatever the exit | `sa-failed` |
+
+A local EMSGSIZE from the first `SendDF` (the kernel's path cache refused the
+DF copy) is not a failure: the DF-clear copy leaves at once and the answer
+reads `too-big` with the cache's figure. A probe response never moves the peer
+endpoint (`adoptAuthenticatedEndpoint` is not on that arm) and never credits
+liveness. An unanswered probe fails the SA exactly as an unanswered Delete
+does: a probe is an ordinary request under RFC 7296 Section 2.1, and the owner
+rejected a probe-aware exit that would release the window and rewind the id
+(owner ruling (a), 2026-09-16, spec-ike-padded-path-probe). What
+keeps a diagnostic from taking a tunnel down is the MTU module: it probes only
+at or below the ICMP figure and stops at the first size that stays silent.
+
+Ze's own responder answers the padded request as it answers any INFORMATIONAL
+it does not act on: `handleInformationalOwned` sends an empty response, and the
+private-use type is in the wire registry, so `logIgnoredNotifies` writes no
+line for it.
+
+<!-- source: internal/component/ike/engine/established.go -- maintainSA, serviceRequestRetransmit, serviceRequestWindow -->
+<!-- source: internal/component/ike/engine/msgid.go -- reserveRequestWindow, armRequestRetransmit, answerAuthenticatedResponse -->
+<!-- source: internal/component/ike/engine/dpd.go -- sendDPD, dpdState -->
+<!-- source: internal/component/ike/engine/probe.go -- probePeer, answerProbeRequest, settleProbe, handleSizeRefusal -->
+<!-- source: internal/component/ike/engine/reconcile.go -- PeerSession.probeRequests -->

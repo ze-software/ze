@@ -23,6 +23,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/iface"
+	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/probe"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -63,6 +64,10 @@ const (
 	fieldSized          = "sized"
 	fieldReason         = "reason"
 	fieldTCPMTUProbing  = "tcp-mtu-probing"
+	fieldProber         = "prober"
+	fieldIKEDeclined    = "ike-declined"
+	fieldIKEConfirmed   = "ike-confirmed"
+	fieldExchanges      = "exchanges"
 	labelHost           = "host"
 	labelReference      = "reference"
 	labelPeer           = "peer"
@@ -71,9 +76,42 @@ const (
 	underlaySourceRoute = "route to "
 )
 
-// icmpCaveat is what every run says about its measurement: ICMP echo is what
-// was sent, so a path that treats ESP or UDP differently is not seen.
-const icmpCaveat = "the measurement is ICMP echo with Don't Fragment set; a path that treats ESP or UDP differently is not measured, so every figure is optimistic"
+// icmpCaveat is what an ICMP-measured figure says about itself: ICMP echo is
+// what was sent, so a path that treats ESP or UDP differently is not seen. A
+// figure the IKE prober measured drops it and, without UDP encapsulation,
+// carries ikePathCaveat instead: the exchange rode UDP/500 where ESP rides
+// protocol 50, and a path can treat the two differently (AC-7). A NAT-T SA
+// rides the path ESP-in-UDP rides, marker included, and carries no caveat.
+const (
+	icmpCaveat    = "the measurement is ICMP echo with Don't Fragment set; a path that treats ESP or UDP differently is not measured, so every figure is optimistic"
+	ikePathCaveat = "the measurement is a padded IKE exchange on UDP/500 while ESP rides protocol 50, a different path when a middlebox treats the two differently; only a NAT-T tunnel measures the path ESP-in-UDP rides"
+)
+
+// proberKind names which prober produced a measurement's figure. The zero value
+// is Unspecified so an unset field can never pass for an answer.
+type proberKind uint8
+
+const (
+	proberUnspecified proberKind = iota
+	// proberICMP: the ICMP echo prober (wireProber, search.go), the prober of a
+	// host, of the reference address, and of a tunnel that is down.
+	proberICMP
+	// proberIKE: the padded INFORMATIONAL exchange over the peer's live IKE SA
+	// (ikeProber, search.go), which confirmed the figure on the path ESP rides.
+	proberIKE
+)
+
+// String answers the payload spelling. It is written and never compared.
+func (k proberKind) String() string {
+	switch k {
+	case proberICMP:
+		return "icmp"
+	case proberIKE:
+		return "ike"
+	default:
+		panic("BUG: proberKind written to the payload before it was set")
+	}
+}
 
 // inventoryState says whether the IPsec inventory answered. The zero value is
 // Unspecified so an unset field can never pass for an answer; a host run
@@ -127,6 +165,7 @@ type xfrmInterface struct {
 type mtuDeps struct {
 	tunnels         func() ([]ipsecinventory.Tunnel, error)
 	openProber      func(ctx context.Context, target netip.Addr, df probe.DFMode) (targetProber, error)
+	probeIKE        ikeprobe.Prober
 	kernelPathMTU   func(ctx context.Context, target netip.Addr) (uint32, error)
 	routeInterface  func(target netip.Addr) (string, error)
 	getInterface    func(name string) (*iface.InterfaceInfo, error)
@@ -144,6 +183,7 @@ type mtuDeps struct {
 var liveDeps = mtuDeps{
 	tunnels:         ipsecinventory.Tunnels,
 	openProber:      openLiveProber,
+	probeIKE:        ikeprobe.Probe,
 	kernelPathMTU:   probe.KernelPathMTU,
 	routeInterface:  routeInterfaceOf,
 	getInterface:    iface.GetInterface,
@@ -220,13 +260,29 @@ func listXFRMInterfaces() ([]xfrmInterface, error) {
 
 // measurement is one target's result: the label the payload shows, the
 // search result, the error when the prober could not be opened or the search
-// aborted, and the kernel's cached PMTU read BEFORE the probe.
+// aborted, and the kernel's cached PMTU read BEFORE the probe. peer is the
+// configured name of the tunnel whose IKE SA is up to this target, and empty
+// when no live SA reaches it; udpEncap says whether that SA rides UDP
+// encapsulation; prober names which prober the figure is from; result is the
+// ICMP search, ikeResult the IKE search (its pathMTU is the figure the IKE
+// prober reports: the ICMP figure it confirmed, or the smaller size it found
+// after refuting it, measureByIKE), ikeConfirmed the largest wire size the
+// padded exchange proved the path carries whole (set with prober ike) and
+// exchanges what the IKE prober spent, the ended exchange included; and
+// ikeDeclined says why the IKE prober was asked and produced no figure.
 type measurement struct {
-	target netip.Addr
-	label  string
-	result searchResult
-	err    error
-	cache  pathMTUCache
+	target       netip.Addr
+	label        string
+	peer         string
+	udpEncap     bool
+	prober       proberKind
+	ikeDeclined  string
+	result       searchResult
+	ikeResult    searchResult
+	ikeConfirmed int
+	exchanges    int
+	err          error
+	cache        pathMTUCache
 }
 
 // measured reports whether the target answered with a path MTU.
@@ -237,14 +293,37 @@ func (m *measurement) measured() bool {
 	return m.result.outcome == searchMeasured
 }
 
-// pathMTU is the measured path MTU in octets. MUST be called only when
+// pathMTU is the measured path MTU in octets: the IKE figure once the IKE
+// prober measured one, the ICMP figure otherwise. MUST be called only when
 // measured() is true; the search bounds the figure by payloadMax plus the
 // ICMP overhead, so it fits.
 func (m *measurement) pathMTU() uint16 {
-	if m.result.pathMTU > math.MaxUint16 {
+	figure := m.result.pathMTU
+	if m.prober == proberIKE {
+		figure = m.ikeResult.pathMTU
+	}
+	if figure > math.MaxUint16 {
 		panic("BUG: a path MTU above 65535 was measured; the search bounds it by payloadMax")
 	}
-	return uint16(m.result.pathMTU)
+	return uint16(figure)
+}
+
+// caveats is what the figure cannot see, by the prober that produced it.
+// MUST be called only when measured() is true.
+func (m *measurement) caveats() []string {
+	switch m.prober {
+	case proberICMP:
+		return []string{icmpCaveat}
+	case proberIKE:
+		if m.udpEncap {
+			return []string{}
+		}
+		return []string{ikePathCaveat}
+	case proberUnspecified:
+		panic("BUG: caveats asked of a measurement with no prober")
+	default:
+		panic("BUG: caveats asked of an unknown prober")
+	}
 }
 
 // mtuRun is the state of one run while runMTU builds it.
@@ -287,7 +366,7 @@ func runMTU(ctx context.Context, req *mtuRequest, deps *mtuDeps) map[string]any 
 	payload := map[string]any{
 		fieldStatus:       run.status().String(),
 		fieldMeasurements: run.measurementRows(),
-		fieldCaveats:      []string{icmpCaveat},
+		fieldCaveats:      run.caveats(),
 	}
 	if underlay != nil {
 		payload[fieldUnderlay] = underlay
@@ -318,14 +397,15 @@ func runMTU(ctx context.Context, req *mtuRequest, deps *mtuDeps) map[string]any 
 	return payload
 }
 
-// addTarget records one target once; the same address reached through two
-// tunnels is measured once.
-func (r *mtuRun) addTarget(target netip.Addr, label string) {
-	if _, seen := r.byTarget[target]; seen {
-		return
+// addTarget records one target once and answers its index; the same address
+// reached through two tunnels is measured once.
+func (r *mtuRun) addTarget(target netip.Addr, label string) int {
+	if i, seen := r.byTarget[target]; seen {
+		return i
 	}
 	r.byTarget[target] = len(r.measurements)
 	r.measurements = append(r.measurements, measurement{target: target, label: label})
+	return len(r.measurements) - 1
 }
 
 // resolvePeerTargets asks the inventory and derives one target per tunnel:
@@ -351,7 +431,14 @@ func (r *mtuRun) resolvePeerTargets() {
 		if !target.IsValid() {
 			continue
 		}
-		r.addTarget(target, labelPeer)
+		m := &r.measurements[r.addTarget(target, labelPeer)]
+		// A live SA is what the IKE prober measures over. The first tunnel up to
+		// an address names the SA; a second one to the same address shares the
+		// figure, and one SA is enough to confirm it.
+		if tunnels[i].Up && m.peer == "" {
+			m.peer = tunnels[i].Peer
+			m.udpEncap = tunnels[i].UDPEncap
+		}
 	}
 }
 
@@ -465,10 +552,7 @@ func (r *mtuRun) measure(m *measurement) {
 	default:
 		r.note(noteSeverityCaution, "the cached path MTU for "+m.target.String()+" could not be read, so the cache note is missing: "+err.Error())
 	}
-	df := probe.DFHonorCache
-	if r.req.exhaustive {
-		df = probe.DFBypassCache
-	}
+	df := r.dfMode()
 	p, err := r.deps.openProber(r.ctx, m.target, df)
 	if err != nil {
 		m.err = err
@@ -477,6 +561,7 @@ func (r *mtuRun) measure(m *measurement) {
 	}
 	defer p.close() //nolint:errcheck // The socket is discarded; a close error changes nothing the run reports.
 
+	m.prober = proberICMP
 	m.result, m.err = searchPathMTU(r.ctx, p, m.target, r.req.exhaustive)
 	if m.err != nil {
 		r.note(noteSeverityFault, m.target.String()+" could not be measured: "+m.err.Error())
@@ -485,6 +570,9 @@ func (r *mtuRun) measure(m *measurement) {
 	switch m.result.outcome {
 	case searchMeasured:
 		r.cacheNote(m)
+		if m.peer != "" {
+			r.measureByIKE(m, df)
+		}
 	case searchUnmeasurable:
 		r.note(noteSeverityFault, m.target.String()+" answered no probe at any size after "+probesText(m.result.probes)+"; it is unmeasurable")
 	case searchDFGateFailed:
@@ -493,6 +581,141 @@ func (r *mtuRun) measure(m *measurement) {
 	default:
 		panic("BUG: searchPathMTU answered with an unset outcome")
 	}
+}
+
+// dfMode is the Don't Fragment mode of every probe in this run: the kernel's
+// cached path MTU is honored on a default run and bypassed under `exhaustive`.
+func (r *mtuRun) dfMode() probe.DFMode {
+	if r.req.exhaustive {
+		return probe.DFBypassCache
+	}
+	return probe.DFHonorCache
+}
+
+// measureByIKE offers a measured ICMP figure to the peer's live IKE SA.
+// Confirm-first: the figure itself is asked, as a padded INFORMATIONAL
+// exchange on the SA's own socket, and a fit makes it the IKE figure. A figure
+// that is too big starts the same ladder-then-bisect search the ICMP path runs
+// (pathSearch.refine), from a bracket whose top is the ICMP figure, so no
+// exchange is ever asked above it: the ICMP figure is what the path carried
+// whole for ICMP, and a size above it is the DF-clear copy a fragment-dropping
+// path loses (A-6). A figure above ikeWireMax is not offered at all (AC-6).
+// The attempt ends without a figure, and the ICMP figure stands unconfirmed
+// with the reason in the row and a caution note, when the engine refuses by
+// name, when the SA fails under an exchange (the first silent size is the last
+// one asked, ikeProbeStopAtFirstSilence), when the exchange budget is spent
+// before any size fitted, and when this build carries no engine. A budget
+// spent after a size fitted is a coarser figure, not a missing one: the
+// largest size the peer answered whole is a floor the path is proven to
+// carry, which is what a tunnel is sized to, so the row reports it as the IKE
+// figure and a note carries the bracket the search stopped inside.
+//
+// The IKE figure REPLACES the ICMP figure only when IKE refuted it: the ask
+// answered too big, and the descent found a smaller size the peer answered
+// whole. A fit at the ask, or at the largest size on a CBC suite's 16-octet
+// grid below the ask, tested nothing above what it sent, so it refutes
+// nothing: the ICMP figure stands as the path MTU, the row says the IKE
+// prober confirmed it, and ike-confirmed carries the size the engine SENT and
+// the peer answered whole (ikeProber.fitOctets). A caution note says when the
+// grid made that size smaller than the ask.
+func (r *mtuRun) measureByIKE(m *measurement, df probe.DFMode) {
+	figure := m.result.pathMTU
+	if figure > ikeWireMax {
+		var b textbuf.Buffer
+		b.Str("the ICMP figure ").Int(int64(figure)).Str(" is above ").Int(ikeWireMax).Str(" octets, the largest IKE message (RFC 7296 Section 2)")
+		r.declineIKE(m, b.String())
+		return
+	}
+	p := &ikeProber{peer: m.peer, overhead: icmpOverhead(m.target), df: df, ceiling: int(figure), ask: r.deps.probeIKE}
+	s := pathSearch{ctx: r.ctx, prober: p, overhead: p.overhead}
+	fitsAtAsk, err := s.attempt(int(figure) - s.overhead)
+	if err == nil {
+		if fitsAtAsk {
+			s.result.outcome = searchMeasured
+		} else {
+			err = s.refine()
+		}
+	}
+	m.ikeResult = s.result
+	m.exchanges = p.exchanges
+	settled := true
+	if errors.Is(err, errIKEExchangeBudget) {
+		if s.low > 0 {
+			// A floor the peer answered whole is a figure, coarser than a
+			// converged one: the bracket goes in a note.
+			m.ikeResult.outcome = searchMeasured
+			settled = false
+			err = nil
+		}
+	}
+	if m.ikeResult.outcome == searchMeasured {
+		m.ikeResult.pathMTU = figure
+		if !fitsAtAsk {
+			m.ikeResult.pathMTU = uint32(p.fitOctets)
+		}
+	}
+	if err != nil {
+		// The text is the reason as its producer spelled it: a refusal names
+		// its condition and a failed SA its outcome and the size (ikeProbeEnded,
+		// search.go), the budget names itself (errIKEExchangeBudget), and an
+		// unregistered leaf names itself (ikeprobe.ErrNotRegistered).
+		r.declineIKE(m, err.Error())
+		return
+	}
+	if m.ikeResult.outcome != searchMeasured {
+		r.declineIKE(m, "no padded exchange of any size was answered whole")
+		return
+	}
+	m.prober = proberIKE
+	m.ikeConfirmed = p.fitOctets
+	if !fitsAtAsk {
+		var b textbuf.Buffer
+		b.Str(m.target.String()).Str(": the padded IKE exchange measured ").Int(int64(m.ikeResult.pathMTU)).Str(" octets where ICMP measured ").Int(int64(figure))
+		r.note(noteSeverityInfo, b.String())
+	}
+	if p.fitOctets != p.fitAsked {
+		var b textbuf.Buffer
+		b.Str(m.target.String()).Str(": the SA's cipher suite sends on a block grid, so the exchange asked at ").Int(int64(p.fitAsked)).Str(" octets was sent at ").Int(int64(p.fitOctets)).Str("; IKE confirmed the path down to ").Int(int64(p.fitOctets)).Str(" octets")
+		r.note(noteSeverityCaution, b.String())
+	}
+	if !settled {
+		var b textbuf.Buffer
+		b.Str(m.target.String()).Str(": the budget of ").Int(ikeExchangesPerRunMax).Str(" IKE exchanges was spent before the figure settled between ").Int(int64(m.ikeResult.pathMTU)).Str(" and ").Int(int64(s.high + s.overhead)).Str(" octets; the size the peer answered whole is reported")
+		r.note(noteSeverityCaution, b.String())
+	}
+}
+
+// declineIKE records that the IKE prober was asked and produced no figure:
+// the ICMP figure and its prober stay, the row carries why, and a caution
+// note says the figure is unconfirmed.
+func (r *mtuRun) declineIKE(m *measurement, reason string) {
+	m.ikeDeclined = reason
+	r.note(noteSeverityCaution, m.target.String()+" keeps its ICMP figure, unconfirmed: "+reason)
+}
+
+// caveats is what the run's figures cannot see: the ICMP caveat while any
+// figure in the payload, a measurement or the reference, is ICMP-measured.
+// Each measurement row carries its own; this is the run's summary.
+func (r *mtuRun) caveats() []string {
+	for i := range r.measurements {
+		m := &r.measurements[i]
+		if !m.measured() {
+			continue
+		}
+		if m.prober == proberICMP {
+			return []string{icmpCaveat}
+		}
+	}
+	if r.reference == nil {
+		return []string{}
+	}
+	if !r.reference.measured() {
+		return []string{}
+	}
+	if r.reference.prober == proberICMP {
+		return []string{icmpCaveat}
+	}
+	return []string{}
 }
 
 // probesText spells a count for a note.
@@ -822,14 +1045,32 @@ func (r *mtuRun) measurementRow(m *measurement) map[string]any {
 	if m.err != nil {
 		row[fieldOutcome] = "error"
 		row[fieldReason] = m.err.Error()
+		// The prober is unset when it could not be opened, and no prober is
+		// what the row then says.
+		if m.prober != proberUnspecified {
+			row[fieldProber] = m.prober.String()
+		}
 		return row
 	}
 	row[fieldOutcome] = m.result.outcome.String()
+	// probes counts the ICMP probes, as it always did; the IKE exchanges are
+	// their own count, present once the IKE step ran for a live SA.
 	row[fieldProbes] = m.result.probes
 	row[fieldLossy] = m.result.lossy
+	row[fieldProber] = m.prober.String()
+	if m.ikeDeclined != "" {
+		row[fieldIKEDeclined] = m.ikeDeclined
+	}
 	if m.result.outcome == searchMeasured {
 		row[fieldPathMTU] = m.pathMTU()
 		row[fieldMethod] = m.result.method.String()
+		row[fieldCaveats] = m.caveats()
+		if m.peer != "" {
+			row[fieldExchanges] = m.exchanges
+		}
+		if m.prober == proberIKE {
+			row[fieldIKEConfirmed] = m.ikeConfirmed
+		}
 	}
 	if r.req.detail {
 		row[fieldProbesSent] = probeRows(m)
@@ -863,6 +1104,7 @@ func (r *mtuRun) referenceRow() map[string]any {
 	if r.reference.measured() {
 		row[fieldPathMTU] = r.reference.pathMTU()
 		row[fieldMethod] = r.reference.result.method.String()
+		row[fieldProber] = r.reference.prober.String()
 		return row
 	}
 	if r.reference.err != nil {

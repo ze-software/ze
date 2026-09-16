@@ -88,7 +88,7 @@ func sizeRefusal(family Family, mtu uint32) extendedErr {
 
 func parseRefusal(t *testing.T, family Family, ee extendedErr) QueuedError {
 	t.Helper()
-	entry, err := parseQueuedError(family, quotedEchoRequest(family, 0x1234, 7), recvErrOOB(t, family, ee))
+	entry, err := parseQueuedError(family, quotedEchoRequest(family, 0x1234, 7), recvErrOOB(t, family, ee), nil)
 	if err != nil {
 		t.Fatalf("parseQueuedError: %v", err)
 	}
@@ -181,12 +181,38 @@ func TestQueuedErrorCarriesOffenderAndQuotedEcho(t *testing.T) {
 	}
 }
 
+// TestQueuedErrorCarriesDestination proves the destination of the refused
+// datagram is read off the name the kernel gives the MSG_ERRQUEUE read, port
+// included, and that a read with no name answers an invalid AddrPort rather
+// than a plausible zero address. The IKE transport shares one socket between
+// every SA, and this field is how it tells whose datagram was refused.
+func TestQueuedErrorCarriesDestination(t *testing.T) {
+	cases := []struct {
+		name string
+		from unix.Sockaddr
+		want netip.AddrPort
+	}{
+		{"ipv4", &unix.SockaddrInet4{Port: 4500, Addr: [4]byte{192, 0, 2, 9}}, netip.MustParseAddrPort("192.0.2.9:4500")},
+		{"ipv6", &unix.SockaddrInet6{Port: 500, Addr: netip.MustParseAddr("2001:db8::9").As16()}, netip.MustParseAddrPort("[2001:db8::9]:500")},
+		{"none", nil, netip.AddrPort{}},
+	}
+	for _, c := range cases {
+		entry, err := parseQueuedError(FamilyIPv4, nil, recvErrOOB(t, FamilyIPv4, sizeRefusal(FamilyIPv4, 1400)), c.from)
+		if err != nil {
+			t.Fatalf("%s: parseQueuedError: %v", c.name, err)
+		}
+		if entry.Dest != c.want {
+			t.Errorf("%s: Dest = %v, want %v", c.name, entry.Dest, c.want)
+		}
+	}
+}
+
 // TestQueuedLocalRefusalQuotesNothing proves a send the kernel refused
 // against its own cache reads as local, carries the cached estimate, names
 // no offender and quotes no probe: the caller knows which send failed.
 func TestQueuedLocalRefusalQuotesNothing(t *testing.T) {
 	ee := extendedErr{errno: uint32(unix.EMSGSIZE), origin: unix.SO_EE_ORIGIN_LOCAL, info: 1400}
-	entry, err := parseQueuedError(FamilyIPv4, nil, recvErrOOB(t, FamilyIPv4, ee))
+	entry, err := parseQueuedError(FamilyIPv4, nil, recvErrOOB(t, FamilyIPv4, ee), nil)
 	if err != nil {
 		t.Fatalf("parseQueuedError: %v", err)
 	}
@@ -224,12 +250,12 @@ func TestQueuedErrorThatIsNotASizeRefusalReportsNoMTU(t *testing.T) {
 // TestQueuedErrorWithoutRecvErrControlMessageIsRefused proves a read that
 // carries no IP_RECVERR control message is an error, never a zero entry.
 func TestQueuedErrorWithoutRecvErrControlMessageIsRefused(t *testing.T) {
-	_, err := parseQueuedError(FamilyIPv4, quotedEchoRequest(FamilyIPv4, 1, 1), nil)
+	_, err := parseQueuedError(FamilyIPv4, quotedEchoRequest(FamilyIPv4, 1, 1), nil, nil)
 	if err == nil {
 		t.Fatal("parseQueuedError accepted a read with no control message")
 	}
 	var zero QueuedError
-	entry, _ := parseQueuedError(FamilyIPv4, nil, nil)
+	entry, _ := parseQueuedError(FamilyIPv4, nil, nil, nil)
 	if entry != zero {
 		t.Errorf("refused read still filled an entry: %+v", entry)
 	}
@@ -238,8 +264,8 @@ func TestQueuedErrorWithoutRecvErrControlMessageIsRefused(t *testing.T) {
 // TestDrainErrorQueueRefusesAConnWithoutRawDescriptor proves the drain names
 // a conn that cannot reach its error queue rather than reporting it empty.
 func TestDrainErrorQueueRefusesAConnWithoutRawDescriptor(t *testing.T) {
-	err := drainErrorQueue(nil, FamilyIPv4, func(QueuedError) { t.Error("visited an entry on a nil conn") })
+	err := DrainErrorQueue(nil, FamilyIPv4, func(QueuedError) { t.Error("visited an entry on a nil conn") })
 	if !errors.Is(err, errNoErrQueueAccess) {
-		t.Errorf("drainErrorQueue(nil) err = %v, want errNoErrQueueAccess", err)
+		t.Errorf("DrainErrorQueue(nil) err = %v, want errNoErrQueueAccess", err)
 	}
 }

@@ -139,7 +139,7 @@ func (s *Socket) Close() error { return s.conn.Close() }
 // echo starting at its ICMP header (raw_err and ping_err hand ip_icmp_error
 // the same pointer), so the identifier and sequence are read the same way.
 func (s *Socket) DrainErrors(visit func(QueuedError)) error {
-	return drainErrorQueue(s.conn, s.family, visit)
+	return DrainErrorQueue(s.conn, s.family, visit)
 }
 
 // openRawICMP and openDatagramICMP are the two socket constructions OpenICMP

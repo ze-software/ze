@@ -32,15 +32,15 @@ stays open until this spec lands. `rfc/full/rfc7383.txt` was fetched on
 2026-09-16; no `rfc/short/rfc7383.md` exists yet, and `/ze-rfc` writes it when
 this spec enters `design`.
 
-Two constraints inherited from `plan/spec-ike-padded-path-probe.md`:
+Two constraints inherited from spec-ike-padded-path-probe (closed 2026-09-16; the probe is on `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, "The padded path probe"):
 
 | Constraint | Source |
 |------------|--------|
-| A path-MTU probe is never IKE-fragmented. RFC 7383 Section 2.5.2 makes PMTU discovery OPTIONAL and searches fragmentation thresholds downward, so a fragmented probe would measure the threshold rather than the path. The fragmentation code MUST recognize the probe exchange and leave it whole, whatever the negotiated threshold | `plan/spec-ike-padded-path-probe.md`, AC-6 and R-8 |
-| The per-datagram DF send and the error-queue drain that spec adds to `internal/component/ike/transport` are what this spec's own PMTU search reuses (RFC 7383 Section 2.5.2: "It is the initiator of the exchange who performs PMTU discovery"). This spec adds no second DF mechanism and no second error-queue reader | `plan/spec-ike-padded-path-probe.md`, phase 2 |
+| A path-MTU probe is never IKE-fragmented. RFC 7383 Section 2.5.2 makes PMTU discovery OPTIONAL and searches fragmentation thresholds downward, so a fragmented probe would measure the threshold rather than the path. The fragmentation code MUST recognize the probe exchange and leave it whole, whatever the negotiated threshold | `docs/architecture/ike/ipsec-7-ikev2-engine.md`, "The padded path probe on the wire" (spec-ike-padded-path-probe AC-6 and R-8) |
+| The per-datagram DF send and the error-queue drain that spec adds to `internal/component/ike/transport` are what this spec's own PMTU search reuses (RFC 7383 Section 2.5.2: "It is the initiator of the exchange who performs PMTU discovery"). This spec adds no second DF mechanism and no second error-queue reader | `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md`, "The two IKE sockets" (spec-ike-padded-path-probe phase 2) |
 
 Owner decision, 2026-09-16: opened as a skeleton, built after
-`plan/spec-ike-padded-path-probe.md`. Everything below the Task section is a
+spec-ike-padded-path-probe (closed 2026-09-16). Everything below the Task section is a
 template placeholder until this spec enters `design`.
 
 ## Required Reading

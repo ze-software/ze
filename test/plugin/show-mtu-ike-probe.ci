@@ -1,0 +1,214 @@
+# Test: show mtu measures a live tunnel's path with the padded IKE exchange
+# Spec: spec-ike-padded-path-probe -- user story 1, AC-1, AC-7
+# VALIDATES: peer-a in the sender namespace negotiates aes128gcm to two responders
+#            in the far namespace, each Child SA bound to its own xfrm interface.
+#            The path is clamped at 1400. The far responders run no dataplane, so
+#            an echo to a tunnel peer never returns and the ICMP search reads the
+#            clamp from the router's Fragmentation Needed alone; the padded IKE
+#            exchange then confirms it on the SA's own channel. The IKE SA is
+#            aes256-cbc, so the exchange asked at 1400 leaves at the 1388 grid
+#            point below it and is answered whole: a fit below the ask refutes
+#            nothing, so each peer's measurement row names `prober: ike`, keeps
+#            `path-mtu` 1400, carries `ike-confirmed` 1388, at least one
+#            exchange, the different-path caveat (the SAs run on UDP/500, not
+#            NAT-T) and never the ICMP optimism caveat; both tunnels are sized at
+#            1400; a caution note says IKE confirmed the path down to 1388; and
+#            `show vpn ipsec peer` still lists both IKE SAs established afterwards.
+# PREVENTS: a live tunnel reported from ICMP alone, a padded exchange the
+#           responder tears the SA down for, and an IKE row that keeps the
+#           ICMP caveat.
+#
+# The path is three network namespaces joined by veth pairs, built by the
+# compiled fixture `plugin/clamped-path` (internal/test/fixture, netlink): the
+# daemon runs in the sender namespace, the router forwards with its far link at
+# 1400, and the far namespace answers. Building them needs CAP_NET_ADMIN and
+# the raw ICMP socket needs CAP_NET_RAW, so the test runs in the QEMU guest as
+# root (`./le qemu all-tests`) and skips in the unprivileged merge gate. The
+# fixture removes the namespaces when the daemon exits, whatever its exit code.
+
+option=needs-linux:caps=net-admin,net-raw
+option=env:var=ze.storage.blob:value=false
+
+option=exclusive:group=ipsec-xfrm
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=240s
+
+tmpfs=mtu-ike-probe.conf:terminator=EOF_A
+plugin {
+	external show-mtu-test {
+		run "ze-test fixture plugin/show-mtu-ike-probe"
+		encoder json
+	}
+}
+interface {
+	xfrm xa {
+		if-id 7
+		mtu 1500
+	}
+	xfrm xb {
+		if-id 8
+		mtu 1500
+	}
+}
+vpn {
+	ipsec {
+		esp-group esp-gcm {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site-b {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type initiate
+				local-address 10.99.1.1
+				remote-address 10.99.2.1
+				mode tunnel
+				vti {
+					bind xa
+				}
+				traffic-selector 1 {
+					local {
+						prefix 10.99.1.1/32
+					}
+					remote {
+						prefix 10.99.2.1/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			peer site-c {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type initiate
+				local-address 10.99.1.1
+				remote-address 10.99.2.3
+				mode tunnel
+				vti {
+					bind xb
+				}
+				traffic-selector 1 {
+					local {
+						prefix 10.99.1.1/32
+					}
+					remote {
+						prefix 10.99.2.3/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_A
+
+tmpfs=mtu-ike-probe-b.conf:terminator=EOF_B
+vpn {
+	ipsec {
+		esp-group esp-gcm {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site-a {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type respond
+				local-address 10.99.2.1
+				remote-address 10.99.1.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.99.2.1/32
+					}
+					remote {
+						prefix 10.99.1.1/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_B
+
+tmpfs=mtu-ike-probe-c.conf:terminator=EOF_C
+vpn {
+	ipsec {
+		esp-group esp-gcm {
+			lifetime 3600
+			proposal 1 {
+				encryption aes128gcm
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer site-a {
+				ike-group ike-default
+				esp-group esp-gcm
+				connection-type respond
+				local-address 10.99.2.3
+				remote-address 10.99.1.1
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.99.2.3/32
+					}
+					remote {
+						prefix 10.99.1.1/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_C
+
+cmd=foreground:seq=1:exec=ze-test fixture plugin/clamped-path netns zemtuike$PORT far-daemon mtu-ike-probe-b.conf far-daemon mtu-ike-probe-c.conf run ze start mtu-ike-probe.conf:timeout=230s
+expect=exit:code=0
+expect=stderr:contains=OK: both tunnels keep the 1400 clamp, confirmed by the padded IKE exchange down to the 1388 grid point, and both SAs are still established
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered

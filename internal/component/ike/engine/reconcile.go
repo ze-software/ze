@@ -129,6 +129,11 @@ type PeerSession struct {
 	childRekeyHoldUntil time.Time
 	ikeRekeyHoldUntil   time.Time
 
+	// pendingProbe is the padded path probe that holds the request window, with the
+	// channel its outcome is answered on (probe.go). Owned by the maintainSA loop,
+	// like pendingRekey.
+	pendingProbe *probeState
+
 	// pendingIKESwap holds the new IKE SA we built while responding to a peer's
 	// IKE-SA rekey; the owner loop swaps to it when the peer's INFORMATIONAL Delete
 	// of the old IKE SA arrives (make-before-break, RFC 7296 Section 2.8). Owned by
@@ -164,6 +169,13 @@ type PeerSession struct {
 	// supersede signals the owner loop (maintainSA) to relinquish the established SA
 	// because a parallel IKE_SA_INIT authenticated (RFC 7296 Section 2.4). Buffered 1.
 	supersede chan struct{}
+
+	// probeRequests carries a padded path probe request to the owner loop
+	// (maintainSA), which is the one goroutine that builds under the SA's keys and
+	// advances its message id. Unbuffered: the sender (probePeer, probe.go) waits for
+	// the loop to take the request, so one request is with the loop at a time, and the
+	// loop answers on the reply channel each request carries.
+	probeRequests chan probeRequest
 }
 
 // setSA / getSA guard the ps.sa pointer for the responder handoff: the shared
@@ -546,6 +558,8 @@ func startPeerSession(
 		stopCh:     make(chan struct{}),
 		done:       make(chan struct{}),
 		supersede:  make(chan struct{}, 1),
+		// Unbuffered on purpose: see the field.
+		probeRequests: make(chan probeRequest),
 	}
 	go ps.run(peer, ikeGroup, table, tr, bus, log)
 	return ps

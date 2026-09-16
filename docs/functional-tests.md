@@ -628,7 +628,7 @@ marked `option=needs-linux:caps=net-admin,net-raw` (the doctor one
 <!-- source: internal/test/fixture/plugin_fixture_clamped_path_linux.go -- clampedPathDriver, isolatedNetnsDriver, runInNetns, confirmNetRawDropped -->
 <!-- source: internal/test/fixture/plugin_fixture_ping_df.go -- pingDoNotFragment -->
 
-The five `show mtu` tests use the same fixture, each with its own namespace
+The six `show mtu` tests use the same fixture, each with its own namespace
 prefix and config names because the runner writes every test's `tmpfs=`
 files into one directory. `test/plugin/show-mtu-host.ci` measures the far
 address at 1400 `via ICMP` and lists every probe under `detail`;
@@ -644,10 +644,19 @@ namespace on the noop dataplane before the sender, negotiates aes128gcm to
 each from the sender with a Child SA bound to its own xfrm interface (`vti
 bind`) at 1500, and reads both tunnels oversized by 154 octets with their
 commands, plus the circuit-clamped underlay advice from a reference address
-on the far side. All five carry `option=needs-linux:caps=net-admin,net-raw`;
-the fixture bodies are `internal/test/fixture/plugin_fixture_show_mtu.go`.
+on the far side, each peer row IKE-confirmed (`prober: ike`, `ike-confirmed`
+1388, the aes256-cbc grid point below the 1400 clamp). `show-mtu-ike-probe.ci`
+is the padded IKE exchange's own test over the same two responders: the noop
+dataplane never returns an echo, so the ICMP search reads the 1400 clamp from
+the router's Fragmentation Needed alone, and the IKE exchange confirms it on
+the SA's channel. It cannot filter ICMP errors, because without the router's
+report the ICMP search is `unmeasurable` and the IKE prober never runs
+(confirm-first); the filtered-ICMP case is the interop scenario
+`ike-padded-probe-strongswan` (`docs/architecture/testing/interop.md`). All six
+carry `option=needs-linux:caps=net-admin,net-raw`; the fixture bodies are
+`internal/test/fixture/plugin_fixture_show_mtu.go`.
 <!-- source: test/plugin/show-mtu-oversized-tunnels.ci -- far-daemon -->
-<!-- source: internal/test/fixture/plugin_fixture_show_mtu.go -- showMTUOversized -->
+<!-- source: internal/test/fixture/plugin_fixture_show_mtu.go -- showMTUOversized, showMTUIKEProbe, showMTUIKEProbeRow -->
 
 The `traffic` suite is enrolled
 in `allTestsRun.Run` in `internal/le/qemu/alltests.go`; `test/traffic/traffic-boot-qdisc-tc.ci` and

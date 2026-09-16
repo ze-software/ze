@@ -15,8 +15,10 @@ const (
 )
 
 // Keepalive sends periodic NAT keepalive packets to maintain NAT bindings.
+// It writes through the transport's Send, under the transport's lock, so a
+// keepalive never leaves while SendDF holds the socket's DF option toggled.
 type Keepalive struct {
-	conn     *net.UDPConn
+	tr       *UDPTransport
 	remote   *net.UDPAddr
 	interval time.Duration
 	stopCh   chan struct{}
@@ -24,13 +26,13 @@ type Keepalive struct {
 	logger   *slog.Logger
 }
 
-// NewKeepalive creates a keepalive sender for the given connection and remote address.
-func NewKeepalive(conn *net.UDPConn, remote *net.UDPAddr, interval time.Duration, logger *slog.Logger) *Keepalive {
+// NewKeepalive creates a keepalive sender on the given transport for the remote address.
+func NewKeepalive(tr *UDPTransport, remote *net.UDPAddr, interval time.Duration, logger *slog.Logger) *Keepalive {
 	if interval <= 0 {
 		interval = DefaultKeepaliveInterval
 	}
 	return &Keepalive{
-		conn:     conn,
+		tr:       tr,
 		remote:   remote,
 		interval: interval,
 		stopCh:   make(chan struct{}),
@@ -52,7 +54,7 @@ func (k *Keepalive) Run() {
 		case <-k.stopCh:
 			return
 		case <-ticker.C:
-			if _, err := k.conn.WriteToUDP(pkt, k.remote); err != nil {
+			if err := k.tr.Send(pkt, k.remote); err != nil {
 				k.logger.Debug("nat-keepalive: send failed", "remote", k.remote, "error", err)
 			}
 		}
