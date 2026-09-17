@@ -51,7 +51,7 @@ func TestOpenRefusesBlobStatOnly(t *testing.T) {
 					}
 					require.Error(t, openErr)
 					assert.Contains(t, openErr.Error(), path)
-					assert.Contains(t, openErr.Error(), "ze init from")
+					assert.Contains(t, openErr.Error(), "ze init --from")
 				}
 				after, err := os.Lstat(path)
 				require.NoError(t, err)
@@ -209,6 +209,20 @@ func TestOpenRejectsInsecureNodes(t *testing.T) {
 	}
 }
 
+// A refused open must not leave a lock file the operator never asked for.
+func TestOpenRefusedLeavesNoLockFile(t *testing.T) {
+	dir := t.TempDir()
+	s := newTreeStorage(t, dir)
+	require.NoError(t, s.WriteKey("meta/secret/key", []byte("secret")))
+	require.NoError(t, s.Close())
+	lock := filepath.Join(dir, "database.lock")
+	require.NoError(t, os.Remove(lock))
+	require.NoError(t, os.Chmod(filepath.Join(dir, "database", "meta", "secret"), 0o755))
+	_, err := Open(dir)
+	require.ErrorIs(t, err, ErrPermissions)
+	require.NoFileExists(t, lock)
+}
+
 func TestOpenRejectsSymlinksAndSpecialFiles(t *testing.T) {
 	for _, node := range []string{"root", "directory", "key", "lock"} {
 		for _, kind := range []string{"symlink", "fifo"} {
@@ -342,7 +356,8 @@ func TestStorageReadOnlyAndOwnerContention(t *testing.T) {
 			require.ErrorIs(t, reader.WriteVersion("router.conf", nil, time.Now()), ErrReadOnly)
 			_, err = reader.AcquireLock("router.conf")
 			require.ErrorIs(t, err, ErrReadOnly)
-			require.ErrorIs(t, WritePointer(reader, "router.conf", PointerActive, "20260524-100000.000"), ErrReadOnly)
+			_, err = WriteCandidateVersion(reader, "router.conf", nil, time.Now())
+			require.ErrorIs(t, err, ErrReadOnly)
 			require.ErrorIs(t, ClearCandidate(reader, "router.conf"), ErrReadOnly)
 			require.NoError(t, reader.Close())
 			require.NoError(t, writer.Close())
@@ -450,4 +465,50 @@ func TestTreeReadOnlySeesPublishedWrites(t *testing.T) {
 	require.NoError(t, writer.RemoveKey("meta/state/value"))
 	_, err = reader.ReadKey("meta/state/value")
 	require.ErrorIs(t, err, fs.ErrNotExist)
+}
+
+// TestOpenRefusesUnfinishedImport proves the crash window between moving the
+// old tree to database.replaced-* and publishing the stage: an intent beside
+// an absent tree is ErrImportPending for every live opener and never
+// ErrNoStore, so Create builds nothing over the operator's store, the refusal
+// names the intent file and the repair, and ImportBlob still resumes. An intent
+// that cannot be read refuses the same way.
+func TestOpenRefusesUnfinishedImport(t *testing.T) {
+	path, dir, values, intent := interruptedImport(t, "prepared")
+	replaced := filepath.Join(dir, "database.replaced-20260101T000000.000000000")
+	require.NoError(t, os.Mkdir(replaced, 0o700))
+	seed := func(dir string) (Storage, error) { return CreatePopulated(dir, func(Storage) error { return nil }) }
+	openers := []func(string) (Storage, error){Open, OpenReadOnly, Create, seed}
+	for _, open := range openers {
+		s, err := open(dir)
+		if s != nil {
+			require.NoError(t, s.Close())
+		}
+		require.ErrorIs(t, err, ErrImportPending)
+		require.NotErrorIs(t, err, ErrNoStore)
+		assert.Contains(t, err.Error(), filepath.Join(dir, "database.import-intent"))
+		assert.Contains(t, err.Error(), "ze init --from "+path)
+		require.NoDirExists(t, filepath.Join(dir, "database"))
+		require.DirExists(t, replaced)
+	}
+	s, err := ImportBlob(path, dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
+	assertImportValues(t, s, values)
+	require.NoFileExists(t, filepath.Join(dir, "database.import-intent"))
+	require.NoDirExists(t, filepath.Join(dir, intent.Stage))
+	require.DirExists(t, replaced)
+
+	unreadable := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(unreadable, "database.import-intent"), []byte("not json"), 0o600))
+	for _, open := range openers {
+		s, err := open(unreadable)
+		if s != nil {
+			require.NoError(t, s.Close())
+		}
+		require.ErrorIs(t, err, ErrImportPending)
+		require.NotErrorIs(t, err, ErrNoStore)
+		assert.Contains(t, err.Error(), "cannot be read")
+		require.NoDirExists(t, filepath.Join(unreadable, "database"))
+	}
 }

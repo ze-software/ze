@@ -215,6 +215,23 @@ Injectable function variables (`httpHead`, `probeWritable`,
 doctor test style. `probeWritableDir` removes its temporary file before
 checking the `Close()` error, otherwise a failing close leaks the file.
 
+## A run with no store warns and exits 0; a store it cannot read errors
+
+`ze doctor` opens the store read-only before any check runs. When the folder
+holds no store at all (`storage.ErrNoStore`) the run reports
+`doctor-storage-unavailable` as a WARNING naming the folder, and each check that
+needs the store then refuses its own feature by name under the same code (`local
+certificate authority root: refused, this doctor run resolved no storage`, `web
+TLS pair: refused, ...`), so the operator reads one warning per feature and the
+run exits 0: a host that has not run `ze init` yet is not broken. A folder with
+a store the process cannot read stays an ERROR: `doctor-store-permissions` for a
+permission refusal, `doctor-storage-unavailable` for any other open failure, and
+a corrupt key inside an open store is `doctor-store-integrity`.
+
+<!-- source: internal/component/doctor/doctor.go -- resolveStorageWithDiag -->
+<!-- source: internal/component/pki/doctor.go -- checkCARoot, the no-store refusal -->
+<!-- source: internal/component/web/doctor_material.go -- webTLSMaterialDiagnostics, the no-store refusal -->
+
 ## Health checks produce warnings before reading them
 
 `checkFirewallHealth` calls `AuditTables()` and `checkIfaceHealth` calls

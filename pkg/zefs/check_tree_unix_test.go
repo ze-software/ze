@@ -115,10 +115,10 @@ func TestRepairDirectory(t *testing.T) {
 			t.Fatalf("recovered %s differs", key)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(destination, "meta/bad")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(destination, "meta", "bad")); !os.IsNotExist(err) {
 		t.Fatalf("corrupt key copied: %v", err)
 	}
-	original, err := os.ReadFile(filepath.Join(source, "meta/bad"))
+	original, err := os.ReadFile(filepath.Join(source, "meta", "bad"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestTreeIntegrityRefusesUnsafeNodes(t *testing.T) {
 				err = os.Symlink(filepath.Join(root, "meta"), badPath)
 			case "file-symlink":
 				badPath = filepath.Join(root, "link")
-				err = os.Symlink(filepath.Join(root, "meta/key"), badPath)
+				err = os.Symlink(filepath.Join(root, "meta", "key"), badPath)
 			case "fifo":
 				badPath = filepath.Join(root, "pipe")
 				err = unix.Mkfifo(badPath, 0o600)
@@ -180,7 +180,7 @@ func TestTreeIntegrityRefusesUnsafeNodes(t *testing.T) {
 				badPath = filepath.Join(root, "meta")
 				err = os.Chmod(badPath, 0o750)
 			case "file-mode":
-				badPath = filepath.Join(root, "meta/key")
+				badPath = filepath.Join(root, "meta", "key")
 				err = os.Chmod(badPath, 0o640)
 			}
 			if err != nil {
@@ -269,16 +269,17 @@ func TestTreeIntegrityPrivateContainment(t *testing.T) {
 			source := filepath.Join(shared, "source")
 			writeFrameFixture(t, source, "meta/key", frame)
 			check, err := CheckPath(source)
-			if private {
+			switch {
+			case private:
 				if err != nil {
 					t.Fatal(err)
 				}
 				if check.TotalEntries != 1 || check.CorruptEntries != 0 || check.Entries[0].Key != "meta/key" {
 					t.Fatalf("private tree check: %+v", check)
 				}
-			} else if err == nil {
+			case err == nil:
 				t.Fatal("check accepted writable ancestry before private tree root")
-			} else if !strings.Contains(err.Error(), shared) {
+			case !strings.Contains(err.Error(), shared):
 				t.Fatalf("check omitted unsafe ancestor: %v", err)
 			}
 
@@ -294,7 +295,7 @@ func TestTreeIntegrityPrivateContainment(t *testing.T) {
 				if repair.RecoveredCount != 1 || repair.SkippedCount != 0 {
 					t.Fatalf("private tree repair: %+v", repair)
 				}
-				got, err := os.ReadFile(filepath.Join(destination, "meta/key"))
+				got, err := os.ReadFile(filepath.Join(destination, "meta", "key"))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -369,7 +370,7 @@ func TestTreeIntegrityIntermediateSymlinks(t *testing.T) {
 			t.Fatalf("unsafe parent received output: %v", err)
 		}
 	}
-	before, err := os.ReadFile(filepath.Join(source, "meta/key"))
+	before, err := os.ReadFile(filepath.Join(source, "meta", "key"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +391,7 @@ func TestTreeIntegrityIntermediateSymlinks(t *testing.T) {
 // The same case runs against Linux Renameat2 and Darwin RenameatxNp.
 func TestRepairTreePublication(t *testing.T) {
 	path := t.TempDir()
-	parent, err := openFrameDirectory(path)
+	parent, err := OpenDirectory(path, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -409,7 +410,7 @@ func TestRepairTreePublication(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := renameFrameTree(parent, "stage", "existing"); err == nil {
+	if err := RenameNoReplace(parent, "stage", "existing"); err == nil {
 		t.Fatal("publication replaced an existing empty directory")
 	}
 	after, err := os.Stat(filepath.Join(path, "existing"))
@@ -419,10 +420,10 @@ func TestRepairTreePublication(t *testing.T) {
 	if !os.SameFile(before, after) {
 		t.Fatal("publication replaced destination inode")
 	}
-	if err := renameFrameTree(parent, "stage", "published"); err != nil {
+	if err := RenameNoReplace(parent, "stage", "published"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := os.ReadFile(filepath.Join(path, "published/key"))
+	got, err := os.ReadFile(filepath.Join(path, "published", "key"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +440,7 @@ func TestRepairPublicationPinnedParent(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(path, "stage"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	parent, err := openFrameDirectory(path)
+	parent, err := OpenDirectory(path, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +456,7 @@ func TestRepairPublicationPinnedParent(t *testing.T) {
 	if err := os.Symlink(other, path); err != nil {
 		t.Fatal(err)
 	}
-	if err := renameFrameTree(parent, "stage", "published"); err != nil {
+	if err := RenameNoReplace(parent, "stage", "published"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(moved, "published")); err != nil {

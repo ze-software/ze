@@ -507,7 +507,7 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 	} else {
 		var commitErr error
 		if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
-			commitErr = storageAssertActive(config, "2.2.2.2")
+			commitErr = storageAssertActive(config)
 			return commitErr == nil
 		}) {
 			return transcript, fmt.Errorf("editor did not publish committed router-id: %w", commitErr)

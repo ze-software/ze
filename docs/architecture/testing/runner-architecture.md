@@ -244,7 +244,7 @@ These formats are documented in [`ci-format.md`](ci-format.md):
 
 Both record an ordered `Steps` slice like `.wb`, and both emit per-step trace
 output on failure (and on all tests under `-v`).
-<!-- source: internal/component/cli/testing/parser.go -- TestCase.Steps, InputAction, Expectation -->
+<!-- source: internal/component/cli/testing/parser.go -- testCase.Steps, InputAction, Expectation -->
 <!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn iterates tc.Steps; runTestCase owns the temp directory and delegates -->
 
 ## Selecting one test

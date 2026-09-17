@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -208,7 +209,7 @@ func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
 
 	executor := unicli.CommandExecutor(dispatch)
 
-	if tf := openTranscriptFile(); tf != nil {
+	if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
 		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), "local")
 		defer tw.Close() //nolint:errcheck // best-effort transcript
 		executor = unicli.WrapExecutorWithTranscript(executor, tw)
@@ -385,7 +386,7 @@ func runBGP(args []string) int {
 		if isMonitorCommand(*runCmd) {
 			return client.StreamMonitor(*runCmd)
 		}
-		if tf := openTranscriptFile(); tf != nil {
+		if tf := unicli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
 			tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), creds.Host+":"+creds.Port)
 			defer tw.Close() //nolint:errcheck // best-effort transcript
 			return client.executeWithTranscript(*runCmd, *format, tw)
@@ -560,29 +561,6 @@ func (c *cliClient) SendCommand(command string) (string, error) {
 // answer uses this. See sshclient.ExecCommandRaw for why.
 func (c *cliClient) sendCommandRaw(command string) (string, error) {
 	return c.send(c.creds, sshclient.RawCommand(command))
-}
-
-// modelExecutor is the operational-command executor the interactive Model runs.
-//
-// The Model splits the pipe chain and renders the answer itself
-// (internal/component/cli/model_mode.go, executeOperationalCommand). Its
-// dashboard unmarshals the same answer (model_dashboard.go,
-// parseDashboardSnapshot, parsePeerDetail). So this executor asks for the
-// dispatcher's JSON. Text the daemon already rendered cannot be rendered
-// again. And `| json` typed in a session would answer the configured default.
-func (c *cliClient) modelExecutor() unicli.CommandExecutor {
-	return func(input string) (unicli.CommandOutput, error) {
-		output, err := c.sendCommandRaw(input)
-		return unicli.CommandOutput{Text: output}, err
-	}
-}
-
-// dashboardPoller feeds the live dashboard view. parseDashboardSnapshot
-// unmarshals what it returns, so it asks for the dispatcher's JSON.
-func (c *cliClient) dashboardPoller() (func() (string, error), error) {
-	return func() (string, error) {
-		return c.sendCommandRaw("show bgp")
-	}, nil
 }
 
 // isMonitorCommand returns true if the command is a streaming monitor command.

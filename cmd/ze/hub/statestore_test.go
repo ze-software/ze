@@ -15,7 +15,7 @@ import (
 
 func newTestStore(t *testing.T, dirs ...string) storage.Storage {
 	t.Helper()
-	dir := ""
+	var dir string
 	if len(dirs) != 0 {
 		dir = dirs[0]
 	} else {

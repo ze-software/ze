@@ -43,7 +43,9 @@ knows how the store is encoded. Every feature above works on the tree. The
 store lives in the folder of the configuration it serves, with the folder's
 permissions checked on open. `ze start <file>` creates the tree when the folder
 has none. A blob where a live store belongs is refused by name. This spec supplies
-`ImportBlob` and appliance seed import; `ze init from <source>` remains storage-2.
+`ImportBlob` and appliance seed import. → Decision (review round 1, 2026-09-17): the
+local-path form `ze init --from <path>` is this spec (AC-2's error names a verb
+that exists); the URL form `ze init --from <url>` and `--sha256` remain storage-2.
 
 Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 `ze init from <url>`, offline editing of a blob, spare capacity) and
@@ -148,7 +150,7 @@ Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 - `storage.Open(dir)` (`internal/component/config/storage/open.go`, new): every daemon, CLI process and in-process plugin obtains its `Storage` here. Input: the store folder. Output: a `Storage` over the tree, or an error naming what was found and the command that fixes it.
 - `storage.Create(dir)` (`open.go`): builds `database.init-tmp/`, renames it to `database/`, returns the `Storage`. Callers: `ze init`, `ze start <file>` on a folder with no store, `gokrazyAutoInit`.
 - `resolve.StorageFor(configPath)` (`internal/core/resolve/resolve.go`, replaces `Storage()`): the folder is `filepath.Dir(configPath)` when a path is given, else `ze.config.dir`, else `paths.DefaultConfigDir()`; then `storage.Open`.
-- `ze init ...` (`internal/plugins/init/main.go`): creates the tree and seeds its `meta/` keys. `ze init from <source>` is storage-2.
+- `ze init ...` (`internal/plugins/init/main.go`): creates the tree and seeds its `meta/` keys. `ze init --from <path>` imports a local blob here (→ Decision, review round 1); the URL form is storage-2.
 - Every `Storage` method call, with a name that is a filesystem path, a bare config name, or a `meta/`, `file/` key.
 
 ### Transformation Path
@@ -252,7 +254,7 @@ Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `storage.Open(dir)` with `dir/database/` present, root 0700 and files 0600 owned by the caller | returns a tree-backed `Storage`; a key `k` is the file `dir/database/k` holding one netcapstring whose data is the value |
-| AC-2 | `storage.Open(dir)` with `dir/database.zefs` present, with or without a tree | returns an error naming the blob path and `ze init from <path>`; nothing is created, renamed or read beyond the stat |
+| AC-2 | `storage.Open(dir)` with `dir/database.zefs` present, with or without a tree | returns an error naming the blob path and `ze init --from <path>` (spelling fixed in review round 1; the earlier `ze init from` named no command); nothing is created, renamed or read beyond the stat |
 | AC-3 | `storage.Open(dir)` with neither | returns an error naming `ze init`; no directory is created |
 | AC-4 | `storage.Open(dir)` with a tree whose root has any group or other bit, or a frame file not 0600, or an owner other than the caller, or a symlink under the root | returns an error naming the path, the mode or owner found, and the command that repairs it; no key is read |
 | AC-5 | `storage.Create(dir)` | builds a private `dir/database.init-tmp-*/` at 0700 and publishes `dir/database/` with atomic no-replace rename. Under O-2, a concurrent creator returns `ErrBusy` while the winner retains writer ownership; after release, auto-create opens the winner without replacing it. |
@@ -287,7 +289,7 @@ Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 |---|-----------|--------------------|-----------------------|
 | 1 | `ze init` then `ze start` on a fresh host | init creates `database/` → start opens it → CA root, host keys, identity written under it → SSH login | `init-creates-tree.ci`, `start-on-tree.ci`, `login-on-tree.ci` |
 | 2 | runs `ze start x.conf` in a scratch folder with nothing else | auto-create → daemon up | `start-auto-creates.ci` |
-| 3 | upgrades a dev host that has `database.zefs` | `ze start` refuses naming `ze init from` → operator runs it (storage-2) → tree | `start-refuses-blob.ci` |
+| 3 | upgrades a dev host that has `database.zefs` | `ze start` refuses naming `ze init --from <blob>` → operator runs it (this spec, local path; `init-from-blob.ci`) → tree | `start-refuses-blob.ci` |
 | 4 | boots a freshly installed appliance | seed blob in `/perm/ze` → `gokrazyAutoInit` imports → web UI up | QEMU install scenario, AC-26 |
 | 5 | edits config over SSH, commits, restarts | draft under `file/draft/`, version under `file/<stamp>/`, per-name pointer → restart reads active | `test/editor/*.et` on the tree, `start-on-tree.ci` |
 | 6 | runs `ze data check` after a disk error | tree walk names the bad key; `repair --output` writes a good tree | `data-check-tree.ci`, `doctor-tree-corrupt-key.ci` |
@@ -329,7 +331,7 @@ Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `init-creates-tree` | `test/plugin/*.ci` | AC-12 | |
-| `start-on-tree`, `start-auto-creates`, `start-refuses-blob`, `start-refuses-loose-mode` | `test/plugin/*.ci` | AC-1, AC-4, AC-15, AC-16 through `ze start` | |
+| `start-on-tree`, `start-auto-creates`, `start-refuses-blob`, `start-refuses-loose-mode`, `start-refuses-unfinished-import` | `test/plugin/*.ci` | AC-1, AC-4, AC-15, AC-16 through `ze start` | |
 | `doctor-without-store`, `doctor-tree-corrupt-key` | `test/plugin/*.ci` | AC-23 | |
 | `login-on-tree` | `test/plugin/*.ci` | serial and SSH login credentials from the tree | |
 | `statestore-on-tree`, `ospf-state-through-daemon` | `test/plugin/*.ci` | AC-18, AC-19 | |
@@ -375,7 +377,7 @@ Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 - `internal/component/config/storage/open.go`, `open_test.go` - `Open(dir)`, `Create(dir)`, detection, permission check
 - `internal/component/config/storage/import.go`, `import_test.go` - `ImportBlob(blob, dir)` with equality check and move-aside
 - `internal/component/config/storage/conformance_test.go` - the table over both encodings
-- `test/plugin/init-creates-tree.ci`, `start-on-tree.ci`, `start-auto-creates.ci`, `start-refuses-blob.ci`, `start-refuses-loose-mode.ci`, `doctor-without-store.ci`, `login-on-tree.ci`, `statestore-on-tree.ci`, `ospf-state-through-daemon.ci`, `data-check-tree.ci`, `doctor-tree-corrupt-key.ci`
+- `test/plugin/init-creates-tree.ci`, `start-on-tree.ci`, `start-auto-creates.ci`, `start-refuses-blob.ci`, `start-refuses-loose-mode.ci`, `start-refuses-unfinished-import.ci`, `doctor-without-store.ci`, `login-on-tree.ci`, `statestore-on-tree.ci`, `ospf-state-through-daemon.ci`, `data-check-tree.ci`, `doctor-tree-corrupt-key.ci`
 - `test/web/web-on-tree.wb`
 - `docs/architecture/storage-backends.md` - the contract, the tree encoding, detection, permissions, auto-create and import rules; `zefs-format.md` keeps the blob format only
 

@@ -20,6 +20,7 @@ const (
 	envCGOEnabled       = "CGO_ENABLED"
 	envCLIFormat        = "ze.cli.format"
 	envConfigDir        = "ZE_CONFIG_DIR"
+	envConfigDirDotted  = "ze.config.dir"
 	envLogBFD           = "ze.log.bfd"
 	envLogBGP           = "ze.log.bgp"
 	envLogVPP           = "ze.log.vpp"

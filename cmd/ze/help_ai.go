@@ -599,7 +599,7 @@ func printCommonErrors(rw *helpfmt.RenderWriter) {
 	rw.Line("  connection refused (SSH)             Daemon not running; start with: ze start")
 	rw.Line("  no prefixes specified                REQUIRED field missing in ze_announce/ze_withdraw")
 	rw.Line("  unknown command \"...\"                Use: ze_reference (MCP) or ze cli -c \"help\"")
-	rw.Line("  web server disabled: requires blob  Run: ze init (creates database.zefs with TLS certs)")
+	rw.Line("  web server disabled: persistent store unavailable  Run: ze init (creates the database/ store with TLS certs)")
 	rw.Line("")
 }
 

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // validConfig is minimal hierarchical config the YANG parser accepts.
@@ -30,10 +30,9 @@ func TestReadConfigWithStorage_BlobStorage(t *testing.T) {
 	configPath := filepath.Join(dir, "prod.conf")
 
 	stamp := "20260617-120000.000"
-	parsed, err := storage.ParseVersionStamp(stamp)
-	require.NoError(t, err)
+	parsed := mustParseReloadStamp(t, stamp)
 	require.NoError(t, store.WriteVersion(configPath, validConfig, parsed))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, stamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, stamp)
 
 	readFn := readConfigWithStorage(store, configPath)
 	data, tree, err := readFn()
@@ -85,10 +84,9 @@ func TestReadConfigWithStorage_ReadsPromotedVersion(t *testing.T) {
 	configPath := filepath.Join(dir, "prod.conf")
 
 	oldStamp := "20260617-100000.000"
-	oldParsed, err := storage.ParseVersionStamp(oldStamp)
-	require.NoError(t, err)
+	oldParsed := mustParseReloadStamp(t, oldStamp)
 	require.NoError(t, store.WriteVersion(configPath, validConfig, oldParsed))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, oldStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, oldStamp)
 
 	// An always-on config root, not bgp: this test also runs in the bare ze_core
 	// pass, where BGP is compiled out (//go:build ze_bgp) and a bgp{} block is
@@ -96,10 +94,9 @@ func TestReadConfigWithStorage_ReadsPromotedVersion(t *testing.T) {
 	// the content differs from validConfig and parses.
 	newContent := []byte("system {\n}\ninterface {\n}\n")
 	newStamp := "20260617-110000.000"
-	newParsed, err := storage.ParseVersionStamp(newStamp)
-	require.NoError(t, err)
+	newParsed := mustParseReloadStamp(t, newStamp)
 	require.NoError(t, store.WriteVersion(configPath, newContent, newParsed))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, newStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, newStamp)
 
 	readFn := readConfigWithStorage(store, configPath)
 	data, _, err := readFn()

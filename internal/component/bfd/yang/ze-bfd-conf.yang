@@ -39,7 +39,7 @@ module ze-bfd-conf {
             type string;
             description "DEPRECATED, retained for back-compat and scheduled for removal. The value is no longer interpreted
                 as a directory. TX sequence numbers for Meticulous Keyed authentication now persist to the shared
-                managed state store (database.zefs), instead of a loose file. A non-empty value still opts a session
+                managed store (the database/ tree), instead of a loose file. A non-empty value still opts a session
                 into persistence. RFC 5880 Section 6.7.3 requires the sequence to survive process restarts. Without
                 this leaf set, Meticulous sessions still work at runtime, but a fresh process loses its sequence
                 floor until the peer's replay window slides forward.";

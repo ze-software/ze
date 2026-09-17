@@ -10,11 +10,10 @@
 # unparseable material. The certificate is valid until 2126, so the expiry
 # check stays silent and the run has exactly one finding to read.
 #
-# ze_storage_blob=false puts the two keys on the filesystem, under the working
-# directory the runner gives this test. ze treats dots and underscores as
-# equivalent (internal/core/env/env.go, normalize).
+# The fixture seeds the two keys into the tree store under the working
+# directory the runner gives this test, and the doctor opens that store.
 
-option=env:var=ze_storage_blob:value=false
+option=env:var=ZE_CONFIG_DIR:value=.
 
 tmpfs=web.conf:terminator=EOF_CONF
 environment {

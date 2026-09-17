@@ -142,7 +142,7 @@ again. Without that declaration a crash was permanent for the life of the
 daemon, and the registry then held back every table naming an IRR set.
 
 The restart costs nothing the plugin has to rebuild by hand: the prefix cache
-lives in the shared zefs store, so the replacement opens the same file and
+lives in the managed store, so the replacement reads the same store and
 programs its sets from what was already fetched. It is bounded at 5 restarts in
 60 seconds and 20 over the life of the daemon, which is what stops an answer
 that panics every time from cycling: past the bound the plugin is disabled and

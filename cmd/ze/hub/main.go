@@ -54,10 +54,9 @@ import (
 )
 
 var (
-	errCannotResolveConfigDirectory = errors.New("cannot resolve config directory")
-	errEmptyUsernameInZefs          = errors.New("empty username in zefs")
-	errEmptyPasswordInZefs          = errors.New("empty password hash in zefs")
-	errAdminDisabledInZefs          = errors.New("local admin login disabled in zefs")
+	errEmptyUsernameInZefs = errors.New("empty username in zefs")
+	errEmptyPasswordInZefs = errors.New("empty password hash in zefs")
+	errAdminDisabledInZefs = errors.New("local admin login disabled in zefs")
 )
 
 // Env var registrations are centralized in internal/component/config/environment.go.
@@ -188,8 +187,8 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		return 1
 	}
 	var err error
-	switch {
-	case configPath == "-":
+	switch configPath {
+	case "-":
 		data, stdinOpen, err = readStdinConfig()
 	default:
 		data, err = internalresolve.ReadConfigSource(store, configPath)
@@ -994,7 +993,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer stopArchiveScheduler()
 
 	lm := newListenerMigrator()
+	// commitReloads holds the store open until every commit-driven reload has
+	// returned (reloadGate, main_reload.go). Shutdown closes it below, after
+	// the SIGHUP worker, and before Run returns to the store's Close.
+	commitReloads := &reloadGate{}
 	reloadAfterCommitContext := func(ctx context.Context) error {
+		if !commitReloads.enter() {
+			return errDaemonStopping
+		}
+		defer commitReloads.leave()
 		startupCtx, startupCancel := context.WithTimeout(ctx, 30*time.Second)
 		defer startupCancel()
 		if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
@@ -1092,7 +1099,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		case apiCfg.Token != "":
 			fmt.Fprintln(os.Stderr, "API auth mode: single-token (shared bearer)")
 		default:
-			fmt.Fprintln(os.Stderr, "warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs")
+			fmt.Fprintln(os.Stderr, "warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or run ze init")
 		}
 	}
 
@@ -1157,7 +1164,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				service:       "API",
 				addrs:         apiAddrs,
 				authenticated: apiAuthed,
-				remedy:        "set ze.api-server.token, initialize zefs users, or bind to 127.0.0.1/::1 only",
+				remedy:        "set ze.api-server.token, run ze init, or bind to 127.0.0.1/::1 only",
 			})
 		}
 	}
@@ -1461,6 +1468,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	close(reloadCh)
 	awaitReloadWorker(reloadDone, reloadShutdownGrace, reloadCancel)
+	// A commit-driven reload still running here would promote its candidate
+	// into a store the caller closes when Run returns: wait for it.
+	commitReloads.close()
 	fmt.Println("\nShutting down (Ctrl+C again to force)...")
 
 	// MCP shuts down through the construction registry's builtServices defer

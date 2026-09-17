@@ -17,7 +17,7 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
 ## Flow
 1. **Bootstrap credentials.** `ze init` (`internal/plugins/init/main.go` `runInit`)
    hashes the operator password with bcrypt and writes
-   `meta/auth/local/username`/`meta/auth/local/password` into `database.zefs`
+   `meta/auth/local/username`/`meta/auth/local/password` into the `database/` store
    (`internal/plugins/init/main.go`), keys registered in
    `pkg/zefs/keys.go`. `meta/instance/admin-disabled`
    (`pkg/zefs/keys.go`) can disable this account on every surface. Appliance
@@ -160,7 +160,7 @@ registry; the flow below shows where boot, request-time reads, and reload meet.
 | `cmd/ze/hub/aaa_lifecycle.go` | `acceptedLocalIdentityState`, atomic generation publication, accepted users, and live local authorizer |
 | `cmd/ze/hub/main_servers.go` | `bootPowerUsers`/`usersFromZefsDB`/`liveLocalUsers`: zefs and configured candidate-user assembly |
 | `internal/component/plugin/server/command.go` | `Dispatcher.isAuthorized`/`isAuthorizedCommandArgs`, `BeginAccounting`, `SetAuthorizer`/`SetAccountingHook` |
-| `internal/plugins/init/main.go` | `ze init`: writes the bootstrap super-admin credentials into `database.zefs` |
+| `internal/plugins/init/main.go` | `ze init`: writes the bootstrap super-admin credentials into the `database/` store |
 | `pkg/zefs/keys.go` | `meta/auth/local/{username,password}` and `meta/instance/admin-disabled` key registration |
 
 ## Invariants & gotchas

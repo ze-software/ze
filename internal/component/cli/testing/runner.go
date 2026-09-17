@@ -66,7 +66,7 @@ func RunETFile(path string) *TestResult {
 
 // runTestCase executes a parsed test case in a temporary directory that it
 // creates and removes.
-func runTestCase(tc *TestCase) *TestResult {
+func runTestCase(tc *testCase) *TestResult {
 	// Create temp directory for test files
 	tmpDir, err := os.MkdirTemp("", "ze-editor-test-*")
 	if err != nil {
@@ -84,7 +84,7 @@ func runTestCase(tc *TestCase) *TestResult {
 // directory. The caller owns tmpDir and MUST remove it.
 //
 // The directory outlives the run so a caller can inspect the persisted tree.
-func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
+func runTestCaseIn(tc *testCase, tmpDir string) *TestResult {
 	result := &TestResult{}
 
 	// Write tmpfs files to temp directory
@@ -404,34 +404,4 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 	// All expectations passed
 	result.Passed = true
 	return result
-}
-
-// RunMultipleETFiles runs multiple .et test files and returns all results.
-func RunMultipleETFiles(paths []string) []*TestResult {
-	results := make([]*TestResult, len(paths))
-	for i, path := range paths {
-		results[i] = RunETFile(path)
-	}
-	return results
-}
-
-// RunETDirectory finds and runs all .et files in a directory.
-func RunETDirectory(dir string) ([]*TestResult, error) {
-	var paths []string
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && filepath.Ext(path) == ".et" {
-			paths = append(paths, path)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("walking directory: %w", err)
-	}
-
-	return RunMultipleETFiles(paths), nil
 }

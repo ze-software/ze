@@ -1,0 +1,26 @@
+# Test: ze doctor on a config file whose folder holds no store exits 0.
+# VALIDATES: storage-1 AC-23 and AC-24: the absent store is one warning naming
+# ze init, every store-backed feature is refused by name in one warning each,
+# nothing is created, and the run is not an error.
+# PREVENTS: a feature check turning the absence of a store into an error that
+# fails the whole doctor run and hides the real findings.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+
+tmpfs=probe.conf:mode=600:terminator=EOF_CONF
+environment {
+	web {
+		enabled true
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json probe.conf
+expect=exit:code=0
+expect=stdout:contains=doctor-storage-unavailable
+expect=stdout:contains=ze init
+expect=stdout:contains=web TLS pair: refused
+expect=stdout:contains=certificate authority root: refused
+reject=stdout:contains=doctor-tls-invalid
+expect=file:glob=database/*:count=0
+expect=file:glob=database.zefs:count=0

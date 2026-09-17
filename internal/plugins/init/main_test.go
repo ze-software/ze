@@ -1,6 +1,7 @@
-package init_test
+package init
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,12 +10,29 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	zeinit "github.com/ze-software/ze/internal/plugins/init"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: ze init with piped stdin creates zefs database with SSH credentials
 // PREVENTS: missing bootstrap step leaves CLI unable to connect to daemon
+
+// runWithReader creates a live store in dir with SSH credentials read from r,
+// without prompts.
+func runWithReader(r io.Reader, dir string, managed bool) int {
+	return runInit(r, nil, dir, managed, "", "", false, false)
+}
+
+// runWithReaderForce stages a replacement under exclusive storage ownership,
+// as ze init --force --yes does once the operator confirmed.
+func runWithReaderForce(r io.Reader, dir string, managed bool) int {
+	return runInit(r, nil, dir, managed, "", "", false, true)
+}
+
+// runInteractive creates a live store with the prompts written to w, as
+// ze init does on a terminal.
+func runInteractive(r io.Reader, w io.Writer, dir string) int {
+	return runInit(r, w, dir, false, "", "", false, false)
+}
 
 func TestZeInitPipedStdin(t *testing.T) {
 	dir := t.TempDir()
@@ -23,7 +41,7 @@ func TestZeInitPipedStdin(t *testing.T) {
 	// Pipe credentials via stdin: username, password, host, port
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
 
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	code := runWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -65,7 +83,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 
 	// Try to init again -- should fail
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	code := runWithReader(strings.NewReader(input), dbPath, false)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code when database already exists")
 	}
@@ -90,7 +108,7 @@ func TestZeInitDefaults(t *testing.T) {
 	// Only provide username and password, empty lines for host and port
 	input := "admin\nsecret123\n\n\n"
 
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	code := runWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -112,13 +130,13 @@ func TestZeInitRequiresCredentials(t *testing.T) {
 	dbPath := dir
 
 	// Empty username
-	code := zeinit.RunWithReader(strings.NewReader("\nsecret\n\n\n"), dbPath, false)
+	code := runWithReader(strings.NewReader("\nsecret\n\n\n"), dbPath, false)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code for empty username")
 	}
 
 	// Empty password
-	code = zeinit.RunWithReader(strings.NewReader("admin\n\n\n\n"), dbPath, false)
+	code = runWithReader(strings.NewReader("admin\n\n\n\n"), dbPath, false)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code for empty password")
 	}
@@ -135,7 +153,7 @@ func TestZeInitInteractive(t *testing.T) {
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
 	var prompts strings.Builder
 
-	code := zeinit.RunInteractive(strings.NewReader(input), &prompts, dbPath)
+	code := runInteractive(strings.NewReader(input), &prompts, dbPath)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -176,7 +194,7 @@ func TestZeInitIdentityName(t *testing.T) {
 	// Provide all fields: username, password, host, port, name
 	input := "admin\nsecret123\n127.0.0.1\n2222\nmy-router\n"
 
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	code := runWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -200,7 +218,7 @@ func TestZeInitEmptyName(t *testing.T) {
 	// Provide credentials but empty name -- should default to hostname
 	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
 
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	code := runWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -235,7 +253,7 @@ func TestZeInitNameSpecialChars(t *testing.T) {
 			dir := t.TempDir()
 			dbPath := dir
 
-			code := zeinit.RunWithReader(strings.NewReader(tt.input), dbPath, false)
+			code := runWithReader(strings.NewReader(tt.input), dbPath, false)
 			if code != 0 {
 				t.Fatalf("expected exit code 0, got %d", code)
 			}
@@ -261,7 +279,7 @@ func TestZeInitManagedKey(t *testing.T) {
 
 	// Without managed: default false
 	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	code := runWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -277,7 +295,7 @@ func TestZeInitManagedKey(t *testing.T) {
 	dir2 := t.TempDir()
 	dbPath2 := dir2
 
-	code = zeinit.RunWithReader(strings.NewReader(input), dbPath2, true)
+	code = runWithReader(strings.NewReader(input), dbPath2, true)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -310,10 +328,7 @@ func TestZeInitForce(t *testing.T) {
 
 	// Force reinitialize
 	input := "new-admin\nnewpass\n127.0.0.1\n2222\n"
-	code, err := zeinit.RunWithReaderForce(strings.NewReader(input), dbPath, false)
-	if err != nil {
-		t.Fatalf("RunWithReaderForce: %v", err)
-	}
+	code := runWithReaderForce(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -339,7 +354,7 @@ func TestZeInitForce(t *testing.T) {
 		found = true
 		// Verify old data is in the backup
 		backupPath := filepath.Join(dir, e.Name())
-		frame, err := os.ReadFile(filepath.Join(backupPath, "meta/ssh/127.0.0.1/2222/username"))
+		frame, err := os.ReadFile(filepath.Join(backupPath, "meta", "ssh", "127.0.0.1", "2222", "username"))
 		if err != nil {
 			t.Fatalf("Read backup: %v", err)
 		}
@@ -365,10 +380,7 @@ func TestZeInitForceNoExisting(t *testing.T) {
 	dbPath := dir
 
 	input := "admin\nsecret\n127.0.0.1\n2222\n"
-	code, err := zeinit.RunWithReaderForce(strings.NewReader(input), dbPath, false)
-	if err != nil {
-		t.Fatalf("RunWithReaderForce: %v", err)
-	}
+	code := runWithReaderForce(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}

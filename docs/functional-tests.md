@@ -591,6 +591,7 @@ capability bits the probe tests.
 | `net-bind` | CAP_NET_BIND_SERVICE | binding a port below 1024, which `ze-test dns` does on 53 |
 | `net-raw` | CAP_NET_RAW | raw and packet sockets (ping, traceroute) |
 | `bpf` | CAP_BPF | loading eBPF programs and creating maps |
+| `sys-time` | CAP_SYS_TIME | setting the system clock, which the NTP restart carrier does |
 
 <!-- source: internal/test/runner/caps.go -- capsRequired -->
 
@@ -736,7 +737,7 @@ The backend's `Apply` lists the node's tables and deletes every `ze_*` table it 
 about to program, so one daemon removes a sibling's live table and the sibling
 then reads back terms it never wrote. The second is the persisted prefix store.
 `DefaultConfigDir` derives it from the running binary's path, so every daemon in
-the run opens one `database.zefs`, and a sibling that fetches `AS-TEST` destroys
+the run opens one `database/` store, and a sibling that fetches `AS-TEST` destroys
 the cold-cache precondition `firewall-irr-cold-cache-recovers` asserts on its
 first line. Measured on 2026-08-22 in one privileged container: run in parallel 2
 of 12 failed, run serially 12 of 12 pass. Membership is "declares

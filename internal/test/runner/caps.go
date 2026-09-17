@@ -22,6 +22,7 @@ const (
 	capNetAdmin       = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
 	capNetRaw         = 13 // CAP_NET_RAW: raw and packet sockets (ICMP ping, traceroute)
 	capSysResource    = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
+	capSysTime        = 25 // CAP_SYS_TIME: set the system clock (NTP restore)
 	capBPF            = 39 // CAP_BPF: load eBPF programs and create maps (>= 5.8)
 )
 
@@ -66,11 +67,19 @@ const (
 //     another -- a guard that cannot evaluate what it claims
 //     (ai/rules/evidence.md) -- as well as skipping a host that can bind port 53
 //     but cannot program nftables.
+//
+//   - sys-time: setting the system clock. The NTP plugin restores the persisted
+//     last-known time through settimeofday (internal/plugins/ntp/clock_linux.go
+//     setClock), which the kernel refuses without CAP_SYS_TIME. A test that
+//     declares it changes the clock of the host it runs on, so the gate skips
+//     every unprivileged developer host and runs only where the process can
+//     set time: the disposable QEMU guest and a privileged CI runner.
 const (
 	capsNetAdmin = "net-admin"
 	capsNetBind  = "net-bind"
 	capsNetRaw   = "net-raw"
 	capsBPF      = "bpf"
+	capsSysTime  = "sys-time"
 )
 
 // capsRequired maps each accepted token to the capability bits a host must hold
@@ -84,6 +93,7 @@ var capsRequired = map[string][]int{
 	capsNetBind:  {capNetBindService},
 	capsNetRaw:   {capNetRaw},
 	capsBPF:      {capBPF},
+	capsSysTime:  {capSysTime},
 }
 
 // capsAccepted lists the accepted tokens for an error message, derived from the

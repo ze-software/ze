@@ -5792,7 +5792,8 @@ func TestSaveDraftAppliesToDraft(t *testing.T) {
 
 	// Change file should exist.
 	changePath := ChangePath(configPath, "thomas")
-	assert.FileExists(t, changePath, "change file should exist before save")
+	_, statErr := store.Stat(changePath)
+	require.NoError(t, statErr, "change file should exist in the store before save")
 
 	// Save should create draft and delete change file.
 	err = ed.SaveDraft()
@@ -5800,13 +5801,12 @@ func TestSaveDraftAppliesToDraft(t *testing.T) {
 
 	// Draft should exist with the change applied.
 	draftPath := DraftPath(configPath)
-	assert.FileExists(t, draftPath, "draft should exist after save")
 	draftData, readErr := store.ReadFile(draftPath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	assert.Contains(t, string(draftData), "5.6.7.8", "draft should contain saved value")
 
 	// Change file should be deleted.
-	_, statErr := store.Stat(changePath)
+	_, statErr = store.Stat(changePath)
 	assert.True(t, errors.Is(statErr, os.ErrNotExist), "change file should be deleted after save")
 }
 

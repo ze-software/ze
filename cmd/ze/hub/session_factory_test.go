@@ -3,6 +3,7 @@
 package hub
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -19,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -187,4 +189,54 @@ func TestSessionFactoryRefusesUnavailableEditTarget(t *testing.T) {
 	model, err = storeless("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{Mode: "edit"})
 	require.Error(t, err)
 	require.Nil(t, model)
+}
+
+// TestSessionFactoryRecordsTranscript drives AC-15 and review finding I5: the
+// daemon owns a remote session's model, so with `cli { transcript enabled }` it
+// records every operational command and its answer into its own
+// `$XDG_DATA_HOME/ze/transcripts/`, and the model's Close releases the file.
+// The username comes back from the authenticator unsanitized, so it must not
+// choose the file's path: `../../x` lands inside the transcript directory.
+func TestSessionFactoryRecordsTranscript(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	require.NoError(t, env.Set("ze.cli.transcript", "enabled"))
+	t.Cleanup(func() { require.NoError(t, env.Set("ze.cli.transcript", "false")) })
+
+	server, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
+	require.NoError(t, err)
+	server.SetExecutorFactory(func(_, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
+		return func(string) (*plugin.RenderedResponse, error) {
+			return &plugin.RenderedResponse{Output: `{"version":"transcribed"}`}, nil
+		}
+	})
+	factory := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
+	created, createErr := factory("../../x", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	require.NoError(t, createErr)
+	model, ok := created.(cli.Model)
+	require.True(t, ok, "session model type = %T, want cli.Model", created)
+
+	model.SetInput("show version")
+	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	require.NotNil(t, cmd, "operational command produced no execution command")
+	updated.Update(cmd())
+	closer, ok := created.(io.Closer)
+	require.True(t, ok, "the session model must close its transcript")
+	require.NoError(t, closer.Close())
+
+	transcripts := filepath.Join(dataHome, "ze", "transcripts")
+	files, globErr := filepath.Glob(filepath.Join(transcripts, "transcript-*.log"))
+	require.NoError(t, globErr)
+	require.Len(t, files, 1, "one session writes one transcript")
+	assert.NotContains(t, filepath.Base(files[0]), "x", "the username must not name the file")
+	content, readErr := os.ReadFile(files[0])
+	require.NoError(t, readErr)
+	assert.Contains(t, string(content), "# User: ../../x")
+	assert.Contains(t, string(content), "# Host: 192.0.2.10:2222")
+	assert.Contains(t, string(content), "> show version")
+	assert.Contains(t, string(content), `{"version":"transcribed"}`)
+	_, statErr := os.Stat(filepath.Join(dataHome, "x"))
+	assert.ErrorIs(t, statErr, os.ErrNotExist, "nothing may land outside the transcript directory")
 }

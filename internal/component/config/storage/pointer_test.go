@@ -48,12 +48,12 @@ func TestWriteCandidateVersion(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "20260524-100000.123", gotStamp)
 
-			pointer, ok, err := ReadPointer(store, configPath, PointerCandidate)
+			pointer, ok, err := readPointer(store, configPath, pointerCandidate)
 			require.NoError(t, err)
 			require.True(t, ok, "candidate pointer should exist")
 			assert.Equal(t, gotStamp, pointer)
 
-			data, err := ReadVersion(store, configPath, gotStamp)
+			data, err := readVersion(store, configPath, gotStamp)
 			require.NoError(t, err)
 			assert.Equal(t, "candidate", string(data))
 		})
@@ -100,7 +100,7 @@ func TestWriteCandidateVersionWithGuardRejectsExistingCandidate(t *testing.T) {
 			require.Error(t, err)
 			assert.True(t, errors.Is(err, ErrCandidateExists))
 
-			candidate, ok, readErr := readPointerLocked(store, guard, configPath, PointerCandidate)
+			candidate, ok, readErr := readPointerLocked(store, guard, configPath, pointerCandidate)
 			require.NoError(t, readErr)
 			require.True(t, ok)
 			data, readErr := readVersionLocked(store, guard, configPath, candidate)
@@ -125,7 +125,7 @@ func TestEnsureActiveVersion(t *testing.T) {
 			assert.True(t, wrote)
 			assert.Equal(t, "20260524-090000.000", gotStamp)
 
-			active, ok, err := ReadPointer(store, configPath, PointerActive)
+			active, ok, err := readPointer(store, configPath, pointerActive)
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, gotStamp, active)
@@ -152,25 +152,25 @@ func TestPromoteCandidateToActive(t *testing.T) {
 			newStamp := "20260524-100000.000"
 
 			require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseVersionStamp(t, oldStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerActive, oldStamp))
+			require.NoError(t, writePointer(store, configPath, pointerActive, oldStamp))
 			require.NoError(t, store.WriteVersion(configPath, []byte("new"), mustParseVersionStamp(t, newStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerCandidate, newStamp))
+			require.NoError(t, writePointer(store, configPath, pointerCandidate, newStamp))
 
 			// VALIDATES: AC-1 and AC-15 promote candidate to active and set rollback to previous active.
 			// PREVENTS: losing the previous active version during successful transactional commit.
 			require.NoError(t, PromoteCandidate(store, configPath))
 
-			active, ok, err := ReadPointer(store, configPath, PointerActive)
+			active, ok, err := readPointer(store, configPath, pointerActive)
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, newStamp, active)
 
-			rollback, ok, err := ReadPointer(store, configPath, PointerRollback)
+			rollback, ok, err := readPointer(store, configPath, pointerRollback)
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, oldStamp, rollback)
 
-			_, ok, err = ReadPointer(store, configPath, PointerCandidate)
+			_, ok, err = readPointer(store, configPath, pointerCandidate)
 			require.NoError(t, err)
 			assert.False(t, ok, "candidate pointer should be cleared after promotion")
 
@@ -191,19 +191,19 @@ func TestPromoteCandidateMirrorFailureIsNonFatal(t *testing.T) {
 
 	require.NoError(t, base.WriteFile(configPath, []byte("old-file"), 0o600))
 	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseVersionStamp(t, oldStamp)))
-	require.NoError(t, WritePointer(store, configPath, PointerActive, oldStamp))
+	require.NoError(t, writePointer(store, configPath, pointerActive, oldStamp))
 	require.NoError(t, store.WriteVersion(configPath, []byte("new"), mustParseVersionStamp(t, newStamp)))
-	require.NoError(t, WritePointer(store, configPath, PointerCandidate, newStamp))
+	require.NoError(t, writePointer(store, configPath, pointerCandidate, newStamp))
 
 	// VALIDATES: AC-1 promotion result is authoritative even if legacy mirror write fails.
 	// PREVENTS: callers reporting commit failure after active pointer already advanced.
 	require.NoError(t, PromoteCandidate(store, configPath))
 
-	active, ok, err := ReadPointer(store, configPath, PointerActive)
+	active, ok, err := readPointer(store, configPath, pointerActive)
 	require.NoError(t, err)
 	require.True(t, ok)
 	assert.Equal(t, newStamp, active)
-	_, ok, err = ReadPointer(store, configPath, PointerCandidate)
+	_, ok, err = readPointer(store, configPath, pointerCandidate)
 	require.NoError(t, err)
 	assert.False(t, ok)
 	data, err := ReadActiveConfig(store, configPath)
@@ -246,24 +246,24 @@ func TestPromoteFailureCleanup(t *testing.T) {
 			candidateStamp := "20260524-100000.000"
 
 			require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseVersionStamp(t, oldStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerActive, oldStamp))
+			require.NoError(t, writePointer(store, configPath, pointerActive, oldStamp))
 			require.NoError(t, store.WriteVersion(configPath, []byte("candidate"), mustParseVersionStamp(t, candidateStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerCandidate, candidateStamp))
+			require.NoError(t, writePointer(store, configPath, pointerCandidate, candidateStamp))
 
 			// VALIDATES: AC-2 clears failed candidate while leaving active unchanged.
 			// PREVENTS: boot or a later reload applying a candidate that failed verification.
 			require.NoError(t, ClearCandidate(store, configPath))
 
-			active, ok, err := ReadPointer(store, configPath, PointerActive)
+			active, ok, err := readPointer(store, configPath, pointerActive)
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, oldStamp, active)
 
-			_, ok, err = ReadPointer(store, configPath, PointerCandidate)
+			_, ok, err = readPointer(store, configPath, pointerCandidate)
 			require.NoError(t, err)
 			assert.False(t, ok)
 
-			_, err = ReadVersion(store, configPath, candidateStamp)
+			_, err = readVersion(store, configPath, candidateStamp)
 			require.Error(t, err, "candidate version should be removed on failed transaction cleanup")
 		})
 	}
@@ -280,9 +280,9 @@ func TestBootFromActivePointer(t *testing.T) {
 
 			require.NoError(t, store.WriteFile(configPath, []byte("legacy-active"), 0o600))
 			require.NoError(t, store.WriteVersion(configPath, []byte("active-pointer"), mustParseVersionStamp(t, activeStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerActive, activeStamp))
+			require.NoError(t, writePointer(store, configPath, pointerActive, activeStamp))
 			require.NoError(t, store.WriteVersion(configPath, []byte("stale-candidate"), mustParseVersionStamp(t, candidateStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerCandidate, candidateStamp))
+			require.NoError(t, writePointer(store, configPath, pointerCandidate, candidateStamp))
 
 			// VALIDATES: AC-12 boots from active pointer, not legacy active file or stale candidate.
 			// PREVENTS: crash recovery accidentally activating an unverified candidate.
@@ -303,9 +303,9 @@ func TestBootIgnoresStaleCandidate(t *testing.T) {
 			candidateStamp := "20260524-110000.000"
 
 			require.NoError(t, store.WriteVersion(configPath, []byte("active"), mustParseVersionStamp(t, activeStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerActive, activeStamp))
+			require.NoError(t, writePointer(store, configPath, pointerActive, activeStamp))
 			require.NoError(t, store.WriteVersion(configPath, []byte("candidate"), mustParseVersionStamp(t, candidateStamp)))
-			require.NoError(t, WritePointer(store, configPath, PointerCandidate, candidateStamp))
+			require.NoError(t, writePointer(store, configPath, pointerCandidate, candidateStamp))
 
 			// VALIDATES: AC-12 stale candidate cleanup leaves active pointer authoritative.
 			// PREVENTS: unverified candidate pointer surviving restart cleanup.
@@ -315,16 +315,47 @@ func TestBootIgnoresStaleCandidate(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "active", string(data))
 
-			_, ok, err := ReadPointer(store, configPath, PointerCandidate)
+			_, ok, err := readPointer(store, configPath, pointerCandidate)
 			require.NoError(t, err)
 			assert.False(t, ok)
 		})
 	}
 }
 
+// writePointer stores a stamp in a named pointer under the config lock. Only
+// tests set a pointer directly; the product writes one through a version.
+func writePointer(store Storage, configPath string, pointer pointerName, stamp string) (err error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return err
+	}
+	defer func() { err = releaseGuard(guard, err) }()
+	return writePointerLocked(store, guard, configPath, pointer, stamp)
+}
+
+// clearPointer removes a named pointer under the config lock.
+func clearPointer(store Storage, configPath string, pointer pointerName) (err error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return err
+	}
+	defer func() { err = releaseGuard(guard, err) }()
+	return clearPointerLocked(store, guard, configPath, pointer)
+}
+
+// removeVersion removes a timestamped version under the config lock.
+func removeVersion(store Storage, configPath, stamp string) (err error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return err
+	}
+	defer func() { err = releaseGuard(guard, err) }()
+	return removeVersionLocked(store, guard, configPath, stamp)
+}
+
 func mustParseVersionStamp(t *testing.T, stamp string) time.Time {
 	t.Helper()
-	parsed, err := ParseVersionStamp(stamp)
+	parsed, err := parseVersionStamp(stamp)
 	require.NoError(t, err)
 	return parsed
 }
@@ -353,7 +384,7 @@ func TestPointersArePerConfigName(t *testing.T) {
 			data, err = ReadActiveConfig(s, "y.conf")
 			require.NoError(t, err)
 			assert.Equal(t, "y.conf", string(data))
-			_, exists, err := ReadPointer(s, "y.conf", PointerRollback)
+			_, exists, err := readPointer(s, "y.conf", pointerRollback)
 			require.NoError(t, err)
 			assert.False(t, exists)
 			keys, err := s.ListKeys("meta/config/")
@@ -369,28 +400,28 @@ func TestPointersArePerConfigName(t *testing.T) {
 func TestClearCandidateCrashStates(t *testing.T) {
 	for _, backend := range pointerTestStores() {
 		t.Run(backend.name, func(t *testing.T) {
-			for _, reference := range []PointerName{"", PointerActive, PointerRollback, PointerRecovery} {
+			for _, reference := range []pointerName{"", pointerActive, pointerRollback, pointerRecovery} {
 				t.Run("reference-"+string(reference), func(t *testing.T) {
 					s := backend.newStore(t, t.TempDir())
 					stamp := "20260524-100000.000"
 					require.NoError(t, s.WriteVersion("router.conf", []byte("candidate"), mustParseVersionStamp(t, stamp)))
-					require.NoError(t, WritePointer(s, "router.conf", PointerCandidate, stamp))
+					require.NoError(t, writePointer(s, "router.conf", pointerCandidate, stamp))
 					if reference != "" {
-						require.NoError(t, WritePointer(s, "router.conf", reference, stamp))
+						require.NoError(t, writePointer(s, "router.conf", reference, stamp))
 					}
 					require.NoError(t, ClearCandidate(s, "router.conf"))
 					require.NoError(t, ClearCandidate(s, "router.conf"))
-					_, exists, err := ReadPointer(s, "router.conf", PointerCandidate)
+					_, exists, err := readPointer(s, "router.conf", pointerCandidate)
 					require.NoError(t, err)
 					assert.False(t, exists)
-					data, err := ReadVersion(s, "router.conf", stamp)
+					data, err := readVersion(s, "router.conf", stamp)
 					if reference == "" {
 						require.ErrorIs(t, err, fs.ErrNotExist)
 						return
 					}
 					require.NoError(t, err)
 					assert.Equal(t, "candidate", string(data))
-					got, exists, err := ReadPointer(s, "router.conf", reference)
+					got, exists, err := readPointer(s, "router.conf", reference)
 					require.NoError(t, err)
 					assert.True(t, exists)
 					assert.Equal(t, stamp, got)
@@ -401,22 +432,22 @@ func TestClearCandidateCrashStates(t *testing.T) {
 				stamp := "20260524-100000.000"
 				require.NoError(t, s.WriteVersion("router.conf", []byte("orphan"), mustParseVersionStamp(t, stamp)))
 				require.NoError(t, ClearCandidate(s, "router.conf"))
-				got, err := ReadVersion(s, "router.conf", stamp)
+				got, err := readVersion(s, "router.conf", stamp)
 				require.NoError(t, err)
 				assert.Equal(t, "orphan", string(got), "an absent pointer does not authorize deleting versions")
 			})
 			t.Run("version already removed", func(t *testing.T) {
 				s := backend.newStore(t, t.TempDir())
-				require.NoError(t, WritePointer(s, "router.conf", PointerCandidate, "20260524-100000.000"))
+				require.NoError(t, writePointer(s, "router.conf", pointerCandidate, "20260524-100000.000"))
 				require.NoError(t, ClearCandidate(s, "router.conf"))
-				_, exists, err := ReadPointer(s, "router.conf", PointerCandidate)
+				_, exists, err := readPointer(s, "router.conf", pointerCandidate)
 				require.NoError(t, err)
 				assert.False(t, exists)
 			})
 			t.Run("dangling active is not mirror fallback", func(t *testing.T) {
 				s := backend.newStore(t, t.TempDir())
 				require.NoError(t, s.WriteFile("router.conf", []byte("mirror"), 0))
-				require.NoError(t, WritePointer(s, "router.conf", PointerActive, "20260524-100000.000"))
+				require.NoError(t, writePointer(s, "router.conf", pointerActive, "20260524-100000.000"))
 				_, err := ReadActiveConfig(s, "router.conf")
 				require.ErrorIs(t, err, fs.ErrNotExist)
 			})
@@ -428,20 +459,45 @@ func TestPointerValidationAndRemoval(t *testing.T) {
 	for _, backend := range pointerTestStores() {
 		t.Run(backend.name, func(t *testing.T) {
 			s := backend.newStore(t, t.TempDir())
-			require.Error(t, WritePointer(s, "router.conf", PointerActive, "../escape"))
-			require.Error(t, WritePointer(s, "router.conf", PointerName("invalid"), "20260524-100000.000"))
-			require.NoError(t, ClearPointer(s, "router.conf", PointerRecovery))
-			require.NoError(t, WritePointer(s, "router.conf", PointerRecovery, "20260524-100000.000"))
-			require.NoError(t, ClearPointer(s, "router.conf", PointerRecovery))
-			_, exists, err := ReadPointer(s, "router.conf", PointerRecovery)
+			require.Error(t, writePointer(s, "router.conf", pointerActive, "../escape"))
+			require.Error(t, writePointer(s, "router.conf", pointerName("invalid"), "20260524-100000.000"))
+			require.NoError(t, clearPointer(s, "router.conf", pointerRecovery))
+			require.NoError(t, writePointer(s, "router.conf", pointerRecovery, "20260524-100000.000"))
+			require.NoError(t, clearPointer(s, "router.conf", pointerRecovery))
+			_, exists, err := readPointer(s, "router.conf", pointerRecovery)
 			require.NoError(t, err)
 			assert.False(t, exists)
 			require.NoError(t, s.WriteVersion("router.conf", []byte("version"), mustParseVersionStamp(t, "20260524-100000.000")))
-			require.NoError(t, RemoveVersion(s, "router.conf", "20260524-100000.000"))
-			_, err = ReadVersion(s, "router.conf", "20260524-100000.000")
+			require.NoError(t, removeVersion(s, "router.conf", "20260524-100000.000"))
+			_, err = readVersion(s, "router.conf", "20260524-100000.000")
 			require.ErrorIs(t, err, fs.ErrNotExist)
-			require.NoError(t, RemoveVersion(s, "router.conf", "20260524-100000.000"))
+			require.NoError(t, removeVersion(s, "router.conf", "20260524-100000.000"))
 			require.Error(t, PromoteCandidate(s, "router.conf"))
+		})
+	}
+}
+
+// boundStore embeds Storage exactly as resolve.BindConfigSource's wrapper does,
+// so the containment check must reach the tree through the interface.
+type boundStore struct{ Storage }
+
+func TestWrappedStoreRefusesConfigOutsideFolder(t *testing.T) {
+	dir := t.TempDir()
+	raw := newTreeStorage(t, dir)
+	inside := filepath.Join(dir, "router.conf")
+	stamp := mustParseVersionStamp(t, "20260524-100000.000")
+	require.NoError(t, raw.WriteVersion(inside, []byte("version"), stamp))
+	outside := filepath.Join(t.TempDir(), "router.conf")
+	for name, s := range map[string]Storage{"raw": raw, "wrapped": &boundStore{Storage: raw}} {
+		t.Run(name, func(t *testing.T) {
+			_, err := readVersion(s, outside, "20260524-100000.000")
+			require.ErrorContains(t, err, "outside store folder")
+			_, _, err = readPointer(s, outside, pointerActive)
+			require.ErrorContains(t, err, "outside store folder")
+			require.ErrorContains(t, writePointer(s, outside, pointerActive, "20260524-100000.000"), "outside store folder")
+			data, err := readVersion(s, inside, "20260524-100000.000")
+			require.NoError(t, err)
+			assert.Equal(t, "version", string(data))
 		})
 	}
 }

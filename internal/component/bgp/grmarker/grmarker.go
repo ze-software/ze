@@ -1,9 +1,9 @@
 // Design: docs/architecture/core-design.md -- GR restart marker for Restarting Speaker detection
 //
 // Package grmarker implements RFC 4724 Restarting Speaker detection using a
-// GR marker in zefs. On graceful restart, the engine writes a marker with an
-// expiry timestamp. On startup, the engine reads the marker and sets R=1 in
-// GR capabilities for connections within the restart window.
+// GR marker in the managed store. On graceful restart, the engine writes a
+// marker with an expiry timestamp. On startup, the engine reads the marker and
+// sets R=1 in GR capabilities for connections within the restart window.
 package grmarker
 
 import (

@@ -80,7 +80,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 		if err := store.Close(); err != nil {
 			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-storage-unavailable",
+				Code:     diagnostic.CodeDoctorStorageUnavailable,
 				Severity: diagnostic.SeverityWarning,
 				Message:  tb.Str("close storage: ").Err(err).String(),
 			})
@@ -132,7 +132,7 @@ func resolveStorageWithDiag(configPath string) (storage.Storage, []diagnostic.Di
 	if err == nil {
 		return s, nil
 	}
-	code := "doctor-storage-unavailable"
+	code := diagnostic.CodeDoctorStorageUnavailable
 	severity := diagnostic.SeverityError
 	if errors.Is(err, storage.ErrNoStore) {
 		severity = diagnostic.SeverityWarning

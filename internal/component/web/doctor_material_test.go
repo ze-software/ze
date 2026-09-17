@@ -174,12 +174,14 @@ func TestCheckWebTLSMaterial_UnreadableKey(t *testing.T) {
 }
 
 func TestCheckWebTLSMaterial_NoStore(t *testing.T) {
-	// VALIDATES: a run that resolved no storage says so rather than answering
-	// "no pair stored", which is what a silent nil would read as.
+	// VALIDATES: a run that resolved no storage refuses the feature by name in
+	// one warning (AC-24) rather than answering "no pair stored" or failing the
+	// run with an error the storage diagnostic already graded.
 	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree()})
 	require.Len(t, diags, 1)
-	assert.Equal(t, diagnostic.CodeDoctorTLSInvalid, diags[0].Code)
-	assert.Contains(t, diags[0].Message, "no storage")
+	assert.Equal(t, diagnostic.CodeDoctorStorageUnavailable, diags[0].Code)
+	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	assert.Contains(t, diags[0].Message, "web TLS pair")
 }
 
 // TestWebTLSMaterialDoctorCheckRegistered asks the registry the doctor runner

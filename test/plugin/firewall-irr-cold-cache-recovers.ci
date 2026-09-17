@@ -4,7 +4,7 @@
 #            table is programmed on the same reconcile.
 # VALIDATES: `update firewall irr as-set` programs what it fetched, so the wait
 #            ends. Nothing else ends it: refresh-interval defaults to 0.
-# PREVENTS:  a fresh install, a wiped database.zefs, or an unreadable cache
+# PREVENTS:  a fresh install, a wiped store, or an unreadable cache
 #            leaving the WHOLE firewall out of the kernel behind one WARN, with
 #            no operator command able to change it.
 #

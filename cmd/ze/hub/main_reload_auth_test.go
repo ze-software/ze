@@ -724,7 +724,7 @@ func TestReloadHashesPlaintextPassword(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { server.Stop() })
 
-	require.NoError(t, doReload(server, nil, nil, store, configPath, loadBoth, nil))
+	require.NoError(t, doReload(server, nil, store, configPath, loadBoth, nil))
 	installed := reloadUserPassword(t, reactor.setTree, "lab")
 	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(installed), []byte("labsecret")),
 		"the tree the reload installed carries a hash of the operator's password")

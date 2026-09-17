@@ -10,6 +10,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -149,7 +150,7 @@ func TestDataRawKeyParity(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if string(data) != string(value) {
+				if !bytes.Equal(data, value) {
 					t.Fatalf("%s = %q", key, data)
 				}
 			}
@@ -160,7 +161,14 @@ func TestDataRawKeyParity(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("list returned %d", code)
 			}
-			rows := answer.(map[string]any)["keys"].([]map[string]any)
+			fields, ok := answer.(map[string]any)
+			if !ok {
+				t.Fatalf("list answer = %T", answer)
+			}
+			rows, ok := fields["keys"].([]map[string]any)
+			if !ok {
+				t.Fatalf("list keys = %T", fields["keys"])
+			}
 			if len(rows) != 1 {
 				t.Fatalf("recursive list = %v", rows)
 			}

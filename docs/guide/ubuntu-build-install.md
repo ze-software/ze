@@ -117,8 +117,8 @@ sudo test -d /etc/ze/database
 This creates the bootstrap admin in an atomically published tree. Its directories
 are 0700 and files 0600. Both an existing tree and a `database.zefs` artifact
 refuse initialization; `ze init --force --yes` replaces an unowned store and
-retains a `.replaced-<stamp>` backup. Standalone import through `ze init from`
-is planned for storage-2. Keep the bootstrap admin as a recovery user until you
+retains a `.replaced-<stamp>` backup. `ze init --from <blob>` imports a local
+blob; the URL form is storage-2. Keep the bootstrap admin as a recovery user until you
 have tested the configured users below.
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 

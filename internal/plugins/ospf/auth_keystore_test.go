@@ -319,7 +319,9 @@ func TestSignKeyUnsetLifetimeUsesFirst(t *testing.T) {
 // OSPF unit tests isolate the engine lifecycle from transport scheduling.
 type daemonStateClient struct{}
 
-func newDaemonStateClient(t *testing.T) daemonStateClient {
+// installDaemonState backs the shared daemon state with a fresh store for the
+// test's lifetime; daemonStateClient{} then reads and writes through it.
+func installDaemonState(t *testing.T) {
 	t.Helper()
 	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)
@@ -328,7 +330,6 @@ func newDaemonStateClient(t *testing.T) daemonStateClient {
 		statestore.SetStore(nil)
 		require.NoError(t, store.Close())
 	})
-	return daemonStateClient{}
 }
 
 func (daemonStateClient) StateGet(_ context.Context, key string) ([]byte, bool, error) {
@@ -347,7 +348,8 @@ func (daemonStateClient) StateIncrement(_ context.Context, key string) (uint32, 
 // count strictly increases on each load (each load models one cold restart).
 func TestBootCountMonotonicAcrossRestart(t *testing.T) {
 	// RFC requirement: RFC7474-2-4 positive -- the persisted boot count strictly increases on each cold restart (each load models one restart), preserving the aggregate 64-bit sequence's strictly-increasing property for the router's deployed life.
-	store := newDaemonStateClient(t)
+	installDaemonState(t)
+	store := daemonStateClient{}
 	first, err := loadOSPFBootCount(context.Background(), store)
 	require.NoError(t, err)
 	second, err := loadOSPFBootCount(context.Background(), store)

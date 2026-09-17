@@ -270,8 +270,9 @@ Other platforms retain blob support and explicitly refuse tree integrity operati
 Tree checks verify one complete frame per key. Tree repair skips corrupt frames,
 preserves good frames byte-for-byte in a new tree, and never changes the source.
 Its private staging directory is beside the destination, outside the key tree;
-publication refuses an existing destination with Linux `RENAME_NOREPLACE` or
-Darwin `RENAME_EXCL`. Staging creation, key writes, publication and cleanup all
+publication refuses an existing destination with Linux `RENAME_NOREPLACE`,
+Darwin `RENAME_EXCL`, or on FreeBSD a `linkat` or `mkdirat` claim of the target
+name. Staging creation, key writes, publication and cleanup all
 use retained directory descriptors, so a replaced ancestor cannot redirect them.
 Files and directories are synced before publication and created with modes
 suitable for reopening the live store.
@@ -288,9 +289,10 @@ CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
 Checks retain exit codes 0 for clean, 1 for corruption, and 2 for unreadable or
 unsafe paths.
 <!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside -->
-<!-- source: pkg/zefs/check_tree_unix.go -- openFrameDirectory, walkFrameTree, repairFrameTree -->
-<!-- source: pkg/zefs/check_tree_linux.go -- renameFrameTree -->
-<!-- source: pkg/zefs/check_tree_darwin.go -- renameFrameTree, trustedFramePath -->
+<!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory, walkFrameTree, repairFrameTree -->
+<!-- source: pkg/zefs/check_tree_linux.go -- RenameNoReplace -->
+<!-- source: pkg/zefs/check_tree_darwin.go -- RenameNoReplace, trustedFramePath -->
+<!-- source: pkg/zefs/check_tree_freebsd.go -- RenameNoReplace -->
 
 ### Integrity design decisions
 

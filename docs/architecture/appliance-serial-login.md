@@ -24,13 +24,15 @@ replacing `serial-busybox`. Overwriting the stock package's symlink at ze
 startup would leave a race window between boot and startup, and the ze-owned
 package controls both the binary name and the symlink target.
 
-## Fail open when the credential store is missing
+## Fail closed when the credential store cannot be read
 
 The login handler opens `/perm/ze/database/` read-only, or uses the directory
 selected by `ze.config.dir`. It does not create a store or take the daemon's
-writer lock. If the store is missing or unreadable, login reports the folder
-and permits recovery access. Missing or corrupt credentials also permit recovery.
-The serial console is the last-resort access path.
+writer lock. If the store is missing or unreadable, or the local admin username
+or password cannot be read or is empty, login prints `login refused:` with the
+error and exits 1. No shell is started (owner decision, 2026-09-17). The
+appliance seeds the credentials at install, so an unreadable store is a fault
+to repair from the installer, never a reason to open the console.
 
 ## Placement constraints
 

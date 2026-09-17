@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc5880.md -- Section 6.7.3 (sequence persistence across restart)
-// Design: ai/rules/architecture.md -- runtime state lives in the managed zefs
-// store (<config-dir>/database.zefs), never as loose files.
+// Design: ai/rules/architecture.md -- runtime state lives in the managed
+// store (<config-dir>/database/), never as loose files.
 //
 // Sequence-number persistence for Meticulous Keyed authentication.
 // RFC 5880 §6.7.3 warns that Meticulous variants will reject every
@@ -11,7 +11,7 @@
 //
 // The value is stored through internal/core/statestore under the
 // registered per-session key zefs.KeyBFDAuthSeq, so the sequence lives
-// inside the shared, integrity-checked database.zefs alongside the
+// inside the shared, integrity-checked database/ tree alongside the
 // other appliance runtime state rather than in a loose <session>.seq
 // file. Writes are best-effort: statestore is a no-op when the store
 // does not exist yet, mirroring the pre-migration "read-only disk"
@@ -78,7 +78,7 @@ func (p *SeqPersister) Start() uint32 { return p.startAt }
 // newSeqPersisterAt builds a SeqPersister with an injected writeFn and
 // flush cadence. Production uses NewSeqPersister (writeFn = writeSeq,
 // routing to the process-wide statestore); tests register a real
-// database.zefs via statestore.SetStore to round-trip through the store,
+// store via statestore.SetStore to round-trip through it,
 // or inject a stub writeFn to simulate I/O failures without a shared-field
 // race between the test goroutine and the writer goroutine.
 func newSeqPersisterAt(sessionKey string, flush time.Duration, writeFn func(key string, value uint32) error) (*SeqPersister, error) {

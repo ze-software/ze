@@ -86,8 +86,15 @@ If a plugin reload fails:
 A SIGTERM that arrives while a reload is running does not cut it short. Shutdown
 waits up to 3 seconds for the reload to report `sighup reload complete` or
 `reload error: ...`, so the answer to a SIGHUP is never lost with the process. A
-reload still running after those 3 seconds is left behind, and the daemon prints
-`shutdown: config reload still running after 3s, stopping without its result`.
+reload still running after those 3 seconds is canceled: the daemon prints
+`shutdown: canceling config reload after 3s; waiting for cleanup`, then waits for
+the canceled reload to release the daemon's resources before it exits.
+
+A reload that a commit started (an SSH or web `commit`, an API full reload, a
+managed commit) is not cut short either: shutdown waits for it to finish, with no
+time limit, because it writes the store that shutdown is about to close. A commit
+that arrives once shutdown has begun is refused with `daemon is shutting down;
+config reload refused`: re-run it against the restarted daemon.
 
 Shutdown also stands the config TRANSACTION down before it closes any plugin
 connection. A closed connection is indistinguishable from a crashed plugin, so

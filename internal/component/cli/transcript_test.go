@@ -188,8 +188,31 @@ func TestTranscriptEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Setenv("ZE_CLI_TRANSCRIPT", tt.value)
 		env.ResetCache()
-		if got := TranscriptEnabled(); got != tt.want {
-			t.Errorf("TranscriptEnabled() with %q = %v, want %v", tt.value, got, tt.want)
+		if got := transcriptEnabled(); got != tt.want {
+			t.Errorf("transcriptEnabled() with %q = %v, want %v", tt.value, got, tt.want)
 		}
+	}
+}
+
+// VALIDATES: a transcript set before any executor (the window before the SSH
+// wiring sets the executor factory) leaves the nil-executor guard in place, so
+// an operational command answers "no daemon connection" instead of panicking.
+func TestSetTranscriptKeepsNilExecutorGuard(t *testing.T) {
+	f, err := os.Create(filepath.Join(t.TempDir(), "transcript.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close() //nolint:errcheck // test fixture
+	m := NewCommandModel(FilesystemAuthorityUnknown)
+	m.SetTranscript(NewTranscriptWriter(f, "admin", "10.0.0.1:2222"))
+	if m.commandExecutor != nil {
+		t.Fatal("SetTranscript wrapped a nil executor; the no-daemon guard no longer fires")
+	}
+	msg, ok := m.executeOperationalCommand("show version")().(commandResultMsg)
+	if !ok {
+		t.Fatalf("command result type = %T, want commandResultMsg", msg)
+	}
+	if msg.err == nil || msg.err.Error() != errNoDaemonConnectionOperationalModeRequires.Error() {
+		t.Fatalf("err = %v, want %v", msg.err, errNoDaemonConnectionOperationalModeRequires)
 	}
 }

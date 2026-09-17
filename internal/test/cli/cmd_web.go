@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -669,7 +670,7 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 }
 
 // zeTestSeedWebUsers writes a zefs local-admin credential into the temp config
-// store (pre-creating database.zefs, which ze then opens rather than recreates)
+// store (pre-creating the database/ tree, which ze then opens rather than recreates)
 // so the Users page lists the always-on "(system)" power user, matching a real
 // appliance provisioned by `ze init`.
 //
@@ -682,10 +683,6 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 // users; the admin credential seeded here covers admin-login and single-user
 // tests (see the AC-6/7 runbook in the spec).
 func zeTestSeedWebUsers(configDir string, insecure bool, authUsers []webtesting.WBAuthUser) error {
-	store, err := zefs.Create(filepath.Join(configDir, "database.zefs"))
-	if err != nil {
-		return err
-	}
 	username := "admin"
 	passwordHash := "$2y$10$ze.web.test.placeholder.admin.hash.value.unused" //nolint:gosec // G101: placeholder test hash, replaced with a real bcrypt hash for auth tests
 	if !insecure && len(authUsers) > 0 {
@@ -693,17 +690,19 @@ func zeTestSeedWebUsers(configDir string, insecure bool, authUsers []webtesting.
 		username = admin.Name
 		hash, hashErr := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
 		if hashErr != nil {
-			store.Close() //nolint:errcheck // returning the primary hashing error
 			return hashErr
 		}
 		passwordHash = string(hash)
 	}
-	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte(username), 0); err != nil {
-		store.Close() //nolint:errcheck // returning the primary write error
-		return err
-	}
-	if err := store.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte(passwordHash), 0); err != nil {
-		store.Close() //nolint:errcheck // returning the primary write error
+	// The daemon opens the tree store under configDir; a blob seeded here would
+	// be refused by storage.Open and no web daemon would start.
+	store, err := storage.CreatePopulated(configDir, func(seed storage.Storage) error {
+		if err := seed.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte(username), 0); err != nil {
+			return err
+		}
+		return seed.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte(passwordHash), 0)
+	})
+	if err != nil {
 		return err
 	}
 	return store.Close()

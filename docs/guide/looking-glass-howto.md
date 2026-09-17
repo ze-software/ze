@@ -22,9 +22,9 @@ Example topology:
 | public HTTP | looking glass | `0.0.0.0:8443` | n/a |
 | local SSH | operator CLI | `127.0.0.1:2222` | n/a |
 
-## 2. Update the active zefs config
+## 2. Update the active stored config
 
-Keep the active configuration in `database.zefs`. The commands below read the current active config, normalize it to set format, append the looking-glass settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
+Keep the active configuration in the `database/` store. The commands below read the current active config, normalize it to set format, append the looking-glass settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
 
 ```bash
 set -euo pipefail
@@ -157,7 +157,7 @@ The looking glass is read-only, but it still publishes topology and routing info
 | Reverse proxy on the same host | `ip 127.0.0.1`, proxy handles TLS and policy |
 | Internal only | bind to a management address and filter at the network edge |
 
-Ze terminates TLS itself unless you set `tls false`. The self-signed certificate needs a zefs blob store to hold it, so create one first with `ze init` (see [Build and install Ze on Ubuntu](ubuntu-build-install.md)). Without a blob store, an explicit `tls true` fails with `looking glass TLS requires blob storage (run ze init first)`, while the default falls back to plaintext and prints a warning naming the same remedy. Set `certificate <name>` to serve a certificate from the `pki {}` store instead: that material needs no blob store, and the listener sends the full chain (see [Looking Glass](looking-glass.md)).
+Ze terminates TLS itself unless you set `tls false`. The self-signed certificate needs the `database/` store to hold it, so create one first with `ze init` (see [Build and install Ze on Ubuntu](ubuntu-build-install.md)). Without a store, an explicit `tls true` fails with `looking glass TLS requires persistent storage (run ze init first)`, while the default falls back to plaintext and prints a warning naming the same remedy. Set `certificate <name>` to serve a certificate from the `pki {}` container instead: that material needs no store, and the listener sends the full chain (see [Looking Glass](looking-glass.md)).
 
 ```text
 environment {

@@ -1,7 +1,7 @@
 // Design: docs/architecture/zefs-format.md -- secure framed-tree integrity and salvage.
 // Related: check.go -- public integrity reports and artifact dispatch.
 
-//go:build linux || darwin
+//go:build linux || darwin || freebsd
 
 package zefs
 
@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,12 +20,14 @@ import (
 
 const frameDirectoryFlags = unix.O_RDONLY | unix.O_DIRECTORY | unix.O_NOFOLLOW | unix.O_CLOEXEC
 
-// openFrameDirectory checks every path component from / without resolving
+// OpenDirectory checks every path component from / without resolving
 // symlinks. The returned descriptor pins the directory for subsequent I/O.
 // The caller MUST close it. Ancestors may be root-owned or caller-owned.
 // Writable shared ancestors require the sticky bit until a caller-private
-// directory prevents outsiders from traversing the remaining path.
-func openFrameDirectory(path string) (*os.File, error) {
+// directory prevents outsiders from traversing the remaining path. With
+// create, a missing component is made 0700 and durably recorded in its parent;
+// an existing component is never altered. Every refusal wraps fs.ErrPermission.
+func OpenDirectory(path string, create bool) (*os.File, error) {
 	absolute := path
 	if !filepath.IsAbs(absolute) {
 		cwd, err := os.Getwd()
@@ -59,27 +62,26 @@ func openFrameDirectory(path string) (*os.File, error) {
 			depth++
 		}
 		name := filepath.Join(current.Name(), part)
-		fd, err := unix.Openat(int(current.Fd()), part, frameDirectoryFlags, 0)
+		next, err := openDirectoryComponent(current, part, name, create)
 		if err != nil {
-			return nil, errors.Join(fmt.Errorf("zefs: open %s: unsafe component %s: %w", path, name, err), current.Close())
+			return nil, errors.Join(err, current.Close())
 		}
-		next := os.NewFile(uintptr(fd), name)
 		if err := current.Close(); err != nil {
 			return nil, errors.Join(err, next.Close())
 		}
 		current = next
 		var stat unix.Stat_t
-		if err := unix.Fstat(fd, &stat); err != nil {
+		if err := unix.Fstat(int(current.Fd()), &stat); err != nil {
 			return nil, errors.Join(err, current.Close())
 		}
 		if stat.Uid != 0 {
 			if stat.Uid != uint32(os.Geteuid()) {
-				return nil, errors.Join(fmt.Errorf("zefs: %s: unsafe ancestor %s owner %d", path, name, stat.Uid), current.Close())
+				return nil, errors.Join(fmt.Errorf("zefs: %s: unsafe ancestor %s owner %d: %w", path, name, stat.Uid, fs.ErrPermission), current.Close())
 			}
 		}
 		if privateDepth < 0 && stat.Mode&0o022 != 0 {
 			if stat.Mode&unix.S_ISVTX == 0 {
-				return nil, errors.Join(fmt.Errorf("zefs: %s: writable ancestor %s mode %#o", path, name, stat.Mode&0o7777), current.Close())
+				return nil, errors.Join(fmt.Errorf("zefs: %s: writable ancestor %s mode %#o: %w", path, name, stat.Mode&0o7777, fs.ErrPermission), current.Close())
 			}
 		}
 		if privateDepth < 0 && stat.Uid == uint32(os.Geteuid()) && stat.Mode&0o077 == 0 {
@@ -89,8 +91,39 @@ func openFrameDirectory(path string) (*os.File, error) {
 	return current, nil
 }
 
+// openDirectoryComponent opens one component beneath parent, creating it 0700
+// when create is set and it is absent. A created component is fsynced with its
+// parent so the name is durable before any descendant is written into it.
+func openDirectoryComponent(parent *os.File, part, name string, create bool) (*os.File, error) {
+	fd, err := unix.Openat(int(parent.Fd()), part, frameDirectoryFlags, 0)
+	created := false
+	if create && errors.Is(err, unix.ENOENT) {
+		mkdirErr := unix.Mkdirat(int(parent.Fd()), part, 0o700)
+		if mkdirErr != nil && !errors.Is(mkdirErr, unix.EEXIST) {
+			return nil, mkdirErr
+		}
+		created = mkdirErr == nil
+		fd, err = unix.Openat(int(parent.Fd()), part, frameDirectoryFlags, 0)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("zefs: open %s: unsafe component %s: %w: %w", parent.Name(), name, err, fs.ErrPermission)
+	}
+	next := os.NewFile(uintptr(fd), name)
+	if !created {
+		return next, nil
+	}
+	// The umask can widen Mkdirat's mode; the descriptor pins the new inode.
+	if err := next.Chmod(0o700); err != nil {
+		return nil, errors.Join(err, next.Close())
+	}
+	if err := errors.Join(next.Sync(), parent.Sync()); err != nil {
+		return nil, errors.Join(err, next.Close())
+	}
+	return next, nil
+}
+
 func walkFrameTree(path string, visit func(string, []byte) error) (retErr error) {
-	root, err := openFrameDirectory(path)
+	root, err := OpenDirectory(path, false)
 	if err != nil {
 		return err
 	}
@@ -180,10 +213,10 @@ func checkFrameNode(file *os.File, directory bool) error {
 		mode = 0o700
 		kind = unix.S_IFDIR
 	}
-	if uint32(stat.Mode)&unix.S_IFMT != kind {
+	if uint32(stat.Mode)&unix.S_IFMT != kind { //nolint:unconvert // Mode is uint16 on darwin and freebsd
 		return fmt.Errorf("zefs: %s: refusing non-regular node mode %#o", file.Name(), stat.Mode)
 	}
-	if uint32(stat.Mode)&0o7777 != mode {
+	if uint32(stat.Mode)&0o7777 != mode { //nolint:unconvert // Mode is uint16 on darwin and freebsd
 		return fmt.Errorf("zefs: %s: mode %#o; run chmod %03o %q", file.Name(), stat.Mode&0o7777, mode, file.Name())
 	}
 	if stat.Uid != uint32(os.Geteuid()) {
@@ -220,7 +253,7 @@ func readFrameFile(file *os.File, size int64) ([]byte, error) {
 }
 
 func repairFrameTree(srcPath, dstPath string) (report *RepairReport, retErr error) {
-	source, err := openFrameDirectory(srcPath)
+	source, err := OpenDirectory(srcPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -228,13 +261,13 @@ func repairFrameTree(srcPath, dstPath string) (report *RepairReport, retErr erro
 	if err := checkFrameNode(source, true); err != nil {
 		return nil, err
 	}
-	// Split preserves intermediate components so openFrameDirectory can reject
+	// Split preserves intermediate components so OpenDirectory can reject
 	// a link even when the following component is "..".
 	parentPath, destination := filepath.Split(dstPath)
 	if destination == "" {
 		return nil, fmt.Errorf("zefs: repair output %s requires a new directory name", dstPath)
 	}
-	parent, err := openFrameDirectory(parentPath)
+	parent, err := OpenDirectory(parentPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +323,7 @@ func repairFrameTree(srcPath, dstPath string) (report *RepairReport, retErr erro
 	if err := stage.Sync(); err != nil {
 		return report, err
 	}
-	if err := renameFrameTree(parent, stageName, destination); err != nil {
+	if err := RenameNoReplace(parent, stageName, destination); err != nil {
 		return report, fmt.Errorf("zefs: publish repaired tree %s: %w", dstPath, err)
 	}
 	if err := parent.Sync(); err != nil {

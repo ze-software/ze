@@ -45,8 +45,8 @@ type Step struct {
 	RestartIndex int // Index into Restarts slice (if Type == StepRestart)
 }
 
-// TestCase represents a parsed .et (Editor Test) file.
-type TestCase struct {
+// testCase represents a parsed .et (Editor Test) file.
+type testCase struct {
 	Tmpfs    []TmpfsBlock    // Embedded files
 	Options  []Option        // Test options
 	Inputs   []InputAction   // User input actions (in order)
@@ -131,8 +131,8 @@ const (
 // multiKeyExpect lists expectation types that use multiple colon-separated key=value pairs.
 // Other types join remaining segments to preserve colons in values.
 var multiKeyExpect = map[string]bool{
-	etFile: true,
-	"key":  true,
+	etFile:       true,
+	inputKindKey: true,
 }
 
 var validActions = map[string]bool{
@@ -146,8 +146,8 @@ var validActions = map[string]bool{
 }
 
 // parseETFile parses an .et (Editor Test) file content.
-func parseETFile(content string) (*TestCase, error) {
-	tc := &TestCase{
+func parseETFile(content string) (*testCase, error) {
+	tc := &testCase{
 		Tmpfs:    make([]TmpfsBlock, 0),
 		Options:  make([]Option, 0),
 		Inputs:   make([]InputAction, 0),
@@ -184,7 +184,7 @@ func parseETFile(content string) (*TestCase, error) {
 }
 
 // parseLine parses a single line, handling multi-line blocks like tmpfs.
-func (tc *TestCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int) error {
+func (tc *testCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int) error {
 	// Split on first = to get action type
 	parts := strings.SplitN(line, "=", 2)
 	if len(parts) != 2 {
@@ -227,7 +227,7 @@ func (tc *TestCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int)
 }
 
 // parseTmpfs parses a tmpfs block with multi-line content.
-func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int) error {
+func (tc *testCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int) error {
 	// Parse header: path[:mode=xxx]:terminator=TERM
 	block := TmpfsBlock{}
 
@@ -287,7 +287,7 @@ func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 }
 
 // parseOption parses an option line.
-func (tc *TestCase) parseOption(rest string) error {
+func (tc *testCase) parseOption(rest string) error {
 	opt := Option{
 		Values: make(map[string]string),
 	}
@@ -316,14 +316,14 @@ func (tc *TestCase) parseOption(rest string) error {
 }
 
 // parseInput parses an input action line.
-func (tc *TestCase) parseInput(rest string) error {
+func (tc *testCase) parseInput(rest string) error {
 	inp := InputAction{
 		Values: make(map[string]string),
 	}
 
 	// Check for shorthand keys (e.g., input=tab, input=enter)
 	if shorthandKeys[rest] {
-		inp.Action = "key"
+		inp.Action = inputKindKey
 		inp.Values["name"] = rest
 		tc.Inputs = append(tc.Inputs, inp)
 		tc.Steps = append(tc.Steps, Step{Type: StepInput, InputIndex: len(tc.Inputs) - 1})
@@ -365,7 +365,7 @@ func (tc *TestCase) parseInput(rest string) error {
 }
 
 // parseExpect parses an expectation line.
-func (tc *TestCase) parseExpect(rest string) error {
+func (tc *testCase) parseExpect(rest string) error {
 	exp := Expectation{
 		Values: make(map[string]string),
 	}
@@ -409,7 +409,7 @@ func (tc *TestCase) parseExpect(rest string) error {
 }
 
 // parseWait parses a wait action line.
-func (tc *TestCase) parseWait(rest string) error {
+func (tc *testCase) parseWait(rest string) error {
 	w := WaitAction{
 		Values: make(map[string]string),
 	}
@@ -441,7 +441,7 @@ func (tc *TestCase) parseWait(rest string) error {
 
 // parseSession parses a session creation or switch directive.
 // Format: session=name:user=X,origin=Y (create) or session=name (switch).
-func (tc *TestCase) parseSession(rest string) error {
+func (tc *testCase) parseSession(rest string) error {
 	// Split name from params: "alice:user=alice,origin=ssh" or just "alice"
 	parts := strings.SplitN(rest, ":", 2)
 	name := parts[0]
@@ -487,7 +487,7 @@ func (tc *TestCase) parseSession(rest string) error {
 // parseRestart adds a restart marker to the step sequence.
 // Restart recreates the headless model from the same config, simulating exit + relaunch.
 // History backed by the shared tree store survives restarts.
-func (tc *TestCase) parseRestart(rest string) error {
+func (tc *testCase) parseRestart(rest string) error {
 	if rest != "" && rest != "editor" {
 		return fmt.Errorf("restart accepts no value or 'editor', got %q", rest)
 	}

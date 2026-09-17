@@ -12,7 +12,10 @@ package hub
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -29,6 +32,7 @@ import (
 	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // buildSessionModelFactory creates a SessionModelFactory that produces bubbletea
@@ -79,7 +83,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		if configPath != "" && configPath != "-" && params.Store != nil {
 			ed, err := newSessionEditor(params.Store, configPath, username, sessionOriginSSH, commitReload)
 			if err != nil {
-				if request.Mode == "edit" {
+				if request.Mode == sshclient.CLIModeEdit {
 					return nil, err
 				}
 				log.Warn("session editor creation failed", "user", username, "error", err)
@@ -87,7 +91,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityUnknown)
 				if modelErr != nil {
 					log.Warn("session model creation failed", "user", username, "error", modelErr)
-					if request.Mode == "edit" {
+					if request.Mode == sshclient.CLIModeEdit {
 						return nil, modelErr
 					}
 				} else {
@@ -98,6 +102,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 						m.SetCommandExecutor(cliExecutor(executor))
 						injectViewFactories(&m, executor)
 					}
+					m.SetTranscript(sessionTranscript(username, remoteAddr))
 					monitorFn := srv.MonitorFactoryFunc()
 					if monitorFn != nil {
 						m.SetMonitorFactory(monitorFn)
@@ -111,14 +116,14 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 						m.SetRestartFunc(restartFn)
 					}
 					m.SetLoginWarnings(cliWarnings)
-					if request.Mode == "command" {
+					if request.Mode == sshclient.CLIModeCommand {
 						m.SetMode(cli.ModeOperational)
 					}
 					return m, nil
 				}
 			}
 		}
-		if request.Mode == "edit" {
+		if request.Mode == sshclient.CLIModeEdit {
 			return nil, fmt.Errorf("configuration editing unavailable: no persistent configuration source")
 		}
 
@@ -132,6 +137,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 			m.SetCommandExecutor(cliExecutor(executor))
 			injectViewFactories(&m, executor)
 		}
+		m.SetTranscript(sessionTranscript(username, remoteAddr))
 		monitorFn := srv.MonitorFactoryFunc()
 		if monitorFn != nil {
 			m.SetMonitorFactory(monitorFn)
@@ -150,6 +156,23 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 }
 
 // buildCommandTree builds a command.Node tree from YANG command modules.
+// transcriptSequence numbers the daemon's transcript files, so two sessions
+// opened in the same second land in two files.
+var transcriptSequence atomic.Uint64
+
+// sessionTranscript opens the transcript for one interactive session when
+// `environment { cli { transcript enabled } }` is set. The daemon owns the
+// session's model (docs/guide/config-editor.md), so the file lives in the
+// daemon's `$XDG_DATA_HOME/ze/transcripts/`, and the model's Close releases
+// it when the session ends. The file name carries the daemon pid and the
+// sequence number only: the username is authenticated, not sanitized (RADIUS
+// and TACACS+ hand it back as sent), so it stays inside the header and never
+// chooses a path. A nil writer records nothing.
+func sessionTranscript(username, remoteAddr string) *cli.TranscriptWriter {
+	tag := strconv.Itoa(os.Getpid()) + "-" + strconv.FormatUint(transcriptSequence.Add(1), 10)
+	return cli.NewTranscriptWriter(cli.OpenTranscriptFile(tag), username, remoteAddr)
+}
+
 func buildCommandTree() *command.Node {
 	loader, _ := yang.DefaultLoader()
 	tree := yang.BuildCommandTree(loader)

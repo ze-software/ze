@@ -252,7 +252,7 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 // Caller MUST call broker.Close() during shutdown to release SSE clients.
 // Every entry in listenAddrs becomes a bound listener on the same
 // *http.Server; Shutdown closes all of them.
-// Requires blob storage -- TLS keys and config must not leak to the filesystem.
+// Requires the store: TLS keys and config must not leak to loose files.
 // localUsersLive reads the accepted local identity generation shared with AAA,
 // SSH, REST, and gRPC. The ConfigProvider may hold a rejectable reload candidate,
 // so the web session path must not read it directly.

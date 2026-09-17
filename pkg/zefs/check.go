@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-const entryStatusParseError = "parse-error"
+const (
+	entryStatusParseError = "parse-error"
+	entryErrorInvalidKey  = "invalid key"
+)
 
 // EntryStatus describes the integrity state of a single store entry.
 type EntryStatus struct {
@@ -143,11 +146,11 @@ func Check(path string) (*CheckReport, error) {
 		}
 		if !fs.ValidPath(status.Key) {
 			status.Status = entryStatusParseError
-			status.Error = "invalid key"
+			status.Error = entryErrorInvalidKey
 		}
 		if status.Key == "." {
 			status.Status = entryStatusParseError
-			status.Error = "invalid key"
+			status.Error = entryErrorInvalidKey
 		}
 		report.Entries = append(report.Entries, status)
 		if status.Status == "ok" {
@@ -256,7 +259,7 @@ func Repair(srcPath, dstPath string) (report *RepairReport, retErr error) {
 			report.Skipped = append(report.Skipped, EntryStatus{
 				Key:    key,
 				Status: entryStatusParseError,
-				Error:  "invalid key",
+				Error:  entryErrorInvalidKey,
 			})
 			report.SkippedCount++
 			continue

@@ -9,7 +9,7 @@ tmpfs=decode-hex.form:encoding=base64:terminator=EOF_HEX
 aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAyRjAyMDAwMDAwMTg0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
 EOF_HEX
 
-# Web-only mode requires blob storage: the silent bare-`--web` web-only fallback
+# Web-only mode requires the store: the silent bare-`--web` web-only fallback
 # was removed in 7323da866 (add --web-only flag), so seed storage with `ze init`,
 # then start the standalone web UI. This still exercises the in-process BGP
 # decode path with no daemon, exactly as AC-8 intends.

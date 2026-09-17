@@ -1899,6 +1899,7 @@ are durable. An existing tree or blob refuses initialization.
 ze init                          # Interactive setup
 ze init --managed                # Fleet mode
 ze init --force --yes             # Replace an unowned store with a backup
+ze init --from database.zefs      # Import a local blob into the live store
 ```
 
 Input fields are username, password, host, port, and instance name.
@@ -1913,10 +1914,11 @@ Normal initialization discovers interfaces and stores their initial config.
 | `--web-cert <address>` | Generate a web TLS certificate |
 | `--web-cert-name <name>` | Add a DNS name to that certificate |
 | `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
+| `--from <blob>` | Import a local blob into the live store and retire it as `.replaced-<stamp>`; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store |
 
 Replacement refuses a live store owner, regardless of the selected SSH target.
 Run maintenance as the store owner, including when you have root access.
-<!-- source: internal/plugins/init/main.go -- Run, runInit, defaultHost, defaultPort -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, defaultHost, defaultPort -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- EmitConfig -->
 
@@ -2039,14 +2041,17 @@ The password for a non-super-admin user must come from `ze.ssh.password`
 (env) or an interactive prompt. There is intentionally no `--password`
 flag (passwords in argv leak into shell history and `ps`).
 
-The zefs store is one source among these, not a prerequisite. It is created
-`0600` and owned by whoever installed ze, so an operator who cannot read it can
-still log in by naming themselves with `--user` and supplying `ze.ssh.password`:
+The `database/` store is one source among these, not a prerequisite. Its
+directories are created `0700` and its frames `0600`, all owned by whoever
+installed ze, so an operator who cannot read it can still log in by naming themselves with `--user` and supplying `ze.ssh.password`:
 resolution falls back to the built-in `127.0.0.1:2222` target. Set `ze.ssh.host`
 and `ze.ssh.port` (or pass `--remote`) if the daemon listens elsewhere, because
 the `meta/ssh/default` pointer lives in the store and cannot be read either.
 With no username from flag or env and no readable store, the CLI fails and names
-`--user` and `ze.ssh.password` rather than guessing an identity.
+`--user` and `ze.ssh.password` rather than guessing an identity. A store that
+exists but is unsafe (a `database` that is not a directory, a loose mode) is not
+"unreadable": the CLI refuses with the path and the repair, because that is a
+defect to fix, not a lack of access.
 <!-- source: internal/core/ssh/client/client.go -- readCredentials, openStoreIfReadable -->
 
 See [authentication.md](authentication.md) for the full multi-user workflow.

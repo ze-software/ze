@@ -67,7 +67,7 @@ func TestMountInjectDBPreservesConvertedStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bakedSeedPresent(tree) {
-		t.Fatal("converted store was not recognised")
+		t.Fatal("converted store was not recognized")
 	}
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

@@ -394,7 +394,7 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, and `bpf`; an unavailable capability produces a visible skip. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le qemu netns-test` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
@@ -412,6 +412,7 @@ option=<type>:key=value[:key=value...]
 | The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
 | The same, and opens a raw or packet socket (`resolve ping`, traceroute) | `option=needs-linux:caps=net-raw` |
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
+| The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
 | Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
 | Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
 

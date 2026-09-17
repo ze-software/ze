@@ -60,10 +60,7 @@ var pmtuIfIndex int
 func pmtuLink(t *testing.T) {
 	t.Helper()
 	const name = "zepmtu0"
-	link := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: name},
-		PeerName:  name + "p",
-	}
+	link := &netlink.Veth{Name: name, PeerName: name + "p"}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Skipf("creating the veth pair needs CAP_NET_ADMIN: %v", err)
 	}
@@ -199,7 +196,7 @@ func xfrmStat(t *testing.T, name string) uint64 {
 	if err != nil {
 		t.Skipf("/proc/net/xfrm_stat needs CONFIG_XFRM_STATISTICS: %v", err)
 	}
-	for _, line := range strings.Split(string(raw), "\n") {
+	for line := range strings.SplitSeq(string(raw), "\n") {
 		field, value, found := strings.Cut(line, "\t")
 		if !found || strings.TrimSpace(field) != name {
 			continue

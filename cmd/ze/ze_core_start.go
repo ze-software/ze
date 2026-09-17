@@ -252,7 +252,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 	}
 
-	// Check managed mode: meta/instance/managed=true in blob.
+	// Check managed mode: meta/instance/managed=true in the store.
 	if isManaged(store) {
 		return cmdStartManaged(store, plugins, chaosSeed, chaosRate)
 	}
@@ -293,7 +293,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	})
 }
 
-// isManaged returns true if the blob has meta/instance/managed=true.
+// isManaged returns true if the store has meta/instance/managed=true.
 func isManaged(store storage.Storage) bool {
 	data, err := store.ReadFile(zefs.KeyInstanceManaged.Pattern)
 	if err != nil {
@@ -358,7 +358,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	})
 }
 
-// extractManagedClientConfig reads config from blob and extracts the hub client block.
+// extractManagedClientConfig reads config from the store and extracts the hub client block.
 func extractManagedClientConfig(store storage.Storage, configName string) *managed.ClientConfig {
 	data, err := store.ReadFile(configName)
 	if err != nil {

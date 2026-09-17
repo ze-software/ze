@@ -1,0 +1,43 @@
+# Test: the web UI logs in, shows a config diff, and commits on a tree daemon
+# VALIDATES: spec-storage-1-backend-parity AC-17 (web arm) -- the runner seeds
+#            the daemon's ONLY store as a tree under ze.config.dir
+#            (internal/test/cli/cmd_web.go zeTestSeedWebUsers, storage.CreatePopulated),
+#            so the login reads meta/auth/local/* from the tree, the review modal
+#            renders the pending diff, and Confirm Commit writes the committed
+#            config into the tree. No blob and no ze.storage.blob pin exist.
+# PREVENTS: a web daemon that starts on a tree but cannot authenticate, diff,
+#           or commit against it.
+
+option=timeout:value=30s
+option=auth:user=admin:password=ze-web-admin:role=admin
+
+action=login:user=admin:password=ze-web-admin
+
+action=open:path=/show/system/identity/
+expect=element:id=workbench-shell
+expect=element:id=field-hostname
+
+action=fill:id=field-hostname:value=web-host-tree
+action=click:id=workbench-form-save
+action=wait
+expect=element:text=Review & Commit
+
+# Review swaps the open diff modal in over the page; both assertions poll the
+# DOM until that swap lands.
+action=click:id=commit-review-btn
+expect=html:contains=diff-modal open
+expect=html:contains=system host web-host-tree
+
+# A successful commit swaps the closed modal in. The absence assertion does not
+# poll, so the in-flight POST drains first. wait-until then navigates the tab to
+# the server's own pending-change count, which is the proof that the commit
+# landed rather than the change being dropped.
+action=click:text=Confirm Commit
+action=wait
+expect=html:not-contains=diff-modal open
+action=wait-until:path=/config/diff:contains=Review changes (0)
+
+# The committed value is served back from the tree on a fresh page load.
+action=open:path=/show/system/identity/
+expect=element:id=field-hostname
+expect=html:contains=web-host-tree

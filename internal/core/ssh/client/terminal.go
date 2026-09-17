@@ -91,8 +91,8 @@ func RunInteractive(creds Credentials, configName string, commandMode bool) erro
 			case <-changes:
 				width, height, err := term.GetSize(fd)
 				if err == nil {
-					session.WindowChange(height, width)
-				} //nolint:errcheck // A disconnected session is reported by Wait.
+					session.WindowChange(height, width) //nolint:errcheck // A disconnected session is reported by Wait.
+				}
 			}
 		}
 	}()

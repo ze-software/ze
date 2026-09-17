@@ -569,10 +569,10 @@ so the plaintext base64 form never reaches the config file on disk. Public
 keys are public and stored plaintext.
 
 **`$9$` is JunOS-compatible obfuscation, not encryption.** Anyone with
-read access to the config file (or the zefs blob, depending on storage
-backend) can trivially recover the plaintext key via `secret.Decode`. The
-protection is on the filesystem layer: `chmod 600 /etc/ze/ze.conf` (or the
-equivalent on the `.zefs` blob). This is the same posture ze uses for BGP
+read access to the config file (or the `database/` store) can trivially
+recover the plaintext key via `secret.Decode`. The protection is on the
+filesystem layer: `chmod 600 /etc/ze/ze.conf` (the store's tree is 0700 and
+its files 0600, see [storage-backends.md](../architecture/storage-backends.md)). This is the same posture ze uses for BGP
 MD5 passwords, SSH secrets, MCP tokens, and API tokens.
 
 <!-- source: internal/component/config/secret/secret.go -- Encode, Decode, IsEncoded ($9$ implementation) -->

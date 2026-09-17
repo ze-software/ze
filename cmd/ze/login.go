@@ -3,7 +3,9 @@
 // Gokrazy serial console authentication. When ze is invoked with argv[0]
 // basename "ash" or "sh" (via /tmp/serial-busybox/ash symlink), this handler
 // prompts for credentials before exec'ing into the real shell binary.
-// Fail-open when storage is unavailable: serial is the last-resort recovery path.
+// Fail closed when the store or the credentials cannot be read (owner decision,
+// 2026-09-17): the error is named on stderr and no shell is started. The
+// appliance seeds the credentials at install, so an unreadable store is a fault.
 
 //go:build ze_core
 
@@ -11,7 +13,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -55,26 +59,41 @@ func loginMain() int {
 
 	db, err := storage.OpenReadOnly(dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cannot open store folder %s: %v (granting access without authentication)\n", dir, err) //nolint:errcheck // serial console output
-		return execShellFn()
+		fmt.Fprintf(os.Stderr, "login refused: cannot open store folder %s: %v\n", dir, err) //nolint:errcheck // serial console output
+		return 1
 	}
 	defer db.Close() //nolint:errcheck // read-only access
 
-	if disabled, disErr := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern); disErr == nil && string(disabled) == booleanTextTrue {
+	// Only an absent flag means "not disabled". A corrupt or unreadable flag is
+	// refused by name: reading it as "not disabled" would let a disabled admin in.
+	disabled, err := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		fmt.Fprintf(os.Stderr, "login refused: cannot read the local admin status: %v\n", err) //nolint:errcheck // serial console output
+		return 1
+	}
+	if string(disabled) == booleanTextTrue {
 		fmt.Fprintln(os.Stderr, "local admin login disabled") //nolint:errcheck // serial console output
 		return 1
 	}
 
 	username, err := db.ReadFile(zefs.KeyLocalAdminUsername.Pattern)
-	if err != nil || len(username) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: local admin credentials not configured (granting access without authentication)\n") //nolint:errcheck // serial console output
-		return execShellFn()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "login refused: cannot read the local admin username: %v\n", err) //nolint:errcheck // serial console output
+		return 1
+	}
+	if len(username) == 0 {
+		fmt.Fprintln(os.Stderr, "login refused: local admin username is empty") //nolint:errcheck // serial console output
+		return 1
 	}
 
 	hash, err := db.ReadFile(zefs.KeyLocalAdminPassword.Pattern)
-	if err != nil || len(hash) == 0 {
-		fmt.Fprintf(os.Stderr, "warning: local admin password not configured (granting access without authentication)\n") //nolint:errcheck // serial console output
-		return execShellFn()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "login refused: cannot read the local admin password: %v\n", err) //nolint:errcheck // serial console output
+		return 1
+	}
+	if len(hash) == 0 {
+		fmt.Fprintln(os.Stderr, "login refused: local admin password is empty") //nolint:errcheck // serial console output
+		return 1
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)

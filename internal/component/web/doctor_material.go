@@ -65,12 +65,14 @@ func checkWebTLSMaterial(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 // webTLSMaterialDiagnostics is the store half of the check, so a test can hand
 // it a store without a config tree.
 func webTLSMaterialDiagnostics(store storage.Storage) []diagnostic.Diagnostic {
+	// A run with no store refuses this feature by name in one warning. The
+	// storage diagnostic above it already carries the severity of the absence.
 	if store == nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorTLSInvalid,
-			Severity: diagnostic.SeverityError,
-			Message:  "web: cannot read the stored TLS pair: this doctor run resolved no storage",
-			Help:     "check the storage diagnostics reported above this one",
+			Code:     diagnostic.CodeDoctorStorageUnavailable,
+			Severity: diagnostic.SeverityWarning,
+			Message:  "web TLS pair: refused, this doctor run resolved no storage",
+			Help:     "check the storage diagnostic reported above this one",
 		}}
 	}
 

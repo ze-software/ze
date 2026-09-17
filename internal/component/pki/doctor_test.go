@@ -9,6 +9,7 @@ package pki
 import (
 	"io/fs"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,9 +147,17 @@ func TestCARootDoctorCheck(t *testing.T) {
 	})
 
 	t.Run("no store", func(t *testing.T) {
+		// VALIDATES: AC-24, a run with no store refuses the CA root by name in
+		// one warning; the run's exit is decided by the storage diagnostic.
 		diag := caRootDiagnostic(t, nil)
-		if diag.Code != diagnostic.CodeDoctorTLSInvalid {
-			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorTLSInvalid)
+		if diag.Code != diagnostic.CodeDoctorStorageUnavailable {
+			t.Fatalf("code = %q, want %q", diag.Code, diagnostic.CodeDoctorStorageUnavailable)
+		}
+		if diag.Severity != diagnostic.SeverityWarning {
+			t.Fatalf("severity = %q, want warning", diag.Severity)
+		}
+		if !strings.Contains(diag.Message, "certificate authority root") {
+			t.Fatalf("message = %q, want the feature named", diag.Message)
 		}
 	})
 }

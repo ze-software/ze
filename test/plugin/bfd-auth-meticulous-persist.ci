@@ -1,18 +1,18 @@
 # Test: BFD plugin persists a Meticulous SHA1 TX sequence across a process
-# restart via the shared zefs state store (database.zefs).
+# restart via the shared state store (the database/ tree).
 #
 # VALIDATES: spec-bfd-5 AC-7 -- the SeqPersister writes the last-sent sequence to
 #            the managed state store and a fresh ze process resumes from that
 #            floor so the peer does not reject our packets as replays. Since the
 #            zefs-persistence migration the sequence lives in
-#            {ze.config.dir}/database.zefs (via internal/core/statestore), not a
+#            {ze.config.dir}/database/ (via internal/core/statestore), not a
 #            loose <session>.seq file; persist-dir is a vestigial opt-in flag.
 # PREVENTS:  a regression where the persister drops the pending flush, writes
 #            nowhere on the filesystem/CLI path (statestore not registered there),
 #            or fails to restore the sequence on restart.
 #
 # Method: a native Go fixture launches ze twice over the SAME ze.config.dir, so
-# both runs share one database.zefs. The first run creates a Meticulous session
+# both runs share one database/ tree. The first run creates a Meticulous session
 # and waits until a sequence has actually reached the store. It then SIGTERMs
 # cleanly (Close flushes the sequence). The second run restores the persisted
 # sequence -- the engine logs "bfd auth sequence restored ... seq=N" (N>0), the
@@ -24,7 +24,7 @@
 # (ai/rules/fix-dont-record.md) and both failed under load:
 #   * the 6.0s run expired before startup finished, giving
 #     "FAIL: first run did not reach 'bfd plugin running'";
-#   * the 5.0s SIGKILL cut database.zefs mid-flush. zefs updates an entry in
+#   * the 5.0s SIGKILL cut the store mid-flush. The old blob updated an entry in
 #     place with one pwrite for the data and a second for the container CRC
 #     (pkg/zefs/store.go flushInPlace), so a kill between them leaves the CRC
 #     disagreeing with the data. That is the accepted, documented consequence of
@@ -34,7 +34,7 @@
 #     this test asserts. ze is therefore never SIGKILLed on a passing path.
 #
 # // the pre-migration assertion read a <session>.seq file; that file
-# no longer exists (the sequence persists to database.zefs via statestore). The
+# no longer exists (the sequence persists to the database/ tree via statestore). The
 # load-bearing check is unchanged in intent -- the sequence must survive a restart
 # -- and is now observed through the engine's restored-sequence debug log.
 

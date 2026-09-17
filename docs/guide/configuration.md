@@ -3136,12 +3136,17 @@ The `cli { format { default } }` leaf controls the output format when no explici
 pipe operator is specified. The default is `text`. Override per-session with
 `set cli format <value>` in operational mode; explicit pipe operators always win.
 
-The `cli { transcript }` leaf enables local transcript recording. When set to
+The `cli { transcript }` leaf enables transcript recording. When set to
 `enabled`, `ze cli` and `ze config edit` sessions write all commands and their
 output to `$XDG_DATA_HOME/ze/transcripts/` (defaults to
-`~/.local/share/ze/transcripts/`). Transcripts include a header with
-timestamp, username, and remote host. Transcript writes are best-effort and
-never block CLI operation. Default is `disabled`.
+`~/.local/share/ze/transcripts/`). The process that runs the session's model
+writes the file: the daemon, for a session on a stored configuration (the
+daemon owns the editor, `docs/guide/config-editor.md`), so the file is on the
+daemon host, one per session, named `transcript-<stamp>-<pid>-<n>.log`; the
+client, for `ze cli -c <command>` and for a loose-file `ze config edit`, named
+`transcript-<stamp>-<pid>.log`. Transcripts include a header with timestamp,
+username, and remote host. Transcript writes are best-effort and never block
+CLI operation. Default is `disabled`.
 
 The `mtu { reference-address }` leaf names the address `show mtu` measures
 beside the IPsec peers. A reference outside the tunnels is what tells a clamped
@@ -3154,7 +3159,7 @@ and the default is `1.1.1.1`. The environment variable
 <!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
-<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, OpenTranscriptFile -->
 
 ### TLS Certificates From the PKI Store
 
@@ -3215,7 +3220,7 @@ no intermediate serves the leaf alone.
 | Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener and the looking glass serve the new chain from the next handshake without rebinding, so an open SSE stream and a viewer's open connection both survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
 | One commit | A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config. |
 | Env override | `ze.web.certificate` and `ze.looking-glass.certificate` set their listener's certificate and take precedence over the config file. |
-| Blob storage | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. Its blob store holds the self-signed certificate only. The web server needs blob storage whatever it serves, because its credentials and config live there. |
+| Store | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. The `database/` store holds the self-signed certificate only. The web server needs the store whatever it serves, because its credentials and config live there. |
 | Pre-flight | `ze doctor` reports a reference that is missing, keyless, expired, or whose intermediate does not reach a configured CA, as `doctor-tls-reference` or `doctor-tls-expired`. Run it before deploying. |
 
 An external geodns plugin process cannot read the in-process store: a
@@ -3469,8 +3474,11 @@ scratch directory is:
 ZE_STORAGE_CLOCK_TEST=1 ze-test fixture storage/consumer-restart ntp
 ```
 
-The fixture refuses to run without that opt-in. It is deliberately absent from
-ordinary functional suite discovery.
+The fixture refuses to run without that opt-in. Its suite carrier,
+`test/plugin/storage-ntp-restart.ci`, passes the opt-in and is gated
+`option=needs-linux:caps=sys-time`: a process without `CAP_SYS_TIME` skips it,
+so an unprivileged developer host keeps its clock and the QEMU guest
+(`./le qemu all-tests`) runs it.
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->

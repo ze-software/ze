@@ -49,6 +49,7 @@ var knownModelFields = map[string]bool{
 	"activeView": true, "viewFactories": true,
 	"loginWarnings": true,
 	"auditRecorder": true, "auditSurface": true, "auditUsername": true, "auditRemoteAddr": true,
+	"transcript":   true,
 	"shutdownFunc": true, "restartFunc": true,
 	"confirmStop": true, "confirmRestart": true,
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/managed"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
@@ -24,7 +25,7 @@ func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
 
 	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
 	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, activeStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 
 	client := &managed.ClientConfig{}
 	wireManagedCommit(client, store, configPath, func() error {
@@ -40,13 +41,11 @@ func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
 	require.NoError(t, client.OnCommit([]byte("new")))
 	assert.True(t, reloadCalled)
 
-	rollback, ok, err := storage.ReadPointer(store, configPath, storage.PointerRollback)
-	require.NoError(t, err)
+	rollback, ok := configPointer(t, store, configPath, zefs.KeyConfigRollback)
 	require.True(t, ok)
 	assert.Equal(t, activeStamp, rollback)
 
-	_, ok, err = storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok = configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 
 	activeData, err := storage.ReadActiveConfig(store, configPath)
@@ -62,7 +61,7 @@ func TestWireManagedCommitClearsCandidateOnReloadFailure(t *testing.T) {
 
 	require.NoError(t, store.WriteFile(configPath, []byte("old"), 0o600))
 	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseManagedStamp(t, activeStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, activeStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 
 	client := &managed.ClientConfig{}
 	wireManagedCommit(client, store, configPath, func() error {
@@ -73,19 +72,16 @@ func TestWireManagedCommitClearsCandidateOnReloadFailure(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "verify rejected")
 
-	active, ok, err := storage.ReadPointer(store, configPath, storage.PointerActive)
-	require.NoError(t, err)
+	active, ok := configPointer(t, store, configPath, zefs.KeyConfigActive)
 	require.True(t, ok)
 	assert.Equal(t, activeStamp, active)
 
-	_, ok, err = storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok = configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 }
 
 func mustParseManagedStamp(t *testing.T, stamp string) time.Time {
 	t.Helper()
-	parsed, err := storage.ParseVersionStamp(stamp)
-	require.NoError(t, err)
+	parsed := mustParseReloadStamp(t, stamp)
 	return parsed
 }

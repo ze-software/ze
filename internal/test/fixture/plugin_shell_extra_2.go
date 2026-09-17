@@ -168,11 +168,14 @@ func pluginShellExtra2AuthzRecoveryAdmin(ctx context.Context, args []string) err
 	if err := pluginShellExtra2WriteReady(); err != nil {
 		return err
 	}
-	shared, err := os.MkdirTemp("", "authz-recovery-admin-")
+	// The daemon opens the store beside the config file it starts
+	// (resolve.StoreDir, storage-1 AC-11), whatever ze.config.dir says, so the
+	// credentials are seeded there: init in the working directory the
+	// config lives in, and point the client at the same folder.
+	shared, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(shared) //nolint:errcheck // fixture cleanup
 
 	initResult := pluginShellExtra2Run(ctx, map[string]string{envConfigDir: shared}, "admin\nrecoverypass\n127.0.0.1\n2222\n\n", "init")
 	if initResult.err != nil {

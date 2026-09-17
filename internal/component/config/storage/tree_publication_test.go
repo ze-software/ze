@@ -116,10 +116,10 @@ func TestTreeDirectoryBarrierFailureDoesNotPublishCandidate(t *testing.T) {
 			require.ErrorIs(t, err, failure)
 			require.True(t, failed, "the selected durability barrier must be reached")
 			assert.Empty(t, observed)
-			_, present, err := ReadPointer(s, "router.conf", PointerCandidate)
+			_, present, err := readPointer(s, "router.conf", pointerCandidate)
 			require.NoError(t, err)
 			assert.False(t, present, "a failed version barrier must never be followed by a candidate pointer")
-			active, present, err := ReadPointer(s, "router.conf", PointerActive)
+			active, present, err := readPointer(s, "router.conf", pointerActive)
 			require.NoError(t, err)
 			require.True(t, present)
 			assert.Equal(t, oldStamp, active)
@@ -179,7 +179,9 @@ func TestTreePublicationRetainsRenamedParent(t *testing.T) {
 			failure := errors.New("population failed")
 			var stageName string
 			s, err := populateOwned(folder, owner, func(s Storage) error {
-				stageName = filepath.Base(s.(*store).tree.root.Name())
+				staged, ok := s.(*store)
+				require.True(t, ok)
+				stageName = filepath.Base(staged.tree.root.Name())
 				require.NoError(t, os.Mkdir(filepath.Join(dir, stageName), 0o700))
 				require.NoError(t, os.WriteFile(filepath.Join(dir, stageName, "unrelated"), []byte("retain stage"), 0o600))
 				if err := s.WriteKey("meta/test/key", []byte("owned")); err != nil {
@@ -232,7 +234,7 @@ func TestImportPublicationRetainsRenamedParent(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "database"), 0o700))
 	decoy := filepath.Join(dir, "database", "unrelated")
 	require.NoError(t, os.WriteFile(decoy, []byte("retain"), 0o600))
-	s, err := importOwned(source, folder, owner)
+	s, err := importOwned(source, folder, owner, false)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.Close()) })
 	assertImportValues(t, s, values)
@@ -268,7 +270,9 @@ func TestFailedFrameCleanupRetainsRenamedParent(t *testing.T) {
 	s := newTreeStorage(t, dir)
 	failure := errors.New("frame sync failed")
 	var stageName string
-	s.(*store).tree.sync = func(file *os.File) error {
+	concrete, ok := s.(*store)
+	require.True(t, ok)
+	concrete.tree.sync = func(file *os.File) error {
 		if !strings.HasPrefix(filepath.Base(file.Name()), ".ze-storage-") {
 			return file.Sync()
 		}

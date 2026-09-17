@@ -936,7 +936,7 @@ func TestCommitReloadFailsGracefully(t *testing.T) {
 	assert.True(t, ed.Dirty(), "editor should remain dirty after rejected commit")
 	assert.Contains(t, result.statusMessage, "commit failed")
 	assert.Contains(t, result.statusMessage, "connection refused")
-	_, ok, pointerErr := storage.ReadPointer(ed.store, ed.originalPath, storage.PointerCandidate)
+	_, _, ok, pointerErr := storage.ReadCandidateConfig(ed.store, ed.originalPath)
 	require.NoError(t, pointerErr)
 	assert.False(t, ok, "failed commit should clear local candidate pointer")
 }
@@ -1950,7 +1950,7 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	assert.True(t, ed.Dirty(), "editor should remain dirty after rejected session commit")
 	assert.Contains(t, result.statusMessage, "commit failed")
 	assert.Contains(t, result.statusMessage, "connection refused")
-	_, ok, pointerErr := storage.ReadPointer(ed.store, ed.originalPath, storage.PointerCandidate)
+	_, _, ok, pointerErr := storage.ReadCandidateConfig(ed.store, ed.originalPath)
 	require.NoError(t, pointerErr)
 	assert.False(t, ok, "failed session commit should clear local candidate pointer")
 	assert.NotEmpty(t, ed.PendingChanges(session.ID), "session changes should remain pending after rejection")

@@ -118,16 +118,24 @@ func TestWebServerUsesTheCallersCredentialsWhenZefsIsUnreadable(t *testing.T) {
 // this site is the only producer left. At Debug a daemon with no api-server
 // block and an unreadable database says nothing at all, and the operator meets
 // the fault at the login prompt with no diagnostic anywhere.
-func TestBootPowerUsersSaysSoWhenZefsIsUnreadable(t *testing.T) {
-	// No database.zefs in this directory, so the read fails.
-	setAPIConfigDir(t, t.TempDir())
+//
+// An absent username is "no power user" and stays silent (usersFromStore), so
+// the failure here is a username whose password hash is missing: the short read
+// the producer keeps loud.
+func TestBootPowerUsersWarnsWhenUsernameHasNoHash(t *testing.T) {
+	dir := t.TempDir()
+	db, err := storage.Create(dir)
+	require.NoError(t, err, "create zefs database")
+	require.NoError(t, db.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0))
+	t.Cleanup(func() { _ = db.Close() })
+	setAPIConfigDir(t, dir)
 
 	var out bytes.Buffer
 	// slog.LevelWarn is what slogutil.Logger installs when no ze.log.* env var
 	// selects otherwise, so this handler drops exactly what the daemon drops.
 	log := slog.New(slog.NewTextHandler(&out, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	users := bootPowerUsers(newTestStore(t), log)
+	users := bootPowerUsers(db, log)
 
 	assert.Empty(t, users, "an unreadable database declares no power user")
 	assert.Contains(t, out.String(), "zefs power user unavailable",

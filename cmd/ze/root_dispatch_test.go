@@ -74,9 +74,6 @@ func TestRootDispatchPassesRuntimeContext(t *testing.T) {
 	}
 	rctx := newZeRuntimeContext()
 
-	if rctx.ResolveStorage == nil {
-		t.Error("ResolveStorage not wired")
-	}
 	if rctx.PrintVersion == nil {
 		t.Error("PrintVersion not wired")
 	}

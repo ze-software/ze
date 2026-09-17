@@ -13,6 +13,6 @@ func init() {
 		ShortHelp: "Initialize a live store or appliance seed with SSH credentials",
 		Mode:      "setup",
 		Section:   registry.SectionSystem,
-		Subs:      "--managed --force --yes --web-cert <address> --web-cert-name <name> --seed",
+		Subs:      "--managed --force --yes --web-cert <address> --web-cert-name <name> --seed --from <blob>",
 	})
 }

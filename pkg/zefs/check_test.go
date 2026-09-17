@@ -1,6 +1,7 @@
 package zefs
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -371,7 +372,7 @@ func TestCheckContainerFailureNamesKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	at := strings.Index(string(raw), "damage-this")
+	at := bytes.Index(raw, []byte("damage-this"))
 	if at < 0 {
 		t.Fatal("fixture payload missing")
 	}
@@ -447,7 +448,7 @@ func TestCheckUnknownKeyOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	at := strings.Index(string(raw), "bad-name")
+	at := bytes.Index(raw, []byte("bad-name"))
 	if at < 0 {
 		t.Fatal("fixture key missing")
 	}
@@ -526,7 +527,7 @@ func TestRepairRefusesExistingOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(after) != string(before) {
+	if !bytes.Equal(after, before) {
 		t.Fatal("source evidence changed")
 	}
 }

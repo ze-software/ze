@@ -325,7 +325,7 @@ disagree, the manifest is right and the row is stale.
 | `./le enumeration` | `internal/le/enumeration.Answer` | no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself |
 | `./le evidence` | `internal/le/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
 | `./le feature-tags` | `internal/le/featuretags.Answer` | the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them |
-| `./le fs-persistence` | `internal/le/fspersistence.Answer` | daemon runtime state is persisted through the managed zefs store, never as a loose file a reimage would drop |
+| `./le fs-persistence` | `internal/le/fspersistence.Answer` | daemon runtime state is persisted through the managed `database/` store, never as a loose file a reimage would drop |
 | `./le functional` | `internal/le/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
 | `./le fuzz` | `internal/le/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
 | `./le go-extract` | `internal/le/goextract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
@@ -559,6 +559,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | metadata, route meta | `meta/README.md` |
 | interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md`, `../plan/spec-bgp-plugin-speaker.md` |
 | zefs, blob, netcapstring, storage | `storage-backends.md`, `zefs-format.md`, `fleet-config.md` |
+| ze init, bootstrap the store, import a blob, --from, --force, --seed, --managed | `storage-backends.md`, `guide/quickstart.md`, `internal/plugins/init/main.go` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |

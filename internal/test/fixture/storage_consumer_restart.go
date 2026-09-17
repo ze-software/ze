@@ -53,7 +53,7 @@ func storageConsumerRestart(ctx context.Context, args []string) error {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(dir, "database.zefs")); !os.IsNotExist(err) {
-		return fmt.Errorf("consumer used legacy database.zefs: %v", err)
+		return fmt.Errorf("consumer used legacy database.zefs: %w", err)
 	}
 	fmt.Fprintf(os.Stderr, "OK: %s consumer restored operational state from selected tree without config-dir pin\n", args[0])
 	return nil
@@ -64,7 +64,7 @@ func storageConsumerDaemon(ctx context.Context, dir, config, logName string) (*e
 	// the owner; state consumers must not depend on either environment spelling.
 	ready := filepath.Join(dir, logName+".ready")
 	daemon, port, err := extra1RunDaemonIn(ctx, dir, "router.conf", logName, config, map[string]string{
-		"ze.config.dir": "", "ZE_CONFIG_DIR": "", "ze.log.ddos.detect": "info", "ze.log.ntp": "debug",
+		envConfigDirDotted: "", envConfigDir: "", "ze.log.ddos.detect": "info", "ze.log.ntp": "debug",
 		envReadyFile: ready,
 	})
 	if err != nil {
@@ -156,7 +156,7 @@ func storageRIRRestart(ctx context.Context, dir string) error {
 }
 
 func storageHistoryRestart(ctx context.Context, dir string) error {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func storageHistoryRestart(ctx context.Context, dir string) error {
 		queryErr = storageConsumerCLI(port, "show system update history", &history)
 		return queryErr == nil && len(history.History) == 1 && history.History[0].Result == "blocked-minimum-version"
 	}) {
-		return fmt.Errorf("updater did not record minimum-version refusal: %+v: %v", history, queryErr)
+		return fmt.Errorf("updater did not record minimum-version refusal: %+v: %w", history, queryErr)
 	}
 	want := history.History[0]
 	if want.To != "9999.12.31" || want.Timestamp == "" {
@@ -264,12 +264,13 @@ func storageDDoSRestart(ctx context.Context, dir string) error {
 }
 
 // NTP really sets the clock; never run this against the developer host. The
-// explicit opt-in belongs on the disposable QEMU command, not in a suite file.
+// explicit opt-in guards the bare command. The suite carrier passes it and
+// gates on CAP_SYS_TIME instead, so only a process that can set the clock runs.
 func storageNTPRestart(ctx context.Context, dir string) error {
 	if os.Getenv("ZE_STORAGE_CLOCK_TEST") != "1" {
 		return fmt.Errorf("NTP restart changes the system clock; run in disposable QEMU with ZE_STORAGE_CLOCK_TEST=1")
 	}
-	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
+	conn, err := (&net.ListenConfig{}).ListenPacket(ctx, "udp", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}

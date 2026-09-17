@@ -21,7 +21,15 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// importStagePrefix names the private stage an import builds beside the tree,
+// and importIntentName the durable record of an import that has not finished.
+const (
+	importStagePrefix = "database.import-tmp-"
+	importIntentName  = "database.import-intent"
+)
+
 // The existing ZeFS artifact decoder bounds imports to 256 MiB.
+
 const blobImportMax = 256 * 1024 * 1024
 
 type importIntent struct {
@@ -35,8 +43,19 @@ type importIntent struct {
 
 // ImportBlob validates and copies every raw key, verifies byte equality, then
 // publishes and retires the source. Repeating it resumes only its own unchanged
-// destination. Caller MUST Close the returned writer.
+// destination and refuses an existing tree. Caller MUST Close the returned writer.
 func ImportBlob(path, dir string) (Storage, error) {
+	return importBlob(path, dir, false)
+}
+
+// ReplaceImportBlob imports like ImportBlob but moves an existing tree, and an
+// unrelated seed, to .replaced-<stamp> under the lifetime owner lock before
+// publication. Caller MUST Close the returned writer.
+func ReplaceImportBlob(path, dir string) (Storage, error) {
+	return importBlob(path, dir, true)
+}
+
+func importBlob(path, dir string, replace bool) (Storage, error) {
 	sourceDir, name, err := splitStorePath(path)
 	if err != nil {
 		return nil, err
@@ -53,27 +72,31 @@ func ImportBlob(path, dir string) (Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-	owner, err := lockOwner(folder, "database.lock")
+	owner, err := lockOwner(folder, lockName)
 	if err != nil {
-		folder.Close()
-		return nil, err
-	} //nolint:errcheck // primary lock error.
-	result, err := importOwned(absolute, folder, owner)
+		return nil, errors.Join(err, folder.Close())
+	}
+	result, err := importOwned(absolute, folder, owner, replace)
 	if err != nil {
-		owner.Close()
-		folder.Close()
-	} //nolint:errcheck // primary import error.
-	return result, err
+		return nil, errors.Join(err, owner.Close(), folder.Close())
+	}
+	return result, nil
 }
-func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
-	seed := filepath.Join(folder.Name(), "database.zefs")
+
+func importOwned(path string, folder, owner *os.File, replace bool) (_ *store, retErr error) {
+	seed := filepath.Join(folder.Name(), blobName)
+	unrelatedSeed := false
 	if seed != path {
-		if err := nodeStat(folder, "database.zefs"); err == nil {
-			return nil, fmt.Errorf("unrelated seed %s already exists; import that seed explicitly", seed)
+		if err := nodeStat(folder, blobName); err == nil {
+			if !replace {
+				return nil, fmt.Errorf("unrelated seed %s already exists; import that seed explicitly", seed)
+			}
+			unrelatedSeed = true
 		} else if !errors.Is(err, fs.ErrNotExist) {
 			return nil, err
 		}
 	}
+	intentPath := filepath.Join(folder.Name(), importIntentName)
 	sourceFolder, err := openFolder(filepath.Dir(path))
 	if err != nil {
 		return nil, err
@@ -90,7 +113,7 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 	}
 	if exists {
 		if intent.Source != path {
-			return nil, fmt.Errorf("unfinished import belongs to %s, not %s", intent.Source, path)
+			return nil, fmt.Errorf("%s records an unfinished import of %s, not %s: finish it with ze init --from %s, or remove that intent file once %s holds the wanted tree", intentPath, intent.Source, path, intent.Source, filepath.Join(folder.Name(), treeName))
 		}
 	}
 	sourcePath := path
@@ -101,11 +124,14 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 	}
 	digest, err := blobDigest(sourcePath)
 	if err != nil {
+		if exists {
+			return nil, fmt.Errorf("%s records an import of %s whose source cannot be read: %w; remove that intent file once %s holds the wanted tree", intentPath, path, err, filepath.Join(folder.Name(), treeName))
+		}
 		return nil, err
 	}
 	if exists {
 		if digest != intent.Digest {
-			return nil, fmt.Errorf("import source changed: %s", sourcePath)
+			return nil, fmt.Errorf("%s records an import of %s whose bytes changed: re-run ze init --from with the original blob, or remove that intent file once %s holds the wanted tree", intentPath, sourcePath, filepath.Join(folder.Name(), treeName))
 		}
 	}
 	report, err := zefs.Check(sourcePath)
@@ -126,23 +152,16 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 		return nil, err
 	}
 	defer source.Close() //nolint:errcheck // readonly source.
-	if err := nodeStat(folder, "database"); err == nil {
-		if !exists {
+	existingTree := false
+	if err := nodeStat(folder, treeName); err == nil {
+		switch {
+		case exists:
+			return resumeImport(folder, owner, intent, source, sourcePath == intent.Archive)
+		case replace:
+			existingTree = true
+		default:
 			return nil, fmt.Errorf("database already exists: %s: %w", folder.Name(), fs.ErrExist)
 		}
-		result, err := openTree(folder, "database", owner, false)
-		if err != nil {
-			return nil, err
-		}
-		if err := verifyImportIdentity(result, intent, source); err != nil {
-			result.tree.root.Close()
-			return nil, err
-		} //nolint:errcheck // primary identity error; caller owns folder and lock.
-		if err := finishImport(folder, intent, sourcePath); err != nil {
-			result.tree.root.Close()
-			return nil, err
-		} //nolint:errcheck // caller owns folder and lock.
-		return result, nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
@@ -160,7 +179,7 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 			if err := node.Close(); err != nil {
 				return nil, err
 			}
-			if uint64(st.Dev) != intent.Device {
+			if uint64(st.Dev) != intent.Device { //nolint:unconvert // Dev is int32 on darwin and openbsd
 				return nil, fmt.Errorf("import stage device changed")
 			}
 			if st.Ino != intent.Inode {
@@ -173,7 +192,10 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 			return nil, err
 		}
 	}
-	stage, err := makeStage(folder, "database.import-tmp-")
+	if err := removeStaleStages(folder); err != nil {
+		return nil, err
+	}
+	stage, err := makeStage(folder, importStagePrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -189,9 +211,8 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 	}
 	result, err := openTree(stageFolder, stage, nil, false)
 	if err != nil {
-		stageFolder.Close()
-		return nil, err
-	} //nolint:errcheck // staging open failure.
+		return nil, errors.Join(err, stageFolder.Close())
+	}
 	defer func() {
 		if !published {
 			retErr = errors.Join(retErr, result.Close())
@@ -213,40 +234,64 @@ func importOwned(path string, folder, owner *os.File) (_ *store, retErr error) {
 	if err := unix.Fstat(int(result.tree.root.Fd()), &st); err != nil {
 		return nil, err
 	}
-	intent = importIntent{Source: path, Digest: digest, Stage: stage, Archive: path + ".replaced-" + time.Now().Format("20060102T150405.000000000"), Device: uint64(st.Dev), Inode: st.Ino}
+	intent = importIntent{Source: path, Digest: digest, Stage: stage, Archive: path + replacedInfix + time.Now().Format("20060102T150405.000000000"), Device: uint64(st.Dev), Inode: st.Ino} //nolint:unconvert // Dev is int32 on darwin and openbsd
 	encoded, err := json.Marshal(intent)
 	if err != nil {
 		return nil, err
 	}
-	if err := installBytes(folder, folder, "database.import-intent", encoded, func(f *os.File) error { return f.Sync() }); err != nil {
+	if err := installBytes(folder, folder, importIntentName, encoded, func(f *os.File) error { return f.Sync() }); err != nil {
 		return nil, err
 	}
 	if err := result.tree.root.Sync(); err != nil {
 		return nil, err
 	}
-	if err := renameNoReplace(folder, stage, "database"); err != nil {
+	// The old tree and an unrelated seed move aside only now, once the stage is
+	// complete and verified and the intent is durable: a copy failure or a crash
+	// before this point leaves database/ as it was. A crash after that point
+	// falls in one of two windows, and the intent names the stage in both.
+	// Before moveAside(treeName): the old tree is still under database/ with
+	// the intent beside it, ze start opens the old tree, and the next import
+	// is refused from verifyImportIdentity as "names another tree"; the
+	// operator removes the intent file and the stage it names, as that refusal
+	// says, and re-runs the import. After moveAside(treeName) and before the
+	// rename: database/ is absent and the old tree is database.replaced-*, so
+	// detect reports ErrImportPending and ze start refuses rather than
+	// auto-creating an empty tree over it; the next ze init --from of the same
+	// blob finds the intent, checks the stage identity above, rebuilds the
+	// stage from the source, and publishes.
+	if existingTree {
+		if err := moveAside(folder, treeName); err != nil {
+			return nil, err
+		}
+	}
+	if unrelatedSeed {
+		if err := moveAside(folder, blobName); err != nil {
+			return nil, err
+		}
+	}
+	if err := zefs.RenameNoReplace(folder, stage, treeName); err != nil {
 		return nil, err
 	}
 	published = true
 	if err := folder.Sync(); err != nil {
-		result.Close()
-		return nil, err
-	} //nolint:errcheck // published tree retained for recovery.
-	if err := result.tree.published("database"); err != nil {
+		// The published tree is retained for recovery.
 		return nil, errors.Join(err, result.Close())
 	}
-	if err := finishImport(folder, intent, sourcePath); err != nil {
-		result.Close()
-		return nil, err
-	} //nolint:errcheck // import intent retained for recovery.
+	if err := result.tree.published(treeName); err != nil {
+		return nil, errors.Join(err, result.Close())
+	}
+	if err := finishImport(folder, intent, false); err != nil {
+		return nil, errors.Join(err, result.Close())
+	}
 	result.owner = owner
 	if err := folder.Close(); err != nil {
 		return nil, errors.Join(err, result.Close())
 	}
 	return result, nil
 }
+
 func readImportIntent(folder *os.File) (importIntent, bool, error) {
-	file, err := openNode(folder, "database.import-intent", false)
+	file, err := openNode(folder, importIntentName, false)
 	if errors.Is(err, fs.ErrNotExist) {
 		return importIntent{}, false, nil
 	}
@@ -271,10 +316,10 @@ func readImportIntent(folder *os.File) (importIntent, bool, error) {
 	if filepath.Base(intent.Stage) != intent.Stage {
 		return intent, false, fmt.Errorf("invalid import stage identity")
 	}
-	if !strings.HasPrefix(intent.Stage, "database.import-tmp-") {
+	if !strings.HasPrefix(intent.Stage, importStagePrefix) {
 		return intent, false, fmt.Errorf("invalid import stage identity")
 	}
-	if !strings.HasPrefix(intent.Archive, intent.Source+".replaced-") {
+	if !strings.HasPrefix(intent.Archive, intent.Source+replacedInfix) {
 		return intent, false, fmt.Errorf("invalid import archive identity")
 	}
 	if filepath.Dir(intent.Archive) != filepath.Dir(intent.Source) {
@@ -328,43 +373,127 @@ func equalImport(target *store, source *zefs.BlobStore) error {
 	}
 	return nil
 }
-func verifyImportIdentity(target *store, intent importIntent, source *zefs.BlobStore) error {
+
+// resumeImport completes an import whose tree is already published. The tree
+// is proved to be this import's stage by device and inode. Once the source is
+// retired the import is finished and only the intent remains, so the tree,
+// which a daemon may have changed since, is not compared to the archive.
+func resumeImport(folder, owner *os.File, intent importIntent, source *zefs.BlobStore, retired bool) (*store, error) {
+	result, err := openTree(folder, treeName, owner, false)
+	if err != nil {
+		return nil, err
+	}
+	// The caller owns folder and lock; only the tree root is closed here.
+	if err := verifyImportIdentity(result, intent); err != nil {
+		return nil, errors.Join(err, result.tree.root.Close())
+	}
+	if !retired {
+		if err := equalImport(result, source); err != nil {
+			err = fmt.Errorf("%s: %w; the published tree differs from its source %s: re-run ze init --from with the original blob to import it again, or remove that intent file once %s holds the wanted tree", filepath.Join(folder.Name(), importIntentName), err, intent.Source, filepath.Join(folder.Name(), treeName))
+			return nil, errors.Join(err, result.tree.root.Close())
+		}
+	}
+	if err := finishImport(folder, intent, retired); err != nil {
+		return nil, errors.Join(err, result.tree.root.Close())
+	}
+	return result, nil
+}
+
+func verifyImportIdentity(target *store, intent importIntent) error {
 	var st unix.Stat_t
 	if err := unix.Fstat(int(target.tree.root.Fd()), &st); err != nil {
 		return err
 	}
-	if uint64(st.Dev) != intent.Device {
-		return fmt.Errorf("import destination device changed")
+	intentPath := filepath.Join(target.tree.folder.Name(), importIntentName)
+	stagePath := filepath.Join(target.tree.folder.Name(), intent.Stage)
+	if uint64(st.Dev) != intent.Device { //nolint:unconvert // Dev is int32 on darwin and openbsd
+		return fmt.Errorf("%s names another tree than %s (device changed): when no database.replaced-* sits beside it, that tree is the one in place before the import and the import did not start replacing it; remove the intent file and the stage %s and re-run ze init --from %s, or keep the tree and remove only the intent file and that stage", intentPath, target.tree.root.Name(), stagePath, intent.Source)
 	}
 	if st.Ino != intent.Inode {
-		return fmt.Errorf("import destination identity changed")
+		return fmt.Errorf("%s names another tree than %s (inode changed): when no database.replaced-* sits beside it, that tree is the one in place before the import and the import did not start replacing it; remove the intent file and the stage %s and re-run ze init --from %s, or keep the tree and remove only the intent file and that stage", intentPath, target.tree.root.Name(), stagePath, intent.Source)
 	}
-	return equalImport(target, source)
+	return nil
 }
-func finishImport(folder *os.File, intent importIntent, sourcePath string) error {
-	digest, err := blobDigest(sourcePath)
+
+// removeStaleStages removes every database.import-tmp-* stage under folder
+// before a new one is built. A stage outlives its import when the operator
+// answers a refusal by removing the intent file alone, and nothing else would
+// ever remove it. The caller holds the owner lock, so no other import is
+// writing a stage at the same time.
+func removeStaleStages(folder *os.File) error {
+	listing, err := duplicateFolder(folder)
 	if err != nil {
 		return err
 	}
-	if digest != intent.Digest {
-		return fmt.Errorf("import source changed before retirement: %s", sourcePath)
+	defer listing.Close() //nolint:errcheck // readonly listing.
+	// The listing ends at EOF or on the first operating-system error.
+	for {
+		entries, err := listing.ReadDir(128)
+		if err != nil && !errors.Is(err, io.EOF) {
+			return fmt.Errorf("list %s: %w", folder.Name(), err)
+		}
+		for _, entry := range entries {
+			name := entry.Name()
+			if !strings.HasPrefix(name, importStagePrefix) {
+				continue
+			}
+			if err := removeStage(folder, name); err != nil {
+				return err
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return folder.Sync()
+		}
 	}
-	if sourcePath == intent.Source {
-		parent, err := openFolder(filepath.Dir(intent.Source))
-		if err != nil {
-			return err
-		}
-		err = renameNoReplace(parent, filepath.Base(intent.Source), filepath.Base(intent.Archive))
-		if err == nil {
-			err = parent.Sync()
-		}
-		err = errors.Join(err, parent.Close())
-		if err != nil {
-			return err
-		}
+}
+
+// finishImport retires the source, then removes the intent. Retirement comes
+// first so a crash between the two leaves a state resumeImport recognizes as
+// finished: the source is gone, the archive holds its bytes, and the tree keeps
+// the intent's identity.
+func finishImport(folder *os.File, intent importIntent, retired bool) error {
+	parent, err := openFolder(filepath.Dir(intent.Source))
+	if err != nil {
+		return err
 	}
-	if err := unix.Unlinkat(int(folder.Fd()), "database.import-intent", 0); err != nil {
+	err = retireSource(parent, intent, retired)
+	err = errors.Join(err, parent.Close())
+	if err != nil {
+		return err
+	}
+	if err := unix.Unlinkat(int(folder.Fd()), importIntentName, 0); err != nil {
 		return err
 	}
 	return folder.Sync()
+}
+
+// retireSource renames the source to its archive, then moves the source's lock
+// file beside the archive. Every blob artifact keeps its lock next to it, so a
+// lock left at the retired name would name an artifact that is gone, and the
+// held lock refuses a concurrent creator of that name until it moves. A
+// resumed import holds a fresh lock at the source name while the archive's
+// lock can already exist; the fresh one is removed then.
+func retireSource(parent *os.File, intent importIntent, retired bool) error {
+	source := filepath.Base(intent.Source)
+	archive := filepath.Base(intent.Archive)
+	if !retired {
+		digest, err := blobDigest(intent.Source)
+		if err != nil {
+			return err
+		}
+		if digest != intent.Digest {
+			return fmt.Errorf("import source changed before retirement: %s", intent.Source)
+		}
+		if err := zefs.RenameNoReplace(parent, source, archive); err != nil {
+			return err
+		}
+	}
+	err := zefs.RenameNoReplace(parent, source+".lock", archive+".lock")
+	if errors.Is(err, fs.ErrExist) {
+		err = unix.Unlinkat(int(parent.Fd()), source+".lock", 0)
+	}
+	if err != nil {
+		return err
+	}
+	return parent.Sync()
 }

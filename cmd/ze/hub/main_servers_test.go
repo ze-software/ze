@@ -273,7 +273,7 @@ func TestAPIBootWarnsExactlyWhenNoUsersAndNoToken(t *testing.T) {
 
 	assert.Equal(t, 1, exit, "the REST build seam must stop boot after the warning producer runs")
 	assert.Contains(t, strings.Split(stderr, "\n"),
-		"warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs",
+		"warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or run ze init",
 		"boot must emit the complete operator-facing warning as one unchanged line")
 }
 

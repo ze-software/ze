@@ -26,7 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
 
@@ -478,13 +477,10 @@ func registerLocalCommands() {
 			"It is meant for build infrastructure rather than for a router in production.",
 		Mode: commandModeOffline,
 	})
-
-	registry.SetRuntimeStorage(runtimeStorage)
 }
 
 func newZeRuntimeContext() *registry.RuntimeContext {
 	return &registry.RuntimeContext{
-		ResolveStorage: runtimeStorage,
 		Plugins:        zeFlags.plugins,
 		ConfigOverride: zeFlags.fileOverride,
 		PrintVersion:   versionPrinter,
@@ -496,17 +492,6 @@ func newZeRuntimeContext() *registry.RuntimeContext {
 		ChaosSeed:      zeFlags.chaosSeed,
 		ChaosRate:      zeFlags.chaosRate,
 	}
-}
-
-// runtimeStorage serves offline handlers that have not supplied a config path.
-// Path-aware commands resolve their own store after parsing their arguments.
-func runtimeStorage() any {
-	store, err := internalresolve.StorageFor(zeFlags.fileOverride)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: config storage unavailable: %v\n", err)
-		return nil
-	}
-	return store
 }
 
 // versionPrinter adapts printVersion (which returns an exit code) to the void

@@ -37,7 +37,7 @@ func TestHeadlessRestartFuncPropagation(t *testing.T) {
 // TestHeadlessRestartFuncViaRunTestCase runs an actual .et test case
 // through the runner to reproduce the exact failure path.
 func TestHeadlessRestartFuncViaRunTestCase(t *testing.T) {
-	tc := &TestCase{
+	tc := &testCase{
 		Options: []Option{
 			{Type: "mode", Values: map[string]string{"value": "command"}},
 			{Type: "lifecycle", Values: map[string]string{"mode": "wired"}},

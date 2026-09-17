@@ -1,0 +1,9 @@
+# Test: ze doctor on a tree whose root is 0755 (loose mode) is an ERROR.
+# VALIDATES: storage-1 AC-4 and AC-23: the refusal names the path, the mode
+# found (0755) and the repair (chmod 0700), the run exits non-zero, and the
+# tree is neither repaired nor replaced.
+# PREVENTS: a loose-mode tree read as healthy, or silently chmod-ed, by doctor.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=ze-test fixture storage/tree doctor-refuses-loose-mode:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: doctor-refuses-loose-mode

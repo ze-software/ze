@@ -962,46 +962,6 @@ func TestFetchPeerSelectorsAsksForTheDispatcherJSON(t *testing.T) {
 	}
 }
 
-// TestModelExecutorAsksForTheDispatcherJSON covers the interactive session's
-// executor and the dashboard poller, the two call sites that hand their answer
-// to internal/component/cli's Model.
-//
-// VALIDATES: spec-fixit-cli-format-default-everywhere AC-9, AC-10 -- both give
-// the Model the dispatcher's JSON, which is what it renders from.
-// PREVENTS: an interactive `show bgp peer list | json` answering the configured
-// default, and the dashboard failing to parse its own poll.
-func TestModelExecutorAsksForTheDispatcherJSON(t *testing.T) {
-	const answer = `{"router-id":"192.0.2.1"}`
-
-	client, sent := rawOnlyJSONClient(answer)
-	output, err := client.modelExecutor()("show bgp")
-	if err != nil {
-		t.Fatalf("modelExecutor: %v", err)
-	}
-	if output.Text != answer {
-		t.Errorf("modelExecutor answered %q, want the dispatcher's JSON %q", output.Text, answer)
-	}
-	if len(*sent) != 1 || (*sent)[0] != "show bgp | raw" {
-		t.Errorf("modelExecutor sent %q, want [\"show bgp | raw\"]", *sent)
-	}
-
-	client, sent = rawOnlyJSONClient(answer)
-	poll, err := client.dashboardPoller()
-	if err != nil {
-		t.Fatalf("dashboardPoller: %v", err)
-	}
-	got, err := poll()
-	if err != nil {
-		t.Fatalf("dashboard poll: %v", err)
-	}
-	if got != answer {
-		t.Errorf("dashboard poll answered %q, want the dispatcher's JSON %q", got, answer)
-	}
-	if len(*sent) != 1 || (*sent)[0] != "show bgp | raw" {
-		t.Errorf("dashboardPoller sent %q, want [\"show bgp | raw\"]", *sent)
-	}
-}
-
 // TestExecuteKeepsTheOperatorSurface is the other half of the classification: a
 // caller that PRINTS must not ask for raw, or `ze cli -c` would answer JSON and
 // the whole spec would be undone.

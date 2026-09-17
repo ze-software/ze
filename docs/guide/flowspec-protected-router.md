@@ -23,9 +23,9 @@ Example topology:
 | `flowspec-rr` | FlowSpec route reflector | `203.0.113.1` | `65010` |
 | `flowspec-rr-b` | second trusted source | `203.0.113.2` | `65010` |
 
-## 2. Update the active zefs config
+## 2. Update the active stored config
 
-Keep the active configuration in `database.zefs`. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
+Keep the active configuration in the `database/` store. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
 
 ```bash
 set -euo pipefail

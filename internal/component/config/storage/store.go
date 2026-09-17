@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -20,6 +21,11 @@ var (
 	ErrPermissions = fmt.Errorf("unsafe store permissions or node: %w", fs.ErrPermission)
 	ErrReadOnly    = errors.New("storage is read-only")
 	ErrBusy        = errors.New("store is owned by another process")
+	// ErrImportPending reports an import intent beside an absent tree: an import
+	// crashed after moving the old tree to database.replaced-* and before
+	// publishing its stage. It is never ErrNoStore, so nothing auto-creates an
+	// empty tree over the operator's store; the repair is ze init --from.
+	ErrImportPending = errors.New("unfinished import")
 )
 
 type keyAccess interface {
@@ -60,7 +66,9 @@ func validKey(key string) error {
 	return nil
 }
 
-func (s *store) checkName(name string) error {
+// CheckName refuses a config name whose directory is not this store's folder,
+// so a path from elsewhere never silently resolves to a same-named stored config.
+func (s *store) CheckName(name string) error {
 	if isNamespaced(name) {
 		return validKey(name)
 	}
@@ -114,7 +122,7 @@ func resolveDirKey(name string) string {
 }
 
 func (s *store) ReadFile(name string) ([]byte, error) {
-	if err := s.checkName(name); err != nil {
+	if err := s.CheckName(name); err != nil {
 		return nil, err
 	}
 	return s.ReadKey(resolveKey(name))
@@ -131,7 +139,7 @@ func (s *store) ReadKey(key string) ([]byte, error) {
 	return s.access().ReadFile(key)
 }
 func (s *store) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	if err := s.checkName(name); err != nil {
+	if err := s.CheckName(name); err != nil {
 		return err
 	}
 	return s.WriteKey(resolveKey(name), data)
@@ -145,7 +153,7 @@ func (s *store) WriteKey(key string, data []byte) (err error) {
 	return g.write(key, data, time.Now())
 }
 func (s *store) Remove(name string) error {
-	if err := s.checkName(name); err != nil {
+	if err := s.CheckName(name); err != nil {
 		return err
 	}
 	return s.RemoveKey(resolveKey(name))
@@ -159,7 +167,7 @@ func (s *store) RemoveKey(key string) (err error) {
 	return g.remove(key)
 }
 func (s *store) Exists(name string) bool {
-	if err := s.checkName(name); err != nil {
+	if err := s.CheckName(name); err != nil {
 		return false
 	}
 	s.mu.RLock()
@@ -174,7 +182,7 @@ func (s *store) Exists(name string) bool {
 	return s.blob.Has(key)
 }
 func (s *store) Stat(name string) (FileMeta, error) {
-	if err := s.checkName(name); err != nil {
+	if err := s.CheckName(name); err != nil {
 		return FileMeta{}, err
 	}
 	key := resolveKey(name)
@@ -233,7 +241,7 @@ func immediateChildren(keys []string, prefix string) []string {
 	return result
 }
 func (s *store) ListVersions(name string) ([]VersionInfo, error) {
-	if err := s.checkName(name); err != nil {
+	if err := s.CheckName(name); err != nil {
 		return nil, err
 	}
 	keys, err := s.ListKeys("file/")
@@ -250,7 +258,7 @@ func (s *store) ListVersions(name string) ([]VersionInfo, error) {
 		if parts[2] != base {
 			continue
 		}
-		stamp, err := ParseVersionStamp(parts[1])
+		stamp, err := parseVersionStamp(parts[1])
 		if err != nil {
 			continue
 		}
@@ -268,10 +276,10 @@ func (s *store) WriteVersion(name string, data []byte, stamp time.Time) (err err
 	return g.WriteVersion(name, data, stamp)
 }
 func (s *store) Rename(oldName, newName string) (err error) {
-	if err := s.checkName(newName); err != nil {
+	if err := s.CheckName(newName); err != nil {
 		return err
 	}
-	if err := s.checkName(oldName); err != nil {
+	if err := s.CheckName(oldName); err != nil {
 		return err
 	}
 	g, err := s.acquire()
@@ -289,10 +297,10 @@ func (s *store) Rename(oldName, newName string) (err error) {
 		return err
 	}
 	meta := s.metas[oldKey]
-	if err = g.write(newKey, data, time.Now()); err != nil {
+	if err := g.write(newKey, data, time.Now()); err != nil {
 		return err
 	}
-	if err = g.remove(oldKey); err != nil {
+	if err := g.remove(oldKey); err != nil {
 		return err
 	}
 	g.pending[newKey] = meta
@@ -300,7 +308,7 @@ func (s *store) Rename(oldName, newName string) (err error) {
 }
 func (s *store) AcquireLock(name string) (WriteGuard, error) {
 	if name != "" {
-		if err := s.checkName(name); err != nil {
+		if err := s.CheckName(name); err != nil {
 			return nil, err
 		}
 	}
@@ -359,7 +367,7 @@ type guard struct {
 }
 
 func (g *guard) ReadFile(name string) ([]byte, error) {
-	if err := g.parent.checkName(name); err != nil {
+	if err := g.parent.CheckName(name); err != nil {
 		return nil, err
 	}
 	if g.released {
@@ -394,7 +402,7 @@ func (g *guard) List(prefix string) ([]string, error) {
 	return immediateChildren(keys, key), nil
 }
 func (g *guard) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	if err := g.parent.checkName(name); err != nil {
+	if err := g.parent.CheckName(name); err != nil {
 		return err
 	}
 	return g.write(resolveKey(name), data, time.Now())
@@ -414,7 +422,7 @@ func (g *guard) write(key string, data []byte, stamp time.Time) error {
 	return nil
 }
 func (g *guard) Remove(name string) error {
-	if err := g.parent.checkName(name); err != nil {
+	if err := g.parent.CheckName(name); err != nil {
 		return err
 	}
 	return g.remove(resolveKey(name))
@@ -437,7 +445,7 @@ func (g *guard) Has(name string) bool {
 	if g.released {
 		return false
 	}
-	if err := g.parent.checkName(name); err != nil {
+	if err := g.parent.CheckName(name); err != nil {
 		return false
 	}
 	key := resolveKey(name)
@@ -448,7 +456,7 @@ func (g *guard) Has(name string) bool {
 }
 func (g *guard) SetModifier(modifier string) { g.modifier = modifier }
 func (g *guard) WriteVersion(name string, data []byte, stamp time.Time) error {
-	if err := g.parent.checkName(name); err != nil {
+	if err := g.parent.CheckName(name); err != nil {
 		return err
 	}
 	return g.write(zefs.KeyFileVersion.Key(FormatVersionStamp(stamp), filepath.Base(name)), data, stamp)
@@ -465,9 +473,7 @@ func (g *guard) Release() error {
 		err = g.blobLock.Release()
 	}
 	if err == nil {
-		for key, meta := range g.pending {
-			g.parent.metas[key] = meta
-		}
+		maps.Copy(g.parent.metas, g.pending)
 		for key := range g.removed {
 			delete(g.parent.metas, key)
 		}

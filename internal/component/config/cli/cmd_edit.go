@@ -189,7 +189,7 @@ func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username,
 	executor := sshCommandExecutor(creds)
 
 	var tw *cli.TranscriptWriter
-	if tf := openTranscriptFile(); tf != nil {
+	if tf := cli.OpenTranscriptFile(strconv.Itoa(os.Getpid())); tf != nil {
 		tw = cli.NewTranscriptWriter(tf, username, remoteHost)
 		executor = cli.WrapExecutorWithTranscript(executor, tw)
 	}

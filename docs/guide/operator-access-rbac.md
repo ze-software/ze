@@ -1,6 +1,6 @@
 # Operator access with SSH and RBAC
 
-Use this when the box already has Ze installed and `database.zefs` created, and you want real operator accounts instead of a single bootstrap admin.
+Use this when the box already has Ze installed and `ze init` has created the `database/` store, and you want real operator accounts instead of a single bootstrap admin.
 
 The example keeps `admin` as a recovery account, adds a read-only NOC user, adds an operator user, enables SSH on TCP/2222, and applies profile-based command authorization.
 
@@ -17,7 +17,7 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.
 
 ## 1. Start from the Ubuntu install page
 
-Follow [Build and install Ze on Ubuntu](ubuntu-build-install.md) through `database.zefs` creation. The commands below assume:
+Follow [Build and install Ze on Ubuntu](ubuntu-build-install.md) through `database/` creation. The commands below assume:
 
 | Item | Value |
 | --- | --- |
@@ -43,7 +43,7 @@ The entries use prefix matching. `match "debug"` matches `debug ospf ...`, but n
 
 ## 3. Build and load a set-format update
 
-Use `ze passwd` before writing stored config values. This keeps plaintext out of shell history, process arguments, and the zefs command history.
+Use `ze passwd` before writing stored config values. This keeps plaintext out of shell history, process arguments, and the stored command history.
 
 The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one `ze config import` command. Unrelated existing config sections stay in the candidate because they came from `ze config cat`.
 

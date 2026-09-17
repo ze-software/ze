@@ -109,11 +109,11 @@ API auth mode: single-token (shared bearer)
 ```
 
 ```
-warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs
+warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or run ze init
 ```
 
 The per-user count includes surviving zefs users and config users. To leave
-single-token or NONE mode, add a config user or initialize zefs. To keep shared
+single-token or NONE mode, add a config user or run `ze init`. To keep shared
 credentials, set `ze.api-server.token`.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig API auth mode output -->
 

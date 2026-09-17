@@ -85,14 +85,11 @@ type RootHandler func(rctx *RuntimeContext, args []string) int
 // after global flag parsing and passes it to the matched root handler.
 //
 // To keep this registry a leaf package, dependency types that would otherwise
-// pull in heavy packages (storage, the plugin server) are exposed through
-// function values and primitives, not concrete types. Owners type-assert the
-// storage value to the concrete storage.Storage interface (see StorageAs).
+// pull in heavy packages (the plugin server) are exposed through function
+// values and primitives, not concrete types. Storage is not carried here: a
+// handler that needs the store resolves it from its own arguments through
+// internal/core/resolve.
 type RuntimeContext struct {
-	// ResolveStorage opens the process storage backend lazily and returns it
-	// as an opaque value the owner type-asserts to storage.Storage. Nil when
-	// the process did not wire storage (some test harnesses).
-	ResolveStorage func() any
 	// Out and ErrOut override process stdout and stderr for an in-process
 	// dispatcher. Nil selects the process writers.
 	Out    io.Writer
@@ -113,19 +110,6 @@ type RuntimeContext struct {
 	// ChaosSeed and ChaosRate are the chaos-testing parameters from global flags.
 	ChaosSeed int64
 	ChaosRate float64
-}
-
-// StorageAs type-asserts ResolveStorage's result to the requested type T,
-// returning the zero value and false when storage is unavailable or of a
-// different type. It is a convenience for owner handlers so they do not repeat
-// the nil check and type assertion.
-func StorageAs[T any](rctx *RuntimeContext) (T, bool) {
-	var zero T
-	if rctx == nil || rctx.ResolveStorage == nil {
-		return zero, false
-	}
-	v, ok := rctx.ResolveStorage().(T)
-	return v, ok
 }
 
 const (
@@ -295,40 +279,6 @@ func LookupRoot(name string) RootHandler {
 	mu.RLock()
 	defer mu.RUnlock()
 	return rootHandlers[name]
-}
-
-// Runtime storage resolver for local command handlers.
-//
-// Local handlers have the signature func(args []string) int and so do not
-// receive a RuntimeContext, yet a few owner shortcuts (for example
-// `show config history`) still need the process storage backend at dispatch
-// time. cmd/ze/main.go installs the resolver once after global flag parsing;
-// handlers read it lazily, so registration order does not matter. The value is
-// exposed as any to keep this package leaf-like (it must not import storage);
-// callers type-assert to storage.Storage.
-var (
-	runtimeStorageMu sync.RWMutex
-	runtimeStorage   func() any
-)
-
-// SetRuntimeStorage installs the process storage resolver. Called once by
-// cmd/ze/main.go.
-func SetRuntimeStorage(fn func() any) {
-	runtimeStorageMu.Lock()
-	runtimeStorage = fn
-	runtimeStorageMu.Unlock()
-}
-
-// RuntimeStorage resolves the process storage backend, or nil if none was
-// installed. Each call opens a fresh backend that the caller must close.
-func RuntimeStorage() any {
-	runtimeStorageMu.RLock()
-	fn := runtimeStorage
-	runtimeStorageMu.RUnlock()
-	if fn == nil {
-		return nil
-	}
-	return fn()
 }
 
 // LookupLocal finds the longest prefix of words that matches a registered
@@ -539,9 +489,6 @@ func ResetForTest() {
 	rootHandlers = make(map[string]RootHandler)
 	offlineFallbacks = make(map[string]LocalHandler)
 	mu.Unlock()
-	runtimeStorageMu.Lock()
-	runtimeStorage = nil
-	runtimeStorageMu.Unlock()
 }
 
 // HasLocal reports whether a handler is registered for the exact path. Only

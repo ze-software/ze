@@ -205,11 +205,11 @@ imports `/perm/ze/database.zefs` into `/perm/ze/database/`, logs the import, and
 retires the seed as `database.zefs.replaced-*`. Subsequent starts use the live
 tree. Ze gets a DHCP address and loads its active configuration from that tree.
 The serial console requires authentication with the local admin credentials
-before granting shell access. If the store is missing or unreadable, access is
-granted without authentication for emergency recovery. When
+before granting shell access. If the store is missing or unreadable, or the
+credentials cannot be read, the login is refused with the error named. When
 `admin-enabled: false` is set in the appliance config, the serial console denies
 the built-in admin (fail-closed) and prints "local admin login disabled".
-<!-- source: cmd/ze/login.go -- loginMain, fail-open path, admin-disabled check -->
+<!-- source: cmd/ze/login.go -- loginMain, fail-closed store and credential reads, admin-disabled check -->
 
 ## Configuration
 
@@ -588,6 +588,11 @@ A `ze` older than this validation could store a certificate and a key that do
 not load as a pair. On such an appliance the web listener does not start. Run
 `ze doctor` to find it: the stored pair is reported as `doctor-tls-invalid`,
 "certificate and key in storage are not a usable pair". `replace-cert` fixes it.
+On an appliance that holds no store yet, `ze doctor` does not report the pair
+at all: it prints `doctor-storage-unavailable` as a WARNING for the folder and
+one more for each feature that needs the store (`web TLS pair: refused, this
+doctor run resolved no storage`), and exits 0. A store it cannot read is an
+ERROR.
 <!-- source: internal/component/web/doctor_material.go -- checkWebTLSPair -->
 
 ### Config layering

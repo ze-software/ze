@@ -1,7 +1,7 @@
 # Authentication
 
 Ze supports local operator users defined in the daemon configuration, in
-addition to the bootstrap super-admin written to `database.zefs` by `ze init`.
+addition to the bootstrap super-admin written to the `database/` store by `ze init`.
 This guide covers adding configured users, hashing their passwords, and
 connecting with the `ze` CLI.
 
@@ -9,7 +9,7 @@ connecting with the `ze` CLI.
 
 | Source | Where stored | Created by | Used for |
 |--------|-------------|-----------|----------|
-| zefs super-admin | `database.zefs` (`meta/auth/local/{username,password}`) | `ze init` | Bootstrap and recovery -- the operator who set the box up |
+| Bootstrap super-admin | `database/` store (`meta/auth/local/{username,password}`) | `ze init` | Bootstrap and recovery -- the operator who set the box up |
 | YANG users | `system.authentication.user <name>` | Config edit | Day-to-day operators, auditors, scripts |
 
 At boot, the daemon resolves both sources and publishes the merged users with
@@ -24,7 +24,7 @@ as a backdoor.
 
 ### Disabling the super-admin
 
-Setting `meta/instance/admin-disabled` to `"true"` in the zefs database
+Setting `meta/instance/admin-disabled` to `"true"` in the `database/` store
 (via `admin-enabled: false` in the appliance config) disables the super-admin
 on all surfaces: SSH, web, API, and serial console. The serial console
 returns "local admin login disabled" and denies access (fail-closed), unlike
@@ -290,7 +290,7 @@ listener. The guard runs before any covered listener binds:
 | Web in insecure mode | Disable insecure mode and configure users |
 | MCP | Configure a bearer token or another authenticated `auth-mode` |
 | gNMI | Configure `ze.gnmi.token` or `environment.gnmi token` |
-| REST and gRPC API | Configure an API token, initialize zefs, or configure a `system.authentication.user` |
+| REST and gRPC API | Configure an API token, run `ze init`, or configure a `system.authentication.user` |
 
 Literal addresses in `127.0.0.0/8` and `::1` count as loopback. Wildcard
 addresses (`0.0.0.0`, `::`, or `:port`), empty addresses, DNS names, and even
@@ -521,7 +521,7 @@ of `plaintext-password` is held in-memory by the editor and persisted to a
 zefs draft blob (mode 0o600) by `SaveDraft`. The plaintext is converted to
 the bcrypt hash and the ephemeral leaf is removed at commit; the draft is
 deleted afterward. Plaintext never appears in the canonical config file
-nor in commit metadata, but does briefly live in the local zefs database
+nor in commit metadata, but does briefly live in the local `database/` store
 during the editing session.
 
 A config file you write yourself is the other path. Ze hashes it at load and leaves

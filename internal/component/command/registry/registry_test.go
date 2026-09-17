@@ -182,29 +182,6 @@ func TestLookupRootDispatchPreservesArgOrder(t *testing.T) {
 	}
 }
 
-func TestStorageAsTypeAssertsRuntimeStorage(t *testing.T) {
-	type fakeStore struct{ name string }
-
-	rctx := &RuntimeContext{ResolveStorage: func() any { return fakeStore{name: "blob"} }}
-	got, ok := StorageAs[fakeStore](rctx)
-	if !ok || got.name != "blob" {
-		t.Fatalf("StorageAs = (%+v, %v), want ({blob}, true)", got, ok)
-	}
-
-	// Wrong type yields zero value and false, not a panic.
-	if _, ok := StorageAs[*fakeStore](rctx); ok {
-		t.Error("StorageAs to a mismatched type should report false")
-	}
-
-	// Nil context and nil resolver are safe.
-	if _, ok := StorageAs[fakeStore](nil); ok {
-		t.Error("StorageAs(nil) should report false")
-	}
-	if _, ok := StorageAs[fakeStore](&RuntimeContext{}); ok {
-		t.Error("StorageAs with nil ResolveStorage should report false")
-	}
-}
-
 // VALIDATES: LookupLocal refuses a handler registered ABOVE a declared command
 // the same argv reaches, keeps every trailing word that declares nothing, and
 // serves no handler at all when it has no declaration source to judge with.

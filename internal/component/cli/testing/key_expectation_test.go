@@ -45,7 +45,7 @@ func TestKeyExpectationReadsCurrentStore(t *testing.T) {
 	if err := store.WriteKey(key, []byte("old")); err != nil {
 		t.Fatal(err)
 	}
-	testCase := &TestCase{}
+	testCase := &testCase{}
 	if err := testCase.parseExpect("key:path=" + key + ":contains=new:not-contains=old"); err != nil {
 		t.Fatal(err)
 	}

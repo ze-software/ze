@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -155,21 +156,21 @@ func ownershipOpenFolder(dir string) (*os.File, error) {
 }
 
 func ownershipLock(folder *os.File) (*os.File, bool, error) {
-	name := filepath.Join(folder.Name(), "database.lock")
+	name := filepath.Join(folder.Name(), lockName)
 	flags := unix.O_RDWR | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
-	fd, err := unix.Openat(int(folder.Fd()), "database.lock", flags|unix.O_CREAT|unix.O_EXCL, 0o600)
+	fd, err := unix.Openat(int(folder.Fd()), lockName, flags|unix.O_CREAT|unix.O_EXCL, 0o600)
 	created := err == nil
 	if errors.Is(err, unix.EEXIST) {
 		// Refuse special nodes before opening them, then check the opened inode
 		// again. O_NONBLOCK prevents a replaced FIFO from blocking maintenance.
 		var info unix.Stat_t
-		if err := unix.Fstatat(int(folder.Fd()), "database.lock", &info, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		if err := unix.Fstatat(int(folder.Fd()), lockName, &info, unix.AT_SYMLINK_NOFOLLOW); err != nil {
 			return nil, false, fmt.Errorf("stat lock %s: %w", name, err)
 		}
 		if info.Mode&unix.S_IFMT != unix.S_IFREG {
 			return nil, false, fmt.Errorf("%w: lock %s is not regular: remove the unsafe node", ErrPermissions, name)
 		}
-		fd, err = unix.Openat(int(folder.Fd()), "database.lock", flags, 0)
+		fd, err = unix.Openat(int(folder.Fd()), lockName, flags, 0)
 	}
 	if err != nil {
 		return nil, false, fmt.Errorf("open lock %s: %w", name, err)
@@ -226,7 +227,7 @@ func ownershipValidate(path string, info *unix.Stat_t, uid uint32, private bool)
 func ownershipPrepare(uid uint32, lock *unix.Stat_t, lockUID uint32, plan *[]ownershipNode) error {
 	// The plan grows while visiting parents; range would snapshot its initial
 	// length and omit directories appended during traversal.
-	for index := 0; index < len(*plan); index++ {
+	for index := 0; index < len(*plan); index++ { //nolint:intrange // the plan grows during the walk
 		if !(*plan)[index].directory {
 			continue
 		}
@@ -252,7 +253,7 @@ func ownershipPrepare(uid uint32, lock *unix.Stat_t, lockUID uint32, plan *[]own
 					return errors.Join(fmt.Errorf("stat %s: %w", path, err), file.Close())
 				}
 				ownerUID := uid
-				if index == 0 && name == "database.lock" {
+				if index == 0 && name == lockName {
 					if info.Dev != lock.Dev || info.Ino != lock.Ino {
 						return errors.Join(fmt.Errorf("%w: %s changed during ownership maintenance: stop other maintenance processes", ErrBusy, path), file.Close())
 					}
@@ -306,19 +307,19 @@ func ownershipPrepare(uid uint32, lock *unix.Stat_t, lockUID uint32, plan *[]own
 // Known storage names remain private even beside publicly readable loose configs.
 // Descendants inherit this classification, including replaced and staged trees.
 func ownershipPrivate(name string) bool {
-	return name == "database" || name == "database.import-intent" ||
-		strings.HasPrefix(name, "database.replaced-") ||
-		strings.HasPrefix(name, "database.init-tmp-") ||
-		strings.HasPrefix(name, "database.import-tmp-") ||
+	return name == treeName || name == importIntentName ||
+		strings.HasPrefix(name, treeName+replacedInfix) ||
+		strings.HasPrefix(name, initStagePrefix) ||
+		strings.HasPrefix(name, importStagePrefix) ||
 		strings.HasSuffix(name, ".zefs") || strings.HasSuffix(name, ".lock") ||
-		strings.Contains(name, ".zefs.replaced-") ||
+		strings.Contains(name, ".zefs"+replacedInfix) ||
 		strings.HasPrefix(name, ".ze-storage-") || strings.HasPrefix(name, ".ze-blob-")
 }
 
 // ownershipSync persists every prepared inode without reading file contents.
 func ownershipSync(plan []ownershipNode) error {
 	var result error
-	for i := len(plan) - 1; i >= 0; i-- {
+	for i := range slices.Backward(plan) {
 		result = errors.Join(result, plan[i].file.Sync())
 	}
 	return result

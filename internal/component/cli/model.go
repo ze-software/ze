@@ -204,6 +204,7 @@ type Model struct {
 	modeStates          map[EditorMode]modeState // Saved screen state per mode
 	commandCompleter    CommandModeCompleter     // Completer for command mode (nil if no daemon)
 	commandExecutor     CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
+	transcript          *TranscriptWriter        // Session transcript the executor records into; nil when disabled
 	filesystemAuthority FilesystemAuthority      // Whose OS identity would perform filesystem effects.
 
 	// Monitor streaming state (generic monitor view; not a registered live view)
@@ -1013,6 +1014,22 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 // A caller that also calls SetStartMode MUST call this one first.
 func (m *Model) SetCommandExecutor(fn CommandExecutor) {
 	m.commandExecutor = fn
+}
+
+// SetTranscript records every operational command the executor runs and the
+// answer it returns. The daemon owns a remote session's model, so it also owns
+// the transcript file: Close releases it when the session ends. Call this
+// after SetCommandExecutor, because it wraps the executor set at that point.
+func (m *Model) SetTranscript(tw *TranscriptWriter) {
+	m.transcript = tw
+	m.commandExecutor = WrapExecutorWithTranscript(m.commandExecutor, tw)
+}
+
+// Close releases the transcript the session held open. The SSH server calls
+// it once the session's program returns (internal/component/ssh/ssh.go,
+// sessionCloseMiddleware). A model without a transcript closes nothing.
+func (m Model) Close() error {
+	return m.transcript.Close()
 }
 
 // SetStartMode selects the mode this model opens in, before the program runs.

@@ -43,11 +43,8 @@ func OpenBlob(path string, writable bool) (Storage, error) {
 	}
 	blob, err := zefs.Open(path)
 	if err != nil {
-		if owner != nil {
-			owner.Close()
-		}
-		return nil, err
-	} //nolint:errcheck // original artifact error.
+		return nil, errors.Join(err, owner.Close())
+	}
 	return newStore(nil, blob, owner, !writable), nil
 }
 
@@ -70,13 +67,13 @@ func CreateBlobPopulated(path string, populate func(Storage) error, replace bool
 	}
 	defer folder.Close() //nolint:errcheck // publication sync checked explicitly.
 	path = filepath.Join(folder.Name(), name)
-	if filepath.Base(path) == "database.zefs" {
-		liveOwner, err := lockOwner(folder, "database.lock")
+	if filepath.Base(path) == blobName {
+		liveOwner, err := lockOwner(folder, lockName)
 		if err != nil {
 			return nil, err
 		}
 		defer liveOwner.Close() //nolint:errcheck // releases publication ownership.
-		tree := filepath.Join(folder.Name(), "database")
+		tree := filepath.Join(folder.Name(), treeName)
 		if _, err := os.Lstat(tree); err == nil {
 			return nil, fmt.Errorf("live database already exists: %s: %w", tree, fs.ErrExist)
 		} else if !errors.Is(err, fs.ErrNotExist) {
@@ -89,10 +86,11 @@ func CreateBlobPopulated(path string, populate func(Storage) error, replace bool
 	}
 	result, err := populateBlob(folder, owner, filepath.Base(path), populate, replace)
 	if err != nil {
-		owner.Close()
-	} //nolint:errcheck // preserve operation error.
-	return result, err
+		return nil, errors.Join(err, owner.Close())
+	}
+	return result, nil
 }
+
 func populateBlob(folder, owner *os.File, name string, populate func(Storage) error, replace bool) (Storage, error) {
 	path := filepath.Join(folder.Name(), name)
 	if replace {
@@ -133,14 +131,14 @@ func populateBlob(folder, owner *os.File, name string, populate func(Storage) er
 	}
 	if replace {
 		if _, err := os.Lstat(path); err == nil {
-			if _, err := moveAside(folder, name); err != nil {
+			if err := moveAside(folder, name); err != nil {
 				return nil, err
 			}
 		} else if !errors.Is(err, fs.ErrNotExist) {
 			return nil, err
 		}
 	}
-	if err := renameNoReplace(folder, filepath.Base(stage.Name()), name); err != nil {
+	if err := zefs.RenameNoReplace(folder, filepath.Base(stage.Name()), name); err != nil {
 		return nil, err
 	}
 	if err := folder.Sync(); err != nil {

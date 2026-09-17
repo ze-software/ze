@@ -56,7 +56,7 @@ type ntpConfig struct {
 	MaxStepSec      int // max accepted clock step in seconds; 0 means unlimited
 	SlewThresholdMs int // max offset in ms for slew (Adjtimex); 0 = always step
 	// PersistPath is vestigial/back-compat. The last-known time now persists in the
-	// shared zefs store (database.zefs) via internal/core/statestore, not this path;
+	// managed store (database/) via internal/core/statestore, not this path;
 	// the value no longer designates a file. A non-empty value still enables time
 	// persistence (the default), so the YANG leaf stays parsed and validated.
 	// TODO: consider deprecating the persist-path YANG leaf.

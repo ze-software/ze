@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 
@@ -43,10 +42,10 @@ func secureNode(file *os.File, directory bool) error {
 		mode = 0o700
 		kind = unix.S_IFDIR
 	}
-	if uint32(st.Mode)&unix.S_IFMT != kind {
+	if uint32(st.Mode)&unix.S_IFMT != kind { //nolint:unconvert // Mode is uint16 on darwin and freebsd
 		return fmt.Errorf("%w: %s mode %s: remove unsafe node", ErrPermissions, file.Name(), info.Mode())
 	}
-	if uint32(st.Mode)&0o7777 != mode {
+	if uint32(st.Mode)&0o7777 != mode { //nolint:unconvert // Mode is uint16 on darwin and freebsd
 		return fmt.Errorf("%w: %s mode %04o: chmod %04o %s", ErrPermissions, file.Name(), st.Mode&0o7777, mode, file.Name())
 	}
 	if int(st.Uid) != os.Geteuid() {
@@ -82,110 +81,17 @@ func openFolder(path string) (*os.File, error) {
 	return openFolderMode(path, false)
 }
 
+// openFolderMode is the one ancestor-trust walk, declared in zefs; storage
+// only names the refusal as its own permission error.
 func openFolderMode(path string, create bool) (*os.File, error) {
-	absolute := path
-	if !filepath.IsAbs(path) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		absolute = cwd + "/" + path
-	}
-	// Darwin's /tmp and /var are system aliases; resolve only those known
-	// prefixes, then reject symlinks in every remaining component.
-	if runtime.GOOS == "darwin" {
-		for _, alias := range []string{"/tmp", "/var"} {
-			if absolute == alias {
-				absolute = "/private" + absolute
-				break
-			}
-			if strings.HasPrefix(absolute, alias+"/") {
-				absolute = "/private" + absolute
-				break
-			}
-		}
-	}
-	parts := strings.Split(strings.TrimPrefix(absolute, "/"), "/")
-	current, err := openArtifactFolder("/")
+	folder, err := zefs.OpenDirectory(path, create)
 	if err != nil {
+		if errors.Is(err, fs.ErrPermission) {
+			return nil, fmt.Errorf("%w: %w", ErrPermissions, err)
+		}
 		return nil, err
 	}
-	depth, privateDepth := 0, -1
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		fd, err := unix.Openat(int(current.Fd()), part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
-		created := false
-		if create && errors.Is(err, unix.ENOENT) {
-			mkdirErr := unix.Mkdirat(int(current.Fd()), part, 0o700)
-			if mkdirErr != nil && !errors.Is(mkdirErr, unix.EEXIST) {
-				return nil, errors.Join(mkdirErr, current.Close())
-			}
-			created = mkdirErr == nil
-			fd, err = unix.Openat(int(current.Fd()), part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
-		}
-		if err != nil {
-			return nil, errors.Join(fmt.Errorf("%w: %s: %v", ErrPermissions, absolute, err), current.Close())
-		}
-		next := os.NewFile(uintptr(fd), filepath.Join(current.Name(), part))
-		if created {
-			if err := next.Chmod(0o700); err != nil {
-				return nil, errors.Join(err, next.Close(), current.Close())
-			}
-			if err := errors.Join(next.Sync(), current.Sync()); err != nil {
-				return nil, errors.Join(err, next.Close(), current.Close())
-			}
-		}
-		if err := current.Close(); err != nil {
-			return nil, errors.Join(err, next.Close())
-		}
-		current = next
-		var st unix.Stat_t
-		if err := unix.Fstat(fd, &st); err != nil {
-			return nil, errors.Join(err, current.Close())
-		}
-		trusted := int(st.Uid) == os.Geteuid()
-		if st.Uid == 0 {
-			trusted = true
-		}
-		if !trusted {
-			return nil, errors.Join(fmt.Errorf("%w: untrusted directory owner %d: %s", ErrPermissions, st.Uid, current.Name()), current.Close())
-		}
-		switch part {
-		case ".":
-		case "..":
-			if depth > 0 {
-				depth--
-			}
-			if depth < privateDepth {
-				privateDepth = -1
-			}
-		default:
-			depth++
-		}
-		// A caller-owned private ancestor prevents outsiders from reaching
-		// later writable directories. Leaving it through ".." ends that protection.
-		if privateDepth < 0 && int(st.Uid) == os.Geteuid() && st.Mode&0o077 == 0 {
-			privateDepth = depth
-		}
-		if privateDepth < 0 && st.Mode&0o022 != 0 {
-			if st.Mode&unix.S_ISVTX == 0 {
-				return nil, errors.Join(fmt.Errorf("%w: writable directory %s mode %04o; remove group/other write permission", ErrPermissions, current.Name(), st.Mode&0o7777), current.Close())
-			}
-		}
-	}
-	return current, nil
-}
-
-// Artifact directories can be ordinary output directories. Only the artifact
-// inode carries the secret-bearing 0600/owner requirement.
-func openArtifactFolder(path string) (*os.File, error) {
-	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
-	if err != nil {
-		return nil, err
-	}
-	return os.NewFile(uintptr(fd), path), nil
+	return folder, nil
 }
 
 func (t *treeEncoding) barrier(file *os.File) error {
@@ -224,9 +130,8 @@ func (t *treeEncoding) parent(key string, create bool) (*os.File, string, error)
 			return nil, "", errors.Join(err, closeErr)
 		}
 		if closeErr != nil {
-			next.Close()
-			return nil, "", closeErr
-		} //nolint:errcheck // primary close failure retained.
+			return nil, "", errors.Join(closeErr, next.Close())
+		}
 		current = next
 	}
 	return current, parts[len(parts)-1], nil
@@ -268,7 +173,7 @@ func (t *treeEncoding) ReadFile(key string) ([]byte, error) {
 	}
 	frame := make([]byte, int(info.Size()))
 	if _, err := io.ReadFull(file, frame); err != nil {
-		return nil, fmt.Errorf("%w: key %s: %v", ErrCorrupt, key, err)
+		return nil, fmt.Errorf("%w: key %s: %w", ErrCorrupt, key, err)
 	}
 	var extra [1]byte
 	if _, err := file.Read(extra[:]); !errors.Is(err, io.EOF) {
@@ -276,7 +181,7 @@ func (t *treeEncoding) ReadFile(key string) ([]byte, error) {
 	}
 	data, _, next, err := zefs.DecodeNetcapstringRef(frame, 0)
 	if err != nil {
-		return nil, fmt.Errorf("%w: key %s: %v", ErrCorrupt, key, err)
+		return nil, fmt.Errorf("%w: key %s: %w", ErrCorrupt, key, err)
 	}
 	if next != len(frame) {
 		return nil, fmt.Errorf("%w: key %s: trailing bytes at %d", ErrCorrupt, key, next)
@@ -292,7 +197,7 @@ func (t *treeEncoding) WriteFile(key string, data []byte, _ fs.FileMode) error {
 	defer parent.Close() //nolint:errcheck // barriers report errors before close.
 	old, err := openNode(parent, leaf, false)
 	if err == nil {
-		if err = old.Close(); err != nil {
+		if err := old.Close(); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -432,13 +337,11 @@ func (t *treeEncoding) Remove(key string) error {
 	}
 	file, err := openNode(parent, leaf, false)
 	if err != nil {
-		parent.Close()
-		return err
-	} //nolint:errcheck // primary node error.
-	if err = file.Close(); err != nil {
-		parent.Close()
-		return err
-	} //nolint:errcheck // primary close error.
+		return errors.Join(err, parent.Close())
+	}
+	if err := file.Close(); err != nil {
+		return errors.Join(err, parent.Close())
+	}
 	err = unix.Unlinkat(int(parent.Fd()), leaf, 0)
 	if err == nil {
 		err = t.barrier(parent)

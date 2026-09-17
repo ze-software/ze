@@ -14,7 +14,8 @@ import (
 // Construction and configuration cannot issue runtime RPCs. Initialization must
 // happen once before packets, and a new engine must obtain a new durable counter.
 func TestOSPFStateInitializationAfterConfigure(t *testing.T) {
-	store := newDaemonStateClient(t)
+	installDaemonState(t)
+	store := daemonStateClient{}
 	e := newEngine(nil)
 	defer e.shutdown()
 	e.state = store
@@ -92,7 +93,8 @@ func TestRestartFactCorruptionIsExplicit(t *testing.T) {
 // A newly configured instance must initialize state during apply, after the
 // handshake, with its own instance key and before its interfaces can run.
 func TestOSPFReloadCreatedInstanceInitializesState(t *testing.T) {
-	store := newDaemonStateClient(t)
+	installDaemonState(t)
+	store := daemonStateClient{}
 	mgr := newTestInstanceManager()
 	defer mgr.shutdownAll()
 	mgr.engines[0].state = store
@@ -132,7 +134,8 @@ func TestOSPFReloadCreatedInstanceInitializesState(t *testing.T) {
 }
 
 func TestOSPFReloadCreatedAFInitializesState(t *testing.T) {
-	store := newDaemonStateClient(t)
+	installDaemonState(t)
+	store := daemonStateClient{}
 	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}}}}`), nil)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +151,7 @@ func TestOSPFReloadCreatedAFInitializesState(t *testing.T) {
 	if err := m.start(first, false); err != nil {
 		t.Fatal(err)
 	}
-	both := append(first, v6AFConfig{af: afIPv4Unicast, cfg: cfg})
+	both := []v6AFConfig{first[0], {af: afIPv4Unicast, cfg: cfg}}
 	if err := m.apply(both, true); err != nil {
 		t.Fatal(err)
 	}

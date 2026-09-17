@@ -29,6 +29,9 @@ type Storage interface {
 	WriteKey(string, []byte) error
 	RemoveKey(string) error
 	ListKeys(string) ([]string, error)
+	// CheckName refuses a config name outside the store; every config-name
+	// path, including the pointer and version helpers, MUST reach it.
+	CheckName(string) error
 }
 
 // FileMeta is process-local modification metadata, shared by both encodings.
@@ -62,8 +65,8 @@ func FormatVersionStamp(t time.Time) string {
 	return fmt.Sprintf("%s.%03d", t.Format("20060102-150405"), t.Nanosecond()/1e6)
 }
 
-// ParseVersionStamp parses the canonical version timestamp.
-func ParseVersionStamp(s string) (time.Time, error) {
+// parseVersionStamp parses the canonical version timestamp.
+func parseVersionStamp(s string) (time.Time, error) {
 	parts := strings.SplitN(s, ".", 2)
 	if len(parts) != 2 {
 		return time.Time{}, fmt.Errorf("invalid version stamp: %s", s)

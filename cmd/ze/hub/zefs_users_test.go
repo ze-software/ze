@@ -147,16 +147,53 @@ func TestUsersFromZefsDBRejectsLegacySSHOnlyDatabase(t *testing.T) {
 	}
 	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
 
-	if _, err := usersFromStore(db); err == nil {
-		t.Fatal("expected legacy ssh-only database to be rejected")
+	// The ssh records are not a login source: no user comes out of them. An
+	// absent local admin is "no power user", not a fault (AC-15 auto-create).
+	users, err := usersFromStore(db)
+	if err != nil {
+		t.Fatalf("legacy ssh-only records must not be a fault, got %v", err)
+	}
+	if len(users) != 0 {
+		t.Fatalf("legacy ssh-only records must yield no user, got %v", users)
 	}
 }
 
-func TestUsersFromZefsDBFailsClosedOnMissingCreds(t *testing.T) {
+// VALIDATES: a fresh tree with no meta/auth/* keys (the AC-15 auto-created
+// store) yields no power user and no error, so bootPowerUsers logs no
+// break-glass warning for a store that was never seeded.
+func TestUsersFromZefsDBAbsentCredentialsIsNoUser(t *testing.T) {
 	db := writeZefsCreds(t, "", "")
 
+	users, err := usersFromStore(db)
+	if err != nil {
+		t.Fatalf("absent credentials must be no user, got error %v", err)
+	}
+	if len(users) != 0 {
+		t.Fatalf("absent credentials must yield no user, got %v", users)
+	}
+}
+
+// VALIDATES: a username with no stored hash is a fault, not "no user".
+func TestUsersFromZefsDBFailsClosedOnMissingHash(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x.conf")
+	store, err := storage.Create(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := storage.OpenReadOnly(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
+
 	if _, err := usersFromStore(db); err == nil {
-		t.Fatal("expected error for missing credentials (fail closed)")
+		t.Fatal("expected error for a username without a hash (fail closed)")
 	}
 }
 

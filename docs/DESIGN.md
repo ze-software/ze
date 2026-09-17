@@ -542,9 +542,11 @@ of ExaBGP formats -- all translation lives in external tooling.
 ### Configuration Database
 
 Unlike most Unix daemons that only offer flat configuration files, Ze stores its
-configuration in ZeFS -- a netcapstring-framed blob store (`.zefs` file) that supports
-named entries, hierarchical keys, zero-copy reads via mmap, and in-place updates.
-<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+configuration in a managed store: a `database/` tree of netcapstring-framed files
+with named entries and hierarchical keys. A ZeFS blob (`.zefs` file) carries the
+same keys as an artifact: a seed, a backup, or an import source, never the live store.
+<!-- source: internal/component/config/storage/open.go -- Open, detect -->
+<!-- source: internal/component/config/storage/tree.go -- treeEncoding.ReadFile -->
 <!-- source: pkg/zefs/netcapstring.go -- netcapstring framing -->
 <!-- source: pkg/zefs/mmap_unix.go -- mmap zero-copy reads -->
 This makes Ze more like a network operating system (similar to VyOS or JunOS) than a

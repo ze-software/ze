@@ -1,0 +1,7 @@
+# Test: start-refuses-unfinished-import
+# VALIDATES: an import intent beside an absent tree refuses ze start and names the import to finish.
+# PREVENTS: auto-creating an empty tree over the operator's store in database.replaced-* after an import crash.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=ze-test fixture storage/tree start-refuses-unfinished-import:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: start-refuses-unfinished-import

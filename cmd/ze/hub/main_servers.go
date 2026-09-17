@@ -208,7 +208,10 @@ var resolveBootUsers = func(usersLive func() ([]authz.UserConfig, error)) ([]aut
 }
 
 // usersFromStore reads dedicated local power-user credentials from the owned store.
-// Missing or empty credentials return an error so the caller fails closed.
+// An absent username means "no power user" and returns no user and no error:
+// a tree auto-created by `ze start <file>` holds none until `ze init` writes it.
+// Every other short read fails closed with an error: a username with no hash,
+// an empty value, or a frame that cannot be read.
 // When meta/instance/admin-disabled is "true", returns errAdminDisabledInZefs
 // so the caller skips the built-in power user.
 func usersFromStore(db storage.Storage) ([]authz.UserConfig, error) {
@@ -220,6 +223,12 @@ func usersFromStore(db storage.Storage) ([]authz.UserConfig, error) {
 		return nil, errAdminDisabledInZefs
 	}
 	username, err := db.ReadFile(zefs.KeyLocalAdminUsername.Pattern)
+	// A tree auto-created by `ze start <file>` holds no meta/auth/* until
+	// `ze init` or the installer writes it: that is "no power user", not a
+	// fault. Any other read error, and a username with no hash, stays loud.
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("read local username: %w", err)
 	}

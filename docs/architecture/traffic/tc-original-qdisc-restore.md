@@ -100,7 +100,9 @@ snapshot was published. A second daemon starts from the same config and its
 shutdown must restore the original handle and both custom parameters. The
 snapshot key must then be absent.
 
-The draft carrier is `test/draft/traffic/storage-tc-restart.ci`. It requires
-Linux, `CAP_NET_ADMIN`, and `iproute2`, so a host without those capabilities
-uses the disposable QEMU guest. It changes only its own dummy interface.
+The carrier is `test/traffic/storage-tc-restart.ci`, gated
+`option=needs-linux:caps=net-admin`. It requires Linux, `CAP_NET_ADMIN`, and
+`iproute2`, so a host without those capabilities skips it and the disposable
+QEMU guest (`./le qemu all-tests`) runs it. It changes only its own dummy
+interface.
 <!-- source: internal/test/fixture/storage_consumer_tc.go -- storageTCRestart -->

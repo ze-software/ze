@@ -24,8 +24,9 @@ import (
 	"github.com/ze-software/ze/internal/le/population"
 )
 
-// scanRoots includes core for the live-store rule, independently of raw writes.
-var scanRoots = []string{"internal/plugins", "internal/component", "cmd/ze", "internal/core"}
+// scanRoots includes core and internal/test for the live-store rule only: a
+// runner or fixture that seeds a live blob is refused, its raw scratch writes are not.
+var scanRoots = []string{"internal/plugins", "internal/component", "cmd/ze", "internal/core", "internal/test"}
 
 // blobArtifactAllowlist is separate from raw-write exemptions: exporting a file
 // does not authorize opening the live store behind Storage.
@@ -91,7 +92,6 @@ var fileAllowlist = map[string]string{
 	"internal/component/l2tp/ppp/devppp_linux.go":                    "opens the /dev/ppp kernel device",
 	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
 	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
-	"cmd/ze/ze_core_autoinit.go":                                     "writes bootstrap messages to /dev/kmsg",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
 	"cmd/ze/hub/pidfile.go":     "runtime pidfile",
 	"cmd/ze/hub/service_ssh.go": "ephemeral ssh listen-address handoff file",
@@ -106,8 +106,7 @@ var fileAllowlist = map[string]string{
 	"internal/component/bgp/reactor/capture_replay.go":        "per-peer BGP protocol event capture: a JSONL diagnostic stream the operator hands to a developer, replayed by `ze-test replay` (internal/test/cli/cmd_replay.go). The daemon never reads it back, so it is not runtime state; statestore.Put takes a whole value and cannot carry a bounded, rotating, wire-rate stream",
 	"internal/component/vpp/vpp.go":                           "startup.conf consumed by the external VPP process",
 	"internal/component/firewall/plugins/domain/changelog.go": "firewall domain-group DNS change log: a bounded, rotating JSONL record of what each name resolved to and when it moved, which the daemon never reads back. zefs has no append, because BlobStore carries WriteFile and no Append (pkg/zefs/store.go), so a value that grows rewrites the whole store on every entry. docs/architecture/zefs-format.md already names the append-only log in internal/core/audit as this exception, and the file is deliberately separate from the operator audit log so DNS churn does not evict commit history",
-	"internal/component/cli/client/transcript.go":             "operator CLI session transcript log",
-	"internal/component/config/cli/transcript.go":             "operator CLI session transcript log",
+	"internal/component/cli/transcript.go":                    "operator CLI session transcript log",
 	"internal/component/config/system/resolv_linux.go":        "system /etc/resolv.conf for libc/other daemons",
 	"internal/component/config/archive/archive.go":            "operator/external config backup artifact",
 	"internal/component/config/system/selfupdate.go":          "stages/installs/rolls-back the ze binary (a real executable file); the update-history JSON is persisted via statestore",
@@ -221,6 +220,9 @@ func check(tree string, floor int) (Findings, map[string]bool, error) {
 				}
 				if strings.HasPrefix(rel, "internal/core/") {
 					continue // The raw-write rule excludes core crash/audit machinery.
+				}
+				if strings.HasPrefix(rel, "internal/test/") {
+					continue // Test harnesses write their own scratch; only the live-store rule reads them.
 				}
 				if rule, exempt := AllowlistedBy(rel); exempt {
 					matched[rule] = true

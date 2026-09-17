@@ -68,6 +68,7 @@ const (
 	CodeDoctorStorePermissions                     = "doctor-store-permissions"
 	CodeDoctorTLSExpired                           = "doctor-tls-expired"
 	CodeDoctorTLSInvalid                           = "doctor-tls-invalid"
+	CodeDoctorStorageUnavailable                   = "doctor-storage-unavailable"
 	CodeDoctorTLSMissing                           = "doctor-tls-missing"
 	CodeDoctorTLSReference                         = "doctor-tls-reference"
 	CodeDoctorVPPLCPNetns                          = "doctor-vpp-lcp-netns"
@@ -271,7 +272,7 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
-		Code:        "doctor-storage-unavailable",
+		Code:        CodeDoctorStorageUnavailable,
 		Title:       "Config storage unavailable",
 		Description: "The managed store could not be opened read-only. Run ze init when no store exists, or follow the named import or repair command. Doctor never creates a store.",
 		Examples:    []string{exampleDoctorJSON},

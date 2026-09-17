@@ -1,10 +1,10 @@
 # Test: ze data resolves its store through ZE_CONFIG_DIR, not the binary location.
 # accept-only: the registered native fixture enforces this scenario's behavioral contract
 #
-# VALIDATES: `ze data check` reads the same database.zefs that `ze init` wrote when
+# VALIDATES: `ze data check` reads the same database/ tree that `ze init` wrote when
 #   ZE_CONFIG_DIR pins the config dir. Both commands must agree on the location.
-# PREVENTS: regression of the split where `ze init` wrote $ZE_CONFIG_DIR/database.zefs
-#   while `ze data check` derived <binary-prefix>/etc/ze/database.zefs from the binary
+# PREVENTS: regression of the split where `ze init` wrote $ZE_CONFIG_DIR/database/
+#   while `ze data check` derived <binary-prefix>/etc/ze/database/ from the binary
 #   location and reported "no such file or directory" against a healthy store, because
 #   paths.DefaultConfigDir ignored the ze.config.dir override registered in its own file.
 #

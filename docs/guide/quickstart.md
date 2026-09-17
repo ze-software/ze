@@ -56,7 +56,7 @@ as `database.replaced-<stamp>` before publishing the fully seeded replacement.
 `--force --yes` confirms replacement in a script. Replacement refuses while any
 process owns the store, regardless of the selected SSH target. Ordinary startup
 refuses an existing blob without converting it. The diagnostic names
-`ze init from`, a standalone import command planned for storage-2.
+`ze init --from <blob>`, which imports a local blob; the URL form is storage-2.
 Appliance first boot already imports its seed. `ze init --seed` writes an
 explicit blob artifact for appliance builders.
 <!-- source: internal/plugins/init/main.go -- Run -->

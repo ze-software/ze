@@ -19,11 +19,6 @@ func newTreeStorage(t *testing.T, dir string) Storage {
 	return s
 }
 
-func newBlobStorage(t *testing.T) Storage {
-	t.Helper()
-	return newBlobStorageAt(t, t.TempDir())
-}
-
 func newBlobStorageAt(t *testing.T, dir string) Storage {
 	t.Helper()
 	s, err := CreateBlob(filepath.Join(dir, "test.zefs"))
@@ -300,14 +295,14 @@ func TestVersionStampRoundTrip(t *testing.T) {
 	original := time.Date(2026, 3, 18, 10, 30, 45, 123_000_000, time.Local)
 	stamp := FormatVersionStamp(original)
 	assert.Equal(t, "20260318-103045.123", stamp)
-	parsed, err := ParseVersionStamp(stamp)
+	parsed, err := parseVersionStamp(stamp)
 	require.NoError(t, err)
 	assert.Equal(t, original.Truncate(time.Millisecond), parsed)
 }
 
 func TestParseVersionStampRejectsInvalid(t *testing.T) {
 	for _, stamp := range []string{"../../../etc/shadow", "20260318-100000.1234", "20260318-100000.-01", "20260318-100000.abc"} {
-		_, err := ParseVersionStamp(stamp)
+		_, err := parseVersionStamp(stamp)
 		require.Error(t, err, stamp)
 	}
 }

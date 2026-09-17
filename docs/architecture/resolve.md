@@ -297,8 +297,8 @@ delegated range and a table that cannot be read are two different answers: the
 first names the range, the second names the table, and both exit 1. The table it
 reads is the copy `update resolve rir` stored, when that copy was generated after
 the seed the binary ships, and the shipped seed in every other case. On the host
-the stored copy is read from `database.zefs`, read-only, and only if that file
-exists.
+the stored copy is read from the `database/` store in the config folder, opened
+read-only, and only when that store exists.
 <!-- source: internal/component/resolve/irr/rir.go -- RegistryForASN -->
 <!-- source: internal/component/resolve/irr/stored.go -- preferStoredDelegation -->
 

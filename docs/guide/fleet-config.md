@@ -91,7 +91,7 @@ plugin {
 ## Config Management
 
 On the hub, manage client configurations through the config editor. Stop the hub daemon
-first. Each of these commands opens the blob store in its own process. A running hub
+first. Each of these commands opens the `database/` store in its own process. A running hub
 answers every read from the tree it loaded at startup. An edit made behind it therefore
 changes nothing the hub serves.
 

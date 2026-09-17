@@ -369,16 +369,21 @@ func readCredentials(dbPath, cliUser, remoteHost, remotePort string, allowPrompt
 var errStoreUnavailable = errors.New("credential store unavailable")
 
 // openStoreIfReadable opens the credential store, returning errStoreUnavailable
-// when the file is missing or unreadable by this user.
+// when the store is missing or this user cannot read it.
 //
 // Any other failure is returned as-is. A corrupt or truncated store is a real
 // problem and must surface as one -- silently downgrading it to "no credentials"
-// would turn a loud bug into a confusing authentication failure.
+// would turn a loud bug into a confusing authentication failure. That includes
+// storage.ErrPermissions: it wraps fs.ErrPermission, but it names an unsafe
+// node or mode INSIDE the store, with the repair, and the operator must see it.
+// Only a bare fs.ErrPermission says this user lacks access.
 func openStoreIfReadable(dbPath string) (storage.Storage, error) {
 	store, err := storage.OpenReadOnly(dbPath)
 	switch {
 	case err == nil:
 		return store, nil
+	case errors.Is(err, storage.ErrPermissions):
+		return nil, fmt.Errorf("open database: %w", err)
 	case errors.Is(err, storage.ErrNoStore), errors.Is(err, fs.ErrPermission):
 		return nil, fmt.Errorf("%w: %s", errStoreUnavailable, dbPath)
 	default:

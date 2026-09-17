@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/aaa"
@@ -122,6 +123,44 @@ func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done cha
 	}
 }
 
+// reloadGate counts the reloads a commit path starts on a request goroutine
+// (SSH or web commit, API full reload, managed commit). Shutdown closes the
+// gate and waits for them before the store is closed, because every one of
+// them ends in promoteConfigCandidate, which reads and writes the store. A
+// reload that arrives after the gate closed is refused rather than started
+// against a store about to close.
+type reloadGate struct {
+	mu     sync.Mutex
+	closed bool
+	wg     sync.WaitGroup
+}
+
+// errDaemonStopping is the refusal a commit reload gets once shutdown began.
+var errDaemonStopping = errors.New("daemon is shutting down; config reload refused")
+
+// enter admits one reload and returns true; the caller MUST call leave when
+// that reload returns. It returns false once close has run.
+func (g *reloadGate) enter() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed {
+		return false
+	}
+	g.wg.Add(1)
+	return true
+}
+
+// leave releases one admitted reload.
+func (g *reloadGate) leave() { g.wg.Done() }
+
+// close refuses every later reload and waits for the admitted ones to return.
+func (g *reloadGate) close() {
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+	g.wg.Wait()
+}
+
 // reloadShutdownGrace gives the running reload time to finish before shutdown
 // cancels it. Cancellation still requires a join before closing its resources.
 const reloadShutdownGrace = 3 * time.Second
@@ -209,8 +248,8 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 // ErrReloadInProgress is deliberately NOT marked: that reload never ran: it is
 // queued and replayed by handleSIGHUPReload, and the replay marks it. Marking
 // it here would fence an observer on a reload that had not been processed.
-func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
-	return doReloadContext(context.Background(), s, eng, cp, store, configPath, load, lm)
+func doReload(s *pluginserver.Server, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
+	return doReloadContext(context.Background(), s, nil, cp, store, configPath, load, lm)
 }
 
 func doReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {

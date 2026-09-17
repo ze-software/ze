@@ -469,12 +469,18 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		wish.WithVersion(sshclient.ServerSoftwareVersion),
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
 		// Wish composes middleware from first to last: last = outermost = runs first.
-		// Order: maxSessions → exec → bubbletea → activeterm (innermost).
+		// Order: maxSessions → exec → sessionClose → bubbletea → activeterm (innermost).
 		// Exec middleware intercepts non-interactive sessions before they
-		// reach bubbletea/activeterm (which require a PTY).
+		// reach bubbletea/activeterm (which require a PTY). sessionClose sits
+		// OUTSIDE bubbletea: the bubbletea middleware builds the model (which
+		// registers the closer) and then returns without calling the next
+		// handler when the session has no PTY, so an inner middleware would
+		// never run and the model's transcript would leak. Outside, it closes
+		// on every return, including a panic out of the program.
 		wish.WithMiddleware(
 			activeterm.Middleware(),
 			bubbletea.Middleware(s.teaHandler),
+			s.sessionCloseMiddleware(),
 			s.execMiddleware(),
 			s.maxSessionsMiddleware(),
 		),
@@ -984,6 +990,32 @@ func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 		_ = sess.Exit(1)
 		return nil, nil
 	}
+	if closer, ok := model.(io.Closer); ok {
+		sess.Context().SetValue(sessionCloserKey{}, closer)
+	}
 	s.logger.Info("SSH session started", "user", username, "remote", remoteAddr)
 	return model, []tea.ProgramOption{}
+}
+
+// sessionCloserKey carries what the session's model holds open, its
+// transcript, from teaHandler to sessionCloseMiddleware.
+type sessionCloserKey struct{}
+
+// sessionCloseMiddleware closes what the session's model holds open once the
+// inner handlers return, whether the program ran, the session had no PTY, or
+// the program panicked. The closer is looked up after next returns because
+// teaHandler, which registers it, runs inside next.
+func (s *Server) sessionCloseMiddleware() wish.Middleware {
+	return func(next ssh.Handler) ssh.Handler {
+		return func(sess ssh.Session) {
+			defer func() {
+				if closer, ok := sess.Context().Value(sessionCloserKey{}).(io.Closer); ok {
+					if err := closer.Close(); err != nil {
+						s.logger.Warn("SSH session close", "user", sess.User(), "error", err)
+					}
+				}
+			}()
+			next(sess)
+		}
+	}
 }

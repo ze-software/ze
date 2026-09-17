@@ -214,10 +214,16 @@ Unreadable persistent state never selects this mode.
 
 Shutdown keeps plugin connections and storage open until the SIGHUP worker has
 returned. After the shutdown grace, it cancels the worker and waits for cleanup.
-A second termination signal can force exit during this wait. In-process storage
-guards are released before plugin callbacks run. The lifetime `database.lock`
-remains held until the store closes.
-<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker -->
+A second termination signal can force exit during this wait. Commit-driven
+reloads (an SSH or web commit, an API full reload, a managed commit) run on
+request goroutines and pass through a second gate, `reloadGate`: shutdown closes
+it after the SIGHUP worker returned and waits, with no grace period, for every
+admitted reload to return, because each one ends in `promoteConfigCandidate`,
+which writes the store. A commit that reaches the gate after shutdown began is
+refused with `daemon is shutting down; config reload refused` and never starts.
+In-process storage guards are released before plugin callbacks run. The lifetime
+`database.lock` remains held until the store closes.
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker, reloadGate -->
 
 
 ### Before Anything: the plugin setup gate

@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/netip"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 type reloadTestReactor struct {
@@ -120,7 +123,7 @@ func TestDoReloadPromotesCandidateOnSuccess(t *testing.T) {
 	oldStamp := "20260524-090000.000"
 	require.NoError(t, store.WriteFile(configPath, []byte("active-file"), 0o600))
 	require.NoError(t, store.WriteVersion(configPath, []byte("active-version"), mustParseReloadStamp(t, oldStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, oldStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, oldStamp)
 	newStamp, err := storage.WriteCandidateVersion(store, configPath, []byte("candidate-version"), mustParseReloadStamp(t, "20260524-100000.000"))
 	require.NoError(t, err)
 
@@ -134,20 +137,17 @@ func TestDoReloadPromotesCandidateOnSuccess(t *testing.T) {
 
 	// VALIDATES: AC-1 promotes candidate only after runtime reload succeeds.
 	// PREVENTS: accepted candidate remaining transient after a successful commit.
-	require.NoError(t, doReload(server, nil, nil, store, configPath, load, nil))
+	require.NoError(t, doReload(server, nil, store, configPath, load, nil))
 
-	active, ok, err := storage.ReadPointer(store, configPath, storage.PointerActive)
-	require.NoError(t, err)
+	active, ok := configPointer(t, store, configPath, zefs.KeyConfigActive)
 	require.True(t, ok)
 	assert.Equal(t, newStamp, active)
 
-	rollback, ok, err := storage.ReadPointer(store, configPath, storage.PointerRollback)
-	require.NoError(t, err)
+	rollback, ok := configPointer(t, store, configPath, zefs.KeyConfigRollback)
 	require.True(t, ok)
 	assert.Equal(t, oldStamp, rollback)
 
-	_, ok, err = storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok = configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 	assert.Equal(t, map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}}, reactor.setTree)
 }
@@ -164,9 +164,9 @@ func TestDoReloadClearsCandidateOnFailure(t *testing.T) {
 	activeStamp := "20260524-090000.000"
 	candidateStamp := "20260524-100000.000"
 	require.NoError(t, store.WriteVersion(configPath, []byte("active"), mustParseReloadStamp(t, activeStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, activeStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 	require.NoError(t, store.WriteVersion(configPath, []byte("candidate"), mustParseReloadStamp(t, candidateStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerCandidate, candidateStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigCandidate, candidateStamp)
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {
 		return nil, nil, fmt.Errorf("candidate parse failed")
@@ -174,17 +174,15 @@ func TestDoReloadClearsCandidateOnFailure(t *testing.T) {
 
 	// VALIDATES: AC-2 clears candidate after a failed reload and leaves active unchanged.
 	// PREVENTS: failed candidate being applied by the next reload or boot.
-	err = doReload(server, nil, nil, store, configPath, load, nil)
+	err = doReload(server, nil, store, configPath, load, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "candidate parse failed")
 
-	active, ok, err := storage.ReadPointer(store, configPath, storage.PointerActive)
-	require.NoError(t, err)
+	active, ok := configPointer(t, store, configPath, zefs.KeyConfigActive)
 	require.True(t, ok)
 	assert.Equal(t, activeStamp, active)
 
-	_, ok, err = storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok = configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 }
 
@@ -204,9 +202,9 @@ func TestDoReloadRollsBackOnListenerMigrationFailure(t *testing.T) {
 	oldStamp := "20260524-090000.000"
 	newStamp := "20260524-100000.000"
 	require.NoError(t, store.WriteVersion(configPath, []byte("old"), mustParseReloadStamp(t, oldStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, oldStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, oldStamp)
 	require.NoError(t, store.WriteVersion(configPath, []byte("new"), mustParseReloadStamp(t, newStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerCandidate, newStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigCandidate, newStamp)
 
 	lm := newListenerMigrator()
 	lm.web = &failingReconfigurable{addrs: []string{"127.0.0.1:3443"}, err: fmt.Errorf("listener refused")}
@@ -216,16 +214,14 @@ func TestDoReloadRollsBackOnListenerMigrationFailure(t *testing.T) {
 
 	// VALIDATES: listener migration failure rolls runtime/provider back before rejecting the candidate.
 	// PREVENTS: failed commits leaving plugin runtime or ConfigProvider on the rejected config.
-	err = doReload(server, nil, cp, store, configPath, load, lm)
+	err = doReload(server, cp, store, configPath, load, lm)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "listener refused")
 
-	active, ok, err := storage.ReadPointer(store, configPath, storage.PointerActive)
-	require.NoError(t, err)
+	active, ok := configPointer(t, store, configPath, zefs.KeyConfigActive)
 	require.True(t, ok)
 	assert.Equal(t, oldStamp, active)
-	_, ok, err = storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok = configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 	assert.Equal(t, oldTree, reactor.tree)
 	providerRoot, err := cp.Get("bgp")
@@ -291,7 +287,7 @@ func TestClearStaleCandidateOnBoot(t *testing.T) {
 	activeStamp := "20260524-090000.000"
 
 	require.NoError(t, store.WriteVersion(configPath, []byte("active"), mustParseReloadStamp(t, activeStamp)))
-	require.NoError(t, storage.WritePointer(store, configPath, storage.PointerActive, activeStamp))
+	setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte("stale"), mustParseReloadStamp(t, "20260524-100000.000"))
 	require.NoError(t, err)
 
@@ -299,8 +295,7 @@ func TestClearStaleCandidateOnBoot(t *testing.T) {
 	// PREVENTS: a crash-left candidate blocking the next transactional commit.
 	require.NoError(t, clearStaleCandidateOnBoot(store, configPath))
 
-	_, ok, err := storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok := configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 
 	data, err := storage.ReadActiveConfig(store, configPath)
@@ -330,15 +325,14 @@ func TestEnsureActivePointerProtectsFailedFirstSIGHUP(t *testing.T) {
 
 	// VALIDATES: AC-8 and AC-12 keep active pointer on the known-good version after failed SIGHUP.
 	// PREVENTS: first failed SIGHUP making the next boot load the bad edited config file.
-	err = doReload(server, nil, nil, store, configPath, load, nil)
+	err = doReload(server, nil, store, configPath, load, nil)
 	require.Error(t, err)
 
 	data, err := storage.ReadActiveConfig(store, configPath)
 	require.NoError(t, err)
 	assert.Equal(t, "known good", string(data))
 
-	_, ok, err := storage.ReadPointer(store, configPath, storage.PointerCandidate)
-	require.NoError(t, err)
+	_, ok := configPointer(t, store, configPath, zefs.KeyConfigCandidate)
 	assert.False(t, ok)
 }
 
@@ -380,9 +374,31 @@ func TestAwaitReloadWorker(t *testing.T) {
 	})
 }
 
+// mustParseReloadStamp parses a version stamp in the store's own layout,
+// local time to the millisecond, which is what the store formats back.
 func mustParseReloadStamp(t *testing.T, stamp string) time.Time {
 	t.Helper()
-	parsed, err := storage.ParseVersionStamp(stamp)
+	parsed, err := time.ParseInLocation("20060102-150405.000", stamp, time.Local)
 	require.NoError(t, err)
 	return parsed
+}
+
+// configPointer reads a named config pointer through the store's key layout
+// and reports whether it is set. Only a test reads a pointer directly; the
+// product reads one through ReadActiveConfig and ReadCandidateConfig.
+func configPointer(t *testing.T, store storage.Storage, configPath string, pointer zefs.KeyEntry) (string, bool) {
+	t.Helper()
+	data, err := store.ReadFile(pointer.Key(filepath.Base(configPath)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", false
+	}
+	require.NoError(t, err)
+	return strings.TrimSpace(string(data)), true
+}
+
+// setConfigPointer stores a stamp in a named config pointer, as the store's
+// version writers do, so a test can seed an active version.
+func setConfigPointer(t *testing.T, store storage.Storage, configPath string, pointer zefs.KeyEntry, stamp string) {
+	t.Helper()
+	require.NoError(t, store.WriteFile(pointer.Key(filepath.Base(configPath)), []byte(stamp+"\n"), 0o600))
 }

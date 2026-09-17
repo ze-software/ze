@@ -53,12 +53,13 @@ func Run(args []string) int {
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
 	webCertNameFlag := fs.String("web-cert-name", "", "Extra DNS name for the TLS certificate SAN (e.g. router.example.com)")
 	seedFlag := fs.Bool("seed", false, "Create a database.zefs appliance seed artifact without build-host interface discovery")
+	fromFlag := fs.String("from", "", "Import a local blob artifact into the live store instead of prompting for credentials")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command:   "ze init",
 			ShortHelp: "Bootstrap the ze database with SSH credentials",
-			Usage:     []string{"ze init [options]"},
+			Usage:     []string{"ze init [options]", "ze init --from <blob> [--force [--yes]]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Input (stdin or interactive prompts)", Entries: []helpfmt.HelpEntry{
 					{Name: "Line 1: username", Desc: ""},
@@ -74,6 +75,7 @@ func Run(args []string) int {
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
 					{Name: "--seed", Desc: "Create a blob artifact for appliance builders; skip build-host interface discovery"},
+					{Name: "--from <blob>", Desc: "Import a local blob artifact (database.zefs) into the live store and retire it as .replaced-<date>; reads no credentials"},
 				}},
 			},
 			Examples: []string{
@@ -81,6 +83,7 @@ func Run(args []string) int {
 				"ze init --managed  (interactive prompts, managed mode)",
 				"ze init --force         (replace existing database)",
 				"ze init --force --yes   (replace without confirmation)",
+				"ze init --from database.zefs   (import a blob into the live store)",
 			},
 		}
 		p.WriteErr()
@@ -90,10 +93,34 @@ func Run(args []string) int {
 		return 1
 	}
 
+	if *fromFlag != "" && *seedFlag {
+		fmt.Fprintf(os.Stderr, "error: --from imports a blob into the live store; --seed creates one, so the two cannot be combined\n")
+		return 1
+	}
+	// --from publishes the blob as it is: the flags that shape a NEW store
+	// would be silently ignored, so each is refused by name.
+	if *fromFlag != "" {
+		for _, ignored := range []struct {
+			set  bool
+			name string
+		}{{*managedFlag, "--managed"}, {*webCertFlag != "", "--web-cert"}, {*webCertNameFlag != "", "--web-cert-name"}} {
+			if ignored.set {
+				fmt.Fprintf(os.Stderr, "error: --from imports a blob as it is; %s shapes a new store and cannot be combined with it\n", ignored.name)
+				return 1
+			}
+		}
+	}
+
 	dbPath := sshclient.ResolveStoreDir("")
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
+	}
+	if *fromFlag != "" {
+		if !confirmForce(dbPath, *forceFlag, *yesFlag) {
+			return 1
+		}
+		return runImport(*fromFlag, dbPath, *forceFlag)
 	}
 
 	// When piped, read all data first so --force can prompt on /dev/tty.
@@ -111,42 +138,56 @@ func Run(args []string) int {
 		inputReader = bytes.NewReader(data)
 	}
 
-	// Confirmation precedes staging; replacement itself holds the storage lock.
-	if *forceFlag {
-		for _, name := range []string{"database", "database.zefs"} {
-			path := filepath.Join(dbPath, name)
-			if _, err := os.Lstat(path); err == nil {
-				if !*yesFlag {
-					if !confirmForceReplace(path) {
-						fmt.Fprintf(os.Stderr, "aborted\n")
-						return 1
-					}
-				}
-				break
-			}
-		}
+	if !confirmForce(dbPath, *forceFlag, *yesFlag) {
+		return 1
 	}
 
 	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag, *seedFlag, *forceFlag)
 }
 
-// RunWithReader creates a live store in dir with SSH credentials read from r.
-// Format: one line each for username, password, host, port, name.
-// Empty host defaults to 127.0.0.1, empty port defaults to 2222.
-func RunWithReader(r io.Reader, dir string, managed bool) int {
-	return runInit(r, nil, dir, managed, "", "", false, false)
+// confirmForce asks before --force replaces a store, unless --yes was given.
+// Confirmation precedes staging; replacement itself holds the storage lock.
+func confirmForce(dbPath string, force, yes bool) bool {
+	if !force {
+		return true
+	}
+	for _, name := range []string{"database", "database.zefs"} {
+		path := filepath.Join(dbPath, name)
+		if _, err := os.Lstat(path); err != nil {
+			continue
+		}
+		if yes {
+			return true
+		}
+		if !confirmForceReplace(path) {
+			fmt.Fprintf(os.Stderr, "aborted\n")
+			return false
+		}
+		return true
+	}
+	return true
 }
 
-// RunWithReaderForce stages a replacement under exclusive storage ownership.
-// Callers MUST obtain confirmation before calling.
-func RunWithReaderForce(r io.Reader, dir string, managed bool) (int, error) {
-	return runInit(r, nil, dir, managed, "", "", false, true), nil
-}
-
-// RunInteractive creates a live store with interactive prompts.
-// Prompts are written to w (typically os.Stderr).
-func RunInteractive(r io.Reader, w io.Writer, dir string) int {
-	return runInit(r, w, dir, false, "", "", false, false)
+// runImport publishes a local blob as the live tree. storage.ImportBlob checks
+// the blob, holds the ownership lock (so a running daemon refuses it), refuses
+// an existing tree unless force moved it aside, and retires the blob.
+func runImport(from, dir string, force bool) int {
+	importer := storage.ImportBlob
+	if force {
+		importer = storage.ReplaceImportBlob
+	}
+	store, err := importer(from, dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: import %s: %v\n", from, err)
+		return 1
+	}
+	path := filepath.Join(dir, "database")
+	if err := store.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: close %s: %v\n", path, err)
+		return 1
+	}
+	fmt.Fprintf(os.Stdout, "imported %s into %s\n", from, path) //nolint:errcheck // status output
+	return 0
 }
 
 func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAddr, webCertName string, seed, force bool) int {
@@ -256,11 +297,11 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 					configKey := zefs.KeyFileActive.Key("ze.conf")
 					if wErr := store.WriteKey(configKey, []byte(config)); wErr != nil {
 						if closeErr := iface.CloseBackend(); closeErr != nil {
-							return fmt.Errorf("write initial config: %w; close backend: %v", wErr, closeErr)
+							return fmt.Errorf("write initial config: %w; close backend: %w", wErr, closeErr)
 						}
 						return fmt.Errorf("write initial config: %w", wErr)
 					}
-					fmt.Fprintf(os.Stdout, "discovered %d interface(s), wrote initial config\n", len(discovered))
+					fmt.Fprintf(os.Stdout, "discovered %d interface(s), wrote initial config\n", len(discovered)) //nolint:errcheck // status output
 				}
 			}
 			if closeErr := iface.CloseBackend(); closeErr != nil {
@@ -301,12 +342,13 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 
 	var store storage.Storage
 	path := filepath.Join(dir, "database")
-	if seed {
+	switch {
+	case seed:
 		path = filepath.Join(dir, "database.zefs")
 		store, err = storage.CreateBlobPopulated(path, populate, force)
-	} else if force {
+	case force:
 		store, err = storage.ReplacePopulated(dir, populate)
-	} else {
+	default:
 		store, err = storage.CreatePopulated(dir, populate)
 	}
 	if err != nil {
@@ -317,7 +359,7 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 		fmt.Fprintf(os.Stderr, "error: close %s: %v\n", path, err)
 		return 1
 	}
-	fmt.Fprintf(os.Stdout, "initialized %s\n", path)
+	fmt.Fprintf(os.Stdout, "initialized %s\n", path) //nolint:errcheck // status output
 	return 0
 }
 

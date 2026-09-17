@@ -35,7 +35,7 @@ func TestInitForceRefusesOwnerRegardlessTarget(t *testing.T) {
 // An unrelated TCP listener cannot prevent replacing an unowned store. The
 // listener deliberately never accepts, so probing it would hang initialization.
 func TestInitForceIgnoresListenersWithoutOwner(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

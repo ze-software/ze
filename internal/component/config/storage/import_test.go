@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,9 +67,10 @@ func TestImportEqualsSource(t *testing.T) {
 	assertImportValues(t, s, values)
 	require.NoFileExists(t, path)
 	require.NoFileExists(t, filepath.Join(dir, "database.import-intent"))
-	aside, err := filepath.Glob(path + ".replaced-*")
-	require.NoError(t, err)
+	require.NoFileExists(t, path+".lock")
+	aside := archivesOf(t, path)
 	require.Len(t, aside, 1)
+	require.FileExists(t, aside[0]+".lock")
 	archived, err := os.ReadFile(aside[0])
 	require.NoError(t, err)
 	assert.Equal(t, original, archived)
@@ -100,9 +102,7 @@ func TestImportRefusesCorruptSource(t *testing.T) {
 			got, err := os.ReadFile(path)
 			require.NoError(t, err)
 			assert.Equal(t, string(content), string(got))
-			aside, err := filepath.Glob(path + ".replaced-*")
-			require.NoError(t, err)
-			assert.Empty(t, aside)
+			assert.Empty(t, archivesOf(t, path))
 		})
 	}
 }
@@ -129,14 +129,17 @@ func interruptedImport(t *testing.T, phase string) (string, string, map[string][
 		Digest:  hex.EncodeToString(digest[:]),
 		Stage:   "database.import-tmp-interrupted",
 		Archive: path + ".replaced-interrupted",
-		Device:  uint64(stat.Dev),
+		Device:  uint64(stat.Dev), //nolint:unconvert // Dev is int32 on darwin and openbsd
 		Inode:   stat.Ino,
 	}
 	if phase == "prepared" {
 		require.NoError(t, os.Rename(root, filepath.Join(dir, intent.Stage)))
 	}
-	if phase == "retired" {
+	if phase == "retired" || phase == "retired-then-changed" || phase == "retired-locked" {
 		require.NoError(t, os.Rename(path, intent.Archive))
+	}
+	if phase == "retired-locked" {
+		require.NoError(t, os.Rename(path+".lock", intent.Archive+".lock"))
 	}
 	encoded, err := json.Marshal(intent)
 	require.NoError(t, err)
@@ -144,18 +147,37 @@ func interruptedImport(t *testing.T, phase string) (string, string, map[string][
 	return path, dir, values, intent
 }
 
+// The "retired" phase is the crash between the archive rename and the lock
+// rename, so the source lock still waits at the source name. The
+// "retired-locked" phase is the crash after both renames: the resumed run
+// creates a fresh source lock that retireSource must remove, because the
+// archive already holds its lock. The "retired-then-changed" phase is the
+// crash between retiring the blob and unlinking the intent, after which Open
+// never reads the intent: a daemon starts on the published tree and changes
+// it, and the intent stays behind.
 func TestImportResumesCrashBoundaries(t *testing.T) {
-	for _, phase := range []string{"prepared", "published", "retired"} {
+	for _, phase := range []string{"prepared", "published", "retired", "retired-locked", "retired-then-changed"} {
 		t.Run(phase, func(t *testing.T) {
 			path, dir, values, intent := interruptedImport(t, phase)
+			if phase == "retired-then-changed" {
+				changed, err := Open(dir)
+				require.NoError(t, err)
+				require.NoError(t, changed.WriteKey("meta/daemon/state", []byte("after import")))
+				require.NoError(t, changed.Close())
+				values["meta/daemon/state"] = []byte("after import")
+				_, err = ImportBlob(filepath.Join(t.TempDir(), "other.zefs"), dir)
+				require.ErrorContains(t, err, "database.import-intent")
+				require.ErrorContains(t, err, "ze init --from "+path)
+			}
 			s, err := ImportBlob(path, dir)
 			require.NoError(t, err)
 			t.Cleanup(func() { require.NoError(t, s.Close()) })
 			assertImportValues(t, s, values)
 			require.NoFileExists(t, path)
-			archives, err := filepath.Glob(path + ".replaced-*")
-			require.NoError(t, err)
+			require.NoFileExists(t, path+".lock")
+			archives := archivesOf(t, path)
 			require.Len(t, archives, 1)
+			require.FileExists(t, archives[0]+".lock")
 			if phase != "prepared" {
 				assert.Equal(t, intent.Archive, archives[0])
 			}
@@ -168,6 +190,22 @@ func TestImportResumesCrashBoundaries(t *testing.T) {
 			assertImportValues(t, reopened, values)
 		})
 	}
+}
+
+// TestImportRemovesStaleStage proves that a stage left by an earlier import,
+// whose intent the operator removed, is gone after a later import succeeds.
+func TestImportRemovesStaleStage(t *testing.T) {
+	path, values := importFixture(t)
+	dir := t.TempDir()
+	stale := filepath.Join(dir, "database.import-tmp-stale")
+	require.NoError(t, os.Mkdir(stale, 0o700))
+	require.NoError(t, os.Mkdir(filepath.Join(stale, "file"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(stale, "file", "frame"), []byte("stale"), 0o600))
+	s, err := ImportBlob(path, dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
+	assertImportValues(t, s, values)
+	require.NoDirExists(t, stale)
 }
 
 func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
@@ -192,8 +230,11 @@ func TestImportRecoveryRefusesChangedIdentityOrBytes(t *testing.T) {
 			case "destination inode":
 				root := filepath.Join(dir, "database")
 				require.NoError(t, os.Rename(root, root+".unrelated"))
-				s := newTreeStorage(t, dir)
-				require.NoError(t, s.WriteKey("meta/unrelated/key", []byte("keep")))
+				// Only ze init --force --yes builds the unrelated tree: Create and
+				// a plain ze init both refuse an absent tree beside an intent
+				// (TestOpenRefusesUnfinishedImport).
+				s, err := ReplacePopulated(dir, func(s Storage) error { return s.WriteKey("meta/unrelated/key", []byte("keep")) })
+				require.NoError(t, err)
 				require.NoError(t, s.Close())
 			case "destination device":
 				intent.Device++
@@ -296,4 +337,55 @@ func TestTreeFailedWriteBarrierDoesNotNotify(t *testing.T) {
 	got, err := s.ReadFile("router.conf")
 	require.NoError(t, err)
 	assert.Equal(t, "original", string(got))
+}
+
+// archivesOf lists the retired copies of a blob. Every blob artifact keeps its
+// lock file beside it, so an archive's lock is not an archive.
+func archivesOf(t *testing.T, path string) []string {
+	t.Helper()
+	names, err := filepath.Glob(path + ".replaced-*")
+	require.NoError(t, err)
+	archives := names[:0]
+	for _, name := range names {
+		if strings.HasSuffix(name, ".lock") {
+			continue
+		}
+		archives = append(archives, name)
+	}
+	return archives
+}
+
+// VALIDATES: under replace, a stage write failure leaves the old tree under
+// database/ and moves nothing aside (the stage is built and verified BEFORE the
+// old tree moves). The source holds a key whose component exceeds NAME_MAX, so
+// the blob accepts it and the tree's mkdirat refuses it.
+// PREVENTS: a failed replace import leaving no database/, which the next
+// `ze start` would silently auto-create as an empty tree.
+func TestReplaceImportWriteFailureKeepsOldTree(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "database.zefs")
+	blob, err := CreateBlob(path)
+	require.NoError(t, err)
+	require.NoError(t, blob.WriteKey("meta/"+strings.Repeat("a", 300)+"/key", []byte("too long for a tree")))
+	require.NoError(t, blob.Close())
+	dir := t.TempDir()
+	old := newTreeStorage(t, dir)
+	require.NoError(t, old.WriteKey("meta/owner/key", []byte("keep")))
+	require.NoError(t, old.Close())
+
+	_, err = ReplaceImportBlob(path, dir)
+	require.Error(t, err)
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	for _, entry := range entries {
+		assert.False(t, strings.HasPrefix(entry.Name(), "database.replaced-"), "nothing moves aside on a failed stage: %s", entry.Name())
+		assert.False(t, strings.HasPrefix(entry.Name(), "database.import-tmp-"), "the failed stage is removed: %s", entry.Name())
+	}
+	require.NoFileExists(t, filepath.Join(dir, "database.import-intent"))
+	reopened, err := Open(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reopened.Close()) })
+	got, err := reopened.ReadKey("meta/owner/key")
+	require.NoError(t, err)
+	assert.Equal(t, "keep", string(got))
 }

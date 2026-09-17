@@ -2151,9 +2151,9 @@ On gokrazy appliances, `cmdStart` resolves the effective config with a priority 
 
 | Step | Source | Condition |
 |------|--------|-----------|
-| 1 | Bootstrap from ZeFS seed template + interface discovery | First boot (no active config in blob) |
+| 1 | Bootstrap from ZeFS seed template + interface discovery | First boot (no active config in the store) |
 | 2 | `/perm/ze/config-pushed.conf` | Exists and passes `config.LoadConfig` validation |
-| 3 | `file/active/{name}.conf` in blob store | Default (seed-derived from step 1) |
+| 3 | `file/active/{name}.conf` in the `database/` store | Default (seed-derived from step 1) |
 
 Invalid pushed configs are deleted and logged. After loading, the SHA-256 of the effective config is written to `/perm/ze/config-active-hash` for fleet drift detection.
 

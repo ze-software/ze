@@ -17,13 +17,28 @@ replacement. The lock is outside the replaceable tree and its inode is retained.
 multi-key snapshot guarantee.
 
 Both openers first stat `database.zefs`. Its presence, even beside a valid tree,
-refuses the open and names `ze init from`; no blob contents are read and nothing
-is renamed. Absence of both forms returns `ErrNoStore` and names `ze init`.
-<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, lockOwner -->
+refuses the open and names `ze init --from <blob>`; no blob contents are read and
+nothing is renamed. Absence of both forms returns `ErrNoStore` and names `ze init`,
+unless `database.import-intent` sits beside the absent tree: then an import
+crashed after moving the old tree to `database.replaced-<stamp>` and before
+publishing its stage, and every opener returns `ErrImportPending` naming the
+intent file, its source and `ze init --from <source>`. `Create` and
+`CreatePopulated` refuse the same way, under the owner lock, so neither `ze
+start` nor a plain `ze init` publishes an empty tree over the operator's store;
+`ze init --from` resumes the import. Only `ReplacePopulated` (`ze init --force
+--yes`) proceeds, because replacing whatever sits there is its explicit order.
+The live opener validates the tree before it creates `database.lock`, so a
+refused open leaves no lock file behind.
+<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, detect, missingTree, openLive, lockOwner, populateOwned -->
 
-The standalone `ze init from` command is planned for storage-2. The implemented
-`ImportBlob` API already serves explicit appliance first-boot import.
-<!-- source: internal/plugins/init/main.go -- Run -->
+`ze init --from <path>` imports a local blob through `ImportBlob`. Under
+`--force --yes` it calls `ReplaceImportBlob`, which moves an existing tree, and
+an unrelated seed, to `.replaced-<stamp>` before publication. `--from` reads no
+credentials and refuses, each by name, the flags that shape a new store:
+`--seed`, `--managed`, `--web-cert` and `--web-cert-name`. The URL form and
+`--sha256` are storage-2.
+Appliance first boot imports its seed through the same API.
+<!-- source: internal/plugins/init/main.go -- Run, runImport -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 
 The tree root and its intermediate directories are exactly 0700; regular frame
@@ -31,7 +46,9 @@ files are exactly 0600. All belong to the effective process user, including when
 that process is root. Symlinks and non-regular leaves are refused before content
 reads. The containing config directory can retain an ordinary safe mode such as
 0755. Ancestors are traversed with descriptor-relative, no-follow opens and must
-belong to root or the effective process user. A group/other-writable directory
+belong to root or the effective process user. `zefs.OpenDirectory` is the one
+ancestor walk: the store opener, tree checks and tree repair all call it, and
+every refusal wraps `fs.ErrPermission`. A group/other-writable directory
 without the sticky bit is refused unless an earlier caller-owned ancestor
 denies all group/other access. Leaving that private ancestor through `..` ends
 its protection. Errors identify the first unsafe path and the permission or
@@ -42,7 +59,8 @@ same stable lock, prepares and validates its iterative traversal before changing
 owners, then transfers the folder and its descendants without reading secrets.
 A failed transfer attempts to restore the original ownership and reports repair
 instructions. Ordinary opens never transfer ownership.
-<!-- source: internal/component/config/storage/tree.go -- openFolder, openNode, secureNode -->
+<!-- source: internal/component/config/storage/tree.go -- openFolder, openFolderMode, openNode, secureNode -->
+<!-- source: pkg/zefs/check_tree_unix.go -- OpenDirectory -->
 <!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 
 ## Keys and reads
@@ -95,13 +113,25 @@ loser can reopen the winner after its writer closes; while it remains owned,
 lock. Backups remain available if a later publication step fails.
 <!-- source: internal/component/config/storage/tree.go -- installBytes, treeEncoding.parent, treeEncoding.Remove -->
 <!-- source: internal/component/config/storage/open.go -- Create, CreatePopulated, ReplacePopulated, populateOwned -->
-<!-- source: internal/component/config/storage/rename_linux.go -- renameNoReplace -->
-<!-- source: internal/component/config/storage/rename_darwin.go -- renameNoReplace -->
+<!-- source: pkg/zefs/check_tree_linux.go -- RenameNoReplace -->
+<!-- source: pkg/zefs/check_tree_darwin.go -- RenameNoReplace -->
 
-Linux and FreeBSD use `renameat2`; macOS uses `renameatx_np`. Publication fails
-if the kernel or filesystem lacks the no-replace operation. It never falls
-back to an overwriting rename.
-<!-- source: internal/component/config/storage/rename_freebsd.go -- renameNoReplace -->
+`zefs.RenameNoReplace` is the one no-replace rename; the storage package has
+none of its own. Linux uses `renameat2` with `RENAME_NOREPLACE`; macOS uses
+`renameatx_np` with `RENAME_EXCL`. FreeBSD 14 has no `renameat2`: a regular
+file is hard-linked to the target with `linkat`, which refuses an existing
+name, then the source name is unlinked; a directory is claimed with `mkdirat`,
+which refuses an existing name, then `renameat` replaces only that empty
+placeholder. The FreeBSD path is cross-compiled and vetted, not run. Publication
+fails if the kernel or filesystem lacks the no-replace operation. It never falls
+back to an overwriting rename. The FreeBSD directory path has one window Linux
+and macOS do not: a crash between `mkdirat` and `renameat` leaves an empty
+`database` placeholder beside the complete stage (`database.init-tmp-*` or
+`database.import-tmp-*`), and the next open accepts that placeholder as an
+empty store, because an empty directory is also what `ze init` with nothing to
+seed publishes. An operator who finds an empty store beside a stage on FreeBSD
+removes the placeholder and re-runs the `ze init` that was interrupted.
+<!-- source: pkg/zefs/check_tree_freebsd.go -- RenameNoReplace -->
 
 ## Import and artifacts
 
@@ -109,14 +139,26 @@ back to an overwriting rename.
 copies every raw key, and compares both key sets and every value before
 publication. Its durable `database.import-intent` records the source digest,
 private stage, destination device/inode and archive name. An interrupted import
-can resume its own published destination only when that identity and the complete
-key/value comparison still match. An unrelated or changed tree is refused.
+resumes its own published destination only when the tree's device and inode
+match the intent. While the source is not yet retired, every key and value is
+compared to it as well. Once the source is retired the import is finished apart
+from the intent, so a tree a daemon has changed since is accepted and only the
+intent is removed. An unrelated tree, a changed source, and an intent naming
+another source are refused; each refusal names `database.import-intent` and the
+repair: `ze init --from <source>`, or removing the intent once `database` holds
+the wanted tree. The unrelated-tree refusal also names the stage the intent
+holds, and an import removes every `database.import-tmp-*` stage before it
+builds a new one, so a stage left by a removed intent does not outlive the next
+import.
 
-The importer alone retires the source to `.replaced-<stamp>`, syncs its directory,
-and removes the intent. If a crash leaves both tree and seed, ordinary `Open`
-still refuses; repeating the explicit importer completes retirement. Incomplete
-private staging names never count as a live store.
-<!-- source: internal/component/config/storage/import.go -- ImportBlob, importOwned, verifyImportIdentity, finishImport -->
+The importer alone retires the source to `.replaced-<stamp>`, moves the source's
+`.lock` file beside the archive (every blob artifact keeps its lock next to it, and
+the held lock refuses a concurrent creator of the retired name until it moves),
+syncs its directory, and then removes the intent, in that order, so a crash between
+the steps leaves a state the next import recognizes as finished. If a crash leaves both tree and
+seed, ordinary `Open` still refuses; repeating the explicit importer completes
+retirement. Incomplete private staging names never count as a live store.
+<!-- source: internal/component/config/storage/import.go -- ImportBlob, ReplaceImportBlob, importOwned, removeStaleStages, resumeImport, verifyImportIdentity, finishImport, retireSource -->
 
 `OpenBlob` and `CreateBlob` address explicit artifacts. Their format remains the
 ZeFS format documented in [zefs-format.md](zefs-format.md).

@@ -419,10 +419,9 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | `registry.RegisterRootHandler(name, handler, meta)` / `MustRegisterRootHandler` | **Owner-backed** `ze <name>`: handler + metadata, **dispatched by the registry**. Rejects empty name / nil handler / duplicate owner |
 | `registry.RegisterRoot(name, meta)` | **No-owner / process-global** `ze <name>` metadata only; dispatch stays in `cmd/ze/main.go` (start, version, help, ...) |
 | `registry.RootHandler` = `func(rctx *RuntimeContext, args []string) int` | Owner root handler signature; ignore `rctx` if no process deps needed |
-| `registry.RuntimeContext` / `StorageAs[T](rctx)` | Process-entry deps built by `main.go` (storage resolver, plugin list, version printer, web/MCP flags). `StorageAs` type-asserts the storage value |
+| `registry.RuntimeContext` | Process-entry deps built by `main.go` (plugin list, config override, version printer, web/MCP flags). It carries no store: a command opens the store itself (see "Storage-dependent commands") |
 | `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts. The handler returns an exit code and prints for itself |
 | `registry.RegisterLocalData` / `MustRegisterLocalData` | Path-keyed local handler that returns DATA (`func(args []string) (any, int)`) and a renderer, normally `command.RenderLocalAnswer`. Use it whenever the command answers rows or an object, because the pipe layer then renders `\| json`, `\| yaml` and `\| table` from one payload |
-| `registry.SetRuntimeStorage(fn)` / `RuntimeStorage()` | Storage resolver for local shortcuts (their `func(args)int` signature gets no context). `main.go` installs it; shortcuts read it lazily |
 | `registry.LookupRoot(name)` / `LookupLocal(words)` | Dispatch lookups used by `main.go` |
 | `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help ai` |
 | `registry.HasLocal` / `HasRootHandler` / `ResetForTest` | Test helpers (do not `ResetForTest` from `cmd/ze` tests -- it wipes init-registered roots; use sentinel names) |
@@ -461,25 +460,24 @@ row and no `RequiresSelector`.
 ### Storage-dependent commands
 
 Storage is opened only after global flag parsing, so never open it from
-`init()`. The root **handler** receives the resolver through `RuntimeContext`;
-**local shortcuts** (no context) read it lazily from the registry, which
-`cmd/ze/main.go` installs once via `registry.SetRuntimeStorage(...)`.
+`init()`. There is no process-wide store handle: each command opens the store
+it needs when it runs and closes it when it is done. `resolve.StoreDir(path)`
+(`internal/core/resolve`) names the store folder (the config file's folder, or
+`ze.config.dir`, or the default), `storage.OpenReadOnly(dir)` opens it for a
+read (any number of readers beside a running daemon), and
+`resolve.StorageFor(path)` opens the one writable handle (refused with
+`storage.ErrBusy` while a daemon owns it).
 
 ```go
-// internal/component/config/cli/register.go
-registry.MustRegisterRootHandler("config", func(rctx *registry.RuntimeContext, args []string) int {
-    store, ok := registry.StorageAs[storage.Storage](rctx)
-    if !ok { /* error */ return 1 }
-    defer store.Close() //nolint:errcheck
-    return RunWithStorage(store, args)
-}, registry.Meta{ /* ... */ })
+// internal/component/config/cli/cmd_history.go: a read-only offline command
+store, err := storage.OpenReadOnly(resolve.StoreDir(fs.Arg(0)))
+if err != nil { /* report; the folder is named in err */ return 1 }
+defer store.Close() //nolint:errcheck // read-only handle
 
-registry.MustRegisterLocalMeta("show config history", func(args []string) int {
-    store, ok := registry.RuntimeStorage().(storage.Storage)
-    if !ok { /* error */ return 1 }
-    defer store.Close() //nolint:errcheck
-    return RunWithStorage(store, append([]string{"history"}, args...))
-}, registry.Meta{ShortHelp: "..."})
+// internal/component/config/cli/cmd_rollback.go: a command that writes
+store, err := resolve.StorageFor(fs.Arg(1))
+if err != nil { /* ErrBusy names the daemon that holds it */ return 1 }
+defer store.Close() //nolint:errcheck // releases the writer lock
 ```
 
 ### How `help ai` consumes the registry
@@ -502,7 +500,7 @@ automatically.
 | Map dispatch (simple) | `internal/component/config/storage/cli/main.go` | Stateless subcommands (`ze data`) |
 | **Root handler registration** | `internal/component/bgp/cli/register.go` | Canonical owner `register.go` (RegisterRootHandler + `show` shortcuts) |
 | **Root + owner schema** | `internal/component/bgp/cli/register.go` + `internal/component/bgp/cli/yang/` | Owner-owned YANG tools schema, blank-imported by the owner |
-| **Storage-bound** | `internal/component/config/cli/register.go` | `StorageAs` (root) + `RuntimeStorage` (local shortcuts) |
+| **Storage-bound** | `internal/component/config/cli/cmd_history.go`, `cmd_rollback.go` | `storage.OpenReadOnly(resolve.StoreDir(...))` for a read, `resolve.StorageFor(...)` for a write |
 | **No-owner / process-global** | `internal/plugins/skills/register.go` | `RegisterRoot` metadata + `MustRegisterLocalMeta` for commands with no component owner |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |
 | Online RPC | `internal/component/cmd/set/set.go` | Write verb |
@@ -521,7 +519,7 @@ automatically.
 [ ] register.go: registry.MustRegisterRootHandler(<name>, wrap(Run), Meta{...}) for `ze <name>` (registry-dispatched)
 [ ] register.go: registry.MustRegisterLocal(<path>, handler) for every `show X` shortcut
 [ ] Owner init() linked: run `./le repository generate`, which writes the blank import into internal/component/plugin/all
-[ ] If storage-dependent: root handler uses StorageAs(rctx); local shortcuts use registry.RuntimeStorage()
+[ ] If storage-dependent: open the store in the command (storage.OpenReadOnly for a read, resolve.StorageFor for a write) and close it there; never from init()
 [ ] No-owner / process-global only: stays in cmd/ze with RegisterRoot + main.go switch (allowlist)
 [ ] If online: YANG tree with ze:command extension
 [ ] If online: WireMethod in kebab-case matching YANG

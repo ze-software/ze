@@ -297,6 +297,7 @@ func TestLiveStoreBypass(t *testing.T) {
 		"internal/component/support/support.go":     source,
 		"internal/plugins/demo/open.go":             source,
 		"cmd/ze/open.go":                            source,
+		"internal/test/cli/cmd_web.go":              "package cli\nimport \"github.com/ze-software/ze/pkg/zefs\"\nfunc seed(dir string) { zefs.Create(dir + \"/database.zefs\") }\n",
 		"internal/core/direct/open.go":              "package direct\nimport \"github.com/ze-software/ze/pkg/zefs\"\nfunc open() { zefs.Open(\"database.zefs\") }\n",
 		"internal/core/create/open.go":              "package direct\nimport \"github.com/ze-software/ze/pkg/zefs\"\nfunc open() { zefs.Create(\"artifact.zefs\") }\n",
 		"internal/core/dot/open.go":                 "package dot\nimport . \"github.com/ze-software/ze/pkg/zefs\"\nvar open = Open\n",
@@ -316,6 +317,7 @@ func TestLiveStoreBypass(t *testing.T) {
 		"internal/core/create/open.go":          true,
 		"internal/core/dot/open.go":             true,
 		"cmd/ze/open.go":                        true,
+		"internal/test/cli/cmd_web.go":          true,
 	}
 	for _, finding := range findings {
 		if !want[finding.File] {

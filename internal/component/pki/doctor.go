@@ -63,12 +63,14 @@ var caRootDoctorCheck = diagnostic.DoctorCheck{
 // expiry. A root that loads and has more than caRootExpiryWarnWindow left
 // reports nothing.
 func checkCARoot(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	// A run with no store refuses this feature by name in one warning. The
+	// storage diagnostic above it already carries the severity of the absence.
 	if ctx.Store == nil {
 		return []diagnostic.Diagnostic{{
-			Code:     diagnostic.CodeDoctorTLSInvalid,
-			Severity: diagnostic.SeverityError,
-			Message:  "cannot read the local certificate authority root: this doctor run resolved no storage",
-			Help:     "check the storage diagnostics reported above this one",
+			Code:     diagnostic.CodeDoctorStorageUnavailable,
+			Severity: diagnostic.SeverityWarning,
+			Message:  "local certificate authority root: refused, this doctor run resolved no storage",
+			Help:     "check the storage diagnostic reported above this one",
 		}}
 	}
 

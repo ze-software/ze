@@ -220,7 +220,7 @@ func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
 		if entry.Timestamp.Before(start) {
 			continue
 		}
-		if entry.Message == "startup failed" && entry.Level == "ERROR" {
+		if entry.Message == "startup failed" && entry.Level == "error" {
 			logged = true
 			break
 		}

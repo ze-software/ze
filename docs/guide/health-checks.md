@@ -23,7 +23,7 @@ remediation guidance.
 
 | Code | What it checks |
 |------|----------------|
-| `doctor-store-integrity` | zefs database corruption |
+| `doctor-store-integrity` | `database/` store corruption |
 | `doctor-config-missing` | Config file resolution |
 | `doctor-config-parse` | Config syntax |
 | `doctor-config-reference` | Dangling policy/filter references |

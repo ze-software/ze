@@ -47,17 +47,17 @@ because either listener alone is a shipped build. A second copy of the rule
 would be a future disagreement between the two surfaces with nothing to
 arbitrate it.
 
-The self-signed branch alone needs blob storage, because that is where the
-generated pair is persisted. The looking glass therefore applies its
-blob-storage rule to an EMPTY name only.
+The self-signed branch alone needs the `database/` store, because that is where
+the generated pair is persisted. The looking glass therefore applies its
+store rule to an EMPTY name only.
 
-| Looking glass, no blob store | Result |
-|------------------------------|--------|
+| Looking glass, no store | Result |
+|-------------------------|--------|
 | `tls true` written by the operator | an error |
 | the TLS default, inherited | a warning, and plaintext |
 | a named certificate | the named chain, over TLS |
 
-The web server refuses a non-blob store for the whole listener earlier still.
+The web server refuses to start without the store for the whole listener earlier still.
 Its credentials and its config live there whatever it serves.
 
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService, the blob-storage branch -->
@@ -92,7 +92,7 @@ Two configs reach that state, and each is caught at its own seam.
 | Config | What makes the leaf inert |
 |--------|---------------------------|
 | `tls false`, written by the operator | `lgCertificateName` reports no name, so neither the startup gate nor the reload reads the leaf |
-| `tls` inherited, no name written, no blob store, so Ze dropped the listener to plaintext at start | the registration installs no rotation handle, because `ServesTLS` reports that the running server serves plaintext |
+| `tls` inherited, no name written, no store, so Ze dropped the listener to plaintext at start | the registration installs no rotation handle, because `ServesTLS` reports that the running server serves plaintext |
 
 The second config states that TLS is on, so `lgCertificateName` does report the
 name and the startup gate and the reload refusal both read it. Only the running
@@ -102,7 +102,7 @@ not in the config.
 An operator who adds a name to that deployment gets an accepted reload and a
 looking glass that keeps serving plaintext. A restart then serves the named
 chain over TLS, because the named path reads the `pki {}` container and needs no
-blob store.
+store.
 
 This is not a fallback. A looking glass that does serve TLS still fails closed
 on a name the store does not hold.

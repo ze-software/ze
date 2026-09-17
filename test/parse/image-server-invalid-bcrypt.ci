@@ -1,6 +1,6 @@
 # Test: image-server rejects plaintext or malformed ssh-password-hash.
 # VALIDATES: image-server config validation rejects non-bcrypt install credentials.
-# PREVENTS: serving a database.zefs with a plaintext or malformed admin password hash.
+# PREVENTS: serving a store with a plaintext or malformed admin password hash.
 
 stdin=config:terminator=EOF_CONF
 service {

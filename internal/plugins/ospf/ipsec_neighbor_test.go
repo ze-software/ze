@@ -77,7 +77,11 @@ func newIPsecV6Engine(t *testing.T, cfg ospfConfig) (*engine, *fakeDP) {
 func helloFromNeighbor(t *testing.T, eng *engine, deadInterval uint16) {
 	t.Helper()
 	ifindex := 0
-	if _, index, ok := eng.transport.(*ospfv3transport.Transport).InterfaceSource("eth0"); ok {
+	transport, isV3 := eng.transport.(*ospfv3transport.Transport)
+	if !isV3 {
+		t.Fatalf("engine transport is %T, not the OSPFv3 transport", eng.transport)
+	}
+	if _, index, ok := transport.InterfaceSource("eth0"); ok {
 		ifindex = index
 	}
 	if ifindex == 0 {

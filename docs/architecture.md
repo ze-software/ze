@@ -139,12 +139,12 @@ For a walk-through of the BGP state machine, see [bgp-fsm.md](bgp-fsm.md).
 
 JUNOS-like hierarchical syntax: `{}` blocks, `;` terminators, `#` comments.
 YANG-driven parsing. Three-level inheritance: BGP globals, group defaults, peer
-overrides. Configuration is stored in ZeFS (a blob store with commit/rollback)
+overrides. Configuration is stored in a managed `database/` tree (with commit/rollback)
 and managed through an interactive editor accessible over SSH.
 
 For the full config syntax reference, see [config-reference.md](config-reference.md).
 <!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
-<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+<!-- source: internal/component/config/storage/open.go -- Open, detect -->
 
 ## Plugin Architecture
 

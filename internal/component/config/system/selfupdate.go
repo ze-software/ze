@@ -963,8 +963,8 @@ func (su *SelfUpdater) recordEvent(from, to, result string) {
 	su.saveHistory()
 }
 
-// loadHistory restores the event history from the shared zefs store
-// (<config-dir>/database.zefs) under the update-history key. Best-effort: a
+// loadHistory restores the event history from the managed store
+// (<config-dir>/database/) under the update-history key. Best-effort: a
 // no-op when the store or key is absent, or the blob is malformed.
 func (su *SelfUpdater) loadHistory() {
 	data, ok := statestore.Get(zefs.KeyConfigUpdateHistory.Pattern)

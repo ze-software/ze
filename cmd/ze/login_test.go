@@ -9,6 +9,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
@@ -157,12 +158,13 @@ func TestLoginMissingZeFS(t *testing.T) {
 
 	setConfigDir(t, dir)
 
+	// VALIDATES: an absent store refuses the login (owner decision, fail closed).
 	code := loginMain()
-	if code != 0 {
-		t.Errorf("loginMain() = %d, want 0 (fail-open)", code)
+	if code == 0 {
+		t.Errorf("loginMain() = %d, want non-zero (fail closed)", code)
 	}
-	if !execCalled {
-		t.Error("execShellFn should be called on missing ZeFS (fail-open)")
+	if execCalled {
+		t.Error("execShellFn must not be called on a missing store (fail closed)")
 	}
 }
 
@@ -181,12 +183,13 @@ func TestLoginMissingCreds(t *testing.T) {
 
 	setConfigDir(t, dir)
 
+	// VALIDATES: a store with no credentials refuses the login (fail closed).
 	code := loginMain()
-	if code != 0 {
-		t.Errorf("loginMain() = %d, want 0 (fail-open)", code)
+	if code == 0 {
+		t.Errorf("loginMain() = %d, want non-zero (fail closed)", code)
 	}
-	if !execCalled {
-		t.Error("execShellFn should be called on missing creds (fail-open)")
+	if execCalled {
+		t.Error("execShellFn must not be called on missing credentials (fail closed)")
 	}
 }
 
@@ -233,9 +236,16 @@ func TestZeFSFallbackPath(t *testing.T) {
 
 	setConfigDir(t, "")
 
+	// VALIDATES: the default /perm/ze folder is used and, absent, refuses the
+	// login (fail closed) rather than starting a shell.
+	var execCalled bool
+	execShellFn = func() int { execCalled = true; return 0 }
 	code := loginMain()
-	if code != 0 {
-		t.Errorf("loginMain() = %d, want 0 (fail-open when /perm/ze missing)", code)
+	if code == 0 {
+		t.Errorf("loginMain() = %d, want non-zero (fail closed when /perm/ze missing)", code)
+	}
+	if execCalled {
+		t.Error("execShellFn must not be called when /perm/ze is missing (fail closed)")
 	}
 }
 
@@ -284,4 +294,85 @@ func createTestDB(t *testing.T, dir string) storage.Storage {
 		t.Fatal(err)
 	}
 	return db
+}
+
+// corruptFrame flips one payload byte of the tree frame that holds key, so the
+// next ReadFile of that key fails the CRC with storage.ErrCorrupt.
+func corruptFrame(t *testing.T, dir, key string) {
+	t.Helper()
+	path := filepath.Join(dir, "database", filepath.FromSlash(key))
+	frame, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame[len(frame)-1] ^= 1
+	if err := os.WriteFile(path, frame, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// refusedLogin runs loginMain against dir with valid credentials on stdin and
+// asserts the login is refused before the shell starts.
+func refusedLogin(t *testing.T, dir, why string) {
+	t.Helper()
+	var execCalled bool
+	setupLoginMocks(t)
+	execShellFn = func() int { execCalled = true; return 0 }
+	readPasswordFn = func(_ int) ([]byte, error) { return []byte("secret123"), nil }
+	isTerminalFn = func(_ int) bool { return true }
+	setConfigDir(t, dir)
+	pipeStdin(t, "admin\n")
+
+	code := loginMain()
+	if code == 0 {
+		t.Errorf("loginMain() = %d, want non-zero (%s)", code, why)
+	}
+	if execCalled {
+		t.Errorf("execShellFn must not be called: %s", why)
+	}
+}
+
+// VALIDATES: a CRC-corrupt admin-disabled flag refuses the login (fail closed).
+// PREVENTS: a corrupt flag being read as "not disabled".
+func TestLoginCorruptAdminDisabledFlagRefused(t *testing.T) {
+	dir := t.TempDir()
+	db := createTestDB(t, dir)
+	if err := db.WriteKey(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true")); err != nil {
+		t.Fatal(err)
+	}
+	db.Close() //nolint:errcheck // test cleanup
+	corruptFrame(t, dir, zefs.KeyInstanceAdminDisabled.Pattern)
+	refusedLogin(t, dir, "corrupt admin-disabled flag")
+}
+
+// VALIDATES: a username with no password hash refuses the login.
+func TestLoginUsernameWithoutHashRefused(t *testing.T) {
+	dir := t.TempDir()
+	db, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.WriteKey(zefs.KeyLocalAdminUsername.Pattern, []byte("admin")); err != nil {
+		t.Fatal(err)
+	}
+	db.Close() //nolint:errcheck // test cleanup
+	refusedLogin(t, dir, "username present, hash absent")
+}
+
+// VALIDATES: a CRC-corrupt username frame refuses the login.
+func TestLoginCorruptUsernameFrameRefused(t *testing.T) {
+	dir := t.TempDir()
+	db := createTestDB(t, dir)
+	db.Close() //nolint:errcheck // test cleanup
+	corruptFrame(t, dir, zefs.KeyLocalAdminUsername.Pattern)
+	refusedLogin(t, dir, "corrupt username frame")
+}
+
+// VALIDATES: a CRC-corrupt password hash frame refuses the login.
+func TestLoginCorruptHashFrameRefused(t *testing.T) {
+	dir := t.TempDir()
+	db := createTestDB(t, dir)
+	db.Close() //nolint:errcheck // test cleanup
+	corruptFrame(t, dir, zefs.KeyLocalAdminPassword.Pattern)
+	refusedLogin(t, dir, "corrupt password hash frame")
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -82,6 +83,20 @@ func (f *fakeTCOps) qdiscList(link netlink.Link) ([]netlink.Qdisc, error) {
 func (f *fakeTCOps) qdiscReplace(qdisc netlink.Qdisc) error {
 	f.calls = append(f.calls, "replace:"+qdisc.Type())
 	f.replaced = append(f.replaced, qdisc)
+	// The kernel replaces the root qdisc in place: a later list answers the
+	// new one, so a snapshot taken after this call would record it.
+	for name, link := range f.links {
+		if link.Attrs().Index != qdisc.Attrs().LinkIndex {
+			continue
+		}
+		kept := f.qdiscs[name][:0:0]
+		for _, current := range f.qdiscs[name] {
+			if current.Attrs().Parent != netlink.HANDLE_ROOT {
+				kept = append(kept, current)
+			}
+		}
+		f.qdiscs[name] = append(kept, qdisc)
+	}
 	return nil
 }
 
@@ -415,8 +430,22 @@ func TestApplySnapshotsOriginalBeforeReplace(t *testing.T) {
 		t.Fatalf("Apply: %v", err)
 	}
 
+	// The fake's replace rewrites the listed root qdisc, so a snapshot taken
+	// after the replace would read the desired qdisc, not the original.
 	if got := b.snapshots["eth0"].Qdisc.Type; got != "fq" {
 		t.Fatalf("snapshot qdisc = %q, want fq", got)
+	}
+	listIndex, replaceIndex := -1, -1
+	for i, call := range ops.calls {
+		if listIndex < 0 && strings.HasPrefix(call, "qdiscList:") {
+			listIndex = i
+		}
+		if replaceIndex < 0 && strings.HasPrefix(call, "replace:") {
+			replaceIndex = i
+		}
+	}
+	if listIndex < 0 || replaceIndex < 0 || listIndex > replaceIndex {
+		t.Fatalf("snapshot list must precede replace, calls = %v", ops.calls)
 	}
 	persisted, err := loadTCSnapshots()
 	if err != nil {
@@ -424,6 +453,38 @@ func TestApplySnapshotsOriginalBeforeReplace(t *testing.T) {
 	}
 	if got := persisted["eth0"].Qdisc.Type; got != "fq" {
 		t.Fatalf("persisted snapshot qdisc = %q, want fq", got)
+	}
+}
+
+// VALIDATES: replaceRootQdisc deletes a root qdisc that already holds the
+// desired handle before replacing it, and leaves a root with another handle
+// alone.
+func TestReplaceRootQdiscDeletesSameHandleRoot(t *testing.T) {
+	ops := newFakeTCOps()
+	ops.links["eth0"] = testLink("eth0", 5)
+	desired := &netlink.Htb{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(1, 0), Parent: netlink.HANDLE_ROOT}}
+	ops.qdiscs["eth0"] = []netlink.Qdisc{&netlink.Fq{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(1, 0), Parent: netlink.HANDLE_ROOT}}}
+	b := testBackend(t, ops)
+
+	if err := b.replaceRootQdisc(ops.links["eth0"], desired); err != nil {
+		t.Fatalf("replaceRootQdisc: %v", err)
+	}
+	if !slices.Contains(ops.calls, "del:fq") {
+		t.Fatalf("same-handle root must be deleted before replace, calls = %v", ops.calls)
+	}
+	if slices.Index(ops.calls, "del:fq") > slices.Index(ops.calls, "replace:htb") {
+		t.Fatalf("delete must precede replace, calls = %v", ops.calls)
+	}
+
+	other := newFakeTCOps()
+	other.links["eth0"] = testLink("eth0", 5)
+	other.qdiscs["eth0"] = []netlink.Qdisc{&netlink.Fq{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(2, 0), Parent: netlink.HANDLE_ROOT}}}
+	b = testBackend(t, other)
+	if err := b.replaceRootQdisc(other.links["eth0"], desired); err != nil {
+		t.Fatalf("replaceRootQdisc: %v", err)
+	}
+	if slices.Contains(other.calls, "del:fq") {
+		t.Fatalf("a root with another handle must not be deleted, calls = %v", other.calls)
 	}
 }
 

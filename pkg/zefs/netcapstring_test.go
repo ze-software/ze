@@ -1205,7 +1205,7 @@ func TestDecodeNetcapstringExported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for end := range len(frame) {
+	for end := range frame {
 		data, _, _, err := DecodeNetcapstringRef(frame[:end], 0)
 		if err == nil {
 			t.Fatalf("prefix %d accepted", end)

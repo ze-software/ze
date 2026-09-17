@@ -15,4 +15,5 @@ EOF_INPUT
 # Declarative stdin exercises the actual ze init entry point without a helper.
 cmd=foreground:seq=1:exec=ze init:stdin=init-answers:timeout=10s
 expect=exit:code=0
-expect=file:path=database.zefs:exists=true
+expect=key:path=meta/auth/local/username:exists=true
+expect=file:glob=database.zefs:count=0

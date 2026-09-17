@@ -11,6 +11,22 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/pkg/zefs"
+)
+
+// treeName is the published live tree inside a storage folder, and blobName the
+// legacy framed blob beside it that the live opener refuses. lockName is the
+// tree's owner lock, initStagePrefix the private stage Create builds before it
+// publishes, and replacedInfix the stamp separator moveAside and the importer
+// put between a retired name and its timestamp. All are folder entries, never
+// paths: every caller joins them onto the folder it holds.
+const (
+	treeName        = "database"
+	blobName        = "database.zefs"
+	lockName        = "database.lock"
+	initStagePrefix = "database.init-tmp-"
+	replacedInfix   = ".replaced-"
 )
 
 // Open opens a live tree for its sole writer. The caller MUST Close the handle.
@@ -28,7 +44,7 @@ func OpenTree(path string, writable bool) (Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-	if name == "database" {
+	if name == treeName {
 		if writable {
 			return Open(dir)
 		}
@@ -42,17 +58,15 @@ func OpenTree(path string, writable bool) (Storage, error) {
 	if writable {
 		owner, err = lockOwner(folder, name+".lock")
 		if err != nil {
-			folder.Close()
-			return nil, err
-		} //nolint:errcheck // ownership error retained.
+			return nil, errors.Join(err, folder.Close())
+		}
 	}
 	result, err := openTree(folder, name, owner, !writable)
 	if err != nil {
 		if owner != nil {
-			owner.Close()
-		} //nolint:errcheck // open error retained.
-		folder.Close() //nolint:errcheck // open error retained.
-		return nil, err
+			err = errors.Join(err, owner.Close())
+		}
+		return nil, errors.Join(err, folder.Close())
 	}
 	return result, nil
 }
@@ -75,21 +89,53 @@ func splitStorePath(path string) (string, string, error) {
 }
 
 func detect(dir string) error {
-	blob := filepath.Join(dir, "database.zefs")
+	blob := filepath.Join(dir, blobName)
 	if _, err := os.Lstat(blob); err == nil {
-		return fmt.Errorf("blob artifact %s is not a live store; run ze init from %s", blob, blob)
+		return fmt.Errorf("blob artifact %s is not a live store; run ze init --from %s", blob, blob)
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	path := filepath.Join(dir, "database")
+	path := filepath.Join(dir, treeName)
 	if _, err := os.Lstat(path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("%w: %s; run ze init", ErrNoStore, path)
+			return missingTree(dir, path)
 		}
 		return err
 	}
 	return nil
 }
+
+// missingTree answers for an absent tree. With no import intent beside it the
+// store is genuinely absent and Create may build one. With an intent beside it
+// an import crashed after moving the old tree to database.replaced-* and
+// before publishing its stage, so the answer is ErrImportPending, never
+// ErrNoStore: auto-creating an empty tree there would hide the operator's
+// store, and the next import would then be refused as "names another tree".
+// An intent that cannot be read refuses the same way, because a store whose
+// intent is unreadable is not known to be absent.
+func missingTree(dir, path string) error {
+	intentPath := filepath.Join(dir, importIntentName)
+	if _, err := os.Lstat(intentPath); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("%w: %s; run ze init", ErrNoStore, path)
+		}
+		return err
+	}
+	folder, err := openFolder(dir)
+	if err != nil {
+		return err
+	}
+	intent, exists, err := readImportIntent(folder)
+	err = errors.Join(err, folder.Close())
+	if err != nil {
+		return fmt.Errorf("%w: %s cannot be read and %s is absent: %w; the tree in place before the import sits in %s.replaced-*: re-run ze init --from with the original blob, or remove that intent file once %s holds the wanted tree", ErrImportPending, intentPath, path, err, path, path)
+	}
+	if !exists {
+		return fmt.Errorf("%w: %s; run ze init", ErrNoStore, path)
+	}
+	return fmt.Errorf("%w: %s records an import of %s and %s is absent; the tree in place before the import sits in %s.replaced-*: finish the import with ze init --from %s, or remove that intent file once %s holds the wanted tree", ErrImportPending, intentPath, intent.Source, path, path, intent.Source, path)
+}
+
 func openLive(dir string, readonly bool) (Storage, error) {
 	if err := detect(dir); err != nil {
 		return nil, err
@@ -98,24 +144,22 @@ func openLive(dir string, readonly bool) (Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-	var owner *os.File
-	if !readonly {
-		owner, err = lockOwner(folder, "database.lock")
-		if err != nil {
-			folder.Close()
-			return nil, err
-		}
-	} //nolint:errcheck // primary lock error.
-	result, err := openTree(folder, "database", owner, readonly)
+	// Validation precedes the lock so a refused open creates no lock file.
+	result, err := openTree(folder, treeName, nil, readonly)
 	if err != nil {
-		if owner != nil {
-			owner.Close()
-		}
-		folder.Close()
-		return nil, err
-	} //nolint:errcheck // primary open error.
+		return nil, errors.Join(err, folder.Close())
+	}
+	if readonly {
+		return result, nil
+	}
+	owner, err := lockOwner(folder, lockName)
+	if err != nil {
+		return nil, errors.Join(err, result.Close())
+	}
+	result.owner = owner
 	return result, nil
 }
+
 func openTree(folder *os.File, name string, owner *os.File, readonly bool) (*store, error) {
 	root, err := openNode(folder, name, true)
 	if err != nil {
@@ -123,11 +167,11 @@ func openTree(folder *os.File, name string, owner *os.File, readonly bool) (*sto
 	}
 	tree := &treeEncoding{root: root, folder: folder}
 	if _, err := tree.list(""); err != nil {
-		root.Close()
-		return nil, err
-	} //nolint:errcheck // primary validation error.
+		return nil, errors.Join(err, root.Close())
+	}
 	return newStore(tree, nil, owner, readonly), nil
 }
+
 func lockOwner(folder *os.File, name string) (*os.File, error) {
 	return lockStoreFile(folder, name, unix.LOCK_EX)
 }
@@ -142,7 +186,7 @@ func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
 		return nil, errors.Join(err, file.Close())
 	}
 	if err := unix.Flock(fd, mode|unix.LOCK_NB); err != nil {
-		return nil, errors.Join(fmt.Errorf("%w: %s; close its owner before maintenance: %v", ErrBusy, folder.Name(), err), file.Close())
+		return nil, errors.Join(fmt.Errorf("%w: %s; close its owner before maintenance: %w", ErrBusy, folder.Name(), err), file.Close())
 	}
 	if err := folder.Sync(); err != nil {
 		return nil, errors.Join(err, file.Close())
@@ -180,43 +224,52 @@ func ReplacePopulated(dir string, populate func(Storage) error) (Storage, error)
 func ensureFolder(dir string) (*os.File, error) {
 	return openFolderMode(dir, true)
 }
+
 func populateTree(dir string, populate func(Storage) error, replace bool) (Storage, error) {
 	folder, err := ensureFolder(dir)
 	if err != nil {
 		return nil, err
 	}
-	owner, err := lockOwner(folder, "database.lock")
+	owner, err := lockOwner(folder, lockName)
 	if err != nil {
-		folder.Close()
-		return nil, err
-	} //nolint:errcheck // primary ownership error.
+		return nil, errors.Join(err, folder.Close())
+	}
 	result, err := populateOwned(folder, owner, populate, replace)
 	if err != nil {
-		owner.Close()
-		folder.Close()
-	} //nolint:errcheck // primary operation error.
-	return result, err
+		return nil, errors.Join(err, owner.Close(), folder.Close())
+	}
+	return result, nil
 }
+
 func populateOwned(folder, owner *os.File, populate func(Storage) error, replace bool) (_ *store, retErr error) {
 	if !replace {
-		for _, name := range []string{"database", "database.zefs"} {
+		for _, name := range []string{treeName, blobName} {
 			if err := nodeStat(folder, name); err == nil {
 				return nil, fmt.Errorf("database already exists: %s: %w", filepath.Join(folder.Name(), name), fs.ErrExist)
 			} else if !errors.Is(err, fs.ErrNotExist) {
 				return nil, err
 			}
 		}
+		// The tree is absent, so missingTree decides whether that absence is
+		// a store to create (ErrNoStore) or an import that crashed after
+		// moving the operator's tree to database.replaced-* (ErrImportPending).
+		// Publishing an empty tree over the second would bury that tree, so
+		// the same refusal detect gives every opener applies here. Replace is
+		// the operator's explicit choice and skips this.
+		if err := missingTree(folder.Name(), filepath.Join(folder.Name(), treeName)); !errors.Is(err, ErrNoStore) {
+			return nil, err
+		}
 	}
 	if replace {
-		for _, name := range []string{"database", "database.zefs"} {
-			node, err := openNode(folder, name, name == "database")
+		for _, name := range []string{treeName, blobName} {
+			node, err := openNode(folder, name, name == treeName)
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
 			if err != nil {
 				return nil, err
 			}
-			if name == "database" {
+			if name == treeName {
 				tree := &treeEncoding{root: node, folder: folder}
 				if _, err := tree.list(""); err != nil {
 					return nil, errors.Join(err, node.Close())
@@ -227,7 +280,7 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 			}
 		}
 	}
-	stage, err := makeStage(folder, "database.init-tmp-")
+	stage, err := makeStage(folder, initStagePrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -243,9 +296,8 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 	}
 	result, err := openTree(stageFolder, stage, nil, false)
 	if err != nil {
-		stageFolder.Close()
-		return nil, err
-	} //nolint:errcheck // primary staging error.
+		return nil, errors.Join(err, stageFolder.Close())
+	}
 	if err := populate(result); err != nil {
 		return nil, errors.Join(err, result.Close())
 	}
@@ -253,9 +305,9 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 		return nil, errors.Join(err, result.Close())
 	}
 	if replace {
-		for _, name := range []string{"database", "database.zefs"} {
+		for _, name := range []string{treeName, blobName} {
 			if err := nodeStat(folder, name); err == nil {
-				if _, err := moveAside(folder, name); err != nil {
+				if err := moveAside(folder, name); err != nil {
 					return nil, errors.Join(err, result.Close())
 				}
 			} else if !errors.Is(err, fs.ErrNotExist) {
@@ -263,14 +315,14 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 			}
 		}
 	}
-	if err := renameNoReplace(folder, stage, "database"); err != nil {
+	if err := zefs.RenameNoReplace(folder, stage, treeName); err != nil {
 		return nil, errors.Join(err, result.Close())
 	}
 	published = true
 	if err := folder.Sync(); err != nil {
 		return nil, errors.Join(err, result.Close())
 	}
-	if err := result.tree.published("database"); err != nil {
+	if err := result.tree.published(treeName); err != nil {
 		return nil, errors.Join(err, result.Close())
 	}
 	result.owner = owner
@@ -279,15 +331,15 @@ func populateOwned(folder, owner *os.File, populate func(Storage) error, replace
 	}
 	return result, nil
 }
-func moveAside(folder *os.File, name string) (string, error) {
-	backup := name + ".replaced-" + time.Now().Format("20060102T150405.000000000")
-	if err := renameNoReplace(folder, name, backup); err != nil {
-		return "", err
+
+// moveAside renames name to a stamped .replaced- sibling and syncs the folder,
+// so a replace never unlinks the tree or blob it supersedes.
+func moveAside(folder *os.File, name string) error {
+	backup := name + replacedInfix + time.Now().Format("20060102T150405.000000000")
+	if err := zefs.RenameNoReplace(folder, name, backup); err != nil {
+		return err
 	}
-	if err := folder.Sync(); err != nil {
-		return "", err
-	}
-	return filepath.Join(folder.Name(), backup), nil
+	return folder.Sync()
 }
 
 // WriteConfigFile atomically publishes an explicitly selected loose config, not

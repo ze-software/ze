@@ -139,7 +139,11 @@ differs: `doctor-pki-ca-root-missing` says the next start generates a root that
 every peer has to be given, and `doctor-pki-ca-root-expiry` says the root
 serving today runs out. A stored pair that will not load takes
 `doctor-tls-invalid`, the code every other Ze surface already reports for
-certificate material that does not parse.
+certificate material that does not parse. A host with no store at all gets
+neither: the root check refuses by name (`local certificate authority root:
+refused, this doctor run resolved no storage`) as a `doctor-storage-unavailable`
+WARNING and the run exits 0, while a store the process cannot read stays an
+ERROR (`docs/architecture/doctor-and-health-checks.md`).
 
 **The doctor warns 90 days ahead of the root's expiry, where a configured
 certificate gets 30.** A configured certificate is replaced on the router that

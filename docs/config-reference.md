@@ -594,16 +594,17 @@ itself. `show event delivery` prints the resulting edges.
 
 ## Configuration Database
 
-Ze stores configuration in ZeFS, a netcapstring-framed blob store. Configuration
+Ze stores configuration in a managed `database/` tree of netcapstring-framed
+files beside the config file; a ZeFS blob is an artifact only. Configuration
 is managed through an interactive editor with draft/commit workflow, not by
 editing text files and sending SIGHUP (though SIGHUP reload is also supported).
-<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+<!-- source: internal/component/config/storage/open.go -- Open, detect -->
 
 | Command | Purpose |
 |---------|---------|
 | `ze config edit` | Interactive editor with YANG-aware tab completion |
 | `ze config validate <file>` | Validate a config file offline |
-| `ze config import <file>` | Import a config file into the blob store |
+| `ze config import <file>` | Import a config file into the store |
 | `ze config migrate <file>` | Convert ExaBGP config to ze-native format |
 | `ze signal reload` | Trigger config reload (same as SIGHUP) |
 <!-- source: internal/component/config/cli/main.go -- config domain commands -->
@@ -763,8 +764,8 @@ On both of those listeners a reload rotates the material through a per-handshake
 lookup, with no rebind. The environment variables `ze.web.certificate` and
 `ze.looking-glass.certificate` override the config file.
 
-The looking glass reads a certificate from the PKI store, which needs no blob
-storage. Its blob store holds the self-signed certificate only.
+The looking glass reads a certificate from the PKI store, which needs no
+`database/` store. The `database/` store holds the self-signed certificate only.
 
 For `as112` and `geodns`, `certificate` and the older `cert-file` / `key-file`
 pair are mutually exclusive, and setting both is a configuration error. The PKI
