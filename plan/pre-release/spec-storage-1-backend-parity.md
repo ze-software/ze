@@ -817,3 +817,17 @@ Preserved binaries and counterfactual inputs remain available for the next phase
 - The runner exports `ze.config.dir=<WorkDir>`; a fixture that sets its own must merge by
   normalized name (`plugin01SameVariable`).
 - Agents hit a 100-call budget; give each a narrow package and expect a handoff section.
+
+### Snapshot 2 (2026-09-17, later the same session)
+- Committed `e78411042c`: the fix pass over the first full check (51 files). Product: `YANGSchema()` built once
+  (commit path 3.3 s -> 1.9 s); process bindings sorted so an unchanged config never restarts a peer
+  (`bgp/reactor/config.go`, the `api-reload` red was this pre-existing coin flip, NOT a storage regression);
+  `ze.test.update.running.version` for the history carrier. Runner: engine-steps linked into the second
+  daemon's config dir; exabgp `copyConfigDir` copies the tree; fixtures create their own store beside the config.
+- Still uncommitted when written (a triage agent was finishing them): journal rows for other sessions' reds,
+  `iface/cli dispatch_parity_test.go` selector resolution, `le/rules native_fixture_test.go` reseal,
+  `internal/test/cli/cmd_exabgp.go`. Commit them with `./le commit create` when the agent's handoff appears
+  in the state file ("Handoff: triage package continuation 2" or later).
+- Next: `./le verify worktree` detached on the new HEAD (recipe above); expected residual reds not ours:
+  `tx-protocol-external-plugin` (intermittent section-apply stall), `display-fill-completion` (199 s hang),
+  `vpp-hugepages-qemu` (gokrazy modcache), `le-*-answers` fixtures of other sessions.
