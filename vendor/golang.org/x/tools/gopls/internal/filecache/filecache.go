@@ -38,35 +38,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/telemetry/counter"
 	"golang.org/x/tools/gopls/internal/util/bug"
 	"golang.org/x/tools/gopls/internal/util/lru"
 )
 
-// Start causes the filecache to initialize and start garbage collection.
+// Start causes the filecache to initialize and start garbage gollection.
 //
 // Start is automatically called by the first call to Get, but may be called
 // explicitly to pre-initialize the cache.
 func Start() {
-	go func() {
-		// Force early creation of the filecache and refuse to start
-		// if there were unexpected errors such as ENOSPC. This
-		// minimizes the window of exposure to deletion of the
-		// executable, and ensures that all subsequent calls to
-		// filecache.Get cannot fail for these two reasons;
-		// see issue #67433.
-		//
-		// This leaves only one likely cause for later failures:
-		// deletion of the cache while gopls is running. If the
-		// problem continues, we could periodically stat the cache
-		// directory (for example at the start of every RPC) and
-		// either re-create it or just fail the RPC with an
-		// informative error and terminate the process.
-		if _, err := Get("nonesuch", [32]byte{}, Bytes); err != nil && err != ErrNotFound {
-			counter.Inc("gopls/nocache")
-			log.Fatalf("gopls cannot access its persistent index (disk full?): %v", err)
-		}
-	}()
+	go getCacheDir() // ignore error
 }
 
 // memCache is a 100MB in-memory LRU cache in front of filecache
@@ -425,59 +406,56 @@ func filename(kind string, key [32]byte) (string, error) {
 // It must incorporate the hash of the executable so that we needn't
 // worry about incompatible changes to the file format or changes to
 // the algorithm that produced the index.
-var getCacheDir = sync.OnceValues(func() (string, error) {
-	// Use user's preferred cache directory.
-	userDir := os.Getenv("GOPLSCACHE")
-	if userDir == "" {
-		var err error
-		userDir, err = os.UserCacheDir()
-		if err != nil {
-			userDir = os.TempDir()
+func getCacheDir() (string, error) {
+	cacheDirOnce.Do(func() {
+		// Use user's preferred cache directory.
+		userDir := os.Getenv("GOPLSCACHE")
+		if userDir == "" {
+			var err error
+			userDir, err = os.UserCacheDir()
+			if err != nil {
+				userDir = os.TempDir()
+			}
 		}
-	}
-	goplsDir := filepath.Join(userDir, "gopls")
+		goplsDir := filepath.Join(userDir, "gopls")
 
-	// UserCacheDir may return a nonexistent directory
-	// (in which case we must create it, which may fail),
-	// or it may return a non-writable directory, in
-	// which case we should ideally respect the user's express
-	// wishes (e.g. XDG_CACHE_HOME) and not write somewhere else.
-	// Sadly UserCacheDir doesn't currently let us distinguish
-	// such intent from accidental misconfiguraton such as HOME=/
-	// in a CI builder. So, we check whether the gopls subdirectory
-	// can be created (or already exists) and not fall back to /tmp.
-	// See also https://github.com/golang/go/issues/57638.
-	if os.MkdirAll(goplsDir, 0700) != nil {
-		goplsDir = filepath.Join(os.TempDir(), "gopls")
-	}
+		// UserCacheDir may return a nonexistent directory
+		// (in which case we must create it, which may fail),
+		// or it may return a non-writable directory, in
+		// which case we should ideally respect the user's express
+		// wishes (e.g. XDG_CACHE_HOME) and not write somewhere else.
+		// Sadly UserCacheDir doesn't currently let us distinguish
+		// such intent from accidental misconfiguraton such as HOME=/
+		// in a CI builder. So, we check whether the gopls subdirectory
+		// can be created (or already exists) and not fall back to /tmp.
+		// See also https://github.com/golang/go/issues/57638.
+		if os.MkdirAll(goplsDir, 0700) != nil {
+			goplsDir = filepath.Join(os.TempDir(), "gopls")
+		}
 
-	// Start the garbage collector.
-	go gc(goplsDir)
+		// Start the garbage collector.
+		go gc(goplsDir)
 
-	// Compute the hash of this executable (~20ms) and create a subdirectory.
-	hash, err := hashExecutable()
-	if err != nil {
-		return "", ErrNoCache{fmt.Errorf("can't hash gopls executable: %w", err)}
-	}
-	// Use only 32 bits of the digest to avoid unwieldy filenames.
-	// It's not an adversarial situation.
-	cacheDir := filepath.Join(goplsDir, fmt.Sprintf("%x", hash[:4]))
-	if err := os.MkdirAll(cacheDir, 0700); err != nil {
-		return "", ErrNoCache{fmt.Errorf("can't create cache: %w", err)}
-	}
-	// ...but record the full digest to detect collisions.
-	// The birthday paradox P(k) = 1 - exp(-k^2 / (2N)), where N = 1<<32,
-	// gives 50% odds of a 32-bit collision even with >77K different executables.
-	shaFile := filepath.Join(cacheDir, "exe.sha256")
-	if prev, err := os.ReadFile(shaFile); err == nil && !bytes.Equal(prev, hash[:]) {
-		return "", ErrNoCache{fmt.Errorf("gopls cache directory %s hash collision (%x vs %x)", cacheDir, prev, hash[:])}
-	}
-	if err := writeFileNoTrunc(shaFile, hash[:], 0600); err != nil {
-		return "", ErrNoCache{fmt.Errorf("can't write executable hash: %w", err)}
-	}
+		// Compute the hash of this executable (~20ms) and create a subdirectory.
+		hash, err := hashExecutable()
+		if err != nil {
+			cacheDirErr = ErrNoCache{fmt.Errorf("can't hash gopls executable: %w", err)}
+		}
+		// Use only 32 bits of the digest to avoid unwieldy filenames.
+		// It's not an adversarial situation.
+		cacheDir = filepath.Join(goplsDir, fmt.Sprintf("%x", hash[:4]))
+		if err := os.MkdirAll(cacheDir, 0700); err != nil {
+			cacheDirErr = ErrNoCache{fmt.Errorf("can't create cache: %w", err)}
+		}
+	})
+	return cacheDir, cacheDirErr
+}
 
-	return cacheDir, nil
-})
+var (
+	cacheDirOnce sync.Once
+	cacheDir     string
+	cacheDirErr  error
+)
 
 func hashExecutable() (hash [32]byte, err error) {
 	exe, err := os.Executable()

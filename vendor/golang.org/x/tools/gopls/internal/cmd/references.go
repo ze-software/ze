@@ -11,13 +11,14 @@ import (
 	"sort"
 
 	"golang.org/x/tools/gopls/internal/protocol"
+	"golang.org/x/tools/gopls/internal/tool"
 )
 
 // references implements the references verb for gopls
 type references struct {
 	IncludeDeclaration bool `flag:"d,declaration" help:"include the declaration of the specified identifier in the results"`
 
-	app *application
+	app *Application
 }
 
 func (r *references) Name() string      { return "references" }
@@ -39,7 +40,7 @@ references-flags:
 
 func (r *references) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
-		return commandLineErrorf("references expects 1 argument (position)")
+		return tool.CommandLineErrorf("references expects 1 argument (position)")
 	}
 
 	cli, _, err := r.app.connect(ctx)
