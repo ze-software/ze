@@ -550,7 +550,12 @@ type parsingRunner struct {
 	tests   *ParsingTests
 	baseDir string
 	zePath  string
-	colors  *Colors
+	// testPath is this runner's own executable, so a `cmd=...:exec=ze-test ...`
+	// line runs the ze-test that runs the suite and never a PATH lookup: the
+	// gate's bin directory is not on PATH, and the generic runner
+	// (runner_exec.go) resolves the same name to its own binary.
+	testPath string
+	colors   *Colors
 	// timeoutFactor widens an authored `cmd=...:timeout=` when this run
 	// executes tests concurrently. Set by Run; 1 until then, so a caller that
 	// never went through Run gets the authored value unchanged.
@@ -559,13 +564,39 @@ type parsingRunner struct {
 
 // NewParsingRunner creates a parsing test runner.
 func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *parsingRunner {
+	testPath, err := os.Executable()
+	if err != nil {
+		// Never a silent fallback to the bare name: runOneCommand refuses the
+		// exec line with this reason instead of a PATH lookup that fails later.
+		testPath = ""
+	}
 	return &parsingRunner{
 		tests:         tests,
 		baseDir:       baseDir,
 		zePath:        zePath,
+		testPath:      testPath,
 		colors:        NewColors(),
 		timeoutFactor: 1,
 	}
+}
+
+// resolveParseExec maps the binary name at the head of an exec= line to the
+// path the runner holds for it. `ze` is the daemon under test and `ze-test`
+// is the runner itself; every other head is left for a PATH lookup.
+func resolveParseExec(cmdLine, zePath, testPath string) (string, error) {
+	if rest, ok := strings.CutPrefix(cmdLine, binNameZe+" "); ok {
+		return zePath + " " + rest, nil
+	}
+	if cmdLine == binNameZe {
+		return zePath, nil
+	}
+	if rest, ok := strings.CutPrefix(cmdLine, binNameZeTest+" "); ok {
+		if testPath == "" {
+			return "", errors.New("exec names ze-test and the runner does not know its own executable")
+		}
+		return testPath + " " + rest, nil
+	}
+	return cmdLine, nil
 }
 
 // Run executes selected tests in parallel with real-time progress display.
@@ -701,11 +732,10 @@ func (r *parsingRunner) setupWorkDir(test *parsingTest) (string, error) {
 
 // runOneCommand executes a single cmd= and checks its expectations.
 func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci *ciCommand, workDir string, allOutput *strings.Builder) bool {
-	cmdLine := ci.Exec
-	if strings.HasPrefix(cmdLine, "ze ") {
-		cmdLine = r.zePath + cmdLine[2:]
-	} else if cmdLine == binNameZe {
-		cmdLine = r.zePath
+	cmdLine, resolveErr := resolveParseExec(ci.Exec, r.zePath, r.testPath)
+	if resolveErr != nil {
+		test.Error = fmt.Errorf("seq %d: %w", ci.Seq, resolveErr)
+		return false
 	}
 
 	parts, splitErr := splitCommand(cmdLine)

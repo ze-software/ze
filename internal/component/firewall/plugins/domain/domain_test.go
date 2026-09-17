@@ -928,7 +928,12 @@ func TestDomainGroupRefreshFiresAtTTL(t *testing.T) {
 	}
 
 	// The worker rearmed both units into the future rather than spinning.
-	_, due, found := plug.sched.nextDue()
-	require.True(t, found)
-	assert.True(t, due.After(time.Now()), "a refreshed unit is rescheduled ahead, not at once")
+	// The resolve callback fires BEFORE resolveAndRecord reaches sched.arm,
+	// so the schedule is read once the worker has written it, never at the
+	// instant the second callback returns: on a loaded machine that instant
+	// still shows the AAAA unit at its due-now time.
+	require.Eventually(t, func() bool {
+		_, due, found := plug.sched.nextDue()
+		return found && due.After(time.Now())
+	}, 10*time.Second, 5*time.Millisecond, "a refreshed unit is rescheduled ahead, not at once")
 }

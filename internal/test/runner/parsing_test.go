@@ -244,3 +244,32 @@ func TestParseCICorpusReadsUnderTheGenericParser(t *testing.T) {
 	}
 	t.Logf("read %d test/parse .ci files under both parsers", len(entries))
 }
+
+// TestParseExecResolvesBothBinaries pins the head-of-line mapping the parse
+// runner applies before it spawns a cmd= line. `ze-test` maps to the runner's
+// own executable, never to a PATH lookup: the verify gate's bin directory is
+// not on PATH, and `test/parse/cli-config-history.ci` seeds its store with
+// `ze-test fixture storage/empty-tree`, which failed with "executable file not
+// found in $PATH" under the gate while it passed from a shell that had bin/
+// on PATH.
+func TestParseExecResolvesBothBinaries(t *testing.T) {
+	const zePath, testPath = "/gate/bin/ze", "/gate/bin/ze-test"
+	for _, tc := range []struct{ exec, want string }{
+		{"ze config cat key", zePath + " config cat key"},
+		{"ze", zePath},
+		{"ze-test fixture storage/empty-tree", testPath + " fixture storage/empty-tree"},
+		{"cat test.conf", "cat test.conf"},
+		{"zebra route", "zebra route"},
+	} {
+		got, err := resolveParseExec(tc.exec, zePath, testPath)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.exec, err)
+		}
+		if got != tc.want {
+			t.Errorf("%q resolved to %q, want %q", tc.exec, got, tc.want)
+		}
+	}
+	if _, err := resolveParseExec("ze-test fixture x", zePath, ""); err == nil {
+		t.Fatal("an unknown own executable must refuse the ze-test line, not fall back to PATH")
+	}
+}

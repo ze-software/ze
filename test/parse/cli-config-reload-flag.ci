@@ -38,6 +38,8 @@ cmd=foreground:seq=3:exec=ze config deactivate --no-reload test.conf bgp router-
 expect=exit:code=2
 
 # Only the default set (65000) persisted; the two rejected commands changed nothing.
-cmd=foreground:seq=4:exec=ze config cat test.conf:exit=0
+# `config show <path>` reads the loose file `set` wrote; `config cat` reads a
+# key of the tree store, which this test never creates.
+cmd=foreground:seq=4:exec=ze config show test.conf:exit=0
 expect=exit:code=0
 expect=stdout:contains=local 65000
