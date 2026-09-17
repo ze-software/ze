@@ -831,3 +831,15 @@ Preserved binaries and counterfactual inputs remain available for the next phase
 - Next: `./le verify worktree` detached on the new HEAD (recipe above); expected residual reds not ours:
   `tx-protocol-external-plugin` (intermittent section-apply stall), `display-fill-completion` (199 s hang),
   `vpp-hugepages-qemu` (gokrazy modcache), `le-*-answers` fixtures of other sessions.
+
+### Snapshot 3 (2026-09-17, end of session 98052e33)
+- Second full check on `8fb5fe2957`: 20 groups (from 40). Fixed in the commit after this line: the parse
+  runner resolves `exec=ze-test` to its own binary (`internal/test/runner/parsing.go`), `cli-config-reload-flag`
+  reads through `config show`, the site header/manifest goldens follow the new nav wording, the features table
+  rows folded, the domain TTL test waits on the scheduler. Rows for the load stalls (271/272, 3/3 pass alone).
+- Residual reds, none this spec's: `le-*-answers` fixtures (rows), `display-fill-completion` hang (row),
+  `vpp-hugepages-qemu` (row), the mtu IKE symbol leak (row), BGP carriers 104/120/681 (rows owed for 104/681),
+  site changes-index fixtures pinned at gh-pages 2026-09-12 (row), ui 198 needs Docker.
+- Next: a third `./le verify worktree` on the commit if the owner wants the number; otherwise `/ze-close` in a
+  fresh session (Review Gate artifact exists; QEMU run for the three caps-gated carriers owed; owner items:
+  `./le rfc approve unit` x3, `ze init --from etc/ze/database.zefs`).
