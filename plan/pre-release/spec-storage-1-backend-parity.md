@@ -647,3 +647,37 @@ Before returning to `ready`, resolve the ownership/exclusion policy (D-13 and
 D-14), storeless authority (D-15), and config authority (D-16). Revise the
 affected contracts and test rows for every finding above. Keep all 29
 acceptance criteria in scope.
+
+### Owner Decision Log
+
+| ID | Date | Owner answer | Design constraint |
+|----|------|--------------|-------------------|
+| O-1 | 2026-09-17 | "Require the store owner" | Keep AC-4's strict caller-ownership check, including for root. Storage maintenance runs as the store owner. The installer retains root for system changes and transfers ownership of the complete tree before service startup. Do not add a root bypass or automatically change store ownership on open. |
+| O-2 | 2026-09-17 | "One owning process" | Hold an exclusive store-ownership lock for the daemon lifetime, including startup and web-only operation. Route live editor/history writes through that daemon. Offline writers acquire the same lock and refuse while it is held; read-only clients remain permitted. Lock identity must survive store replacement, and a kernel-released lock must not depend on the selected SSH target. |
+| O-3 | 2026-09-17 | "Use an ephemeral CA" | A genuinely storeless stdin daemon uses an explicitly selected, process-lifetime CA in memory, reusing the existing root-generation code. It writes no CA material to disk and warns that its authority changes on restart. Never use this path to recover from an unreadable, corrupt, or permission-refused persistent store or CA. Name unavailable persistence-dependent features at startup. |
+| O-4 | 2026-09-17 | "The explicit file" | Every explicit-file start reads the supplied file, even when the store holds an active version. Daemon commits in that mode update the same file and stored history, with conflict handling when the file changed externally. Bare `ze start` uses the stored active config. A stored version must never silently hide an edit to the explicit file. |
+
+D-14's policy question is resolved by O-1. Its implementation and verification
+remain required: recursive ownership transfer, service startup as `ze`, refusal
+of root access to a `ze`-owned store, and successful maintenance as the owner.
+
+O-2 supersedes the Required Reading claim that the tree adds no cross-process
+mechanism. D-13's policy question is resolved; D-12's daemon-side write paths
+and ownership tests remain required.
+
+D-15's authority policy is resolved by O-3. Specify initialization of the
+process's active authority, trust delivery to its plugins, and renewal from
+that same authority. Test stdin/setup startup, no CA files written, a new
+authority after restart, and fatal persistent-store errors. Update
+`docs/architecture/pki/pki-store.md` with the implementation.
+
+D-16's source-authority question is resolved by O-4. Carry the selected source
+mode through startup, reload, editor commit, and restart. Specify publication
+ordering and recovery for the file and history together; a failed write must
+not be reported as a successful commit. Test start, offline edit, restart;
+SSH commit followed by restart; and an external edit racing a daemon commit.
+
+All owner policy questions identified by this audit are answered. The
+technical contract and coverage corrections in D-1 through D-24 still require
+incorporation before this spec returns to `ready`. No product implementation
+is authorized by the decision log alone.
