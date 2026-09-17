@@ -756,3 +756,64 @@ Preserved binaries and counterfactual inputs remain available for the next phase
 - Documentation verification retains two unrelated undeclared-symbol anchors.
 - Independent verification, critical review, RFC approval/discrimination obligations,
   and closure remain owed. No scope reduction or completion claim is made here.
+
+## Handover (2026-09-17, session 98052e33, written at 96% weekly token budget)
+
+**Spec:** storage-1-backend-parity (this file). **Branch:** main, ahead of origin, never pushed.
+**Goal:** the storage cutover (`ba67a8b89c`) verified by independent review, the full
+`./le verify worktree` green on a commit, then `/ze-close`.
+
+### Status
+- Done, committed: five independent review rounds and every fix (`d319c4ac48`);
+  companion specs storage-2/3 (`30a55ce127`); tier direction, ancestor rule reduced
+  to AC-4 (owner decision), HEAD build break, HEAD lint, OSPF needle and race (`381b43c652`).
+  Review artifact: `tmp/review/storage-1-backend-parity-98052e33-*.md` (rounds 5, verdict findings).
+- In progress, UNCOMMITTED in the working tree (about 60 files, all from the full check
+  on `381b43c652`, which exited red with 40 failure groups, log
+  `tmp/session/2026-09-16-98052e33-.../scratch/verify-worktree-2.log`, failure extracts
+  `functional-failures-2.txt`, `unit-failures-2.txt`, `failure-groups.txt`):
+  every unit red fixed (14 packages: doctor, irr, plugin/server, plugin/all, resolve/cmd,
+  fspersistence, cligrammar flag registration for `config import`/`init --from`/`install local`,
+  firewall/yang, le/qemu, le/rfc, cmd/peer, appliance/instance, rib x2); functional fixtures
+  repointed to the tree world (answer-*, service-status-help, pipe-local-command*,
+  plugin-pipe-alias-completion, web-recovery-session, api-user-removed-by-reload,
+  storage-history-restart with `ze.test.update.running.version`, kernel-capability-validate-fails,
+  ipsec engine-steps link in `runner_exec.go`, exabgp `copyConfigDir` copies the tree,
+  mpls-push/withdraw hex, vpp-cpu-*, bfd caps, le-evidence-vpp).
+  Per-agent handoffs with file lists: the last eight sections of
+  `tmp/session/2026-09-16-98052e33-.../state/session-state-storage-1-backend-parity-98052e33-*.md`.
+- Remaining before the next commit (three agents were running when this was written;
+  their handoffs land in the same state file):
+  1. PRODUCT REGRESSION `api 33 api-reload`: green at `9f7bfebc7f`, red at `381b43c652`; after
+     SIGHUP the daemon closes the BGP peer's TCP session; passes with `ze.log=debug` (timing).
+     Suspects: O-4 reload re-reading the explicit file (`storage.ReadReloadConfig`,
+     `cmd/ze/hub/main_reload.go` `doReloadContext`), round-2 `reloadGate`, or the config source
+     mode. Manual repro under `scratch/triage3-repro/`. Owed: root cause + hub unit test + fix.
+  2. `plugin 75 audit-config-commit`: REST commit takes 8-9 s vs the `.ci`'s 5 s; the wait is
+     inside `ConfigSessionManager.Commit` -> `StageCandidate` -> `reloadAfterCommitContext`
+     (`cmd/ze/hub/main.go`) -> `WaitForStartupComplete` -> `doReloadContext`. Owed: timestamps
+     per step (run the `.ci` with `option=env:var=ze.log:value=debug`), fsync count in
+     `storage/tree.go installBytes`, fix the largest redundant share or state the promise.
+  3. Journal rows for other sessions' reds (ipsec 27, plugin 382/654, ui 196/197/202/207/208,
+     appliance 15, ui 126) and the two unit leftovers (`iface/cli TestDispatchParity` selector
+     resolution; `le/rules TestNativeImplementationFixture` reseal).
+  4. Then: `./le commit create` (file-list from `git status`, exclude the foreign
+     `plan/journal/stale-artifact-reused.md`, `rfc/audit/draft-abraitis-*.json`, `rfc/full/rfc3602.txt`,
+     `rfc/full/rfc4106.txt`; ledger `test/weakened/0880ec9d.md` needs a row per test the audit
+     names), run the script, then `./le verify worktree` detached
+     (`setsid nohup bash -c "./le verify worktree > <scratch>/verify-worktree-3.log 2>&1; echo verify-exit=\$? >> ..."`),
+     read `VERIFY FAILURE GROUP:` lines once; it verifies the COMMIT, not the working tree.
+  5. `/ze-close` in a fresh session: Review Gate artifact exists; closure owes the QEMU run for the
+     three caps-gated carriers (`ospf-state-through-daemon`, `storage-ntp-restart`, `storage-tc-restart`).
+- Owner-owned, open: `./le rfc approve unit` for the three OSPF test edits of `ba67a8b89c`
+  (`auth_keystore_test`, `gr_nvs_test`, `multiaf_engine_test`); the `verification-debt` row names it.
+  This machine's `etc/ze` holds a pre-cutover blob only: `ze init --from etc/ze/database.zefs`.
+
+### Traps learned this session
+- `./le verify worktree` checks HEAD in a worktree: commit first. Background bash tasks are
+  killed by the harness memory guard; run long gates with `setsid nohup`.
+- Bare `go test` without the feature-gates tags gives phantom `unknown top-level keyword` reds.
+- Env keys must be hyphen-free (`env.normalize` maps only `.`<->`_`).
+- The runner exports `ze.config.dir=<WorkDir>`; a fixture that sets its own must merge by
+  normalized name (`plugin01SameVariable`).
+- Agents hit a 100-call budget; give each a narrow package and expect a handoff section.
