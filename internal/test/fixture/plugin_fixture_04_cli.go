@@ -395,12 +395,12 @@ func cliCommitDriver04(reject bool) Driver {
 			"TERM=xterm",
 		)
 		initInput := fmt.Sprintf("admin\ntestpass\n127.0.0.1\n%s\n\n", args[0])
-		if _, err := runCommandProcess04(ctx, env, strings.NewReader(initInput), "ze", "init"); err != nil {
+		if _, err := runCommandProcess04(ctx, env, strings.NewReader(initInput), "init"); err != nil {
 			return err
 		}
 		var last string
 		if !Poll(ctx, 50, 200*time.Millisecond, func() bool {
-			output, err := runCommandProcess04(ctx, env, nil, "ze", "cli", "-c", "show version")
+			output, err := runCommandProcess04(ctx, env, nil, "cli", "-c", "show version")
 			last = output
 			return err == nil
 		}) {
@@ -410,10 +410,10 @@ func cliCommitDriver04(reject bool) Driver {
 		if reject {
 			config = "cli-commit-reject.conf"
 		}
-		if _, err := driveEditor04(ctx, env, config, reject); err != nil {
+		if err := driveEditor04(ctx, env, config, reject); err != nil {
 			return err
 		}
-		if _, err := runCommandProcess04(ctx, env, nil, "ze", "cli", "-c", "show version"); err != nil {
+		if _, err := runCommandProcess04(ctx, env, nil, "cli", "-c", "show version"); err != nil {
 			return err
 		}
 		if reject {
@@ -425,8 +425,10 @@ func cliCommitDriver04(reject bool) Driver {
 	}
 }
 
-func runCommandProcess04(ctx context.Context, env []string, input io.Reader, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
+// runCommandProcess04 runs one ze subcommand with env and input, and answers its
+// combined output.
+func runCommandProcess04(ctx context.Context, env []string, input io.Reader, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the arguments
 	cmd.Env = env
 	cmd.Stdin = input
 	var output bytes.Buffer
@@ -434,7 +436,7 @@ func runCommandProcess04(ctx context.Context, env []string, input io.Reader, nam
 	cmd.Stderr = &output
 	err := cmd.Run()
 	if err != nil {
-		return output.String(), fmt.Errorf("%s %v: %w\n%s", name, args, err, output.String())
+		return output.String(), fmt.Errorf("ze %v: %w\n%s", args, err, output.String())
 	}
 	return output.String(), nil
 }
@@ -455,12 +457,14 @@ func overrideEnv04(base []string, values ...string) []string {
 	return append(env, values...)
 }
 
-func driveEditor04(ctx context.Context, env []string, config string, reject bool) (string, error) {
+// driveEditor04 opens config in the TUI editor over a PTY, commits it, and
+// answers the failure with the transcript in its text.
+func driveEditor04(ctx context.Context, env []string, config string, reject bool) error {
 	cmd := exec.CommandContext(ctx, "ze", "config", "edit", config) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 30, Cols: 120})
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer terminal.Close() //nolint:errcheck // fixture teardown
 	defer func() {
@@ -469,40 +473,40 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 			_ = cmd.Wait()
 		}
 	}()
-	transcript, err := readPTYUntil04(terminal, nil, 20*time.Second, false, "\x1b[?1049h", "╭")
+	transcript, err := readPTYUntil04(terminal, nil, false, "\x1b[?1049h", "╭")
 	if err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		return transcript, fmt.Errorf("config editor did not draw its first frame: %w", err)
+		return fmt.Errorf("config editor did not draw its first frame: %w\n%s", err, transcript)
 	}
 	send := func(command string, needles ...string) error {
 		if _, err := terminal.WriteString(command + "\r"); err != nil {
 			return fmt.Errorf("config editor closed before command %q: %w", command, err)
 		}
 		var chunk string
-		chunk, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, needles...)
+		chunk, err = readPTYUntil04(terminal, []byte(transcript), false, needles...)
 		transcript = chunk
 		return err
 	}
 	if err := send("set bgp router-id 2.2.2.2", "2.2.2.2"); err != nil {
-		return transcript, err
+		return fmt.Errorf("%w\n%s", err, transcript)
 	}
 	if _, err := terminal.WriteString("commit\r"); err != nil {
-		return transcript, err
+		return fmt.Errorf("%w\n%s", err, transcript)
 	}
 	if reject {
-		transcript, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, "commit failed:", "commit blocked:")
+		transcript, err = readPTYUntil04(terminal, []byte(transcript), false, "commit failed:", "commit blocked:")
 		if err != nil {
-			return transcript, err
+			return fmt.Errorf("%w\n%s", err, transcript)
 		}
 		if !strings.Contains(transcript, "commit failed:") && !strings.Contains(transcript, "commit blocked:") {
-			return transcript, errors.New("config editor did not reject the commit")
+			return fmt.Errorf("config editor did not reject the commit\n%s", transcript)
 		}
 		if err := send("errors", "reject router-id", "commit failed:"); err != nil {
-			return transcript, err
+			return fmt.Errorf("%w\n%s", err, transcript)
 		}
 		if err := send("discard all", "discard", "Discard"); err != nil {
-			return transcript, err
+			return fmt.Errorf("%w\n%s", err, transcript)
 		}
 	} else {
 		var commitErr error
@@ -510,22 +514,25 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 			commitErr = storageAssertActive(config)
 			return commitErr == nil
 		}) {
-			return transcript, fmt.Errorf("editor did not publish committed router-id: %w", commitErr)
+			return fmt.Errorf("editor did not publish committed router-id: %w\n%s", commitErr, transcript)
 		}
 	}
 	if _, err := terminal.WriteString("quit\r"); err != nil {
-		return transcript, err
+		return fmt.Errorf("%w\n%s", err, transcript)
 	}
-	transcript, _ = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, true)
+	transcript, _ = readPTYUntil04(terminal, []byte(transcript), true)
 	if err := cmd.Wait(); err != nil {
-		return transcript, fmt.Errorf("config editor exited: %w\n%s", err, transcript)
+		return fmt.Errorf("config editor exited: %w\n%s", err, transcript)
 	}
-	return transcript, nil
+	return nil
 }
 
-func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK bool, needles ...string) (string, error) {
+// ptyReadTimeout04 bounds one readPTYUntil04 wait for the next needle.
+const ptyReadTimeout04 = 20 * time.Second
+
+func readPTYUntil04(file *os.File, initial []byte, eofOK bool, needles ...string) (string, error) {
 	buf := append([]byte(nil), initial...)
-	deadline := time.Now().Add(timeout)
+	deadline := time.Now().Add(ptyReadTimeout04)
 	pollFD := []unix.PollFd{{Fd: int32(file.Fd()), Events: unix.POLLIN}}
 	chunk := make([]byte, 65536)
 	for {

@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/creack/pty"
 
@@ -58,10 +57,10 @@ bgp { router-id 1.2.3.4; }
 	}
 	clientEnv := extra1Environment(map[string]string{"ZE_CONFIG_DIR": clientDir, "ZE_SSH_HOST": addrLoopback, "ZE_SSH_PORT": sshPort, "ZE_SSH_USERNAME": storageSeedUser, "ZE_SSH_PASSWORD": "testpass", "TERM": "xterm", "NO_COLOR": "1"})
 	defer os.RemoveAll(clientDir) //nolint:errcheck // fixture cleanup
-	if _, err := runCommandProcess04(ctx, clientEnv, nil, "ze", "cli", "-c", "show version"); err != nil {
+	if _, err := runCommandProcess04(ctx, clientEnv, nil, "cli", "-c", "show version"); err != nil {
 		return fmt.Errorf("tree credentials did not authenticate: %w", err)
 	}
-	if _, err := driveEditor04(ctx, clientEnv, "cli-commit.conf", false); err != nil {
+	if err := driveEditor04(ctx, clientEnv, "cli-commit.conf", false); err != nil {
 		return err
 	}
 	daemon.stop()
@@ -138,14 +137,14 @@ func storageEditorConflict(ctx context.Context, environment []string, path strin
 		_ = command.Process.Kill()
 		_ = command.Wait()
 	}()
-	transcript, err := readPTYUntil04(terminal, nil, 20*time.Second, false, "\x1b[?1049h", "╭")
+	transcript, err := readPTYUntil04(terminal, nil, false, "\x1b[?1049h", "╭")
 	if err != nil {
 		return err
 	}
 	if _, err := terminal.WriteString("set bgp router-id 3.3.3.3\r"); err != nil {
 		return err
 	}
-	transcript, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, "3.3.3.3")
+	transcript, err = readPTYUntil04(terminal, []byte(transcript), false, "3.3.3.3")
 	if err != nil {
 		return err
 	}
@@ -155,7 +154,7 @@ func storageEditorConflict(ctx context.Context, environment []string, path strin
 	if _, err := terminal.WriteString("commit\r"); err != nil {
 		return err
 	}
-	transcript, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, "commit failed:", "commit blocked:", "Configuration committed")
+	transcript, err = readPTYUntil04(terminal, []byte(transcript), false, "commit failed:", "commit blocked:", "Configuration committed")
 	if err != nil {
 		return err
 	}

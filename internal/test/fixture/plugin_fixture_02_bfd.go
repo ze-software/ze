@@ -84,7 +84,7 @@ func startBFDDaemon02(ctx context.Context, stateDir string) (*bfdDaemon02, error
 	if err := os.WriteFile(configPath, []byte(bfdConfig02(stateDir)), 0o600); err != nil {
 		return nil, err
 	}
-	d.cmd = exec.CommandContext(ctx, "ze", "start", configPath)
+	d.cmd = exec.CommandContext(ctx, "ze", "start", configPath) //nolint:gosec // the fixture chooses the program and its arguments
 	d.cmd.Stdout = &d.log
 	d.cmd.Stderr = &d.log
 	d.cmd.Env = append(os.Environ(), "ze.log.bfd=debug", "ze.bfd.test-parallel=true")

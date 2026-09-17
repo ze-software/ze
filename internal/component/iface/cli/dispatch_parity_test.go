@@ -2,10 +2,13 @@ package cli
 
 import (
 	"go/ast"
-	"go/parser"
-	"go/token"
+	"go/constant"
+	"go/types"
+	"path/filepath"
 	"slices"
 	"testing"
+
+	"golang.org/x/tools/go/packages"
 )
 
 // VALIDATES: handover §5a -- ifaceCommands stays in sync with the dispatch
@@ -49,27 +52,49 @@ func TestDispatchParity(t *testing.T) {
 	}
 }
 
-// dispatchSwitchCases parses fileName in the current package and returns the
-// case values of the first switch statement found inside the named function.
-// Cases like `case a, b:` contribute both values.
+// dispatchSwitchCases type-checks the current package and returns the case
+// values of the first switch statement found inside the named function of
+// fileName. Cases like `case a, b:` contribute both values.
 //
-// A case value is either a string literal or the name of a string constant
-// declared in the same file, and a name is resolved through that declaration.
-// Resolving is what lets the switch and ifaceCommands read from one set of
-// constants: sharing a constant proves the two spell a command the same way,
-// and it does not prove either list is complete, which is what this test is
-// for. An unresolvable name fails the test rather than being skipped, because
-// a silently dropped case would make the parity check vacuous.
+// A case value is any constant string expression: a literal, a constant
+// declared in this package, or a selector into another package's constant
+// (`command.VerbShow`). The type checker resolves each one, so the switch and
+// ifaceCommands read from one set of constants: sharing a constant proves the
+// two spell a command the same way, and it does not prove either list is
+// complete, which is what this test is for. A case that is not a string
+// constant fails the test rather than being skipped, because a silently
+// dropped case would make the parity check vacuous.
 func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 	t.Helper()
 
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, fileName, nil, 0)
+	cfg := &packages.Config{
+		Mode: packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles |
+			packages.NeedImports | packages.NeedDeps | packages.NeedTypes |
+			packages.NeedSyntax | packages.NeedTypesInfo,
+		Dir: ".",
+	}
+	pkgs, err := packages.Load(cfg, ".")
 	if err != nil {
-		t.Fatalf("parse %s: %v", fileName, err)
+		t.Fatalf("load package: %v", err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("load package returned %d packages, want 1", len(pkgs))
+	}
+	pkg := pkgs[0]
+	if len(pkg.Errors) > 0 {
+		t.Fatalf("load package: %v", pkg.Errors)
 	}
 
-	constValues := stringConstants(t, file)
+	var file *ast.File
+	for _, syntax := range pkg.Syntax {
+		if filepath.Base(pkg.Fset.File(syntax.Pos()).Name()) == fileName {
+			file = syntax
+			break
+		}
+	}
+	if file == nil {
+		t.Fatalf("file %s not found in package %s", fileName, pkg.PkgPath)
+	}
 
 	var fn *ast.FuncDecl
 	for _, decl := range file.Decls {
@@ -96,19 +121,11 @@ func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 				continue
 			}
 			for _, expr := range cc.List {
-				switch e := expr.(type) {
-				case *ast.BasicLit:
-					if e.Kind != token.STRING {
-						continue
-					}
-					cases = append(cases, mustUnquote(t, e.Value))
-				case *ast.Ident:
-					value, ok := constValues[e.Name]
-					if !ok {
-						t.Fatalf("case %q in %q is not a string constant declared in %s", e.Name, funcName, fileName)
-					}
-					cases = append(cases, value)
+				tv, ok := pkg.TypesInfo.Types[expr]
+				if !ok || tv.Value == nil || tv.Value.Kind() != constant.String {
+					t.Fatalf("case %s in %q is not a string constant", types.ExprString(expr), funcName)
 				}
+				cases = append(cases, constant.StringVal(tv.Value))
 			}
 		}
 		return false
@@ -117,44 +134,4 @@ func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 		t.Fatalf("no switch statement found in %q", funcName)
 	}
 	return cases
-}
-
-// stringConstants returns every untyped string constant declared at the top
-// level of file, keyed by name. Only a `name = "literal"` spec is collected: an
-// iota or an expression is not a spelling this test can compare, and leaving it
-// out makes dispatchSwitchCases fail loudly on it.
-func stringConstants(t *testing.T, file *ast.File) map[string]string {
-	t.Helper()
-
-	values := make(map[string]string)
-	for _, decl := range file.Decls {
-		gen, ok := decl.(*ast.GenDecl)
-		if !ok || gen.Tok != token.CONST {
-			continue
-		}
-		for _, spec := range gen.Specs {
-			vs, ok := spec.(*ast.ValueSpec)
-			if !ok || len(vs.Names) != len(vs.Values) {
-				continue
-			}
-			for i, name := range vs.Names {
-				lit, ok := vs.Values[i].(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					continue
-				}
-				values[name.Name] = mustUnquote(t, lit.Value)
-			}
-		}
-	}
-	return values
-}
-
-// mustUnquote strips the surrounding double quotes from a Go string literal.
-func mustUnquote(t *testing.T, lit string) string {
-	t.Helper()
-	if len(lit) >= 2 && lit[0] == '"' && lit[len(lit)-1] == '"' {
-		return lit[1 : len(lit)-1]
-	}
-	t.Fatalf("unexpected non-quoted string literal %q", lit)
-	return ""
 }

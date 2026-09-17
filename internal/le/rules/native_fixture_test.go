@@ -43,7 +43,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// its keywords through args.One instead of indexing the Arguments map. The
 	// coverage report decides exactly what it decided before, which is what the
 	// digest pins. The digest was recomputed before this value was written.
-	const want = "6614e39dcafed98c3ad34ff11f6a1333462411ca3828876de7c340ff731dc5d4"
+	//
+	// Re-sealed 2026-09-17 over 381b43c652 for one commit: b57ec4ab6b renames
+	// the area's `Description` field to `ShortHelp` in register.go (the ze:help
+	// wording is the summary and the description the explanation). One field
+	// name, no decision moved. The value is the one this test computed over the
+	// package's sources with no local edit in internal/le/rules.
+	const want = "6b9501517ca2902e21237b11a7fe6c950cc609ebbe6983e2fbf3b9a30feee983"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

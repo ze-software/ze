@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -91,9 +92,7 @@ func storageConsumerDaemonEnv(ctx context.Context, dir, config, logName string, 
 		envConfigDirDotted: "", envConfigDir: "", "ze.log.ddos.detect": "info", "ze.log.ntp": "debug",
 		envReadyFile: ready,
 	}
-	for key, value := range extra {
-		overrides[key] = value
-	}
+	maps.Copy(overrides, extra)
 	daemon, port, err := extra1RunDaemonIn(ctx, dir, "router.conf", logName, config, overrides)
 	if err != nil {
 		return nil, "", err

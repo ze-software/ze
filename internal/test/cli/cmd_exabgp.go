@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -848,34 +849,61 @@ func absoluteBridgeRun(migrated, configDir string) string {
 // so a daemon starts from the state every other test starts from and cannot
 // corrupt a peer's store while it runs.
 //
+// The live store is the `database` tree, so directories are copied with their
+// modes (the store refuses a node that is not 0600 or 0700), and a symlink is
+// an error rather than a silent skip. A `database.zefs`
+// blob is never copied: since the storage cutover a daemon refuses to open a
+// directory that holds one ("run ze init --from"), so a stale blob left beside
+// the run's store would stop every seeded daemon.
+//
 // A missing or unnamed source is not an error: ze mints what it needs, and the
 // only cost is startup time.
 func copyConfigDir(source, destination string) error {
 	if source == "" {
 		return nil
 	}
-	entries, err := os.ReadDir(source)
-	if err != nil {
+	if _, err := os.ReadDir(source); err != nil {
 		return nil //nolint:nilerr // an absent shared store is a state ze can start from
 	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(source, entry.Name())) //nolint:gosec // the run's own config directory
+	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		relative, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		if relative == "." {
+			return nil
+		}
+		if strings.HasPrefix(entry.Name(), blobArtifactName) {
+			return nil
 		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(destination, entry.Name()), data, info.Mode().Perm()); err != nil {
+		target := filepath.Join(destination, relative)
+		if entry.IsDir() {
+			return os.Mkdir(target, info.Mode().Perm())
+		}
+		// A symlink is refused, never dereferenced and never dropped: the
+		// store refuses one on open ("remove unsafe node"), and a seed copy
+		// that silently lost a node would fail later, far from its cause.
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("copy config dir: %s is not a regular file (mode %s): remove it from %s", relative, info.Mode(), source)
+		}
+		data, err := os.ReadFile(path) //nolint:gosec // the run's own config directory
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		return os.WriteFile(target, data, info.Mode().Perm())
+	})
 }
+
+// blobArtifactName is the blob store artifact and the prefix of its
+// `.replaced-<stamp>` backups (internal/component/config/storage, blobName).
+const blobArtifactName = "database.zefs"
 
 // migrateExaBGPConfig converts one ExaBGP config into ze's syntax, with the
 // bridge's `run` line rooted at the config's own directory.
