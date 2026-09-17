@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
 	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd"
@@ -32,7 +33,6 @@ import (
 	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // buildSessionModelFactory creates a SessionModelFactory that produces bubbletea

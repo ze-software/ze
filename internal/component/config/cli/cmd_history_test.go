@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
 

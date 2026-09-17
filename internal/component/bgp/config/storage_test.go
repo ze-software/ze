@@ -11,7 +11,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 )
 
 func newReloadFileStore(t *testing.T, path string) storage.Storage {
@@ -21,7 +20,7 @@ func newReloadFileStore(t *testing.T, path string) storage.Storage {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	return internalresolve.BindConfigSource(store, path, internalresolve.ConfigSourceFile)
+	return storage.BindConfigSource(store, path, storage.ConfigSourceFile)
 }
 
 func TestReactorFactoryUsesCandidateThenAcceptedConfig(t *testing.T) {

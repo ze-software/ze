@@ -373,7 +373,7 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 func (v *VPP) evidenceDaemonArgs(container, configFile string, port int) []string {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
-	config := filepath.Join("/run/ze", configFile, "ze.conf")
+	config := filepath.Join(zeRunDir, configFile, "ze.conf")
 	argv := []string{
 		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_VPP=info",

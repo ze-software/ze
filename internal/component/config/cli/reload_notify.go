@@ -8,8 +8,8 @@ import (
 	"os"
 
 	editor "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/core/cliio"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // loadReloadCredentials and execReloadCommand indirect over the SSH client so a

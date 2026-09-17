@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin debug shell
 // Related: main.go — bgp subcommand dispatch
-// Related: ../../../core/ssh/client/client.go — SSH credentials and protocol sessions
+// Related: ../../cli/sshclient/client.go — SSH credentials and protocol sessions
 
 package cli
 
@@ -13,9 +13,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/helpfmt"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 

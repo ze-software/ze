@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -27,7 +26,7 @@ type fileCommit struct {
 }
 
 func initializeConfigSource(store storage.Storage, path string, content []byte) error {
-	if internalresolve.SourceMode(store) != internalresolve.ConfigSourceFile {
+	if storage.SourceMode(store) != storage.ConfigSourceFile {
 		_, _, err := storage.EnsureActiveVersion(store, path, content, time.Now())
 		return err
 	}
@@ -46,7 +45,7 @@ func initializeConfigSource(store storage.Storage, path string, content []byte) 
 }
 
 func promoteConfigCandidate(store storage.Storage, path string) error {
-	if internalresolve.SourceMode(store) != internalresolve.ConfigSourceFile {
+	if storage.SourceMode(store) != storage.ConfigSourceFile {
 		return storage.PromoteCandidate(store, path)
 	}
 	content, stamp, present, err := storage.ReadCandidateConfig(store, path)
@@ -108,7 +107,7 @@ func recoverFileCommit(store storage.Storage, path string) error {
 	if !filepath.IsAbs(intent.Path) || filepath.Base(intent.Path) != filepath.Base(path) || intent.Stamp == "" {
 		return errors.New("invalid explicit config commit intent")
 	}
-	if internalresolve.SourceMode(store) == internalresolve.ConfigSourceFile {
+	if storage.SourceMode(store) == storage.ConfigSourceFile {
 		if intent.Path != path {
 			return errors.New("explicit config commit intent names another source")
 		}
@@ -171,7 +170,7 @@ func commitRuntimeConfig(store storage.Storage, sourcePath, path string, expecte
 	if path != sourcePath {
 		return errors.New("configuration commit names a different daemon source")
 	}
-	current, err := internalresolve.ReadConfigSource(store, path)
+	current, err := storage.ReadConfigSource(store, path)
 	if err != nil {
 		return err
 	}
@@ -185,7 +184,7 @@ func commitRuntimeConfig(store storage.Storage, sourcePath, path string, expecte
 }
 
 func publishRecoveredConfig(store storage.Storage, path string, expected, content []byte) error {
-	current, err := internalresolve.ReadConfigSource(store, path)
+	current, err := storage.ReadConfigSource(store, path)
 	if err != nil {
 		return err
 	}

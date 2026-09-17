@@ -59,7 +59,10 @@ func TestRemoveRouteMissWarnsThroughTheProductionLogger(t *testing.T) {
 	)
 	logRemoveRouteMiss(wantIface, wantDest, wantGW, 5, rtproto.Iface, unix.RTPROT_BOOT)
 
-	entries := slogutil.GlobalLogRing().Snapshot(0, "WARN", "iface.netlink")
+	entries, err := slogutil.GlobalLogRing().Snapshot(0, "WARN", "iface.netlink")
+	if err != nil {
+		t.Fatalf("snapshot WARN entries: %v", err)
+	}
 	if len(entries) == 0 {
 		t.Fatal("no WARN from iface.netlink in the log ring: the package logger is not the production one")
 	}

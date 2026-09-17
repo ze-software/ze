@@ -82,7 +82,7 @@ addressing of history (`spec-storage-3-content-addressed-history`).
 - [ ] `internal/component/config/cli/cmd_edit.go` - `cmdEditWithStorage`: `-f` override, session mode, draft auto-load, history wiring; `runEditor`: SSH probe, `startEphemeralDaemon(configPath, ...)` when no daemon answers, `ed.SetReloadNotifier`
 - [ ] `internal/component/cli/editor_commit.go` - commit through `e.store.AcquireLock`; SSH used for `request reload` and `run` only
 - [ ] `cmd/ze/hub/main_reload.go` - `stageSIGHUPCandidate`, `PromoteCandidate`, `reloadAfterCommit`
-- [ ] `internal/core/ssh/client/client.go` `ExecCommand`; `answer.go` `ExecCommandStream` (no non-test caller)
+- [ ] `internal/component/cli/sshclient/client.go` `ExecCommand`; `answer.go` `ExecCommandStream` (no non-test caller)
 - [ ] `internal/component/config/storage/import.go` (storage-1) - `ImportBlob` with equality check and move-aside
 - [ ] `internal/install/disk/system.go` `mountInjectDB`, `downloadToFile`, `downloadToDiskWithSHA256`
 - [ ] `internal/plugins/init/main.go` - `Run`, `runInit` (the key set), `daemonRunning` (moved to the storage package by storage-1)

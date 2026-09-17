@@ -162,7 +162,7 @@ func (installer *Installer) executeVentoy(ctx context.Context, work string, repo
 		report.lines = append(report.lines, serial)
 		return installer.fail(report, "Ventoy (ISO) path rebooted instead of powering off")
 	}
-	report.check("ventoy-scan", InstallVerdictPass, mediaID)
+	report.passed("ventoy-scan", mediaID)
 	report.line(installer.prefix(), "PASS Ventoy ISO located on FAT data disk, image written, powered off")
 	report.Verdict = InstallVerdictPass
 	return report, nil

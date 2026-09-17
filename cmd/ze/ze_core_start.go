@@ -218,7 +218,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 			return 1
 		}
 		defer store.Close() //nolint:errcheck // shutdown releases store ownership
-		store = internalresolve.BindConfigSource(store, configPath, internalresolve.ConfigSourceFile)
+		store = storage.BindConfigSource(store, configPath, storage.ConfigSourceFile)
 		// One runtime for every config: hub.Run reads the file and parses it
 		// against the YANG schema, whatever top-level blocks it declares.
 		return withPanicCapture(func() int {
@@ -239,7 +239,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		}
 	}
 	defer store.Close() //nolint:errcheck // shutdown releases store ownership
-	store = internalresolve.BindConfigSource(store, internalresolve.DefaultConfig(store), internalresolve.ConfigSourceStored)
+	store = storage.BindConfigSource(store, internalresolve.DefaultConfig(store), storage.ConfigSourceStored)
 
 	// Explicit --web-only: start standalone web UI, no daemon.
 	if webOnly {

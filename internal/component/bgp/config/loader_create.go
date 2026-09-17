@@ -26,7 +26,6 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -326,7 +325,7 @@ func chaosRateFromEnv() float64 {
 // The reactor parameter is used to update dynamic groups on reload.
 func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
-		data, err := internalresolve.ReadReloadConfig(store, configPath)
+		data, err := storage.ReadReloadConfig(store, configPath)
 		if err != nil {
 			return nil, fmt.Errorf("read config %s: %w", configPath, err)
 		}

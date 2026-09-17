@@ -41,7 +41,7 @@ func seedZefs(t *testing.T, dir string) {
 //
 // Tab completion runs with stdin attached to the operator's terminal. Credential
 // resolution prompts for a password for any non-super-admin user with no
-// ze.ssh.password (internal/core/ssh/client/client.go resolvePassword). An
+// ze.ssh.password (internal/component/cli/sshclient/client.go resolvePassword). An
 // operator who follows the documented completion setup in
 // docs/guide/authentication.md ("export ZE_SSH_USERNAME=alice", password left to a
 // secret store) therefore blocks their own shell on TAB: the prompt reads stdin

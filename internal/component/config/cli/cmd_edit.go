@@ -20,6 +20,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/archive"
@@ -30,7 +31,6 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/resolve"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // ephemeralPollInterval is the interval between SSH port readiness checks.
@@ -440,8 +440,8 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		openedStore = true
 		defer func() {
 			if store != nil {
-				store.Close()
-			} //nolint:errcheck // Earlier command error takes precedence.
+				store.Close() //nolint:errcheck // Earlier command error takes precedence.
+			}
 		}()
 	}
 	if configPath == "" {

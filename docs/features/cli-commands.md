@@ -136,7 +136,7 @@ Invalid or missing selections are refused.
 
 `ze config edit -f <file>` edits a loose file offline. It does not bypass an
 active writer's store lock. For a running daemon, omit `-f`.
-<!-- source: internal/core/ssh/client/terminal.go -- RunInteractive -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 <!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
 <!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 

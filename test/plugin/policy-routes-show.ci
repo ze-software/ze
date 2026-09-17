@@ -82,7 +82,7 @@ option=env:var=ze.log.firewall:value=info
 # plan/journal/test-against-broken-path.md.
 #
 # ze.ssh.username stands in for the --user flag the driver does not pass
-# (resolveUsername, internal/core/ssh/client/client.go), and ze.ssh.insecure
+# (resolveUsername, internal/component/cli/sshclient/client.go), and ze.ssh.insecure
 # skips the host-key check the zefs store would otherwise answer.
 option=env:var=ze.ssh.username:value=operator
 option=env:var=ze.ssh.password:value=testpass

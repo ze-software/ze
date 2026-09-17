@@ -93,7 +93,7 @@ uses the same path because the original qdisc can also have handle `1:0`.
 
 ## Restart evidence
 
-`storage/consumer-restart tc` creates a private dummy interface with an
+`storage/consumer-restart-tc` creates a private dummy interface with an
 `fq_codel` root carrying a custom limit and quantum. It starts Ze from an
 explicit config, waits for HTB in the kernel, and kills that daemon after the
 snapshot was published. A second daemon starts from the same config and its

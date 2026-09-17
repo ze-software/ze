@@ -254,13 +254,10 @@ become keys.
 a framed directory tree. On Linux and Darwin, traversal opens every source and
 destination-parent component from `/` using descriptor-relative, no-follow opens.
 It refuses symlinks anywhere in those paths and special files in the tree.
-Ancestors must be root-owned or caller-owned. Writable shared ancestors need
-the sticky bit until a caller-owned directory with no group or other access
-prevents outsiders from traversing the remaining path. An unsafe writable
-ancestor before that boundary is refused, even if a later directory is private.
-Leaving the private subtree with `..` removes that protection. The tree root
-and its descendants require caller ownership, directories exactly 0700 and
-files exactly 0600, including when the caller is root.
+Ancestors are not checked for mode or owner: the tree root's own check bounds
+the tree (owner decision, 2026-09-17). The tree root and its descendants
+require caller ownership, directories exactly 0700 and files exactly 0600,
+including when the caller is root.
 
 Darwin's fixed `/tmp` and `/var` system aliases select `/private/tmp` and
 `/private/var` directly before that walk. Their symlink entries are never
@@ -319,8 +316,9 @@ unsafe paths.
 
 ## Runtime state through statestore
 
-Runtime state uses the daemon's shared `storage.Storage` handle through
-`internal/core/statestore`, with registered keys from `pkg/zefs/keys.go`.
+Runtime state uses the daemon's shared store handle through
+`internal/core/statestore`, which declares the `Storage` contract the config
+storage component implements, with registered keys from `pkg/zefs/keys.go`.
 Plugins persist through the daemon rather than opening another store.
 `Put` retains its best-effort no-store result for unwired callers; operations
 that require acknowledged persistence use the state RPC contract.

@@ -100,86 +100,30 @@ func TestCreatePrivatePermissionsAndReopen(t *testing.T) {
 	assert.Equal(t, "secret", string(got))
 }
 
-func TestOpenFolderPrivateContainment(t *testing.T) {
-	for _, private := range []bool{true, false} {
-		name := "public parent"
-		if private {
-			name = "private parent"
-		}
-		t.Run(name, func(t *testing.T) {
-			// Start directly below the sticky public directory so a private
-			// testing or TMPDIR ancestor cannot hide the refusal case.
-			parent, err := os.MkdirTemp("/tmp", "ze-storage-containment-")
-			require.NoError(t, err)
-			t.Cleanup(func() { require.NoError(t, os.RemoveAll(parent)) })
-			parent, err = filepath.EvalSymlinks(parent)
-			require.NoError(t, err)
-			mode := fs.FileMode(0o755)
-			if private {
-				mode = 0o700
-			}
-			require.NoError(t, os.Chmod(parent, mode))
-			dir := filepath.Join(parent, "config")
-			require.NoError(t, os.Mkdir(dir, 0o775))
-			require.NoError(t, os.Chmod(dir, 0o775))
-			if !private {
-				nested := filepath.Join(dir, "private")
-				require.NoError(t, os.Mkdir(nested, 0o700))
-				for _, path := range []string{dir, nested} {
-					folder, openErr := openFolder(path)
-					if folder != nil {
-						require.NoError(t, folder.Close())
-					}
-					require.ErrorIs(t, openErr, ErrPermissions)
-					assert.Contains(t, openErr.Error(), dir)
-					s, createErr := Create(path)
-					if s != nil {
-						require.NoError(t, s.Close())
-					}
-					require.ErrorIs(t, createErr, ErrPermissions)
-					assert.Contains(t, createErr.Error(), dir)
-					require.NoFileExists(t, filepath.Join(path, "database.lock"))
-					require.NoDirExists(t, filepath.Join(path, "database"))
-				}
-				return
-			}
-			s, err := Create(dir)
-			require.NoError(t, err)
-			t.Cleanup(func() { require.NoError(t, s.Close()) })
-			require.NoError(t, s.WriteKey("meta/private/key", []byte("contained")))
-			_, err = Open(dir)
-			require.ErrorIs(t, err, ErrBusy)
-			require.NoError(t, s.Close())
-			reopened, err := Open(dir)
-			require.NoError(t, err)
-			t.Cleanup(func() { require.NoError(t, reopened.Close()) })
-			got, err := reopened.ReadKey("meta/private/key")
-			require.NoError(t, err)
-			assert.Equal(t, "contained", string(got))
-			info, err := os.Stat(dir)
-			require.NoError(t, err)
-			assert.Equal(t, fs.FileMode(0o775), info.Mode().Perm())
-		})
-	}
-	t.Run("leaving private parent", func(t *testing.T) {
-		parent, err := os.MkdirTemp("/tmp", "ze-storage-containment-")
-		require.NoError(t, err)
-		t.Cleanup(func() { require.NoError(t, os.RemoveAll(parent)) })
-		parent, err = filepath.EvalSymlinks(parent)
-		require.NoError(t, err)
-		require.NoError(t, os.Chmod(parent, 0o755))
-		private := filepath.Join(parent, "private")
-		writable := filepath.Join(parent, "writable")
-		require.NoError(t, os.Mkdir(private, 0o700))
-		require.NoError(t, os.Mkdir(writable, 0o775))
-		require.NoError(t, os.Chmod(writable, 0o775))
-		folder, err := openFolder(private + "/../writable")
-		if folder != nil {
-			require.NoError(t, folder.Close())
-		}
-		require.ErrorIs(t, err, ErrPermissions)
-		assert.Contains(t, err.Error(), writable)
-	})
+// TestOpenFolderKeepsContainingMode opens a store whose containing directory
+// is group/other-writable. The containing directory is not part of the store,
+// so its mode is neither refused nor altered: the root's own 0700 and owner
+// check is what bounds the store.
+func TestOpenFolderKeepsContainingMode(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "config")
+	require.NoError(t, os.Mkdir(dir, 0o775))
+	require.NoError(t, os.Chmod(dir, 0o775))
+	s, err := Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
+	require.NoError(t, s.WriteKey("meta/private/key", []byte("contained")))
+	_, err = Open(dir)
+	require.ErrorIs(t, err, ErrBusy)
+	require.NoError(t, s.Close())
+	reopened, err := Open(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reopened.Close()) })
+	got, err := reopened.ReadKey("meta/private/key")
+	require.NoError(t, err)
+	assert.Equal(t, "contained", string(got))
+	info, err := os.Stat(dir)
+	require.NoError(t, err)
+	assert.Equal(t, fs.FileMode(0o775), info.Mode().Perm())
 }
 
 func TestOpenRejectsInsecureNodes(t *testing.T) {

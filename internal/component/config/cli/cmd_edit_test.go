@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/resolve"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // TestPromptCreateConfigYes verifies that answering "y" creates the file.

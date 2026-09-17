@@ -277,7 +277,7 @@ func TestUnknownDirectiveTypeNamesAcceptedSet(t *testing.T) {
 			name:     "expect",
 			parse:    func() error { return et.parseExpect(r, "stdoutt", map[string]string{}) },
 			wants:    `unknown expect type "stdoutt"`,
-			accepted: "bgp, command-error, event, exit, file, json, output, stderr, stdout, stream, syslog",
+			accepted: "bgp, command-error, event, exit, file, json, key, output, stderr, stdout, stream, syslog",
 		},
 		{
 			name:     "reject",

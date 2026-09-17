@@ -65,7 +65,7 @@ func checkDHCPInterfaces(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 	if dhcp == nil {
 		return nil
 	}
-	if enabled, _ := dhcp.Get("enabled"); enabled != "true" {
+	if enabled, _ := dhcp.Get("enabled"); enabled != leafTrue {
 		return nil
 	}
 

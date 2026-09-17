@@ -15,7 +15,7 @@
 // terminator as truncated. Without it a client cannot tell a complete answer
 // from the beginning of one.
 
-package client
+package sshclient
 
 import (
 	"bufio"

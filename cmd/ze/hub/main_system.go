@@ -34,7 +34,6 @@ import (
 	"github.com/ze-software/ze/internal/core/identity"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/privilege"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/crashes"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -410,7 +409,7 @@ func readConfigWithStorage(store configstorage.Storage, configPath string) func(
 		return archive.ReadConfigFromPath(configPath)
 	}
 	return func() ([]byte, *zeconfig.Tree, error) {
-		data, err := internalresolve.ReadConfigSource(store, configPath)
+		data, err := configstorage.ReadConfigSource(store, configPath)
 		if err != nil {
 			return nil, nil, err
 		}

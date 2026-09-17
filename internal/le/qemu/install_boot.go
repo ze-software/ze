@@ -462,7 +462,7 @@ func (installer *Installer) executeHTTP(ctx context.Context, work string, report
 		report.lines = append(report.lines, serial)
 		return installer.fail(report, "installer did not report success on serial")
 	}
-	report.check("installer-serial", InstallVerdictPass, "installer wrote disk and completed")
+	report.passed("installer-serial", "installer wrote disk and completed")
 	report.line(installer.prefix(), "installer wrote disk + completed")
 	if err := installer.seedInterruptedImport(ctx, work, disk); err != nil {
 		return report, err
@@ -481,14 +481,14 @@ func (installer *Installer) executeHTTP(ctx context.Context, work string, report
 		report.Verdict, report.Reason = InstallVerdictFail, "second boot SSH login as power user failed (AC-10)"
 		return report, nil
 	}
-	report.check("ssh-login", InstallVerdictPass, "power user authenticated")
+	report.passed("ssh-login", "power user authenticated")
 	report.line(installer.prefix(), "AC-10 SSH login as power user succeeded")
 	if err := installer.assertImportedSeed(ctx, work, disk, image.ZeFS, serialPath); err != nil {
 		return report, err
 	}
-	report.check("seed-import", InstallVerdictPass, "first boot logged import, retired seed and preserved every seed key")
-	report.check("seed-config", InstallVerdictPass, "seeded SSH credentials work and web listener serves the seeded TLS certificate")
-	report.check("interrupted-import", InstallVerdictPass, "first boot ignored incomplete staging and imported the intact seed")
+	report.passed("seed-import", "first boot logged import, retired seed and preserved every seed key")
+	report.passed("seed-config", "seeded SSH credentials work and web listener serves the seeded TLS certificate")
+	report.passed("interrupted-import", "first boot ignored incomplete staging and imported the intact seed")
 	report.line(installer.prefix(), "PASS")
 	report.Verdict = InstallVerdictPass
 	return report, nil

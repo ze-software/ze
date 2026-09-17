@@ -3,7 +3,12 @@
 The live configuration store is a directory named `database` beside the config
 file. The storage package owns key mapping, version pointers, metadata and write
 notifications for both this tree and explicitly opened ZeFS artifacts. Callers
-use `Storage`; they never inspect its encoding.
+use `Storage`; they never inspect its encoding. The contract itself
+(`Storage`, `WriteGuard`, `FileMeta`, `VersionInfo`) is declared once in the
+leaf tier, in `internal/core/statestore`, and this package aliases those names:
+a core consumer holds the handle without importing the component that
+implements it.
+<!-- source: internal/core/statestore/storage.go -- Storage, WriteGuard -->
 <!-- source: internal/component/config/storage/storage.go -- Storage, WriteGuard -->
 <!-- source: internal/component/config/storage/store.go -- store, guard -->
 
@@ -44,14 +49,13 @@ Appliance first boot imports its seed through the same API.
 The tree root and its intermediate directories are exactly 0700; regular frame
 files are exactly 0600. All belong to the effective process user, including when
 that process is root. Symlinks and non-regular leaves are refused before content
-reads. The containing config directory can retain an ordinary safe mode such as
-0755. Ancestors are traversed with descriptor-relative, no-follow opens and must
-belong to root or the effective process user. `zefs.OpenDirectory` is the one
-ancestor walk: the store opener, tree checks and tree repair all call it, and
-every refusal wraps `fs.ErrPermission`. A group/other-writable directory
-without the sticky bit is refused unless an earlier caller-owned ancestor
-denies all group/other access. Leaving that private ancestor through `..` ends
-its protection. Errors identify the first unsafe path and the permission or
+reads. The containing config directory and every ancestor keep whatever mode and
+owner they have: they are not part of the store, and the root's 0700 and owner
+check is what bounds it (owner decision, 2026-09-17). Ancestors are traversed
+with descriptor-relative, no-follow opens, so a symlink on the way to the root
+is refused rather than followed. `zefs.OpenDirectory` is the one such walk: the
+store opener, tree checks and tree repair all call it, and every refusal wraps
+`fs.ErrPermission`. Errors identify the first unsafe path and the permission or
 ownership repair.
 
 `TransferOwnership` is an explicit privileged installer operation. It takes the

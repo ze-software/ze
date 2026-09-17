@@ -11,8 +11,6 @@ import (
 	"io/fs"
 	"math"
 	"sync"
-
-	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // ErrUnavailable means the daemon has no persistent store.
@@ -25,19 +23,19 @@ var ErrCorrupt = errors.New("runtime state is corrupt")
 // replacement waits for pending operations; callers MUST unregister before Close.
 var shared struct {
 	sync.Mutex
-	store storage.Storage
+	store Storage
 }
 
 // SetStore registers the daemon's owned handle. The owner MUST SetStore(nil)
 // before closing it. Safe for concurrent use.
-func SetStore(store storage.Storage) {
+func SetStore(store Storage) {
 	shared.Lock()
 	defer shared.Unlock()
 	shared.store = store
 }
 
 // Store returns the registered handle, or nil. The daemon retains ownership.
-func Store() storage.Storage {
+func Store() Storage {
 	shared.Lock()
 	defer shared.Unlock()
 	return shared.store

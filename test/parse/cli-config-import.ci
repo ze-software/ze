@@ -18,4 +18,6 @@ cmd=foreground:seq=2:exec=ze config import small.conf
 expect=exit:code=0
 expect=stdout:contains=imported small.conf
 expect=stdout:contains=file(s) imported
-expect=key:path=file/active/small.conf:contains=importhost
+cmd=foreground:seq=3:exec=ze data cat --path ./database file/active/small.conf
+expect=exit:code=0
+expect=stdout:contains=importhost

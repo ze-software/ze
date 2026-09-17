@@ -14,8 +14,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/plugin"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // createSessionModel builds the selected terminal in the owning daemon.

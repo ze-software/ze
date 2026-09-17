@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	ifacepkg "github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/helpfmt"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 

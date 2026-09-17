@@ -17,10 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 	gossh "golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/env"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -338,7 +338,7 @@ func TestExecAnswerUnconditional(t *testing.T) {
 // The frame now reaches every session, so what keeps this true is the streams
 // being read apart rather than the frame being withheld. ExecCommand takes the
 // answer from stdout and reads stderr for the failure alone (client.go,
-// internal/core/ssh/client).
+// internal/component/cli/sshclient).
 //
 // VALIDATES: AC-8 for the exec channel -- the payload an operator's tooling
 // unmarshals is the same bytes it always was.

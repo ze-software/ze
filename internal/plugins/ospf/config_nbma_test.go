@@ -141,13 +141,14 @@ func TestOSPFNetworkTypeV4V6Isolation(t *testing.T) {
 	// The two interface leaf blocks are isolated by their container description marker up
 	// to the first `leaf passive` (which follows the network-type enum, poll-interval, and
 	// nbma-neighbor list in each block). This is independent of the order the two family
-	// blocks appear in the module.
+	// blocks appear in the module. Each enum opens a ze:help block, so the needle is
+	// the enum name followed by its opening brace.
 	ipv4 := yangSection(yangText, "OSPF-enabled interfaces.", "leaf passive")
 	ipv6 := yangSection(yangText, "OSPFv3-enabled interfaces", "leaf passive")
 	if ipv4 == "" || ipv6 == "" {
 		t.Fatalf("could not isolate the two interface sections")
 	}
-	for _, v := range []string{"enum nbma;", "enum point-to-multipoint;"} {
+	for _, v := range []string{"enum nbma {", "enum point-to-multipoint {"} {
 		if !strings.Contains(ipv4, v) {
 			t.Errorf("IPv4 interface leaf missing %q", v)
 		}
@@ -155,11 +156,11 @@ func TestOSPFNetworkTypeV4V6Isolation(t *testing.T) {
 			t.Errorf("IPv6 interface leaf missing %q", v)
 		}
 	}
-	if !strings.Contains(ipv4, "enum loopback;") {
-		t.Errorf("IPv4 interface leaf lost enum loopback;")
+	if !strings.Contains(ipv4, "enum loopback {") {
+		t.Errorf("IPv4 interface leaf lost enum loopback")
 	}
-	if strings.Contains(ipv6, "enum loopback;") {
-		t.Errorf("IPv6 interface leaf gained enum loopback; (must stay IPv4-only)")
+	if strings.Contains(ipv6, "enum loopback {") {
+		t.Errorf("IPv6 interface leaf gained enum loopback (must stay IPv4-only)")
 	}
 	if !strings.Contains(ipv4, "list nbma-neighbor") || !strings.Contains(ipv6, "list nbma-neighbor") {
 		t.Errorf("nbma-neighbor list missing from a family leaf")

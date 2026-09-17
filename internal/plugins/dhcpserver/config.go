@@ -16,6 +16,9 @@ import (
 
 const defaultLeaseTimeSec = 86400
 
+// leafTrue is the YANG boolean spelling a config leaf holds when it is set.
+const leafTrue = "true"
+
 var (
 	errRangeStartOutsideSubnet = errors.New("range start outside subnet")
 	errRangeStopOutsideSubnet  = errors.New("range stop outside subnet")
@@ -86,7 +89,7 @@ func parseConfig(data string) (serverConfig, error) {
 	}
 
 	if v, ok := dhcpMap["enabled"].(string); ok {
-		cfg.Enabled = v == "true"
+		cfg.Enabled = v == leafTrue
 	}
 
 	switch v := dhcpMap["listen-interface"].(type) {
@@ -398,7 +401,7 @@ func parsePXEConfig(dhcpMap map[string]any) (pxeConfig, error) {
 	}
 
 	if v, ok := pxeMap["enabled"].(string); ok {
-		pxe.Enabled = v == "true"
+		pxe.Enabled = v == leafTrue
 	}
 
 	if v, ok := pxeMap["tftp-server"].(string); ok && v != "" {

@@ -292,7 +292,7 @@ func TestADeadExemptionRuleIsRefused(t *testing.T) {
 func TestLiveStoreBypass(t *testing.T) {
 	source := "package fixture\nimport blob \"github.com/ze-software/ze/pkg/zefs\"\nvar open = blob.Open\n"
 	tree := writeTree(t, map[string]string{
-		"internal/core/ssh/client/open.go":          source,
+		"internal/component/cli/sshclient/open.go":  source,
 		"internal/component/demo/open.go":           source,
 		"internal/component/support/support.go":     source,
 		"internal/plugins/demo/open.go":             source,
@@ -309,15 +309,15 @@ func TestLiveStoreBypass(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]bool{
-		"internal/core/ssh/client/open.go":      true,
-		"internal/component/demo/open.go":       true,
-		"internal/component/support/support.go": true,
-		"internal/plugins/demo/open.go":         true,
-		"internal/core/direct/open.go":          true,
-		"internal/core/create/open.go":          true,
-		"internal/core/dot/open.go":             true,
-		"cmd/ze/open.go":                        true,
-		"internal/test/cli/cmd_web.go":          true,
+		"internal/component/cli/sshclient/open.go": true,
+		"internal/component/demo/open.go":          true,
+		"internal/component/support/support.go":    true,
+		"internal/plugins/demo/open.go":            true,
+		"internal/core/direct/open.go":             true,
+		"internal/core/create/open.go":             true,
+		"internal/core/dot/open.go":                true,
+		"cmd/ze/open.go":                           true,
+		"internal/test/cli/cmd_web.go":             true,
 	}
 	for _, finding := range findings {
 		if !want[finding.File] {

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -37,8 +36,8 @@ func TestExplicitSourceRestartUsesFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close() //nolint:errcheck // test cleanup
-	bound := internalresolve.BindConfigSource(reopened, path, internalresolve.ConfigSourceFile)
-	content, err := internalresolve.ReadConfigSource(bound, path)
+	bound := storage.BindConfigSource(reopened, path, storage.ConfigSourceFile)
+	content, err := storage.ReadConfigSource(bound, path)
 	if err != nil || string(content) != "offline edit" {
 		t.Fatalf("startup = %q, %v", content, err)
 	}
@@ -99,7 +98,7 @@ func TestExplicitCommitRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer reopened.Close() //nolint:errcheck // test cleanup
-			bound := internalresolve.BindConfigSource(reopened, path, internalresolve.ConfigSourceFile)
+			bound := storage.BindConfigSource(reopened, path, storage.ConfigSourceFile)
 			err = recoverFileCommit(bound, path)
 			if phase == "external" {
 				if err == nil || !strings.Contains(err.Error(), "changed externally") {

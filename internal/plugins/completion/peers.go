@@ -13,7 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 

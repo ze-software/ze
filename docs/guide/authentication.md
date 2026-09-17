@@ -251,7 +251,7 @@ ze cli -u alice
 ze cli -u alice -c "show version"
 ```
 
-<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: internal/component/cli/sshclient/client.go -- ReadCredentialsWithFlags -->
 
 The same flag works on `ze bgp plugin cli`, `ze signal`, `ze config set`,
 `ze config edit`, and `ze interface migrate`.
@@ -419,7 +419,7 @@ still works; only dynamic peer names are missing.
 
 If you would rather not keep a password in the environment, leave both unset and
 completion resolves as the zefs super-admin, which needs no password.
-<!-- source: internal/core/ssh/client/client.go -- LoadCredentialsNoPrompt -->
+<!-- source: internal/component/cli/sshclient/client.go -- LoadCredentialsNoPrompt -->
 
 ## SSH public key authentication
 
@@ -566,5 +566,5 @@ and continues.
 | Validator | `internal/component/cli/validator.go` |
 | SSH server password handler | `internal/component/ssh/ssh.go` |
 | Local authenticator | `internal/component/authz/auth.go` |
-| Client credential resolver | `internal/core/ssh/client/client.go` |
+| Client credential resolver | `internal/component/cli/sshclient/client.go` |
 | `ze passwd` | `internal/plugins/passwd/main.go` |

@@ -19,8 +19,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/config/storage"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 

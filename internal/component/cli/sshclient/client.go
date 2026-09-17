@@ -1,9 +1,9 @@
 // Design: docs/architecture/system-architecture.md — SSH client helper for CLI tools
-// Related: ../../../component/config/storage/storage.go: shared credential storage.
+// Related: ../../config/storage/storage.go: shared credential storage.
 
 // Package client provides SSH client connectivity for ze CLI tools.
 // CLI tools connect to the daemon via SSH instead of Unix sockets.
-package client
+package sshclient
 
 import (
 	"bufio"

@@ -1,4 +1,7 @@
-package statestore
+// Design: docs/architecture/zefs-format.md -- daemon-owned runtime state.
+// These tests drive internal/core/statestore over the real store. They live
+// beside the component because the leaf tier cannot import it.
+package storage_test
 
 // statestore's API changed from path-based (PutAt/GetAt/Path, one
 // transient BlobStore per call) to the shared-instance API (SetStore/Put/Get)
@@ -14,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
 // withStore registers a fresh owned tree and unregisters it before closing.
@@ -23,9 +27,9 @@ func withStore(t *testing.T) storage.Storage {
 	if err != nil {
 		t.Fatalf("storage.Create: %v", err)
 	}
-	SetStore(bs)
+	statestore.SetStore(bs)
 	t.Cleanup(func() {
-		SetStore(nil)
+		statestore.SetStore(nil)
 		if cerr := bs.Close(); cerr != nil {
 			t.Errorf("close store: %v", cerr)
 		}
@@ -35,22 +39,22 @@ func withStore(t *testing.T) storage.Storage {
 
 func TestPutGetRoundTrip(t *testing.T) {
 	withStore(t)
-	wrote, err := Put("meta/test/round-trip", []byte("hello"))
+	wrote, err := statestore.Put("meta/test/round-trip", []byte("hello"))
 	if err != nil {
 		t.Fatalf("Put: %v", err)
 	}
 	if !wrote {
 		t.Fatal("Put reported no write with a registered store")
 	}
-	got, ok := Get("meta/test/round-trip")
+	got, ok := statestore.Get("meta/test/round-trip")
 	if !ok || string(got) != "hello" {
 		t.Errorf("Get = %q ok=%v, want hello", got, ok)
 	}
 	// Overwrite replaces the value.
-	if _, err := Put("meta/test/round-trip", []byte("world")); err != nil {
+	if _, err := statestore.Put("meta/test/round-trip", []byte("world")); err != nil {
 		t.Fatalf("Put overwrite: %v", err)
 	}
-	if got, ok := Get("meta/test/round-trip"); !ok || string(got) != "world" {
+	if got, ok := statestore.Get("meta/test/round-trip"); !ok || string(got) != "world" {
 		t.Errorf("Get after overwrite = %q ok=%v, want world", got, ok)
 	}
 }
@@ -62,7 +66,7 @@ func TestPutGetRoundTrip(t *testing.T) {
 // stale tree and wiped this key.
 func TestConfigWriteDoesNotDropStateKey(t *testing.T) {
 	bs := withStore(t)
-	if _, err := Put("meta/ddos/detect-baseline", []byte("STATE")); err != nil {
+	if _, err := statestore.Put("meta/ddos/detect-baseline", []byte("STATE")); err != nil {
 		t.Fatalf("Put state: %v", err)
 	}
 	// Simulate the config system writing a NEW key through the same shared store
@@ -70,7 +74,7 @@ func TestConfigWriteDoesNotDropStateKey(t *testing.T) {
 	if err := bs.WriteFile("meta/config/active-hash", []byte("CONFIG"), 0); err != nil {
 		t.Fatalf("config write: %v", err)
 	}
-	if got, ok := Get("meta/ddos/detect-baseline"); !ok || string(got) != "STATE" {
+	if got, ok := statestore.Get("meta/ddos/detect-baseline"); !ok || string(got) != "STATE" {
 		t.Errorf("state key dropped by a config write: got %q ok=%v, want STATE", got, ok)
 	}
 	// And the state write did not drop the config key either.
@@ -80,35 +84,35 @@ func TestConfigWriteDoesNotDropStateKey(t *testing.T) {
 }
 
 func TestNoStoreIsNoOp(t *testing.T) {
-	SetStore(nil)
-	wrote, err := Put("meta/test/x", []byte("data"))
+	statestore.SetStore(nil)
+	wrote, err := statestore.Put("meta/test/x", []byte("data"))
 	if err != nil {
 		t.Errorf("Put with no store should not error, got %v", err)
 	}
 	if wrote {
 		t.Error("Put with no store reported a write")
 	}
-	if _, ok := Get("meta/test/x"); ok {
+	if _, ok := statestore.Get("meta/test/x"); ok {
 		t.Error("Get with no store returned ok=true")
 	}
-	if err := Remove("meta/test/x"); err != nil {
+	if err := statestore.Remove("meta/test/x"); err != nil {
 		t.Errorf("Remove with no store should be a no-op, got %v", err)
 	}
 }
 
 func TestRemove(t *testing.T) {
 	withStore(t)
-	if _, err := Put("meta/test/rm", []byte("bye")); err != nil {
+	if _, err := statestore.Put("meta/test/rm", []byte("bye")); err != nil {
 		t.Fatalf("Put: %v", err)
 	}
-	if err := Remove("meta/test/rm"); err != nil {
+	if err := statestore.Remove("meta/test/rm"); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
-	if _, ok := Get("meta/test/rm"); ok {
+	if _, ok := statestore.Get("meta/test/rm"); ok {
 		t.Error("key still present after Remove")
 	}
 	// Removing an absent key is a no-op, not an error.
-	if err := Remove("meta/test/absent"); err != nil {
+	if err := statestore.Remove("meta/test/absent"); err != nil {
 		t.Errorf("Remove on absent key errored: %v", err)
 	}
 }
@@ -123,7 +127,7 @@ func TestIncrementDurableConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			value, err := Increment(key)
+			value, err := statestore.Increment(key)
 			if err != nil {
 				t.Errorf("increment: %v", err)
 				return
@@ -155,31 +159,31 @@ func TestIncrementDurableConcurrent(t *testing.T) {
 	if err := store.WriteKey(key, []byte{1}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Increment(key); !errors.Is(err, ErrCorrupt) {
+	if _, err := statestore.Increment(key); !errors.Is(err, statestore.ErrCorrupt) {
 		t.Fatalf("corrupt counter: %v", err)
 	}
 	if err := store.WriteKey(key, []byte{255, 255, 255, 255}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Increment(key); err == nil {
+	if _, err := statestore.Increment(key); err == nil {
 		t.Fatal("exhausted counter wrapped")
 	}
 }
 
 // Strict RPC consumers must distinguish storeless mode from an absent key.
 func TestStrictStateUnavailableAndAbsent(t *testing.T) {
-	SetStore(nil)
-	if _, _, err := Read("meta/test/x"); !errors.Is(err, ErrUnavailable) {
+	statestore.SetStore(nil)
+	if _, _, err := statestore.Read("meta/test/x"); !errors.Is(err, statestore.ErrUnavailable) {
 		t.Fatalf("read unavailable: %v", err)
 	}
-	if err := Write("meta/test/x", nil); !errors.Is(err, ErrUnavailable) {
+	if err := statestore.Write("meta/test/x", nil); !errors.Is(err, statestore.ErrUnavailable) {
 		t.Fatalf("write unavailable: %v", err)
 	}
-	if err := Delete("meta/test/x"); !errors.Is(err, ErrUnavailable) {
+	if err := statestore.Delete("meta/test/x"); !errors.Is(err, statestore.ErrUnavailable) {
 		t.Fatalf("delete unavailable: %v", err)
 	}
 	withStore(t)
-	if _, found, err := Read("meta/test/x"); err != nil || found {
+	if _, found, err := statestore.Read("meta/test/x"); err != nil || found {
 		t.Fatalf("absent read: found=%v error=%v", found, err)
 	}
 }

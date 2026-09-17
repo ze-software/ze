@@ -18,14 +18,45 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-func init() { Register("storage/consumer-restart", storageConsumerRestart) }
+func init() {
+	Register("storage/consumer-restart", storageConsumerRestart)
+	// The tc consumer creates a kernel link, so it is its own fixture name:
+	// the net-admin gate its callers declare (TestNativeIPRouteFixturesDeclareNetAdmin)
+	// then stays off the four consumers that touch no kernel networking.
+	Register("storage/consumer-restart-tc", storageConsumerRestartTC)
+}
 
 // Each case drives a producer, terminates its daemon, and observes the actual
 // consumer in a fresh process. No case seeds its own runtime-state key.
 func storageConsumerRestart(ctx context.Context, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("consumer-restart requires rir, history, ddos, ntp, or tc")
+		return fmt.Errorf("consumer-restart requires rir, history, ddos, or ntp")
 	}
+	consumers := map[string]func(context.Context, string) error{
+		"rir":     storageRIRRestart,
+		"history": storageHistoryRestart,
+		"ddos":    storageDDoSRestart,
+		"ntp":     storageNTPRestart,
+	}
+	run, ok := consumers[args[0]]
+	if !ok {
+		return fmt.Errorf("unknown consumer %q (the tc consumer is the storage/consumer-restart-tc fixture)", args[0])
+	}
+	return storageConsumerRestartArm(ctx, args[0], run)
+}
+
+// storageConsumerRestartTC is the tc consumer: it creates a kernel link, so its
+// .ci callers declare option=needs-linux:caps=net-admin.
+func storageConsumerRestartTC(ctx context.Context, args []string) error {
+	if len(args) != 0 {
+		return fmt.Errorf("consumer-restart-tc takes no argument")
+	}
+	return storageConsumerRestartArm(ctx, "tc", storageTCRestart)
+}
+
+// storageConsumerRestartArm runs one named consumer in a fixture-owned scratch
+// tree and proves it used no legacy blob.
+func storageConsumerRestartArm(ctx context.Context, consumer string, run func(context.Context, string) error) error {
 	dir, err := os.MkdirTemp(".", "consumer-restart-")
 	if err != nil {
 		return err
@@ -35,27 +66,14 @@ func storageConsumerRestart(ctx context.Context, args []string) error {
 		return err
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck // fixture-owned scratch tree
-	switch args[0] {
-	case "rir":
-		err = storageRIRRestart(ctx, dir)
-	case "history":
-		err = storageHistoryRestart(ctx, dir)
-	case "ddos":
-		err = storageDDoSRestart(ctx, dir)
-	case "ntp":
-		err = storageNTPRestart(ctx, dir)
-	case "tc":
-		err = storageTCRestart(ctx, dir)
-	default:
-		return fmt.Errorf("unknown consumer %q", args[0])
-	}
+	err = run(ctx, dir)
 	if err != nil {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(dir, "database.zefs")); !os.IsNotExist(err) {
 		return fmt.Errorf("consumer used legacy database.zefs: %w", err)
 	}
-	fmt.Fprintf(os.Stderr, "OK: %s consumer restored operational state from selected tree without config-dir pin\n", args[0])
+	fmt.Fprintf(os.Stderr, "OK: %s consumer restored operational state from selected tree without config-dir pin\n", consumer)
 	return nil
 }
 

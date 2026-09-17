@@ -11,7 +11,6 @@ import (
 
 	editor "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -19,16 +18,13 @@ import (
 
 // openShowEditor builds the read-only editor for `ze config show`, reading the
 // config from stdin when configFile is "-" (via cliio) and otherwise from the
-// store. The stdin form parses the piped bytes directly; no file is touched.
-func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, error) {
-	if store == nil || cliio.IsStdin(configFile) {
-		data, err := cliio.ReadFile(configFile)
-		if err != nil {
-			return nil, err
-		}
-		return editor.NewEditorFromContent(data, configFile)
+// file. `ze config show` opens no store (AC-24): the file is the loose config.
+func openShowEditor(configFile string) (*editor.Editor, error) {
+	data, err := cliio.ReadFile(configFile)
+	if err != nil {
+		return nil, err
 	}
-	return editor.NewEditorWithStorage(store, configFile)
+	return editor.NewEditorFromContent(data, configFile)
 }
 
 // cmdShow implements `ze config show <file> [path...]`.
@@ -47,12 +43,12 @@ func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, e
 // Like `ze config dump`/`validate`, it reads a config file directly from the
 // filesystem (not the blob store), so a plain path works without `-f`.
 func cmdShow(args []string) int {
-	return showConfig(os.Stdout, nil, args)
+	return showConfig(os.Stdout, args)
 }
 
 // showConfig is the io.Writer-parameterised core of `ze config show`, so tests
 // can assert on the rendered tree without capturing os.Stdout.
-func showConfig(out io.Writer, store storage.Storage, args []string) int {
+func showConfig(out io.Writer, args []string) int {
 	fs := flag.NewFlagSet("config show", flag.ExitOnError)
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -82,7 +78,7 @@ func showConfig(out io.Writer, store storage.Storage, args []string) int {
 	configFile := fs.Arg(0)
 	path := fs.Args()[1:]
 
-	ed, err := openShowEditor(store, configFile)
+	ed, err := openShowEditor(configFile)
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "%v", err)
 		return exitError

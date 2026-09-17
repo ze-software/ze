@@ -204,7 +204,7 @@ func writeExecDocument(sess ssh.Session, frame *answerFrame, formatOutput func(s
 // audiences read one stream, and the terminator ends the answer, so nothing may
 // come after it. A client reading the frame keeps the plain line as the daemon
 // talking to a person rather than to it (readAnswerFrame,
-// internal/core/ssh/client/answer.go), and the message it reports comes from
+// internal/component/cli/sshclient/answer.go), and the message it reports comes from
 // the frame, so the two cannot disagree.
 //
 // The frame writes are best-effort: the session is ending with exit code 1

@@ -13,9 +13,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	unicli "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 

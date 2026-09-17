@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 )
 
 const (

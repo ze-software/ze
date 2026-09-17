@@ -6,6 +6,7 @@ package dhcpserver
 import (
 	"errors"
 	"net"
+	"slices"
 	"strings"
 	"testing"
 
@@ -30,10 +31,8 @@ func withHostInterfaces(t *testing.T, names ...string) {
 	t.Helper()
 	previous := dhcpInterfaceByName
 	dhcpInterfaceByName = func(name string) (*net.Interface, error) {
-		for _, held := range names {
-			if held == name {
-				return &net.Interface{Name: name}, nil
-			}
+		if slices.Contains(names, name) {
+			return &net.Interface{Name: name}, nil
 		}
 		return nil, errors.New("route ip+net: no such network interface")
 	}
@@ -75,7 +74,10 @@ func TestCheckDHCPInterfacesReportsAMissingInterface(t *testing.T) {
 func TestCheckDHCPInterfacesRefusesANameThatIsNotADevice(t *testing.T) {
 	probed := false
 	previous := dhcpInterfaceByName
-	dhcpInterfaceByName = func(string) (*net.Interface, error) { probed = true; return nil, nil }
+	dhcpInterfaceByName = func(string) (*net.Interface, error) {
+		probed = true
+		return nil, errors.New("the host probe must not be reached")
+	}
 	t.Cleanup(func() { dhcpInterfaceByName = previous })
 
 	diags := checkDHCPInterfaces(diagnostic.DoctorCheckContext{Tree: dhcpServerTree(true, "eth/0", "..", "a\x00b")})

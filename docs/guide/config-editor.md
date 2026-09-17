@@ -15,7 +15,7 @@ no daemon answers, the editor starts an ephemeral daemon and connects to it.
 Once connected, the local process holds no writable store handle. Terminal
 resizing and input travel over the SSH PTY, and the daemon persists drafts and
 command history.
-<!-- source: internal/core/ssh/client/terminal.go -- RunInteractive -->
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 
 Three more surfaces reach the same editor against a running daemon. An SSH
 session opens in configuration mode. The web interface gives each authenticated

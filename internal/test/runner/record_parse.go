@@ -699,7 +699,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		r.ExpectSyslog = append(r.ExpectSyslog, pattern)
 
-	case directiveTypeFile, "key":
+	case directiveTypeFile, directiveTypeKey:
 		if err := checkKeys("expect="+expType, kv,
 			"path", "glob", "contains", "not-contains", "exists", "absent", "count"); err != nil {
 			return err
@@ -708,7 +708,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		if err != nil {
 			return err
 		}
-		check.Key = expType == "key"
+		check.Key = expType == directiveTypeKey
 		r.FileChecks = append(r.FileChecks, check)
 
 	case "event":

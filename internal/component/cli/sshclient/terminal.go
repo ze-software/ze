@@ -1,5 +1,5 @@
 // Design: docs/guide/config-editor.md — live clients use the owning daemon's editor
-package client
+package sshclient
 
 import (
 	"fmt"

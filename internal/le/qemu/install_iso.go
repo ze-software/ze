@@ -424,7 +424,7 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 		report.Verdict = InstallVerdictFail
 		return report, nil
 	}
-	report.check("iso-image-hash", InstallVerdictPass, sourceSHA)
+	report.passed("iso-image-hash", sourceSHA)
 	report.line(installer.prefix(), "ISO-contained image hash matches source")
 	disk, extra := filepath.Join(work, "target.img"), filepath.Join(work, "untargeted.img")
 	if err := truncateInstallFile(disk, imageInfo.Size()); err != nil {
@@ -461,7 +461,7 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 	if err := assertInstallGPT(image.Image, disk); err != nil {
 		return report, err
 	}
-	report.check("gpt-layout", InstallVerdictPass, "first four entries match")
+	report.passed("gpt-layout", "first four entries match")
 	report.line(installer.prefix(), "installed GPT partition layout matches source image")
 	ok, serialPath, err := installer.bootTargetSSH(ctx, work, disk, 120*time.Second, nil)
 	if err != nil {
@@ -473,7 +473,7 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 		report.Verdict = InstallVerdictFail
 		return report, nil
 	}
-	report.check("ssh-login", InstallVerdictPass, "embedded ZeFS power user authenticated")
+	report.passed("ssh-login", "embedded ZeFS power user authenticated")
 	report.line(installer.prefix(), "SSH login as embedded-ZeFS power user succeeded")
 	report.line(installer.prefix(), "PASS")
 	report.Verdict = InstallVerdictPass

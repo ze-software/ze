@@ -82,6 +82,9 @@ const (
 const (
 	vppMount   = "/run/vpp"
 	vppCLISock = "/run/vpp/cli.sock"
+	// zeRunDir is the container-private root under which each daemon's config
+	// directory is staged, so the root daemon owns every ancestor of its store.
+	zeRunDir = "/run/ze"
 )
 
 // The two bounds control the container's own startup. One bounds the time that
@@ -184,7 +187,7 @@ func (v *vppIface) vppArgs(name string) []string {
 func (v *vppIface) daemonArgs(name, binaryRel, configFile string) []string {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
-	config := filepath.Join("/run/ze", configFile, "ze.conf")
+	config := filepath.Join(zeRunDir, configFile, "ze.conf")
 
 	return []string{
 		dockerExec, dockerInteractiveArg,
@@ -201,7 +204,7 @@ func (v *vppIface) daemonArgs(name, binaryRel, configFile string) []string {
 // stageConfig copies the explicit input out of the host-owned scratch mount.
 // The container's root daemon must own every ancestor of its database folder.
 func (v *vppIface) stageConfig(container, configFile string) error {
-	directory := filepath.Join("/run/ze", configFile)
+	directory := filepath.Join(zeRunDir, configFile)
 	if output, ok := v.dockerText(dockerExec, container, "mkdir", "-p", directory); !ok {
 		return errors.New("create private ze config directory: " + output)
 	}

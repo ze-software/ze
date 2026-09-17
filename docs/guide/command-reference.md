@@ -2052,10 +2052,10 @@ With no username from flag or env and no readable store, the CLI fails and names
 exists but is unsafe (a `database` that is not a directory, a loose mode) is not
 "unreadable": the CLI refuses with the path and the repair, because that is a
 defect to fix, not a lack of access.
-<!-- source: internal/core/ssh/client/client.go -- readCredentials, openStoreIfReadable -->
+<!-- source: internal/component/cli/sshclient/client.go -- readCredentials, openStoreIfReadable -->
 
 See [authentication.md](authentication.md) for the full multi-user workflow.
-<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: internal/component/cli/sshclient/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
 
 ### ze start --web

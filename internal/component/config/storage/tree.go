@@ -81,8 +81,8 @@ func openFolder(path string) (*os.File, error) {
 	return openFolderMode(path, false)
 }
 
-// openFolderMode is the one ancestor-trust walk, declared in zefs; storage
-// only names the refusal as its own permission error.
+// openFolderMode is the one no-follow walk to the containing folder, declared
+// in zefs; storage only names the refusal as its own permission error.
 func openFolderMode(path string, create bool) (*os.File, error) {
 	folder, err := zefs.OpenDirectory(path, create)
 	if err != nil {

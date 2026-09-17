@@ -18,6 +18,7 @@ import (
 // (record_parse.go) is the first of them.
 const (
 	directiveTypeFile   = "file"
+	directiveTypeKey    = "key"
 	directiveTypeOpen   = "open"
 	directiveTypeStderr = "stderr"
 	directiveTypeStdout = "stdout"
@@ -56,7 +57,7 @@ var (
 	// recordExpectTypesParsed are the expect types parseExpect reads from a
 	// key=value map.
 	recordExpectTypesParsed = []string{
-		directiveTypeBGP, "event", "exit", directiveTypeFile, "key", "json",
+		directiveTypeBGP, "event", "exit", directiveTypeFile, directiveTypeKey, "json",
 		directiveTypeStderr, directiveTypeStdout, directiveTypeSyslog,
 	}
 

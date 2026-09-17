@@ -33,13 +33,13 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/paths"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -465,7 +465,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		// Announce a distinctive "SSH-2.0-ze" identification banner. This is a
 		// positive ze marker that the `ze init` daemon-liveness probe requires
 		// to tell a live ze daemon apart from a generic SSH server (host
-		// OpenSSH) or a bare TCP listener. See internal/core/ssh/client.
+		// OpenSSH) or a bare TCP listener. See internal/component/cli/sshclient.
 		wish.WithVersion(sshclient.ServerSoftwareVersion),
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
 		// Wish composes middleware from first to last: last = outermost = runs first.

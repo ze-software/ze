@@ -23,7 +23,6 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/env"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -47,7 +46,7 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 	loadBoth func() (map[string]any, *zeconfig.Tree, error),
 ) {
 	readAndParse := func() (*zeconfig.LoadConfigResult, error) {
-		reloadData, readErr := internalresolve.ReadReloadConfig(store, configPath)
+		reloadData, readErr := storage.ReadReloadConfig(store, configPath)
 		if readErr != nil {
 			return nil, fmt.Errorf("read config: %w", readErr)
 		}
@@ -697,7 +696,7 @@ func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
 		}
 		return storage.ErrCandidateExists
 	}
-	data, err := internalresolve.ReadConfigSource(store, configPath)
+	data, err := storage.ReadConfigSource(store, configPath)
 	if err != nil {
 		return fmt.Errorf("stage SIGHUP candidate: read config: %w", err)
 	}

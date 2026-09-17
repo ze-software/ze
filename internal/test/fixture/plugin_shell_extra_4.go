@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	tacacsmock "github.com/ze-software/ze/internal/test/mock/tacacs"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )

@@ -20,11 +20,12 @@ import (
 
 const frameDirectoryFlags = unix.O_RDONLY | unix.O_DIRECTORY | unix.O_NOFOLLOW | unix.O_CLOEXEC
 
-// OpenDirectory checks every path component from / without resolving
-// symlinks. The returned descriptor pins the directory for subsequent I/O.
-// The caller MUST close it. Ancestors may be root-owned or caller-owned.
-// Writable shared ancestors require the sticky bit until a caller-private
-// directory prevents outsiders from traversing the remaining path. With
+// OpenDirectory opens every path component from / without resolving
+// symlinks, so a link anywhere on the way to the store is refused rather than
+// followed. The returned descriptor pins the directory for subsequent I/O.
+// The caller MUST close it. Ancestors are not checked for mode or owner: the
+// store root's own 0700 and owner check, applied by the caller on the
+// descriptor, is what bounds the store (owner decision, 2026-09-17). With
 // create, a missing component is made 0700 and durably recorded in its parent;
 // an existing component is never altered. Every refusal wraps fs.ErrPermission.
 func OpenDirectory(path string, create bool) (*os.File, error) {
@@ -43,23 +44,12 @@ func OpenDirectory(path string, create bool) (*os.File, error) {
 		return nil, err
 	}
 	current := os.NewFile(uintptr(fd), "/")
-	depth, privateDepth := 0, -1
 	for part := range strings.SplitSeq(absolute, "/") {
 		if part == "" {
 			continue
 		}
 		if part == "." {
 			continue
-		}
-		if part == ".." {
-			if depth > 0 {
-				depth--
-			}
-			if depth < privateDepth {
-				privateDepth = -1
-			}
-		} else {
-			depth++
 		}
 		name := filepath.Join(current.Name(), part)
 		next, err := openDirectoryComponent(current, part, name, create)
@@ -70,23 +60,6 @@ func OpenDirectory(path string, create bool) (*os.File, error) {
 			return nil, errors.Join(err, next.Close())
 		}
 		current = next
-		var stat unix.Stat_t
-		if err := unix.Fstat(int(current.Fd()), &stat); err != nil {
-			return nil, errors.Join(err, current.Close())
-		}
-		if stat.Uid != 0 {
-			if stat.Uid != uint32(os.Geteuid()) {
-				return nil, errors.Join(fmt.Errorf("zefs: %s: unsafe ancestor %s owner %d: %w", path, name, stat.Uid, fs.ErrPermission), current.Close())
-			}
-		}
-		if privateDepth < 0 && stat.Mode&0o022 != 0 {
-			if stat.Mode&unix.S_ISVTX == 0 {
-				return nil, errors.Join(fmt.Errorf("zefs: %s: writable ancestor %s mode %#o: %w", path, name, stat.Mode&0o7777, fs.ErrPermission), current.Close())
-			}
-		}
-		if privateDepth < 0 && stat.Uid == uint32(os.Geteuid()) && stat.Mode&0o077 == 0 {
-			privateDepth = depth
-		}
 	}
 	return current, nil
 }

@@ -122,7 +122,7 @@ Ze's own tooling uses the same operator. Completion, the runtime command tree
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.
 
-<!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->
+<!-- source: internal/component/cli/sshclient/client.go -- RawCommand, ExecCommandRaw -->
 
 ### The offline way: `ze pipe`
 

@@ -78,7 +78,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - Existing support collection lives in `internal/component/support.Run`. It writes a local tar.gz bundle and can print a JSON manifest, but it does not use the command pipe engine.
 - Existing pipe parsing lives in `internal/component/command/pipe.go`. It handles text and JSON transformations, not binary archive delivery.
 - The interactive CLI, offline `ze pipe`, web CLI, and SSH exec paths each call pipe helpers at different layers. A `save` side-effect sink must be added once and reached by each intended entry point.
-- SSH CLI credentials already live in ZeFS under `meta/ssh/{host}/{port}/...` and are read by `internal/core/ssh/client`. Config should reference stored material instead of carrying private key bytes.
+- SSH CLI credentials already live in ZeFS under `meta/ssh/{host}/{port}/...` and are read by `internal/component/cli/sshclient`. Config should reference stored material instead of carrying private key bytes.
 - Syslog currently has one scalar `environment log destination` for daemon logging. Support export needs a named destination list so incident destinations do not overwrite daemon logging.
 - `system archive` already has named config archive destinations with URL locations. It is a precedent for naming and validation, not an automatic reuse point, because its trigger and file naming semantics are config-archive-specific.
 - `paths.DefaultConfigDir()` maps gokrazy `/user/ze` to `/perm/ze`, standard system prefixes to `/etc/ze`, and honors explicit `ze.config.dir`.
@@ -95,7 +95,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - [ ] `internal/component/cli/client/main.go` - interactive CLI calls `command.ProcessPipesChecked` before sending a command to the daemon.
 - [ ] `internal/component/cli/model_mode.go` - TUI model calls `command.ProcessPipesChecked` and applies the returned formatter to command output.
 - [ ] `internal/component/web/cli_terminal.go` - web CLI uses `ProcessPipesDefaultFormatChecked` before dispatching operational commands.
-- [ ] `internal/core/ssh/client/client.go` - reads stored SSH credentials and executes or streams commands through SSH.
+- [ ] `internal/component/cli/sshclient/client.go` - reads stored SSH credentials and executes or streams commands through SSH.
 - [ ] `internal/plugins/connect/main.go` - writes and lists stored SSH remote credentials in ZeFS.
 - [ ] `pkg/zefs/keys.go` - defines SSH credential ZeFS key patterns.
 - [ ] `internal/component/config/mask.go` - masks `ze:sensitive` and `ze:bcrypt` leaves in config display.
@@ -135,7 +135,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 3. The save sink receives either rendered bytes or artifact bytes. It writes once to the chosen destination.
 4. Local file save resolves a relative path under `paths.DefaultConfigDir()`, rejects empty, absolute, or escaping paths, and creates the target file or directory according to the command grammar.
 5. Syslog save resolves a named destination or explicit address and streams the same bytes the sink would send to file or SSH. If the payload needs framing or chunking, the stream includes enough metadata for reconstruction.
-6. SSH save resolves a named destination or explicit host/path, loads stored credentials through `internal/core/ssh/client`, and streams the bytes to the remote path without logging secrets.
+6. SSH save resolves a named destination or explicit host/path, loads stored credentials through `internal/component/cli/sshclient`, and streams the bytes to the remote path without logging secrets.
 7. Result output tells the operator where the data was saved. Error output names the failing destination and operation.
 
 ### Boundaries Crossed
@@ -155,7 +155,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - `internal/component/cli/client/main.go`, `internal/component/cli/model_mode.go`, and `internal/component/web/cli_terminal.go` - ensure each CLI path executes the sink exactly once.
 - `internal/component/support/support.go` - expose archive artifact metadata so a pipe sink can send the archive, not only the printed manifest.
 - `internal/component/config/system/yang/ze-system-conf.yang` - reuse the existing archive naming pattern where it fits, but do not make support export depend on config-archive triggers.
-- `internal/core/ssh/client` - reuse existing credential loading and streaming primitives.
+- `internal/component/cli/sshclient` - reuse existing credential loading and streaming primitives.
 - `internal/component/doctor` - add checks for configured file paths, syslog endpoints, SSH destinations, and referenced credentials.
 
 ### Architectural Verification
@@ -173,7 +173,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | `ze support` is the existing tech-support equivalent to extend. | User said show tech-support or equivalent; docs and support source show `ze support` generates the archive. | A separate `show tech-support` producer would duplicate support collection. | Source read of `support.Run` and docs. | validated |
-| A-2 | Config must store named SSH and syslog destinations, but not raw private key bytes. | User asked for pre-saved locations and saved SSH credential key; SSH credentials already use ZeFS. | Visible config could leak secrets or force key material through config diffs. | Source read of `zefs` SSH keys and config masking. | partly broken (2026-09-05) -- the half that says config holds no key bytes stands. The half that says stored material can be REFERENCED by name does not: `pkg/zefs/keys.go` holds one credential set for the Ze daemon's own remote (`meta/ssh/{host}/{port}/username` and `.../password`), not a set keyed by destination name, and `resolvePassword` in `internal/core/ssh/client/client.go` offers a stored password, `ze.ssh.password` or a TTY prompt, with no key-based auth at all. A named outbound destination needs a credential store that does not exist. |
+| A-2 | Config must store named SSH and syslog destinations, but not raw private key bytes. | User asked for pre-saved locations and saved SSH credential key; SSH credentials already use ZeFS. | Visible config could leak secrets or force key material through config diffs. | Source read of `zefs` SSH keys and config masking. | partly broken (2026-09-05) -- the half that says config holds no key bytes stands. The half that says stored material can be REFERENCED by name does not: `pkg/zefs/keys.go` holds one credential set for the Ze daemon's own remote (`meta/ssh/{host}/{port}/username` and `.../password`), not a set keyed by destination name, and `resolvePassword` in `internal/component/cli/sshclient/client.go` offers a stored password, `ze.ssh.password` or a TTY prompt, with no key-based auth at all. A named outbound destination needs a credential store that does not exist. |
 | A-3 | Local file save uses a path relative to Ze config/data directory. The CLI grammar remains `save file path <relative-path>` because repo CLI rules require `path` before a user value. | User selected relative local paths; `paths.DefaultConfigDir()` maps Linux and appliance locations. | Saving to cwd or arbitrary absolute paths would behave differently on Linux and appliances. | User confirmation and source read of `paths.DefaultConfigDir()`. | broken (2026-09-05) -- `save <path>` shipped on 2026-08-23 in commit 77ec7e1ec, after this spec was written. `saveAnswer` in `internal/component/command/pipe_save.go` writes the operator's path as given, and the file header states the security model it chose: any path the operator's own process may write, refused outright wherever the DAEMON expands the chain. It does not resolve under `paths.DefaultConfigDir()`, and it rejects neither an absolute path nor `..`. |
 | A-4 | `save` is a terminal pipe operator. | A save sink has side effects and does not produce data for later pipe transforms. | Chaining after save could run transformations on a status message instead of the original data. | Source review of pipe processors and design review; parser tests enforce it during implementation. | broken (2026-09-05) -- the shipped operator is not terminal. `pipeCatalog` in `internal/component/command/pipe_catalog.go` declares `save` as `ClassGlobal` with `RepeatCompose`, and `ApplyPipes` in `internal/component/command/pipe.go` runs `applySaves` over the FINISHED answer after the whole chain, wherever `save` sat in it. `TestSaveWritesTheFormattedAnswer` pins that ordering. |
 | A-5 | Syslog export streams the same payload data as file and SSH, regardless of format. | User selected streaming data to syslog whatever the format. | Syslog needs framing or chunking for large archives, and receiver-side reconstruction must be documented. | User confirmation plus syslog framing tests. | validated |
@@ -290,7 +290,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 - `internal/component/config/yang` or `internal/component/support/yang` - support export destination schema. <!-- doc-links: ignore (planned by this spec, written when implemented) -->
 - `internal/component/config/validators.go` or owning validator file - destination validation if native YANG rules are insufficient.
 - `internal/component/doctor` - destination and credential checks.
-- `internal/core/ssh/client/client.go` - streaming or non-interactive write helper if existing functions cannot write a file without executing an unsafe shell.
+- `internal/component/cli/sshclient/client.go` - streaming or non-interactive write helper if existing functions cannot write a file without executing an unsafe shell.
 - `internal/core/slogutil/syslog.go` - reuse or safely factor syslog dialing for support export.
 - `docs/guide/command-reference.md` - document save pipe and support export syntax.
 - `docs/features.md` - update Tech-Support Bundle row.

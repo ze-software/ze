@@ -900,7 +900,7 @@ func parseGTSMPeerCounters(text string) (gtsmPeerCounters, error) {
 func parseNetstatCounter(text, section, name string) (uint64, error) {
 	prefix := section + ":"
 	var header []string
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		if !strings.HasPrefix(line, prefix) {
 			continue
 		}
@@ -928,7 +928,7 @@ func parseNetstatCounter(text, section, name string) (uint64, error) {
 // parseSNMP6Counter reads one counter of /proc/net/snmp6, which prints one
 // "name value" pair on each line.
 func parseSNMP6Counter(text, name string) (uint64, error) {
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		fields := strings.Fields(line)
 		if len(fields) != 2 || fields[0] != name {
 			continue

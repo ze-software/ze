@@ -647,7 +647,7 @@ Every session gets the frame. A plain `ssh <host> <command>` receives it on
 stderr with no env request and no setup, and a client that reads only stdout
 takes the rendering and ignores it.
 <!-- source: internal/component/ssh/answer.go -- newAnswerFrame -->
-<!-- source: internal/core/ssh/client/answer.go -- ExecCommandStream, readAnswerFrame, ErrAnswerTruncated -->
+<!-- source: internal/component/cli/sshclient/answer.go -- ExecCommandStream, readAnswerFrame, ErrAnswerTruncated -->
 
 The head is written after the body, because the type is read from the walk. The
 two streams are read independently, so no reader can order them anyway.

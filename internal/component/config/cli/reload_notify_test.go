@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/core/cliio"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 // TestReloadOptInGate validates the --reload option's actual behavior: whether

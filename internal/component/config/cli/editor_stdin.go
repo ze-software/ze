@@ -45,8 +45,8 @@ func openEditableConfig(store storage.Storage, configPath string) (*editor.Edito
 	ed, err := editor.NewLooseFileEditor(store, configPath)
 	if err != nil {
 		if store != nil {
-			store.Close()
-		} //nolint:errcheck // Returning the source read error.
+			store.Close() //nolint:errcheck // Returning the source read error.
+		}
 		return nil, err
 	}
 	if store != nil {

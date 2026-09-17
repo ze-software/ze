@@ -34,13 +34,13 @@ import (
 	// imports every schema, RPC command, and plugin package -- including the
 	// verb/cmd packages this file used to enumerate by hand. Never re-add
 	// per-package blank imports here; regenerate with `make generate`.
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	_ "github.com/ze-software/ze/internal/component/plugin/all"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/internal/core/statestore"
 
 	tea "charm.land/bubbletea/v2"

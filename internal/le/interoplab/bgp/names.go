@@ -99,6 +99,20 @@ const (
 	linkDown           = "down"
 )
 
+// nft(8) words. The GTSM scenario counts a rejected segment with them, and the
+// flowspec scenario reads the ruleset ze lowered.
+const (
+	cmdNft           = "nft"
+	nftActionAdd     = "add"
+	nftActionDelete  = "delete"
+	nftActionList    = "list"
+	nftFamilyInet    = "inet"
+	nftObjectChain   = "chain"
+	nftObjectRule    = "rule"
+	nftObjectRuleset = "ruleset"
+	nftObjectTable   = "table"
+)
+
 // iptables words. The BFD failover scenario drops the BFD control port with
 // them.
 const (

@@ -82,7 +82,7 @@ Initialization uses a private random staging directory and a no-replace rename.
 <!-- source: internal/component/config/storage/tree.go -- makeStage -->
 
 <!-- source: internal/core/resolve/resolve.go -- StoreDir, StorageFor -->
-<!-- source: internal/core/ssh/client/client.go -- ResolveStoreDir, openStoreIfReadable -->
+<!-- source: internal/component/cli/sshclient/client.go -- ResolveStoreDir, openStoreIfReadable -->
 <!-- source: internal/plugins/connect/main.go -- AddCredentials, RemoveCredentials, SetDefault -->
 
 ### Offline data access
@@ -126,7 +126,7 @@ export ZE_SSH_PORT=2222
 # Per-command flags
 ze signal reload --host 10.0.0.1 --port 2222
 ```
-<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
+<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host, ze.ssh.port env vars -->
 
 ## Signals
 
@@ -266,7 +266,7 @@ ze env get ze.log              # details for one var
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |
 | `ze.config.dir` | -- | Override config directory |
 <!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
-<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host/port -->
+<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host/port -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir -->
 
 ## CLI Flags

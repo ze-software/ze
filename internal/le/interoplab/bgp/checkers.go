@@ -262,9 +262,9 @@ var scenarioOperations = map[string][]operation{
 	"bgp-flowspec-sctp-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, gobgpAdd, "match", "destination", flowspecMatchPrefix, "protocol", "==sctp", "then", "discard"}},
-		{kind: opWaitContains, peer: "ze", command: []string{"nft", "list", "ruleset"}, contains: []string{"sctp", flowspecMatchPrefix}, timeout: 30 * time.Second},
+		{kind: opWaitContains, peer: "ze", command: []string{cmdNft, nftActionList, nftObjectRuleset}, contains: []string{"sctp", flowspecMatchPrefix}, timeout: 30 * time.Second},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, "del", "match", "destination", flowspecMatchPrefix, "protocol", "==sctp", "then", "discard"}},
-		{kind: opWaitAbsent, peer: "ze", command: []string{"nft", "list", "ruleset"}, absent: []string{flowspecMatchPrefix}, proof: []string{"table"}, timeout: 30 * time.Second},
+		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchPrefix}, proof: []string{nftObjectTable}, timeout: 30 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	scenarioGracefulRestartFRR: {

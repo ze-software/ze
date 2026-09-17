@@ -10,7 +10,7 @@
 # 4. the compiled frame checker reads each frame by the GRAMMAR and asserts what it holds
 #
 # The driver is OpenSSH and not `ze cli`, and that is the whole point of this
-# test. `ze cli` is Ze's own client (ExecCommandStream, internal/core/ssh/
+# test. `ze cli` is Ze's own client (ExecCommandStream, internal/component/ssh/
 # client/answer.go); it consumes the frame and shows an operator the rendering,
 # so a fixture driving it can only see what the frame was turned INTO. `ssh`
 # consumes nothing, declares nothing, and has no way to declare anything: it

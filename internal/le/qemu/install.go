@@ -200,8 +200,11 @@ func (report InstallReport) Text() string {
 func (report *InstallReport) line(prefix, text string) {
 	report.lines = append(report.lines, prefix+text)
 }
-func (report *InstallReport) check(name string, verdict InstallVerdict, detail string) {
-	report.Checks = append(report.Checks, InstallCheck{Name: name, Verdict: verdict, Detail: detail})
+
+// passed records one check that succeeded. A failed check sets the report's
+// own Verdict and Reason instead, so no caller records any other verdict here.
+func (report *InstallReport) passed(name, detail string) {
+	report.Checks = append(report.Checks, InstallCheck{Name: name, Verdict: InstallVerdictPass, Detail: detail})
 }
 func (report *InstallReport) artifact(name, path string, bytes int64) {
 	report.Artifacts = append(report.Artifacts, InstallArtifact{Name: name, Path: path, Bytes: bytes})

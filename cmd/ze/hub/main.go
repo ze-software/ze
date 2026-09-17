@@ -159,9 +159,9 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		} else {
 			defer store.Close() //nolint:errcheck // release stdin daemon ownership
 		}
-		store = internalresolve.BindConfigSource(store, configPath, internalresolve.ConfigSourceStdin)
+		store = storage.BindConfigSource(store, configPath, storage.ConfigSourceStdin)
 	}
-	if internalresolve.SourceMode(store) == internalresolve.ConfigSourceFile {
+	if storage.SourceMode(store) == storage.ConfigSourceFile {
 		if err := env.Set("ze.config.dir", internalresolve.StoreDir(configPath)); err != nil {
 			fmt.Fprintf(os.Stderr, "error: publish config directory to plugins: %v\n", err)
 			return 1
@@ -191,7 +191,7 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	case "-":
 		data, stdinOpen, err = readStdinConfig()
 	default:
-		data, err = internalresolve.ReadConfigSource(store, configPath)
+		data, err = storage.ReadConfigSource(store, configPath)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read config: %v\n", err)

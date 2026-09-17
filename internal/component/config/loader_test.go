@@ -31,9 +31,12 @@ func loadConfigUser(t *testing.T, tree *Tree, name string) *Tree {
 // warningsNaming returns the config.loader warnings whose message names path.
 // The ring is process-global and shared with every other test in this package,
 // so the temp path is what makes the filter exact.
-func warningsNaming(path string) []string {
+func warningsNaming(t *testing.T, path string) []string {
+	t.Helper()
+	entries, err := slogutil.GlobalLogRing().Snapshot(0, "WARN", "config.loader")
+	require.NoError(t, err, "WARN is a level the ring accepts")
 	var out []string
-	for _, e := range slogutil.GlobalLogRing().Snapshot(0, "WARN", "config.loader") {
+	for _, e := range entries {
 		if strings.Contains(e.Message, path) {
 			out = append(out, e.Message)
 		}
@@ -101,7 +104,7 @@ func TestLoadConfigWarnsPlaintextRemainsOnDisk(t *testing.T) {
 	_, err := LoadConfig(input, configPath, nil)
 	require.NoError(t, err)
 
-	warnings := warningsNaming(configPath)
+	warnings := warningsNaming(t, configPath)
 	require.Len(t, warnings, 1, "two plaintext leaves in one file get ONE warning, not one each")
 	assert.NotContains(t, warnings[0], "labsecret", "the warning must never carry the secret")
 	assert.NotContains(t, warnings[0], "opssecret", "the warning must never carry the secret")
@@ -137,7 +140,7 @@ func TestLoadConfigLeavesHashedPasswordAlone(t *testing.T) {
 	stored, ok := lab.Get("password")
 	require.True(t, ok)
 	assert.Equal(t, string(hash), stored, "a hash already in the file is left byte-identical")
-	assert.Empty(t, warningsNaming(configPath), "nothing was hashed, so nothing is warned about")
+	assert.Empty(t, warningsNaming(t, configPath), "nothing was hashed, so nothing is warned about")
 }
 
 // TestLoadConfigRefusesMaskedBcryptLeaf: the load path takes BOTH halves of the pair.
@@ -200,7 +203,7 @@ func TestLoadConfigDropsEmptyPlaintextLeaf(t *testing.T) {
 	lab := loadConfigUser(t, result.Tree, "lab")
 	_, plainOK := lab.Get("plaintext-password")
 	assert.False(t, plainOK, "an empty ephemeral leaf is dropped, not carried")
-	assert.Empty(t, warningsNaming(configPath),
+	assert.Empty(t, warningsNaming(t, configPath),
 		"nothing was hashed, so the operator is told nothing")
 }
 
@@ -226,7 +229,7 @@ func TestLoadConfigNamesNoSourceItWasNotGiven(t *testing.T) {
 	_, err := LoadConfig(input, "", nil)
 	require.NoError(t, err)
 
-	warnings := warningsNaming("plaintext password in the loaded config")
+	warnings := warningsNaming(t, "plaintext password in the loaded config")
 	require.NotEmpty(t, warnings, "an unnamed source still warns")
 	for _, w := range warnings {
 		assert.NotContains(t, w, "<stdin>", "a caller that named no source gets no invented name")

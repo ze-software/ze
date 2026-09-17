@@ -207,7 +207,7 @@ writer cannot acquire ownership. A truly storeless stdin start names the
 unavailable persistence features and creates one in-memory CA for its lifetime.
 Unreadable persistent state never selects this mode.
 
-<!-- source: internal/core/resolve/source.go -- ConfigSource, BindConfigSource, ReadConfigSource -->
+<!-- source: internal/component/config/storage/source.go -- ConfigSource, BindConfigSource, ReadConfigSource -->
 <!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource, promoteConfigCandidate, recoverFileCommit -->
 <!-- source: cmd/ze/hub/main.go -- run, runYANGConfig -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->

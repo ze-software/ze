@@ -88,12 +88,12 @@ func checkGTSMRelatedICMPTTL(ctx context.Context, check *interoplab.CheckContext
 	// loses exactly one segment to the retransmit timer. The table is ze's
 	// container's own, outside the ze_ prefix, so ze's firewall never sweeps it.
 	defer func() {
-		_, _ = check.Lab.Exec(context.WithoutCancel(ctx), "ze", []string{"nft", "delete", "table", "inet", labTable}, nil)
+		_, _ = check.Lab.Exec(context.WithoutCancel(ctx), "ze", []string{cmdNft, nftActionDelete, nftObjectTable, nftFamilyInet, labTable}, nil)
 	}()
 	for _, argv := range [][]string{
-		{"nft", "add", "table", "inet", labTable},
-		{"nft", "add", "chain", "inet", labTable, labChain, "{ type filter hook input priority -300; policy accept; }"},
-		{"nft", "add", "rule", "inet", labTable, labChain,
+		{cmdNft, nftActionAdd, nftObjectTable, nftFamilyInet, labTable},
+		{cmdNft, nftActionAdd, nftObjectChain, nftFamilyInet, labTable, labChain, "{ type filter hook input priority -300; policy accept; }"},
+		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, labTable, labChain,
 			"ip6", "saddr", frrAddress, "ip6", "daddr", zeAddress, "meta", "l4proto", "tcp",
 			"limit", "rate", "1/hour", "burst", "1", "packets", "counter",
 			"reject", "with", "icmpv6", "type", "admin-prohibited"},
@@ -102,7 +102,7 @@ func checkGTSMRelatedICMPTTL(ctx context.Context, check *interoplab.CheckContext
 			return fail(4, err)
 		}
 	}
-	if err := waitContains(ctx, check.Lab, "ze", []string{"nft", "list", "chain", "inet", labTable, labChain}, errorWait, "counter packets 1 "); err != nil {
+	if err := waitContains(ctx, check.Lab, "ze", []string{cmdNft, nftActionList, nftObjectChain, nftFamilyInet, labTable, labChain}, errorWait, "counter packets 1 "); err != nil {
 		return fail(4, err)
 	}
 

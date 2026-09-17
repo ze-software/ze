@@ -391,7 +391,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		// Install before serving so early commits cannot bypass daemon reload.
 		editorMgr.SetCommitHook(commitHook)
 		editorMgr.SetConfigSource(func() ([]byte, error) {
-			return internalresolve.ReadConfigSource(store, configPath)
+			return storage.ReadConfigSource(store, configPath)
 		}, func(expected, content []byte) error {
 			return commitRuntimeConfig(store, configPath, configPath, expected, content, commitHook)
 		})

@@ -25,12 +25,12 @@ import (
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/env"
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
 func ed25519Generate() (ed25519.PublicKey, ed25519.PrivateKey, error) {

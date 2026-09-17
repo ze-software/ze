@@ -178,7 +178,13 @@ func (e *engine) srInstallFromRoutes() {
 	if e.srInstaller == nil || e.spf == nil || e.lsdb == nil {
 		return
 	}
-	cfg, enabled := srWire.get(e.cfg.RouterID)
+	// The SPF computer runs this hook on its own goroutine while reconcile
+	// and setConfig replace e.cfg under e.mu, so the router ID is read under
+	// the same lock.
+	e.mu.Lock()
+	routerID := e.cfg.RouterID
+	e.mu.Unlock()
+	cfg, enabled := srWire.get(routerID)
 	if !enabled || !cfg.Enabled {
 		e.srInstaller.withdrawAll()
 		return

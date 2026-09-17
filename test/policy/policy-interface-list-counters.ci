@@ -99,7 +99,7 @@ option=env:var=ze.log.policy.routes:value=info
 option=env:var=ze.log.firewall:value=info
 
 # The client's credentials. ze.ssh.username stands in for the --user flag
-# (resolveUsername, internal/core/ssh/client/client.go), and ze.ssh.insecure
+# (resolveUsername, internal/component/cli/sshclient/client.go), and ze.ssh.insecure
 # skips the host-key check the zefs store would otherwise answer.
 option=env:var=ze.ssh.username:value=operator
 option=env:var=ze.ssh.password:value=testpass

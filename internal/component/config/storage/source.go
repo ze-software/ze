@@ -1,12 +1,10 @@
 // Design: docs/architecture/hub-architecture.md -- explicit configuration authority
 
-package resolve
+package storage
 
 import (
 	"errors"
 	"os"
-
-	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // ConfigSource states which input remains authoritative throughout a daemon run.
@@ -22,14 +20,14 @@ const (
 // configStore carries source identity on the same owned handle every runtime
 // consumer borrows. Embedding retains raw keys, observer and lifetime ownership.
 type configStore struct {
-	storage.Storage
+	Storage
 	path string
 	mode ConfigSource
 }
 
 // BindConfigSource records the launch decision without opening another store.
 // Consumers borrow the result; only the original owner MUST close the handle.
-func BindConfigSource(store storage.Storage, path string, mode ConfigSource) storage.Storage {
+func BindConfigSource(store Storage, path string, mode ConfigSource) Storage {
 	if store == nil {
 		return nil
 	}
@@ -37,7 +35,7 @@ func BindConfigSource(store storage.Storage, path string, mode ConfigSource) sto
 }
 
 // SourceMode reports an explicit binding, never guessing authority from a path.
-func SourceMode(store storage.Storage) ConfigSource {
+func SourceMode(store Storage) ConfigSource {
 	if bound, ok := store.(*configStore); ok {
 		return bound.mode
 	}
@@ -45,7 +43,7 @@ func SourceMode(store storage.Storage) ConfigSource {
 }
 
 // SourcePath is the launch input, or empty when the handle is not source-bound.
-func SourcePath(store storage.Storage) string {
+func SourcePath(store Storage) string {
 	if bound, ok := store.(*configStore); ok {
 		return bound.path
 	}
@@ -53,7 +51,7 @@ func SourcePath(store storage.Storage) string {
 }
 
 // ReadConfigSource reads the chosen authority, not a fallback on read failure.
-func ReadConfigSource(store storage.Storage, path string) ([]byte, error) {
+func ReadConfigSource(store Storage, path string) ([]byte, error) {
 	switch SourceMode(store) {
 	case ConfigSourceFile:
 		if path != SourcePath(store) {
@@ -61,7 +59,7 @@ func ReadConfigSource(store storage.Storage, path string) ([]byte, error) {
 		}
 		return os.ReadFile(path) //nolint:gosec // explicit operator-supplied config
 	case ConfigSourceStored:
-		return storage.ReadActiveConfig(store, path)
+		return ReadActiveConfig(store, path)
 	case ConfigSourceStdin:
 		return nil, errors.New("stdin configuration has no reload source")
 	default:
@@ -71,9 +69,9 @@ func ReadConfigSource(store storage.Storage, path string) ([]byte, error) {
 
 // ReadReloadConfig prefers a staged candidate, preserving read failures rather
 // than concealing a corrupt candidate behind the previous active configuration.
-func ReadReloadConfig(store storage.Storage, path string) ([]byte, error) {
+func ReadReloadConfig(store Storage, path string) ([]byte, error) {
 	if store != nil {
-		data, _, present, err := storage.ReadCandidateConfig(store, path)
+		data, _, present, err := ReadCandidateConfig(store, path)
 		if err != nil {
 			return nil, err
 		}

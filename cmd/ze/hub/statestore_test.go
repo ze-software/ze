@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -26,12 +25,12 @@ func newTestStore(t *testing.T, dirs ...string) storage.Storage {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	return internalresolve.BindConfigSource(store, "", internalresolve.ConfigSourceStored)
+	return storage.BindConfigSource(store, "", storage.ConfigSourceStored)
 }
 
 func newTestFileStore(t *testing.T, path string) storage.Storage {
 	t.Helper()
-	return internalresolve.BindConfigSource(newTestStore(t, filepath.Dir(path)), path, internalresolve.ConfigSourceFile)
+	return storage.BindConfigSource(newTestStore(t, filepath.Dir(path)), path, storage.ConfigSourceFile)
 }
 
 // State and configuration share ownership and survive the same close/reopen.

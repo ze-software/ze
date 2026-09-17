@@ -4,61 +4,23 @@ package storage
 
 import (
 	"fmt"
-	"io/fs"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
-// Storage is safe for concurrent use. Callers MUST Close every opened store.
-// Unlocked reads return caller-owned bytes; guarded reads expire at Release.
-type Storage interface {
-	ReadFile(string) ([]byte, error)
-	WriteFile(string, []byte, fs.FileMode) error
-	Remove(string) error
-	Exists(string) bool
-	List(string) ([]string, error)
-	AcquireLock(string) (WriteGuard, error)
-	Stat(string) (FileMeta, error)
-	Rename(string, string) error
-	Close() error
-	WriteVersion(string, []byte, time.Time) error
-	ListVersions(string) ([]VersionInfo, error)
-	SetWriteObserver(func(string))
-	ReadKey(string) ([]byte, error)
-	WriteKey(string, []byte) error
-	RemoveKey(string) error
-	ListKeys(string) ([]string, error)
-	// CheckName refuses a config name outside the store; every config-name
-	// path, including the pointer and version helpers, MUST reach it.
-	CheckName(string) error
-}
-
-// FileMeta is process-local modification metadata, shared by both encodings.
-type FileMeta struct {
-	ModTime    time.Time
-	ModifiedBy string
-}
-
-// VersionInfo describes a historical configuration.
-type VersionInfo struct {
-	Stamp string
-	Date  time.Time
-	Path  string
-}
-
-// WriteGuard serializes a group of operations. Callers MUST Release it and MUST
-// use the guard, not Storage, until Release. Guarded bytes MUST NOT outlive it.
-type WriteGuard interface {
-	ReadFile(string) ([]byte, error)
-	WriteFile(string, []byte, fs.FileMode) error
-	Remove(string) error
-	Has(string) bool
-	List(string) ([]string, error)
-	Release() error
-	SetModifier(string)
-	WriteVersion(string, []byte, time.Time) error
-}
+// Storage, WriteGuard, FileMeta and VersionInfo are declared once in the leaf
+// tier (internal/core/statestore) so that runtime-state consumers never import
+// this component. The aliases keep this package's names as the spelling every
+// component-side caller uses.
+type (
+	Storage     = statestore.Storage
+	WriteGuard  = statestore.WriteGuard
+	FileMeta    = statestore.FileMeta
+	VersionInfo = statestore.VersionInfo
+)
 
 // FormatVersionStamp formats a time as YYYYMMDD-HHMMSS.mmm.
 func FormatVersionStamp(t time.Time) string {

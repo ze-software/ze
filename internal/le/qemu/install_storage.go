@@ -56,7 +56,11 @@ func installSeedTLS(ctx context.Context, port int, certificate []byte) (resultEr
 		return fmt.Errorf("seeded web listener: %w", err)
 	}
 	defer func() { resultErr = errors.Join(resultErr, connection.Close()) }()
-	peer := connection.(*tls.Conn).ConnectionState().PeerCertificates
+	tlsConnection, ok := connection.(*tls.Conn)
+	if !ok {
+		return fmt.Errorf("seeded web listener: dialer returned %T, want *tls.Conn", connection)
+	}
+	peer := tlsConnection.ConnectionState().PeerCertificates
 	if len(peer) == 0 {
 		return errors.New("seeded web listener sent no certificate")
 	}
@@ -77,6 +81,7 @@ func installPerm(disk, target string) (offset, size int64, resultErr error) {
 		return 0, 0, errors.New("installed disk has no /perm partition")
 	}
 	entry := entries[3]
+	// #nosec G304 -- disk is the installer-owned target image.
 	input, err := os.Open(disk)
 	if err != nil {
 		return 0, 0, err
@@ -94,6 +99,7 @@ func installPerm(disk, target string) (offset, size int64, resultErr error) {
 		return 0, 0, errors.New("/perm partition exceeds disk image")
 	}
 	offset, size = int64(entry.First)*512, int64(entry.Last-entry.First+1)*512
+	// #nosec G304 -- target is constructed beneath the installer-owned work directory.
 	output, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return 0, 0, err
@@ -152,6 +158,7 @@ func (installer *Installer) seedInterruptedImport(ctx context.Context, work, dis
 	if err := installer.storageDebugFS(ctx, perm, fmt.Sprintf("dump /ze/database.import-tmp-interrupted/partial %q", probe), false); err != nil {
 		return err
 	}
+	// #nosec G304 -- probe is a path this run made under its work directory.
 	data, err := os.ReadFile(probe)
 	if err != nil {
 		return err
@@ -159,11 +166,13 @@ func (installer *Installer) seedInterruptedImport(ctx context.Context, work, dis
 	if string(data) != "unfinished frame" {
 		return errors.New("debugfs did not write the interrupted import fixture")
 	}
+	// #nosec G304 -- perm is the /perm extraction this run made under its work directory.
 	input, err := os.Open(perm)
 	if err != nil {
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, input.Close()) }()
+	// #nosec G304 -- disk is the installer-owned target image.
 	output, err := os.OpenFile(disk, os.O_WRONLY, 0)
 	if err != nil {
 		return err
@@ -181,6 +190,7 @@ func (installer *Installer) seedInterruptedImport(ctx context.Context, work, dis
 // assertImportedSeed runs only after bootTargetSSH has stopped the VM. It checks
 // on-disk results independently of the success log and SSH authentication.
 func (installer *Installer) assertImportedSeed(ctx context.Context, work, disk, seed, serialPath string) (resultErr error) {
+	// #nosec G304 -- serialPath is the serial log this run wrote under its work directory.
 	serial, err := os.ReadFile(serialPath)
 	if err != nil {
 		return err
@@ -230,6 +240,7 @@ func (installer *Installer) assertImportedSeed(ctx context.Context, work, disk, 
 		if err != nil {
 			return err
 		}
+		// #nosec G304 -- root is the /perm extraction this run made under its work directory; key comes from the seed.
 		frame, err := os.ReadFile(filepath.Join(root, "database", filepath.FromSlash(key)))
 		if err != nil {
 			return fmt.Errorf("imported key %s: %w", key, err)
