@@ -144,7 +144,9 @@ ze-rib-api:best
 ze-rib-api:best-status
 ze-rib-api:clear-in
 ze-rib-api:clear-out
+ze-rib-api:fastpath
 ze-rib-api:inject
+ze-rib-api:protocol
 ze-rib-api:routes
 ze-rib-api:rpf
 ze-rib-api:status
@@ -221,8 +223,8 @@ ze-show:l2tp-health
 ze-show:ldp-binding
 ze-show:ldp-neighbor
 ze-show:metrics-query
-ze-show:mtu
 ze-show:mpls-forwarding
+ze-show:mtu
 ze-show:neighbor
 ze-show:ospf
 ze-show:ospf-border-routers

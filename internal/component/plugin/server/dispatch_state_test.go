@@ -28,7 +28,7 @@ func stateRPCClient(t *testing.T, direct bool) *sdk.Plugin {
 	t.Cleanup(s.cancel)
 	proc := process.NewProcess(plugin.PluginConfig{Name: owner})
 	client, engine := net.Pipe()
-	var conn net.Conn = client
+	conn := client
 	if direct {
 		bridge := rpc.NewDirectBridge()
 		bridge.SetDeliverEvents(func([]string) error { return nil })
@@ -88,14 +88,11 @@ func TestPluginStateTransportParity(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			p := stateRPCClient(t, direct)
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
+			// The store is created before the deadline starts: seeding a
+			// tree takes seconds under the race detector on a loaded
+			// machine, and the deadline bounds the RPC round trips only.
 			statestore.SetStore(nil)
 			t.Cleanup(func() { statestore.SetStore(nil) })
-			key := zefs.KeyOSPFAuthBootCount.Key()
-			requireStateStatus(t, p.StatePut(ctx, key, []byte{1}), rpc.StateUnavailable)
-			_, _, err := p.StateGet(ctx, key)
-			requireStateStatus(t, err, rpc.StateUnavailable)
 			dir := t.TempDir()
 			store, err := storage.Create(dir)
 			if err != nil {
@@ -107,6 +104,12 @@ func TestPluginStateTransportParity(t *testing.T) {
 					t.Error(err)
 				}
 			})
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			key := zefs.KeyOSPFAuthBootCount.Key()
+			requireStateStatus(t, p.StatePut(ctx, key, []byte{1}), rpc.StateUnavailable)
+			_, _, err = p.StateGet(ctx, key)
+			requireStateStatus(t, err, rpc.StateUnavailable)
 			statestore.SetStore(store)
 			if _, found, err := p.StateGet(ctx, key); err != nil || found {
 				t.Fatalf("absent key: found=%v error=%v", found, err)

@@ -256,7 +256,14 @@ func TestNativeImplementationFixture(t *testing.T) {
 	//
 	// The digest was recomputed over HEAD's own blobs before this value was
 	// written.
-	const want = "f2e0d737987c91e03f11d0b067ed8e471ba8dd6646bc6f8829b59f28aaf1208d"
+	//
+	// Re-sealed 2026-09-17 over 381b43c652 for four commits: b300575504 (the
+	// functional binary set), 006ed9afe4 (a {rollup} row derives its ledger
+	// state from the rows it names, which is the one verdict that moved),
+	// b57ec4ab6b (ze:help wording) and 7c2119b63d (the approval lives in the
+	// commit trailer, no verdict). The value is the one this test computed
+	// over HEAD's blobs in a clean worktree.
+	const want = "609d57a51173ead3e386ce2efd7b7b00db40050e4bfa6538082ebc9d6bf84c02"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

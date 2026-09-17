@@ -5,6 +5,10 @@ package local
 const (
 	exitOK    = 0
 	exitError = 1
+
+	// flagDryRun is the one flag token the help pages and the completion
+	// inventory each spell.
+	flagDryRun = "--dry-run"
 )
 
 func RunInstall(args []string) int   { return cmdInstall(args) }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/identity"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -201,9 +202,21 @@ func (su *SelfUpdater) run(ctx context.Context) {
 	}
 }
 
+// envRunningVersion lets a functional test drive the updater on an unstamped
+// daemon. The suite's DUT build carries no version ldflags on purpose (`ze
+// show version` prints "ze dev", internal/le/functional/binaries.go), and
+// isNewer refuses every comparison against "dev", so without this override
+// no event is ever recorded and the history consumer cannot be observed.
+const envRunningVersion = "ze.test.update.running.version"
+
+var _ = env.MustRegister(env.EnvEntry{Key: envRunningVersion, Type: "string", Description: "Override the running release the self-updater compares against (tests)"})
+
 func (su *SelfUpdater) runningVersion() string {
 	if su.running != "" {
 		return su.running
+	}
+	if v := env.Get(envRunningVersion); v != "" {
+		return v
 	}
 	return version.Release()
 }

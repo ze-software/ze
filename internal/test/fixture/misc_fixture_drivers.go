@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 func init() {
@@ -145,6 +147,16 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	}
 	if err := os.WriteFile(configPath+".draft", []byte("set environment cli format default json\n"), 0o600); err != nil {
 		return err
+	}
+	// A data command never creates a live store (storage-1, owner decision 1:
+	// storage.Create is called by ze init and ze start alone), so the work
+	// directory holds one before the runtime-store keys are seeded.
+	store, err := storage.Create(work)
+	if err != nil {
+		return fmt.Errorf("create the work directory live store: %w", err)
+	}
+	if err := store.Close(); err != nil {
+		return fmt.Errorf("release the work directory live store: %w", err)
 	}
 	for _, item := range [][2]string{{"file/active/pipe-local.conf", configPath}, {"file/active/pipe-local.conf.draft", configPath + ".draft"}} {
 		if _, err := run("ze", "data", "write", item[0], item[1]); err != nil {

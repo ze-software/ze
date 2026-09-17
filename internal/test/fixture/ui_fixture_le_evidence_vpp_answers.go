@@ -227,7 +227,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if !containsCall(ifaceCalls, "--privileged") {
 		return fmt.Errorf("the container is not privileged:\n%s", strings.Join(ifaceCalls, "\n"))
 	}
-	for _, owed := range []string{"start /run/vpp/tunnel.conf", "show gre tunnel", "start /run/vpp/wg.conf", "show wireguard interface"} {
+	for _, owed := range []string{"start " + zeRunDirConfig("tunnel.conf"), "show gre tunnel", "start " + zeRunDirConfig("wg.conf"), "show wireguard interface"} {
 		if !containsCall(ifaceCalls, owed) {
 			return fmt.Errorf("the proof never made a call carrying %q:\n%s", owed, strings.Join(ifaceCalls, "\n"))
 		}
@@ -754,3 +754,11 @@ func sshpassMain() {
     }
 }
 `
+
+// zeRunDirConfig is the path the container daemon starts from for one scenario
+// input: the producer is vppIface.daemonArgs (internal/le/deployment/vppiface.go),
+// which stages `<file>` under the container-private zeRunDir as
+// /run/ze/<file>/ze.conf so the root daemon owns every ancestor of its store.
+func zeRunDirConfig(file string) string {
+	return "/run/ze/" + file + "/ze.conf"
+}

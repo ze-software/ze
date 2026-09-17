@@ -133,11 +133,30 @@ func PluginOnlySchema() (*Schema, error) {
 	return schema, nil
 }
 
-// YANGSchema loads YANG and creates a schema from it.
-// Internal plugin schemas are loaded via init()-based registration (LoadRegistered).
+// YANGSchema returns the schema built from the embedded modules and the
+// modules every init() registered (LoadRegistered). That input set is fixed
+// once the process has started, and no product code writes to the schema
+// after it is built (ExtendCapability has only a test caller), so the build
+// runs ONCE and every later call shares the result.
+//
+// It was rebuilt on every call until 2026-09-17, and a build resolves every
+// YANG module: about 200 ms. One config commit called it fifteen times, three
+// for each of the five parses a reload performs (LoadConfig, the BGP reload
+// function, peersAndDynamicGroups), so a commit of one changed leaf cost
+// three seconds of schema builds and the REST commit missed a 5 s client
+// deadline. The schema built with EXTERNAL plugin modules stays uncached:
+// YANGSchemaWithPlugins takes those as an argument, and they change with the
+// configured plugins.
 func YANGSchema() (*Schema, error) {
-	return YANGSchemaWithPlugins(nil)
+	return yangSchemaOnce()
 }
+
+// yangSchemaOnce builds the plugin-free schema the first time it is called.
+// A failed build is cached too: the input is embedded in the binary, so a
+// second attempt cannot produce a different answer.
+var yangSchemaOnce = sync.OnceValues(func() (*Schema, error) {
+	return YANGSchemaWithPlugins(nil)
+})
 
 // loadYANGModules creates a resolved YANG loader with all modules.
 // Shared by YANGSchemaWithPlugins and YANGValidatorWithPlugins.

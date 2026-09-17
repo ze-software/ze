@@ -58,12 +58,14 @@ vpp {
 }
 EOF_FITS
 
+# Each stdout assertion sits under the command that writes it: the runner
+# binds an expect= line to the cmd= above it (runner_exec.go, commit
+# c09f20d769). The file-level expect=exit holds ONE code
+# (Record.ExpectExitCode, record_parse.go) and matches the last command; each
+# command carries its own per-command :exit=, which the runner checks too.
 cmd=foreground:seq=1:exec=ze config validate -:stdin=offline:exit=1
-cmd=foreground:seq=2:exec=ze config validate -:stdin=fits:exit=0
-
-# One exit assertion, matching the last command: the file-level expect=exit
-# holds ONE code (Record.ExpectExitCode, record_parse.go). Each command above
-# carries its own per-command :exit=, which the runner does check separately.
-expect=exit:code=0
 expect=stdout:contains=isolated 2-5
 expect=stdout:contains=available 2-3
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=fits:exit=0
+expect=exit:code=0

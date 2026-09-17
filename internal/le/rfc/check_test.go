@@ -534,8 +534,11 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	// the first new support-promising row since the seven were lowered above. It
 	// carries `| Support | drafts 70 |`, so it joins the DRAFT table and the RFC
 	// section counts below are unchanged.
-	if len(mapped) != 45 || exact != 36 || qualified != 9 || yes != 0 {
-		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 45 (36, 9, 0)",
+	// 46 (37 exact) since 2026-09-14: af10938607 enrolled rfc7705 with
+	// `| Support status | Supported |` under `| Support | bgp-base 265 |`, so
+	// it joins the RFC sections and the section count below rises by one too.
+	if len(mapped) != 46 || exact != 37 || qualified != 9 || yes != 0 {
+		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 46 (37, 9, 0)",
 			len(mapped), exact, qualified, yes)
 	}
 	if exact+qualified+yes != len(mapped) {
@@ -544,8 +547,8 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	}
 
 	rowExact, rowQualified, rowYes := supportClaimSplit(rfcTables)
-	if len(rfcTables) != 42 || rowExact != 33 || rowQualified != 9 || rowYes != 0 {
-		t.Errorf("the eight RFC sections carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 42 (33, 9, 0)",
+	if len(rfcTables) != 43 || rowExact != 34 || rowQualified != 9 || rowYes != 0 {
+		t.Errorf("the eight RFC sections carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 43 (34, 9, 0)",
 			len(rfcTables), rowExact, rowQualified, rowYes)
 	}
 	if len(mapped) != len(rfcTables)+len(draftTable) {

@@ -91,6 +91,7 @@ var fileAllowlist = map[string]string{
 	"internal/component/vpp/dpdk.go":                                 "sysfs PCI/VFIO/hugepage knobs",
 	"internal/component/l2tp/ppp/devppp_linux.go":                    "opens the /dev/ppp kernel device",
 	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
+	"internal/component/cli/sshclient/terminal.go":                   "opens /dev/tty (operator terminal, moved from internal/core/ssh/client in the storage-1 cutover)",
 	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
 	"cmd/ze/hub/pidfile.go":     "runtime pidfile",
@@ -116,10 +117,20 @@ var fileAllowlist = map[string]string{
 	"internal/component/cli/editor.go":          "generic atomic-write util (config editor)",
 }
 
+// zefsPkg names pkg/zefs in a Finding, and is its default import name.
+const zefsPkg = "zefs"
+
+// zefsOpenFn and zefsCreateFn are the two pkg/zefs entry points that open a
+// live store; os.Create shares the second name.
+const (
+	zefsOpenFn   = "Open"
+	zefsCreateFn = "Create"
+)
+
 // osWriteFuncs are the os functions that indicate persistence. os.OpenFile is
 // handled separately, and is flagged only with a write flag.
 var osWriteFuncs = map[string]bool{
-	"WriteFile": true, "Create": true, "Rename": true, "Symlink": true, "Link": true,
+	"WriteFile": true, zefsCreateFn: true, "Rename": true, "Symlink": true, "Link": true,
 }
 
 // readSafeFlags are the os.OpenFile flag terms that cannot open a file for
@@ -206,7 +217,7 @@ func check(tree string, floor int) (Findings, map[string]bool, error) {
 				return scanErr
 			}
 			for _, finding := range found {
-				if finding.Pkg == "zefs" {
+				if finding.Pkg == zefsPkg {
 					if strings.HasPrefix(rel, "internal/component/config/storage/") {
 						matched["internal/component/config/storage/"] = true
 						continue
@@ -298,7 +309,7 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 		if strings.Trim(imported.Path.Value, "\"") != "github.com/ze-software/ze/pkg/zefs" {
 			continue
 		}
-		name := "zefs"
+		name := zefsPkg
 		if imported.Name != nil {
 			name = imported.Name.Name
 		}
@@ -312,18 +323,18 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 		// the bypass. Import aliases resolve by their declared package path.
 		if selector, ok := node.(*ast.SelectorExpr); ok {
 			if zefsNames[identName(selector.X)] {
-				if selector.Sel.Name == "Open" || selector.Sel.Name == "Create" {
+				if selector.Sel.Name == zefsOpenFn || selector.Sel.Name == zefsCreateFn {
 					line := fset.Position(selector.Pos()).Line
-					out = append(out, Finding{File: rel, Line: line, Pkg: "zefs", Fn: selector.Sel.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
+					out = append(out, Finding{File: rel, Line: line, Pkg: zefsPkg, Fn: selector.Sel.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
 				}
 			}
 		}
 		if ident, ok := node.(*ast.Ident); ok {
 			if zefsNames["."] {
 				if ident.Obj == nil {
-					if ident.Name == "Open" || ident.Name == "Create" {
+					if ident.Name == zefsOpenFn || ident.Name == zefsCreateFn {
 						line := fset.Position(ident.Pos()).Line
-						out = append(out, Finding{File: rel, Line: line, Pkg: "zefs", Fn: ident.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
+						out = append(out, Finding{File: rel, Line: line, Pkg: zefsPkg, Fn: ident.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
 					}
 				}
 			}

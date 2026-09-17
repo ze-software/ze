@@ -42,10 +42,12 @@ fixture starts a fresh daemon and compares the event returned by
 `show system update history`, including its original timestamp.
 The explicit native action is
 `ze-test fixture storage/consumer-restart history`, from a scratch directory
-with the selected `ze` on `PATH`. It requires a distribution build with a
-numeric release stamp: the updater deliberately refuses upgrade comparisons
-for `dev` and `unknown`. This fixture is absent from ordinary suite discovery,
-whose daemon may be an unstamped development build.
+with the selected `ze` on `PATH`. The updater refuses every upgrade comparison
+for `dev` and `unknown`, and the suite's daemon is an unstamped development
+build, so the fixture sets `ze.test.update.running.version`
+(`ZE_TEST_UPDATE_RUNNING_VERSION`) to a release the manifest's minimum
+exceeds. The override is read only when the daemon holds no stamp of its own.
+Its suite carrier is `test/plugin/storage-history-restart.ci`.
 <!-- source: internal/test/fixture/storage_consumer_restart.go -- storageHistoryRestart -->
 
 ## Trap

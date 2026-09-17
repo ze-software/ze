@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -786,6 +787,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			if netnsMode && netnsHasUID {
 				if err := os.Chown(configDir, netnsUID, netnsGID); err != nil {
 					rec.Error = fmt.Errorf("chown daemon config directory: %w", err)
+					return false
+				}
+			}
+			// A plugin runs in its daemon's config directory (reactor.go sets
+			// WorkDir to ConfigDir), and the engine-steps executor opens
+			// ./engine-steps.json from there. The runner wrote that file to
+			// WorkDir, so a daemon whose config lives in daemon-N/ needs the
+			// same file beside its config. A restart reuses the directory, so
+			// an existing link is not an error.
+			if configDir != rec.WorkDir && len(rec.EngineSteps) > 0 {
+				err := os.Link(filepath.Join(rec.WorkDir, EngineStepsFileName), filepath.Join(configDir, EngineStepsFileName))
+				if err != nil && !errors.Is(err, fs.ErrExist) {
+					rec.Error = fmt.Errorf("link engine steps into daemon config directory: %w", err)
 					return false
 				}
 			}

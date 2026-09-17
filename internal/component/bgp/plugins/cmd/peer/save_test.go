@@ -1,16 +1,22 @@
 package peer
 
 import (
+	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
 // savedConfig is the configuration file these tests start from. It declares one
@@ -80,14 +86,54 @@ func configuredPeerTree() map[string]any {
 func newSaveContext(t *testing.T, running map[string]any) (*pluginserver.CommandContext, string) {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "ze-bgp.conf")
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ze-bgp.conf")
 	require.NoError(t, os.WriteFile(path, []byte(savedConfig), 0o600))
+	registerDaemonStore(t, dir, path)
 
 	reactor := &mockReactor{configTree: map[string]any{"bgp": map[string]any{"peer": running}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: path}, reactor)
 	require.NoError(t, err)
 
 	return &pluginserver.CommandContext{Server: server}, path
+}
+
+// registerDaemonStore models the daemon a save handler runs in. An explicit-file
+// start creates the tree beside the file and seeds its active version from the
+// file (AC-15, O-4); cmd/ze/hub/main.go then lends that one handle to
+// statestore and installs the commit publisher the editor writes through.
+// The publisher here does what the daemon's does to the file: it refuses an
+// edit the file outran, records the version, and writes the file.
+func registerDaemonStore(t *testing.T, dir, path string) {
+	t.Helper()
+	owned, err := storage.Create(dir)
+	require.NoError(t, err)
+	store := storage.BindConfigSource(owned, path, storage.ConfigSourceFile)
+	_, err = storage.WriteCandidateVersion(store, path, []byte(savedConfig), time.Now())
+	require.NoError(t, err)
+	require.NoError(t, storage.PromoteCandidate(store, path))
+	statestore.SetStore(store)
+	registry.SetRuntimeConfigCommit(func(commitPath string, expected, content []byte) error {
+		current, err := os.ReadFile(commitPath) //nolint:gosec // the path is the test's own temp file
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(current, expected) {
+			return errors.New("configuration changed since this edit began; reload before committing")
+		}
+		if _, err := storage.WriteCandidateVersion(store, commitPath, content, time.Now()); err != nil {
+			return err
+		}
+		if err := storage.PromoteCandidate(store, commitPath); err != nil {
+			return err
+		}
+		return storage.WriteConfigFile(commitPath, content)
+	})
+	t.Cleanup(func() {
+		registry.SetRuntimeConfigCommit(nil)
+		statestore.SetStore(nil)
+		_ = owned.Close()
+	})
 }
 
 // peersInFile answers the peers a configuration file declares, read back with

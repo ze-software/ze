@@ -78,13 +78,23 @@ func storageConsumerRestartArm(ctx context.Context, consumer string, run func(co
 }
 
 func storageConsumerDaemon(ctx context.Context, dir, config, logName string) (*extra1Daemon, string, error) {
+	return storageConsumerDaemonEnv(ctx, dir, config, logName, nil)
+}
+
+// storageConsumerDaemonEnv starts the consumer daemon with extra environment
+// entries a single consumer needs on top of the shared set.
+func storageConsumerDaemonEnv(ctx context.Context, dir, config, logName string, extra map[string]string) (*extra1Daemon, string, error) {
 	// Empty overrides remove inherited selection. The explicit file alone chooses
 	// the owner; state consumers must not depend on either environment spelling.
 	ready := filepath.Join(dir, logName+".ready")
-	daemon, port, err := extra1RunDaemonIn(ctx, dir, "router.conf", logName, config, map[string]string{
+	overrides := map[string]string{
 		envConfigDirDotted: "", envConfigDir: "", "ze.log.ddos.detect": "info", "ze.log.ntp": "debug",
 		envReadyFile: ready,
-	})
+	}
+	for key, value := range extra {
+		overrides[key] = value
+	}
+	daemon, port, err := extra1RunDaemonIn(ctx, dir, "router.conf", logName, config, overrides)
 	if err != nil {
 		return nil, "", err
 	}
@@ -173,6 +183,13 @@ func storageRIRRestart(ctx context.Context, dir string) error {
 	return nil
 }
 
+// The self-updater's test override (internal/component/config/system/selfupdate.go
+// envRunningVersion) and the release the history consumer runs as.
+const (
+	storageHistoryRunningVersionEnv = "ZE_TEST_UPDATE_RUNNING_VERSION"
+	storageHistoryRunningVersion    = "26.09.01"
+)
+
 func storageHistoryRestart(ctx context.Context, dir string) error {
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
@@ -185,7 +202,11 @@ func storageHistoryRestart(ctx context.Context, dir string) error {
 	go serveDelegationFiles(server, listener)
 	defer server.Close() //nolint:errcheck // fixture server
 	config := strings.Replace(resolveRIRConfig(""), "system {", fmt.Sprintf("system { update-check { url %q; auto-apply true; spread 0; interval 86400; }", "http://"+listener.Addr().String()), 1)
-	first, port, err := storageConsumerDaemon(ctx, dir, config, "first.log")
+	// The suite's daemon is an unstamped development build, which the updater
+	// excludes from every upgrade comparison. The test override names a release
+	// the manifest's minimum-version exceeds, so the refusal is recorded.
+	updaterEnv := map[string]string{storageHistoryRunningVersionEnv: storageHistoryRunningVersion}
+	first, port, err := storageConsumerDaemonEnv(ctx, dir, config, "first.log", updaterEnv)
 	if err != nil {
 		return err
 	}
@@ -198,8 +219,8 @@ func storageHistoryRestart(ctx context.Context, dir string) error {
 	}) {
 		return fmt.Errorf("self-updater never reported a running version; this fixture requires a ze_distro daemon")
 	}
-	if status.Running[0] < '0' || status.Running[0] > '9' {
-		return fmt.Errorf("self-updater excludes development builds from upgrades; fixture requires a numeric release stamp, got %q", status.Running)
+	if status.Running != storageHistoryRunningVersion {
+		return fmt.Errorf("self-updater ignored %s: running %q, want %q", storageHistoryRunningVersionEnv, status.Running, storageHistoryRunningVersion)
 	}
 	type event struct {
 		Timestamp string `json:"timestamp"`
@@ -226,7 +247,7 @@ func storageHistoryRestart(ctx context.Context, dir string) error {
 		return err
 	}
 	_ = server.Close() // Restart cannot create a second event from the manifest.
-	second, port, err := storageConsumerDaemon(ctx, dir, config, "second.log")
+	second, port, err := storageConsumerDaemonEnv(ctx, dir, config, "second.log", updaterEnv)
 	if err != nil {
 		return err
 	}

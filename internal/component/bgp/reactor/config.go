@@ -889,8 +889,19 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 		return nil
 	}
 
-	for name, val := range procMap {
-		pMap, ok := val.(map[string]any)
+	// Sort the process names. Go maps iterate in random order, and the reload
+	// diff compares the running peer's settings with the re-parsed file whole
+	// (peerSettingsSwapPlan, peer_settings_apply.go): an attach list in map order
+	// read as a changed peer on half the reloads and restarted an Established
+	// session the operator had not touched.
+	names := make([]string, 0, len(procMap))
+	for name := range procMap {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	for _, name := range names {
+		pMap, ok := procMap[name].(map[string]any)
 		if !ok {
 			continue
 		}

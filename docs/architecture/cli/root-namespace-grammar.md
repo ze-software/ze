@@ -100,6 +100,17 @@ gate collects the populations they judge by parsing every Go source under
 `firstFlagToken`. A gate that judged flag shape differently from the daemon
 would pass a command string the daemon rejects.
 
+## Decision: a declared name is a literal or a package constant
+
+`compositeFlagSpecNames` (`internal/le/cligrammar/flags.go`) reads each
+`FlagSpec.Name`. A literal is the common case. A name written as an identifier
+is resolved through the string constants of its own package, parsed on the first
+lookup only, because a package that spells one flag token in its parser, its
+help page and its registration declares the token once (`init` and
+`flagManaged`). A name that resolves to nothing is counted in
+`flag-names-unresolved` and never dropped: a dropped name made F4 report a
+declared flag as undeclared on 2026-09-17.
+
 ## Decision: F3 asks about the flag, never about the registration
 
 F3 first fired only where `registry.MustRegisterLocalData` served the path, so

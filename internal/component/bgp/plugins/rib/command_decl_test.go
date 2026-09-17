@@ -17,7 +17,7 @@ func TestEveryDeclaredCommandCarriesItsTableSummary(t *testing.T) {
 		t.Fatal("the plugin declares no command")
 	}
 	for _, decl := range decls {
-		if decl.Description != "" {
+		if decl.ShortHelp != "" {
 			continue
 		}
 		t.Errorf("%q publishes no summary, so the dispatch table does not name it", decl.Name)

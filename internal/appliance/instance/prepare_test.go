@@ -560,7 +560,18 @@ func TestPrepareAcceptsSymlinkedBuildDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse prepared ze go.mod: %v", err)
 	}
-	if len(f.Replace) != 1 || !filepath.IsAbs(f.Replace[0].New.Path) {
+	// The fixture also vendors a module, which Prepare binds with a replace
+	// of its own, so the self-replace is found by its path, not by position.
+	var selfReplace *modfile.Replace
+	for _, r := range f.Replace {
+		if r.Old.Path == "github.com/ze-software/ze" {
+			selfReplace = r
+		}
+	}
+	if selfReplace == nil {
+		t.Fatalf("prepared ze go.mod lost its self-replace:\n%s", data)
+	}
+	if !filepath.IsAbs(selfReplace.New.Path) {
 		t.Errorf("the self-replace was not absolutized through the symlink:\n%s", data)
 	}
 }

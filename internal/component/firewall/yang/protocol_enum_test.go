@@ -31,7 +31,10 @@ func TestProtocolNameEnumMatchesCanonicalTable(t *testing.T) {
 		if !strings.HasPrefix(line, "enum ") {
 			continue
 		}
-		inSchema[strings.TrimSuffix(strings.TrimPrefix(line, "enum "), ";")] = true
+		// The enum name is the first token: `enum tcp;` and
+		// `enum tcp { ze:help "..."; }` are both YANG.
+		name, _, _ := strings.Cut(strings.TrimPrefix(line, "enum "), " ")
+		inSchema[strings.TrimSuffix(name, ";")] = true
 	}
 
 	for _, name := range firewall.ProtocolNames() {

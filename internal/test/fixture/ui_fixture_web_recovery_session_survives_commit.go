@@ -46,10 +46,10 @@ func runWebRecoverySessionSurvivesCommit(ctx context.Context) error {
 	}
 	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup
 
-	zeDir := filepath.Join(workDir, "zefs")
-	if err := os.Mkdir(zeDir, 0o700); err != nil {
-		return fmt.Errorf("create ZE_CONFIG_DIR: %w", err)
-	}
+	// The live store lives beside the config file the daemon starts from
+	// (resolve.StoreDir, storage-1), so ze init seeds the break-glass admin in
+	// the folder web-recovery.conf is written to, not in a folder of its own.
+	zeDir := workDir
 
 	webPort, err := uiFreeTCPPort()
 	if err != nil {

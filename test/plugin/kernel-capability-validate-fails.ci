@@ -57,9 +57,16 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate ipsec-capability.conf
 expect=exit:code=1
+expect=stdout:contains=CONFIG_XFRM_USER
+
+# The text rendering prints each error's message; the diagnostic code is the
+# structured contract `ze explain <code>` reads, so it is asserted where the
+# command emits it, on the json rendering (test/parse/bcrypt-placeholder-rejected.ci).
+cmd=foreground:seq=2:exec=ze cli -c "validate config ipsec-capability.conf | json"
+expect=exit:code=1
 expect=stdout:contains=config-kernel-capability
 expect=stdout:contains=CONFIG_XFRM_USER
 
-cmd=foreground:seq=2:exec=ze explain config-kernel-capability
+cmd=foreground:seq=3:exec=ze explain config-kernel-capability
 expect=exit:code=0
 expect=stdout:contains=refuses to start

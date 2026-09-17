@@ -95,20 +95,27 @@ vpp {
 }
 EOF_NOCPU
 
+# Each stdout assertion sits under the command that writes it: the runner
+# binds an expect= line to the cmd= above it (runner_exec.go, commit
+# c09f20d769). The file-level expect=exit holds ONE code
+# (Record.ExpectExitCode, record_parse.go), so a second line would silently
+# replace the first; it matches the last command. Each command carries its own
+# per-command :exit=, which the runner checks too.
 cmd=foreground:seq=1:exec=ze config validate -:stdin=toomany:exit=1
-cmd=foreground:seq=2:exec=ze config validate -:stdin=overlap:exit=1
-cmd=foreground:seq=3:exec=ze config validate -:stdin=unknown:exit=1
-cmd=foreground:seq=4:exec=ze config validate -:stdin=both:exit=1
-cmd=foreground:seq=5:exec=ze config validate -:stdin=good:exit=0
-cmd=foreground:seq=6:exec=ze config validate -:stdin=nocpu:exit=0
-
-# One exit assertion, matching the last command: the file-level expect=exit
-# holds ONE code (Record.ExpectExitCode, record_parse.go), so a second line
-# would silently replace the first. Each command above carries its own
-# per-command :exit=, which the runner does check separately.
-expect=exit:code=0
 expect=stdout:contains=isolated 2-4
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=overlap:exit=1
 expect=stdout:contains=is also main-core
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=unknown:exit=1
 expect=stdout:contains=core 9 is not online
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=both:exit=1
 expect=stdout:contains=not both
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=good:exit=0
+expect=stdout:contains=valid
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=nocpu:exit=0
+expect=exit:code=0
 expect=stdout:contains=valid

@@ -217,6 +217,12 @@ type plugin01SSHRuntime struct {
 	log      *os.File
 }
 
+// plugin01Environment merges the overrides over the inherited environment by
+// the variable each key NAMES, not by its spelling: `ze.config.dir` and
+// `ZE_CONFIG_DIR` are one variable to internal/core/env, which keeps the last
+// spelling os.Environ lists. The runner exports the dotted spelling for every
+// step (internal/test/runner/runner_exec.go, clientEnv), so an override in the
+// other spelling left both in the child and the winner followed map order.
 func plugin01Environment(values map[string]string) []string {
 	environment := make(map[string]string, len(os.Environ())+len(values))
 	for _, entry := range os.Environ() {
@@ -225,12 +231,26 @@ func plugin01Environment(values map[string]string) []string {
 			environment[key] = value
 		}
 	}
+	for override := range values {
+		for key := range environment {
+			if key != override && plugin01SameVariable(key, override) {
+				delete(environment, key)
+			}
+		}
+	}
 	maps.Copy(environment, values)
 	result := make([]string, 0, len(environment))
 	for key, value := range environment {
 		result = append(result, key+"="+value)
 	}
 	return result
+}
+
+// plugin01SameVariable answers whether two spellings name one environment
+// variable under internal/core/env's normalization (case-folded, '.' as '_').
+func plugin01SameVariable(a, b string) bool {
+	fold := func(key string) string { return strings.ToLower(strings.ReplaceAll(key, ".", "_")) }
+	return fold(a) == fold(b)
 }
 
 func plugin01Wait(ctx context.Context, duration time.Duration) error {

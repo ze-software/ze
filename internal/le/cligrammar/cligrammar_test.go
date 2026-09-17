@@ -484,6 +484,49 @@ func TestTheFourUniversalFlagsPassTheGate(t *testing.T) {
 	}
 }
 
+// VALIDATES: a FlagSpec whose Name is a string constant of its own package,
+// declared in a sibling file, is resolved and declares the flag, and one whose
+// Name resolves to nothing is counted rather than dropped.
+// PREVENTS: F4 reporting a declared flag as undeclared. `init` spells
+// `--managed` once, in the file that parses it, and the register file names
+// that constant; a scan reading literals alone dropped the name in silence and
+// failed the checkout (2026-09-17).
+func TestAFlagSpecNamedByAPackageConstantIsDeclared(t *testing.T) {
+	files := cleanFixture(t)
+	files["cmd/ze/roots.go"] = "package main\n\n" +
+		"func wire() {\n" +
+		"\tregistry.MustRegisterRootHandler(\"env\", nil, meta)\n" +
+		"\tregistry.MustRegisterRootHandler(\"fixture\", nil, meta)\n" +
+		"}\n"
+	files["internal/fixture/main.go"] = "package fixture\n\n" +
+		"const flagManaged = \"--managed\"\n\n" +
+		"func run(args []string) int {\n" +
+		"\tfs := flag.NewFlagSet(\"fixture\", flag.ContinueOnError)\n" +
+		"\tmanaged := fs.Bool(\"managed\", false, \"fleet mode\")\n" +
+		"\treturn use(managed, fs.Parse(args))\n" +
+		"}\n"
+	files["internal/fixture/register.go"] = "package fixture\n\n" +
+		"func init() {\n" +
+		"\tregistry.RegisterCommandFlags(\"fixture\", []registry.FlagSpec{\n" +
+		"\t\t{Name: flagManaged, Description: \"fleet mode\"},\n" +
+		"\t\t{Name: flagUnknown, Description: \"declared by nothing\"},\n" +
+		"\t})\n" +
+		"}\n"
+	tree := writeTree(t, files)
+
+	result, err := Check(tree, Floor{}, leProbeRoots())
+	if err != nil {
+		t.Fatalf("the gate failed over the fixture: %v", err)
+	}
+	if count := rulesFound(result)[grammar.RuleFlagUndeclared]; count != 0 {
+		t.Errorf("a flag declared through a package constant drew %d F4 finding(s):\n%s", count, result.Text())
+	}
+	if result.FlagNamesUnresolved != 1 {
+		t.Errorf("the scan reported %d unreadable flag names, want the one constant no file declares",
+			result.FlagNamesUnresolved)
+	}
+}
+
 // VALIDATES: a flag set outside the ze command surface is counted rather than
 // judged, and a flag name no static scan can read is counted rather than
 // dropped.

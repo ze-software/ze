@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+
+	"github.com/ze-software/ze/internal/component/cli/sshclient"
 )
 
 const (
@@ -133,11 +135,15 @@ type pipeAliasTerminal struct {
 
 // pipeAliasStart logs a pseudo-terminal into the daemon's own session model.
 // The sequence is the one a person performs: OpenSSH asks for the password and
-// the hub greets, which lands on the operational prompt where a pipe character
-// means anything at all.
+// the hub greets. The session asks for command mode the way `ze cli -c` does
+// (sshclient.EnvCLIMode, read by internal/component/ssh parseSessionRequest),
+// which lands on the operational prompt where a pipe character means anything
+// at all; a login that names no mode opens the configuration editor once the
+// daemon owns a store, and since storage-1 every daemon does.
 func pipeAliasStart(ctx context.Context, account login) (*pipeAliasTerminal, error) {
 	client := exec.CommandContext(ctx, "ssh", "-tt", "-p", account.port, //nolint:gosec // the fixture chooses the program and its arguments
 		"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+		"-o", "SetEnv="+sshclient.EnvCLIMode+"="+sshclient.CLIModeCommand,
 		"-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
 		"-o", "NumberOfPasswordPrompts=1", "-o", "ConnectTimeout=5", account.user+"@127.0.0.1")
 	client.Env = append(os.Environ(), "TERM=xterm-256color")

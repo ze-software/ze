@@ -66,9 +66,11 @@ func handlerFor(t *testing.T, wireMethod string) pluginserver.Handler {
 
 // registerTempStore opens one tree owner for the process-wide state store.
 // Test cleanup releases it after every handler has finished.
-func registerTempStore(t *testing.T) {
+// It returns the store folder: a config the store writes MUST sit in it.
+func registerTempStore(t *testing.T) string {
 	t.Helper()
-	bs, err := storage.Create(t.TempDir())
+	dir := t.TempDir()
+	bs, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("storage.Create: %v", err)
 	}
@@ -77,6 +79,7 @@ func registerTempStore(t *testing.T) {
 		statestore.SetStore(nil)
 		bs.Close() //nolint:errcheck // best-effort cleanup of a temp-dir store
 	})
+	return dir
 }
 
 // TestShowResolveRIRReachesTheTable proves `show resolve rir <asn>` reaches
@@ -278,9 +281,9 @@ func writeDelegationConfig(t *testing.T, path, content string) {
 func TestRefreshReadsTheSourcesCommittedAfterStartup(t *testing.T) {
 	const mirror = "http://127.0.0.1:8080/delegated-ripencc-extended-latest"
 
-	registerTempStore(t)
+	storeDir := registerTempStore(t)
 
-	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	configPath := filepath.Join(storeDir, "ze.conf")
 	writeDelegationConfig(t, configPath, "system {\n\thost router1;\n}\n")
 
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
@@ -333,9 +336,9 @@ func TestRefreshReadsTheSourcesCommittedAfterStartup(t *testing.T) {
 func TestRefreshNamesAConfiguredSourceItCannotRead(t *testing.T) {
 	const mirror = "http://127.0.0.1:9/delegated-arin-extended-latest"
 
-	registerTempStore(t)
+	storeDir := registerTempStore(t)
 
-	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	configPath := filepath.Join(storeDir, "ze.conf")
 	writeDelegationConfig(t, configPath, "system {\n\thost router1;\n\trir {\n\t\tdelegation-source arin {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
 
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{ConfigPath: configPath}, nil)
@@ -397,9 +400,9 @@ func TestRefreshNamesAConfiguredSourceItCannotRead(t *testing.T) {
 func TestRefreshRefusesASourceTheFetchRuleRefuses(t *testing.T) {
 	const mirror = "http://mirror.example.com/delegated-lacnic-extended-latest"
 
-	registerTempStore(t)
+	storeDir := registerTempStore(t)
 
-	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	configPath := filepath.Join(storeDir, "ze.conf")
 	writeDelegationConfig(t, configPath,
 		"system {\n\thost router1;\n\trir {\n\t\tdelegation-source lacnic {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
 
@@ -472,9 +475,9 @@ func TestRefreshStopsWhenTheConfigCannotBeRead(t *testing.T) {
 // source and no other.
 func TestTheConfigFileSourceReachesTheRefreshReader(t *testing.T) {
 	const mirror = "https://mirror.example.net/delegated-lacnic-extended-latest"
-	registerTempStore(t)
+	storeDir := registerTempStore(t)
 
-	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	configPath := filepath.Join(storeDir, "ze.conf")
 	writeDelegationConfig(t, configPath,
 		"system {\n\trir {\n\t\tdelegation-source lacnic {\n\t\t\turl \""+mirror+"\";\n\t\t}\n\t}\n}\n")
 

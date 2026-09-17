@@ -38,7 +38,7 @@ func bindVendoredModules(goModPath string, data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("bind vendor: Ze replacement %q must be an absolute directory", root)
 	}
 	vendor := filepath.Join(root, "vendor")
-	declarations, err := os.ReadFile(filepath.Join(vendor, "modules.txt"))
+	declarations, err := os.ReadFile(filepath.Join(vendor, "modules.txt")) //nolint:gosec // trusted checked-in vendor tree under the Ze replacement
 	if err != nil {
 		return nil, fmt.Errorf("bind vendor: read module declarations: %w", err)
 	}
@@ -142,6 +142,6 @@ func linkVendorModule(src, dst string, roots map[string]bool) error {
 		if d.Name() == GoModName {
 			return fmt.Errorf("%s: unexpected vendored module manifest", path)
 		}
-		return os.Link(path, target)
+		return os.Link(path, target) //nolint:gosec // G122: walks the checked-in vendor tree into a build dir this preparer just created; the regular-file check above refuses a symlink
 	})
 }

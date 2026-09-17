@@ -161,7 +161,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	}
 
 	// Boot 0: config-only REST and strict AAA, with no zefs database.
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-config-only.conf"), f.path("api-on-port1.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(configOnlyDir), f.path("users-config-only.conf"), f.path("api-on-port1.conf")); err != nil {
 		return err
 	}
 	if err := f.startDaemon("config-only", "config-only.log", configOnlyDir); err != nil {
@@ -181,7 +181,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	}
 
 	// Boot 1: actual runYANGConfig merge with distinct zefs/config names.
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-distinct.conf"), f.path("api-on-port1.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(distinctDir), f.path("users-distinct.conf"), f.path("api-on-port1.conf")); err != nil {
 		return err
 	}
 	if err := f.startDaemon("distinct", "distinct.log", distinctDir); err != nil {
@@ -200,7 +200,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	if err := f.initZE(collisionDir); err != nil {
 		return err
 	}
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-collision.conf"), f.path("api-on-port1.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(collisionDir), f.path("users-collision.conf"), f.path("api-on-port1.conf")); err != nil {
 		return err
 	}
 	if err := f.startDaemon("collision", "collision.log", collisionDir); err != nil {
@@ -215,7 +215,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	}
 
 	// Boot 3 uses a fresh filesystem-backed config source for live reloads.
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-distinct.conf"), f.path("api-on-port1.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(reloadDir), f.path("users-distinct.conf"), f.path("api-on-port1.conf")); err != nil {
 		return err
 	}
 	if err := f.startDaemon("reload-boot", "reload.log", reloadDir); err != nil {
@@ -224,7 +224,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 
 	// Reload 1 removes bootuser, adds newuser, changes keepuser to the denying
 	// profile, and removes api-server.
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-no-boot.conf"), f.path("api-absent.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(reloadDir), f.path("users-no-boot.conf"), f.path("api-absent.conf")); err != nil {
 		return err
 	}
 	if err := f.reloadAndCheck("boot-site"); err != nil {
@@ -232,7 +232,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	}
 
 	// Reload 2 restores api-server on another port. The move proves UpdateAuth ran.
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-no-boot.conf"), f.path("api-on-port2.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(reloadDir), f.path("users-no-boot.conf"), f.path("api-on-port2.conf")); err != nil {
 		return err
 	}
 	if err := f.reloadAndCheck("rebuilt"); err != nil {
@@ -240,7 +240,7 @@ func runAPIUserRemovedByReload(ctx context.Context) error {
 	}
 
 	// Reload 3 removes reloaduser while leaving api-server absent.
-	if err := writeCombinedConfig(f.path("api-user-reload.conf"), f.path("users-keep-only.conf"), f.path("api-absent.conf")); err != nil {
+	if err := writeCombinedConfig(configIn(reloadDir), f.path("users-keep-only.conf"), f.path("api-absent.conf")); err != nil {
 		return err
 	}
 	if err := f.reloadAndCheck("reload-site"); err != nil {
@@ -328,6 +328,13 @@ func writeSystem(path, users string) error {
 	return os.WriteFile(path, []byte(contents), 0o600)
 }
 
+// configIn names the config file of one boot. Each boot owns a store of its
+// own, and the store lives beside the config file the daemon starts from
+// (resolve.StoreDir, storage-1), so the file lives in that boot's directory.
+func configIn(configDir string) string {
+	return filepath.Join(configDir, "api-user-reload.conf")
+}
+
 func writeCombinedConfig(outputPath, systemPath, environmentPath string) error {
 	systemConfig, err := os.ReadFile(systemPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
@@ -354,7 +361,7 @@ func (f *apiUserReloadFixture) startDaemon(stage, logName, configDir string) err
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(f.ctx, "ze", "start", f.path("api-user-reload.conf")) //nolint:gosec // the fixture chooses the program and its arguments
+	cmd := exec.CommandContext(f.ctx, "ze", "start", configIn(configDir)) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = f.work
 	cmd.Env = uiApiUserRemovedByReloadReplaceEnv(f.baseEnv, map[string]string{
 		envReadyFile: readyPath,

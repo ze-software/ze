@@ -39,6 +39,9 @@ var (
 )
 
 const (
+	// flagManaged is the one flag token the parser, the help page and the
+	// completion inventory each spell.
+	flagManaged = "--managed"
 	defaultHost = "127.0.0.1"
 	defaultPort = "2222"
 )
@@ -69,7 +72,7 @@ func Run(args []string) int {
 					{Name: "Line 5: name", Desc: "(default: hostname)"},
 				}},
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--managed", Desc: "Enable managed (fleet) mode"},
+					{Name: flagManaged, Desc: "Enable managed (fleet) mode"},
 					{Name: "--force", Desc: "Replace existing database (moves old to .replaced-<date>)"},
 					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
@@ -103,7 +106,7 @@ func Run(args []string) int {
 		for _, ignored := range []struct {
 			set  bool
 			name string
-		}{{*managedFlag, "--managed"}, {*webCertFlag != "", "--web-cert"}, {*webCertNameFlag != "", "--web-cert-name"}} {
+		}{{*managedFlag, flagManaged}, {*webCertFlag != "", "--web-cert"}, {*webCertNameFlag != "", "--web-cert-name"}} {
 			if ignored.set {
 				fmt.Fprintf(os.Stderr, "error: --from imports a blob as it is; %s shapes a new store and cannot be combined with it\n", ignored.name)
 				return 1

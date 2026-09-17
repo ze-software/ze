@@ -182,7 +182,7 @@ func TestPPPoELinkDifferenceDetectsMissingAndDuplicateLinks(t *testing.T) {
 
 func TestNetnsSelectionsHaveAbsolutePopulations(t *testing.T) {
 	t.Parallel()
-	want := map[string]int{netnsFirewall: 22, netnsPolicy: 6, netnsOSPF: 8, netnsOSPFv3: 3, netnsPPPoE: 3}
+	want := map[string]int{netnsFirewall: 22, netnsPolicy: 8, netnsOSPF: 8, netnsOSPFv3: 3, netnsPPPoE: 6}
 	for suite, count := range want {
 		if got := len(netnsSelections[suite]); got != count {
 			t.Errorf("%s has %d selectors, want %d", suite, got, count)

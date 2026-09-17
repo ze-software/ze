@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // The two schema views this coverage walk names in its command, its evidence
@@ -24,6 +26,9 @@ const (
 
 // envKeyCLIFormat is the env row this walk reads, sets and clears.
 const envKeyCLIFormat = "ze.cli.format"
+
+// envConfigDirDotted is the runner's spelling of ZE_CONFIG_DIR.
+const envConfigDirDotted = "ze.config.dir"
 
 // pluginNameRIB is the plugin three commands below look for by name. It carries
 // no feature tag, so it is in every build, and a binary without it is a binary
@@ -361,6 +366,35 @@ func inPrivateWorkspace(scenario func(string) error) (result error) {
 	}
 	if err := os.Setenv("ZE_CONFIG_DIR", work); err != nil {
 		return fmt.Errorf("set ZE_CONFIG_DIR: %w", err)
+	}
+	// The runner exports the dotted spelling of the same variable for every
+	// step (internal/test/runner/runner_exec.go, clientEnv), and
+	// internal/core/env keeps whichever spelling os.Environ lists last. Both
+	// spellings name the private workspace so every `ze` child resolves it.
+	previousDotted, dottedWasSet := os.LookupEnv(envConfigDirDotted)
+	if err := os.Setenv(envConfigDirDotted, work); err != nil {
+		return fmt.Errorf("set %s: %w", envConfigDirDotted, err)
+	}
+	defer func() {
+		var err error
+		if dottedWasSet {
+			err = os.Setenv(envConfigDirDotted, previousDotted)
+		} else {
+			err = os.Unsetenv(envConfigDirDotted)
+		}
+		if err != nil {
+			result = errors.Join(result, fmt.Errorf("restore %s: %w", envConfigDirDotted, err))
+		}
+	}()
+	// A data command never creates a live store (storage-1, owner decision 1:
+	// storage.Create is called by ze init and ze start alone), so the
+	// workspace holds one before the runtime-store keys are seeded.
+	store, err := storage.Create(work)
+	if err != nil {
+		return fmt.Errorf("create the workspace live store: %w", err)
+	}
+	if err := store.Close(); err != nil {
+		return fmt.Errorf("release the workspace live store: %w", err)
 	}
 	return scenario(work)
 }

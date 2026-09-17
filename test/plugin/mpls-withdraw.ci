@@ -33,9 +33,17 @@ cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 # strip it and left this expectation encoding the old, non-conformant output; the
 # hex below is what ze now sends, corrected 2026-08-02. A test that pins a
 # violation is the violation with a green bar on top (ai/rules/rfc-compliance.md).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000204001010040020602010000FDE9800E10000104040A0000020030003E810A0100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE94003040A000002800E10000104040A0000020030003E810A0100
 cmd=api:conn=1:seq=2:text=route-driver withdraws it
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00010430003E810A0100
+# The withdrawal carries ORIGIN and AS_PATH beside MP_UNREACH_NLRI. RFC 4760
+# Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI is not required
+# to carry any other path attributes", which permits them, and the API rail
+# writes them for every family outside unicast (buildBatchWithdrawUpdate,
+# internal/component/bgp/reactor/reactor_api_batch.go, since fa86db31ed) so a
+# labeled withdrawal takes the same shape as the FlowSpec one flowspec-fw-withdraw.ci
+# pins. The 36-byte bare MP_UNREACH_NLRI this line expected before pinned the
+# earlier encoder.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001A4001010040020602010000FDE9800F0A00010430003E810A0100
 EOF_PEER
 
 # Native route driver announces, waits for the wire counter, then withdraws.

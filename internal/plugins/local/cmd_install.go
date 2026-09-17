@@ -229,7 +229,7 @@ func installUsage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--prefix <path>", Desc: "Installation prefix (default: interactive selection)"},
-				{Name: "--dry-run", Desc: "Print what would be done without making changes"},
+				{Name: flagDryRun, Desc: "Print what would be done without making changes"},
 			}},
 			{Title: "Installation paths", Entries: []helpfmt.HelpEntry{
 				{Name: "/usr/local", Desc: "Binary in /usr/local/bin, config in /etc/ze (recommended)"},

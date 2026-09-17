@@ -169,6 +169,11 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 	}
 }
 `)
+	// runChecks opens the store beside the config read-only, and a check
+	// only receives one where it exists: create it, closed, before the run.
+	owner, err := storage.Create(filepath.Dir(cfgPath))
+	require.NoError(t, err)
+	require.NoError(t, owner.Close())
 
 	const fixtureName = "doctor-runner-fixture"
 	called := false

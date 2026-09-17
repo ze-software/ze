@@ -24,18 +24,19 @@ option=open:value=add-capability:code=1:hex=00010004
 # message 1. The route-driver plugin below issues it for real.
 #
 # Driven from the plugin rather than declared in the peer's `update` block on
-# purpose: the two paths encode differently, and the expected bytes below are the
-# API path's. The config-declared path (reactor_wire.go) omits LOCAL_PREF on an
-# eBGP session and emits a top-level NEXT_HOP, so it produces a DIFFERENT
-# 62-byte UPDATE. Keeping the mechanism the expectation was written against keeps
-# this test and its sibling mpls-withdraw.ci on one path.
+# purpose: the expected bytes below are the API path's. Since fa86db31ed the API
+# rail restates the next hop as a top-level NEXT_HOP beside MP_REACH_NLRI for
+# labeled unicast (family.Family.LegacyNextHop), the same 62-byte UPDATE the
+# config-declared path (reactor_wire.go) sends. Keeping the mechanism the
+# expectation was written against keeps this test and its sibling
+# mpls-withdraw.ci on one path.
 cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 # LOCAL_PREF is ABSENT on purpose. RFC 4271 Section 5.1.5 confines LOCAL_PREF to
 # IBGP, and this peer is eBGP (65001 -> 65002). Commit d33033872 made the sender
 # strip it and left this expectation encoding the old, non-conformant output; the
 # hex below is what ze now sends, corrected 2026-08-02. A test that pins a
 # violation is the violation with a green bar on top (ai/rules/rfc-compliance.md).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000204001010040020602010000FDE9800E10000104040A0000020030003E810A0100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE94003040A000002800E10000104040A0000020030003E810A0100
 EOF_PEER
 
 # Native route driver announces the labeled prefix after initial-sync EOR.
@@ -77,10 +78,8 @@ bgp {
 		# // the config-declared `update` block that briefly stood here
 		# is replaced by the route-driver plugin above, not dropped. It was added
 		# during this fix and never shipped: it made ze announce, but through the
-		# OTHER encoder, which on an eBGP session omits LOCAL_PREF and emits a
-		# top-level NEXT_HOP -- a different 62-byte UPDATE than the expect=bgp
-		# line asserts. The assertion is unchanged and now runs against the path
-		# it was written for. Zero assertions removed.
+		# OTHER encoder. The assertion runs against the path it was written
+		# for. Zero assertions removed.
 		attach process route-driver {
 			send [ update ]
 		}

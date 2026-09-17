@@ -24,7 +24,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		}
 	}
 
-	assert.Len(t, found, 9, "expected 9 RIB proxy RPCs")
+	assert.Len(t, found, 11, "expected 11 RIB proxy RPCs")
 
 	// Build lookup for assertions
 	byWire := make(map[string]bool, len(found))
@@ -41,6 +41,10 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		"ze-rib-api:clear-in",
 		"ze-rib-api:clear-out",
 		"ze-rib-api:rpf",
+		"ze-rib-api:inject",
+		"ze-rib-api:withdraw",
+		"ze-rib-api:protocol",
+		"ze-rib-api:fastpath",
 	} {
 		assert.True(t, byWire[wire], "missing RPC: %s", wire)
 	}

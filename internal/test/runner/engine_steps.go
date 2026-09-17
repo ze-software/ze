@@ -22,8 +22,9 @@
 // absent= / json= are expect=output only.
 //
 // Execution model: the runner serializes the parsed steps to
-// engine-steps.json in the test's tmpfs directory, and the .ci declares the
-// executor as a regular external plugin:
+// engine-steps.json in the test's tmpfs directory, links it into the config
+// directory of every further daemon (daemon-N/, runner_exec.go), and the .ci
+// declares the executor as a regular external plugin:
 //
 //	plugin {
 //		external engine-steps {

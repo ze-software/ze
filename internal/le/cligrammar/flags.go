@@ -86,8 +86,13 @@ type goSurface struct {
 	// cannot read (a constant, a buffer). Their flags are checked by nothing,
 	// so the count is published rather than dropped.
 	UnresolvedSetNames int
-	// UnresolvedFlagNames counts flag declarations whose name is not a literal.
+	// UnresolvedFlagNames counts flag declarations whose name is not a literal,
+	// and FlagSpec names that are neither a literal nor a string constant of
+	// their own package.
 	UnresolvedFlagNames int
+	// constants caches each directory's package-level string constants, parsed
+	// on the first FlagSpec whose Name is an identifier rather than a literal.
+	constants map[string]*packageConstants
 	// UnattributedFlags counts flag declarations on a set the enclosing
 	// function did not build, whose command this scan cannot decide.
 	UnattributedFlags int
@@ -154,11 +159,12 @@ func scanGoFile(path, rel string, surface *goSurface) error {
 	}
 	surface.FilesRead++
 
-	specSets := flagSpecSets(file)
+	constants := surface.packageConstantsOf(filepath.Dir(path))
+	specSets := flagSpecSets(file, constants, surface)
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch typed := node.(type) {
 		case *ast.CallExpr:
-			registryCall(typed, specSets, surface)
+			registryCall(typed, specSets, constants, surface)
 		case *ast.FuncDecl:
 			functionFlagSets(typed, fset, rel, surface)
 		case *ast.BasicLit:
@@ -186,7 +192,7 @@ func (e *scanError) Error() string { return e.message }
 
 // registryCall records a root registration, a flag declaration, or a local
 // data registration, each of which is a population a feeder reads.
-func registryCall(call *ast.CallExpr, specSets map[string][]string, surface *goSurface) {
+func registryCall(call *ast.CallExpr, specSets map[string][]string, constants *packageConstants, surface *goSurface) {
 	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return
@@ -208,14 +214,14 @@ func registryCall(call *ast.CallExpr, specSets map[string][]string, surface *goS
 		if len(call.Args) < 2 {
 			return
 		}
-		surface.Declared[path] = append(surface.Declared[path], flagSpecNames(call.Args[1], specSets)...)
+		surface.Declared[path] = append(surface.Declared[path], flagSpecNames(call.Args[1], specSets, constants, surface)...)
 	}
 }
 
 // flagSpecSets answers every `<name> := []registry.FlagSpec{...}` in one file,
 // so a RegisterCommandFlags call given a variable is still resolved. The l2tp
 // CLI declares one set and registers it under three paths.
-func flagSpecSets(file *ast.File) map[string][]string {
+func flagSpecSets(file *ast.File, constants *packageConstants, surface *goSurface) map[string][]string {
 	sets := map[string][]string{}
 	ast.Inspect(file, func(node ast.Node) bool {
 		assign, ok := node.(*ast.AssignStmt)
@@ -226,7 +232,7 @@ func flagSpecSets(file *ast.File) map[string][]string {
 		if !ok {
 			return true
 		}
-		if names := compositeFlagSpecNames(assign.Rhs[0]); names != nil {
+		if names := compositeFlagSpecNames(assign.Rhs[0], constants, surface); names != nil {
 			sets[name.Name] = names
 		}
 		return true
@@ -236,8 +242,8 @@ func flagSpecSets(file *ast.File) map[string][]string {
 
 // flagSpecNames answers the flag tokens a RegisterCommandFlags argument holds,
 // whether it is written inline or named by a variable this file assigns.
-func flagSpecNames(arg ast.Expr, specSets map[string][]string) []string {
-	if names := compositeFlagSpecNames(arg); names != nil {
+func flagSpecNames(arg ast.Expr, specSets map[string][]string, constants *packageConstants, surface *goSurface) []string {
+	if names := compositeFlagSpecNames(arg, constants, surface); names != nil {
 		return names
 	}
 	if ident, ok := arg.(*ast.Ident); ok {
@@ -247,8 +253,12 @@ func flagSpecNames(arg ast.Expr, specSets map[string][]string) []string {
 }
 
 // compositeFlagSpecNames reads the Name field of every FlagSpec in a composite
-// literal.
-func compositeFlagSpecNames(expr ast.Expr) []string {
+// literal. A Name written as an identifier is resolved through the package's
+// string constants (`init` spells `--managed` once, in the file that parses
+// it), and one that resolves to nothing is counted in UnresolvedFlagNames
+// rather than dropped: a dropped name makes the F4 check report a declared
+// flag as undeclared.
+func compositeFlagSpecNames(expr ast.Expr, constants *packageConstants, surface *goSurface) []string {
 	composite, ok := expr.(*ast.CompositeLit)
 	if !ok {
 		return nil
@@ -270,10 +280,96 @@ func compositeFlagSpecNames(expr ast.Expr) []string {
 			}
 			if name, ok := literalString(pair.Value); ok {
 				names = append(names, name)
+				continue
 			}
+			ident, ok := pair.Value.(*ast.Ident)
+			if !ok {
+				surface.UnresolvedFlagNames++
+				continue
+			}
+			name, ok := constants.lookup(ident.Name)
+			if !ok {
+				surface.UnresolvedFlagNames++
+				continue
+			}
+			names = append(names, name)
 		}
 	}
 	return names
+}
+
+// packageConstantsOf answers the constant resolver for one directory, shared by
+// every file the walk reads there.
+func (s *goSurface) packageConstantsOf(dir string) *packageConstants {
+	if s.constants == nil {
+		s.constants = map[string]*packageConstants{}
+	}
+	if constants, ok := s.constants[dir]; ok {
+		return constants
+	}
+	constants := &packageConstants{dir: dir}
+	s.constants[dir] = constants
+	return constants
+}
+
+// packageConstants resolves a package-level string constant by name. The
+// directory's sources are parsed on the first lookup only: nearly every
+// directory declares its flags as literals and never asks.
+type packageConstants struct {
+	dir string
+	// values is nil until the first lookup, then holds every top-level
+	// `name = "literal"` constant of the directory's non-test sources.
+	values map[string]string
+}
+
+// lookup answers the string a package-level constant holds, and false for a
+// name that is not one: not declared, not a string, or not a plain literal (an
+// iota or an expression is not a spelling this scan can compare).
+func (c *packageConstants) lookup(name string) (string, bool) {
+	if c.values == nil {
+		c.values = map[string]string{}
+		entries, err := os.ReadDir(c.dir)
+		if err != nil {
+			return "", false
+		}
+		fset := token.NewFileSet()
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+				continue
+			}
+			file, err := parser.ParseFile(fset, filepath.Join(c.dir, entry.Name()), nil, 0)
+			if err != nil {
+				// scanGoFile reports the parse error for this file; the
+				// constant it might hold is simply unresolved here.
+				continue
+			}
+			collectStringConstants(file, c.values)
+		}
+	}
+	value, ok := c.values[name]
+	return value, ok
+}
+
+// collectStringConstants adds every top-level `name = "literal"` constant of
+// file to values.
+func collectStringConstants(file *ast.File, values map[string]string) {
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.CONST {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok || len(vs.Names) != len(vs.Values) {
+				continue
+			}
+			for i, name := range vs.Names {
+				if value, ok := literalString(vs.Values[i]); ok {
+					values[name.Name] = value
+				}
+			}
+		}
+	}
 }
 
 // functionFlagSets records every flag set one function builds, with the flags

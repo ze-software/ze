@@ -3,4 +3,4 @@
 
 cmd=foreground:seq=1:exec=ze install systemd -h
 expect=exit:code=0
-expect=stdout:contains=ze systemd install
+expect=stdout:contains=ze install systemd

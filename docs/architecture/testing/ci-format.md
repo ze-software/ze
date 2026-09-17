@@ -1623,7 +1623,9 @@ needs `fixture.Poll` around the read, never a fixed settle before it.
 
 Engine steps drive a live daemon through CLI dispatch, first-class in `.ci`
 instead of an embedded Python observer. The runner serializes the parsed steps
-to `engine-steps.json` in the test tmpfs; the `.ci` declares the executor as an
+to `engine-steps.json` in the test tmpfs, and links it into the `daemon-N/`
+config directory of every further daemon, because a plugin runs in its daemon's
+config directory; the `.ci` declares the executor as an
 external plugin (`run "ze-test engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.

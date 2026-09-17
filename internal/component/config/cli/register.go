@@ -49,6 +49,13 @@ func init() {
 		Subs:      subcommands(),
 	})
 
+	// Flag inventory for shell completion (registration over hardcoding).
+	// Mirrors the flag.FlagSet declarations in cmd_import.go.
+	registry.RegisterCommandFlags("config import", []registry.FlagSpec{
+		{Name: "--name", Description: "destination config name (one input only)", ValueHint: registry.FlagValueNone},
+		{Name: "--dir", Description: "destination store folder", ValueHint: registry.FlagValueFile},
+	})
+
 	// Read-only shortcuts read their explicit candidate/running config source.
 	// Each of these answers with DATA, so the operator's pipe chain renders it
 	// and no command carries a rendering flag of its own. They printed and

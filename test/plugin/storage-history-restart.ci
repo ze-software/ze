@@ -2,8 +2,8 @@
 # VALIDATES: Serves a manifest whose minimum-version blocks the upgrade, waits for the one blocked-minimum-version event, stops the manifest server, and checks the same event after restart.
 # PREVENTS: a working generic state RPC hiding a consumer that never restores.
 # The fixture launches ze start <selected>/router.conf without a config-dir pin.
-# The daemon is the runner's own build: ze_distro with a numeric version stamp,
-# which the self-updater requires before it reports a running version.
+# The daemon is the runner's own unstamped build, so the fixture hands it
+# ze.test.update.running.version: the release the manifest's minimum exceeds.
 option=timeout:value=70s
 cmd=foreground:seq=1:exec=ze-test fixture storage/consumer-restart history:timeout=60s
 expect=exit:code=0

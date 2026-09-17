@@ -52,9 +52,9 @@ type flagPathDebt struct {
 }
 
 // flagDeclarationDebt is the F4 debt: the offline `ze` command paths whose flags
-// registry.RegisterCommandFlags does not declare. It declares the flags of two
-// paths (`exabgp plugin` and `exabgp migrate`) plus the three `l2tp` verbs.
-// Every one of these is invisible to completion until its path is registered.
+// registry.RegisterCommandFlags does not declare. The paths it does declare
+// are its callers (`grep -rn RegisterCommandFlags internal/`), and each entry
+// here is invisible to completion until its path joins them.
 //
 // This is DEBT, never an allowlist. Each entry names the source that parses the
 // flags, so the fix is one RegisterCommandFlags call in that package's
@@ -141,10 +141,6 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_fmt.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--check", "--diff", "-w"},
 	},
-	"config import": {
-		Reason: "the flags are parsed in internal/component/config/cli/cmd_import.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--name"},
-	},
 	"config migrate": {
 		Reason: "the flags are parsed in internal/component/config/cli/cmd_migrate.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--dry-run", "--list", "-o"},
@@ -160,10 +156,6 @@ var flagDeclarationDebt = map[string]flagPathDebt{
 	"env list": {
 		Reason: "the flags are parsed in internal/plugins/env/env.go and no RegisterCommandFlags call declares them",
 		Flags:  []string{"--verbose", "-v"},
-	},
-	"init": {
-		Reason: "the flags are parsed in internal/plugins/init/main.go and no RegisterCommandFlags call declares them",
-		Flags:  []string{"--force", "--managed", "--seed", "--web-cert", "--web-cert-name", "--yes"},
 	},
 	"interface migrate": {
 		Reason: "the flags are parsed in internal/component/iface/cli/migrate.go and no RegisterCommandFlags call declares them",

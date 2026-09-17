@@ -255,14 +255,18 @@ func (m *ConfigSessionManager) Commit(req *ConfigCommitRequest) error {
 	onCommit := m.onCommit
 	m.mu.RUnlock()
 	if onCommit != nil {
-		content, _, warnings, stageErr := session.Editor.StageCandidate(time.Now())
+		stageStart := time.Now()
+		content, _, warnings, stageErr := session.Editor.StageCandidate(stageStart)
 		if stageErr != nil {
 			return fmt.Errorf("commit candidate: %w", stageErr)
 		}
+		configSessionLogger().Debug("commit: candidate staged", "user", req.Username, "elapsed", time.Since(stageStart))
 		logCommitWarnings(req.Username, warnings)
+		hookStart := time.Now()
 		if hookErr := onCommit(); hookErr != nil {
 			return fmt.Errorf("commit runtime reload failed: %w", hookErr)
 		}
+		configSessionLogger().Debug("commit: runtime reload applied", "user", req.Username, "elapsed", time.Since(hookStart))
 		session.Editor.MarkCommittedContent(content)
 	} else {
 		warnings, saveErr := session.Editor.Save()

@@ -126,7 +126,7 @@ func uninstallUsage() {
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--prefix <path>", Desc: "Installation prefix (default: detect from running binary)"},
 				{Name: "--purge", Desc: "Also remove config directory and database"},
-				{Name: "--dry-run", Desc: "Print what would be done without making changes"},
+				{Name: flagDryRun, Desc: "Print what would be done without making changes"},
 				{Name: "--yes", Desc: "Skip confirmation prompt"},
 			}},
 		},
