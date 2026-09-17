@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // knownModelFields is the allowlist of Model's fields as of the view-registry
@@ -158,7 +158,7 @@ func TestModelValidationOnLoad(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -202,7 +202,7 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -249,7 +249,7 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -277,7 +277,7 @@ func TestModelStatusMessageDisplay(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -306,7 +306,7 @@ func TestModelStatusMessageClearsOnCommand(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -341,7 +341,7 @@ func TestModelStatusMessageClearsOnError(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -377,7 +377,7 @@ func TestModelRevalidatesOnDiscard(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -408,7 +408,7 @@ func TestModelValidationDebounce(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -480,7 +480,7 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -508,7 +508,7 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigOneLine), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -538,7 +538,7 @@ func TestExitCommandSwitchesMode(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -576,7 +576,7 @@ func TestExitBlockedByDirty(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -610,7 +610,7 @@ func TestEscapeClearsInputInsteadOfQuitting(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -644,7 +644,7 @@ func TestEscapeEmptyInputTriggersQuit(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -675,7 +675,7 @@ func TestEscapeAfterErrorsReturnsToConfig(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -715,7 +715,7 @@ func TestCtrlCStillQuitsWithInput(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -743,7 +743,7 @@ func TestCommandHistoryRecall(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -791,7 +791,7 @@ func TestCommandHistorySavedOnEnter(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -819,7 +819,7 @@ func TestCommandHistoryNoDuplicates(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -852,12 +852,12 @@ func TestSetHistoryLoadsCurrentMode(t *testing.T) {
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
 	// Pre-populate store with edit history.
-	storePath := filepath.Join(tmpDir, "test.zefs")
-	store, err := zefs.Create(storePath)
+	store, err := storage.Create(tmpDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte("show\ncommit"), 0))
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -865,7 +865,6 @@ func TestSetHistoryLoadsCurrentMode(t *testing.T) {
 	require.NoError(t, err)
 
 	m.SetHistory(NewHistory(store, "testuser"))
-	store.Close() //nolint:errcheck // test cleanup
 
 	assert.Equal(t, []string{"show", "commit"}, m.history.Entries(), "should load edit history from store")
 }
@@ -879,13 +878,13 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	storePath := filepath.Join(tmpDir, "test.zefs")
-	store, err := zefs.Create(storePath)
+	store, err := storage.Create(tmpDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte("show"), 0))
 	require.NoError(t, store.WriteFile("meta/history/testuser/operational", []byte("peer list\ndaemon status"), 0))
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -893,15 +892,14 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	require.NoError(t, err)
 
 	m.SetHistory(NewHistory(store, "testuser"))
-	store.Close() //nolint:errcheck // test cleanup
 
 	// Switch to command mode.
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	assert.Equal(t, []string{"peer list", "daemon status"}, m.history.Entries(),
 		"command history should be pre-loaded from store")
 
 	// Switch back to edit.
-	m.switchMode(ModeConfig)
+	m.SetMode(ModeConfig)
 	assert.Equal(t, []string{"show"}, m.history.Entries(),
 		"edit history should survive mode round-trip")
 }
@@ -915,11 +913,11 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	storePath := filepath.Join(tmpDir, "test.zefs")
-	store, err := zefs.Create(storePath)
+	store, err := storage.Create(tmpDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -938,7 +936,6 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	// Reload history from the same store.
 	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("config")
-	store.Close() //nolint:errcheck // test cleanup
 
 	assert.Equal(t, []string{"show"}, loaded, "command should be persisted to store via Save")
 }
@@ -949,8 +946,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 // VALIDATES: AC-2: Commands in ze cli survive restart.
 // PREVENTS: Command-mode history lost because Save uses wrong mode key.
 func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
-	storePath := filepath.Join(t.TempDir(), "test.zefs")
-	store, err := zefs.Create(storePath)
+	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)
 
 	model := NewCommandModel(FilesystemAuthorityOperatorLocal)
@@ -968,7 +964,6 @@ func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 	// Reload from store and verify saved under "operational" key.
 	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("operational")
-	store.Close() //nolint:errcheck // test cleanup
 
 	assert.Equal(t, []string{"peer list"}, loaded, "operational-mode history should be persisted under 'operational' key")
 }
@@ -984,7 +979,7 @@ func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1025,7 +1020,7 @@ func TestExitAfterDiscard(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1070,7 +1065,7 @@ func TestExitAfterCommit(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1115,7 +1110,7 @@ func TestNoFalseDirtyOnOpen(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1126,7 +1121,7 @@ func TestNoFalseDirtyOnOpen(t *testing.T) {
 	err = os.WriteFile(configPath2, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed2, err := NewEditor(configPath2)
+	ed2, err := NewLooseFileEditor(nil, configPath2)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1145,7 +1140,7 @@ func TestModelStartsInEditMode(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1254,7 +1249,7 @@ func TestShiftArrowLineScroll(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content.String()), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1301,7 +1296,7 @@ func TestCtrlArrowPageScroll(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content.String()), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1436,7 +1431,7 @@ func TestModelDisplaysLoginWarningsWithEditor(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -1643,4 +1638,14 @@ func TestLevelResetsOnEveryCompletionClearSite(t *testing.T) {
 			assert.Equal(t, tc.want, current.revealLevel(), "reveal level after the key")
 		})
 	}
+}
+
+func TestCommandModelSurvivesZeroWidthResize(t *testing.T) {
+	model := NewCommandModel(FilesystemAuthorityUnknown)
+	shrunk, _ := model.Update(tea.WindowSizeMsg{})
+	// Empty input renders its placeholder through the same View used by SSH.
+	assert.Contains(t, shrunk.View().Content, "ze>")
+	restored, _ := shrunk.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	typed, _ := restored.Update(tea.KeyPressMsg{Code: 'r', Text: "resize-proof"})
+	assert.Contains(t, typed.View().Content, "resize-proof")
 }

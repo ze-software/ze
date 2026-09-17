@@ -46,8 +46,8 @@ expect=dirty:false
 expect=error:none
 
 # Verify peer removed from config file
-expect=file:path=test.conf:not-contains=peer1
-expect=file:path=test.conf:not-contains=1.1.1.1
+expect=key:path=file/active/test.conf:not-contains=peer1
+expect=key:path=file/active/test.conf:not-contains=1.1.1.1
 
 # Verify draft file cleaned up
-expect=file:path=test.conf.draft:absent
+expect=key:path=file/active/test.conf.draft:absent

@@ -111,9 +111,8 @@ func TestTheContainerMountsTheTreeAndTheScratch(t *testing.T) {
 
 // VALIDATES: the daemon is started inside the container with the environment
 // the proof needs, reading its configuration from standard input.
-// PREVENTS: the kernel-probe skip or the blob-storage switch going missing,
-// each of which makes the daemon fail for a reason that has nothing to do with
-// L2TP.
+// PREVENTS: the kernel-probe skip or isolated config directory going missing,
+// which makes the daemon fail for a reason unrelated to L2TP.
 func TestTheDaemonRunsInTheContainerWithItsEnvironment(t *testing.T) {
 	run := fixtureL2TP(t)
 
@@ -122,7 +121,6 @@ func TestTheDaemonRunsInTheContainerWithItsEnvironment(t *testing.T) {
 		"exec --interactive",
 		"--env ZE_LOG_L2TP=debug",
 		"--env ze.l2tp.skip-kernel-probe=true",
-		"--env ZE_STORAGE_BLOB=false",
 		"--env ZE_CONFIG_DIR=/run/l2tp/ze",
 		"/src/tmp/evidence/bin/ze-linux-amd64 -",
 	} {

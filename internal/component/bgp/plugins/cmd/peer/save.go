@@ -12,8 +12,10 @@ import (
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -97,7 +99,7 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, args []string) (*plugin
 
 	running := runningPeerConfig(ctx.Reactor().GetConfigTree())
 
-	ed, err := cli.NewEditor(configPath)
+	ed, err := cli.NewEditorWithStorage(statestore.Store(), configPath)
 	if err != nil {
 		var tb textbuf.Buffer
 		return &plugin.Response{
@@ -106,6 +108,9 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, args []string) (*plugin
 		}, fmt.Errorf("open config: %w", err)
 	}
 	defer func() { _ = ed.Close() }()
+	ed.SetCommitWriter(func(expected, content []byte) error {
+		return registry.RuntimeConfigCommit(configPath, expected, content)
+	})
 
 	added, removed, err := savePeerSet(ed, running, filePeerConfig(ed))
 	if err != nil {

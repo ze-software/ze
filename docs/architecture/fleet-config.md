@@ -6,7 +6,7 @@ TLS listener that reuses the shared auth + MuxConn primitives (see "Architecture
 <!-- source: internal/component/plugin/server/managed_serve.go -- ManagedServer (dedicated listener + serving loop) -->
 <!-- source: cmd/ze/hub/managed_server.go -- startManagedServer (wires ManagedServer from hub config) -->
 
-**Purpose:** Document the architecture for centralized configuration where ze instances fetch their config from a hub over TLS, with local ZeFS backup for partition resilience.
+**Purpose:** Centralised configuration over TLS, with a local persistent cache for partition resilience.
 
 ---
 
@@ -124,20 +124,21 @@ client secret) and MuxConn, so no new auth or wire protocol is introduced.
 Managed configuration adds:
 - Per-client secrets in `server` blocks (instead of one shared secret)
 - `config-fetch` and `config-changed` RPCs answered by the managed listener
-- Client configs stored as entries in the hub's ZeFS blob
+- Client configs stored as entries in the hub's live tree
 
 ### Roles
 
 | Role | Config | Description |
 |------|--------|-------------|
 | Hub (serves config) | `server central { client edge-01 { secret } }` | Accepts managed clients, serves their configs |
-| Managed client (provisioning) | `ze init` with managed=true, hub host/port, token | One-time setup, stored in blob |
+| Managed client (provisioning) | `ze init` with managed=true, hub host/port, token | One-time setup, stored in the tree |
 | Managed client (running) | `client edge-01 { host; port; secret }` in cached config | Connects to hub, fetches config |
 | Standalone | Only `server local { }` blocks, no hub-level `client` | Local plugins, no remote hub |
 
-`ze init` provisions the blob with identity and hub connection info. `ze start` reads the blob: if managed, connect to hub and fetch config. After the first fetch, the cached config is self-describing (contains the `client` block).
-
-CLI flags (`--server`, `--name`, `--token`) can override blob/config values for troubleshooting, but `ze init` is the primary provisioning path.
+`ze init` provisions identity and hub connection information in the tree.
+`ze start` reads that store and connects when managed mode is enabled. After the
+first fetch, the cached config carries its own `client` block. CLI flags
+(`--server`, `--name`, `--token`) can override these values for troubleshooting.
 
 ### Per-Client Secrets
 
@@ -151,26 +152,22 @@ At `#0 auth`, the hub looks up the token against the `client` entries nested und
 
 ### Config Storage (Hub Side)
 
-Client configs are entries in the hub's ZeFS blob, keyed by client name at
-`file/active/client-<name>.conf` (the `file/active/` namespace per `spec-blob-namespaces`; the
+Client configs are entries in the hub's live tree, keyed by client name at
+`file/active/client-<name>.conf` (the
 `client-` prefix avoids collision with the hub's own config file).
 <!-- source: internal/component/plugin/server/managed_serve.go -- ClientConfigKey -->
 
-The admin writes these with the blob tools (`ze data`, `ze config import`, `ze config edit`).
-The hub MUST be stopped while they run. Each of those commands opens its own handle on the blob
-file in its own process. A running hub serves every read from the tree it loaded when it opened
-the store. A write behind its back therefore reaches neither the client nor the hub itself.
-Two processes writing one blob also replace each other's state, because zefs takes no file lock.
-<!-- source: pkg/zefs/store.go -- BlobStore.readFile, which answers from the in-memory root -->
-<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage, which edits through the caller's own store -->
+The admin can edit these through a live SSH editor owned by the hub.
+Offline writers, including `ze data`, require the hub to be stopped because
+the writable store handle holds an exclusive lifetime lock. Read-only
+inspection remains available while the hub runs.
 
-The hub pushes `config-changed` to a connected client when that client's config blob is written
-THROUGH THE HUB'S OWN STORE. A write observer maps the written key back to the client name.
-Nothing an operator can run performs such a write today. The push is therefore reachable only
-from in-process code. Every managed client picks a changed config up at its next fetch, which is
-its next connect. Serving a changed config takes a hub restart.
-<!-- source: internal/component/config/storage/blob.go -- SetWriteObserver, and WriteFile which calls the observer -->
-<!-- source: cmd/ze/hub/managed_server.go -- write-observer wiring -->
+The hub's `Storage.SetWriteObserver` callback maps a written client-config key
+back to the client's name and queues `config-changed` without blocking the
+storage writer. A client fetches the updated configuration after the notification
+or on its next connection.
+<!-- source: cmd/ze/hub/managed_server.go -- startManagedServer -->
+<!-- source: internal/component/config/storage/storage.go -- Storage -->
 
 The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` (gauge),
 `ze_managed_config_fetch_total{result}`, and `ze_managed_config_changed_pushed_total`.
@@ -178,7 +175,7 @@ The managed listener exposes Prometheus metrics: `ze_managed_clients_connected` 
 
 ### Config Storage (Client Side)
 
-The managed client's local ZeFS blob caches the config received from the hub. The config itself contains everything needed:
+The managed client's local tree caches the config received from the hub. The config itself contains everything needed:
 
 | What | Where |
 |------|-------|
@@ -187,7 +184,7 @@ The managed client's local ZeFS blob caches the config received from the hub. Th
 | Auth token | `secret` in the same block |
 | BGP config | `bgp { }` block |
 | Local plugins | `server local { }` block |
-| Managed mode toggle | `meta/instance/managed` in blob (see `spec-blob-namespaces`) |
+| Managed mode toggle | `meta/instance/managed` in the live store |
 
 The `meta/instance/managed` flag controls whether the client actually connects to the hub. Toggling it severs or establishes the hub connection without changing the config.
 
@@ -212,15 +209,15 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 
 ### Connection Lifecycle
 
-1. Client reads cached config from local blob (or uses blob metadata from `ze init` on first boot)
+1. Client reads cached config from the local tree (or bootstrap metadata from `ze init` on first boot)
 2. Client extracts name, host, port, secret from hub-level `client <name> { }` block
 3. Client connects via TLS to hub address
 4. Client sends `#0 auth` with token and name
 5. Hub validates token against `client` entry nested under the relevant `server` block
 6. Client sends `config-fetch` with current version hash (or empty on first boot)
-7. Hub reads the client's config from its blob, computes hash
+7. Hub reads the client's stored config and computes its hash
 8. If hashes match: `{"status":"current"}`; if different: full config in response
-9. Client writes config to local blob, starts or reloads BGP
+9. Client persists the config and starts or reloads BGP
 10. Heartbeat: `ping` every 30 seconds, timeout after 3 missed (90 seconds)
 11. On a write through the hub's own store: hub sends `config-changed` to the connected client. See "Config Storage (Hub Side)" for which writes reach that store
 
@@ -231,7 +228,7 @@ Truncated SHA-256 of the config bytes (hex-encoded, first 16 characters). Comput
 | 1. Notify | Hub sends `config-changed {"version":"<new-hash>"}` to connected client |
 | 2. Fetch | Client sends `config-fetch {"version":"<new-hash>"}` when ready |
 | 3. Validate | Client parses and validates the new config |
-| 4. Apply | If valid: write to blob, reload BGP, send `config-ack {"ok":true}` |
+| 4. Apply | If valid: stage the config, reload BGP, promote the candidate, send `config-ack {"ok":true}` |
 | 5. Reject | If invalid: send `config-ack {"ok":false,"error":"..."}`, keep running |
 
 The client controls timing. A router in the middle of graceful restart or convergence is not forced to reload.
@@ -242,35 +239,35 @@ The client controls timing. A router in the middle of graceful restart or conver
 
 ### First Boot (After `ze init`)
 
-`ze init` has stored identity, managed flag, hub host/port, and token in the blob. No config exists yet.
+`ze init` has stored identity, managed flag, hub host/port, and token in the tree. No config exists yet.
 
 | Step | Action |
 |------|--------|
 | 1 | `ze start` |
-| 2 | Read blob: `meta/instance/name`, `meta/instance/managed`=true, hub host/port, token |
+| 2 | Read store: `meta/instance/name`, `meta/instance/managed`=true, hub host/port, token |
 | 3 | Connect to hub, authenticate |
 | 4 | Fetch config (includes `server local { }` + `client edge-01 { }` + `bgp { }`) |
-| 5 | Write config to local blob |
+| 5 | Write config to the local tree |
 | 6 | Start local hub server for plugins, start BGP |
 
-After this, the blob has the cached config. On subsequent boots, the config itself provides hub connection info.
+The store now has the cached config. On subsequent boots, the config itself provides hub connection info.
 
 ### Subsequent Boots
 
 | Step | Action |
 |------|--------|
 | 1 | `ze start` (no flags) |
-| 2 | Read cached config from local blob |
+| 2 | Read cached config from the local tree |
 | 3 | Start local hub server (from `server local { }` block) |
 | 4 | Extract name, host, port, secret from hub-level `client <name> { }` block |
-| 5a | **Connection succeeds:** fetch latest config, update blob if newer, reload BGP if changed |
+| 5a | **Connection succeeds:** fetch latest config, persist it if newer, reload BGP if changed |
 | 5b | **Connection fails:** start BGP from cached config, reconnect in background |
 
 ### Startup Matrix
 
 | Hub | Cached config | Behavior |
 |-----|--------------|----------|
-| Reachable | Any | Fetch from hub, update blob, start BGP |
+| Reachable | Any | Fetch from hub, update the store, start BGP |
 | Unreachable | Exists | Start from cached config, reconnect in background |
 | Unreachable | Missing | First boot after init: exit with error (hub required) |
 
@@ -309,10 +306,10 @@ Two sources of hub connection info, used at different stages:
 
 | Stage | Source | Contains |
 |-------|--------|----------|
-| First boot (after `ze init`) | Blob metadata | `meta/instance/name`, hub host/port, token |
+| First boot (after `ze init`) | Store metadata | `meta/instance/name`, hub host/port, token |
 | Subsequent boots | Cached config | `client <name> { host; port; secret }` block |
 
-The cached config takes over once fetched. The blob metadata from `ze init` is the bootstrap that gets the first config.
+The cached config takes over once fetched. Metadata from `ze init` bootstraps the first fetch.
 
 CLI flag overrides (optional, for troubleshooting):
 
@@ -332,7 +329,7 @@ a first boot against one needs `ze.managed.tls.insecure`. The client names its
 `ca` once it holds a config, and every connection after that is verified.
 <!-- source: cmd/ze/ze_core_start.go -- fetchInitialConfig, extractManagedClientConfig -->
 
-Priority: CLI flag > env var > config block > blob metadata.
+Priority: CLI flag > env var > config block > store metadata.
 
 ---
 
@@ -341,7 +338,7 @@ Priority: CLI flag > env var > config block > blob metadata.
 | Concern | Mitigation |
 |---------|-----------|
 | Token per client | Each client has its own secret; token bound to name at auth |
-| Token in config | Config blob permissions 0600; token not logged |
+| Token in config | Tree frame files are 0600 and directories 0700; token not logged |
 | TLS MITM | TLS 1.3 minimum. The client authenticates the hub before it sends its token, against the certificate authority its `ca` leaf names or against the system CA pool. See "Hub certificate and client trust" below. `ze.managed.tls.insecure` turns verification off and is for development only. |
 | Client impersonation | Per-client secret + name binding; one connection per name |
 | Config isolation | Client can only fetch its own config (name implicit from auth session) |
@@ -428,13 +425,13 @@ cannot authenticate ends the connection before the token is written.
 | Hub TLS listener | Reuse as-is (now per `server` block) |
 | Hub auth (`#0 auth`) | Extend: per-client secret lookup under `server` block |
 | Hub MuxConn | Reuse as-is |
-| Hub ZeFS blob | Reuse as-is (client configs are entries) |
+| Hub live tree | Shared Storage handle (client configs are entries) |
 | `ze data rm` | Reuse as-is |
 | Named `server`/`client` hub blocks | **New:** replaces flat `listen`/`secret` fields |
 | `config-fetch` / `config-changed` RPCs | **New:** hub-side handlers |
-| Config change watcher | **New:** hub notifies on blob write |
-| Managed client component | **New:** connection, fetch, cache, reconnect |
-| `ze start` managed mode | **New:** detect managed from blob metadata or cached config |
+| Config change watcher | Hub notifies on stored config writes |
+| Managed client component | Connection, fetch, cache, reconnect |
+| `ze start` managed mode | Detect managed mode from store metadata or cached config |
 
 ---
 
@@ -443,7 +440,7 @@ cannot authenticate ends the connection before the token is written.
 | Not included | Why |
 |-------------|-----|
 | New server component | Hub already exists; extend it |
-| Special metadata blob keys for hub info | Config block declares hub connection; `ze init` blob keys are bootstrap only |
+| Special metadata keys for hub info | Config declares the hub connection; init keys bootstrap only |
 | Multi-hub replication | One hub sufficient; HA via client cached config |
 | Incremental config updates | Full config on change; configs are small (< 10KB typically) |
 
@@ -460,4 +457,4 @@ Reference spec: `plan/spec-fleet-config.md`
 | `internal/component/managed/` | Client: connection manager, reconnect, heartbeat |
 | `cmd/ze/main.go` | cmdStart() extended for managed mode detection + CLI flag overrides |
 <!-- source: internal/component/plugin/server/ -- hub server infrastructure -->
-<!-- source: internal/component/config/storage/ -- Storage interface for blob access -->
+<!-- source: internal/component/config/storage/ -- shared live-store interface -->

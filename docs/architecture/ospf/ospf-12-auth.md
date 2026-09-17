@@ -58,11 +58,15 @@ extended 64-bit cryptographic sequence).
 - **The replay high-water mark is per OSPF PACKET TYPE**, not per neighbor and
   key-id alone. A single slot drops a legitimately reordered packet of another
   type as a false replay. Exercise an equal sequence AND a second packet type.
-- **The boot-count high word is seeded from the wall clock** at key-store
-  creation, so the aggregate cryptographic sequence never regresses across a
-  restart. A hardcoded zero makes the first packet after a restart lose to the
-  neighbour high-water mark, and the adjacency cannot re-form until the peer
-  ages out.
+- **The boot-count high word comes from the daemon's persistent store.** After
+  its handshake, each runtime engine requests an atomic `state-increment` before
+  interface subscriptions or packet processing. The daemon holds its write guard
+  until the increment is durable. Reload-created engines follow the same path;
+  they do no state I/O during construction or configure. Unavailable storage,
+  corrupt counters and uint32 exhaustion refuse startup, since a clock-derived
+  value cannot guarantee the order RFC 7474 Section 2 requires.
+  <!-- source: internal/plugins/ospf/state.go -- engine.initializeState -->
+  <!-- source: internal/core/statestore/statestore.go -- Increment -->
 - **`$9$` decode falls back to plaintext.** A non-`$9$` value is used raw, so a
   hand-written config before commit-time encoding still works.
 - **A sign-then-verify test with one key derivation cannot prove interop.** A

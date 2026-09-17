@@ -5,7 +5,6 @@ package cli
 
 import (
 	"bytes"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,9 +15,9 @@ import (
 func newImportBlobStore(t *testing.T) storage.Storage {
 	t.Helper()
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	return store

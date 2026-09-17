@@ -2,12 +2,38 @@ package web
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
+
+// testConfigStore creates one owner and explicitly seeds the fixture's config.
+// Editors borrow this handle; the test closes it after every borrower finishes.
+func testConfigStore(t *testing.T, configPath string) storage.Storage {
+	t.Helper()
+	content, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	require.NoError(t, store.WriteFile(filepath.Base(configPath), content, 0o600))
+	return store
+}
+
+func testEmptyStore(t *testing.T) storage.Storage {
+	t.Helper()
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	return store
+}
 
 func testEditorFactory() contract.EditorFactory {
 	return func(storeAny any, configPath string) (contract.Editor, error) {

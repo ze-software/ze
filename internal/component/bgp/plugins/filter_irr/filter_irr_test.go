@@ -179,6 +179,7 @@ func TestHandleConfigureDoesNotEnrollPeerWithoutIRR(t *testing.T) {
 	plug := &irrPlugin{
 		byASN:  make(map[uint32]*asnState),
 		stopCh: make(chan struct{}),
+		state:  seedStore(t),
 	}
 	t.Cleanup(func() { close(plug.stopCh) })
 
@@ -215,6 +216,7 @@ func TestHandleConfigureEnrollsIRRFilteredPeer(t *testing.T) {
 	plug := &irrPlugin{
 		byASN:  make(map[uint32]*asnState),
 		stopCh: make(chan struct{}),
+		state:  seedStore(t),
 	}
 	t.Cleanup(func() { close(plug.stopCh) })
 
@@ -384,7 +386,7 @@ func TestUpdateASNFailurePreservesState(t *testing.T) {
 		},
 		// Unreachable endpoints: PeeringDB returns nothing, IRR connection refused.
 		// The store falls back to AS65010 but the IRR query fails.
-		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), peeringdb.NewPeeringDB("http://127.0.0.1:1"), ""),
+		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), peeringdb.NewPeeringDB("http://127.0.0.1:1"), nil),
 	}
 
 	status, _, err := plug.updateASN([]string{"65010"})
@@ -512,7 +514,7 @@ func TestFilterIRRUsesStore(t *testing.T) {
 	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
 	plug := &irrPlugin{
 		byASN:       map[uint32]*asnState{65001: {asn: 65001, asSet: "AS-TEST"}},
-		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
 	}
 
 	plug.refreshASN(65001)
@@ -546,7 +548,7 @@ func TestFilterWaitsForFirstResolution(t *testing.T) {
 		// firstDone armed (open) and list nil: exactly the state configure leaves
 		// an enrolled ASN in before the detached resolution runs.
 		byASN:       map[uint32]*asnState{65001: newASNState(65001, "AS-TEST")},
-		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
 		stopCh:      make(chan struct{}),
 	}
 
@@ -589,7 +591,7 @@ func TestRefreshEmptyAnswerKeepsFilterList(t *testing.T) {
 	good := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
 	plug := &irrPlugin{
 		byASN:       map[uint32]*asnState{65001: newASNState(65001, "AS-TEST")},
-		prefixStore: store.New(irr.NewIRR(good), nil, ""),
+		prefixStore: store.New(irr.NewIRR(good), nil, nil),
 		stopCh:      make(chan struct{}),
 	}
 	plug.refreshASN(65001)
@@ -601,7 +603,7 @@ func TestRefreshEmptyAnswerKeepsFilterList(t *testing.T) {
 	// The same AS-SET, answered now by a server that holds no key for it. A new
 	// store and a new client, because the client caches a non-empty answer for an
 	// hour and would replay the seed.
-	plug.prefixStore = store.New(irr.NewIRR(fakeIRRv4(t, nil)), nil, "")
+	plug.prefixStore = store.New(irr.NewIRR(fakeIRRv4(t, nil)), nil, nil)
 	plug.refreshASN(65001)
 
 	st := plug.byASN[65001]
@@ -633,7 +635,7 @@ func TestFilterFailClosedAfterEmptyResolution(t *testing.T) {
 		// IRR endpoint refused: resolution fails, no list is populated, firstDone
 		// is closed by the failed attempt.
 		byASN:       map[uint32]*asnState{65002: newASNState(65002, "AS-NONE")},
-		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), nil, ""),
+		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), nil, nil),
 		stopCh:      make(chan struct{}),
 	}
 
@@ -731,7 +733,7 @@ func TestRefreshASNStoreFieldRace(t *testing.T) {
 			case <-stop:
 				return
 			default:
-				ps := store.New(irr.NewIRR("127.0.0.1:1"), nil, "")
+				ps := store.New(irr.NewIRR("127.0.0.1:1"), nil, nil)
 				plug.mu.Lock()
 				plug.prefixStore = ps
 				plug.byASN = map[uint32]*asnState{65001: {asn: 65001}}

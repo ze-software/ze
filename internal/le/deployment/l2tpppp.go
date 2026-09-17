@@ -249,7 +249,7 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 		return report, err
 	}
 
-	work, err := scratchDir(l.Tree, "effective-l2tp-ppp-")
+	work, err := os.MkdirTemp("/tmp", "effective-l2tp-ppp-")
 	if err != nil {
 		return report, err
 	}
@@ -365,7 +365,7 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 		pppRouteLine, pppUpLine, pppWithdrawLine, pppTeardownLine,
 	}, pppFatalLines...)...)
 
-	daemon := nsCommand(l.ZeNamespace, binary, "start", filepath.Join(work, "ze.conf"))
+	daemon := nsCommand(l.ZeNamespace, binary, "start", filepath.Join(work, "ze", "ze.conf"))
 	daemon.Env = l.daemonEnv(work)
 
 	ze, err := startWatched(daemon, "ze> ", seen, l.Progress)
@@ -542,7 +542,6 @@ func (l *L2TPPPP) daemonEnv(work string) []string {
 	var tb textbuf.Buffer
 	return append(kept,
 		"ZE_LOG_L2TP=debug",
-		storageBlobDisabledEnv,
 		tb.Str("ZE_CONFIG_DIR=").Str(filepath.Join(work, "ze")).String(),
 		"ze.l2tp.ncp.enable-ipv6cp=false",
 		"ze.l2tp.ncp.ip-timeout=15s",

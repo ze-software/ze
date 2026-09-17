@@ -15,7 +15,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 )
 
@@ -82,7 +81,7 @@ func TestSetStdoutSink(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &out)
 	defer restore()
 
-	rc := cmdSetImpl(storage.NewFilesystem(), []string{"-", "bgp", "session", "asn", "local", "65123"})
+	rc := cmdSetImpl(nil, []string{"-", "bgp", "session", "asn", "local", "65123"})
 	if rc != exitOK {
 		t.Fatalf("set - exit = %d, want %d", rc, exitOK)
 	}
@@ -101,7 +100,7 @@ func TestSetReloadFlagAcceptedStdin(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &out)
 	defer restore()
 
-	rc := cmdSetImpl(storage.NewFilesystem(), []string{"--reload", "-", "bgp", "session", "asn", "local", "65123"})
+	rc := cmdSetImpl(nil, []string{"--reload", "-", "bgp", "session", "asn", "local", "65123"})
 	if rc != exitOK {
 		t.Fatalf("set --reload - exit = %d, want %d", rc, exitOK)
 	}
@@ -116,7 +115,7 @@ func TestSetReloadFlagAcceptedStdin(t *testing.T) {
 func TestConfigPipelineStdin(t *testing.T) {
 	var setOut bytes.Buffer
 	restore := cliio.SwapStreams(strings.NewReader(validPipelineConfig), &setOut)
-	rc := cmdSetImpl(storage.NewFilesystem(), []string{"-", "bgp", "session", "asn", "local", "65123"})
+	rc := cmdSetImpl(nil, []string{"-", "bgp", "session", "asn", "local", "65123"})
 	restore()
 	if rc != exitOK {
 		t.Fatalf("set - exit = %d, want %d", rc, exitOK)
@@ -158,7 +157,7 @@ func TestDeactivateStdoutSink(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &out)
 	defer restore()
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"-", "bgp", "router-id"})
+	rc := cmdDeactivateImpl(nil, []string{"-", "bgp", "router-id"})
 	if rc != exitOK {
 		t.Fatalf("deactivate - exit = %d, want %d", rc, exitOK)
 	}
@@ -175,7 +174,7 @@ func TestRollbackRejectsStdin(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &bytes.Buffer{})
 	defer restore()
 	rc, stderr := captureStderr(t, func() int {
-		return cmdRollbackImpl(storage.NewFilesystem(), []string{"2", "-"})
+		return cmdRollbackImpl(nil, []string{"2", "-"})
 	})
 	if rc == exitOK {
 		t.Fatal("rollback 2 - exited 0; want a non-zero rejection")
@@ -191,7 +190,7 @@ func TestHistoryRejectsStdin(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &bytes.Buffer{})
 	defer restore()
 	rc, stderr := captureStderr(t, func() int {
-		return cmdHistoryImpl(storage.NewFilesystem(), []string{"-"})
+		return cmdHistoryImpl(nil, []string{"-"})
 	})
 	if rc == exitOK {
 		t.Fatal("history - exited 0; want a non-zero rejection")
@@ -207,7 +206,7 @@ func TestEditRejectsStdin(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(showTestConfig), &bytes.Buffer{})
 	defer restore()
 	rc, stderr := captureStderr(t, func() int {
-		return cmdEditWithStorage(storage.NewFilesystem(), []string{"-"})
+		return cmdEditWithStorage(nil, []string{"-"})
 	})
 	if rc == exitOK {
 		t.Fatal("edit - exited 0; want a non-zero rejection")

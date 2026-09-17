@@ -209,7 +209,7 @@ func TestModelContextHighlighting(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -608,7 +608,7 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigOneLine), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 

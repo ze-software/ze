@@ -29,6 +29,11 @@ func TestPluginRPCRegistryCoversAllPaths(t *testing.T) {
 	// Every plugin->engine runtime op. Each has a JSON socket path and an
 	// in-process Direct path (both derive from engineOp.handle).
 	wantMethods := []string{
+		rpc.MethodStateGet,
+		rpc.MethodStatePut,
+		rpc.MethodStateRemove,
+		rpc.MethodStateList,
+		rpc.MethodStateIncrement,
 		rpc.MethodUpdateRoute,
 		rpc.MethodDispatchCommand,
 		rpc.MethodDispatchCommandArgs,

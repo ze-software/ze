@@ -26,7 +26,8 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -59,7 +60,8 @@ func TestModelCommitConfirmBoundaryLow(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -84,7 +86,8 @@ func TestModelCommitConfirmBoundaryHigh(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -109,7 +112,8 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -148,7 +152,8 @@ func TestModelAbortRollsBack(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -194,7 +199,7 @@ func TestModelLoadFile(t *testing.T) {
 	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -248,7 +253,7 @@ func TestModelLoadMerge(t *testing.T) {
 	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -282,7 +287,7 @@ func TestModelLoadNotFound(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -313,7 +318,7 @@ func TestModelLoadRelativePath(t *testing.T) {
 	err = os.WriteFile(loadPath, []byte(`bgp { router-id 9.9.9.9; }`), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -506,7 +511,7 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -558,7 +563,7 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
 	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -618,7 +623,7 @@ description "new peer"`
 	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -678,7 +683,7 @@ timer { receive-hold-time 180; }`
 	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -715,7 +720,7 @@ func TestLoadOldSyntaxRejected(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -739,7 +744,7 @@ func TestLoadOldMergeSyntaxRejected(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -763,7 +768,7 @@ func TestLoadTerminalEntersPasteMode(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -814,7 +819,7 @@ peer peer1 {
 	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -874,7 +879,7 @@ description "merged content"`
 	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -925,7 +930,8 @@ func TestCommitConfirmTriggersReload(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -958,7 +964,8 @@ func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -989,7 +996,8 @@ func TestConfirmTriggersReload(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -1030,7 +1038,8 @@ func TestAbortTriggersReload(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -1072,7 +1081,8 @@ func TestCommitConfirmedSessionRouting(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1096,7 +1106,7 @@ func TestCommitConfirmedSessionRouting(t *testing.T) {
 	assert.True(t, result.setConfirmTimer, "should set confirm timer")
 
 	// Verify file was written in set format (CommitSession writes set+meta).
-	data, readErr := os.ReadFile(configPath)
+	data, readErr := store.ReadFile(configPath)
 	require.NoError(t, readErr)
 	configContent := string(data)
 	assert.Contains(t, configContent, "set bgp router-id",

@@ -94,9 +94,10 @@ counts needed their own map. 64 pages would otherwise report as 65536.
 
 `gok` (`cmd/ze-gok`, wrapping `github.com/gokrazy/tools`) compiles every
 appliance package in module mode and fetches with `go get`. It has no vendor
-support at all: a `vendor/` tree in a builddir is ignored. The build therefore
-resolves through a checked-in module cache, `gokrazy/modcache/`, with
-`GOMODCACHE` set by `cmd/ze-gok/main.go`.
+support: a `vendor/` tree in a builddir is ignored. The system and kernel
+modules resolve through `gokrazy/modcache/`, with `GOMODCACHE` set by
+`cmd/ze-gok/main.go`. Ze's prepared build module binds its dependencies to the
+canonical root vendor tree as described below.
 
 `gokrazy/modcache/.gitignore` ignores everything except the gokrazy init source
 (`github.com/gokrazy/gokrazy@*/**`). That committed source carries upstream's
@@ -110,6 +111,39 @@ manifest rather than the real dependency graph.
 
 <!-- source: cmd/ze-gok/main.go -- GOMODCACHE and the -modcacherw GOFLAGS append -->
 <!-- source: gokrazy/modcache/.gitignore -- the init-source whitelist -->
+
+### Binding the appliance to vendored product sources
+
+Host builds use the root `vendor/` tree, which carries product patches such as
+the netlink XFRM readback fixes and the text-input cursor correction. Resolving
+the same upstream version from a module cache loses those patches.
+
+`bindVendoredModules` reads `vendor/modules.txt` through Ze's absolute
+self-replacement. It creates a private module directory for each declaration,
+with a minimal `go.mod` that preserves the declared Go language version.
+Regular source and asset files are hardlinked to the canonical vendor files.
+Directories are private; nested modules are excluded from their parent module
+to preserve import ownership. Hardlinks also keep embedded assets regular:
+Go rejects symlinks in `go:embed` matches.
+
+The copied Ze build module requires the declared vendor versions and replaces
+them with these private directories. Go ignores replacements in dependency
+modules, so the replacements belong in the build module itself. The other
+seven builddir modules retain their system and kernel pins unchanged.
+No generated manifest is written into `vendor/` or the module cache, and no
+patched source is copied into a second maintained tree.
+
+The build requires a complete vendor tree and a project `tmp/` on the same
+filesystem as those sources. A missing source or failed hardlink stops
+preparation and reports the path. The prepared directories share the existing
+instance cleanup lifecycle and are regenerated for each build. Vendor refreshes
+still require the existing patch-reapplication procedure.
+
+Normal root vendor builds are unchanged. Arbitrary root `-mod=mod` builds do
+not receive these appliance replacements and remain outside this binding.
+
+<!-- source: internal/appliance/instance/vendor.go -- bindVendoredModules, parseVendorModules, linkVendorModule -->
+<!-- source: internal/appliance/instance/prepare_test.go -- TestPrepareBindsCanonicalVendorSources -->
 
 ### The eight builddir modules
 
@@ -126,9 +160,9 @@ github.com/gokrazy/serial-busybox
 github.com/rtr7/kernel
 ```
 
-The eighth, `github.com/ze-software/ze`, is only `replace ze => <repo root>`, so
-every line of its sum is already in the root `go.sum`. Its `go.sum` is
-gitignored (`.gitignore`). Regenerate it like the rest and expect no diff.
+The eighth, `github.com/ze-software/ze`, has a tracked `replace ze => <repo root>`.
+Preparation adds the vendor module bindings only to its private copy. Its
+`go.sum` is gitignored (`.gitignore`); regeneration produces no tracked sum diff.
 
 ### Dependabot is off for these paths
 
@@ -164,8 +198,9 @@ the minute. A reappearance is a regression in whatever new path prepares an
 instance: find that path rather than deleting the directory.
 `TestPrepareRealInstanceCarriesEveryModule` and
 `TestPreparedModulesResolveIdenticallyToTracked` gate preparation against the
-real eight-module instance, the second by comparing `go list -m all` before and
-after preparation.
+real eight-module instance. The second compares complete module graphs for the
+system and kernel modules and selected vendor versions for Ze. Minimal vendor
+bridge manifests omit upstream-only test dependencies from Ze's graph.
 
 <!-- source: internal/appliance/instance/prepare_repo_test.go -- TestPrepareRealInstanceCarriesEveryModule, TestPreparedModulesResolveIdenticallyToTracked -->
 

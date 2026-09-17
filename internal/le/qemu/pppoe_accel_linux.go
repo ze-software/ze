@@ -248,11 +248,7 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport
 	if err != nil {
 		return report, err
 	}
-	parent := filepath.Join(root, "tmp", "evidence")
-	if err := os.MkdirAll(parent, 0o750); err != nil {
-		return report, fmt.Errorf("create evidence directory: %w", err)
-	}
-	work, err := os.MkdirTemp(parent, "effective-pppoe-accel-")
+	work, err := os.MkdirTemp("/tmp", "effective-pppoe-accel-")
 	if err != nil {
 		return report, fmt.Errorf("create PPPoE evidence directory: %w", err)
 	}
@@ -277,7 +273,11 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport
 	if err := os.WriteFile(accelConfigPath, pppoeAccelConfig(work, acVeth), 0o600); err != nil {
 		return report, fmt.Errorf("write accel-ppp config: %w", err)
 	}
-	zeConfigPath := filepath.Join(work, "ze.conf")
+	zeDirectory := filepath.Join(work, "ze")
+	if err := os.MkdirAll(zeDirectory, 0o750); err != nil {
+		return report, fmt.Errorf("create ze config directory: %w", err)
+	}
+	zeConfigPath := filepath.Join(zeDirectory, "ze.conf")
 	if err := os.WriteFile(zeConfigPath, pppoeZeConfig(zeVeth), 0o600); err != nil {
 		return report, fmt.Errorf("write ze config: %w", err)
 	}
@@ -353,9 +353,8 @@ func runPPPoEAccelGuest(ctx context.Context, root string) (report guestLabReport
 	}
 	environ := withoutGuestEnv(os.Environ(), "ZE_PPPOE_SKIP_KERNEL_PROBE", "ze.pppoe.skip-kernel-probe")
 	environ = withGuestEnv(environ, map[string]string{
-		"ze.log.interface":  "debug",
-		guestStorageBlobKey: "false",
-		guestConfigDirKey:   filepath.Join(work, "ze"),
+		"ze.log.interface": "debug",
+		guestConfigDirKey:  zeDirectory,
 	})
 	zeProcess, _, err = startGuestProcess(ctx, zeNS, []string{ze, "start", zeConfigPath}, environ, "ze> ")
 	if err != nil {

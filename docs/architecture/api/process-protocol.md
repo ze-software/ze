@@ -708,6 +708,11 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | `inject-wire-route` | `InjectWireRouteInput` | - | Inject a raw BGP UPDATE body into the RIB |
 | `batch-validate` | `BatchValidateInput` | `BatchValidateResult` | Apply a batch of RPKI validation decisions |
 | `resolve-dns` | `ResolveDNSInput` | `ResolveDNSOutput` | Resolve a name through the engine's single DNS resolver, so a plugin never builds a second one |
+| `state-get` | `StateInput` | `StateOutput` | Read an owned registered runtime key |
+| `state-put` | `StateInput` | `StateOutput` | Persist an owned key with durable acknowledgement |
+| `state-remove` | `StateInput` | `StateOutput` | Remove an owned key |
+| `state-list` | `StateInput` | `StateOutput` | Enumerate owned keys beneath a prefix |
+| `state-increment` | `StateInput` | `StateOutput` | Atomically advance a durable big-endian uint32 counter |
 | `dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command |
 | `dispatch-command-args` | `DispatchCommandArgsInput` | `DispatchCommandOutput` | Exact inter-plugin command with pre-tokenized args |
 | `emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
@@ -720,6 +725,59 @@ Includes filter name so the plugin can dispatch to the correct handler.
 | `decode-update` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode full UPDATE |
 
 All methods are prefixed with `ze-plugin-engine:`.
+
+#### Persistent runtime state
+
+Plugins call `StateGet`, `StatePut`, `StateRemove`, `StateList` and
+`StateIncrement` on the SDK after their handshake, from `OnStarted` or a later
+runtime callback. Construction and `OnConfigure` cannot send these requests:
+the startup coordinator accepts only the stage methods until the handshake ends.
+An engine created by a reload completes the same state initialization before
+subscribing to interface events or opening a packet transport.
+
+The daemon routes all five operations through `engineOps` on both the JSON
+connection and `DirectBridge`. It uses the lifetime-owned `storage.Storage`
+registered in `statestore`; a plugin never obtains that handle over the wire.
+The owning compiled plugin grants its registered key patterns with
+`statestore.RegisterPluginKeys`. Requests use the daemon's configured process
+name as identity. A request cannot choose another owner or grant itself access
+to credentials. Template parameters match one path segment, and a list returns
+only keys that the caller can read.
+
+`StateInput.key` is bounded to 512 bytes. Values carry at most one MiB and use
+base64 in JSON. Lists return at most 4096 keys; excess fails rather than
+returning a partial result. `ze-plugin-engine.yang` models the same bounds.
+`StateOutput.status` explicitly names `ok`, `absent`, `unavailable`, `corrupt`,
+`read-failed`, or `persist-failed`. Only a successful mutation returns `ok`.
+`StateGet` turns `absent` into `found=false` with no error; failed outcomes
+become `rpc.StateError`. Existing in-daemon best-effort `statestore.Put/Get/Remove`
+callers keep their no-store behaviour, but the strict RPC path never treats
+`false, nil` as persistence.
+
+`StateIncrement` holds the store write guard across read, increment and write,
+and waits for guard release before acknowledging the new value. An absent
+counter starts at one. Corrupt data and uint32 exhaustion fail without reset or
+wrap. OSPF uses this operation for its boot word, so separate instances cannot
+allocate the same sequence space.
+
+The SDK honours caller cancellation before dispatch and when reading the result.
+A disk mutation already in progress is completed by the daemon. Cancellation or
+a lost reply leaves the caller without an acknowledgement, even if the mutation
+committed; callers cannot infer that an increment is safe to retry.
+
+<!-- source: pkg/plugin/rpc/state.go -- StateInput, StateOutput, StateError -->
+<!-- source: pkg/plugin/sdk/sdk_state.go -- stateCall, StateIncrement -->
+<!-- source: internal/component/plugin/server/dispatch_state.go -- stateInput, opStateGet, opStatePut -->
+<!-- source: internal/core/statestore/permissions.go -- RegisterPluginKeys, PluginList -->
+<!-- source: internal/core/statestore/statestore.go -- Increment, Read, Write -->
+<!-- source: pkg/plugin/sdk/state_keys.go -- Plugin.StateKeys -->
+
+For existing raw-key consumers, `Plugin.StateKeys(ctx)` supplies the same SDK
+operations as `ReadKey`, `WriteKey`, `RemoveKey` and `ListKeys`. Each call has a
+five-second timeout beneath the supplied lifetime context. The caller retains
+that context's cancellation obligation, and the adapter has the same
+post-handshake restriction as the explicit state methods.
+
 
 #### Forked route install (`route-install` / `route-remove`)
 

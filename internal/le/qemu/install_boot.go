@@ -276,20 +276,7 @@ func (installer *Installer) bootInstaller(ctx context.Context, kernel, initrd, d
 	return installer.runCapture(ctx, argv, installer.Options.BootTimeout)
 }
 
-// haveSSHProbe preserves the producer's optional-tool skip boundary. The
-// authenticated transport itself is native Go, so the action starts no Python.
-func (installer *Installer) haveSSHProbe() bool {
-	if _, err := installer.ops.Look("uv"); err == nil {
-		return true
-	}
-	_, err := installer.ops.Look("sshpass")
-	return err == nil
-}
-
 func (installer *Installer) sshLoginOK(ctx context.Context, port int) (bool, error) {
-	if !installer.haveSSHProbe() {
-		return false, errors.New("SSH probe prerequisite is unavailable")
-	}
 	select {
 	case <-ctx.Done():
 		return false, ctx.Err()
@@ -303,10 +290,20 @@ func (installer *Installer) sshLoginOK(ctx context.Context, port int) (bool, err
 		Timeout:         5 * time.Second,
 	}
 	address := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
-	client, err := ssh.Dial("tcp", address, config)
+	connection, err := (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", address)
 	if err != nil {
+		return false, err
+	}
+	if err := connection.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		connection.Close() //nolint:errcheck // The deadline failure is the primary error.
+		return false, err
+	}
+	transport, channels, requests, err := ssh.NewClientConn(connection, address, config)
+	if err != nil {
+		connection.Close() //nolint:errcheck // The authentication failure is the primary error.
 		return false, fmt.Errorf("authenticate installer SSH at %s: %w", address, err)
 	}
+	client := ssh.NewClient(transport, channels, requests)
 	if err := client.Close(); err != nil {
 		return false, fmt.Errorf("close installer SSH client: %w", err)
 	}
@@ -317,6 +314,7 @@ func (installer *Installer) bootTargetSSH(
 	ctx context.Context,
 	work, disk string,
 	timeout time.Duration,
+	certificate []byte,
 ) (ok bool, serialPath string, resultErr error) {
 	port := installer.Options.SSHPort
 	if port == 0 {
@@ -332,6 +330,15 @@ func (installer *Installer) bootTargetSSH(
 	drive := b.Str("file=").Str(disk).Str(",format=raw,if=virtio").String()
 	b.Reset()
 	forward := b.Str("user,id=net0,hostfwd=tcp::").Int(int64(port)).Str("-:22").String()
+	webPort := 0
+	if certificate != nil {
+		var err error
+		webPort, err = installer.ops.Port()
+		if err != nil {
+			return false, "", err
+		}
+		forward = b.Reset().Str(forward).Str(",hostfwd=tcp::").Int(int64(webPort)).Str("-:8080").String()
+	}
 	argv = append(argv,
 		"-drive", drive,
 		"-netdev", forward,
@@ -365,7 +372,13 @@ func (installer *Installer) bootTargetSSH(
 	for time.Now().Before(deadline) {
 		ok, attemptErr := installer.sshLoginOK(ctx, port)
 		if ok {
-			return true, serialPath, nil
+			if certificate == nil {
+				return true, serialPath, nil
+			}
+			attemptErr = installSeedTLS(ctx, webPort, certificate)
+			if attemptErr == nil {
+				return true, serialPath, nil
+			}
 		}
 		if attemptErr != nil {
 			loginErr = attemptErr
@@ -451,14 +464,14 @@ func (installer *Installer) executeHTTP(ctx context.Context, work string, report
 	}
 	report.check("installer-serial", InstallVerdictPass, "installer wrote disk and completed")
 	report.line(installer.prefix(), "installer wrote disk + completed")
-	if !installer.haveSSHProbe() {
-		report.line(installer.prefix(), "SKIP AC-10 SSH login (install uv or sshpass to test)")
-		report.line(installer.prefix(), "PASS (installer only, SSH probe skipped)")
-		report.check("ssh-login", InstallVerdictSkip, "install uv or sshpass to test")
-		report.Verdict = InstallVerdictPass
-		return report, nil
+	if err := installer.seedInterruptedImport(ctx, work, disk); err != nil {
+		return report, err
 	}
-	ok, serialPath, err := installer.bootTargetSSH(ctx, work, disk, 120*time.Second)
+	certificate, err := installSeedCertificate(image.ZeFS)
+	if err != nil {
+		return report, err
+	}
+	ok, serialPath, err := installer.bootTargetSSH(ctx, work, disk, 120*time.Second, certificate)
 	if err != nil {
 		return report, err
 	}
@@ -470,6 +483,12 @@ func (installer *Installer) executeHTTP(ctx context.Context, work string, report
 	}
 	report.check("ssh-login", InstallVerdictPass, "power user authenticated")
 	report.line(installer.prefix(), "AC-10 SSH login as power user succeeded")
+	if err := installer.assertImportedSeed(ctx, work, disk, image.ZeFS, serialPath); err != nil {
+		return report, err
+	}
+	report.check("seed-import", InstallVerdictPass, "first boot logged import, retired seed and preserved every seed key")
+	report.check("seed-config", InstallVerdictPass, "seeded SSH credentials work and web listener serves the seeded TLS certificate")
+	report.check("interrupted-import", InstallVerdictPass, "first boot ignored incomplete staging and imported the intact seed")
 	report.line(installer.prefix(), "PASS")
 	report.Verdict = InstallVerdictPass
 	return report, nil

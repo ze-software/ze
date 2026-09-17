@@ -24,7 +24,7 @@ func newModelWithLeafConfig(t *testing.T) Model {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(modelLeafTestConfig), 0o600))
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	model, err := NewModel(ed, FilesystemAuthorityOperatorLocal)

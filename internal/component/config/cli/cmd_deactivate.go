@@ -13,7 +13,6 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -105,13 +104,6 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 	configPath := fs.Arg(0)
 	path := fs.Args()[1:]
 
-	if !cliio.IsStdin(configPath) && !storage.IsBlobStorage(store) {
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "error: config file not found: %s\n", configPath)
-			return exitError
-		}
-	}
-
 	ed, err := openEditableConfig(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -153,6 +145,7 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 	}
 
 	printCommitWarnings(warnings)
+	noticeUnrecordedVersion(ed, configPath)
 	fmt.Fprintf(os.Stderr, "%s %s\n", pastTense, displayPath)
 
 	// Editing a stored config does not contact the daemon by default; --reload

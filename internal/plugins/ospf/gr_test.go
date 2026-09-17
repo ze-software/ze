@@ -31,6 +31,7 @@ func grEnableEngine(t *testing.T, v6 bool, now time.Time) *engine {
 	} else {
 		e = newEngine(nil)
 	}
+	e.state = newFakeGRStore()
 	e.gr.now = func() time.Time { return now }
 	e.gr.configure(grTestConfig())
 	return e

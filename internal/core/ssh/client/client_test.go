@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // VALIDATES: ReadCredentials reads meta/ssh/* keys from zefs database
@@ -16,10 +16,10 @@ import (
 
 func TestReadCredentialsMeta(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Create a database with meta/ssh/* keys (as ze init would write)
-	store, err := zefs.Create(dbPath)
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -30,7 +30,7 @@ func TestReadCredentialsMeta(t *testing.T) {
 		"meta/ssh/default":                "10.0.0.1/2222",
 	}
 	for k, v := range keys {
-		if err := store.WriteFile(k, []byte(v), 0); err != nil {
+		if err := store.WriteKey(k, []byte(v)); err != nil {
 			t.Fatalf("WriteFile(%s): %v", k, err)
 		}
 	}
@@ -60,9 +60,9 @@ func TestReadCredentialsMeta(t *testing.T) {
 
 func TestReadCredentialsEnvOverride(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
-	store, err := zefs.Create(dbPath)
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestReadCredentialsEnvOverride(t *testing.T) {
 		"meta/ssh/default":                            "10.0.0.1/2222",
 	}
 	for k, v := range keys {
-		if err := store.WriteFile(k, []byte(v), 0); err != nil {
+		if err := store.WriteKey(k, []byte(v)); err != nil {
 			t.Fatalf("WriteFile(%s): %v", k, err)
 		}
 	}
@@ -102,9 +102,9 @@ func TestReadCredentialsEnvOverride(t *testing.T) {
 
 func TestReadCredentialsEnvHostBypassesPointer(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
-	store, err := zefs.Create(dbPath)
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestReadCredentialsEnvHostBypassesPointer(t *testing.T) {
 		"meta/ssh/default":                "10.0.0.1/3333",
 	}
 	for k, v := range keys {
-		if err := store.WriteFile(k, []byte(v), 0); err != nil {
+		if err := store.WriteKey(k, []byte(v)); err != nil {
 			t.Fatalf("WriteFile(%s): %v", k, err)
 		}
 	}
@@ -143,13 +143,13 @@ func TestReadCredentialsEnvHostBypassesPointer(t *testing.T) {
 	}
 }
 
-// seedSuperAdminZefs creates a database.zefs in dir with a fixed super-admin
+// seedSuperAdminZefs creates a live store in dir with a fixed super-admin
 // entry (username "admin", auth "adminhash"). Used by the WithFlags
 // credential resolution tests.
 func seedSuperAdminZefs(t *testing.T, dir string) string {
 	t.Helper()
-	dbPath := filepath.Join(dir, "database.zefs")
-	store, err := zefs.Create(dbPath)
+	dbPath := dir
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -158,7 +158,7 @@ func seedSuperAdminZefs(t *testing.T, dir string) string {
 		"meta/ssh/10.0.0.1/2222/password": "adminhash",
 		"meta/ssh/default":                "10.0.0.1/2222",
 	} {
-		if err := store.WriteFile(k, []byte(v), 0); err != nil {
+		if err := store.WriteKey(k, []byte(v)); err != nil {
 			t.Fatalf("WriteFile(%s): %v", k, err)
 		}
 	}
@@ -249,7 +249,7 @@ func TestReadCredentialsNonInteractiveNoPassword(t *testing.T) {
 // permission denied" -- before their credentials were ever considered, and even
 // though the flag, env and defaults supplied everything needed.
 func TestReadCredentialsNoStoreFlagAndEnv(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "database.zefs") // never created
+	dbPath := t.TempDir() // never created
 
 	t.Setenv("ze_ssh_password", "alicepw")
 	env.ResetCache()
@@ -292,7 +292,7 @@ func TestReadCredentialsUnreadableStoreFlagAndEnv(t *testing.T) {
 		t.Fatalf("Chmod: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := os.Chmod(dbPath, 0o600); err != nil {
+		if err := os.Chmod(dbPath, 0o700); err != nil {
 			t.Logf("restoring store mode: %v", err)
 		}
 	})
@@ -327,7 +327,7 @@ func TestReadCredentialsUnreadableStoreFlagAndEnv(t *testing.T) {
 // PREVENTS: a future "don't prompt without a store" "fix" silently reverting
 // --user to the pre-fix behavior of never reaching the daemon.
 func TestReadCredentialsNoStoreWithUserPrompts(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "database.zefs") // never created
+	dbPath := t.TempDir() // never created
 
 	t.Setenv("ze_ssh_password", "")
 	env.ResetCache()
@@ -356,7 +356,7 @@ func TestReadCredentialsNoStoreWithUserPrompts(t *testing.T) {
 // dereference), and preserves the credential error that routes `ze cli` to its
 // offline fallback.
 func TestReadCredentialsNoStoreNoUsername(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "database.zefs") // never created
+	dbPath := t.TempDir() // never created
 
 	t.Setenv("ze_ssh_password", "")
 	t.Setenv("ze_ssh_username", "")
@@ -380,8 +380,8 @@ func TestReadCredentialsNoStoreNoUsername(t *testing.T) {
 // credentials".
 // PREVENTS: masking a real store bug as a confusing authentication failure.
 func TestReadCredentialsCorruptStoreReportsError(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "database.zefs")
-	if err := os.WriteFile(dbPath, []byte("this is not a zefs store"), 0o600); err != nil {
+	dbPath := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dbPath, "database"), []byte("not a tree"), 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
@@ -540,9 +540,9 @@ func TestResolvePasswordNoTTYNeverPrompts(t *testing.T) {
 // keep resolving via the zefs hash.
 func TestResolvePasswordSourcesBypassPromptPolicy(t *testing.T) {
 	dbPath := seedSuperAdminZefs(t, t.TempDir())
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
-		t.Fatalf("zefs.Open: %v", err)
+		t.Fatalf("OpenReadOnly: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // read-only test access
 
@@ -637,11 +637,11 @@ func TestTrimErrorPrefix(t *testing.T) {
 	}
 }
 
-// VALIDATES: ResolveDBPath resolves the store under ze.config.dir.
+// VALIDATES: ResolveStoreDir resolves the store under ze.config.dir.
 // PREVENTS: the CLI's credential lookup drifting from where ze init writes the
 // store. That split is exactly how `ze data` broke: two resolvers disagreeing
 // about the config dir, so one wrote a store the other could not find.
-func TestResolveDBPath_HonorsConfigDirEnv(t *testing.T) {
+func TestResolveStoreDirHonorsConfigDirEnv(t *testing.T) {
 	dir := t.TempDir()
 	orig := env.Get("ze.config.dir")
 	t.Cleanup(func() { _ = env.Set("ze.config.dir", orig) })
@@ -649,8 +649,8 @@ func TestResolveDBPath_HonorsConfigDirEnv(t *testing.T) {
 		t.Fatalf("env.Set ze.config.dir: %v", err)
 	}
 
-	if got, want := ResolveDBPath(), filepath.Join(dir, "database.zefs"); got != want {
-		t.Errorf("ResolveDBPath() = %q, want %q", got, want)
+	if got, want := ResolveStoreDir(""), dir; got != want {
+		t.Errorf("ResolveStoreDir = %q, want %q", got, want)
 	}
 }
 
@@ -685,5 +685,22 @@ func TestReadAnswerFrameTakesItsCountsFromTheTerminator(t *testing.T) {
 	}
 	if text != "" {
 		t.Errorf("every line of the frame parsed as an answer line, so none is operator text; got %q", text)
+	}
+}
+
+// SSH clients read credentials while the daemon holds exclusive write ownership.
+func TestReadCredentialsAlongsideOwner(t *testing.T) {
+	dir := seedSuperAdminZefs(t, t.TempDir())
+	owner, err := storage.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close() //nolint:errcheck // test cleanup
+	creds, err := ReadCredentials(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if creds.Username != "admin" || creds.Auth != "adminhash" {
+		t.Fatalf("credentials alongside daemon = %s/%s", creds.Username, creds.Auth)
 	}
 }

@@ -8,20 +8,20 @@ package statestore
 // exact regression (a config write through the shared handle must not drop state).
 
 import (
-	"path/filepath"
+	"encoding/binary"
+	"errors"
+	"sync"
 	"testing"
 
-	"github.com/ze-software/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
-// withStore registers a fresh temp database.zefs as the shared store for the test
-// and resets to nil on cleanup, so tests do not leak the global store.
-func withStore(t *testing.T) *zefs.BlobStore {
+// withStore registers a fresh owned tree and unregisters it before closing.
+func withStore(t *testing.T) storage.Storage {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "database.zefs")
-	bs, err := zefs.Create(path)
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	SetStore(bs)
 	t.Cleanup(func() {
@@ -110,5 +110,76 @@ func TestRemove(t *testing.T) {
 	// Removing an absent key is a no-op, not an error.
 	if err := Remove("meta/test/absent"); err != nil {
 		t.Errorf("Remove on absent key errored: %v", err)
+	}
+}
+
+// Concurrent increments must allocate distinct durable sequence spaces, and a
+// corrupt counter must never be reset to one.
+func TestIncrementDurableConcurrent(t *testing.T) {
+	store := withStore(t)
+	const key = "meta/test/counter"
+	const workers = 32
+	values := make(chan uint32, workers)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			value, err := Increment(key)
+			if err != nil {
+				t.Errorf("increment: %v", err)
+				return
+			}
+			values <- value
+		})
+	}
+	wg.Wait()
+	close(values)
+	seen := make(map[uint32]bool)
+	for value := range values {
+		if seen[value] {
+			t.Fatalf("duplicate counter %d", value)
+		}
+		seen[value] = true
+	}
+	for value := uint32(1); value <= workers; value++ {
+		if !seen[value] {
+			t.Fatalf("missing counter %d", value)
+		}
+	}
+	data, err := store.ReadKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if binary.BigEndian.Uint32(data) != workers {
+		t.Fatalf("durable counter = %x", data)
+	}
+	if err := store.WriteKey(key, []byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Increment(key); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("corrupt counter: %v", err)
+	}
+	if err := store.WriteKey(key, []byte{255, 255, 255, 255}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Increment(key); err == nil {
+		t.Fatal("exhausted counter wrapped")
+	}
+}
+
+// Strict RPC consumers must distinguish storeless mode from an absent key.
+func TestStrictStateUnavailableAndAbsent(t *testing.T) {
+	SetStore(nil)
+	if _, _, err := Read("meta/test/x"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("read unavailable: %v", err)
+	}
+	if err := Write("meta/test/x", nil); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("write unavailable: %v", err)
+	}
+	if err := Delete("meta/test/x"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("delete unavailable: %v", err)
+	}
+	withStore(t)
+	if _, found, err := Read("meta/test/x"); err != nil || found {
+		t.Fatalf("absent read: found=%v error=%v", found, err)
 	}
 }

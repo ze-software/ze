@@ -349,10 +349,17 @@ func (v *VPP) awaitQuery(container, command string, want bool, timeout time.Dura
 }
 
 func (v *VPP) writeConfig(work, name, content string) error {
-	return os.WriteFile(filepath.Join(work, name), []byte(content), 0o644) //nolint:gosec // a scratch config ze reads
+	directory := filepath.Join(work, "ze", name)
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(directory, "ze.conf"), []byte(content), 0o644) //nolint:gosec // a scratch config ze reads
 }
 
 func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*running, *collector, error) {
+	if err := v.stageConfig(container, configFile); err != nil {
+		return nil, nil, err
+	}
 	seen := newCollector(vppTrafficLogLine, vppFirewallLine)
 	argv := v.evidenceDaemonArgs(container, configFile, port)
 	cmd := exec.CommandContext(context.Background(), "docker", argv...) //nolint:gosec // the argv is package data
@@ -366,7 +373,7 @@ func (v *VPP) startEvidenceDaemon(container, configFile string, port int) (*runn
 func (v *VPP) evidenceDaemonArgs(container, configFile string, port int) []string {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(daemonRel(v.Goarch))).String()
-	config := tb.Reset().Str(vppMount).Byte('/').Str(configFile).String()
+	config := filepath.Join("/run/ze", configFile, "ze.conf")
 	argv := []string{
 		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_VPP=info",
@@ -376,8 +383,7 @@ func (v *VPP) evidenceDaemonArgs(container, configFile string, port int) []strin
 		dockerEnv, "ZE_LOG_FIREWALL=debug",
 		dockerEnv, "ZE_LOG_FIREWALL_VPP=debug",
 		dockerEnv, "ZE_LOG_BGP=info",
-		dockerEnv, storageBlobDisabledEnv,
-		dockerEnv, "ZE_CONFIG_DIR=/run/vpp/ze",
+		dockerEnv, tb.Reset().Str("ZE_CONFIG_DIR=").Str(filepath.Dir(config)).String(),
 	}
 	if port != 0 {
 		argv = append(argv, dockerEnv, tb.Reset().Str("ZE_TEST_BGP_PORT=").Int(int64(port)).String())

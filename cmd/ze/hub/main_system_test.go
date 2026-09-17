@@ -26,7 +26,7 @@ func TestReadConfigWithStorage_NilStore(t *testing.T) {
 // PREVENTS: archive scheduler failing on gokrazy where config is blob-backed.
 func TestReadConfigWithStorage_BlobStorage(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "prod.conf")
 
 	stamp := "20260617-120000.000"
@@ -46,7 +46,7 @@ func TestReadConfigWithStorage_BlobStorage(t *testing.T) {
 // PREVENTS: regression on filesystem-only deployments using blob-aware store.
 func TestReadConfigWithStorage_FallbackToFilesystem(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestFileStore(t, filepath.Join(dir, "router.conf"))
 	configPath := filepath.Join(dir, "router.conf")
 
 	require.NoError(t, os.WriteFile(configPath, validConfig, 0o600))
@@ -61,7 +61,7 @@ func TestReadConfigWithStorage_FallbackToFilesystem(t *testing.T) {
 // VALIDATES: readConfigWithStorage returns error when both blob and filesystem fail.
 // PREVENTS: silent nil tree on missing config.
 func TestReadConfigWithStorage_BothFail(t *testing.T) {
-	store := storage.NewFilesystem()
+	store := newTestStore(t)
 	configPath := filepath.Join(t.TempDir(), "nonexistent.conf")
 
 	readFn := readConfigWithStorage(store, configPath)
@@ -81,7 +81,7 @@ func TestStartArchiveScheduler_NilTree(t *testing.T) {
 // PREVENTS: archive scheduler running with pre-commit config after candidate promotion.
 func TestReadConfigWithStorage_ReadsPromotedVersion(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "prod.conf")
 
 	oldStamp := "20260617-100000.000"

@@ -380,13 +380,9 @@ type vrrpLab struct {
 }
 
 func newVRRPLab(root, binary, scenario string, names vrrpNames) (*vrrpLab, error) {
-	parent := filepath.Join(root, "tmp", "evidence")
-	if err := os.MkdirAll(parent, 0o750); err != nil {
-		return nil, err
-	}
 	var tb textbuf.Buffer
 	scenarioName := strings.ToLower(scenario)
-	work, err := os.MkdirTemp(parent, tb.Str("effective-vrrp-").Str(scenarioName).Byte('-').String())
+	work, err := os.MkdirTemp("/tmp", tb.Str("effective-vrrp-").Str(scenarioName).Byte('-').String())
 	if err != nil {
 		return nil, err
 	}
@@ -637,13 +633,13 @@ func (l *vrrpLab) startZe(ctx context.Context, config []byte) (float64, error) {
 	if err := os.MkdirAll(filepath.Join(l.work, "ze"), 0o750); err != nil {
 		return 0, err
 	}
-	path := filepath.Join(l.work, "ze.conf")
+	path := filepath.Join(l.work, "ze", "ze.conf")
 	if err := os.WriteFile(path, config, 0o600); err != nil {
 		return 0, err
 	}
 	environ := withGuestEnv(os.Environ(), map[string]string{
 		"ZE_LOG_VRRP": "info", "ZE_LOG_PLUGIN_RELAY": "info",
-		guestStorageBlobKey: "false", guestConfigDirKey: filepath.Join(l.work, "ze"),
+		guestConfigDirKey: filepath.Join(l.work, "ze"),
 	})
 	started := float64(time.Now().UnixNano()) / float64(time.Second)
 	process, lines, err := startGuestProcess(ctx, l.names.zeNS, []string{l.binary, "start", path}, environ, "ze> ")
@@ -1299,7 +1295,7 @@ func runVRRPGuest(ctx context.Context, root string, selected []string) (guestLab
 			scenario.Verdict = VerdictFail
 			scenario.Failure = scenarioErr.Error()
 			scenario.Artifacts = []string{
-				lab.work, lab.pcap, filepath.Join(lab.work, "ze.conf"),
+				lab.work, lab.pcap, filepath.Join(lab.work, "ze", "ze.conf"),
 				filepath.Join(lab.work, "keepalived.conf"),
 			}
 			report.Verdict = VerdictFail

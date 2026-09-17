@@ -3,7 +3,6 @@
 # PREVENTS: config editor promoting a candidate rejected by plugin verify.
 
 option=timeout:value=30s
-option=env:var=ZE_STORAGE_BLOB:value=false
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -75,11 +74,11 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start cli-commit-reject.conf:timeout=30s
 cmd=foreground:seq=3:exec=ze-test fixture plugin/cli-commit-reject-driver $PORT2:timeout=30s
 expect=exit:code=0
-expect=file:path=meta/config/active:exists=true
-expect=file:path=meta/config/candidate:absent=true
-expect=file:path=meta/config/rollback:absent=true
+expect=key:path=meta/config/cli-commit-reject.conf/active:exists=true
+expect=key:path=meta/config/cli-commit-reject.conf/candidate:absent=true
+expect=key:path=meta/config/cli-commit-reject.conf/rollback:absent=true
 expect=file:path=cli-commit-reject.conf:contains=router-id 1.2.3.4
 expect=file:path=cli-commit-reject.conf:not-contains=router-id 2.2.2.2
-expect=file:glob=rollback/cli-commit-reject-*.conf:count=1
-expect=file:glob=rollback/cli-commit-reject-*.conf:contains=router-id 1.2.3.4
-expect=file:glob=rollback/cli-commit-reject-*.conf:not-contains=router-id 2.2.2.2
+expect=key:glob=file/[0-9]*/cli-commit-reject.conf:count=1
+expect=key:glob=file/[0-9]*/cli-commit-reject.conf:contains=router-id 1.2.3.4
+expect=key:glob=file/[0-9]*/cli-commit-reject.conf:not-contains=router-id 2.2.2.2

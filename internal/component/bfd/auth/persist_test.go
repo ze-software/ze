@@ -2,24 +2,21 @@ package auth
 
 import (
 	"errors"
-	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// newStore creates an empty database.zefs and registers it as the
-// process-wide state store so the sequence persistence round-trips through
-// the real zefs store (not a loose file), mirroring
-// internal/plugins/ddos/detect/persist_test.go. The store is unregistered
-// and closed on cleanup.
+// newStore gives each test an owned tree and removes the global reference before
+// cleanup closes it.
 func newStore(t *testing.T) {
 	t.Helper()
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {

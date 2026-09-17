@@ -33,7 +33,7 @@ option=session:user=thomas:origin=local
 input=type:text=set bgp session asn local 65001
 input=enter
 expect=dirty:true
-expect=file:path=test.conf.change.thomas:contains=#thomas @local
+expect=key:path=file/active/test.conf.change.thomas:contains=#thomas @local
 `
 	result := runETTest(et)
 	if !result.Passed {
@@ -69,8 +69,8 @@ input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=dirty:true
 
-expect=file:path=test.conf.change.alice:contains=#alice @ssh
-expect=file:path=test.conf.change.bob:contains=#bob @ssh
+expect=key:path=file/active/test.conf.change.alice:contains=#alice @ssh
+expect=key:path=file/active/test.conf.change.bob:contains=#bob @ssh
 `
 	result := runETTest(et)
 	if !result.Passed {
@@ -220,6 +220,7 @@ type fileState struct {
 }
 
 func (fs *fileState) TmpDir() string                                  { return fs.tmpDir }
+func (fs *fileState) ReadKey(string) ([]byte, error)                  { return nil, os.ErrNotExist }
 func (fs *fileState) ContextPath() []string                           { return nil }
 func (fs *fileState) Completions() []cli.Completion                   { return nil }
 func (fs *fileState) GhostText() string                               { return "" }

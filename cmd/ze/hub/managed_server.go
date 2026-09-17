@@ -29,7 +29,7 @@ var managedServerLog = slogutil.LazyLogger("hub.managed-server")
 // closes the listeners). It is independent of the outbound managed client
 // (RunManagedClient): a hub can serve clients, be a managed client, or both.
 func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *zePlugin.HubConfig) *pluginserver.ManagedServer {
-	if hubConfig == nil || !storage.IsBlobStorage(store) {
+	if hubConfig == nil || store == nil {
 		return nil
 	}
 
@@ -88,7 +88,7 @@ func startManagedServer(ctx context.Context, store storage.Storage, hubConfig *z
 
 	// Push config-changed when a client's config blob is written. NotifyConfigChanged
 	// only enqueues (non-blocking), so the storage write path is never stalled.
-	storage.SetWriteObserver(store, func(key string) {
+	store.SetWriteObserver(func(key string) {
 		if name, ok := pluginserver.ClientNameFromConfigKey(key); ok {
 			srv.NotifyConfigChanged(name)
 		}

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 func TestEditorManagerListEntryPersistence(t *testing.T) {
@@ -19,7 +18,7 @@ func TestEditorManagerListEntryPersistence(t *testing.T) {
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 
 	// Simulate CLI set from web handler

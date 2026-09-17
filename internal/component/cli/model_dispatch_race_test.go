@@ -40,7 +40,7 @@ func TestPastedBlockDispatchesWithoutRacingTheEditor(t *testing.T) {
 			configPath := filepath.Join(tmpDir, "test.conf")
 			require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600))
 
-			ed, err := NewEditor(configPath)
+			ed, err := NewLooseFileEditor(nil, configPath)
 			require.NoError(t, err)
 			defer ed.Close() //nolint:errcheck,gosec // test cleanup
 

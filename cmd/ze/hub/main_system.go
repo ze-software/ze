@@ -34,6 +34,7 @@ import (
 	"github.com/ze-software/ze/internal/core/identity"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/privilege"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/plugins/crashes"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -402,19 +403,14 @@ func startArchiveScheduler(tree *zeconfig.Tree, configPath string, store configs
 	go sched.Run(ctx)
 }
 
-// readConfigWithStorage returns a config reader that tries blob storage
-// (active version) before falling back to os.ReadFile. On gokrazy the
-// config lives in blob storage; a bare os.ReadFile on the logical config
-// name fails.
+// readConfigWithStorage reads the authority chosen at startup. A failed stored
+// read must not silently turn into a loose-file read.
 func readConfigWithStorage(store configstorage.Storage, configPath string) func() ([]byte, *zeconfig.Tree, error) {
 	if store == nil {
 		return archive.ReadConfigFromPath(configPath)
 	}
 	return func() ([]byte, *zeconfig.Tree, error) {
-		data, err := configstorage.ReadActiveConfig(store, configPath)
-		if err != nil {
-			data, err = os.ReadFile(configPath) //nolint:gosec // operator-supplied path
-		}
+		data, err := internalresolve.ReadConfigSource(store, configPath)
 		if err != nil {
 			return nil, nil, err
 		}

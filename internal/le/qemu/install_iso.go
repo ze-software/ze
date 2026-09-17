@@ -463,7 +463,7 @@ func (installer *Installer) executeISO(ctx context.Context, work string, report 
 	}
 	report.check("gpt-layout", InstallVerdictPass, "first four entries match")
 	report.line(installer.prefix(), "installed GPT partition layout matches source image")
-	ok, serialPath, err := installer.bootTargetSSH(ctx, work, disk, 120*time.Second)
+	ok, serialPath, err := installer.bootTargetSSH(ctx, work, disk, 120*time.Second, nil)
 	if err != nil {
 		return report, err
 	}

@@ -37,8 +37,8 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 		return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}, nil
 	}
 
-	if backupErr := store.WriteVersion(configPath, data, time.Now()); backupErr != nil {
-		logger.Error("backup config before evolution write-back", "error", backupErr)
+	if backupErr := initializeConfigSource(store, configPath, data); backupErr != nil {
+		return evolveOutcome{tree: tree, data: data}, backupErr
 	}
 
 	schema, schemaErr := zeconfig.YANGSchema()
@@ -48,9 +48,11 @@ func applyEvolutions(logger *slog.Logger, store storage.Storage, configPath stri
 
 	stamped := zeconfig.FormatSchemaStamp() +
 		zeconfig.SerializeSetWithMeta(result.Tree, zeconfig.NewMetaTree(), schema)
-	if writeErr := store.WriteFile(configPath, []byte(stamped), 0o600); writeErr != nil {
-		logger.Error("write evolved config", "error", writeErr)
-		return evolveOutcome{tree: result.Tree, data: data, applied: result.Applied}, nil
+	if _, writeErr := storage.WriteCandidateVersion(store, configPath, []byte(stamped), time.Now()); writeErr != nil {
+		return evolveOutcome{tree: tree, data: data}, writeErr
+	}
+	if writeErr := promoteConfigCandidate(store, configPath); writeErr != nil {
+		return evolveOutcome{tree: tree, data: data}, writeErr
 	}
 
 	return evolveOutcome{tree: result.Tree, data: []byte(stamped), applied: result.Applied}, nil

@@ -40,7 +40,7 @@ func tabTestModel(t *testing.T) *Model {
 			}},
 		},
 	}))
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	return m
 }
 
@@ -86,7 +86,7 @@ func TestTabOnExhaustedCompletionRevealsTheExplanation(t *testing.T) {
 // PREVENTS: an explanation looked up for "run peer list", which names no command.
 func TestTabRevealsTheExplanationBehindTheRunPrefix(t *testing.T) {
 	m := tabTestModel(t)
-	m.switchMode(ModeConfig)
+	m.SetMode(ModeConfig)
 	m.textInput.SetValue("run peer list ")
 	m.updateCompletions()
 
@@ -614,7 +614,7 @@ func showTestModel(t *testing.T) *Model {
 			}},
 		},
 	}))
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	return m
 }
 

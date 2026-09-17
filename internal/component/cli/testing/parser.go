@@ -132,6 +132,7 @@ const (
 // Other types join remaining segments to preserve colons in values.
 var multiKeyExpect = map[string]bool{
 	etFile: true,
+	"key":  true,
 }
 
 var validActions = map[string]bool{
@@ -378,7 +379,7 @@ func (tc *TestCase) parseExpect(rest string) error {
 	exp.Type = segments[0]
 
 	// Parse key=value pairs.
-	// Types with multi-key expectations (file) parse each segment individually.
+	// File and key expectations parse each colon-separated pair individually.
 	// Other types join remaining segments to preserve colons in values (e.g., contains=http://...).
 	if len(segments) >= 2 {
 		if multiKeyExpect[exp.Type] {
@@ -485,7 +486,7 @@ func (tc *TestCase) parseSession(rest string) error {
 
 // parseRestart adds a restart marker to the step sequence.
 // Restart recreates the headless model from the same config, simulating exit + relaunch.
-// History backed by a blob store survives restarts.
+// History backed by the shared tree store survives restarts.
 func (tc *TestCase) parseRestart(rest string) error {
 	if rest != "" && rest != "editor" {
 		return fmt.Errorf("restart accepts no value or 'editor', got %q", rest)

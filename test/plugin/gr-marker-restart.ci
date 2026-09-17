@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. Compiled fixture creates a valid (far-future) GR marker in meta/bgp/gr-marker
-# 2. Ze starts with GR capability (restart-time=120) and filesystem storage
+# 2. Ze starts with GR capability (restart-time=120) and tree storage
 # 3. Ze reads marker, sets RestartUntil, logs "GR restart marker found"
 # 4. Ze connects to ze-peer, session establishes (UPDATE + EOR sent)
 #
@@ -15,12 +15,7 @@
 # PREVENTS: GR marker ignored on startup.
 
 
-# Use filesystem storage: the compiled fixture creates the marker as a file on disk.
-# With default blob storage the marker would live inside database.zefs (binary-relative
-# configDir), not the tmpfs, so the pre-seeded marker would never be visible to ze.
-# Must live OUTSIDE the stdin=peer block: the test runner only parses expect= / action=
-# lines from that block, so option=env inside it is silently ignored.
-option=env:var=ze.storage.blob:value=false
+# The fixture seeds the marker through the same tree store the daemon opens.
 
 # Enable GR subsystem logging so marker detection is visible (also outside peer block).
 option=env:var=ze.log.bgp.gr:value=info

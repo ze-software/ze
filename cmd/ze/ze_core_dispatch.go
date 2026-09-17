@@ -22,12 +22,11 @@ import (
 	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
 
@@ -74,9 +73,6 @@ var (
 // -h/--help flags to the help verb and when registering the handler.
 const cmdHelp = "help"
 
-// ze.storage.blob is NOT registered here. It is declared and registered beside
-// its only reader, as resolve.EnvKeyStorageBlob, which this binary links through
-// ze_core_start.go. A copy here would be a second declaration of one fact.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: typeNameString, Description: "Override hub address (host:port) for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: typeNameString, Description: "Override client name for managed mode"})
@@ -285,11 +281,8 @@ func zeDispatch(args []string) int {
 	}
 
 	if zeFlags.fileOverride != "" {
-		store := storage.NewFilesystem()
-		zeFlags.fileOverride = config.ResolveConfigPath(zeFlags.fileOverride)
-		return withPanicCapture(func() int {
-			return hub.Run(store, zeFlags.fileOverride, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, false, "", false, "", "")
-		})
+		return cmdStart([]string{zeFlags.fileOverride}, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate,
+			zeFlags.mcpAddr, zeFlags.mcpToken, zeFlags.webPort, zeFlags.insecureWeb, zeFlags.webOnly)
 	}
 
 	if len(args) < 1 {
@@ -379,7 +372,7 @@ func zeDispatch(args []string) int {
 	// spec-fixit-config-file-positional-grammar: use `ze start <config-file>`.
 	if arg == "-" {
 		return withPanicCapture(func() int {
-			return hub.Run(resolveStorage(), arg, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, webEnabled, webListenAddr, zeFlags.insecureWeb, zeFlags.mcpAddr, zeFlags.mcpToken)
+			return hub.Run(nil, arg, zeFlags.plugins, zeFlags.chaosSeed, zeFlags.chaosRate, webEnabled, webListenAddr, zeFlags.insecureWeb, zeFlags.mcpAddr, zeFlags.mcpToken)
 		})
 	}
 
@@ -486,12 +479,12 @@ func registerLocalCommands() {
 		Mode: commandModeOffline,
 	})
 
-	registry.SetRuntimeStorage(func() any { return resolveStorage() })
+	registry.SetRuntimeStorage(runtimeStorage)
 }
 
 func newZeRuntimeContext() *registry.RuntimeContext {
 	return &registry.RuntimeContext{
-		ResolveStorage: func() any { return resolveStorage() },
+		ResolveStorage: runtimeStorage,
 		Plugins:        zeFlags.plugins,
 		ConfigOverride: zeFlags.fileOverride,
 		PrintVersion:   versionPrinter,
@@ -503,6 +496,17 @@ func newZeRuntimeContext() *registry.RuntimeContext {
 		ChaosSeed:      zeFlags.chaosSeed,
 		ChaosRate:      zeFlags.chaosRate,
 	}
+}
+
+// runtimeStorage serves offline handlers that have not supplied a config path.
+// Path-aware commands resolve their own store after parsing their arguments.
+func runtimeStorage() any {
+	store, err := internalresolve.StorageFor(zeFlags.fileOverride)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: config storage unavailable: %v\n", err)
+		return nil
+	}
+	return store
 }
 
 // versionPrinter adapts printVersion (which returns an exit code) to the void

@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -44,11 +44,11 @@ func ReadPointer(store Storage, configPath string, pointer PointerName) (string,
 	if err != nil {
 		return "", false, err
 	}
-	if !store.Exists(path) {
-		return "", false, nil
-	}
 	data, err := store.ReadFile(path)
 	if err != nil {
+		if isNotExist(err) {
+			return "", false, nil
+		}
 		return "", false, fmt.Errorf("read %s pointer: %w", pointer, err)
 	}
 	stamp := strings.TrimSpace(string(data))
@@ -108,7 +108,23 @@ func WriteCandidateVersionWithGuard(store Storage, guard WriteGuard, configPath 
 		return "", ErrCandidateExists
 	}
 
-	stampStr = FormatVersionStamp(stamp)
+	// Millisecond stamps can collide during startup or rapid commits. The
+	// exclusive guard keeps the finite occupied set fixed while this advances.
+	for {
+		stampStr = FormatVersionStamp(stamp)
+		path, pathErr := versionPath(store, configPath, stampStr)
+		if pathErr != nil {
+			return "", pathErr
+		}
+		_, readErr := guard.ReadFile(path)
+		if isNotExist(readErr) {
+			break
+		}
+		if readErr != nil {
+			return "", readErr
+		}
+		stamp = stamp.Add(time.Millisecond)
+	}
 	if err := guard.WriteVersion(configPath, data, stamp); err != nil {
 		return "", fmt.Errorf("write candidate version: %w", err)
 	}
@@ -167,7 +183,7 @@ func RemoveVersion(store Storage, configPath, stamp string) (err error) {
 	return removeVersionLocked(store, guard, configPath, stamp)
 }
 
-// ClearCandidate removes the transient candidate pointer and candidate version.
+// ClearCandidate removes the transient pointer and an otherwise unreferenced version.
 func ClearCandidate(store Storage, configPath string) (err error) {
 	guard, err := store.AcquireLock(configPath)
 	if err != nil {
@@ -209,6 +225,16 @@ func PromoteCandidate(store Storage, configPath string) (err error) {
 	if err != nil {
 		return err
 	}
+	// A persisted active pointer is the commit point. Resuming after it MUST
+	// preserve the previous rollback rather than replace it with candidate.
+	if hasActive {
+		if active == candidate {
+			if err := guard.WriteFile(configPath, candidateData, 0o600); err != nil {
+				slogutil.Logger("storage").Warn("mirror active config failed", "path", configPath, "error", err)
+			}
+			return clearPointerLocked(store, guard, configPath, PointerCandidate)
+		}
+	}
 	if !hasActive {
 		legacyData, readErr := guard.ReadFile(configPath)
 		if readErr == nil {
@@ -236,13 +262,10 @@ func PromoteCandidate(store Storage, configPath string) (err error) {
 	if err := writePointerLocked(store, guard, configPath, PointerActive, candidate); err != nil {
 		return err
 	}
-	if err := clearPointerLocked(store, guard, configPath, PointerCandidate); err != nil {
-		return err
-	}
 	if err := guard.WriteFile(configPath, candidateData, 0o600); err != nil {
-		slog.Warn("storage: mirror active config failed", "path", configPath, "error", err)
+		slogutil.Logger("storage").Warn("mirror active config failed", "path", configPath, "error", err)
 	}
-	return nil
+	return clearPointerLocked(store, guard, configPath, PointerCandidate)
 }
 
 func readPointerLocked(store Storage, guard WriteGuard, configPath string, pointer PointerName) (string, bool, error) {
@@ -295,6 +318,17 @@ func removeVersionLocked(store Storage, guard WriteGuard, configPath, stamp stri
 	if err != nil {
 		return err
 	}
+	for _, pointer := range []PointerName{PointerActive, PointerRollback, PointerRecovery, PointerCandidate} {
+		reference, present, err := readPointerLocked(store, guard, configPath, pointer)
+		if err != nil {
+			return err
+		}
+		if present {
+			if reference == stamp {
+				return nil
+			}
+		}
+	}
 	if err := guard.Remove(path); err != nil {
 		if isNotExist(err) {
 			return nil
@@ -336,47 +370,52 @@ func ReadCandidateConfig(store Storage, configPath string) ([]byte, string, bool
 	return data, stamp, true, nil
 }
 
-func pointerPath(store Storage, configPath string, pointer PointerName) (string, error) {
+func pointerPath(backing Storage, configPath string, pointer PointerName) (string, error) {
+	if core, ok := backing.(*store); ok {
+		if err := core.checkName(configPath); err != nil {
+			return "", err
+		}
+	}
 	if !pointer.valid() {
 		return "", fmt.Errorf("unknown config pointer %q", pointer)
 	}
-	if IsBlobStorage(store) {
-		return pointerKey(pointer), nil
+	name := filepath.Base(configPath)
+	if err := validKey(name); err != nil {
+		return "", err
 	}
-	return filepath.Join(filepath.Dir(configPath), "meta", "config", string(pointer)), nil
-}
-
-func pointerKey(pointer PointerName) string {
+	if strings.Contains(name, "..") {
+		return "", fmt.Errorf("invalid config name %q", name)
+	}
 	switch pointer {
 	case PointerActive:
-		return zefs.KeyConfigActive.Key()
+		return zefs.KeyConfigActive.Key(name), nil
 	case PointerCandidate:
-		return zefs.KeyConfigCandidate.Key()
+		return zefs.KeyConfigCandidate.Key(name), nil
 	case PointerRollback:
-		return zefs.KeyConfigRollback.Key()
+		return zefs.KeyConfigRollback.Key(name), nil
 	case PointerRecovery:
-		return zefs.KeyConfigRecovery.Key()
-	default:
-		return ""
+		return zefs.KeyConfigRecovery.Key(name), nil
 	}
+	return "", fmt.Errorf("unknown config pointer %q", pointer)
 }
 
-func versionPath(store Storage, configPath, stamp string) (string, error) {
+func versionPath(backing Storage, configPath, stamp string) (string, error) {
+	if core, ok := backing.(*store); ok {
+		if err := core.checkName(configPath); err != nil {
+			return "", err
+		}
+	}
+	name := filepath.Base(configPath)
+	if err := validKey(name); err != nil {
+		return "", err
+	}
+	if strings.Contains(name, "..") {
+		return "", fmt.Errorf("invalid config name %q", name)
+	}
 	if _, err := ParseVersionStamp(stamp); err != nil {
 		return "", fmt.Errorf("config version path: %w", err)
 	}
-	if IsBlobStorage(store) {
-		return zefs.KeyFileVersion.Key(stamp, resolvePathToKey(configPath)), nil
-	}
-	return versionPathFS(configPath, stamp), nil
-}
-
-func versionPathFS(name, stamp string) string {
-	dir := filepath.Dir(name)
-	base := filepath.Base(name)
-	ext := filepath.Ext(base)
-	stem := strings.TrimSuffix(base, ext)
-	return filepath.Join(dir, "rollback", stem+"-"+stamp+".conf")
+	return zefs.KeyFileVersion.Key(stamp, name), nil
 }
 
 func isNotExist(err error) bool {

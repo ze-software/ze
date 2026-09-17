@@ -106,6 +106,7 @@ type grManager struct {
 	now func() time.Time
 
 	resumeOnce sync.Once // resumeFromNVS runs at most once per engine lifecycle
+	resumeErr  error
 
 	mu  sync.Mutex
 	cfg gracefulRestartConfig

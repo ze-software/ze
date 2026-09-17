@@ -62,13 +62,13 @@ not act as a fallback for a failed per-user login.
 <!-- source: internal/component/api/rest/auth.go -- RESTServer.withAuth -->
 <!-- source: internal/component/api/grpc/server.go -- GRPCServer.checkAuth -->
 
-The per-user source merges the zefs users with `system.authentication.user`
-entries from the running config. A config user replaces a zefs user with the
-same name. Only zefs users that survive this merge keep the zefs recovery
+The per-user source merges managed-store users with `system.authentication.user`
+entries from the running config. A config user replaces a stored user with the
+same name. Only stored users that survive this merge keep the recovery
 profile. A successful login carries its authorization view with the
 authenticated request. Concurrent requests with the same username cannot
 replace each other's resolved profiles.
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromZefsDB -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromStore -->
 <!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
 <!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult -->
 

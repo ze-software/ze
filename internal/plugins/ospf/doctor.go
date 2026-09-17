@@ -12,6 +12,7 @@ package ospf
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/config"
@@ -32,15 +33,14 @@ const (
 	// but the BFD plugin is not loaded in this process (api.GetService is nil): OSPF then runs
 	// on the Hello/Dead timers alone. RFC 5880 / RFC 5881.
 	codeOSPFBFDPluginAbsent = "doctor-ospf-bfd-plugin-absent"
-	// codeOSPFGracefulRestartNVS fires when OSPF Graceful Restart's restarter is enabled but
-	// the non-volatile restart-fact store cannot be opened (RFC 3623 sec 2.1). Without it a
-	// planned restart cannot persist its grace deadline, so non-stop forwarding is defeated.
+	// codeOSPFGracefulRestartNVS reports an enabled restarter whose durable
+	// restart state is unavailable, unreadable or corrupt (RFC 3623 sec 2.1).
 	codeOSPFGracefulRestartNVS = "doctor-ospf-graceful-restart-nvs"
 )
 
 // checkOSPFGracefulRestartNVS is the registered doctor check for the Graceful Restart NVS
 // runtime dependency (spec-ospf-ext-9). It fires only when the restarter is enabled and the
-// ZeFS blob store the restart fact persists to cannot be opened.
+// daemon-owned restart-fact storage is unavailable or unreadable.
 func checkOSPFGracefulRestartNVS(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {
@@ -58,32 +58,77 @@ func checkOSPFGracefulRestartNVS(ctx diagnostic.DoctorCheckContext) []diagnostic
 	if err != nil {
 		return nil
 	}
-	return grNVSDiagnostics(cfg, grStoreOpenable())
+	if !grRestarterConfigured(&cfg) {
+		return nil
+	}
+	if ctx.Store == nil {
+		return grNVSDiagnostics(cfg, false)
+	}
+	if err := checkGRState(ctx.Store); err != nil {
+		diags := grNVSDiagnostics(cfg, false)
+		for i := range diags {
+			diags[i].Message = fmt.Sprintf("%s: %v", diags[i].Message, err)
+		}
+		return diags
+	}
+	return nil
 }
 
-// grStoreOpenable reports whether the GR non-volatile restart-fact store can be opened.
-func grStoreOpenable() bool {
-	store, ok := openGRStore()
-	if !ok {
-		return false
-	}
-	if err := store.Close(); err != nil {
-		return false
-	}
-	return true
+// stateReader permits doctor to inspect the supplied read-only store offline,
+// or the daemon's RPC-backed key reader at runtime. It never opens a store.
+type stateReader interface {
+	ReadKey(string) ([]byte, error)
+	ListKeys(string) ([]string, error)
 }
 
-// grNVSDiagnostics is the pure decision for the Graceful Restart NVS readiness check: it warns
-// only when the restarter is enabled and the non-volatile store is not openable.
-func grNVSDiagnostics(cfg ospfConfig, storeOpenable bool) []diagnostic.Diagnostic {
-	if !cfg.GracefulRestart.restarterEnabled() || storeOpenable {
+func checkGRState(store stateReader) error {
+	keys, err := store.ListKeys(grRestartFactKeyPrefix)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		data, err := store.ReadKey(key)
+		if err != nil {
+			return err
+		}
+		var fact restartFact
+		if err := json.Unmarshal(data, &fact); err != nil {
+			return fmt.Errorf("decode %s: %w", key, err)
+		}
+	}
+	return nil
+}
+
+// grNVSDiagnostics warns when a configured restarter cannot read durable state.
+func grNVSDiagnostics(cfg ospfConfig, storeReadable bool) []diagnostic.Diagnostic {
+	if storeReadable {
+		return nil
+	}
+	if !grRestarterConfigured(&cfg) {
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     codeOSPFGracefulRestartNVS,
 		Severity: diagnostic.SeverityWarning,
-		Message:  "ospf graceful-restart restarter is enabled but the non-volatile restart-fact store cannot be opened; a planned restart cannot persist its grace deadline and would reconverge normally",
+		Message:  "ospf graceful-restart restarter is enabled but its durable state is unavailable or unreadable; startup and planned restart preparation require acknowledged state",
 	}}
+}
+
+func grRestarterConfigured(cfg *ospfConfig) bool {
+	if cfg.GracefulRestart.restarterEnabled() {
+		return true
+	}
+	if cfg.V6 != nil {
+		if grRestarterConfigured(cfg.V6) {
+			return true
+		}
+	}
+	for i := range cfg.V6Extra {
+		if grRestarterConfigured(&cfg.V6Extra[i].cfg) {
+			return true
+		}
+	}
+	return false
 }
 
 // bfdEnabledInterfaceCount returns how many interfaces (across both address families) opt

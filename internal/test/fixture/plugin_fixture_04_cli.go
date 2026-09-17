@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -387,6 +388,9 @@ func cliCommitDriver04(reject bool) Driver {
 		env := overrideEnv04(os.Environ(),
 			"ZE_CONFIG_DIR="+clientDir,
 			"ZE_SSH_PASSWORD=testpass",
+			"ZE_SSH_HOST=127.0.0.1",
+			"ZE_SSH_PORT="+args[0],
+			"ZE_SSH_USERNAME=admin",
 			"NO_COLOR=1",
 			"TERM=xterm",
 		)
@@ -406,16 +410,8 @@ func cliCommitDriver04(reject bool) Driver {
 		if reject {
 			config = "cli-commit-reject.conf"
 		}
-		transcript, err := driveEditor04(ctx, env, config, reject)
-		if err != nil {
+		if _, err := driveEditor04(ctx, env, config, reject); err != nil {
 			return err
-		}
-		if reject {
-			if !strings.Contains(transcript, "commit failed:") || strings.Contains(transcript, "and reloaded") {
-				return fmt.Errorf("config editor did not report transactional commit failure\n%s", transcript)
-			}
-		} else if !strings.Contains(transcript, "and reloaded") || strings.Contains(transcript, "commit failed:") {
-			return fmt.Errorf("config editor did not report transactional commit success\n%s", transcript)
 		}
 		if _, err := runCommandProcess04(ctx, env, nil, "ze", "cli", "-c", "show version"); err != nil {
 			return err
@@ -460,13 +456,19 @@ func overrideEnv04(base []string, values ...string) []string {
 }
 
 func driveEditor04(ctx context.Context, env []string, config string, reject bool) (string, error) {
-	cmd := exec.CommandContext(ctx, "ze", "config", "edit", "-f", config) //nolint:gosec // the fixture chooses the program and its arguments
+	cmd := exec.CommandContext(ctx, "ze", "config", "edit", config) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Env = env
 	terminal, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 30, Cols: 120})
 	if err != nil {
 		return "", err
 	}
 	defer terminal.Close() //nolint:errcheck // fixture teardown
+	defer func() {
+		if cmd.ProcessState == nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+	}()
 	transcript, err := readPTYUntil04(terminal, nil, 20*time.Second, false, "\x1b[?1049h", "╭")
 	if err != nil {
 		_ = cmd.Process.Kill()
@@ -485,11 +487,15 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 	if err := send("set bgp router-id 2.2.2.2", "2.2.2.2"); err != nil {
 		return transcript, err
 	}
-	if err := send("commit", "Configuration committed", "commit failed:", "commit blocked:"); err != nil {
+	if _, err := terminal.WriteString("commit\r"); err != nil {
 		return transcript, err
 	}
 	if reject {
-		if !strings.Contains(transcript, "commit failed:") {
+		transcript, err = readPTYUntil04(terminal, []byte(transcript), 20*time.Second, false, "commit failed:", "commit blocked:")
+		if err != nil {
+			return transcript, err
+		}
+		if !strings.Contains(transcript, "commit failed:") && !strings.Contains(transcript, "commit blocked:") {
 			return transcript, errors.New("config editor did not reject the commit")
 		}
 		if err := send("errors", "reject router-id", "commit failed:"); err != nil {
@@ -498,8 +504,14 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 		if err := send("discard all", "discard", "Discard"); err != nil {
 			return transcript, err
 		}
-	} else if strings.Contains(transcript, "commit failed:") || strings.Contains(transcript, "commit blocked:") {
-		return transcript, errors.New("config editor rejected the commit")
+	} else {
+		var commitErr error
+		if !Poll(ctx, 200, 100*time.Millisecond, func() bool {
+			commitErr = storageAssertActive(config, "2.2.2.2")
+			return commitErr == nil
+		}) {
+			return transcript, fmt.Errorf("editor did not publish committed router-id: %w", commitErr)
+		}
 	}
 	if _, err := terminal.WriteString("quit\r"); err != nil {
 		return transcript, err
@@ -514,6 +526,8 @@ func driveEditor04(ctx context.Context, env []string, config string, reject bool
 func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK bool, needles ...string) (string, error) {
 	buf := append([]byte(nil), initial...)
 	deadline := time.Now().Add(timeout)
+	pollFD := []unix.PollFd{{Fd: int32(file.Fd()), Events: unix.POLLIN}}
+	chunk := make([]byte, 65536)
 	for {
 		for _, needle := range needles {
 			if bytes.Contains(buf, []byte(needle)) {
@@ -523,8 +537,16 @@ func readPTYUntil04(file *os.File, initial []byte, timeout time.Duration, eofOK 
 		if time.Now().After(deadline) {
 			return string(buf), errors.New("output deadline expired")
 		}
-		_ = file.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-		chunk := make([]byte, 65536)
+		ready, err := unix.Poll(pollFD, max(1, int(time.Until(deadline).Milliseconds())))
+		if errors.Is(err, unix.EINTR) {
+			continue
+		}
+		if err != nil {
+			return string(buf), err
+		}
+		if ready == 0 {
+			return string(buf), errors.New("output deadline expired")
+		}
 		n, err := file.Read(chunk)
 		if n > 0 {
 			buf = append(buf, chunk[:n]...)

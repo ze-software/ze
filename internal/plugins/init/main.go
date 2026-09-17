@@ -1,7 +1,7 @@
 // Design: docs/architecture/system-architecture.md — ze init bootstrap command
 
-// Package init provides the `ze init` command that bootstraps the zefs database
-// with SSH credentials before any other ze command can work.
+// Package init provides the `ze init` command that bootstraps the live store
+// or builds an explicit appliance seed artifact.
 package init
 
 import (
@@ -10,15 +10,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/selfcert"
@@ -53,7 +52,7 @@ func Run(args []string) int {
 	yesFlag := fs.Bool("yes", false, "Skip confirmation prompt (use with --force)")
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
 	webCertNameFlag := fs.String("web-cert-name", "", "Extra DNS name for the TLS certificate SAN (e.g. router.example.com)")
-	seedFlag := fs.Bool("seed", false, "Seed database for an appliance image: skip baking this host's interface discovery into the active config (the appliance builds its config at first boot from the template plus on-device discovery)")
+	seedFlag := fs.Bool("seed", false, "Create a database.zefs appliance seed artifact without build-host interface discovery")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -74,7 +73,7 @@ func Run(args []string) int {
 					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
-					{Name: "--seed", Desc: "Appliance seed DB: skip on-host interface discovery (appliance builds its config at first boot from template + on-device discovery)"},
+					{Name: "--seed", Desc: "Create a blob artifact for appliance builders; skip build-host interface discovery"},
 				}},
 			},
 			Examples: []string{
@@ -91,7 +90,7 @@ func Run(args []string) int {
 		return 1
 	}
 
-	dbPath := sshclient.ResolveDBPath()
+	dbPath := sshclient.ResolveStoreDir("")
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
@@ -112,59 +111,45 @@ func Run(args []string) int {
 		inputReader = bytes.NewReader(data)
 	}
 
-	// Handle --force: move existing database aside after confirmation.
+	// Confirmation precedes staging; replacement itself holds the storage lock.
 	if *forceFlag {
-		if _, err := os.Stat(dbPath); err == nil {
-			if daemonRunning(dbPath) {
-				fmt.Fprintf(os.Stderr, "error: daemon is running -- stop it before replacing the database\n")
-				return 1
-			}
-			if !*yesFlag && !confirmForceReplace(dbPath) {
-				fmt.Fprintf(os.Stderr, "aborted\n")
-				return 1
-			}
-			if err := moveAsideDB(dbPath); err != nil {
-				fmt.Fprintf(os.Stderr, "error: %v\n", err)
-				return 1
+		for _, name := range []string{"database", "database.zefs"} {
+			path := filepath.Join(dbPath, name)
+			if _, err := os.Lstat(path); err == nil {
+				if !*yesFlag {
+					if !confirmForceReplace(path) {
+						fmt.Fprintf(os.Stderr, "aborted\n")
+						return 1
+					}
+				}
+				break
 			}
 		}
 	}
 
-	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag, *seedFlag)
+	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag, *seedFlag, *forceFlag)
 }
 
-// RunWithReader creates a zefs database with SSH credentials read from r.
+// RunWithReader creates a live store in dir with SSH credentials read from r.
 // Format: one line each for username, password, host, port, name.
 // Empty host defaults to 127.0.0.1, empty port defaults to 2222.
-func RunWithReader(r io.Reader, dbPath string, managed bool) int {
-	return runInit(r, nil, dbPath, managed, "", "", false)
+func RunWithReader(r io.Reader, dir string, managed bool) int {
+	return runInit(r, nil, dir, managed, "", "", false, false)
 }
 
-// RunWithReaderForce is like RunWithReader but moves an existing database aside first.
-// Used by tests and non-interactive callers where confirmation is handled externally.
-func RunWithReaderForce(r io.Reader, dbPath string, managed bool) (int, error) {
-	if _, err := os.Stat(dbPath); err == nil {
-		if err := moveAsideDB(dbPath); err != nil {
-			return 1, err
-		}
-	}
-	return runInit(r, nil, dbPath, managed, "", "", false), nil
+// RunWithReaderForce stages a replacement under exclusive storage ownership.
+// Callers MUST obtain confirmation before calling.
+func RunWithReaderForce(r io.Reader, dir string, managed bool) (int, error) {
+	return runInit(r, nil, dir, managed, "", "", false, true), nil
 }
 
-// RunInteractive creates a zefs database with interactive prompts.
+// RunInteractive creates a live store with interactive prompts.
 // Prompts are written to w (typically os.Stderr).
-func RunInteractive(r io.Reader, w io.Writer, dbPath string) int {
-	return runInit(r, w, dbPath, false, "", "", false)
+func RunInteractive(r io.Reader, w io.Writer, dir string) int {
+	return runInit(r, w, dir, false, "", "", false, false)
 }
 
-func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCertAddr, webCertName string, seed bool) int {
-	// Check if database already exists
-	if _, err := os.Stat(dbPath); err == nil {
-		fmt.Fprintf(os.Stderr, "error: database already exists: %s\n", dbPath)
-		fmt.Fprintf(os.Stderr, "hint: remove it first if you want to reinitialize\n")
-		return 1
-	}
-
+func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAddr, webCertName string, seed, force bool) int {
 	// Read credentials (with optional prompts)
 	scanner := bufio.NewScanner(r)
 
@@ -216,139 +201,123 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		name = defaultName
 	}
 
-	// Create parent directory if needed
-	if dir := filepath.Dir(dbPath); dir != "." {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			fmt.Fprintf(os.Stderr, "error: create directory: %v\n", err)
-			return 1
+	populate := func(store storage.Storage) error {
+		// Write SSH credentials in deterministic order.
+		type entry struct {
+			key, value string
 		}
-	}
-
-	tmpPath := dbPath + ".init-tmp"
-	store, err := zefs.Create(tmpPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: create database: %v\n", err)
-		return 1
-	}
-	cleanupTmp := func() {
-		store.Close()      //nolint:errcheck // best-effort cleanup
-		os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup of partial database
-	}
-
-	// Write SSH credentials in deterministic order.
-	type entry struct {
-		key, value string
-	}
-	managedValue := "false"
-	if managed {
-		managedValue = "true"
-	}
-
-	entries := []entry{
-		{zefs.KeySSHUsername.Key(host, port), username},
-		{zefs.KeySSHPassword.Key(host, port), string(hashedPassword)},
-		{zefs.KeyLocalAdminUsername.Pattern, username},
-		{zefs.KeyLocalAdminPassword.Pattern, string(hashedPassword)},
-		{zefs.KeySSHDefault.Pattern, host + "/" + port},
-		{keyManaged, managedValue},
-	}
-	if name != "" {
-		entries = append(entries, entry{keyIdentityName, name})
-	}
-
-	for _, e := range entries {
-		if err := store.WriteFile(e.key, []byte(e.value), 0); err != nil {
-			fmt.Fprintf(os.Stderr, "error: write %s: %v\n", e.key, err)
-			cleanupTmp()
-			return 1
+		managedValue := "false"
+		if managed {
+			managedValue = "true"
 		}
-	}
 
-	// Discover OS interfaces and generate initial config. LoadBackend
-	// activates the netlink backend registered via the blank import
-	// above; without it DiscoverInterfaces returns "no backend loaded"
-	// and every detected netdev is silently dropped. Backend load
-	// failures (e.g., non-Linux platforms with only the stub backend)
-	// are non-fatal -- init still completes, the user just gets an
-	// empty interface config.
-	//
-	// --seed skips this entirely: an appliance-image seed DB must NOT bake
-	// this build host's interfaces into file/active/ze.conf. That active
-	// config would hold the wrong host's NICs and would shadow any
-	// file/template/ze.conf so the appliance never applies it. Instead the
-	// appliance boots with no active config and builds one at first boot from
-	// the template merged with its own on-device discovery (see
-	// cmd/ze/ze_core_start.go bootstrapConfigFromTemplate).
-	if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
-		// appliance seed: nothing baked in; first boot discovers on-device.
-	} else if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: load netlink backend: %v\n", loadErr)
-	} else {
-		if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
-		} else if len(discovered) > 0 {
-			if config := iface.EmitConfig(discovered); config != "" {
-				configKey := zefs.KeyFileActive.Key("ze.conf")
-				if wErr := store.WriteFile(configKey, []byte(config), 0); wErr != nil {
-					fmt.Fprintf(os.Stderr, "warning: write initial config: %v\n", wErr)
-				} else {
-					fmt.Printf("discovered %d interface(s), wrote initial config\n", len(discovered))
-				}
+		entries := []entry{
+			{zefs.KeySSHUsername.Key(host, port), username},
+			{zefs.KeySSHPassword.Key(host, port), string(hashedPassword)},
+			{zefs.KeyLocalAdminUsername.Pattern, username},
+			{zefs.KeyLocalAdminPassword.Pattern, string(hashedPassword)},
+			{zefs.KeySSHDefault.Pattern, host + "/" + port},
+			{keyManaged, managedValue},
+		}
+		if name != "" {
+			entries = append(entries, entry{keyIdentityName, name})
+		}
+
+		for _, e := range entries {
+			if err := store.WriteKey(e.key, []byte(e.value)); err != nil {
+				return fmt.Errorf("write %s: %w", e.key, err)
 			}
 		}
-		if closeErr := iface.CloseBackend(); closeErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: close netlink backend: %v\n", closeErr)
+
+		// Discover OS interfaces and generate initial config. LoadBackend
+		// activates the netlink backend registered via the blank import
+		// above; without it DiscoverInterfaces returns "no backend loaded"
+		// and every detected netdev is silently dropped. Backend load
+		// failures (e.g., non-Linux platforms with only the stub backend)
+		// are non-fatal -- init still completes, the user just gets an
+		// empty interface config.
+		//
+		// --seed skips this entirely: an appliance-image seed DB must NOT bake
+		// this build host's interfaces into file/active/ze.conf. That active
+		// config would hold the wrong host's NICs and would shadow any
+		// file/template/ze.conf so the appliance never applies it. Instead the
+		// appliance boots with no active config and builds one at first boot from
+		// the template merged with its own on-device discovery (see
+		// cmd/ze/ze_core_start.go bootstrapConfigFromTemplate).
+		if seed { //nolint:staticcheck // SA9003: intentional no-op; see comment above
+			// appliance seed: nothing baked in; first boot discovers on-device.
+		} else if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: load netlink backend: %v\n", loadErr)
+		} else {
+			if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
+			} else if len(discovered) > 0 {
+				if config := iface.EmitConfig(discovered); config != "" {
+					configKey := zefs.KeyFileActive.Key("ze.conf")
+					if wErr := store.WriteKey(configKey, []byte(config)); wErr != nil {
+						if closeErr := iface.CloseBackend(); closeErr != nil {
+							return fmt.Errorf("write initial config: %w; close backend: %v", wErr, closeErr)
+						}
+						return fmt.Errorf("write initial config: %w", wErr)
+					}
+					fmt.Fprintf(os.Stdout, "discovered %d interface(s), wrote initial config\n", len(discovered))
+				}
+			}
+			if closeErr := iface.CloseBackend(); closeErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: close netlink backend: %v\n", closeErr)
+			}
 		}
+
+		// Generate and store TLS certificate if requested.
+		// --web-cert-name generates a cert with the hostname as DNS SAN (no IP enumeration).
+		// --web-cert generates a cert with IP SANs derived from the listen address.
+		// Both can be combined.
+		if webCertAddr != "" || webCertName != "" {
+			var extraNames []string
+			if webCertName != "" {
+				extraNames = []string{webCertName}
+			}
+			certPEM, keyPEM, certErr := selfcert.GenerateWebCertWithNames(webCertAddr, extraNames, 0)
+			if certErr != nil {
+				return fmt.Errorf("generate TLS certificate: %w", certErr)
+			}
+			if err := store.WriteKey(zefs.KeyWebCert.Pattern, certPEM); err != nil {
+				return fmt.Errorf("write TLS cert: %w", err)
+			}
+			if err := store.WriteKey(zefs.KeyWebKey.Pattern, keyPEM); err != nil {
+				return fmt.Errorf("write TLS key: %w", err)
+			}
+			switch {
+			case webCertName != "" && webCertAddr != "":
+				fmt.Printf("generated TLS certificate for %s (%s)\n", webCertName, webCertAddr)
+			case webCertName != "":
+				fmt.Printf("generated TLS certificate for %s\n", webCertName)
+			default:
+				fmt.Printf("generated TLS certificate for %s\n", webCertAddr)
+			}
+		}
+		return nil
 	}
 
-	// Generate and store TLS certificate if requested.
-	// --web-cert-name generates a cert with the hostname as DNS SAN (no IP enumeration).
-	// --web-cert generates a cert with IP SANs derived from the listen address.
-	// Both can be combined.
-	if webCertAddr != "" || webCertName != "" {
-		var extraNames []string
-		if webCertName != "" {
-			extraNames = []string{webCertName}
-		}
-		certPEM, keyPEM, certErr := selfcert.GenerateWebCertWithNames(webCertAddr, extraNames, 0)
-		if certErr != nil {
-			fmt.Fprintf(os.Stderr, "error: generate TLS certificate: %v\n", certErr)
-			cleanupTmp()
-			return 1
-		}
-		if err := store.WriteFile(zefs.KeyWebCert.Pattern, certPEM, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "error: write TLS cert: %v\n", err)
-			cleanupTmp()
-			return 1
-		}
-		if err := store.WriteFile(zefs.KeyWebKey.Pattern, keyPEM, 0); err != nil {
-			fmt.Fprintf(os.Stderr, "error: write TLS key: %v\n", err)
-			cleanupTmp()
-			return 1
-		}
-		switch {
-		case webCertName != "" && webCertAddr != "":
-			fmt.Printf("generated TLS certificate for %s (%s)\n", webCertName, webCertAddr)
-		case webCertName != "":
-			fmt.Printf("generated TLS certificate for %s\n", webCertName)
-		default:
-			fmt.Printf("generated TLS certificate for %s\n", webCertAddr)
-		}
+	var store storage.Storage
+	path := filepath.Join(dir, "database")
+	if seed {
+		path = filepath.Join(dir, "database.zefs")
+		store, err = storage.CreateBlobPopulated(path, populate, force)
+	} else if force {
+		store, err = storage.ReplacePopulated(dir, populate)
+	} else {
+		store, err = storage.CreatePopulated(dir, populate)
 	}
-
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: initialize %s: %v\n", path, err)
+		return 1
+	}
 	if err := store.Close(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: close database: %v\n", err)
-		os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
+		fmt.Fprintf(os.Stderr, "error: close %s: %v\n", path, err)
 		return 1
 	}
-
-	if err := os.Rename(tmpPath, dbPath); err != nil {
-		fmt.Fprintf(os.Stderr, "error: atomic rename %s -> %s: %v\n", tmpPath, dbPath, err)
-		os.Remove(tmpPath) //nolint:errcheck // best-effort cleanup
-		return 1
-	}
-
-	fmt.Printf("initialized %s\n", dbPath)
+	fmt.Fprintf(os.Stdout, "initialized %s\n", path)
 	return 0
 }
 
@@ -424,65 +393,4 @@ func confirmForceReplace(dbPath string) bool {
 		return false
 	}
 	return strings.EqualFold(strings.TrimSpace(scanner.Text()), "yes")
-}
-
-// daemonRunning reports whether a live ze daemon is serving the database at
-// dbPath. It reads the daemon's SSH host:port from the database, dials it, and
-// reads the SSH identification banner the server sends on accept, returning
-// true ONLY when that banner is ze's own "SSH-2.0-ze" marker.
-//
-// This is a positive-identification probe: a generic SSH server (e.g. the
-// host's OpenSSH answering on 0.0.0.0:22, "SSH-2.0-OpenSSH_*"), a bare TCP
-// listener, an unreachable port, or a slow/garbled response all yield false.
-// The guard exists to stop `ze init --force` from clobbering a database a live
-// ze is actively using; a live ze answers with its banner immediately on
-// accept, so requiring that banner both fixes the non-ze false positive (which
-// previously matched any TCP listener) and still protects a running daemon.
-func daemonRunning(dbPath string) bool {
-	store, err := zefs.Open(dbPath)
-	if err != nil {
-		return false
-	}
-	defer store.Close() //nolint:errcheck // probe only
-
-	host, port := defaultHost, defaultPort
-	if data, err := store.ReadFile(zefs.KeySSHDefault.Pattern); err == nil && len(data) > 0 {
-		if parts := strings.SplitN(string(data), "/", 2); len(parts) == 2 {
-			host, port = parts[0], parts[1]
-		}
-	}
-
-	d := net.Dialer{Timeout: 2 * time.Second}
-	conn, err := d.Dial("tcp", net.JoinHostPort(host, port))
-	if err != nil {
-		return false
-	}
-	defer conn.Close() //nolint:errcheck // probe connection
-
-	return isZeSSHBanner(conn)
-}
-
-// isZeSSHBanner reads the SSH identification string the server sends on accept
-// and reports whether it is ze's "SSH-2.0-ze" banner. The read is bounded by a
-// deadline and the RFC 4253 §4.2 maximum (255 bytes) so a silent or flooding
-// listener can neither hang the probe nor exhaust memory. Nothing from the
-// untrusted peer is acted on beyond this classification.
-func isZeSSHBanner(conn net.Conn) bool {
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second)) //nolint:errcheck // probe only
-	r := bufio.NewReader(io.LimitReader(conn, 255))
-	line, err := r.ReadString('\n')
-	if err != nil && line == "" {
-		return false
-	}
-	return strings.HasPrefix(strings.TrimRight(line, "\r\n"), sshclient.ServerVersionBanner)
-}
-
-// moveAsideDB renames the existing database to <path>.replaced-<date>.
-func moveAsideDB(dbPath string) error {
-	dest, err := zefs.MoveAside(dbPath)
-	if err != nil {
-		return fmt.Errorf("move database: %w", err)
-	}
-	fmt.Fprintf(os.Stderr, "moved %s to %s\n", filepath.Base(dbPath), filepath.Base(dest))
-	return nil
 }

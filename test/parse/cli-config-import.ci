@@ -1,14 +1,10 @@
-# Test: ze config import copies a filesystem config into the blob database
+# Test: ze config import copies a loose config into the initialized tree.
 # VALIDATES: `ze config import <file>` reads the file from the filesystem and
-#            writes it into blob storage under its basename, printing the
+#            writes it into tree storage under its basename, printing the
 #            per-file "imported <name> (<n> bytes)" line and the summary
 #            "<n> file(s) imported" (cmd_import.go) and exiting 0.
-# PREVENTS: regressions where config import stops writing to blob storage or
-#           drops its progress/summary output.
-# ISOLATION: ze.config.dir=. points blob storage (database.zefs) at the
-# per-test tmpfs working directory, so import never touches the developer's
-# real config database. Blob storage stays enabled (default) because import
-# requires it; the tmpfs cwd keeps it sandboxed.
+# PREVENTS: config import losing persistent values or its progress/summary output.
+# ISOLATION: the destination is the per-test working directory.
 tmpfs=small.conf:terminator=EOF_FILE
 system {
 	host importhost
@@ -17,7 +13,9 @@ EOF_FILE
 
 option=env:var=ze.config.dir:value=.
 
-cmd=foreground:seq=1:exec=ze config import small.conf
+cmd=foreground:seq=1:exec=ze-test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=2:exec=ze config import small.conf
 expect=exit:code=0
 expect=stdout:contains=imported small.conf
 expect=stdout:contains=file(s) imported
+expect=key:path=file/active/small.conf:contains=importhost

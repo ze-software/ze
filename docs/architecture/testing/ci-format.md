@@ -233,7 +233,7 @@ already writes: no new directive chooses between them.
 
 | The `exec=` line | Where the block goes | Why |
 |------------------|----------------------|-----|
-| `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in the work directory, and argv becomes `ze [flags] start <file>` | the daemon re-reads its config on SIGHUP, a restart reuses it, `action=rewrite:dest=ze-bgp.conf` addresses it by bare name, and a rollback assertion reads the directory beside it |
+| `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in a stable per-daemon directory, and argv becomes `ze [flags] start <file>` | SIGHUP reads the source again and a restart reuses its tree |
 | `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `ze-test peer` takes its expect script as a path argument |
 | `ze-peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
 | every other line, `ze bgp decode -`, `ze config validate -`, `ze-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
@@ -244,6 +244,16 @@ when that argument is the `-`. A `-` belonging to a verb is left in argv and the
 block is piped, so `ze config validate -` and `ze bgp decode pcap -` test the
 form the operator types.
 <!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
+
+The first daemon block uses `ze-bgp.conf` in the test work directory, so a
+fixture rewriting that bare name still edits the source the daemon reads.
+Further distinct blocks use `daemon-2/ze-<block>.conf`, `daemon-3/…`, each
+with its own sibling `database/`. Reusing a block reuses its directory.
+Numbered directories distinguish even block names that sanitise identically.
+Wrapped launches such as `ze-test fail-syscall … -- ze -` retain real stdin
+and receive an isolated `ze.config.dir` by the same allocation rule.
+Explicit file paths remain authoritative; the runner does not choose a backend.
+<!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
 
 Until 2026-09-07 the runner took the FIRST `-` in argv whatever it meant, so
 every verb form ran against a file path the author never wrote. A test that
@@ -1157,8 +1167,21 @@ files gets them in that same directory, so the two spellings name one place. For
 glob `contains`, at least one matched file must contain the text. For glob
 `not-contains`, no matched file may contain it.
 
-Use file expectations for post-run artifacts such as generated configs, pointer
-files, and logs. Do not write shell just to inspect files.
+Use file expectations for loose source files and exported artifacts such as logs.
+Persistent config, versions, pointers and plugin state use key expectations:
+
+```
+expect=key:path=meta/config/router.conf/active:exists=true
+expect=key:path=meta/config/router.conf/candidate:absent=true
+expect=key:glob=file/[0-9]*/router.conf:count=2
+expect=key:glob=file/[0-9]*/router.conf:contains=router-id 1.2.3.4
+```
+
+Key expectations resolve beneath `database/` in the work directory and decode
+the complete netcapstring frame before inspecting its value. A bad CRC or
+trailing frame bytes fail the assertion. They accept the same path, glob,
+count and containment checks as files. A missing key satisfies `absent`;
+an unreadable or corrupt key does not.
 <!-- source: internal/test/runner/runner_validate.go -- validateFileChecks -->
 
 ### Negative Expectations (reject)
@@ -1924,7 +1947,16 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 | `expect=file:path=<rel>:contains=<text>` | On-disk file content | `expect=file:path=test.conf:contains=bgp` |
 | `expect=file:path=<rel>:not-contains=<text>` | File must NOT contain | `expect=file:path=test.conf:not-contains=old` |
 | `expect=file:path=<rel>:absent=true` | File does not exist | `expect=file:path=test.conf:absent=true` |
+| `expect=key:path=<key>:contains=<text>` | Decoded persistent value | `expect=key:path=file/active/test.conf:contains=bgp` |
+| `expect=key:path=<key>:not-contains=<text>` | Decoded value excludes text | `expect=key:path=file/active/test.conf:not-contains=old` |
+| `expect=key:path=<key>:absent` | Key does not exist | `expect=key:path=file/active/test.conf.draft:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
+
+Editor tests use a tree store by default; `option=storage:value=tree` states
+that choice explicitly, and other values are refused. The runner seeds config
+fixtures once and all sessions and `restart=` steps share the same lifetime
+store handle. `expect=key` reads that handle, while `expect=file` reads the
+original loose fixture or a separate exported artifact.
 
 `hint` reads the second message line with every style stripped. That row carries
 the completion hint, and the summary of the candidate the operator selected.

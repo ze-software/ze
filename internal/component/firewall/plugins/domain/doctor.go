@@ -11,11 +11,12 @@
 package domain
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -75,11 +76,19 @@ func checkDomainGroupData(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 		return nil
 	}
 
-	cache := newStore(doctorCachePath(ctx.ConfigDir))
+	dir := ctx.ConfigDir
+	if dir == "" {
+		dir = resolve.StoreDir("")
+	}
+	persistence, err := storage.OpenReadOnly(dir)
+	if err != nil {
+		return nil // The storage check reports unavailable or unsafe stores.
+	}
+	defer func() { _ = persistence.Close() }()
+	cache := newStore(persistence)
 	if err := cache.open(cfg.groups); err != nil {
 		return nil // the cache file is the store's own problem to report
 	}
-	defer cache.close()
 
 	return domainGroupDiagnostics(cfg, cache, time.Now())
 }
@@ -149,14 +158,4 @@ func updateHelp(groupName string) string {
 	var tb textbuf.Buffer
 	tb.Str("run 'update firewall domain-group ").Str(groupName).Byte('\'')
 	return tb.String()
-}
-
-// doctorCachePath is the zefs file holding the resolved addresses. Doctor may
-// be pointed at a config directory other than the default, so its own
-// directory wins when it has one.
-func doctorCachePath(configDir string) string {
-	if configDir == "" {
-		return cacheStorePath()
-	}
-	return filepath.Join(configDir, "database.zefs")
 }

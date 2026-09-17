@@ -10,9 +10,9 @@ func init() {
 	registry.MustRegisterRootHandler("init", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		ShortHelp: "Bootstrap database with SSH credentials",
+		ShortHelp: "Initialize a live store or appliance seed with SSH credentials",
 		Mode:      "setup",
 		Section:   registry.SectionSystem,
-		Subs:      "--managed for fleet mode, --force to replace",
+		Subs:      "--managed --force --yes --web-cert <address> --web-cert-name <name> --seed",
 	})
 }

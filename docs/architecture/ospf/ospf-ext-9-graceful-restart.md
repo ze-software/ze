@@ -31,9 +31,16 @@ the adjacency at Full for the grace period.
 - **The grace period is measured from the Grace-LSA LS age against the Grace
   Period TLV.** The age starts at zero, is not reset on retransmit, and DoNotAge
   is clear.
-- **The restart facts are persisted in non-volatile state**: the restarting
-  flag, the grace end, the reason, the IPv6 Interface-ID map and the prefix to
-  LSA-ID map. A doctor check guards that path.
+- **The restart facts persist through daemon state RPCs**: the restarting flag,
+  grace end, reason, IPv6 Interface-ID map and prefix to LSA-ID map. Each engine
+  reads its fact after the plugin handshake and before packet processing; a
+  reload-created engine does the same. An absent or expired fact permits a cold
+  start, while unreadable or corrupt state refuses initialization. Preparing a
+  planned restart waits for durable acknowledgement before retaining the FIB or
+  originating Grace-LSAs. A failed write is reported as a refused preparation.
+  The plugin opens no local store. Offline doctor inspects the supplied read-only
+  handle; runtime doctor reads through the SDK and reports unavailable or corrupt
+  restart facts with `doctor-ospf-graceful-restart-nvs`.
   <!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact -->
   <!-- source: internal/plugins/ospf/gr_preserve.go -- captureInterfaceIDs, capturePrefixLSIDs -->
   <!-- source: internal/plugins/ospf/gr_show.go -- grSnapshot -->

@@ -4,11 +4,7 @@
 
 package main
 
-import (
-	"github.com/ze-software/ze/internal/component/config/storage"
-
-	"github.com/ze-software/ze/cmd/ze/hub"
-)
+import "github.com/ze-software/ze/cmd/ze/hub"
 
 func init() {
 	binaryDispatch = setupDispatch
@@ -16,7 +12,7 @@ func init() {
 
 func setupDispatch(args []string) int {
 	if len(args) > 0 && args[0] == "-" {
-		return hub.Run(storage.NewFilesystem(), "-", nil, 0, -1, false, "", false, "", "")
+		return hub.Run(nil, "-", nil, 0, -1, false, "", false, "", "")
 	}
 	return defaultDispatch(args)
 }

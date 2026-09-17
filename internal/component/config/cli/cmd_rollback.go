@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/resolve"
 )
 
 func cmdRollbackWithStorage(store storage.Storage, args []string) int {
@@ -20,7 +21,7 @@ func cmdRollbackWithStorage(store storage.Storage, args []string) int {
 }
 
 func cmdRollback(args []string) int {
-	return cmdRollbackImpl(storage.NewFilesystem(), args)
+	return cmdRollbackImpl(nil, args)
 }
 
 func cmdRollbackImpl(store storage.Storage, args []string) int {
@@ -48,8 +49,8 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	if fs.NArg() < 2 {
-		fmt.Fprintf(os.Stderr, "error: requires revision number and config file\n")
+	if fs.NArg() != 2 {
+		fmt.Fprintf(os.Stderr, "error: requires exactly a revision number and config file\n")
 		fs.Usage()
 		return exitError
 	}
@@ -67,7 +68,18 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	ed, err := cli.NewEditorWithStorage(store, fs.Arg(1))
+	var ed *cli.Editor
+	if store == nil {
+		store, err = resolve.StorageFor(fs.Arg(1))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: config rollback: %v\n", err)
+			return exitError
+		}
+		defer store.Close() //nolint:errcheck // Offline ownership.
+		ed, err = cli.NewLooseFileEditor(store, fs.Arg(1))
+	} else {
+		ed, err = cli.NewEditorWithStorage(store, fs.Arg(1))
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

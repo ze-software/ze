@@ -35,7 +35,7 @@ expect=dirty:false
 expect=error:none
 
 # Verify config file updated with new value
-expect=file:path=test.conf:contains=65001
+expect=key:path=file/active/test.conf:contains=65001
 
 # Verify draft file deleted (no pending changes remain)
-expect=file:path=test.conf.draft:absent
+expect=key:path=file/active/test.conf.draft:absent

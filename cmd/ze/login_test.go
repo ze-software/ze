@@ -9,11 +9,11 @@ package main
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	_ "github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -168,8 +168,7 @@ func TestLoginMissingZeFS(t *testing.T) {
 
 func TestLoginMissingCreds(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
-	db, err := zefs.Create(dbPath)
+	db, err := storage.Create(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +244,7 @@ func TestZeFSFallbackPath(t *testing.T) {
 func TestLoginAdminDisabled(t *testing.T) {
 	dir := t.TempDir()
 	db := createTestDB(t, dir)
-	if err := db.WriteFile(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true"), 0); err != nil {
+	if err := db.WriteKey(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true")); err != nil {
 		t.Fatal(err)
 	}
 	db.Close() //nolint:errcheck // test cleanup
@@ -268,10 +267,9 @@ func TestLoginAdminDisabled(t *testing.T) {
 	}
 }
 
-func createTestDB(t *testing.T, dir string) *zefs.BlobStore {
+func createTestDB(t *testing.T, dir string) storage.Storage {
 	t.Helper()
-	dbPath := filepath.Join(dir, "database.zefs")
-	db, err := zefs.Create(dbPath)
+	db, err := storage.Create(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,10 +277,10 @@ func createTestDB(t *testing.T, dir string) *zefs.BlobStore {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0o644); err != nil {
+	if err := db.WriteKey(zefs.KeyLocalAdminUsername.Pattern, []byte("admin")); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.WriteFile(zefs.KeyLocalAdminPassword.Pattern, hash, 0o600); err != nil {
+	if err := db.WriteKey(zefs.KeyLocalAdminPassword.Pattern, hash); err != nil {
 		t.Fatal(err)
 	}
 	return db

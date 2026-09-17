@@ -125,7 +125,7 @@ func TestVerifyRejectsUncachedTableTerm(t *testing.T) {
 			if refs[0].TableName != "ze_wan" {
 				t.Errorf("ref table = %q, want ze_wan", refs[0].TableName)
 			}
-			err := verifyRefs(store.New(nil, nil, ""), refs)
+			err := verifyRefs(store.New(nil, nil, nil), refs)
 			if err == nil {
 				t.Fatal("an uncached table-term reference must be refused")
 			}
@@ -145,7 +145,7 @@ func TestVerifyAcceptsCachedTableTerm(t *testing.T) {
 		Data: `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-asn":"13335"},"then":{"drop":""}}}}}}}}}`,
 	}}
 	refs := parseIRRConfig(sections).allRefs()
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS13335", []netip.Prefix{netip.MustParsePrefix("1.1.1.0/24")}, nil)
 	if err := verifyRefs(ps, refs); err != nil {
 		t.Fatalf("a cached table-term reference must verify, got %v", err)

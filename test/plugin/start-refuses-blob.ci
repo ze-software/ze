@@ -1,0 +1,7 @@
+# Test: start-refuses-blob
+# VALIDATES: storage backend parity through the production binary and decoded persistent values.
+# PREVENTS: silent loose-file fallback or loss of state at restart.
+option=timeout:value=90s
+cmd=foreground:seq=1:exec=ze-test fixture storage/tree start-refuses-blob:timeout=90s:exit=0
+expect=exit:code=0
+expect=stdout:contains=OK: start-refuses-blob

@@ -1,29 +1,11 @@
-// Design: docs/architecture/core-design.md -- runtime state belongs in the zefs store
+// Design: docs/architecture/core-design.md -- runtime state belongs in managed storage
 //
-// Package fspersistence enforces the invariant that daemon runtime STATE is
-// persisted through ze's managed zefs store (internal/core/statestore ->
-// database.zefs), NOT as loose files written with raw os calls. On the gokrazy
-// appliance the zefs store is the one integrity-checked, backed-up artifact on
-// the writable /perm partition; a loose state file escapes that management and
-// silently disappears on reimage. This guard was added after a sweep migrated
-// ddos-detect, traffic-usage, ntp, bfd-auth and the config health/pushed hashes
-// off loose files.
-//
-// It scans internal/plugins, internal/component and cmd/ze (non-test) for the
-// filesystem WRITE primitives that indicate persistence -- os.WriteFile,
-// os.Create, os.OpenFile with a write flag, os.Rename, os.Symlink, os.Link and
-// ioutil.WriteFile -- and flags every call site that is not allowlisted. Reads
-// (os.ReadFile/os.Open/os.Stat), deletions (os.Remove), temp files
-// (os.CreateTemp/os.MkdirTemp) and bare dir creation (os.Mkdir/os.MkdirAll) are
-// NOT flagged: the WriteFile/Create/Rename is the load-bearing persistence
-// signal, and flagging the rest only adds noise.
-//
-// Legitimate non-state writers -- kernel sysfs/procfs/dev knobs, ephemeral
-// pid/socket/probe files, artifacts produced for external consumers
-// (resolv.conf, systemd units, PEM exports, the ze binary itself), and the
-// config storage layer that IS the abstraction -- are allowlisted by directory
-// prefix or by file with a stated reason. To persist real runtime state, use
-// internal/core/statestore (a registered pkg/zefs key), never a raw os write.
+// Package fspersistence refuses raw runtime-state writes and live-store bypasses.
+// The raw-write rule scans components, plugins and cmd/ze; core crash/audit
+// infrastructure remains outside that rule. The live-zefs-open rule also scans
+// internal/core: a credential reader is not allowed to bypass managed storage.
+// Only the storage package and explicitly named artifact producers may use
+// zefs.Open or zefs.Create. Raw-write exemptions never exempt a live-store open.
 
 package fspersistence
 
@@ -42,11 +24,14 @@ import (
 	"github.com/ze-software/ze/internal/le/population"
 )
 
-// scanRoots are the trees walked for runtime code. internal/core (statestore,
-// crashlog, audit), internal/appliance and internal/install are deliberately
-// outside this walk: they are the storage layer, crash-time writers that must
-// survive a broken zefs, and build/installer tools, respectively.
-var scanRoots = []string{"internal/plugins", "internal/component", "cmd/ze"}
+// scanRoots includes core for the live-store rule, independently of raw writes.
+var scanRoots = []string{"internal/plugins", "internal/component", "cmd/ze", "internal/core"}
+
+// blobArtifactAllowlist is separate from raw-write exemptions: exporting a file
+// does not authorize opening the live store behind Storage.
+var blobArtifactAllowlist = map[string]string{
+	"internal/plugins/debug/profile.go": "debug.zefs profile artifact",
+}
 
 // dirAllowlist exempts whole subsystems whose every write is legitimately a
 // non-state file. Prefixes are matched against the repo-relative slash path.
@@ -72,9 +57,12 @@ var segmentAllowlist = map[string]string{
 // The three key shapes cannot collide. A file key ends in .go. A directory key
 // ends in "/" and starts with a root name. A segment key starts with "/".
 func exemptionRules() map[string]string {
-	rules := make(map[string]string, len(fileAllowlist)+len(dirAllowlist)+len(segmentAllowlist))
+	rules := make(map[string]string, len(fileAllowlist)+len(dirAllowlist)+len(segmentAllowlist)+len(blobArtifactAllowlist))
 	for _, table := range []map[string]string{fileAllowlist, dirAllowlist, segmentAllowlist} {
 		maps.Copy(rules, table)
+	}
+	for path, reason := range blobArtifactAllowlist {
+		rules["live-zefs-open:"+path] = reason
 	}
 	return rules
 }
@@ -103,7 +91,7 @@ var fileAllowlist = map[string]string{
 	"internal/component/l2tp/ppp/devppp_linux.go":                    "opens the /dev/ppp kernel device",
 	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
 	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
-	"cmd/ze/ze_core_autoinit.go":                                     "writes /dev/kmsg + creates the /perm/ze store dir (zefs bootstrap)",
+	"cmd/ze/ze_core_autoinit.go":                                     "writes bootstrap messages to /dev/kmsg",
 	// --- ephemeral scratch (pid/socket/probe/ready files, temp stores) ---
 	"cmd/ze/hub/pidfile.go":     "runtime pidfile",
 	"cmd/ze/hub/service_ssh.go": "ephemeral ssh listen-address handoff file",
@@ -113,7 +101,6 @@ var fileAllowlist = map[string]string{
 	"internal/plugins/systemd/main.go":                        "systemd unit file consumed by systemd",
 	"internal/plugins/local/cmd_install.go":                   "installs the ze binary + config tree into a prefix",
 	"internal/plugins/provision/staging.go":                   "netboot kernel/initrd/iPXE artifacts for PXE clients",
-	"internal/plugins/init/main.go":                           "creates + atomically installs the database.zefs store (zefs bootstrap)",
 	"internal/component/pki/store.go":                         "PEM cert/key export for an external IKE daemon",
 	"internal/component/support/support.go":                   "support bundle archive artifact",
 	"internal/component/bgp/reactor/capture_replay.go":        "per-peer BGP protocol event capture: a JSONL diagnostic stream the operator hands to a developer, replayed by `ze-test replay` (internal/test/cli/cmd_replay.go). The daemon never reads it back, so it is not runtime state; statestore.Put takes a whole value and cannot carry a bounded, rotating, wire-rate stream",
@@ -219,13 +206,28 @@ func check(tree string, floor int) (Findings, map[string]bool, error) {
 			if scanErr != nil {
 				return scanErr
 			}
-			if rule, exempt := AllowlistedBy(rel); exempt {
-				if len(found) != 0 {
-					matched[rule] = true
+			for _, finding := range found {
+				if finding.Pkg == "zefs" {
+					if strings.HasPrefix(rel, "internal/component/config/storage/") {
+						matched["internal/component/config/storage/"] = true
+						continue
+					}
+					if _, exempt := blobArtifactAllowlist[rel]; exempt {
+						matched["live-zefs-open:"+rel] = true
+						continue
+					}
+					all = append(all, finding)
+					continue
 				}
-				return nil
+				if strings.HasPrefix(rel, "internal/core/") {
+					continue // The raw-write rule excludes core crash/audit machinery.
+				}
+				if rule, exempt := AllowlistedBy(rel); exempt {
+					matched[rule] = true
+					continue
+				}
+				all = append(all, finding)
 			}
-			all = append(all, found...)
 			return nil
 		})
 		if err != nil {
@@ -289,10 +291,41 @@ func ScanFile(fset *token.FileSet, path, rel string) ([]Finding, error) {
 	}
 
 	osNames, ioutilNames := importNames(file)
+	zefsNames := make(map[string]bool)
+	for _, imported := range file.Imports {
+		if strings.Trim(imported.Path.Value, "\"") != "github.com/ze-software/ze/pkg/zefs" {
+			continue
+		}
+		name := "zefs"
+		if imported.Name != nil {
+			name = imported.Name.Name
+		}
+		zefsNames[name] = true
+	}
 	lines := strings.Split(string(src), "\n")
 
 	var out []Finding
 	ast.Inspect(file, func(node ast.Node) bool {
+		// Inspect references as well as calls, so f := blob.Open cannot hide
+		// the bypass. Import aliases resolve by their declared package path.
+		if selector, ok := node.(*ast.SelectorExpr); ok {
+			if zefsNames[identName(selector.X)] {
+				if selector.Sel.Name == "Open" || selector.Sel.Name == "Create" {
+					line := fset.Position(selector.Pos()).Line
+					out = append(out, Finding{File: rel, Line: line, Pkg: "zefs", Fn: selector.Sel.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
+				}
+			}
+		}
+		if ident, ok := node.(*ast.Ident); ok {
+			if zefsNames["."] {
+				if ident.Obj == nil {
+					if ident.Name == "Open" || ident.Name == "Create" {
+						line := fset.Position(ident.Pos()).Line
+						out = append(out, Finding{File: rel, Line: line, Pkg: "zefs", Fn: ident.Name, Code: "live-zefs-open: " + strings.TrimSpace(lines[line-1])})
+					}
+				}
+			}
+		}
 		call, ok := node.(*ast.CallExpr)
 		if !ok {
 			return true

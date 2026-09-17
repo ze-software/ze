@@ -331,3 +331,202 @@ func TestRepairSamePathRejected(t *testing.T) {
 		t.Errorf("error should mention paths must differ: %v", err)
 	}
 }
+
+// TestCheckOverflowCapacity reaches the public check path with the input that
+// previously panicked before it could return its corruption report.
+func TestCheckOverflowCapacity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "overflow.zefs")
+	if err := os.WriteFile(path, []byte("19:9223372036854775807:0000000000000000000:00000000\n\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Check(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.MagicOK {
+		t.Fatal("oversized magic accepted")
+	}
+	if !strings.Contains(report.ContainerError, path) {
+		t.Fatalf("diagnostic lacks source path: %s", report.ContainerError)
+	}
+	if !strings.Contains(report.ContainerError, "offset 0") {
+		t.Fatalf("diagnostic lacks unknowable-key offset: %s", report.ContainerError)
+	}
+}
+
+// TestCheckContainerFailureNamesKey checks that the outer checksum failure does
+// not hide a damaged inner value or the valid key after it.
+func TestCheckContainerFailureNamesKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "damaged.zefs")
+	store, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, store, "bad", []byte("damage-this"))
+	writeOrFatal(t, store, "good", []byte("preserve-this"))
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := strings.Index(string(raw), "damage-this")
+	if at < 0 {
+		t.Fatal("fixture payload missing")
+	}
+	raw[at] ^= 1
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Check(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.ContainerOK {
+		t.Fatal("bad outer checksum marked healthy")
+	}
+	if report.CorruptEntries != 1 {
+		t.Fatalf("corrupt count %d, want 1", report.CorruptEntries)
+	}
+	if report.TotalEntries != 1 {
+		t.Fatalf("good count %d, want 1", report.TotalEntries)
+	}
+	statuses := make(map[string]string)
+	for _, entry := range report.Entries {
+		statuses[entry.Key] = entry.Status
+	}
+	if statuses["bad"] != "crc-mismatch" {
+		t.Fatalf("bad entry: %v", statuses)
+	}
+	if statuses["good"] != "ok" {
+		t.Fatalf("good entry after corruption: %v", statuses)
+	}
+	repaired := filepath.Join(t.TempDir(), "repaired.zefs")
+	recovery, err := Repair(path, repaired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovery.RecoveredCount != 1 {
+		t.Fatalf("recovered %v", recovery)
+	}
+	if recovery.SkippedCount != 1 {
+		t.Fatalf("skipped %v", recovery)
+	}
+	result, err := Open(repaired)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer result.Close() //nolint:errcheck // Test cleanup.
+	value, err := result.ReadFile("good")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(value) != "preserve-this" {
+		t.Fatalf("recovered value %q", value)
+	}
+	if _, err := result.ReadFile("bad"); err == nil {
+		t.Fatal("damaged value recovered")
+	}
+}
+
+// TestCheckUnknownKeyOffset verifies damaged key frames still identify their
+// source location and do not hide later intact entries.
+func TestCheckUnknownKeyOffset(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "source.zefs")
+	store, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, store, "bad-name", []byte("unidentifiable"))
+	writeOrFatal(t, store, "later", []byte("retained"))
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := strings.Index(string(raw), "bad-name")
+	if at < 0 {
+		t.Fatal("fixture key missing")
+	}
+	raw[at] ^= 1
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Check(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.ContainerOK {
+		t.Fatal("corrupt container marked healthy")
+	}
+	if len(report.Entries) != 2 {
+		t.Fatalf("entries %v", report.Entries)
+	}
+	if !strings.Contains(report.Entries[0].Key, path+" <offset ") {
+		t.Fatalf("missing source offset: %v", report.Entries[0])
+	}
+	if report.Entries[1].Key != "later" {
+		t.Fatalf("lost later key: %v", report.Entries[1])
+	}
+	if report.Entries[1].Status != "ok" {
+		t.Fatalf("later entry: %v", report.Entries[1])
+	}
+	output := filepath.Join(t.TempDir(), "repaired.zefs")
+	recovered, err := Repair(path, output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recovered.RecoveredCount != 1 {
+		t.Fatalf("recovered %v", recovered)
+	}
+	if recovered.Recovered[0] != "later" {
+		t.Fatalf("recovered wrong key %v", recovered.Recovered)
+	}
+}
+
+// TestRepairRefusesExistingOutput protects source aliases and other evidence
+// from the artifact writer's replacement semantics.
+func TestRepairRefusesExistingOutput(t *testing.T) {
+	parent := t.TempDir()
+	source := filepath.Join(parent, "source.zefs")
+	store, err := Create(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeOrFatal(t, store, "key", []byte("evidence"))
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(parent, "output.zefs")
+	if err := os.WriteFile(destination, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Repair(source, destination); err == nil {
+		t.Fatal("existing output overwritten")
+	}
+	after, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != "keep" {
+		t.Fatalf("output evidence changed: %q", after)
+	}
+	alias := strings.Join([]string{parent, ".", "source.zefs"}, string(filepath.Separator))
+	if _, err := Repair(source, alias); err == nil {
+		t.Fatal("source alias accepted")
+	}
+	after, err = os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("source evidence changed")
+	}
+}

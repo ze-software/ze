@@ -48,7 +48,6 @@ bgp {
 }
 EOF_CONF
 
-option=env:var=ze.storage.blob:value=false
 
 # Set the value
 cmd=foreground:seq=1:exec=ze config set test.conf bgp session asn local 65000:exit=0

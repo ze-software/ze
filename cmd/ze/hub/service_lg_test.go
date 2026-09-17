@@ -9,10 +9,8 @@ package hub
 
 import (
 	"context"
-	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
@@ -62,18 +60,18 @@ func TestBuildLGService_ExplicitTLSWithoutBlobStorageFails(t *testing.T) {
 	// rather than approximated (ai/rules/protocol.md).
 	// PREVENTS: the default-on fallback below widening into a downgrade of TLS
 	// the operator explicitly demanded.
-	_, err := buildLGService(&serviceDeps{
+	svc, err := buildLGService(&serviceDeps{
 		Dispatch:      lgTestDispatch(),
 		LGAddrs:       []string{"127.0.0.1:0"},
 		LGTLS:         true,
 		LGTLSExplicit: true,
-		Store:         storage.NewFilesystem(),
+		Store:         nil,
 	})
 	if err == nil {
-		t.Fatal("explicit TLS with no blob storage must fail, not fall back to plaintext")
+		t.Fatal("explicit TLS without persistent storage must fail, not fall back to plaintext")
 	}
-	if !strings.Contains(err.Error(), "blob storage") {
-		t.Fatalf("error must name the missing certificate store, got %v", err)
+	if svc != nil {
+		t.Fatal("refused TLS configuration started a listener")
 	}
 }
 
@@ -89,7 +87,7 @@ func TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext(t *testing.T
 		LGAddrs:       []string{"127.0.0.1:0"},
 		LGTLS:         true,
 		LGTLSExplicit: false,
-		Store:         storage.NewFilesystem(),
+		Store:         nil,
 	})
 	if err != nil {
 		t.Fatalf("defaulted TLS with no blob storage must still start: %v", err)

@@ -1,12 +1,9 @@
-// Design: docs/architecture/zefs-format.md -- config storage tests
-
+// Design: plan/pre-release/spec-storage-1-backend-parity.md -- shared storage contract.
 package storage
 
 import (
-	"bytes"
-	"os"
+	"io/fs"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,1019 +11,303 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// VALIDATES: filesystem storage read/write/remove round-trip
-// PREVENTS: data loss through storage abstraction
-
-func TestFilesystemStorageReadWrite(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	path := filepath.Join(dir, "test.conf")
-	data := []byte("router-id 1.1.1.1\n")
-
-	if err := s.WriteFile(path, data, 0o600); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	got, err := s.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	if !bytes.Equal(got, data) {
-		t.Errorf("ReadFile: got %q, want %q", got, data)
-	}
-
-	if err := s.Remove(path); err != nil {
-		t.Fatalf("Remove: %v", err)
-	}
-
-	if s.Exists(path) {
-		t.Error("file should not exist after Remove")
-	}
-}
-
-// VALIDATES: filesystem storage creates parent directories
-// PREVENTS: write failure when rollback/ subdir doesn't exist
-
-func TestFilesystemStorageCreatesDirs(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	path := filepath.Join(dir, "rollback", "backup-001.conf")
-	if err := s.WriteFile(path, []byte("backup"), 0o600); err != nil {
-		t.Fatalf("WriteFile with nested dir: %v", err)
-	}
-
-	got, err := s.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	if string(got) != "backup" {
-		t.Errorf("got %q, want %q", got, "backup")
-	}
-}
-
-// VALIDATES: filesystem Exists returns correct values
-// PREVENTS: false positives/negatives on existence check
-
-func TestFilesystemStorageExists(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	path := filepath.Join(dir, "check.conf")
-
-	if s.Exists(path) {
-		t.Error("should not exist before write")
-	}
-
-	if err := s.WriteFile(path, []byte("data"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	if !s.Exists(path) {
-		t.Error("should exist after write")
-	}
-}
-
-// VALIDATES: filesystem List returns matching files
-// PREVENTS: backup listing failure
-
-func TestFilesystemStorageList(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	// Create several files
-	for _, name := range []string{"a.conf", "b.conf", "c.txt"} {
-		if err := s.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	matches, err := s.List(dir)
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	if len(matches) != 3 {
-		t.Errorf("List(dir): got %d matches, want 3", len(matches))
-	}
-}
-
-// VALIDATES: filesystem WriteFile is atomic (temp + rename)
-// PREVENTS: partial writes on crash
-
-func TestFilesystemStorageAtomicWrite(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	path := filepath.Join(dir, "atomic.conf")
-
-	// Write initial content
-	if err := s.WriteFile(path, []byte("version-1"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	// Overwrite -- should be atomic
-	if err := s.WriteFile(path, []byte("version-2-longer"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := s.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != "version-2-longer" {
-		t.Errorf("got %q after overwrite", got)
-	}
-
-	// Verify no temp files left behind
-	matches, _ := filepath.Glob(filepath.Join(dir, ".ze-storage-*"))
-	if len(matches) != 0 {
-		t.Errorf("temp files left behind: %v", matches)
-	}
-}
-
-// VALIDATES: filesystem AcquireLock + WriteGuard read/write/remove cycle
-// PREVENTS: locked operations failing or lock not released
-
-func TestFilesystemStorageLockCycle(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	configPath := filepath.Join(dir, "test.conf")
-	if err := s.WriteFile(configPath, []byte("original"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	guard, err := s.AcquireLock(configPath)
-	if err != nil {
-		t.Fatalf("AcquireLock: %v", err)
-	}
-
-	// Read within lock
-	got, err := guard.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("guard.ReadFile: %v", err)
-	}
-	if string(got) != "original" {
-		t.Errorf("guard.ReadFile: got %q", got)
-	}
-
-	// Write within lock
-	draftPath := configPath + ".draft"
-	if err := guard.WriteFile(draftPath, []byte("modified"), 0o600); err != nil {
-		t.Fatalf("guard.WriteFile: %v", err)
-	}
-
-	// Read back within lock
-	got, err = guard.ReadFile(draftPath)
-	if err != nil {
-		t.Fatalf("guard.ReadFile draft: %v", err)
-	}
-	if string(got) != "modified" {
-		t.Errorf("guard.ReadFile draft: got %q", got)
-	}
-
-	// Remove within lock
-	if err := guard.Remove(draftPath); err != nil {
-		t.Fatalf("guard.Remove: %v", err)
-	}
-
-	// Release lock
-	if err := guard.Release(); err != nil {
-		t.Fatalf("guard.Release: %v", err)
-	}
-
-	// No .lock file should be created (single-writer daemon model)
-	if _, err := os.Stat(configPath + ".lock"); err == nil {
-		t.Error("lock file should not exist (flock removed)")
-	}
-}
-
-// VALIDATES: WriteGuard.Release is idempotent
-// PREVENTS: double-release causing errors
-
-func TestFilesystemStorageGuardDoubleRelease(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	configPath := filepath.Join(dir, "test.conf")
-	guard, err := s.AcquireLock(configPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := guard.Release(); err != nil {
-		t.Fatalf("first Release: %v", err)
-	}
-
-	// Second release should be a no-op, not an error
-	if err := guard.Release(); err != nil {
-		t.Errorf("second Release should be nil, got: %v", err)
-	}
-}
-
-// VALIDATES: ReadFile on non-existent file returns error
-// PREVENTS: silent empty reads
-
-func TestFilesystemStorageReadNonExistent(t *testing.T) {
-	s := NewFilesystem()
-	_, err := s.ReadFile("/nonexistent/path/file.conf")
-	if err == nil {
-		t.Error("expected error reading non-existent file")
-	}
-}
-
-// VALIDATES: Remove on non-existent file returns error
-// PREVENTS: silent remove failure
-
-func TestFilesystemStorageRemoveNonExistent(t *testing.T) {
-	s := NewFilesystem()
-	err := s.Remove("/nonexistent/path/file.conf")
-	if err == nil {
-		t.Error("expected error removing non-existent file")
-	}
-}
-
-// VALIDATES: WriteFile with zero perm defaults to 0o600
-// PREVENTS: world-readable config files
-
-func TestFilesystemStorageDefaultPerm(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	path := filepath.Join(dir, "secure.conf")
-	if err := s.WriteFile(path, []byte("secret"), 0); err != nil {
-		t.Fatal(err)
-	}
-
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	perm := info.Mode().Perm()
-	if perm != 0o600 {
-		t.Errorf("default perm: got %o, want 600", perm)
-	}
-}
-
-// --- Blob storage tests ---
-
-func newBlobStorage(t *testing.T) Storage {
+func newTreeStorage(t *testing.T, dir string) Storage {
 	t.Helper()
-	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	s, err := NewBlob(blobPath, dir)
-	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
-	}
-	t.Cleanup(func() {
-		if bs, ok := s.(*blobStorage); ok {
-			bs.Close() //nolint:errcheck // test cleanup
-		}
-	})
+	s, err := Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
 	return s
 }
 
-// VALIDATES: blob storage read/write/remove round-trip
-// PREVENTS: data loss through blob storage abstraction
-
-func TestBlobStorageReadWrite(t *testing.T) {
-	s := newBlobStorage(t)
-
-	path := "/etc/ze/router.conf"
-	data := []byte("router-id 1.1.1.1\n")
-
-	if err := s.WriteFile(path, data, 0); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	got, err := s.ReadFile(path)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	if !bytes.Equal(got, data) {
-		t.Errorf("ReadFile: got %q, want %q", got, data)
-	}
-
-	if err := s.Remove(path); err != nil {
-		t.Fatalf("Remove: %v", err)
-	}
-
-	if s.Exists(path) {
-		t.Error("file should not exist after Remove")
-	}
+func newBlobStorage(t *testing.T) Storage {
+	t.Helper()
+	return newBlobStorageAt(t, t.TempDir())
 }
 
-// VALIDATES: blob storage supports multiple independent configs
-// PREVENTS: config data bleeding between entries
-
-func TestBlobStorageMultiConfig(t *testing.T) {
-	s := newBlobStorage(t)
-
-	configs := map[string]string{
-		"/etc/ze/site-a.conf": "router-id 1.1.1.1\n",
-		"/etc/ze/site-b.conf": "router-id 2.2.2.2\n",
-		"/etc/ze/site-c.conf": "router-id 3.3.3.3\n",
-	}
-
-	for path, content := range configs {
-		if err := s.WriteFile(path, []byte(content), 0); err != nil {
-			t.Fatalf("WriteFile(%s): %v", path, err)
-		}
-	}
-
-	for path, want := range configs {
-		got, err := s.ReadFile(path)
-		if err != nil {
-			t.Fatalf("ReadFile(%s): %v", path, err)
-		}
-		if string(got) != want {
-			t.Errorf("ReadFile(%s): got %q, want %q", path, got, want)
-		}
-	}
+func newBlobStorageAt(t *testing.T, dir string) Storage {
+	t.Helper()
+	s, err := CreateBlob(filepath.Join(dir, "test.zefs"))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
+	return s
 }
 
-// VALIDATES: blob Exists returns correct values
-// PREVENTS: false positives/negatives
-
-func TestBlobStorageExists(t *testing.T) {
-	s := newBlobStorage(t)
-	path := "/etc/ze/check.conf"
-
-	if s.Exists(path) {
-		t.Error("should not exist before write")
-	}
-
-	if err := s.WriteFile(path, []byte("data"), 0); err != nil {
-		t.Fatal(err)
-	}
-
-	if !s.Exists(path) {
-		t.Error("should exist after write")
-	}
-}
-
-// VALIDATES: blob List returns keys as absolute paths
-// PREVENTS: caller getting bare keys instead of paths
-
-func TestBlobStorageList(t *testing.T) {
-	s := newBlobStorage(t)
-
-	for _, path := range []string{"/etc/ze/a.conf", "/etc/ze/b.conf", "/etc/ze/c.conf.draft"} {
-		if err := s.WriteFile(path, []byte("x"), 0); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	matches, err := s.List("file/active")
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	if len(matches) != 3 {
-		t.Errorf("List: got %d matches, want 3: %v", len(matches), matches)
-	}
-	// Verify specific keys, not just count (#15)
-	expected := map[string]bool{
-		"file/active/a.conf":       false,
-		"file/active/b.conf":       false,
-		"file/active/c.conf.draft": false,
-	}
-	for _, m := range matches {
-		if !strings.HasPrefix(m, "file/active/") {
-			t.Errorf("List result should have file/active/ namespace prefix: %q", m)
-		}
-		expected[m] = true
-	}
-	for k, found := range expected {
-		if !found {
-			t.Errorf("expected key %q not found in List results", k)
-		}
-	}
-}
-
-// VALIDATES: blob AcquireLock + WriteGuard read/write/remove cycle
-// PREVENTS: locked operations failing or lock not released
-
-func TestBlobStorageLockCycle(t *testing.T) {
-	s := newBlobStorage(t)
-
-	configPath := "/etc/ze/test.conf"
-	if err := s.WriteFile(configPath, []byte("original"), 0); err != nil {
-		t.Fatal(err)
-	}
-
-	guard, err := s.AcquireLock(configPath)
-	if err != nil {
-		t.Fatalf("AcquireLock: %v", err)
-	}
-
-	// Read within lock
-	got, err := guard.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("guard.ReadFile: %v", err)
-	}
-	if string(got) != "original" {
-		t.Errorf("guard.ReadFile: got %q", got)
-	}
-
-	// Write draft within lock
-	draftPath := configPath + ".draft"
-	if err := guard.WriteFile(draftPath, []byte("modified"), 0); err != nil {
-		t.Fatalf("guard.WriteFile: %v", err)
-	}
-
-	// Read back within lock
-	got, err = guard.ReadFile(draftPath)
-	if err != nil {
-		t.Fatalf("guard.ReadFile draft: %v", err)
-	}
-	if string(got) != "modified" {
-		t.Errorf("guard.ReadFile draft: got %q", got)
-	}
-
-	// Remove within lock
-	if err := guard.Remove(draftPath); err != nil {
-		t.Fatalf("guard.Remove: %v", err)
-	}
-
-	if err := guard.Release(); err != nil {
-		t.Fatalf("guard.Release: %v", err)
-	}
-
-	// Draft should be gone after release (flushed)
-	if s.Exists(draftPath) {
-		t.Error("draft should not exist after remove + release")
-	}
-}
-
-// VALIDATES: blob migration imports existing files on first create
-// PREVENTS: data loss when switching from filesystem to blob
-
-func TestBlobStorageMigration(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create files that should be migrated
-	if err := os.WriteFile(filepath.Join(dir, "router.conf"), []byte("config-1"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "site.conf"), []byte("config-2"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(dir, "rollback"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "rollback", "router-001.conf"), []byte("backup"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create blob -- should trigger migration
-	blobPath := filepath.Join(dir, "database.zefs")
-	s, err := NewBlob(blobPath, dir)
-	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
-	}
-	bs, ok := s.(*blobStorage)
-	if !ok {
-		t.Fatal("expected blobStorage type")
-	}
-	defer bs.Close() //nolint:errcheck // test cleanup
-
-	// Verify migrated files are in the blob
-	routerAbs, err := filepath.Abs(filepath.Join(dir, "router.conf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.ReadFile(routerAbs)
-	if err != nil {
-		t.Fatalf("ReadFile router.conf: %v", err)
-	}
-	if string(got) != "config-1" {
-		t.Errorf("router.conf: got %q", got)
-	}
-
-	siteAbs, err := filepath.Abs(filepath.Join(dir, "site.conf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err = s.ReadFile(siteAbs)
-	if err != nil {
-		t.Fatalf("ReadFile site.conf: %v", err)
-	}
-	if string(got) != "config-2" {
-		t.Errorf("site.conf: got %q", got)
-	}
-
-	backupAbs, err := filepath.Abs(filepath.Join(dir, "rollback", "router-001.conf"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err = s.ReadFile(backupAbs)
-	if err != nil {
-		t.Fatalf("ReadFile backup: %v", err)
-	}
-	if string(got) != "backup" {
-		t.Errorf("backup: got %q", got)
-	}
-
-	// Originals should still exist on filesystem
-	if _, statErr := os.Stat(filepath.Join(dir, "router.conf")); statErr != nil {
-		t.Error("original router.conf should not be deleted")
-	}
-}
-
-// VALIDATES: blob storage fallback when blob cannot be created
-// PREVENTS: silent failure when blob path is unwritable
-
-func TestBlobStorageFallback(t *testing.T) {
-	// Try to create blob in non-existent directory
-	_, err := NewBlob("/nonexistent/dir/database.zefs", "/nonexistent/dir")
-	if err == nil {
-		t.Error("expected error for unwritable blob path")
-	}
-}
-
-// VALIDATES: blob ReadFile on non-existent key returns error
-// PREVENTS: silent empty reads
-
-func TestBlobStorageReadNonExistent(t *testing.T) {
-	s := newBlobStorage(t)
-	_, err := s.ReadFile("/etc/ze/nonexistent.conf")
-	if err == nil {
-		t.Error("expected error reading non-existent file")
-	}
-}
-
-// VALIDATES: blob WriteGuard.Release is idempotent
-// PREVENTS: double-release causing errors
-
-func TestBlobStorageGuardDoubleRelease(t *testing.T) {
-	s := newBlobStorage(t)
-
-	guard, err := s.AcquireLock("/etc/ze/test.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := guard.Release(); err != nil {
-		t.Fatalf("first Release: %v", err)
-	}
-
-	if err := guard.Release(); err != nil {
-		t.Errorf("second Release should be nil, got: %v", err)
-	}
-}
-
-// VALIDATES: blob AcquireLock serializes concurrent goroutine access
-// PREVENTS: concurrent writes corrupting blob data
-
-func TestBlobStorageCrossProcessLock(t *testing.T) {
-	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	s, err := NewBlob(blobPath, dir)
-	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
-	}
-	defer s.Close() //nolint:errcheck // test cleanup
-
-	configPath := "/etc/ze/test.conf"
-	if err := s.WriteFile(configPath, []byte("initial"), 0); err != nil {
-		t.Fatal(err)
-	}
-
-	// Acquire lock in main goroutine
-	guard1, err := s.AcquireLock(configPath)
-	if err != nil {
-		t.Fatalf("AcquireLock 1: %v", err)
-	}
-
-	// Try acquiring lock in second goroutine - should block until first is released
-	lockAcquired := make(chan struct{})
-	go func() {
-		guard2, lockErr := s.AcquireLock(configPath)
-		if lockErr != nil {
-			t.Errorf("AcquireLock 2: %v", lockErr)
-			close(lockAcquired)
-			return
-		}
-		// Write through second guard to prove we have exclusive access
-		_ = guard2.WriteFile(configPath, []byte("from-guard2"), 0) //nolint:errcheck // test write
-		_ = guard2.Release()                                       //nolint:errcheck // test cleanup
-		close(lockAcquired)
-	}()
-
-	// Write through first guard
-	if err := guard1.WriteFile(configPath, []byte("from-guard1"), 0); err != nil {
-		t.Fatalf("guard1.WriteFile: %v", err)
-	}
-
-	// Release first lock - second goroutine should proceed
-	if err := guard1.Release(); err != nil {
-		t.Fatalf("guard1.Release: %v", err)
-	}
-
-	// Wait for second goroutine to complete
-	<-lockAcquired
-
-	// Final value should be from guard2 (acquired after guard1 released)
-	got, err := s.ReadFile(configPath)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	if string(got) != "from-guard2" {
-		t.Errorf("expected 'from-guard2' (last writer), got %q", got)
-	}
-}
-
-// VALIDATES: blob List filters correctly for .conf files
-// PREVENTS: drafts, locks, and non-config files appearing in config selection
-
-func TestBlobStorageListConfigs(t *testing.T) {
-	s := newBlobStorage(t)
-
-	// Write a mix of file types
-	files := map[string]string{
-		"/etc/ze/router.conf":          "config",
-		"/etc/ze/site.conf":            "config",
-		"/etc/ze/router.conf.draft":    "draft",
-		"/etc/ze/router.conf.lock":     "lock",
-		"/etc/ze/ssh_host_ed25519_key": "key",
-		"/etc/ze/notes.txt":            "text",
-	}
-	for path, data := range files {
-		if err := s.WriteFile(path, []byte(data), 0); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	matches, err := s.List("file/active")
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-
-	// List returns all files, not just .conf - filtering is caller's job
-	if len(matches) != len(files) {
-		t.Errorf("List: got %d matches, want %d: %v", len(matches), len(files), matches)
-	}
-
-	// Count .conf files (what doSelectConfig would filter to)
-	var confCount int
-	for _, m := range matches {
-		if strings.HasSuffix(m, ".conf") {
-			confCount++
-		}
-	}
-	if confCount != 2 {
-		t.Errorf("expected 2 .conf files, got %d", confCount)
-	}
-}
-
-// --- Blob namespace tests ---
-
-// VALIDATES: config paths written via Storage get file/active/ prefix in blob
-// PREVENTS: namespace collision between metadata and config files
-
-func TestBlobStorageFilePrefix(t *testing.T) {
-	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	s, err := NewBlob(blobPath, dir)
-	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
-	}
-	bs, ok := s.(*blobStorage)
-	if !ok {
-		t.Fatal("expected blobStorage type")
-	}
-	defer bs.Close() //nolint:errcheck // test cleanup
-
-	// Write via Storage (filesystem path)
-	if err := s.WriteFile("/etc/ze/router.conf", []byte("config"), 0); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	// Verify internal blob key has file/active/ prefix
-	keys := bs.store.List("")
-	found := false
-	for _, k := range keys {
-		if k == "file/active/router.conf" {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("expected blob key 'file/active/router.conf', got keys: %v", keys)
-	}
-}
-
-// VALIDATES: resolveKey is idempotent for already-namespaced keys
-// PREVENTS: double-prefixing when List() results are passed back to ReadFile()
-
-func TestResolveKeyIdempotent(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{"filesystem absolute", "/etc/ze/router.conf", "file/active/router.conf"},
-		{"file namespace", "file/active/router.conf", "file/active/router.conf"},
-		{"meta namespace", "meta/ssh/username", "meta/ssh/username"},
-		{"leading slash file ns", "/file/active/router.conf", "file/active/router.conf"},
-		{"leading slash meta ns", "/meta/ssh/username", "meta/ssh/username"},
-		{"file draft qualifier", "file/draft/etc/ze/router.conf", "file/draft/etc/ze/router.conf"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := resolveKey(tt.input)
-			if got != tt.want {
-				t.Errorf("resolveKey(%q): got %q, want %q", tt.input, got, tt.want)
-			}
+func TestStorageConformance(t *testing.T) {
+	for _, backend := range pointerTestStores() {
+		t.Run(backend.name, func(t *testing.T) {
+			t.Run("operations", func(t *testing.T) {
+				dir := t.TempDir()
+				s := backend.newStore(t, dir)
+				name := backend.configPath(dir)
+				assert.False(t, s.Exists(name))
+				_, err := s.ReadFile(name)
+				require.ErrorIs(t, err, fs.ErrNotExist)
+				require.ErrorIs(t, s.Remove(name), fs.ErrNotExist)
+				_, err = s.Stat(name)
+				require.ErrorIs(t, err, fs.ErrNotExist)
+				require.ErrorIs(t, s.Rename(name, "missing.conf"), fs.ErrNotExist)
+				require.NoError(t, s.WriteFile(name, []byte("first"), 0))
+				assert.True(t, s.Exists(name))
+				require.NoError(t, s.WriteFile(name, []byte("replacement is longer"), 0o600))
+				got, err := s.ReadFile(name)
+				require.NoError(t, err)
+				assert.Equal(t, "replacement is longer", string(got))
+				require.NoError(t, s.WriteFile("other.conf", []byte("independent"), 0))
+				require.NoError(t, s.Rename(name, "renamed.conf"))
+				assert.False(t, s.Exists(name))
+				got, err = s.ReadFile("renamed.conf")
+				require.NoError(t, err)
+				assert.Equal(t, "replacement is longer", string(got))
+				got, err = s.ReadFile("other.conf")
+				require.NoError(t, err)
+				assert.Equal(t, "independent", string(got))
+				require.NoError(t, s.Rename("renamed.conf", "renamed.conf"))
+				require.NoError(t, s.Remove("renamed.conf"))
+				assert.False(t, s.Exists("renamed.conf"))
+			})
+			t.Run("guard", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				require.NoError(t, s.WriteFile("router.conf", []byte("original"), 0))
+				g, err := s.AcquireLock("router.conf")
+				require.NoError(t, err)
+				t.Cleanup(func() { require.NoError(t, g.Release()) })
+				assert.True(t, g.Has("router.conf"))
+				assert.False(t, g.Has("missing.conf"))
+				got, err := g.ReadFile("router.conf")
+				require.NoError(t, err)
+				assert.Equal(t, "original", string(got))
+				_, err = g.ReadFile("missing.conf")
+				require.ErrorIs(t, err, fs.ErrNotExist)
+				require.ErrorIs(t, g.Remove("missing.conf"), fs.ErrNotExist)
+				g.SetModifier("alice")
+				require.NoError(t, g.WriteFile("router.conf.draft", []byte("modified"), 0))
+				got, err = g.ReadFile("router.conf.draft")
+				require.NoError(t, err)
+				assert.Equal(t, "modified", string(got))
+				keys, err := g.List("file/active")
+				require.NoError(t, err)
+				assert.Equal(t, []string{"file/active/router.conf", "file/active/router.conf.draft"}, keys)
+				require.NoError(t, g.Remove("router.conf.draft"))
+				assert.False(t, g.Has("router.conf.draft"))
+				keys, err = g.List("file/active")
+				require.NoError(t, err)
+				assert.Equal(t, []string{"file/active/router.conf"}, keys)
+				require.NoError(t, g.Release())
+				require.NoError(t, g.Release())
+				assert.False(t, s.Exists("router.conf.draft"))
+				require.ErrorIs(t, g.WriteFile("late.conf", nil, 0), fs.ErrClosed)
+				_, err = g.ReadFile("router.conf")
+				require.ErrorIs(t, err, fs.ErrClosed)
+				require.ErrorIs(t, g.Remove("router.conf"), fs.ErrClosed)
+				_, err = g.List("file/active")
+				require.ErrorIs(t, err, fs.ErrClosed)
+			})
+			t.Run("owned reads", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				input := []byte("original")
+				require.NoError(t, s.WriteKey("meta/owned/value", input))
+				input[0] = 'X'
+				got, err := s.ReadKey("meta/owned/value")
+				require.NoError(t, err)
+				assert.Equal(t, "original", string(got))
+				got[0] = 'Y'
+				copyRead, err := s.ReadFile("meta/owned/value")
+				require.NoError(t, err)
+				assert.Equal(t, "original", string(copyRead))
+				require.NoError(t, s.WriteKey("meta/owned/value", []byte("new")))
+				assert.Equal(t, "original", string(copyRead), "unlocked reads survive subsequent writes")
+				require.NoError(t, s.Close())
+				assert.Equal(t, "original", string(copyRead), "unlocked reads survive Close")
+			})
+			t.Run("raw and config lists", func(t *testing.T) {
+				dir := t.TempDir()
+				s := backend.newStore(t, dir)
+				values := map[string]string{
+					"file/active/router.conf":       "router",
+					"file/active/router.conf.draft": "draft",
+					"file/active/notes.txt":         "notes",
+					"file/active/nested/site.conf":  "nested",
+					"meta/ssh/host/user":            "alice",
+				}
+				for key, value := range values {
+					require.NoError(t, s.WriteKey(key, []byte(value)))
+				}
+				keys, err := s.ListKeys("")
+				require.NoError(t, err)
+				assert.Equal(t, []string{"file/active/nested/site.conf", "file/active/notes.txt", "file/active/router.conf", "file/active/router.conf.draft", "meta/ssh/host/user"}, keys)
+				keys, err = s.ListKeys("file/active/")
+				require.NoError(t, err)
+				assert.Equal(t, []string{"file/active/nested/site.conf", "file/active/notes.txt", "file/active/router.conf", "file/active/router.conf.draft"}, keys)
+				for _, prefix := range []string{"file/active", "file/active/", dir} {
+					keys, err = s.List(prefix)
+					require.NoError(t, err)
+					assert.Equal(t, []string{"file/active/notes.txt", "file/active/router.conf", "file/active/router.conf.draft"}, keys)
+					for _, key := range keys {
+						got, readErr := s.ReadFile(key)
+						require.NoError(t, readErr)
+						assert.Equal(t, values[key], string(got))
+					}
+				}
+				keys, err = s.List("meta/ssh/host")
+				require.NoError(t, err)
+				assert.Equal(t, []string{"meta/ssh/host/user"}, keys)
+				require.NoError(t, s.RemoveKey("meta/ssh/host/user"))
+				keys, err = s.ListKeys("meta/ssh/")
+				require.NoError(t, err)
+				assert.Empty(t, keys)
+			})
+			t.Run("file directory conflicts and pruning", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				require.NoError(t, s.WriteKey("meta/branch/leaf", []byte("leaf")))
+				require.Error(t, s.WriteKey("meta/branch", []byte("not a directory")))
+				got, err := s.ReadKey("meta/branch/leaf")
+				require.NoError(t, err)
+				assert.Equal(t, "leaf", string(got))
+				require.NoError(t, s.RemoveKey("meta/branch/leaf"))
+				require.NoError(t, s.WriteKey("meta/branch", []byte("now a file")))
+				require.Error(t, s.WriteKey("meta/branch/child", []byte("blocked")))
+				got, err = s.ReadKey("meta/branch")
+				require.NoError(t, err)
+				assert.Equal(t, "now a file", string(got))
+				require.NoError(t, s.RemoveKey("meta/branch"))
+				require.NoError(t, s.WriteKey("meta/branch/child", []byte("directory again")))
+				keys, err := s.ListKeys("")
+				require.NoError(t, err)
+				assert.Equal(t, []string{"meta/branch/child"}, keys)
+			})
+			t.Run("invalid raw keys", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				for _, key := range []string{"", ".", "../escape", "/absolute", "meta//double", "meta/../escape", "meta/trailing/"} {
+					require.Error(t, s.WriteKey(key, []byte("invalid")), key)
+					_, err := s.ReadKey(key)
+					require.Error(t, err, key)
+					require.Error(t, s.RemoveKey(key), key)
+				}
+				keys, err := s.ListKeys("")
+				require.NoError(t, err)
+				assert.Empty(t, keys)
+			})
+			t.Run("versions and metadata", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				versions, err := s.ListVersions("router.conf")
+				require.NoError(t, err)
+				assert.Empty(t, versions)
+				older := mustParseVersionStamp(t, "20260318-100000.000")
+				newer := mustParseVersionStamp(t, "20260319-113000.500")
+				require.NoError(t, s.WriteVersion("router.conf", []byte("old"), older))
+				g, err := s.AcquireLock("router.conf")
+				require.NoError(t, err)
+				t.Cleanup(func() { require.NoError(t, g.Release()) })
+				g.SetModifier("alice")
+				before := time.Now()
+				require.NoError(t, g.WriteFile("router.conf", []byte("current"), 0))
+				require.NoError(t, g.WriteVersion("router.conf", []byte("new"), newer))
+				require.NoError(t, g.Release())
+				meta, err := s.Stat("router.conf")
+				require.NoError(t, err)
+				assert.Equal(t, "alice", meta.ModifiedBy)
+				assert.False(t, meta.ModTime.Before(before))
+				assert.False(t, meta.ModTime.After(time.Now()))
+				require.NoError(t, s.Rename("router.conf", "renamed.conf"))
+				renamed, err := s.Stat("renamed.conf")
+				require.NoError(t, err)
+				assert.Equal(t, meta, renamed)
+				require.NoError(t, s.WriteVersion("other.conf", []byte("unrelated"), newer))
+				require.NoError(t, s.WriteKey("file/not-a-stamp/router.conf", []byte("not history")))
+				versions, err = s.ListVersions("router.conf")
+				require.NoError(t, err)
+				require.Len(t, versions, 2)
+				assert.Equal(t, VersionInfo{Stamp: "20260319-113000.500", Date: newer, Path: "file/20260319-113000.500/router.conf"}, versions[0])
+				assert.Equal(t, VersionInfo{Stamp: "20260318-100000.000", Date: older, Path: "file/20260318-100000.000/router.conf"}, versions[1])
+				for i, want := range []string{"new", "old"} {
+					got, readErr := s.ReadFile(versions[i].Path)
+					require.NoError(t, readErr)
+					assert.Equal(t, want, string(got))
+				}
+				meta, err = s.Stat(versions[0].Path)
+				require.NoError(t, err)
+				assert.Equal(t, FileMeta{ModTime: newer, ModifiedBy: "alice"}, meta)
+			})
+			t.Run("observer after release", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				var observed []string
+				s.SetWriteObserver(func(key string) {
+					got, err := s.ReadFile(key)
+					assert.NoError(t, err)
+					assert.Equal(t, "committed", string(got))
+					observed = append(observed, key)
+				})
+				g, err := s.AcquireLock("router.conf")
+				require.NoError(t, err)
+				t.Cleanup(func() { require.NoError(t, g.Release()) })
+				require.NoError(t, g.WriteFile("router.conf", []byte("committed"), 0))
+				assert.Empty(t, observed, "observers must not run inside the guard")
+				require.NoError(t, g.Release())
+				assert.Equal(t, []string{"file/active/router.conf"}, observed)
+				require.NoError(t, s.WriteFile("other.conf", []byte("committed"), 0))
+				assert.Equal(t, []string{"file/active/router.conf", "file/active/other.conf"}, observed)
+				s.SetWriteObserver(nil)
+				require.NoError(t, s.WriteFile("quiet.conf", []byte("not observed"), 0))
+				assert.Len(t, observed, 2)
+			})
+			t.Run("guard serialization", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				first, err := s.AcquireLock("router.conf")
+				require.NoError(t, err)
+				t.Cleanup(func() { require.NoError(t, first.Release()) })
+				done := make(chan error, 1)
+				go func() {
+					second, lockErr := s.AcquireLock("router.conf")
+					if lockErr != nil {
+						done <- lockErr
+						return
+					}
+					writeErr := second.WriteFile("router.conf", []byte("second"), 0)
+					releaseErr := second.Release()
+					if writeErr != nil {
+						done <- writeErr
+						return
+					}
+					done <- releaseErr
+				}()
+				require.NoError(t, first.WriteFile("router.conf", []byte("first"), 0))
+				require.NoError(t, first.Release())
+				require.NoError(t, <-done)
+				got, err := s.ReadFile("router.conf")
+				require.NoError(t, err)
+				assert.Equal(t, "second", string(got))
+			})
+			t.Run("closed handle", func(t *testing.T) {
+				s := backend.newStore(t, t.TempDir())
+				require.NoError(t, s.Close())
+				require.NoError(t, s.Close())
+				_, err := s.ReadKey("meta/key")
+				require.ErrorIs(t, err, fs.ErrClosed)
+				require.ErrorIs(t, s.WriteKey("meta/key", nil), fs.ErrClosed)
+				require.ErrorIs(t, s.RemoveKey("meta/key"), fs.ErrClosed)
+				_, err = s.ListKeys("")
+				require.ErrorIs(t, err, fs.ErrClosed)
+				_, err = s.Stat("router.conf")
+				require.ErrorIs(t, err, fs.ErrClosed)
+				_, err = s.AcquireLock("router.conf")
+				require.ErrorIs(t, err, fs.ErrClosed)
+			})
 		})
 	}
-
-	// A relative path (#5). With flat-key storage, resolvePathToKey returns
-	// filepath.Base(name), so a relative path resolves to just the filename.
-	t.Run("relative path", func(t *testing.T) {
-		got := resolveKey("router.conf")
-		want := "file/active/router.conf"
-		if got != want {
-			t.Errorf("resolveKey(\"router.conf\"): got %q, want %q", got, want)
-		}
-	})
-}
-
-// VALIDATES: List returns full blob keys including namespace prefix
-// PREVENTS: callers seeing stripped keys that can't round-trip to ReadFile
-
-func TestBlobStorageListReturnsFullKeys(t *testing.T) {
-	s := newBlobStorage(t)
-
-	if err := s.WriteFile("/etc/ze/router.conf", []byte("config"), 0); err != nil {
-		t.Fatal(err)
-	}
-
-	matches, err := s.List("file/active")
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	if len(matches) != 1 {
-		t.Fatalf("List: got %d matches, want 1: %v", len(matches), matches)
-	}
-
-	key := matches[0]
-	if !strings.HasPrefix(key, "file/active/") {
-		t.Errorf("List result should have file/active/ prefix, got: %q", key)
-	}
-}
-
-// VALIDATES: List results can be passed directly to ReadFile
-// PREVENTS: broken round-trip due to namespace prefix mismatch
-
-func TestBlobStorageListRoundTrip(t *testing.T) {
-	s := newBlobStorage(t)
-
-	// Write multiple files (#11)
-	files := map[string]string{
-		"/etc/ze/router.conf": "config-1",
-		"/etc/ze/site-a.conf": "config-2",
-		"/etc/ze/site-b.conf": "config-3",
-	}
-	for path, content := range files {
-		if err := s.WriteFile(path, []byte(content), 0); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	matches, err := s.List("file/active")
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	if len(matches) != 3 {
-		t.Fatalf("List: got %d matches, want 3: %v", len(matches), matches)
-	}
-
-	// Pass each List result directly to ReadFile -- all must round-trip
-	for _, key := range matches {
-		data, readErr := s.ReadFile(key)
-		if readErr != nil {
-			t.Fatalf("ReadFile(%s): %v", key, readErr)
-		}
-		if len(data) == 0 {
-			t.Errorf("ReadFile(%s): empty data", key)
-		}
-	}
-}
-
-// VALIDATES: filesystem migration writes file/active/ prefixed keys
-// PREVENTS: migrated files landing in flat namespace
-
-func TestBlobMigrateFilesystemPrefixed(t *testing.T) {
-	dir := t.TempDir()
-
-	// Create a config file to be migrated
-	if err := os.WriteFile(filepath.Join(dir, "router.conf"), []byte("migrated"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create blob -- triggers migrateExistingFiles
-	blobPath := filepath.Join(dir, "database.zefs")
-	s, err := NewBlob(blobPath, dir)
-	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
-	}
-	bs, ok := s.(*blobStorage)
-	if !ok {
-		t.Fatal("expected blobStorage type")
-	}
-	defer bs.Close() //nolint:errcheck // test cleanup
-
-	// Check that the migrated key has file/active/ prefix
-	keys := bs.store.List("")
-	found := false
-	for _, k := range keys {
-		if strings.HasPrefix(k, "file/active/") && strings.HasSuffix(k, "router.conf") {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("expected migrated key with 'file/active/' prefix, got: %v", keys)
-	}
-}
-
-// TestFilesystemStorageRename verifies Rename on filesystem storage.
-//
-// VALIDATES: Rename moves file atomically.
-// PREVENTS: Rename silently failing or leaving source behind.
-func TestFilesystemStorageRename(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	oldPath := filepath.Join(dir, "old.conf")
-	newPath := filepath.Join(dir, "new.conf")
-
-	require.NoError(t, s.WriteFile(oldPath, []byte("content"), 0o600))
-	require.NoError(t, s.Rename(oldPath, newPath))
-
-	// Old should be gone, new should exist.
-	assert.False(t, s.Exists(oldPath), "old file should not exist after rename")
-	assert.True(t, s.Exists(newPath), "new file should exist after rename")
-
-	data, err := s.ReadFile(newPath)
-	require.NoError(t, err)
-	assert.Equal(t, "content", string(data))
-}
-
-// TestFilesystemStorageRenameNonExistent verifies Rename fails for missing source.
-//
-// VALIDATES: Rename returns error when source does not exist.
-// PREVENTS: Silent no-op on missing file.
-func TestFilesystemStorageRenameNonExistent(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-
-	err := s.Rename(filepath.Join(dir, "missing"), filepath.Join(dir, "dest"))
-	require.Error(t, err)
-}
-
-// TestBlobStorageRename verifies Rename on blob storage.
-//
-// VALIDATES: Rename works for blob-backed storage.
-// PREVENTS: Data loss during blob key rename.
-func TestBlobStorageRename(t *testing.T) {
-	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-
-	s, err := NewBlob(blobPath, dir)
-	require.NoError(t, err)
-	defer s.Close() //nolint:errcheck // test cleanup
-
-	oldPath := filepath.Join(dir, "old.conf")
-	newPath := filepath.Join(dir, "new.conf")
-
-	require.NoError(t, s.WriteFile(oldPath, []byte("blob content"), 0o600))
-	require.NoError(t, s.Rename(oldPath, newPath))
-
-	// Old should be gone, new should exist.
-	assert.False(t, s.Exists(oldPath), "old key should not exist after rename")
-	assert.True(t, s.Exists(newPath), "new key should exist after rename")
-
-	data, err := s.ReadFile(newPath)
-	require.NoError(t, err)
-	assert.Equal(t, "blob content", string(data))
-}
-
-// --- Version API tests ---
-
-func TestFilesystemWriteVersionAndList(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-	configPath := filepath.Join(dir, "router.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte("current"), 0o600))
-
-	t1 := time.Date(2026, 3, 18, 10, 0, 0, 0, time.Local)
-	t2 := time.Date(2026, 3, 19, 11, 30, 0, 500_000_000, time.Local)
-
-	require.NoError(t, s.WriteVersion(configPath, []byte("v1"), t1))
-	require.NoError(t, s.WriteVersion(configPath, []byte("v2"), t2))
-
-	versions, err := s.ListVersions(configPath)
-	require.NoError(t, err)
-	require.Len(t, versions, 2)
-
-	assert.Equal(t, "20260319-113000.500", versions[0].Stamp, "newest first")
-	assert.Equal(t, "20260318-100000.000", versions[1].Stamp)
-
-	data, err := s.ReadFile(versions[1].Path)
-	require.NoError(t, err)
-	assert.Equal(t, "v1", string(data))
-}
-
-func TestFilesystemListVersionsEmpty(t *testing.T) {
-	dir := t.TempDir()
-	s := NewFilesystem()
-	configPath := filepath.Join(dir, "router.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte("current"), 0o600))
-
-	versions, err := s.ListVersions(configPath)
-	require.NoError(t, err)
-	assert.Empty(t, versions)
-}
-
-func TestBlobWriteVersionAndList(t *testing.T) {
-	s := newBlobStorage(t)
-	configPath := "/etc/ze/router.conf"
-	require.NoError(t, s.WriteFile(configPath, []byte("current"), 0o600))
-
-	t1 := time.Date(2026, 3, 18, 10, 0, 0, 0, time.Local)
-	t2 := time.Date(2026, 3, 19, 11, 30, 0, 500_000_000, time.Local)
-
-	require.NoError(t, s.WriteVersion(configPath, []byte("v1"), t1))
-	require.NoError(t, s.WriteVersion(configPath, []byte("v2"), t2))
-
-	versions, err := s.ListVersions(configPath)
-	require.NoError(t, err)
-	require.Len(t, versions, 2)
-
-	assert.Equal(t, "20260319-113000.500", versions[0].Stamp, "newest first")
-	assert.Equal(t, "20260318-100000.000", versions[1].Stamp)
-	assert.Equal(t, "file/20260318-100000.000/router.conf", versions[1].Path)
-
-	data, err := s.ReadFile(versions[1].Path)
-	require.NoError(t, err)
-	assert.Equal(t, "v1", string(data))
-
-	data2, err := s.ReadFile(versions[0].Path)
-	require.NoError(t, err)
-	assert.Equal(t, "v2", string(data2))
-}
-
-func TestBlobListVersionsEmpty(t *testing.T) {
-	s := newBlobStorage(t)
-	configPath := "/etc/ze/router.conf"
-	require.NoError(t, s.WriteFile(configPath, []byte("current"), 0o600))
-
-	versions, err := s.ListVersions(configPath)
-	require.NoError(t, err)
-	assert.Empty(t, versions)
-}
-
-func TestBlobWriteVersionViaGuard(t *testing.T) {
-	s := newBlobStorage(t)
-	configPath := "/etc/ze/router.conf"
-	require.NoError(t, s.WriteFile(configPath, []byte("current"), 0o600))
-
-	guard, err := s.AcquireLock(configPath)
-	require.NoError(t, err)
-
-	stamp := time.Date(2026, 5, 13, 14, 0, 0, 0, time.Local)
-	require.NoError(t, guard.WriteVersion(configPath, []byte("guarded-v1"), stamp))
-	require.NoError(t, guard.Release())
-
-	versions, err := s.ListVersions(configPath)
-	require.NoError(t, err)
-	require.Len(t, versions, 1)
-	assert.Equal(t, "20260513-140000.000", versions[0].Stamp)
-
-	data, err := s.ReadFile(versions[0].Path)
-	require.NoError(t, err)
-	assert.Equal(t, "guarded-v1", string(data))
 }
 
 func TestVersionStampRoundTrip(t *testing.T) {
 	original := time.Date(2026, 3, 18, 10, 30, 45, 123_000_000, time.Local)
 	stamp := FormatVersionStamp(original)
 	assert.Equal(t, "20260318-103045.123", stamp)
-
 	parsed, err := ParseVersionStamp(stamp)
 	require.NoError(t, err)
 	assert.Equal(t, original.Truncate(time.Millisecond), parsed)
 }
 
-func TestParseVersionStampRejectsTraversal(t *testing.T) {
-	_, err := ParseVersionStamp("../../../etc/shadow")
-	require.Error(t, err)
-}
-
-func TestParseVersionStampRejectsOversizeMillis(t *testing.T) {
-	_, err := ParseVersionStamp("20260318-100000.1234")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "milliseconds out of range")
+func TestParseVersionStampRejectsInvalid(t *testing.T) {
+	for _, stamp := range []string{"../../../etc/shadow", "20260318-100000.1234", "20260318-100000.-01", "20260318-100000.abc"} {
+		_, err := ParseVersionStamp(stamp)
+		require.Error(t, err, stamp)
+	}
 }

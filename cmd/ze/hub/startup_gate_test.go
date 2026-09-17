@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -80,9 +79,8 @@ func pinLogEnv(t *testing.T) {
 	}
 }
 
-// pinConfigDir points ze.config.dir at a fresh directory and returns it. The
-// daemon opens {dir}/database.zefs there once it is past the gate, so an empty
-// directory is evidence that it never got that far.
+// pinConfigDir points ze.config.dir at a fresh directory and returns it. An
+// empty directory is evidence that startup did not create persistent state.
 func pinConfigDir(t *testing.T) string {
 	t.Helper()
 	previous := env.Get("ze.config.dir")
@@ -135,8 +133,7 @@ func stderrDuringRun(t *testing.T, fn func() int) (int, string) {
 //
 // PREVENTS: a daemon that starts without a plugin it cannot run without, and
 // a refusal that lands after the first irreversible act. The empty config
-// directory is what proves the ordering: openStateOnlyStore creates
-// database.zefs there the moment run gets past this gate.
+// directory proves that the gate did not create persistent state.
 func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 	isolateRegistry(t)
 	registerGatePlugin(t, gatePlugin)
@@ -144,7 +141,7 @@ func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 	configDir := pinConfigDir(t)
 
 	code, written := stderrDuringRun(t, func() int {
-		return run(storage.NewFilesystem(), filepath.Join(configDir, "hub.conf"), nil,
+		return run(nil, filepath.Join(configDir, "hub.conf"), nil,
 			0, -1, false, "", false, "", "", false, nil)
 	})
 
@@ -160,8 +157,10 @@ func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 		t.Errorf("run reached the config read before refusing: %s", written)
 	}
 
-	if _, err := os.Stat(filepath.Join(configDir, stateStoreName)); err == nil {
-		t.Errorf("run created %s, so the refusal came after the first irreversible act", stateStoreName)
+	if entries, err := os.ReadDir(configDir); err != nil {
+		t.Fatal(err)
+	} else if len(entries) != 0 {
+		t.Errorf("startup refusal created persistent files: %v", entries)
 	}
 }
 
@@ -197,7 +196,7 @@ func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
 	start := time.Now()
 
 	_, written := stderrDuringRun(t, func() int {
-		return run(storage.NewFilesystem(), filepath.Join(configDir, "hub.conf"), nil,
+		return run(nil, filepath.Join(configDir, "hub.conf"), nil,
 			0, -1, false, "", false, "", "", false, nil)
 	})
 
@@ -212,7 +211,10 @@ func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
 		t.Errorf("the plugin is named %d times, want 2, one per producer: %s", named, written)
 	}
 
-	entries := slogutil.GlobalLogRing().Snapshot(0, "", "hub")
+	entries, err := slogutil.GlobalLogRing().Snapshot(0, "", "hub")
+	if err != nil {
+		t.Fatal(err)
+	}
 	logged := false
 	for _, entry := range entries {
 		if entry.Timestamp.Before(start) {
@@ -244,7 +246,7 @@ func TestRunRefusalNamesEveryHardFailure(t *testing.T) {
 	configDir := pinConfigDir(t)
 
 	code, written := stderrDuringRun(t, func() int {
-		return run(storage.NewFilesystem(), filepath.Join(configDir, "hub.conf"), nil,
+		return run(nil, filepath.Join(configDir, "hub.conf"), nil,
 			0, -1, false, "", false, "", "", false, nil)
 	})
 
@@ -285,7 +287,7 @@ func TestRunProceedsOnSoftFailure(t *testing.T) {
 
 	missing := filepath.Join(t.TempDir(), "absent.conf")
 	code, written := stderrDuringRun(t, func() int {
-		return run(storage.NewFilesystem(), missing, nil, 0, -1, false, "", false, "", "", false, nil)
+		return run(newTestFileStore(t, missing), missing, nil, 0, -1, false, "", false, "", "", false, nil)
 	})
 
 	if code != 1 {

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 )
 
@@ -40,7 +39,7 @@ const showTestConfig = `bgp {
 func TestConfigShowFullTree(t *testing.T) {
 	configPath := writeTestConfig(t, showTestConfig)
 	var buf bytes.Buffer
-	rc := showConfig(&buf, storage.NewFilesystem(), []string{configPath})
+	rc := showConfig(&buf, nil, []string{configPath})
 	if rc != exitOK {
 		t.Fatalf("exit code = %d, want %d\nstdout:\n%s", rc, exitOK, buf.String())
 	}
@@ -55,7 +54,7 @@ func TestConfigShowFullTree(t *testing.T) {
 func TestConfigShowAtPath(t *testing.T) {
 	configPath := writeTestConfig(t, showTestConfig)
 	var buf bytes.Buffer
-	rc := showConfig(&buf, storage.NewFilesystem(), []string{configPath, "bgp", "peer", "peer1"})
+	rc := showConfig(&buf, nil, []string{configPath, "bgp", "peer", "peer1"})
 	if rc != exitOK {
 		t.Fatalf("exit code = %d, want %d", rc, exitOK)
 	}
@@ -74,7 +73,7 @@ func TestConfigShowAtPath(t *testing.T) {
 func TestConfigShowPathNotFound(t *testing.T) {
 	configPath := writeTestConfig(t, showTestConfig)
 	var buf bytes.Buffer
-	rc := showConfig(&buf, storage.NewFilesystem(), []string{configPath, "no", "such", "path"})
+	rc := showConfig(&buf, nil, []string{configPath, "no", "such", "path"})
 	if rc == exitOK {
 		t.Fatalf("expected non-zero exit for missing path")
 	}
@@ -131,7 +130,7 @@ func TestConfigShowMasksASecret(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			if rc := showConfig(&buf, storage.NewFilesystem(), tc.args); rc != exitOK {
+			if rc := showConfig(&buf, nil, tc.args); rc != exitOK {
 				t.Fatalf("exit code = %d, want %d\n%s", rc, exitOK, buf.String())
 			}
 			out := buf.String()
@@ -162,7 +161,7 @@ func TestConfigShowUnparsableConfig(t *testing.T) {
 	configPath := writeTestConfig(t, broken)
 
 	var textOut bytes.Buffer
-	if rc := showConfig(&textOut, storage.NewFilesystem(), []string{configPath}); rc != exitOK {
+	if rc := showConfig(&textOut, nil, []string{configPath}); rc != exitOK {
 		t.Fatalf("text whole-tree exit = %d, want %d", rc, exitOK)
 	}
 	if !strings.Contains(textOut.String(), "router-id") {
@@ -170,7 +169,7 @@ func TestConfigShowUnparsableConfig(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if rc := showConfig(&buf, storage.NewFilesystem(), []string{configPath, "bgp"}); rc == exitOK {
+	if rc := showConfig(&buf, nil, []string{configPath, "bgp"}); rc == exitOK {
 		t.Fatalf("the text form exited 0 at a path of a configuration that does not parse:\n%s", buf.String())
 	}
 	if buf.Len() != 0 {
@@ -181,7 +180,7 @@ func TestConfigShowUnparsableConfig(t *testing.T) {
 // TestConfigShowMissingFile verifies the usage check for a missing file arg.
 func TestConfigShowMissingFile(t *testing.T) {
 	var buf bytes.Buffer
-	rc := showConfig(&buf, storage.NewFilesystem(), []string{})
+	rc := showConfig(&buf, nil, []string{})
 	if rc == exitOK {
 		t.Fatalf("expected non-zero exit when file arg missing")
 	}
@@ -204,7 +203,7 @@ func TestShowConfigDash(t *testing.T) {
 		restore := cliio.SwapStreams(strings.NewReader(stdin), &bytes.Buffer{})
 		defer restore()
 		var buf bytes.Buffer
-		rc := showConfig(&buf, storage.NewFilesystem(), args)
+		rc := showConfig(&buf, nil, args)
 		return rc, buf.String()
 	}
 

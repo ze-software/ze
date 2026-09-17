@@ -174,7 +174,9 @@ func TestInstanceRemovedTearsDown(t *testing.T) {
 
 	mgr := newTestInstanceManager()
 	defer mgr.shutdownAll()
-	mgr.reconcile(withInstance)
+	if err := mgr.reconcile(withInstance); err != nil {
+		t.Fatal(err)
+	}
 
 	eng5, ok := mgr.engineFor(5)
 	if !ok {
@@ -185,7 +187,9 @@ func TestInstanceRemovedTearsDown(t *testing.T) {
 	}
 
 	// Remove instance 5 from config and reconcile: its engine must be torn down.
-	mgr.reconcile(withoutInstance)
+	if err := mgr.reconcile(withoutInstance); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := mgr.engineFor(5); ok {
 		t.Fatal("instance 5 engine still present after its Instance ID was removed")
 	}

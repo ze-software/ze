@@ -26,11 +26,13 @@ invocation must verify its result independently, because the exit code does not.
 
 <!-- source: internal/appliance/diskverify.go -- verifyInject, verifyInjectedDB, verifyE2fsck, tryLoopbackVerify -->
 
-**The runtime side had no floor.** With `/perm/ze/` absent, blob creation failed
-and the blob gate tripped, so gokrazy restart-looped. The device now
-auto-initializes to a reachable but unprovisioned state, gated on the
-`ze.gokrazy.enabled` environment variable. The operator must re-provision, by
-design.
+**The runtime side had no floor.** With `/perm/ze/` absent, the device
+restart-looped. The appliance now imports `/perm/ze/database.zefs` explicitly
+into `/perm/ze/database/` on first boot and logs the import. `storage.ImportBlob`
+verifies every seed key before retiring the seed as `database.zefs.replaced-*`;
+it also resumes an interrupted import without replacing an unrelated tree.
+With neither store nor seed present, the appliance auto-initializes to a
+reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
 
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 
@@ -41,12 +43,21 @@ design.
   exact failure mode.
 - `dd` is gone from the build path. `extractPartition` and `writePartition` use
   `ReadAt` and `WriteAt`.
+- Injection sets the configuration folder to root-owned 0700 and its seed to
+  root-owned 0600. The build host's UID must never become the appliance store
+  owner, and debugfs's default directory mode is too loose for the live store.
 - The auto-init gate is an environment variable, not a config leaf, because it
   is needed before config loads.
 - Fallback auth posture is connectivity-only. No SSH or web credential keys are
   written, matching the serial fail-open recovery posture.
 - The installer registers as `ze install disk` under the existing subdispatch,
   not as a new binary.
+- PXE injection checks `/perm/ze/database/` before the sibling
+  `database.zefs`. It preserves an existing tree and never downloads a bootstrap
+  blob beside it. A non-empty baked seed is also preserved. An invalid live
+  store path stops installation rather than being overwritten.
+
+<!-- source: internal/install/disk/system.go -- mountInjectDB, bakedSeedPresent -->
 
 ## Constraints the code does not state
 

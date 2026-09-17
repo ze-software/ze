@@ -2,6 +2,7 @@ package zefs
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -264,7 +265,7 @@ func TestNetcapstringDecodeRefZeroCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, _, _, err := decodeNetcapstringRef(encoded, 0)
+	data, _, _, err := DecodeNetcapstringRef(encoded, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +331,7 @@ func TestNetcapstringDecodeRefErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, _, err := decodeNetcapstringRef(tt.input, tt.off)
+			_, _, _, err := DecodeNetcapstringRef(tt.input, tt.off)
 			if err == nil {
 				t.Error("expected error, got nil")
 			}
@@ -355,7 +356,7 @@ func TestNetcapstringDecodeRefAtOffset(t *testing.T) {
 	buf = append(buf, ns2...)
 
 	// Decode first (zero-copy)
-	data1, _, next1, err := decodeNetcapstringRef(buf, 0)
+	data1, _, next1, err := DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("first: %v", err)
 	}
@@ -364,7 +365,7 @@ func TestNetcapstringDecodeRefAtOffset(t *testing.T) {
 	}
 
 	// Decode second at returned offset (zero-copy)
-	data2, _, next2, err := decodeNetcapstringRef(buf, next1)
+	data2, _, next2, err := DecodeNetcapstringRef(buf, next1)
 	if err != nil {
 		t.Fatalf("second: %v", err)
 	}
@@ -402,7 +403,7 @@ func TestNetcapstringDecodeCopyVsRef(t *testing.T) {
 				t.Fatalf("copy decode: %v", err)
 			}
 
-			refData, refCap, refNext, err := decodeNetcapstringRef(encoded, 0)
+			refData, refCap, refNext, err := DecodeNetcapstringRef(encoded, 0)
 			if err != nil {
 				t.Fatalf("ref decode: %v", err)
 			}
@@ -552,7 +553,7 @@ func TestWriteNetcapstring(t *testing.T) {
 	}
 
 	// Verify round-trip: decode what was written
-	decoded, cap_, next, err := decodeNetcapstringRef(buf, 0)
+	decoded, cap_, next, err := DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -584,7 +585,7 @@ func TestWriteNetcapstringAtOffset(t *testing.T) {
 	}
 
 	// Decode both
-	d1, _, next, err := decodeNetcapstringRef(buf, 0)
+	d1, _, next, err := DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("first: %v", err)
 	}
@@ -592,7 +593,7 @@ func TestWriteNetcapstringAtOffset(t *testing.T) {
 		t.Errorf("first: got %q", d1)
 	}
 
-	d2, _, _, err := decodeNetcapstringRef(buf, next)
+	d2, _, _, err := DecodeNetcapstringRef(buf, next)
 	if err != nil {
 		t.Fatalf("second: %v", err)
 	}
@@ -646,7 +647,7 @@ func TestWriteNetcapstringSpacePadding(t *testing.T) {
 	writeNetcapstring(buf, 0, []byte("hi"), capacity)
 
 	// Decode and verify data
-	data, _, _, err := decodeNetcapstringRef(buf, 0)
+	data, _, _, err := DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -692,7 +693,7 @@ func TestWriteNetcapstringHeader(t *testing.T) {
 	}
 
 	// Decode and verify
-	decoded, cap_, _, err := decodeNetcapstringRef(full, 0)
+	decoded, cap_, _, err := DecodeNetcapstringRef(full, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -748,7 +749,7 @@ func TestNetcapSlotWriteData(t *testing.T) {
 	}
 
 	// Verify round-trip
-	decoded, _, _, err := decodeNetcapstringRef(buf, 0)
+	decoded, _, _, err := DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -763,7 +764,7 @@ func TestNetcapSlotWriteData(t *testing.T) {
 	if slot.used != 2 {
 		t.Errorf("used after shorter write: got %d, want 2", slot.used)
 	}
-	decoded, _, _, err = decodeNetcapstringRef(buf, 0)
+	decoded, _, _, err = DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -983,7 +984,7 @@ func TestNetcapSlotNonZeroOffset(t *testing.T) {
 	}
 
 	// Decode both and verify they didn't overlap
-	d1, _, next, err := decodeNetcapstringRef(buf, 0)
+	d1, _, next, err := DecodeNetcapstringRef(buf, 0)
 	if err != nil {
 		t.Fatalf("decode slot1: %v", err)
 	}
@@ -991,7 +992,7 @@ func TestNetcapSlotNonZeroOffset(t *testing.T) {
 		t.Errorf("slot1: got %q", d1)
 	}
 
-	d2, _, _, err := decodeNetcapstringRef(buf, next)
+	d2, _, _, err := DecodeNetcapstringRef(buf, next)
 	if err != nil {
 		t.Fatalf("decode slot2: %v", err)
 	}
@@ -1014,7 +1015,7 @@ func TestEncodeNetcapstringZeroCapNonEmptyData(t *testing.T) {
 // PREVENTS: index out of range on empty input
 
 func TestDecodeNetcapstringRefEmptyBuffer(t *testing.T) {
-	_, _, _, err := decodeNetcapstringRef([]byte{}, 0)
+	_, _, _, err := DecodeNetcapstringRef([]byte{}, 0)
 	if err == nil {
 		t.Error("expected error for empty buffer")
 	}
@@ -1025,7 +1026,7 @@ func TestDecodeNetcapstringRefEmptyBuffer(t *testing.T) {
 
 func TestDecodeNetcapstringRefOffsetAtEnd(t *testing.T) {
 	buf := []byte("1:8:3:364b3fb7\nabc     \n")
-	_, _, _, err := decodeNetcapstringRef(buf, len(buf))
+	_, _, _, err := DecodeNetcapstringRef(buf, len(buf))
 	if err == nil {
 		t.Error("expected error for offset at end of buffer")
 	}
@@ -1087,12 +1088,9 @@ func TestNetcapstringEncodeNegativeCapacity(t *testing.T) {
 // PREVENTS: integer overflow bypassing truncation check (CVE-class)
 
 func TestDecodeNetcapstringRefOverflowCapacity(t *testing.T) {
-	// Craft a header with number=19 and capacity = max 19-digit value.
-	// This exercises the overflow-safe check: cap_ > len(buf) - off
-	// On 64-bit, strconv.Atoi("9999999999999999999") = 9999999999999999999 (valid int64).
-	// The subtraction check catches it without overflow.
+	// A decimal beyond MaxInt must fail before any capacity arithmetic.
 	crafted := "19:9999999999999999999:0000000000000000000:00000000\n"
-	_, _, _, err := decodeNetcapstringRef([]byte(crafted), 0)
+	_, _, _, err := DecodeNetcapstringRef([]byte(crafted), 0)
 	if err == nil {
 		t.Error("expected error for capacity exceeding buffer size")
 	}
@@ -1104,7 +1102,7 @@ func TestDecodeNetcapstringRefOverflowCapacity(t *testing.T) {
 func TestDecodeNetcapstringRefCraftedUsedExceedsCap(t *testing.T) {
 	// Header says used=9, cap=4. Format is valid but used > cap.
 	crafted := "1:4:9:00000000\nabcdefghi\n"
-	_, _, _, err := decodeNetcapstringRef([]byte(crafted), 0)
+	_, _, _, err := DecodeNetcapstringRef([]byte(crafted), 0)
 	if err == nil {
 		t.Error("expected error for used exceeding capacity")
 	}
@@ -1180,7 +1178,7 @@ func TestNetcapstringCRCMismatch(t *testing.T) {
 	copy(corrupted, encoded)
 	corrupted[dataStart] ^= 0x01
 
-	_, _, _, err = decodeNetcapstringRef(corrupted, 0)
+	_, _, _, err = DecodeNetcapstringRef(corrupted, 0)
 	if err == nil {
 		t.Fatal("expected CRC mismatch error for corrupted data")
 	}
@@ -1194,8 +1192,72 @@ func TestNetcapstringCRCMismatch(t *testing.T) {
 	crcStart := dataStart - 1 - 8 // 8 hex chars before the \n
 	corrupted2[crcStart] ^= 0x01
 
-	_, _, _, err = decodeNetcapstringRef(corrupted2, 0)
+	_, _, _, err = DecodeNetcapstringRef(corrupted2, 0)
 	if err == nil {
 		t.Fatal("expected error for corrupted CRC field")
 	}
+}
+
+// TestDecodeNetcapstringExported checks the MaxInt regression and every prefix
+// of a valid frame, as well as hostile offsets. Invalid input returns no data.
+func TestDecodeNetcapstringExported(t *testing.T) {
+	frame, err := EncodeNetcapstring([]byte("payload"), 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for end := range len(frame) {
+		data, _, _, err := DecodeNetcapstringRef(frame[:end], 0)
+		if err == nil {
+			t.Fatalf("prefix %d accepted", end)
+		}
+		if data != nil {
+			t.Fatalf("prefix %d returned unverified data", end)
+		}
+	}
+	for _, off := range []int{-1, -int(^uint(0) >> 1), len(frame), int(^uint(0) >> 1)} {
+		if _, _, _, err := DecodeNetcapstringRef(frame, off); err == nil {
+			t.Fatalf("invalid offset %d accepted", off)
+		}
+	}
+	for _, capacity := range []string{"2147483647", "9223372036854775807", "18446744073709551615"} {
+		input := fmt.Sprintf("%d:%s:%s:00000000\n\n", len(capacity), capacity, strings.Repeat("0", len(capacity)))
+		if _, _, _, err := DecodeNetcapstringRef([]byte(input), 0); err == nil {
+			t.Fatalf("oversized capacity %s accepted", capacity)
+		}
+	}
+	data, capacity, next, err := DecodeNetcapstringRef(frame, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "payload" {
+		t.Fatalf("decoded %q", data)
+	}
+	if capacity != 16 {
+		t.Fatalf("capacity %d, want 16", capacity)
+	}
+	if next != len(frame) {
+		t.Fatalf("next %d, want EOF %d", next, len(frame))
+	}
+}
+
+// FuzzDecodeNetcapstringRef exercises unchecked offsets and length fields.
+func FuzzDecodeNetcapstringRef(f *testing.F) {
+	f.Add([]byte("19:9223372036854775807:0000000000000000000:00000000\n\n"), 0)
+	f.Add([]byte("1:0:0:00000000\n\n"), -1)
+	f.Add([]byte("1:0:0:00000000\n\n"), 0)
+	f.Fuzz(func(t *testing.T, frame []byte, off int) {
+		data, capacity, next, err := DecodeNetcapstringRef(frame, off)
+		if err != nil {
+			return
+		}
+		if next <= off {
+			t.Fatalf("non-advancing frame: %d -> %d", off, next)
+		}
+		if next > len(frame) {
+			t.Fatalf("next %d exceeds buffer %d", next, len(frame))
+		}
+		if len(data) > capacity {
+			t.Fatalf("data %d exceeds capacity %d", len(data), capacity)
+		}
+	})
 }

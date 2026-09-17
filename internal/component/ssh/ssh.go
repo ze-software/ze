@@ -91,9 +91,16 @@ type StreamingExecutor func(ctx context.Context, w io.Writer, args []string) err
 // The identity and authorizer are the same values used by normal commands.
 type StreamingExecutorFactory func(username, remoteAddr string, authorizer plugin.Authorizer) StreamingExecutor
 
-// SessionModelFactory creates the interactive model with the authorization
-// view bound to this SSH connection's authentication result.
-type SessionModelFactory func(username, remoteAddr string, authorizer plugin.Authorizer) tea.Model
+// SessionRequest selects the configuration and initial mode of a terminal.
+// An empty selection keeps the daemon's normal SSH login behavior.
+type SessionRequest struct {
+	ConfigName string
+	Mode       string
+}
+
+// SessionModelFactory creates a terminal with the authenticated authorization
+// view and the requested configuration. A refused selection returns an error.
+type SessionModelFactory func(username, remoteAddr string, authorizer plugin.Authorizer, request SessionRequest) (tea.Model, error)
 
 // PluginProtocolFunc handles a "plugin protocol" SSH session by running
 // the 5-stage plugin handshake and runtime command loop over the SSH channel.
@@ -109,7 +116,7 @@ type Config struct {
 	HostCertPath string          // optional: path to SSH host certificate (signed by CA)
 	ConfigDir    string          // directory of the config file; used for host-key default
 	ConfigPath   string          // path to config file; used by SSH sessions for concurrent editing
-	Storage      storage.Storage // when set, host key is read from/stored to blob
+	Storage      storage.Storage // the daemon-owned credential store
 	IdleTimeout  uint32
 	MaxSessions  int
 	Users        []authz.UserConfig
@@ -965,7 +972,18 @@ func (s *Server) execMiddleware() wish.Middleware {
 func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	username := sess.User()
 	remoteAddr := sess.RemoteAddr().String()
-	model := s.createSessionModel(username, remoteAddr, getSessionAuthorizer(sess))
+	request, err := parseSessionRequest(sess.Environ())
+	if err != nil {
+		writeExecError(sess, err)
+		_ = sess.Exit(1)
+		return nil, nil
+	}
+	model, err := s.createSessionModel(username, remoteAddr, getSessionAuthorizer(sess), request)
+	if err != nil {
+		writeExecError(sess, err)
+		_ = sess.Exit(1)
+		return nil, nil
+	}
 	s.logger.Info("SSH session started", "user", username, "remote", remoteAddr)
 	return model, []tea.ProgramOption{}
 }

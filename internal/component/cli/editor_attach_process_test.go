@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -57,7 +56,8 @@ bgp {
 func TestLoadEditCommitKeepsBothAttachedProcesses(t *testing.T) {
 	configPath := writeTestConfig(t, twoAttachedProcessesConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -74,7 +74,7 @@ func TestLoadEditCommitKeepsBothAttachedProcesses(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	data, err := os.ReadFile(configPath) //nolint:gosec // test-owned temp path
+	data, err := store.ReadFile(configPath) //nolint:gosec // test-owned temp path
 	require.NoError(t, err)
 	committed := string(data)
 

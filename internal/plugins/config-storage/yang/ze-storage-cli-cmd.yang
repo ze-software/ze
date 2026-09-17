@@ -2,7 +2,7 @@ module ze-storage-cli-cmd {
     namespace "urn:ze:storage:cli:cmd";
     prefix storageclicmd;
     import ze-extensions { prefix ze; }
-    description "show data command tree. Owned by the config storage subsystem because these handlers inspect the ZeFS blob store. See ai/rules/plugin-self-containment.md.";
+    description "Commands to inspect stored keys and values. Owned by the config storage subsystem. See ai/rules/plugins.md.";
     revision 2026-08-31 { description "Renamed show data ls to show data list, so every command that enumerates a set spells the verb the same way."; }
     revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-06 { description "Relocated show data out of the central show schema (plugin self-containment)."; }
@@ -13,37 +13,35 @@ module ze-storage-cli-cmd {
 
         container data {
             config false;
-            description "This is the raw store the daemon persists into, keyed by blob rather than by
-                         config path. Use show config to read the configuration itself.";
-            ze:help "ZeFS blob store keys and content.";
+            description "Inspect logical storage keys and their values. Use show config to read the configuration itself.";
+            ze:help "Storage keys and values.";
 
             container list {
                 config false;
                 ze:command "ze-show:data-list";
-                description "Shows all keys and their sizes. Use 'show data cat <key>' to see the content
-of a specific entry.";
-                ze:help "List everything stored in the ZeFS blob store.";
+                description "Lists the keys in the selected store. Use 'show data cat <key>' to read one value.";
+                ze:help "List the keys in the selected store.";
             }
 
             container cat {
                 config false;
                 ze:command "ze-show:data-cat";
-                description "Outputs the value for the given key, like 'cat' for ZeFS.";
-                ze:help "Print the raw content of a blob store entry.";
+                description "Outputs the decoded value for the given storage key.";
+                ze:help "Print the value of a storage key.";
                 leaf key {
                     type string { length "1..512"; }
                     mandatory true;
                     description "The key of one entry, as show data list prints it. The bytes stored
                                  under it are written out unchanged, and a key the store does not
                                  hold is an error.";
-                    ze:help "Blob store key to print";
+                    ze:help "Storage key to print";
                 }
             }
 
             container registered {
                 config false;
                 ze:command "ze-show:data-registered";
-                description "Shows you what types of data ZeFS knows about.";
+                description "Lists the storage key patterns registered by subsystems.";
                 ze:help "List the key patterns registered by all subsystems.";
             }
         }

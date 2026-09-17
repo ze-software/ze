@@ -544,7 +544,7 @@ func newHandlerTestManager(t *testing.T) (*EditorManager, *config.Schema) {
 	err := os.WriteFile(configPath, []byte(bgpConfig), 0o600)
 	require.NoError(t, err, "writing test config")
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr, "YANG schema must load")
 
@@ -1233,7 +1233,7 @@ func TestHandleConfigCommitPOST_HookCalled(t *testing.T) {
 		require.NoError(t, readErr)
 		require.True(t, ok, "web commit should stage candidate before hook")
 		assert.Contains(t, string(candidate), "router-id 9.9.9.9")
-		activeBefore, readErr := os.ReadFile(mgr.configPath)
+		activeBefore, readErr := mgr.store.ReadFile(mgr.configPath)
 		require.NoError(t, readErr)
 		assert.Contains(t, string(activeBefore), "router-id 1.2.3.4", "active file must not change before hook promotes")
 		require.NoError(t, storage.PromoteCandidate(mgr.store, mgr.configPath))
@@ -1284,7 +1284,7 @@ func commitErrManager(t *testing.T, commitErr error) (*EditorManager, *Renderer)
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte("bgp {\n\trouter-id 1.2.3.4\n}\n"), 0o600))
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactoryCommitErr(commitErr), testEditSessionFactory())
@@ -1439,7 +1439,7 @@ func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(""), 0o600)
 	require.NoError(t, err)
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
@@ -1494,7 +1494,7 @@ func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(""), 0o600))
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr)
 

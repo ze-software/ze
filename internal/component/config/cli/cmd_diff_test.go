@@ -6,11 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // minimal ze config: router-id + session asn local + one peer with connection/session.
@@ -372,17 +374,13 @@ func TestConfigDiffRevisionNotFound(t *testing.T) {
 func TestConfigDiffRevisionMode(t *testing.T) {
 	file := writeTestConfig(t, testConfigBase)
 
-	// Create rollback dir with a backup containing different content
-	rollbackDir := filepath.Join(filepath.Dir(file), "rollback")
-	require.NoError(t, os.MkdirAll(rollbackDir, 0o700))
+	store, err := storage.Create(filepath.Dir(file))
+	require.NoError(t, err)
+	require.NoError(t, store.WriteVersion(file, []byte(testConfigChanged), time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)))
+	require.NoError(t, store.Close())
 
-	backupName := "test-20260101-120000.000.conf"
-	require.NoError(t, os.WriteFile(
-		filepath.Join(rollbackDir, backupName),
-		[]byte(testConfigChanged),
-		0o600,
-	))
-
-	code := cmdDiff([]string{"1", file})
-	assert.Equal(t, exitOK, code)
+	code, output := captureDiffStdout(t, func() int { return cmdDiff([]string{"1", file}) })
+	require.Equal(t, exitOK, code)
+	assert.Contains(t, output, "65002")
+	assert.Contains(t, output, "65001")
 }

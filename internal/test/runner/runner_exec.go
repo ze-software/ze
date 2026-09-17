@@ -306,6 +306,19 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if configPath != "" && !filepath.IsAbs(configPath) {
 		configPath = filepath.Join(r.baseDir, configPath)
 	}
+	// A source checked into test/ is input, never a live store location.
+	if configPath != "" && filepath.Dir(configPath) != rec.WorkDir {
+		content, err := os.ReadFile(configPath) //nolint:gosec // test config input
+		if err != nil {
+			rec.Error = fmt.Errorf("read config fixture: %w", err)
+			return false
+		}
+		configPath = filepath.Join(rec.WorkDir, filepath.Base(configPath))
+		if err := os.WriteFile(configPath, content, 0o600); err != nil {
+			rec.Error = fmt.Errorf("copy config fixture: %w", err)
+			return false
+		}
+	}
 
 	// Put the bare-name shim dir on PATH so child processes (like "ze bgp
 	// persist") resolve THIS run's ze, not a stale or wrong-architecture one
@@ -314,7 +327,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		r.childPathEnv(),
-		"ze.storage.blob=false",
+		"ze.config.dir="+rec.WorkDir,
 		// SLOG_LEVEL=DEBUG was set here until 2026-09-04 and nothing has ever
 		// read it: slogutil resolves a level from `ze.log*` alone
 		// (internal/core/slogutil), and a grep for the name finds no consumer
@@ -749,6 +762,34 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if stdinContent != nil {
 			stdinDest, daemonCfgIdx = routeStdinBlock(binName, args)
 		}
+		// Wrapped launches keep real stdin but must not discover the developer's
+		// store. Their stdin block receives the same stable directory assignment.
+		configDir := rec.WorkDir
+		wrappedDaemon := false
+		if binName == binNameZeTest && stdinContent != nil {
+			for i := 0; i+1 < len(args); i++ {
+				if args[i] != "--" || filepath.Base(args[i+1]) != binNameZe {
+					continue
+				}
+				if zeDaemonConfigArgIndex(args[i+2:]) >= 0 {
+					wrappedDaemon = true
+				}
+				break
+			}
+		}
+		if stdinDest == stdinRouteDaemonConfig || wrappedDaemon {
+			configDir = filepath.Dir(filepath.Join(rec.WorkDir, zeConfigFileName(rec, cmd.Stdin)))
+			if err := os.MkdirAll(configDir, 0o700); err != nil {
+				rec.Error = fmt.Errorf("create daemon config directory: %w", err)
+				return false
+			}
+			if netnsMode && netnsHasUID {
+				if err := os.Chown(configDir, netnsUID, netnsGID); err != nil {
+					rec.Error = fmt.Errorf("chown daemon config directory: %w", err)
+					return false
+				}
+			}
+		}
 
 		// ze-peer takes its expect script as a path argument, so a line that
 		// wrote no `-` gets the block as a temporary file.
@@ -777,33 +818,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// argument becomes `start <file>`: keyword-first grammar places the path
 		// behind the `start` verb (spec-fixit-config-file-positional-grammar).
 		if stdinDest == stdinRouteDaemonConfig {
-			// Write the config into the directory the child RUNS in, so a
-			// fixture that rewrites it by BARE NAME addresses the file the
-			// daemon actually reads: action=rewrite:dest=ze-bgp.conf, a
-			// second `ze -` restarted against the same file, an assertion on
-			// rollback/ze-bgp-*.conf, and a native fixture that writes
-			// ze-bgp.conf and then SIGHUPs.
-			//
-			// It was TmpfsTempDir, with an else arm that put the config in a
-			// fresh MkdirTemp "ze-config-*" instead. That field is set only
-			// when the .ci declares tmpfs files, and a .ci can declare a
-			// `stdin=` config block without declaring any, so those tests got
-			// the else arm: the daemon read /tmp/ze-config-<random>/ze-bgp.conf
-			// while their fixture wrote ze-bgp.conf in the work directory. The
-			// SIGHUP then reloaded the ORIGINAL config and logged "sighup
-			// reload complete" having changed nothing, which is what
-			// static-reload-add, -remove and -empty-section-withdraws were
-			// reporting. WorkDir is set for every record and is already
-			// chowned for a credential-dropped child, so the else arm's own
-			// chown goes with it.
-			//
-			// The first ze daemon's config keeps the fixed name ze-bgp.conf. A
-			// SECOND concurrent ze daemon in the same test uses a DISTINCT
-			// stdin block (e.g. an IKE responder + initiator pair), so it gets
-			// a per-block file and does not clobber the first daemon's config
-			// -- without which a two-daemon test can never form a distinct
-			// pair (both load whichever config was written last). Reusing the
-			// same block (a restart) reuses its file.
+			// The first block keeps its source in WorkDir for bare-name
+			// rewrite fixtures. Further blocks have distinct store directories.
 			configName := zeConfigFileName(rec, cmd.Stdin)
 			tmpFile, err := os.Create(filepath.Join(rec.WorkDir, configName)) //nolint:gosec // test runner, path from the per-test work directory
 			if err != nil {
@@ -867,11 +883,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// load); the destination is still reported unreachable. See checks_reach.go.
 			"ze.test.doctor.probe-timeout=250ms",
 		)
-		if binName == binNameZe && zeDaemonShouldForceFileStorage(args) {
-			// Functional daemon configs are per-test files. Keep them out of the
-			// developer's shared zefs active pointer so tests cannot load stale state.
-			proc.Env = append(proc.Env, "ze.storage.blob=false")
-		}
+		proc.Env = append(proc.Env, "ze.config.dir="+configDir)
 		// Only set ze_test_bgp_port for ze and ze-peer binaries. Other processes
 		// (e.g., ze-chaos --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.

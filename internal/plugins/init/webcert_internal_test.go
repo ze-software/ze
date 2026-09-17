@@ -4,11 +4,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -19,15 +19,15 @@ import (
 
 // TestInitPlugin_WebCertUsesSelfcert verifies that `ze init --web-cert /
 // --web-cert-name` generates TLS material through internal/core/selfcert and
-// persists it in the zefs store, with the requested listen IP and DNS name as
+// persists it in the live store, with the requested listen IP and DNS name as
 // SANs. This is the install-path cert bootstrap that must keep working with web
 // compiled out (feature-gate-3-web AC-1/AC-3; selfcert is always-on).
 //
 // White-box (package init) so it can drive runInit directly with a temp dbPath
-// and piped credentials, rather than os.Stdin + ResolveDBPath via Run.
+// and piped credentials, rather than os.Stdin + ResolveStoreDir via Run.
 func TestInitPlugin_WebCertUsesSelfcert(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// username, password, host, port, name(blank -> hostname default).
 	creds := "admin\nsecret123\n127.0.0.1\n2222\n\n"
@@ -36,11 +36,11 @@ func TestInitPlugin_WebCertUsesSelfcert(t *testing.T) {
 	const listenAddr = "192.0.2.10:8443"
 	const dnsName = "router.example.com"
 
-	if code := runInit(strings.NewReader(creds), nil, dbPath, false, listenAddr, dnsName, false); code != 0 {
+	if code := runInit(strings.NewReader(creds), nil, dbPath, false, listenAddr, dnsName, false, false); code != 0 {
 		t.Fatalf("runInit with --web-cert/--web-cert-name exit = %d, want 0", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

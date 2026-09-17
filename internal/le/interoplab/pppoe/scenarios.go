@@ -46,6 +46,7 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 		{Source: accelConfig, Target: "/etc/accel-ppp.conf", ReadOnly: true},
 		{Source: chapSecrets, Target: "/etc/accel-ppp/chap-secrets", ReadOnly: true},
 	}
+	// Keep /etc/ze container-owned and writable; only the input file is mounted.
 	zeMounts := []interoplab.Mount{
 		{Source: zeConfig, Target: zeConfigPath, ReadOnly: true},
 	}
@@ -83,8 +84,6 @@ func prepareZeClient(source interoplab.ScenarioSource, containers names) ([]inte
 				privilegedArgument,
 				"-e",
 				"ze.log.interface=debug",
-				"-e",
-				"ZE_STORAGE_BLOB=false",
 			},
 			Command: []string{"start", zeConfigPath},
 		},
@@ -99,6 +98,7 @@ func prepareZeAccessConcentrator(
 	if err != nil {
 		return nil, err
 	}
+	// Keep /etc/ze container-owned and writable; only the input file is mounted.
 	zeMounts := []interoplab.Mount{
 		{Source: zeConfig, Target: zeConfigPath, ReadOnly: true},
 	}
@@ -126,8 +126,6 @@ func prepareZeAccessConcentrator(
 				"ze.log.pppoe=debug",
 				"-e",
 				"ze.log.l2tp=debug",
-				"-e",
-				"ZE_STORAGE_BLOB=false",
 			},
 			Command: []string{"start", zeConfigPath},
 		},

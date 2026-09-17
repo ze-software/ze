@@ -10,12 +10,12 @@ instead of BGP prefix-list matching.
 
 ### The PrefixStore is shared with BGP
 
-<!-- source: internal/component/firewall/plugins/irr/cache.go -- shared PrefixStore access -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- runFirewallIRR, configureStore -->
 
-Both consumers read the same zefs keys, `meta/irr/{name}`, so a resolution and
-its storage are not duplicated. The store already existed with those per-entry
-keys, and the plan to add separate `meta/firewall/irr/{name}` keys was
-unnecessary.
+Both consumers read `meta/irr/{name}` through the daemon's owned store.
+The plugin binds state RPCs after `OnStarted` and reloads persisted prefixes
+before it starts refresh workers.
+<!-- source: internal/component/resolve/irr/store/store.go -- Open, persist -->
 
 ### A separate plugin, not an engine extension
 
@@ -71,7 +71,7 @@ The unit is one table, and it is the smallest unit that can wait: a set is
 table-local, so no other table's terms can depend on the missing one. Holding
 back the whole reconcile instead made one absent supplier the whole firewall's
 problem. On a cold prefix cache, which is a fresh install, a wiped
-`database.zefs`, or a cache file that cannot be read, the plugin registers no set
+store, or an unreadable cache entry, the plugin registers no set
 at all and no supplier is on the way, so the operator's tables, copp, the DDoS
 tables and the policy routes all stayed out of the kernel behind one WARN.
 

@@ -1,9 +1,5 @@
 # Test: ze config rollback rejects an out-of-range revision number
-# VALIDATES: `ze config rollback <N> <file>` opens the file through
-#            filesystem storage, lists rollback revisions, and -- when N is
-#            outside the available range (here 5 against a file with 0
-#            revisions) -- reports "revision 5 not found (have 0 revisions)"
-#            (cmd_rollback.go) and exits 2.
+# VALIDATES: revision 5 against an initialized store with no versions is refused.
 # PREVENTS: regressions where config rollback silently accepts an invalid
 #           revision or drops the bounds-check diagnostic.
 tmpfs=test.conf:terminator=EOF_FILE
@@ -32,9 +28,9 @@ bgp {
 }
 EOF_FILE
 
-option=env:var=ze.storage.blob:value=false
 
-cmd=foreground:seq=1:exec=ze config rollback 5 test.conf
+cmd=foreground:seq=1:exec=ze-test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=2:exec=ze config rollback 5 test.conf
 expect=exit:code=2
 expect=stderr:contains=revision 5 not found
 expect=stderr:contains=have 0 revisions

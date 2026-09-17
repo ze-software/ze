@@ -3,11 +3,9 @@
 package infra_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
-	"github.com/ze-software/ze/internal/component/config/storage"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -135,43 +133,6 @@ system {
 	assert.Equal(t, "carol", carol.Name)
 	assert.NotEmpty(t, carol.Hash)
 	assert.Empty(t, carol.PublicKeys)
-}
-
-// TestResolveSSHStorage verifies that SSH storage always resolves to blob when zefs exists.
-//
-// VALIDATES: SSH host key goes into blob store even when main store is filesystem.
-// PREVENTS: Host key written as plain file when config loaded from filesystem.
-func TestResolveSSHStorage(t *testing.T) {
-	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "database.zefs")
-
-	t.Run("blob store passed through", func(t *testing.T) {
-		blob, err := storage.NewBlob(blobPath, dir)
-		require.NoError(t, err)
-		defer blob.Close() //nolint:errcheck // test
-
-		got := infra.ResolveSSHStorage(blob, dir)
-		assert.True(t, storage.IsBlobStorage(got), "blob storage should pass through")
-		got.Close() //nolint:errcheck // test
-	})
-
-	t.Run("filesystem upgraded to blob when zefs exists", func(t *testing.T) {
-		// Create zefs database first
-		blob, err := storage.NewBlob(blobPath, dir)
-		require.NoError(t, err)
-		blob.Close() //nolint:errcheck // just creating
-
-		fs := storage.NewFilesystem()
-		got := infra.ResolveSSHStorage(fs, dir)
-		assert.True(t, storage.IsBlobStorage(got), "filesystem should be upgraded to blob when zefs exists")
-		got.Close() //nolint:errcheck // test
-	})
-
-	t.Run("filesystem kept when no config dir", func(t *testing.T) {
-		fs := storage.NewFilesystem()
-		got := infra.ResolveSSHStorage(fs, "")
-		assert.False(t, storage.IsBlobStorage(got), "should stay filesystem when no config dir")
-	})
 }
 
 // TestExtractSSHConfigEmptyLeafKeepsDefault verifies a present-but-EMPTY ip or

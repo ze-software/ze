@@ -16,7 +16,6 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/trace"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 var (
@@ -84,11 +83,7 @@ func runTestCase(tc *TestCase) *TestResult {
 // runTestCaseIn executes a parsed test case with tmpDir as its working
 // directory. The caller owns tmpDir and MUST remove it.
 //
-// The directory outlives the run for one reason: it holds the config files, the
-// per-user change files and the zefs blob, so a test can read them afterwards
-// and prove WHERE the editor wrote. Every .et expectation runs during the test,
-// and none of them separates a blob-backed editor from a filesystem-backed one
-// (TestRunnerBlobStorageWritesBlobNotFile).
+// The directory outlives the run so a caller can inspect the persisted tree.
 func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 	result := &TestResult{}
 
@@ -132,10 +127,10 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 	height := 24
 	reloadMode := ""         // "success", "fail", or "" (standalone)
 	lifecycleMode := ""      // "wired" = mock shutdown/restart callbacks
-	useHistoryStore := false // option=history:store -- persist history to zefs
+	useHistoryStore := false // option=history:store -- persist history in the shared tree
 	editorMode := "config"   // option=mode:value=operational -- operational-only mode
 	monitorPing := ""        // option=monitor:ping=fake -- deterministic ping factory + resolvers
-	storageMode := ""        // option=storage:value=blob -- zefs-backed config storage
+	storageMode := ""        // option=storage:value=tree -- the only live storage format
 	sessionUser := ""
 	sessionOrigin := ""
 
@@ -197,56 +192,23 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 		}
 	}
 
-	// Config storage backend. The daemon runs on a zefs blob, so a test that
-	// must reproduce blob-only behavior asks for it with option=storage:value=blob.
-	// The store is created once and shared by every model the test builds
-	// (sessions, restart=), because one zefs file admits one BlobStore.
-	// NewBlob migrates the tmpfs *.conf files into the blob as it is created, so
-	// option=file:path= still names the config.
-	configStore := storage.NewFilesystem()
-	switch storageMode {
-	case "", "filesystem":
-	case "blob":
-		// expect=file: reads the temp directory, and a blob-backed editor writes
-		// the blob instead. Such an expectation would assert against the copy the
-		// migration left behind and report a pass for content nothing wrote.
-		// Refuse the pair rather than let a test prove the wrong thing.
-		for _, exp := range tc.Expects {
-			if exp.Type == "file" {
-				result.Error = "expect=file: cannot be used with option=storage:value=blob, " +
-					"because the editor writes the blob and leaves the temp directory at its migrated state"
-				return result
-			}
-		}
-		blobStore, blobErr := storage.NewBlob(filepath.Join(tmpDir, "database.zefs"), tmpDir)
-		if blobErr != nil {
-			var tb textbuf.Buffer
-			result.Error = tb.Str("creating blob storage: ").Err(blobErr).String()
-			return result
-		}
-		defer blobStore.Close() //nolint:errcheck // test cleanup
-		configStore = blobStore
-	default:
-		// Fail rather than fall back: a test that asks for a backend it does not
-		// get would assert against the filesystem and report a pass for coverage
-		// it never had.
-		var tb textbuf.Buffer
-		result.Error = tb.Str("unknown option=storage:value=").Str(storageMode).Str(" (want blob or filesystem)").String()
+	// Every session and restart shares one lifetime owner, just as daemon
+	// editors do. Fixtures seed config keys once, never on model restart.
+	if storageMode != "" && storageMode != "tree" {
+		result.Error = fmt.Sprintf("unknown option=storage:value=%s (want tree)", storageMode)
 		return result
 	}
-
-	// Create blob store for history persistence (if requested).
-	// The store lives in tmpDir and persists across restart= steps.
-	var historyStore *zefs.BlobStore
-	if useHistoryStore {
-		storePath := filepath.Join(tmpDir, "history.zefs")
-		var storeErr error
-		historyStore, storeErr = zefs.Create(storePath)
-		if storeErr != nil {
-			result.Error = fmt.Sprintf("creating history store: %v", storeErr)
+	configStore, storeErr := storage.Create(tmpDir)
+	if storeErr != nil {
+		result.Error = fmt.Sprintf("creating tree storage: %v", storeErr)
+		return result
+	}
+	defer configStore.Close() //nolint:errcheck // test cleanup
+	for _, tf := range tc.Tmpfs {
+		if err := configStore.WriteFile(tf.Path, []byte(tf.Content), 0o600); err != nil {
+			result.Error = fmt.Sprintf("seeding config %s: %v", tf.Path, err)
 			return result
 		}
-		defer historyStore.Close() //nolint:errcheck // test cleanup
 	}
 
 	// createModel builds a HeadlessModel based on the current mode.
@@ -268,8 +230,9 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 
 	// wireHistory sets up history persistence on the model.
 	wireHistory := func(hm *headlessModel) {
-		if historyStore != nil {
-			hm.Model().SetHistory(cli.NewHistory(historyStore, "testuser"))
+		hm.store = configStore
+		if useHistoryStore {
+			hm.Model().SetHistory(cli.NewHistory(configStore, "testuser"))
 		}
 	}
 

@@ -22,7 +22,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/lg"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -50,24 +49,16 @@ func buildLGService(deps *serviceDeps) (Service, error) {
 	dispatch := deps.Dispatch
 	resolvers := deps.Resolvers
 
-	// TLS is on by default. A self-signed certificate lives in blob storage,
-	// which a file-config deployment that never ran `ze init` does not have. An
-	// operator who ASKED for TLS gets an error (their instruction cannot be
-	// honored, and silently serving plaintext would be the opposite of what they
-	// wrote). An operator who only inherited the default gets the prior
-	// plaintext behavior plus a warning naming the remedy, because a hardening
-	// default must not turn a working looking glass into a missing one.
-	//
-	// Only the self-signed path reads blob storage. A NAMED certificate comes
-	// from the pki container instead, so neither branch below applies to it.
+	// A storeless stdin daemon cannot persist a self-signed looking-glass
+	// certificate. Named certificates remain usable without persistence.
 	useTLS := deps.LGTLS
 	selfSignedTLS := useTLS && deps.LGCertificate == ""
-	if selfSignedTLS && !storage.IsBlobStorage(deps.Store) {
+	if selfSignedTLS && deps.Store == nil {
 		if deps.LGTLSExplicit {
-			return nil, errors.New("looking glass TLS requires blob storage (run ze init first)")
+			return nil, errors.New("looking glass TLS requires persistent storage (run ze init first)")
 		}
 		fmt.Fprintln(os.Stderr,
-			"warning: looking glass serving plaintext: TLS is on by default but needs blob storage for certificates")
+			"warning: looking glass serving plaintext: TLS is on by default but needs persistent storage for certificates")
 		fmt.Fprintln(os.Stderr,
 			"  run `ze init` to enable TLS, or set looking-glass tls false to silence this warning")
 		useTLS = false

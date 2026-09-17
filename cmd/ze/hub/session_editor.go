@@ -40,6 +40,11 @@ func newSessionEditor(store storage.Storage, configPath, username, origin string
 		return nil, err
 	}
 	ed.SetSession(cli.NewEditSession(username, origin))
+	if ed.HasDraft() {
+		if !ed.LoadDraft() {
+			return nil, fmt.Errorf("load saved draft for %s", configPath)
+		}
+	}
 	if reloadFn != nil {
 		ed.SetReloadNotifier(reloadFn)
 	}

@@ -51,7 +51,7 @@ expect=dirty:false
 expect=error:none
 
 # Verify timer removed from config file
-expect=file:path=test.conf:not-contains=receive-hold-time
+expect=key:path=file/active/test.conf:not-contains=receive-hold-time
 
 # Verify draft file cleaned up
-expect=file:path=test.conf.draft:absent
+expect=key:path=file/active/test.conf.draft:absent

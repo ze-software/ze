@@ -11,7 +11,6 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/bgp/yang" // Register BGP YANG for write-through tests.
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/hub/yang" // Required by ze-bgp-conf.yang (imports ze-hub-conf).
 )
 
@@ -21,9 +20,8 @@ import (
 // editing because the YANG parser expects bgp { ... } structure.
 const validWebConfig = "bgp {\n\trouter-id 1.2.3.4\n\tlocal { as 65000; }\n}\n"
 
-// newTestEditorManager creates an EditorManager backed by a temp config file
-// and the real YANG schema. Returns the manager. The temp directory is cleaned
-// up automatically by t.TempDir.
+// newTestEditorManager creates an EditorManager backed by a seeded tree store
+// and the real YANG schema. The test owns the store's lifetime.
 func newTestEditorManager(t *testing.T) *EditorManager {
 	t.Helper()
 
@@ -33,7 +31,7 @@ func newTestEditorManager(t *testing.T) *EditorManager {
 	err := os.WriteFile(configPath, []byte(validWebConfig), 0o600)
 	require.NoError(t, err, "writing test config")
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr, "YANG schema must load")
 

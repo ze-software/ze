@@ -257,6 +257,47 @@ excludes every file behind it. On a host that is not Linux,
 `./le test-unit installer` can only type-check them, so this virtual machine
 is where they run.
 
+## Appliance first-boot storage import
+
+The host-side `install-test` action boots a fresh appliance through the HTTP
+installer, then checks its first runtime boot. It requires a logged explicit
+seed import, a `/perm/ze/database/` tree with every seed key's original bytes,
+and a retired `database.zefs.replaced-*` with no live `database.zefs` left.
+SSH must accept the seeded credentials, and the web listener must present the
+seeded TLS certificate. These checks use the services and the installed disk;
+they do not depend on an offline command being callable through SSH.
+
+Before runtime boot, the action writes a partial frame beneath
+`database.import-tmp-interrupted/` on the installed disk. Successful import
+then proves that abandoned staging cannot become the live store. This scenario
+covers restart before publication. The storage package's interruption tests
+cover the later boundary between tree publication and seed retirement.
+
+```bash
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image \
+ZE_INSTALL_ARCH=amd64 ZE_INSTALL_KEEP=1 \
+./le --name storage-proof qemu install-test
+```
+
+The kernel must match the target architecture and include the module-free
+installer's virtio, network and ext4 support. The host needs Go, QEMU and
+e2fsprogs (`mkfs.ext4`, `debugfs`, `e2fsck`); a source image build also needs its
+kernel-builder runtime. Linux KVM access is described above. arm64 needs the
+QEMU UEFI firmware, selectable with `ZE_INSTALL_AARCH64_BIOS`. Host tooling is
+built for the host, independently of the target architecture.
+
+`ZE_INSTALL_IMAGE` and `ZE_INSTALL_ZEFS` can name a fresh prebuilt image and its
+matching seed artifact. That image must enable SSH on port 22 and HTTPS on port
+8080 with the seed's `meta/web/cert` and `meta/web/key`, as the default appliance
+template does. `ZE_INSTALL_SSH_USER` and `ZE_INSTALL_SSH_PASS` must match its
+credentials. The check uses native Go SSH and TLS clients and needs neither
+`sshpass` nor `uv`. `ZE_INSTALL_KEEP=1` retains the disk, serial log and extracted
+store for diagnosis. A skipped action is not storage-import evidence.
+
+<!-- source: internal/le/qemu/install_boot.go -- executeHTTP, bootTargetSSH -->
+<!-- source: internal/le/qemu/install_storage.go -- seedInterruptedImport, assertImportedSeed, installSeedTLS -->
+<!-- source: internal/le/qemu/install_build.go -- buildHostZeEnv, buildImage -->
+
 ## Writing Integration Tests
 
 ### Which test each Linux-only change needs
@@ -351,9 +392,9 @@ Three constraints the caller has to know:
   call of a length it must NOT select, and refuses to `execve` anything if
   either answer is wrong. A filter that installed and selects nothing would
   otherwise leave the daemon healthy while the test reported an armed window.
-- **The runner's `ze`-only arms do not fire.** The launched binary is
-  `ze-test`, not `ze`, so the `.ci` states `ze.storage.blob=false` itself and
-  gets no `ZE_READY_FILE`. A fixture that needs readiness polls for it.
+- **Wrapped stdin daemons receive isolated storage.** The runner recognizes
+  `ze-test fail-syscall ... -- ze -` and gives it a stable per-daemon config
+  folder. The wrapper still needs its own readiness probe.
 
 `CONFIG_SECCOMP` and `CONFIG_SECCOMP_FILTER` are pinned in
 `gokrazy/kernel/runtime.require`, so a defconfig that stopped setting them fails
@@ -473,6 +514,16 @@ actions.
 
 <!-- source: internal/le/deployment/actions.go -- gokrazy-l2tp-ppp-test, docker-l2tp-ppp-test, docker-pppoe-accel-test -->
 <!-- source: internal/le/qemu/actions.go -- pppoe-accel-test, vrrp-keepalived-test -->
+
+The native PPPoE and VRRP guest labs create their scenario work directories
+under the guest's `/tmp`, where the invoking user owns them, and write Ze's
+explicit input to `<scenario-work>/ze/ze.conf`. `ZE_CONFIG_DIR` selects that same
+private directory. This avoids a root daemon opening storage beneath a checkout
+owned by the host user. The database tree is created beside the input, and a
+VRRP restart reads the explicit file again while retaining the scenario's tree.
+Retained failure artifacts live in the guest and last for that guest's lifetime.
+<!-- source: internal/le/qemu/pppoe_accel_linux.go -- runPPPoEAccelGuest -->
+<!-- source: internal/le/qemu/vrrp_keepalived_linux.go -- startZe -->
 
 `./le qemu vrrp-keepalived-test` runs four scenarios, selectable with
 `scenarios=<csv>`.

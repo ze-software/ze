@@ -26,9 +26,11 @@ package controls both the binary name and the symlink target.
 
 ## Fail open when the credential store is missing
 
-A missing or unreadable ZeFS store lets the operator in. The serial console is
-the last-resort recovery path, and a corrupt credential database must not lock
-the operator out of the box it is meant to rescue.
+The login handler opens `/perm/ze/database/` read-only, or uses the directory
+selected by `ze.config.dir`. It does not create a store or take the daemon's
+writer lock. If the store is missing or unreadable, login reports the folder
+and permits recovery access. Missing or corrupt credentials also permit recovery.
+The serial console is the last-resort access path.
 
 ## Placement constraints
 

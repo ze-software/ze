@@ -54,11 +54,19 @@ When piped or scripted (stdin is not a TTY), prints static help and exits 1.
 ```
 ze                               # Interactive command menu (TTY only)
 ze start <config-file>           # Start daemon from a config file (keyword-first)
-ze start                         # Start daemon from database
+ze start                         # Start from the stored active config
 ze -                             # Start daemon reading config from stdin
 ```
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, startConfigPath (ze start <config-file>) -->
 <!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch (- stdin sentinel; no free-form config-path sink) -->
+
+`ze start <config-file>` reads that file on every start. It creates `database/`
+beside the file only when neither a tree nor a legacy blob exists. Daemon commits
+update that file and stored history. An external edit causes a commit conflict.
+Bare `ze start` reads the stored active config instead.
+
+`ze -` does not create a missing store. Without a store, it uses a temporary
+in-memory CA and reports unavailable persistent features.
 
 The bare `ze <config-file>` form was **removed**: a free-form path in the first
 position can collide with a command name (a config file named `bgp` or `signal`
@@ -70,7 +78,7 @@ from stdin (`ze -`) is unaffected.
 | Flag | Purpose |
 |------|---------|
 | `-d`, `--debug` | Enable debug logging |
-| `-f <file>` | Use filesystem directly, bypass blob store |
+| `-f <file>` | Start from an explicit config file |
 | `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `plugin { internal ... }` or `plugin { external ... }` in the config instead. |
 | `--pprof <addr:port>` | Start pprof HTTP server |
 | `-V`, `--version` | Show version (also available as `ze show version`) |
@@ -185,7 +193,7 @@ ze config migrate <file>         # Convert old format to current
 
 | Flag | Purpose |
 |------|---------|
-| `-f` | Bypass database, use filesystem directly |
+| `-f` | Edit a loose file offline without bypassing store ownership |
 | `-o <output>` | Output file (migrate) |
 | `--dry-run` | Show what would be migrated without changes (migrate) |
 | `--list` | List available transformations (migrate) |
@@ -1883,18 +1891,31 @@ renders them: `ze cli -c "show yang tree --config | json"`.
 
 ### ze init
 
-Bootstrap the database (interactive or piped).
+Initialize `database/` in `ze.config.dir`, or the default config directory.
+The populated tree becomes visible only after credentials and initial config
+are durable. An existing tree or blob refuses initialization.
 
 ```
 ze init                          # Interactive setup
-ze init -managed                 # Fleet mode
-ze init -force                   # Replace existing database
+ze init --managed                # Fleet mode
+ze init --force --yes             # Replace an unowned store with a backup
 ```
 
-Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
-After credentials are stored, ze init discovers OS network interfaces via netlink
-and writes initial interface configuration (ethernet, bridge, veth, dummy, loopback)
-to the database as `ze.conf`.
+Input fields are username, password, host, port, and instance name.
+The default host is `127.0.0.1`, the port is `2222`, and the name is the hostname.
+Normal initialization discovers interfaces and stores their initial config.
+
+| Flag | Purpose |
+|------|---------|
+| `--managed` | Enable managed configuration |
+| `--force` | Preserve the old store as `.replaced-<stamp>` before replacement |
+| `--yes` | Skip the replacement confirmation |
+| `--web-cert <address>` | Generate a web TLS certificate |
+| `--web-cert-name <name>` | Add a DNS name to that certificate |
+| `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
+
+Replacement refuses a live store owner, regardless of the selected SSH target.
+Run maintenance as the store owner, including when you have root access.
 <!-- source: internal/plugins/init/main.go -- Run, runInit, defaultHost, defaultPort -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- EmitConfig -->
@@ -1931,11 +1952,15 @@ ze install remote --interface eth0 --network 10.0.0.0/24 \
 | `--force` | Overwrite an existing `/etc/systemd/system/ze.service` |
 | `--dry-run` | Print the generated unit file to stdout without root, systemctl, or filesystem writes |
 
-`ze install systemd` requires Linux, `systemctl`, root, and an existing
-`<config-dir>/database.zefs`. Run `sudo ze init` first. The generated unit runs
-as user/group `ze`, sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze` through
-`RuntimeDirectory=ze`, and grants `CAP_NET_ADMIN`, `CAP_NET_RAW`, and
-`CAP_NET_BIND_SERVICE` through systemd capabilities.
+`ze install systemd` requires Linux, `systemctl`, root, and an initialized
+`<config-dir>/database/`. It transfers the complete store to user/group `ze`
+under the same ownership lock. Stop the daemon before installation or replacement.
+Later store maintenance runs as `ze`, not root.
+
+The generated unit sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze`, and grants
+`CAP_NET_ADMIN`, `CAP_NET_RAW`, and `CAP_NET_BIND_SERVICE`.
+<!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall, chownConfig -->
+<!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 
 The daemon socket is `/run/ze/ze.socket` under this unit. Configure
 `daemon { socket "/run/ze/ze.socket"; }` or run operator commands with
@@ -2117,20 +2142,32 @@ operators (match, count, first, last, display) work on both JSON and plain text.
 
 ### ze data
 
-Low-level blob store management.
+Inspect a live tree read-only, or modify a tree or explicit blob artifact offline.
+Mutations refuse an active writer. Keys are raw, namespaced paths, and `list`
+recursively lists matching keys.
 
 ```
-ze data import <file>...           # Import files into blob
-ze data rm <key>...                # Remove entries
-ze data list [prefix]              # List entries
-ze data cat <key>                  # Print entry content
-ze data registered                 # List all registered key patterns
-ze data registered <pattern>       # Show details for a key pattern
+ze data --path /etc/ze/database list meta/
+ze data --path /etc/ze/database cat meta/instance/name
+ze data write <key> <file>         # A file of "-" reads stdin
+ze data import <file>...           # Import under file/active/<basename>
+ze data rm <key>...
+ze data registered [pattern]
+ze data check
+ze data repair --output <new-path>
+ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
-| Flag | Purpose |
-|------|---------|
-| `--path <store>` | Blob store path <!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers --> |
+`--path <store>` selects the exact tree directory or `.zefs` artifact.
+Without it, commands use `database/` under the configured directory.
+Data commands never initialize a missing live store.
+
+`check` verifies every frame and names corrupt keys. `repair` preserves the source
+and writes verified keys to a new tree or blob. It refuses an existing output.
+Integrity exits are `0` for success, `1` for corruption or skipped keys, and `2`
+for an I/O failure or unsafe path.
+<!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 
 ### ze plugin
 

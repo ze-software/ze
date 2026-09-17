@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/firewall"
 	"github.com/ze-software/ze/internal/component/resolve/dns"
 )
@@ -61,7 +62,7 @@ func newTestPlugin(t *testing.T, cfg *domainConfig, script map[string]answer) (*
 
 	plug := &domainPlugin{
 		resolve:   stub.resolve,
-		cache:     newStore(filepath.Join(dir, "database.zefs")),
+		cache:     newStore(domainTestStorage(t, dir)),
 		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),
@@ -71,8 +72,15 @@ func newTestPlugin(t *testing.T, cfg *domainConfig, script map[string]answer) (*
 	}
 	require.NoError(t, plug.cache.open(cfg.groups))
 	require.NoError(t, plug.changeLog.open())
-	t.Cleanup(plug.cache.close)
 	return plug, stub
+}
+
+func domainTestStorage(t *testing.T, dir string) storage.Storage {
+	t.Helper()
+	owner, err := storage.Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, owner.Close()) })
+	return owner
 }
 
 func oneGroupConfig() *domainConfig {
@@ -393,14 +401,14 @@ func TestRefreshRejectsWrongFamilyRecords(t *testing.T) {
 func TestDomainGroupColdStartProgramsFromCache(t *testing.T) {
 	dir := t.TempDir()
 	cfg := oneGroupConfig()
-	zefsPath := filepath.Join(dir, "database.zefs")
+	persistence := domainTestStorage(t, dir)
 
 	// First run: resolve and persist.
 	first := &domainPlugin{
 		resolve: (&stubResolver{byName: map[string]answer{
 			stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
 		}}).resolve,
-		cache:     newStore(zefsPath),
+		cache:     newStore(persistence),
 		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),
@@ -412,7 +420,8 @@ func TestDomainGroupColdStartProgramsFromCache(t *testing.T) {
 	require.NoError(t, first.changeLog.open())
 	_, err := first.resolveAndRecord(v4Key())
 	require.NoError(t, err)
-	first.cache.close()
+	require.NoError(t, persistence.Close())
+	persistence = domainTestStorage(t, dir)
 
 	// Second run: a resolver that fails every query, standing for DNS being
 	// unreachable at boot.
@@ -420,7 +429,7 @@ func TestDomainGroupColdStartProgramsFromCache(t *testing.T) {
 		resolve: func(context.Context, string, uint16) ([]string, uint32, string, error) {
 			return nil, 0, "", assert.AnError
 		},
-		cache:     newStore(zefsPath),
+		cache:     newStore(persistence),
 		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),
@@ -429,7 +438,6 @@ func TestDomainGroupColdStartProgramsFromCache(t *testing.T) {
 		config:    cfg,
 	}
 	require.NoError(t, second.cache.open(cfg.groups))
-	t.Cleanup(second.cache.close)
 
 	// The addresses are there before anything is resolved, and the tables the
 	// registry would be handed carry them.
@@ -454,13 +462,13 @@ func TestDomainGroupColdStartProgramsFromCache(t *testing.T) {
 func TestDomainGroupOnConfigureAfterRespawnPreservesChangeLogAndCache(t *testing.T) {
 	dir := t.TempDir()
 	cfg := oneGroupConfig()
-	zefsPath := filepath.Join(dir, "database.zefs")
+	persistence := domainTestStorage(t, dir)
 	logPath := filepath.Join(dir, changeLogFileName)
 
 	build := func(script map[string]answer) *domainPlugin {
 		p := &domainPlugin{
 			resolve:   (&stubResolver{byName: script}).resolve,
-			cache:     newStore(zefsPath),
+			cache:     newStore(persistence),
 			changeLog: newChangeLog(logPath),
 			sched:     newSchedule(),
 			wake:      make(chan struct{}, 1),
@@ -478,13 +486,13 @@ func TestDomainGroupOnConfigureAfterRespawnPreservesChangeLogAndCache(t *testing
 	})
 	_, err := first.resolveAndRecord(v4Key())
 	require.NoError(t, err)
-	first.cache.close()
+	require.NoError(t, persistence.Close())
+	persistence = domainTestStorage(t, dir)
 
 	// The process dies here and the manager respawns it.
 	second := build(map[string]answer{
 		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.9"}, ttl: 300, status: "NOERROR"},
 	})
-	t.Cleanup(second.cache.close)
 
 	assert.Equal(t, []string{"192.0.2.1"}, second.cache.groupAddresses("cdn", []string{"a.invalid"}, familyV4),
 		"the cache survives the respawn")
@@ -742,7 +750,7 @@ func TestDomainGroupConfigureRegistersSet(t *testing.T) {
 		resolve: (&stubResolver{byName: map[string]answer{
 			stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
 		}}).resolve,
-		cache:     newStore(filepath.Join(dir, "database.zefs")),
+		cache:     newStore(domainTestStorage(t, dir)),
 		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),
@@ -822,20 +830,21 @@ func TestDomainGroupConfigureProgramsBeforeResolving(t *testing.T) {
 	backend := useRecordingBackend(t)
 	dir := t.TempDir()
 	cfg := oneGroupConfig()
-	zefsPath := filepath.Join(dir, "database.zefs")
+	persistence := domainTestStorage(t, dir)
 
-	seed := newStore(zefsPath)
+	seed := newStore(persistence)
 	require.NoError(t, seed.open(cfg.groups))
 	require.NoError(t, seed.put(
 		nameKey{group: "cdn", name: "a.invalid", family: familyV4},
 		resolvedName{Addresses: []string{"192.0.2.1"}, ResolvedAt: time.Now(), Status: "NOERROR"},
 	))
-	seed.close()
+	require.NoError(t, persistence.Close())
+	persistence = domainTestStorage(t, dir)
 
 	stub := &stubResolver{byName: map[string]answer{}}
 	plug := &domainPlugin{
 		resolve:   stub.resolve,
-		cache:     newStore(zefsPath),
+		cache:     newStore(persistence),
 		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),
@@ -886,7 +895,7 @@ func TestDomainGroupRefreshFiresAtTTL(t *testing.T) {
 			}
 			return nil, 300, "NOERROR", nil
 		},
-		cache:     newStore(filepath.Join(dir, "database.zefs")),
+		cache:     newStore(domainTestStorage(t, dir)),
 		changeLog: newChangeLog(filepath.Join(dir, changeLogFileName)),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),

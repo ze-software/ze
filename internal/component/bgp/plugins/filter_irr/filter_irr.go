@@ -114,6 +114,7 @@ func isClosed(ch chan struct{}) bool {
 type irrPlugin struct {
 	plugin      *sdk.Plugin
 	prefixStore *store.PrefixStore
+	state       store.KeyStore // Bound only after the startup handshake.
 
 	mu          sync.RWMutex
 	byASN       map[uint32]*asnState
@@ -161,6 +162,25 @@ func runFilterIRR(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	defer close(plug.stopCh)
+	p.OnStarted(func(ctx context.Context) error {
+		plug.mu.Lock()
+		plug.state = p.StateKeys(ctx)
+		ps := plug.prefixStore
+		cfg := plug.config
+		refreshStop := plug.refreshStop
+		plug.mu.Unlock()
+		if ps == nil {
+			return nil
+		}
+		ps.UsePersistence(plug.state)
+		if err := ps.Open(); err != nil {
+			logger().Warn("irr: persisted cache unavailable", "error", err)
+		}
+		plug.loadFromStore()
+		go plug.initialResolve()
+		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+		return nil
+	})
 
 	if err := p.Run(ctx, sdk.Registration{
 		Commands:    commandDecls(),
@@ -179,7 +199,10 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	if cfg.SourceAddress != "" {
 		irrClient.SetSourceAddress(cfg.SourceAddress)
 	}
-	ps := store.New(irrClient, peeringdb.NewPeeringDB(cfg.PeeringDBURL), cacheStorePath())
+	plug.mu.RLock()
+	state := plug.state
+	plug.mu.RUnlock()
+	ps := store.New(irrClient, peeringdb.NewPeeringDB(cfg.PeeringDBURL), state)
 	if err := ps.Open(); err != nil {
 		logger().Warn("irr: prefix store open failed", "error", err)
 	}
@@ -260,9 +283,10 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	// handleFilterUpdate waits (bounded) on each ASN's firstDone signal, which
 	// refreshAll closes per ASN below. The periodic refreshLoop keeps the list
 	// fresh thereafter.
-	go plug.initialResolve()
-
-	go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+	if state != nil {
+		go plug.initialResolve()
+		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+	}
 
 	// "peers" counts the peers ENROLLED for IRR resolution, not every BGP peer:
 	// an operator reading this line is asking how much IRR work was set up, and

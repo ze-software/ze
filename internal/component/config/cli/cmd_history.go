@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/resolve"
 )
 
 func cmdHistoryWithStorage(store storage.Storage, args []string) int {
@@ -19,7 +20,7 @@ func cmdHistoryWithStorage(store storage.Storage, args []string) int {
 }
 
 func cmdHistory(args []string) int {
-	return cmdHistoryImpl(storage.NewFilesystem(), args)
+	return cmdHistoryImpl(nil, args)
 }
 
 func cmdHistoryImpl(store storage.Storage, args []string) int {
@@ -46,8 +47,8 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "error: requires a config file\n")
+	if fs.NArg() != 1 {
+		fmt.Fprintf(os.Stderr, "error: requires exactly one config file\n")
 		fs.Usage()
 		return exitError
 	}
@@ -59,29 +60,32 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	ed, err := cli.NewEditorWithStorage(store, fs.Arg(0))
+	if store == nil {
+		var err error
+		store, err = storage.OpenReadOnly(resolve.StoreDir(fs.Arg(0)))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: config history: %v\n", err)
+			return exitError
+		}
+		defer store.Close() //nolint:errcheck // Read-only inspection.
+	}
+
+	backups, err := store.ListVersions(fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
-	defer ed.Close() //nolint:errcheck // best effort cleanup
 
-	backups, err := ed.ListBackups()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return exitError
-	}
-
-	if len(backups) == 0 && !ed.HasDraft() {
+	if len(backups) == 0 && !store.Exists(cli.DraftPath(fs.Arg(0))) {
 		fmt.Println("No rollback revisions found")
 		return exitOK
 	}
 
-	if ed.HasDraft() {
+	if store.Exists(cli.DraftPath(fs.Arg(0))) {
 		fmt.Println("draft  (editing in progress)")
 	}
 	for i, b := range backups {
-		fmt.Printf("%d  %s  %s\n", i+1, b.Timestamp.Format("2006-01-02 15:04:05"), b.Path)
+		fmt.Printf("%d  %s  %s\n", i+1, b.Date.Format("2006-01-02 15:04:05"), b.Path)
 	}
 
 	return exitOK

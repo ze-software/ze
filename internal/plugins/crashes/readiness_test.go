@@ -19,21 +19,7 @@ import (
 
 	_ "github.com/ze-software/ze/internal/component/config/system/yang" // registers ze-system-conf.yang so a config carrying crash-dump parses
 	"github.com/ze-software/ze/internal/core/crashlog"
-	"github.com/ze-software/ze/internal/core/env"
 )
-
-// TestMain registers the env key resolve.Storage reads. The `ze` binary
-// registers it in cmd/ze; a test binary links no main, and env.Get is fatal on
-// an unregistered key by design.
-func TestMain(m *testing.M) {
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.storage.blob",
-		Type:        "bool",
-		Default:     "true",
-		Description: "Use blob storage (false = filesystem)",
-	})
-	os.Exit(m.Run())
-}
 
 func TestReadinessNamesAnUnreadableConfig(t *testing.T) {
 	// A config that cannot be read is a different fact from crash capture being

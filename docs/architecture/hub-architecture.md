@@ -172,12 +172,60 @@ Configuration changes go through two phases:
 
 ## Startup Sequence
 
+### Store ownership and configuration authority
+
+The daemon owns one writable tree at `<config-folder>/database/` until exit.
+`resolve.StorageFor` selects the explicit file's folder, then `ze.config.dir`,
+then the default config folder. `ze start <file>` creates an absent tree and
+refuses a blob, invalid permissions, corruption or another owner. A bare start
+opens an existing store. Appliance first boot explicitly imports its seed through
+`gokrazyAutoInit`; the importer also retires the seed and recovers interrupted imports.
+
+The launch records a `ConfigSource` on the shared storage handle. Explicit-file
+starts always read that file and refresh stored history; bare starts read the
+stored active version. Reload, archive and BGP readers retain that decision.
+An SSH or web commit stages a candidate, then the hub compares the explicit
+file with the accepted bytes. An external change refuses the commit.
+
+The BGP reactor factory reads the staged candidate when a reload starts BGP.
+Without a candidate, it reads the accepted stored version that the hub published
+from the selected source. Stdin uses the captured startup bytes. The factory
+never reopens the loose file, so an external edit cannot change an in-flight
+startup or a plugin restart.
+<!-- source: internal/component/bgp/config/register.go -- createReactorFromCoordinator -->
+
+Before publishing an explicit-file commit, the hub persists a file-commit
+intent containing the expected bytes, candidate bytes and version stamp. It
+writes the file before promoting stored history, and retires the intent last.
+Startup recovers an interrupted publication before candidate cleanup. Recovery
+accepts only the recorded old or new file content and refuses a third value,
+so a restart cannot overwrite an intervening external edit.
+
+Runtime state, editor drafts, command history and SSH credentials use the same
+owned handle. Read-only clients may inspect the tree while it runs; another
+writer cannot acquire ownership. A truly storeless stdin start names the
+unavailable persistence features and creates one in-memory CA for its lifetime.
+Unreadable persistent state never selects this mode.
+
+<!-- source: internal/core/resolve/source.go -- ConfigSource, BindConfigSource, ReadConfigSource -->
+<!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource, promoteConfigCandidate, recoverFileCommit -->
+<!-- source: cmd/ze/hub/main.go -- run, runYANGConfig -->
+<!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
+
+Shutdown keeps plugin connections and storage open until the SIGHUP worker has
+returned. After the shutdown grace, it cancels the worker and waits for cleanup.
+A second termination signal can force exit during this wait. In-process storage
+guards are released before plugin callbacks run. The lifetime `database.lock`
+remains held until the store closes.
+<!-- source: cmd/ze/hub/main_reload.go -- handleSIGHUPReload, awaitReloadWorker -->
+
+
 ### Before Anything: the plugin setup gate
 
 The first statement of `hub.run` reads the plugin setup registry and refuses to
 start when any plugin recorded a HARD setup failure in its own `init()`. It
-precedes `openStateOnlyStore`, which is the first irreversible act in `run`, so
-a refused start leaves no state store behind.
+precedes storage registration and stdin-store resolution. An explicit-file
+start has already acquired its store before entering `run`.
 
 The refusal names EVERY failing plugin and its reason, not the first, because
 an operator who repairs one fault and restarts to meet the next pays a whole

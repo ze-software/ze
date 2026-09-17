@@ -296,7 +296,7 @@ func pluginShellExtra2CredentialResolution(ctx context.Context, args []string) e
 		return err
 	}
 	defer os.RemoveAll(emptyDir) //nolint:errcheck // fixture cleanup
-	if _, err := os.Stat(filepath.Join(emptyDir, "database.zefs")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(emptyDir, "database")); !errors.Is(err, os.ErrNotExist) {
 		return errors.New("test setup wrong: the store must not exist")
 	}
 	before, _ := os.Stat("daemon.log")
@@ -363,8 +363,8 @@ func pluginShellExtra2ConfigEditNoDaemon(ctx context.Context, args []string) err
 	if result.err != nil {
 		return fmt.Errorf("ze init: %w", result.err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "database.zefs")); err != nil {
-		return errors.New("database.zefs not created")
+	if info, err := os.Stat(filepath.Join(dir, "database")); err != nil || !info.IsDir() {
+		return errors.New("database tree not created")
 	}
 	fmt.Fprintln(os.Stderr, "OK: ze init created database for editor bootstrap")
 	return nil

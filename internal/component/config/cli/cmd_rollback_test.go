@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // TestCmdRollbackDispatch verifies rollback is reachable from the Run dispatcher.
@@ -52,6 +53,9 @@ func TestCmdRollbackInvalidRevision(t *testing.T) {
 // PREVENTS: Off-by-one accessing backups[-1].
 func TestCmdRollbackZero(t *testing.T) {
 	configPath := writeTestConfig(t, "bgp {}\n")
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
 	code := cmdRollback([]string{"0", configPath})
 	assert.Equal(t, exitError, code)
 }
@@ -62,6 +66,9 @@ func TestCmdRollbackZero(t *testing.T) {
 // PREVENTS: Index-out-of-bounds panic.
 func TestCmdRollbackOutOfRange(t *testing.T) {
 	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n")
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
 	code := cmdRollback([]string{"99", configPath})
 	assert.Equal(t, exitError, code)
 }
@@ -74,13 +81,10 @@ func TestCmdRollbackRestores(t *testing.T) {
 	originalContent := "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n"
 	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 99;\n\t\t}\n\t}\n}\n")
 
-	// Create rollback dir with a backup containing original content
-	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
-	require.NoError(t, os.MkdirAll(rollbackDir, 0o700))
-
-	stamp := time.Now().Format("20060102-150405") + ".000"
-	backupName := "test-" + stamp + ".conf"
-	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, backupName), []byte(originalContent), 0o600))
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	require.NoError(t, store.WriteVersion(configPath, []byte(originalContent), time.Now().Add(-time.Second)))
+	require.NoError(t, store.Close())
 
 	currentContent := "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 99;\n\t\t}\n\t}\n}\n"
 
@@ -93,13 +97,14 @@ func TestCmdRollbackRestores(t *testing.T) {
 	assert.Equal(t, originalContent, string(data))
 
 	// Verify rollback backed up the current config before overwriting
-	entries, err := os.ReadDir(rollbackDir)
+	store, err = storage.OpenReadOnly(filepath.Dir(configPath))
+	require.NoError(t, err)
+	defer store.Close() //nolint:errcheck // Test cleanup.
+	entries, err := store.ListVersions(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(entries), "rollback should create a backup of the current config")
 
-	// Read the newest backup (sorted alphabetically, timestamp naming = newest last)
-	lastEntry := entries[len(entries)-1]
-	backupData, err := os.ReadFile(filepath.Join(rollbackDir, lastEntry.Name()))
+	backupData, err := store.ReadFile(entries[0].Path)
 	require.NoError(t, err)
 	assert.Equal(t, currentContent, string(backupData), "pre-rollback backup should contain the overwritten config")
 }

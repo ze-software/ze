@@ -3447,12 +3447,31 @@ environment {
 | `enabled` | boolean | `false` | Enable NTP time synchronization. |
 | `interval` | uint32 | `3600` | Sync interval in seconds. Range: 60-86400. |
 | `max-step` | uint32 | `3600` | Maximum accepted NTP clock step in seconds. `0` explicitly allows unlimited steps. |
-| `persist-path` | string | `/perm/ze/timefile` | Path used to persist recovered time across restarts. |
+| `persist-path` | string | `/perm/ze/timefile` | A non-empty value enables recovered-time persistence in the daemon's selected store; it does not choose a loose file. |
 | `server <name>.address` | string | (none) | NTP server hostname or IP address. Configured servers take priority over DHCP option 42 servers. |
 
 NTP responses are validated and timestamps outside years 2020-2100 are
 rejected. `max-step` is checked before `settimeofday`; responses whose clock
 offset exceeds the cap are rejected and logged.
+
+After a successful sync, Ze publishes the last-known time under
+`meta/ntp/last-time` in the selected `database/` tree. On startup it restores
+the system clock from that value before querying a server. Explicit-file
+startup uses the tree beside the file, with no `ze.config.dir` pin.
+
+The native restart fixture performs an NTP exchange with its own loopback UDP
+server, then restarts Ze without a server and checks the restored system clock.
+It changes the clock and therefore belongs in a disposable QEMU guest. With
+the guest's `ze` and `ze-test` binaries on `PATH`, its explicit action from a
+scratch directory is:
+
+```sh
+ZE_STORAGE_CLOCK_TEST=1 ze-test fixture storage/consumer-restart ntp
+```
+
+The fixture refuses to run without that opt-in. It is deliberately absent from
+ordinary functional suite discovery.
+<!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->

@@ -28,11 +28,25 @@ deployments. A gokrazy appliance has its own update mechanism.
   target path is never absent during the operation. A cross-filesystem rename
   (`EXDEV`) is reported as a config error, because it means the staging
   directory is on the wrong filesystem.
-- History is a circular buffer of 20 events, written atomically to the binary's
-  directory. A missing or corrupt file starts empty rather than failing.
+- History is a circular buffer of 20 events, published through the daemon's
+  owning store under `meta/config/update-history`. Startup reads the same key
+  from the selected tree. A missing or malformed value starts empty.
 - Manual apply and manual download bypass server-side pause, spread, and the
   maintenance window. Auto-apply requires a SHA-256 in the manifest; a manual
   command warns and proceeds without one.
+
+The restart fixture serves a local manifest whose minimum-version constraint
+the running daemon cannot meet. The auto-updater records its refusal before
+any binary download. After stopping both the daemon and manifest server, the
+fixture starts a fresh daemon and compares the event returned by
+`show system update history`, including its original timestamp.
+The explicit native action is
+`ze-test fixture storage/consumer-restart history`, from a scratch directory
+with the selected `ze` on `PATH`. It requires a distribution build with a
+numeric release stamp: the updater deliberately refuses upgrade comparisons
+for `dev` and `unknown`. This fixture is absent from ordinary suite discovery,
+whose daemon may be an unstamped development build.
+<!-- source: internal/test/fixture/storage_consumer_restart.go -- storageHistoryRestart -->
 
 ## Trap
 

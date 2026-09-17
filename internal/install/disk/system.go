@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -31,10 +32,9 @@ var (
 	flushIface        = func(string) error { return fmt.Errorf("flush: not supported on this platform") }
 )
 
-// mountInjectDB mounts partition p4, downloads and writes database.zefs,
-// then unmounts.
-func mountInjectDB(part4, baseURL string) error {
-	mountPoint := "/mnt/perm"
+// mountInjectDB mounts partition p4 and preserves its live tree or baked seed.
+// Only a seedless partition receives the image server's bootstrap blob.
+func mountInjectDB(part4, baseURL, mountPoint string) error {
 	if err := os.MkdirAll(mountPoint, 0o750); err != nil {
 		return fmt.Errorf("mkdir %s: %w", mountPoint, err)
 	}
@@ -50,8 +50,20 @@ func mountInjectDB(part4, baseURL string) error {
 
 	var tb textbuf.Buffer
 	zeDir := tb.Str(mountPoint).Str("/ze").String()
-	if err := os.MkdirAll(zeDir, 0o750); err != nil {
+	if err := os.MkdirAll(zeDir, 0o700); err != nil {
 		return fmt.Errorf("mkdir %s: %w", zeDir, err)
+	}
+
+	treePath := filepath.Join(zeDir, "database")
+	if info, err := os.Lstat(treePath); err == nil {
+		if !info.IsDir() {
+			return fmt.Errorf("preserve store %s: expected a directory, found %s", treePath, info.Mode())
+		}
+		slog.Info("keeping existing live store, skipping bootstrap database", "path", treePath)
+		syncFS()
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect store %s: %w", treePath, err)
 	}
 
 	dbDest := tb.Reset().Str(zeDir).Str("/database.zefs").String()
@@ -81,13 +93,17 @@ func mountInjectDB(part4, baseURL string) error {
 	return nil
 }
 
-// bakedSeedPresent reports whether the image already shipped a non-empty
-// ze/database.zefs seed in its /perm partition. A zero-length file counts as
-// absent so a truncated or failed bake still falls back to the bootstrap
-// database rather than leaving the box with an unusable seed.
+// bakedSeedPresent accepts the live database directory or a non-empty regular
+// seed blob. An empty blob remains eligible for bootstrap replacement.
 func bakedSeedPresent(dbPath string) bool {
-	info, err := os.Stat(dbPath)
-	return err == nil && !info.IsDir() && info.Size() > 0
+	info, err := os.Lstat(dbPath)
+	if err != nil {
+		return false
+	}
+	if info.IsDir() {
+		return filepath.Base(dbPath) == "database"
+	}
+	return info.Mode().IsRegular() && info.Size() > 0
 }
 
 func doReboot() {

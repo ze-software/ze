@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/resolve"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
 
@@ -238,27 +239,20 @@ func TestPromptCreateConfigOutputFormat(t *testing.T) {
 // VALIDATES: Default config name is ze.conf without identity, <name>.conf with identity.
 // PREVENTS: Accidental change of default config name logic.
 func TestDefaultConfigName(t *testing.T) {
-	if fallbackConfigName != "ze.conf" {
-		t.Errorf("fallbackConfigName = %q, want %q", fallbackConfigName, "ze.conf")
-	}
-
-	// Filesystem storage: always falls back to ze.conf
-	fsStore := storage.NewFilesystem()
-	if got := defaultConfigName(fsStore); got != "ze.conf" {
+	if got := resolve.DefaultConfig(nil); got != "ze.conf" {
 		t.Errorf("defaultConfigName(filesystem) = %q, want %q", got, "ze.conf")
 	}
 
 	// Blob storage with identity name
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "database.zefs")
-	blobStore, err := storage.NewBlob(blobPath, dir)
+	blobStore, err := storage.Create(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer blobStore.Close() //nolint:errcheck // test cleanup
 
 	// No identity set: falls back to ze.conf
-	if got := defaultConfigName(blobStore); got != "ze.conf" {
+	if got := resolve.DefaultConfig(blobStore); got != "ze.conf" {
 		t.Errorf("defaultConfigName(blob, no identity) = %q, want %q", got, "ze.conf")
 	}
 
@@ -266,7 +260,7 @@ func TestDefaultConfigName(t *testing.T) {
 	if err := blobStore.WriteFile("meta/instance/name", []byte("ze-first"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if got := defaultConfigName(blobStore); got != "ze-first.conf" {
+	if got := resolve.DefaultConfig(blobStore); got != "ze-first.conf" {
 		t.Errorf("defaultConfigName(blob, identity=ze-first) = %q, want %q", got, "ze-first.conf")
 	}
 }
@@ -277,10 +271,10 @@ func TestDefaultConfigName(t *testing.T) {
 // PREVENTS: Silent failure when default config doesn't exist but others do.
 func TestSelectConfigAC6(t *testing.T) {
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -323,10 +317,10 @@ func TestSelectConfigAC6(t *testing.T) {
 // PREVENTS: Always selecting the first config regardless of input.
 func TestSelectConfigAC6SecondChoice(t *testing.T) {
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -353,10 +347,10 @@ func TestSelectConfigAC6SecondChoice(t *testing.T) {
 // PREVENTS: Error or hang when blob has no configs at all.
 func TestSelectConfigAC7(t *testing.T) {
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -387,10 +381,10 @@ func TestSelectConfigAC7(t *testing.T) {
 // PREVENTS: Panic on bad user input.
 func TestSelectConfigInvalidInput(t *testing.T) {
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -426,10 +420,10 @@ func TestSelectConfigInvalidInput(t *testing.T) {
 // PREVENTS: Hanging forever when stdin has no input.
 func TestSelectConfigTimeout(t *testing.T) {
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -462,10 +456,10 @@ func TestSelectConfigTimeout(t *testing.T) {
 // PREVENTS: .draft, .lock, ssh_host_* files appearing in the selection list.
 func TestSelectConfigFiltersNonConf(t *testing.T) {
 	dir := t.TempDir()
-	blobPath := filepath.Join(dir, "test.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -530,19 +524,12 @@ func TestStalePortDetection(t *testing.T) {
 	}
 }
 
-// TestEditRefusesWithoutZefs verifies that config edit refuses to start
-// when no zefs database exists and -f is not set.
-//
-// VALIDATES: Missing zefs database prints error directing user to run ze init.
-//
-// PREVENTS: Silent fallback to filesystem when user expects blob storage.
-func TestEditRefusesWithoutZefs(t *testing.T) {
-	// Filesystem storage simulates resolveStorage() fallback when zefs is missing
-	store := storage.NewFilesystem()
-	code := cmdEditWithStorage(store, []string{})
+// TestEditRefusesWithoutStore proves a missing store does not become a loose editor.
+func TestEditRefusesWithoutStore(t *testing.T) {
+	code := cmdEditWithStorage(nil, []string{filepath.Join(t.TempDir(), "ze.conf")})
 
-	if code != 1 {
-		t.Errorf("expected exit code 1, got %d", code)
+	if code != exitError {
+		t.Errorf("expected exit code %d, got %d", exitError, code)
 	}
 }
 

@@ -43,7 +43,6 @@ import (
 const (
 	goBuildTagsArg         = "-tags"
 	dockerInteractiveArg   = "--interactive"
-	storageBlobDisabledEnv = "ZE_STORAGE_BLOB=false"
 	tunnelObjectName       = "tunnel"
 	reportValueUnspecified = "unspecified"
 )

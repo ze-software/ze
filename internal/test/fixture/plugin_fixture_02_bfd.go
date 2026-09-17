@@ -13,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // bfdSimplePasswordTooLong02 is the substring parseAuthConfig
@@ -78,11 +80,14 @@ bfd {
 
 func startBFDDaemon02(ctx context.Context, stateDir string) (*bfdDaemon02, error) {
 	d := &bfdDaemon02{started: time.Now(), done: make(chan error, 1)}
-	d.cmd = exec.CommandContext(ctx, "ze", "-")
-	d.cmd.Stdin = strings.NewReader(bfdConfig02(stateDir))
+	configPath := filepath.Join(stateDir, "ze.conf")
+	if err := os.WriteFile(configPath, []byte(bfdConfig02(stateDir)), 0o600); err != nil {
+		return nil, err
+	}
+	d.cmd = exec.CommandContext(ctx, "ze", "start", configPath)
 	d.cmd.Stdout = &d.log
 	d.cmd.Stderr = &d.log
-	d.cmd.Env = append(os.Environ(), "ze.log.bfd=debug", "ze.bfd.test-parallel=true", "ze.config.dir="+stateDir)
+	d.cmd.Env = append(os.Environ(), "ze.log.bfd=debug", "ze.bfd.test-parallel=true")
 	if err := d.cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -152,43 +157,36 @@ type storeProbe02 struct {
 	key   string
 }
 
-func commandOutput02(deadline time.Time, args ...string) ([]byte, error) {
-	left := time.Until(deadline)
-	if left <= 0 {
-		return nil, context.DeadlineExceeded
-	}
-	if left > 5*time.Second {
-		left = 5 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), left)
-	defer cancel()
-	return exec.CommandContext(ctx, args[0], args[1:]...).Output() //nolint:gosec // the fixture chooses the program and its arguments
-}
-
 func (p *storeProbe02) seq02(deadline time.Time) int {
-	if _, err := os.Stat(p.store); err != nil {
+	if time.Now().After(deadline) {
 		return 0
 	}
+	store, err := storage.OpenReadOnly(p.store)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = store.Close() }()
 	if p.key == "" {
-		listing, err := commandOutput02(deadline, "ze", "data", "--path", p.store, "list")
+		keys, err := store.ListKeys("meta/bfd/auth/")
 		if err != nil {
 			return 0
 		}
-		for key := range strings.FieldsSeq(string(listing)) {
-			if strings.HasPrefix(key, "meta/bfd/auth/") {
-				p.key = key
-				break
-			}
+		for _, key := range keys {
+			p.key = key
+			break
 		}
 		if p.key == "" {
 			return 0
 		}
 	}
-	got, err := commandOutput02(deadline, "ze", "data", "--path", p.store, "cat", p.key)
+	got, err := store.ReadKey(p.key)
 	if err != nil {
 		return 0
 	}
-	seq, _ := strconv.Atoi(strings.TrimSpace(string(got)))
+	seq, err := strconv.Atoi(strings.TrimSpace(string(got)))
+	if err != nil {
+		return 0
+	}
 	return seq
 }
 
@@ -215,7 +213,7 @@ func bfdAuthMeticulousPersist02(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	probe := &storeProbe02{store: filepath.Join(stateDir, "database.zefs")}
+	probe := &storeProbe02{store: stateDir}
 	first, err := startBFDDaemon02(ctx, stateDir)
 	if err != nil {
 		return err
@@ -225,7 +223,7 @@ func bfdAuthMeticulousPersist02(ctx context.Context, args []string) error {
 	}); err != nil {
 		return fmt.Errorf("first run did not reach 'bfd plugin running': %w", err)
 	}
-	if err := first.waitFor02(ctx, "a sequence reached database.zefs", 250*time.Millisecond, func() bool {
+	if err := first.waitFor02(ctx, "a sequence reached the state tree", 250*time.Millisecond, func() bool {
 		return probe.seq02(first.started.Add(bfdRunBudget02)) > 0
 	}); err != nil {
 		return fmt.Errorf("first run never persisted a sequence: %w", err)
@@ -250,7 +248,7 @@ func bfdAuthMeticulousPersist02(ctx context.Context, args []string) error {
 	if err := second.waitFor02(ctx, "the restored-sequence log line", 50*time.Millisecond, func() bool {
 		return restoredSeq02(second.log.String()) > 0
 	}); err != nil {
-		return fmt.Errorf("second run did not restore a persisted sequence from database.zefs: %w", err)
+		return fmt.Errorf("second run did not restore a persisted sequence from the state tree: %w", err)
 	}
 	captured2, err := second.stop02()
 	if err != nil {

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Depends | - (owner ordering of 2026-09-16 named `path-mtu-diagnostic`; it closed on main at `6cfeef34ad` the same day) |
-| Phase | pre-implementation design audit |
+| Phase | 7/7: publication and verification handoff |
 | Handoff | verify |
 | Updated | 2026-09-17 |
 
@@ -19,8 +19,8 @@ blob becomes an artifact: a seed, a backup, an import source. Nothing converts
 on open; `ze init` and the explicit import tools are the only paths from a blob
 to a live store (owner decisions, 2026-09-16, reviewed the same day).**
 
-Today `storage.Storage` (`internal/component/config/storage/storage.go`) has
-two implementations that are not equivalent. `blobStorage` (`blob.go`) has a
+Before implementation, `storage.Storage` (`internal/component/config/storage/storage.go`) had
+two implementations that were not equivalent. `blobStorage` (`blob.go`) had a
 key space: `meta/...` for credentials, identity, CA root, pointers and runtime
 state, `file/active/...` for configs, `file/<stamp>/...` for versions.
 `filesystemStorage` (`storage.go`) has none: it hands every name to `os` as a
@@ -42,8 +42,8 @@ Goal: after this spec, no code outside `internal/component/config/storage`
 knows how the store is encoded. Every feature above works on the tree. The
 store lives in the folder of the configuration it serves, with the folder's
 permissions checked on open. `ze start <file>` creates the tree when the folder
-has none. A blob where a live store belongs is refused by name, and imported
-only by `ze init from <source>` or the storage-2 restore verb.
+has none. A blob where a live store belongs is refused by name. This spec supplies
+`ImportBlob` and appliance seed import; `ze init from <source>` remains storage-2.
 
 Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 `ze init from <url>`, offline editing of a blob, spare capacity) and
@@ -255,7 +255,7 @@ Companions: `spec-storage-2-blob-artifact` (backup, restore with two modes,
 | AC-2 | `storage.Open(dir)` with `dir/database.zefs` present, with or without a tree | returns an error naming the blob path and `ze init from <path>`; nothing is created, renamed or read beyond the stat |
 | AC-3 | `storage.Open(dir)` with neither | returns an error naming `ze init`; no directory is created |
 | AC-4 | `storage.Open(dir)` with a tree whose root has any group or other bit, or a frame file not 0600, or an owner other than the caller, or a symlink under the root | returns an error naming the path, the mode or owner found, and the command that repairs it; no key is read |
-| AC-5 | `storage.Create(dir)` | builds `dir/database.init-tmp/` at 0700, renames it to `dir/database/`; a concurrent second `Create` fails on the rename and returns the winner's tree through `Open` |
+| AC-5 | `storage.Create(dir)` | builds a private `dir/database.init-tmp-*/` at 0700 and publishes `dir/database/` with atomic no-replace rename. Under O-2, a concurrent creator returns `ErrBusy` while the winner retains writer ownership; after release, auto-create opens the winner without replacing it. |
 | AC-6 | `storage.ImportBlob(blob, dir)` | every key and value of the blob is present in `dir/database/`, byte-equal, verified before the blob is renamed to `database.zefs.replaced-<stamp>`; a blob failing `zefs.Check` imports nothing and the error names the key; a partial `database.import-tmp/` never carries the live name |
 | AC-7 | a tree file whose CRC32c does not match its data is read through `ReadFile` | the read fails with an error naming the key; it never returns the bytes |
 | AC-8 | the conformance table (every `Storage` and `WriteGuard` method, `Stat` ModTime and ModifiedBy, `SetWriteObserver`, `WriteVersion`, `ListVersions`, every pointer function) run over the tree and over the blob encoding | identical observable results for identical inputs, including error cases |
@@ -681,3 +681,74 @@ All owner policy questions identified by this audit are answered. The
 technical contract and coverage corrections in D-1 through D-24 still require
 incorporation before this spec returns to `ready`. No product implementation
 is authorized by the decision log alone.
+
+### Implementation Authorization (2026-09-17)
+
+Thomas instructed "implement" after O-1 through O-4. Implement all 29
+acceptance criteria with D-1 through D-24 corrected; the audit's stale
+assumptions do not override those corrections. The final handoff remains
+`verify`.
+
+The cutover uses explicit writable and read-only opens. `Open` owns the
+writer lock; `OpenReadOnly` permits inspection while that owner runs and
+refuses mutations. `Create` handles empty auto-creation; `CreatePopulated`
+seeds an unpublished store and refuses an existing store. Both use private
+staging and no-replace publication. `ImportBlob` owns resumable import and
+seed retirement. Lock files are outside the replaceable store directory.
+
+Raw data commands use `ReadKey`, `WriteKey`, `RemoveKey`, and recursive
+`ListKeys`; ordinary config callers keep the existing immediate-child
+`List` and config-name mapping. Blob artifact access stays inside storage.
+Standalone frames must consume the complete file; integrity traversal
+rejects symlinks and non-regular nodes. Per-key staging stays outside the
+logical key tree.
+
+Candidate cleanup preserves every version referenced by active, rollback,
+or recovery. Durable version publication precedes pointer changes. Import
+records enough durable identity to resume its own interrupted cutover while
+refusing an unrelated or changed destination. Explicit-file mode remains
+distinct from stored-config mode through restart, reload, and editor commit.
+
+Implementation reconciliation: O-2's lifetime writer ownership takes precedence
+over AC-5's original promise of two concurrent writable handles. Temporary
+creation and import directories are private per attempt, not shared fixed
+names. Atomic no-replace publication cannot overwrite an empty winner.
+
+## Implementation Evidence (2026-09-17)
+
+The implementation is integrated; this spec remains open with handoff `verify`.
+The design-audit model exception does not authorize implementation review or closure.
+The following results are implementation evidence, not an independent review verdict.
+
+Evidence root: `tmp/session/2026-09-17-e4a8cc45-6dfc-4065-aba0-e6dc9afe3c42/scratch/`.
+`implementation-evidence.json` indexes the logs, private-cache results, and limitations.
+Preserved binaries and counterfactual inputs remain available for the next phase.
+
+### Goal Validation
+
+| Task goal | Evidence | Result |
+|---|---|---|
+| One live tree behind the shared storage contract | `job-storage-runtime-fixed-da53cbf1.log`: tree/blob conformance, CRC refusal, durable publication, import recovery, and per-name pointer tests | Pass |
+| No live encoding knowledge outside storage | `fspersistence` check and negative detector tests; all legacy live constructors and backend-selection pins removed | Pass for the detector's production population |
+| Every named feature works on the tree | Browser draft/commit/restart, authenticated SSH history, looking-glass TLS, managed 14/14, support export, identity, GR marker, six state consumers, and IRR/domain cache restart proofs; see evidence index | Exercised paths pass; this is not a claim of complete protocol interop |
+| Store folder ownership and permissions are enforced | Offline smoke's 12 owner refusals; actual installer guest preserves frames and lock inode, transfers ownership, refuses root inspection, and starts as the service user | Pass; actual systemd PID 1 startup was not exercised |
+| Explicit-file startup creates the tree without losing file authority | Canonical startup/explicit-file tests, actual loose editor commit, CLI transaction, reload, and restart proofs | Pass |
+| Live blobs are refused and explicit import preserves seed data | Import crash/recovery tests and actual installed appliance: 11 seed values byte-equal, seed retired, SSH/TLS and serial password login succeed | Pass; standalone import verb is reserved for storage-2 |
+| Migrated tests have isolated stores and detect the defect | Editor 170/170; 13 editor and nine CI recuts fail on consumer key assertions under a compatible fixed harness | Partial: 22/23 discriminated; AC-27 remains open |
+| Updated website and wiki describe the cutover | Site build published 985 pages; regenerated wiki catalog and authored workflows committed in `../wiki` at `92aa8cb` | Pass; no push authorized or performed |
+
+### Verification Still Owed
+
+- `audit-config-commit` exceeds its 5-second HTTP deadline. A separate ordinary
+  REST commit returned HTTP 200 in 4.47 seconds, but did not exercise the audit observer.
+- A-10's historical 43-case/17-failure cohort was not reproduced. The modern
+  63-case measurement recorded 34 passes, six failures, eight timeouts, and 15 skips.
+- Full functional-suite green is not established. Scoped repaired paths pass;
+  initial suite results and residual failures remain in the evidence index.
+- Required lint ran and remains red. Constructor/typecheck failures, FreeBSD
+  compilation, and formatting were corrected and specifically verified.
+  Other lint diagnostics remain open under the pre-release rule.
+- FreeBSD publication cross-compiles. No FreeBSD runtime proof was performed.
+- Documentation verification retains two unrelated undeclared-symbol anchors.
+- Independent verification, critical review, RFC approval/discrimination obligations,
+  and closure remain owed. No scope reduction or completion claim is made here.

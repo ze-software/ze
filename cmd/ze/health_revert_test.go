@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -19,8 +18,7 @@ import (
 func setupHealthRevertTest(t *testing.T) storage.Storage {
 	t.Helper()
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(dbPath, dir)
+	store, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}

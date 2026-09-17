@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -123,7 +124,7 @@ func logRequest(next http.HandlerFunc) http.HandlerFunc {
 
 func buildZefsDB(dir, username, passwordHash string) (string, error) {
 	path := filepath.Join(dir, "database.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.CreateBlob(path)
 	if err != nil {
 		return "", err
 	}
@@ -137,7 +138,7 @@ func buildZefsDB(dir, username, passwordHash string) (string, error) {
 	}
 
 	for _, e := range entries {
-		if writeErr := store.WriteFile(e.key, []byte(e.value), 0); writeErr != nil {
+		if writeErr := store.WriteKey(e.key, []byte(e.value)); writeErr != nil {
 			// Best-effort cleanup; return the write error (the root cause),
 			// not a secondary close/remove failure that would mask it.
 			store.Close()   //nolint:errcheck // cleanup; writeErr is the real error

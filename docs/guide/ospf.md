@@ -386,18 +386,15 @@ As a helper (RFC 3623 §3), on receiving a Grace-LSA that passes every §3.1 che
 <!-- source: internal/plugins/ospf/gr.go -- grManager, registerGraceConsumer, grFamilyLabel -->
 <!-- source: internal/plugins/ospf/gr_restarter.go -- prepareRestart, enterRestart, exitRestart, resumeFromNVS -->
 <!-- source: internal/plugins/ospf/gr_helper.go -- onGraceReceived, helperEntryAllowed, helperExit, helperShouldExitOnChange -->
-**The non-volatile store needs a pinned config directory.** OSPF runs as its own
-process and opens the ZeFS store itself, so it writes the restart fact only when
-the operator pinned a directory with `ze.config.dir`. Unpinned, the path would be
-binary-relative and shared by every `ze` invocation on the host, and ZeFS locks
-in process, not across processes. So OSPF opens nothing: the restart fact is not
-persisted, and the RFC 7474 boot count falls back to a hashed clock seed instead
-of a stored counter. `doctor-ospf-graceful-restart-nvs` warns when the restarter
-is enabled in this state. Set `ze.config.dir` on any deployment that wants
-Graceful Restart to survive a restart. The appliance image already sets it to
-`/perm/ze`.
-<!-- source: internal/plugins/ospf/auth_keystore.go -- pinnedStateDir, openBootCountStore -->
-<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact, openGRStore -->
+**OSPF uses the daemon-owned store through state RPCs.** It does not open a
+second store or require a separate `ze.config.dir` setting. Runtime initialization
+durably increments the boot count and reads restart state before packet processing.
+A failed state request stops initialization; there is no clock-derived fallback.
+Restart writes wait for the daemon's durable acknowledgement. Reads distinguish
+absent state from unavailable or corrupt state.
+<!-- source: internal/plugins/ospf/auth_keystore.go -- loadOSPFBootCount -->
+<!-- source: internal/plugins/ospf/state.go -- initializeState -->
+<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact -->
 <!-- source: internal/plugins/ospf/gr_preserve.go -- capturePrefixLSIDs, restoreInterfaceIDs, v6OriginateGraceLSA -->
 <!-- source: internal/plugins/ospf/packet/grace_lsa.go -- GraceLSA, EncodeGraceLSA, DecodeGraceLSA -->
 <!-- source: internal/plugins/ospf/v3/packet/lsa_grace.go -- GraceLSA, decodeGraceLSA -->

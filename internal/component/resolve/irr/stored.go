@@ -11,11 +11,11 @@ package irr
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -24,10 +24,6 @@ import (
 // logger writes the two reports this file owes an operator: a stored copy
 // passed over, and a managed store that exists and cannot be read.
 var logger = slogutil.LazyLogger("resolve.irr")
-
-// storeFileName is the managed store's file name inside the config directory.
-// It is the same file filter_irr's cacheStorePath names.
-const storeFileName = "database.zefs"
 
 // delegationTable answers the table every lookup searches, and is what
 // RegistryForASN reads.
@@ -91,13 +87,8 @@ func preferStoredDelegation(seed func() (*rirTable, error), stored func() ([]byt
 // storedDelegation answers the delegation table a refresh stored, and whether
 // one is stored at all.
 //
-// Two processes read it and each reads it its own way. Inside the daemon a
-// state store is registered, and statestore.Get reads the config system's OWN
-// handle: a second zefs handle in that process would make the config store's
-// next flush re-encode from a stale tree and DROP every state key
-// (internal/core/statestore package doc). Where no store is registered, which
-// is the host CLI and any plugin process, database.zefs is opened READ-ONLY
-// if it exists.
+// Inside the daemon statestore reads the owning handle. A host command opens
+// the same config folder read-only; it never acquires a second writer.
 //
 // Neither path ever writes that file. The refresh writes, in the daemon, and
 // through statestore.Put alone.
@@ -108,14 +99,9 @@ func storedDelegation() ([]byte, bool) {
 	return storedDelegationFile(storePath())
 }
 
-// storePath answers the managed store's file, or empty when no config
-// directory is known.
+// storePath answers the managed store's config directory.
 func storePath() string {
-	dir := paths.DefaultConfigDir()
-	if dir == "" {
-		return ""
-	}
-	return filepath.Join(dir, storeFileName)
+	return resolve.StoreDir("")
 }
 
 // storedDelegationFile reads the delegation key out of the managed store on
@@ -130,18 +116,18 @@ func storedDelegationFile(path string) ([]byte, bool) {
 	if path == "" {
 		return nil, false
 	}
-	if _, err := os.Stat(path); err != nil {
-		return nil, false
-	}
 
-	store, err := zefs.Open(path)
+	store, err := storage.OpenReadOnly(path)
 	if err != nil {
+		if errors.Is(err, storage.ErrNoStore) {
+			return nil, false
+		}
 		logger().Warn("resolve/irr: the managed store cannot be opened", "path", path, "error", err)
 		return nil, false
 	}
 	defer func() { _ = store.Close() }()
 
-	if !store.Has(zefs.KeyRIRDelegation.Pattern) {
+	if !store.Exists(zefs.KeyRIRDelegation.Pattern) {
 		return nil, false
 	}
 

@@ -16,7 +16,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -181,7 +180,7 @@ func TestDoReloadRebuildsAAABundleFromReloadedConfig(t *testing.T) {
 	require.True(t, booted.Authenticated, "the boot secret must authenticate before the reload")
 
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
@@ -223,7 +222,7 @@ func TestDoReloadClosesTheAAABundleItAbandons(t *testing.T) {
 	t.Cleanup(func() { closeAAABundle(log) })
 
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
@@ -268,7 +267,7 @@ func TestDoReloadRefusesWhenTheAAABundleCannotBeBuilt(t *testing.T) {
 	t.Cleanup(func() { closeAAABundle(log) })
 
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
@@ -441,7 +440,7 @@ func TestDoReloadRebuildsTheAAABundleOnlyWhenAuthenticationChanges(t *testing.T)
 	t.Cleanup(func() { closeAAABundle(log) })
 
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: reloadAAAMap("boot-secret")}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)

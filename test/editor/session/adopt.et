@@ -32,8 +32,8 @@ input=enter
 expect=status:contains=set
 
 # Verify each session has its own change file
-expect=file:path=test.conf.change.alice:contains=#alice @ssh
-expect=file:path=test.conf.change.bob:contains=#bob @ssh
+expect=key:path=file/active/test.conf.change.alice:contains=#alice @ssh
+expect=key:path=file/active/test.conf.change.bob:contains=#bob @ssh
 
 # Bob sees his own changes via show | changes
 input=type:text=show | changes

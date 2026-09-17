@@ -31,7 +31,7 @@ func writeStorageError(err error) {
 // dataList answers `show data list [prefix]`: the keys the store holds.
 func dataList(args []string) (any, int) {
 	storePath, remaining := extractPathFlag(args)
-	s, err := openStore(storePath)
+	s, err := openStore(storePath, false)
 	if err != nil {
 		writeStorageError(err)
 		return nil, 2
@@ -42,7 +42,11 @@ func dataList(args []string) (any, int) {
 	if len(remaining) > 0 {
 		prefix = remaining[0]
 	}
-	keys := s.List(prefix)
+	keys, err := s.ListKeys(prefix)
+	if err != nil {
+		writeStorageError(err)
+		return nil, 2
+	}
 	rows := make([]map[string]any, 0, len(keys))
 	for _, key := range keys {
 		rows = append(rows, map[string]any{"key": key})

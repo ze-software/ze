@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/crashlog"
@@ -94,14 +95,14 @@ func readCrashDumpConfig(configPath string) (name string, data []byte, err error
 		return configPath, data, nil
 	}
 
-	store, err := resolve.Storage()
+	store, err := storage.OpenReadOnly(resolve.StoreDir(""))
 	if err != nil {
 		return "", nil, fmt.Errorf("crash-dump intent: storage: %w", err)
 	}
 	defer store.Close() //nolint:errcheck // read-only close
 
 	name = resolve.DefaultConfig(store)
-	data, err = store.ReadFile(name)
+	data, err = storage.ReadActiveConfig(store, name)
 	if err != nil {
 		return "", nil, fmt.Errorf("crash-dump intent: read %s: %w", name, err)
 	}

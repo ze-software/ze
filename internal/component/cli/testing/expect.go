@@ -67,6 +67,7 @@ type State interface {
 	Mode() cli.EditorMode
 	InputValue() string // Current text input value
 	TmpDir() string     // Temp directory for file expectations
+	ReadKey(string) ([]byte, error)
 }
 
 // validExpectationTypes lists all recognized expectation types.
@@ -90,6 +91,7 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	etMode:        checkMode,
 	etInput:       checkInput,
 	etFile:        checkFile,
+	"key":         checkKey,
 }
 
 // checkExpectation verifies a single expectation against the current state.
@@ -624,6 +626,45 @@ func checkFile(exp Expectation, state State) error {
 		}
 	}
 
+	return nil
+}
+
+// checkKey asserts on decoded store values, not netcapstring frame bytes.
+func checkKey(exp Expectation, state State) error {
+	key := exp.Values["path"]
+	if key == "" {
+		return errors.New("key expectation requires 'path' key")
+	}
+	for name := range exp.Values {
+		switch name {
+		case "path", "contains", "not-contains", "absent", "exists":
+		default:
+			return fmt.Errorf("unknown key expectation field: %s", name)
+		}
+	}
+	data, err := state.ReadKey(key)
+	if _, absent := exp.Values["absent"]; absent {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("reading key %s: %w", key, err)
+		}
+		return fmt.Errorf("expected key %s to be absent", key)
+	}
+	if err != nil {
+		return fmt.Errorf("reading key %s: %w", key, err)
+	}
+	if needle, ok := exp.Values["contains"]; ok {
+		if !strings.Contains(string(data), needle) {
+			return fmt.Errorf("key %s does not contain %q (content: %s)", key, needle, truncate(string(data), 200))
+		}
+	}
+	if needle, ok := exp.Values["not-contains"]; ok {
+		if strings.Contains(string(data), needle) {
+			return fmt.Errorf("key %s contains forbidden %q", key, needle)
+		}
+	}
 	return nil
 }
 

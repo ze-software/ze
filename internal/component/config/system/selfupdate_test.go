@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -679,15 +680,13 @@ func TestSelfUpdateStaleCleanup(t *testing.T) {
 	}
 }
 
-// newHistoryStore registers a fresh temp database.zefs as the process-wide
-// statestore backend, so save/loadHistory (which go through statestore) hit the
-// real zefs store, not a loose file. Resets the global store on cleanup.
+// newHistoryStore registers a fresh owned tree as the process-wide statestore.
+// The test MUST finish its state operations before cleanup closes the owner.
 func newHistoryStore(t *testing.T) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "database.zefs")
-	bs, err := zefs.Create(path)
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {
@@ -698,8 +697,7 @@ func newHistoryStore(t *testing.T) {
 	})
 }
 
-// VALIDATES: update history round-trips through the shared zefs store (save via
-// recordEvent, load into a fresh updater), not a loose JSON file.
+// VALIDATES: update history survives a new updater over the shared store.
 func TestSelfUpdateHistoryPersist(t *testing.T) {
 	newHistoryStore(t)
 	target := filepath.Join(t.TempDir(), "ze-test")

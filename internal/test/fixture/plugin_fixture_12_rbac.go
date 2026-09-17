@@ -28,7 +28,7 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 	if err := p12RunCommand(ctx, env, strings.NewReader("readonly\nreadonlypass\n127.0.0.1\n2222\n"), io.Discard, "init"); err != nil {
 		return fmt.Errorf("ze init: %w", err)
 	}
-	database := filepath.Join(configDir, "database.zefs")
+	database := filepath.Join(configDir, "database")
 	usernameFile := filepath.Join(configDir, "zefs-username")
 	passwordFile := filepath.Join(configDir, "zefs-password")
 	if err := os.WriteFile(usernameFile, []byte("readonly"), 0o600); err != nil {

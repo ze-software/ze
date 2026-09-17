@@ -5,21 +5,20 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	zeconnect "github.com/ze-software/ze/internal/plugins/connect"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func seedDB(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
-	store, err := zefs.Create(dbPath)
+	dbPath := dir
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -38,7 +37,7 @@ func TestAddCredentials(t *testing.T) {
 		t.Fatalf("AddCredentialsFromReader: exit %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -92,13 +91,13 @@ func TestAddCredentialsRejectsTruncatedPassword(t *testing.T) {
 		t.Fatal("a truncated password was accepted")
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test
 
-	if store.Has("meta/ssh/10.0.1.5/2223/password") {
+	if store.Exists("meta/ssh/10.0.1.5/2223/password") {
 		t.Error("a truncated password was stored")
 	}
 }
@@ -126,12 +125,12 @@ func TestAddCredentialsReportsOverLongPassword(t *testing.T) {
 	if !strings.Contains(got, "reading stdin") {
 		t.Errorf("the read failure was not reported, stderr said: %q", got)
 	}
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test
-	if store.Has("meta/ssh/10.0.1.5/2223/password") {
+	if store.Exists("meta/ssh/10.0.1.5/2223/password") {
 		t.Error("a truncated password was stored")
 	}
 }
@@ -172,13 +171,13 @@ func TestAddDefaultPort(t *testing.T) {
 		t.Fatalf("exit %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test
 
-	if !store.Has("meta/ssh/10.0.1.5/2222/username") {
+	if !store.Exists("meta/ssh/10.0.1.5/2222/username") {
 		t.Error("credentials not stored at default port path")
 	}
 }
@@ -217,16 +216,16 @@ func TestRemoveCredentials(t *testing.T) {
 		t.Fatalf("RemoveCredentials: exit %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test
 
-	if store.Has("meta/ssh/10.0.1.5/2222/username") {
+	if store.Exists("meta/ssh/10.0.1.5/2222/username") {
 		t.Error("username still exists after remove")
 	}
-	if store.Has("meta/ssh/10.0.1.5/2222/password") {
+	if store.Exists("meta/ssh/10.0.1.5/2222/password") {
 		t.Error("password still exists after remove")
 	}
 }
@@ -250,7 +249,7 @@ func TestSetDefault(t *testing.T) {
 		t.Fatalf("SetDefault: exit %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -271,5 +270,34 @@ func TestSetDefaultNonExistent(t *testing.T) {
 	code := zeconnect.SetDefault(dbPath, "unknown", "2222")
 	if code == 0 {
 		t.Fatal("expected non-zero exit for setting default to non-existent remote")
+	}
+}
+
+// Offline credential mutations refuse a live owner, independently of the target.
+func TestConnectRefusesWithDaemon(t *testing.T) {
+	dir := seedDB(t)
+	owner, err := storage.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close() //nolint:errcheck // test cleanup
+	if err := owner.WriteKey("meta/ssh/192.0.2.1/2222/username", []byte("old")); err != nil {
+		t.Fatal(err)
+	}
+	if code := zeconnect.AddCredentials(dir, "192.0.2.1", "2222", "new", "secret"); code == 0 {
+		t.Fatal("add accepted while daemon owns store")
+	}
+	if code := zeconnect.RemoveCredentials(dir, "192.0.2.1", "2222"); code == 0 {
+		t.Fatal("remove accepted while daemon owns store")
+	}
+	if code := zeconnect.SetDefault(dir, "192.0.2.1", "2222"); code == 0 {
+		t.Fatal("default accepted while daemon owns store")
+	}
+	got, err := owner.ReadKey("meta/ssh/192.0.2.1/2222/username")
+	if err != nil || string(got) != "old" {
+		t.Fatalf("credentials changed despite refusal: %q, %v", got, err)
+	}
+	if code := zeconnect.ListRemotes(dir); code != 0 {
+		t.Fatalf("read-only list refused alongside daemon: %d", code)
 	}
 }

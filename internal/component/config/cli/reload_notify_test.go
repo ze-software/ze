@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 )
@@ -56,7 +55,7 @@ func TestReloadOptInGate(t *testing.T) {
 	reloadCalls = 0
 	var out strings.Builder
 	restore := cliio.SwapStreams(strings.NewReader(cfg), &out)
-	code := cmdSetImpl(storage.NewFilesystem(), []string{"--reload", "-", "bgp", "session", "asn", "local", "65002"})
+	code := cmdSetImpl(nil, []string{"--reload", "-", "bgp", "session", "asn", "local", "65002"})
 	restore()
 	if code != exitOK {
 		t.Fatalf("set --reload - exit = %d, want %d", code, exitOK)
@@ -67,7 +66,7 @@ func TestReloadOptInGate(t *testing.T) {
 
 	// AC-4: default `deactivate` must NOT notify; `deactivate --reload` notifies once.
 	reloadCalls = 0
-	if rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{writeTestConfig(t, deactivateTestConfig), "bgp", "router-id"}); rc != exitOK {
+	if rc := cmdDeactivateImpl(nil, []string{writeTestConfig(t, deactivateTestConfig), "bgp", "router-id"}); rc != exitOK {
 		t.Fatalf("default deactivate rc = %d", rc)
 	}
 	if reloadCalls != 0 {
@@ -75,7 +74,7 @@ func TestReloadOptInGate(t *testing.T) {
 	}
 
 	reloadCalls = 0
-	if rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"--reload", writeTestConfig(t, deactivateTestConfig), "bgp", "router-id"}); rc != exitOK {
+	if rc := cmdDeactivateImpl(nil, []string{"--reload", writeTestConfig(t, deactivateTestConfig), "bgp", "router-id"}); rc != exitOK {
 		t.Fatalf("deactivate --reload rc = %d", rc)
 	}
 	if reloadCalls != 1 {

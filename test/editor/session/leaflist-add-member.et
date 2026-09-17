@@ -41,8 +41,8 @@ expect=error:none
 expect=dirty:false
 
 # All three members present: the committed seed and both added members
-expect=file:path=test.conf:contains=9.9.9.9
-expect=file:path=test.conf:contains=8.8.8.8
-expect=file:path=test.conf:contains=1.1.1.1
+expect=key:path=file/active/test.conf:contains=9.9.9.9
+expect=key:path=file/active/test.conf:contains=8.8.8.8
+expect=key:path=file/active/test.conf:contains=1.1.1.1
 # No duplicate of the twice-set member
-expect=file:path=test.conf:not-contains=1.1.1.1 1.1.1.1
+expect=key:path=file/active/test.conf:not-contains=1.1.1.1 1.1.1.1

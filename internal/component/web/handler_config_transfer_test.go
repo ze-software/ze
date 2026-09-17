@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/audit"
 )
 
@@ -98,7 +100,10 @@ func TestConfigDownloadRouteGatedByEditAuthz(t *testing.T) {
 func TestConfigUploadValidApplies(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
 	hookCalled := false
-	mgr.SetCommitHook(func() error { hookCalled = true; return nil })
+	mgr.SetCommitHook(func() error {
+		hookCalled = true
+		return storage.PromoteCandidate(mgr.store, mgr.configPath)
+	})
 	recorder, err := audit.NewMemory(100)
 	require.NoError(t, err)
 
@@ -152,7 +157,7 @@ func TestConfigUploadValidatesRejects(t *testing.T) {
 }
 
 // VALIDATES: AC-4 -- when the reload hook rejects an uploaded config, the prior
-// committed content is restored (editor.go ApplyCommittedContent restore path)
+// committed content remains unchanged and no candidate survives,
 // and the client receives 500.
 // PREVENTS: the daemon being left with an on-disk config its reload rejected.
 func TestConfigUploadHookFailureRestores(t *testing.T) {
@@ -174,6 +179,9 @@ func TestConfigUploadHookFailureRestores(t *testing.T) {
 	require.NoError(t, readErr)
 	assert.Contains(t, string(committed), "1.2.3.4", "prior config must be restored after hook failure")
 	assert.NotContains(t, string(committed), "9.9.9.9", "rejected config must not remain committed")
+	_, _, present, err := storage.ReadCandidateConfig(mgr.store, mgr.configPath)
+	require.NoError(t, err)
+	assert.False(t, present, "a rejected upload must not survive as a candidate")
 }
 
 // VALIDATES: AC-1/AC-4 -- a read-only session cannot upload (403), config unchanged.
@@ -196,4 +204,51 @@ func TestConfigUploadRBACDeny(t *testing.T) {
 	committed, readErr := mgr.committedConfig()
 	require.NoError(t, readErr)
 	assert.Contains(t, string(committed), "1.2.3.4")
+}
+
+// An explicit-file daemon must expose external edits even when stored history
+// still contains the previous configuration.
+func TestConfigDownloadUsesExplicitSource(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	content := []byte("bgp {\n\trouter-id 9.9.9.9\n}\n")
+	require.NoError(t, os.WriteFile(mgr.configPath, content, 0o600))
+	mgr.SetConfigSource(func() ([]byte, error) {
+		return os.ReadFile(mgr.configPath)
+	}, func(_, _ []byte) error {
+		return errors.New("unexpected upload")
+	})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/config/download", http.NoBody)
+	req = req.WithContext(withUsername(req.Context(), "alice"))
+	rec := httptest.NewRecorder()
+	HandleConfigDownload(mgr, nil).ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, string(content), rec.Body.String())
+}
+
+// Source publication can reject a concurrent external edit. The upload must
+// preserve the old stored config and surface that refusal instead of bypassing
+// the daemon through a direct store write.
+func TestConfigUploadSourceConflictPreservesStoredConfig(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	before, err := mgr.committedConfig()
+	require.NoError(t, err)
+	mgr.SetConfigSource(func() ([]byte, error) {
+		return os.ReadFile(mgr.configPath)
+	}, func(_, _ []byte) error {
+		return errors.New("configuration changed externally")
+	})
+	handler := HandleConfigUpload(mgr, func(_, _ string) error { return nil }, mgr.configPath, adminWebAuthorizer(), nil)
+	req := postConfigRequest(t, "/config/upload", url.Values{"config": {"bgp {\n\trouter-id 9.9.9.9\n}\n"}}, "alice")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Contains(t, rec.Body.String(), "configuration changed externally")
+	after, err := storage.ReadActiveConfig(mgr.store, mgr.configPath)
+	require.NoError(t, err)
+	assert.Equal(t, before, after)
+	_, _, present, err := storage.ReadCandidateConfig(mgr.store, mgr.configPath)
+	require.NoError(t, err)
+	assert.False(t, present)
 }

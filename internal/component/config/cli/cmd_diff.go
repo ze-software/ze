@@ -12,11 +12,11 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config/infra"
 
-	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/resolve"
 )
 
 func cmdDiffWithStorage(store storage.Storage, args []string) int {
@@ -24,7 +24,7 @@ func cmdDiffWithStorage(store storage.Storage, args []string) int {
 }
 
 func cmdDiff(args []string) int {
-	return cmdDiffImpl(storage.NewFilesystem(), args)
+	return cmdDiffImpl(nil, args)
 }
 
 func cmdDiffImpl(store storage.Storage, args []string) int {
@@ -70,16 +70,27 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 // It is the payload half of cmdDiffImpl, lifted so `show config diff` answers
 // with DATA (dataDiff, config_data.go) and the two spellings cannot drift.
 func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int) {
-	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, "error: requires two config files, or revision number and config file\n")
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "error: requires exactly two config files, or revision number and config file\n")
 		return nil, exitError
 	}
 
 	// Check if first arg is a revision number (diff against rollback)
 	file1 := args[0]
 	file2 := args[1]
+	var revisionStore storage.Storage
 	if n, err := strconv.Atoi(file1); err == nil {
-		resolved, err := resolveRollbackPath(store, file2, n)
+		if store == nil {
+			revisionStore, err = storage.OpenReadOnly(resolve.StoreDir(file2))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: config diff history: %v\n", err)
+				return nil, exitError
+			}
+			defer revisionStore.Close() //nolint:errcheck // Read-only history.
+		} else {
+			revisionStore = store
+		}
+		resolved, err := resolveRollbackPath(revisionStore, file2, n)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return nil, exitError
@@ -93,7 +104,11 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 		return nil, exitError
 	}
 
-	tree1, err := loadAndResolve(store, schema, file1)
+	firstStore := store
+	if revisionStore != nil {
+		firstStore = revisionStore
+	}
+	tree1, err := loadAndResolve(firstStore, schema, file1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
 		return nil, exitError
@@ -112,17 +127,10 @@ func resolveDiff(store storage.Storage, args []string) (*config.ConfigDiff, int)
 
 // resolveRollbackPath resolves a revision number to a rollback file path.
 func resolveRollbackPath(store storage.Storage, configPath string, n int) (string, error) {
-	ed, err := cli.NewEditorWithStorage(store, configPath)
+	backups, err := store.ListVersions(configPath)
 	if err != nil {
 		return "", err
 	}
-	defer ed.Close() //nolint:errcheck // best effort cleanup
-
-	backups, err := ed.ListBackups()
-	if err != nil {
-		return "", err
-	}
-
 	if n < 1 || n > len(backups) {
 		return "", fmt.Errorf("revision %d not found (have %d revisions)", n, len(backups))
 	}
@@ -130,14 +138,12 @@ func resolveRollbackPath(store storage.Storage, configPath string, n int) (strin
 	return backups[n-1].Path, nil
 }
 
-// loadAndResolve loads a config file via storage, parses it, and resolves the BGP tree.
-// Supports "-" for stdin. The caller owns the schema, so one diff builds it once.
+// loadAndResolve parses one source and resolves its BGP tree.
+// A nil store means an explicit path, including "-" for stdin.
 func loadAndResolve(store storage.Storage, schema *config.Schema, path string) (map[string]any, error) {
-	// "-" reads stdin (claiming it once); a real path goes through the storage
-	// abstraction, which may be a blob store where path is a key, not a file.
 	var data []byte
 	var err error
-	if cliio.IsStdin(path) {
+	if store == nil || cliio.IsStdin(path) {
 		data, err = cliio.ReadFile(path)
 	} else {
 		data, err = store.ReadFile(path)

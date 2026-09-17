@@ -284,7 +284,15 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 		return fmt.Errorf("write stripped.conf: %w", err)
 	}
 
-	dbPath := filepath.Join(wd, "database.zefs")
+	dbPath := filepath.Join(wd, "database")
+	initEnv := updateEnvironment(os.Environ(), "ZE_CONFIG_DIR="+wd)
+	initialized, err := h.Dispatch(ctx, initEnv, "ci\nsecret\n127.0.0.1\n2222\nstripped\n", false, "init")
+	if err != nil {
+		return err
+	}
+	if initialized.code != 0 {
+		return commandFailure("init", initialized)
+	}
 	usernamePath := filepath.Join(wd, "username.txt")
 	passwordPath := filepath.Join(wd, "password.txt")
 	if err := os.WriteFile(usernamePath, []byte("ci"), 0o600); err != nil {
@@ -317,7 +325,7 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 		"ZE_READY_FILE="+readyPath,
 		"ZE_CONFIG_DIR="+wd,
 	)
-	daemon, err := h.Observe(ctx, daemonEnv, "-f", "stripped.conf")
+	daemon, err := h.Observe(ctx, daemonEnv, "start", filepath.Join(wd, "stripped.conf"))
 	if err != nil {
 		return err
 	}
@@ -349,20 +357,6 @@ func runZEStrippedSurface(ctx context.Context) (retErr error) {
 		"ZE_SSH_PASSWORD=secret",
 		"ZE_CONFIG_DIR="+wd,
 	)
-
-	metadataWrite, err := h.Dispatch(
-		ctx,
-		cliEnv,
-		"",
-		false,
-		"data", "--path", dbPath, "write", "meta/ssh/"+host+"/"+port+"/username", "username.txt",
-	)
-	if err != nil {
-		return err
-	}
-	if metadataWrite.code != 0 {
-		return commandFailure("SSH username data write", metadataWrite)
-	}
 
 	firmwareCheck, err := h.Dispatch(
 		ctx,

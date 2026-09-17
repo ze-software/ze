@@ -3,7 +3,6 @@
 # PREVENTS: config editor commit saving disk state before daemon reload succeeds.
 
 option=timeout:value=30s
-option=env:var=ZE_STORAGE_BLOB:value=false
 
 tmpfs=cli-commit.conf:terminator=EOF_CONF
 system {
@@ -33,9 +32,9 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze start cli-commit.conf:timeout=30s
 cmd=foreground:seq=2:exec=ze-test fixture plugin/cli-commit-transactional $PORT2:timeout=30s
 expect=exit:code=0
-expect=file:path=meta/config/active:exists=true
-expect=file:path=meta/config/candidate:absent=true
-expect=file:path=meta/config/rollback:exists=true
+expect=key:path=meta/config/cli-commit.conf/active:exists=true
+expect=key:path=meta/config/cli-commit.conf/candidate:absent=true
+expect=key:path=meta/config/cli-commit.conf/rollback:exists=true
 expect=file:path=cli-commit.conf:contains=router-id 2.2.2.2
-expect=file:glob=rollback/cli-commit-*.conf:contains=router-id 1.2.3.4
-expect=file:glob=rollback/cli-commit-*.conf:contains=router-id 2.2.2.2
+expect=key:glob=file/[0-9]*/cli-commit.conf:contains=router-id 1.2.3.4
+expect=key:glob=file/[0-9]*/cli-commit.conf:contains=router-id 2.2.2.2

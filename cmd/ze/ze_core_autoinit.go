@@ -5,55 +5,44 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/paths"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// gokrazyAutoInit creates the config directory and blob storage when
-// running on a gokrazy appliance whose /perm/ze is missing. Returns a
-// blob-backed Storage on success. On failure (e.g. read-only /perm),
-// returns nil and a diagnostic error.
-//
-// Connectivity-only: no SSH/web credentials are written (AC-7).
-// The caller falls through to the existing bootstrap which creates
-// network config from template or interface discovery.
+// gokrazyAutoInit explicitly imports the appliance seed, or creates an empty
+// store for discovery bootstrap. ImportBlob owns interrupted-import recovery
+// and seed retirement; live-store open never converts an artifact.
 func gokrazyAutoInit() (storage.Storage, error) {
-	configDir := paths.DefaultConfigDir()
+	configDir := internalresolve.StoreDir("")
 	if configDir == "" {
 		return nil, fmt.Errorf("no config dir (ze.config.dir unset, binary location unknown)")
 	}
 
-	if err := os.MkdirAll(configDir, 0o700); err != nil {
-		msg := fmt.Errorf("gokrazy auto-init: cannot create %s (read-only /perm? check ext4 mountability): %w", configDir, err)
-		writeKmsg(msg.Error())
-		return nil, msg
+	seed := filepath.Join(configDir, "database.zefs")
+	if _, err := os.Lstat(seed); err == nil {
+		store, importErr := storage.ImportBlob(seed, configDir)
+		if importErr != nil {
+			return nil, fmt.Errorf("gokrazy import seed %s: %w", seed, importErr)
+		}
+		slogutil.Logger("startup").Info("gokrazy: imported seed into live store", "seed", seed, "directory", configDir)
+		return store, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("gokrazy inspect seed %s: %w", seed, err)
 	}
-
-	store, err := internalresolve.Storage()
+	store, err := storage.Open(configDir)
+	if !errors.Is(err, storage.ErrNoStore) {
+		return store, err
+	}
+	store, err = storage.Create(configDir)
 	if err != nil {
-		return nil, fmt.Errorf("blob creation failed after mkdir: %w", err)
+		return nil, fmt.Errorf("gokrazy create live store (read-only /perm? check ext4 mountability): %w", err)
 	}
-	if !storage.IsBlobStorage(store) {
-		store.Close() //nolint:errcheck // closing filesystem fallback
-		return nil, fmt.Errorf("storage is not blob after mkdir %s", configDir)
-	}
-
+	slogutil.Logger("startup").Info("gokrazy: created live store", "directory", configDir)
 	return store, nil
-}
-
-// writeKmsg writes a diagnostic message to /dev/kmsg (kernel log) for
-// visibility on gokrazy serial console. Best-effort; silently ignored
-// if /dev/kmsg is unavailable.
-func writeKmsg(msg string) {
-	f, err := os.OpenFile("/dev/kmsg", os.O_WRONLY, 0) //nolint:gosec // fixed kernel path
-	if err != nil {
-		return
-	}
-	defer f.Close()     //nolint:errcheck // best-effort
-	f.WriteString(msg)  //nolint:errcheck // best-effort
-	f.WriteString("\n") //nolint:errcheck // best-effort
 }

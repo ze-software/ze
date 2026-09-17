@@ -1,6 +1,6 @@
 // VALIDATES: zeConfigFileName gives the first ze-daemon stdin block the canonical
 // ze-bgp.conf name (whatever the block is called) and each additional distinct
-// block its own ze-<block>.conf, while reusing a block returns its assigned file;
+// block its own store directory, while reusing a block returns its assigned file;
 // sanitizeConfigBlock reduces a block name to a filesystem-safe token.
 // PREVENTS: two concurrent `ze -` daemons in one test clobbering a single
 // ze-bgp.conf (which makes an IKE responder+initiator pair load the same config
@@ -15,15 +15,26 @@ func TestZeConfigFileName(t *testing.T) {
 	if got := zeConfigFileName(rec, "config"); got != "ze-bgp.conf" {
 		t.Errorf("first block = %q, want ze-bgp.conf", got)
 	}
-	if got := zeConfigFileName(rec, "responder"); got != "ze-responder.conf" {
-		t.Errorf("second distinct block = %q, want ze-responder.conf", got)
+	if got := zeConfigFileName(rec, "responder"); got != "daemon-2/ze-responder.conf" {
+		t.Errorf("second distinct block = %q, want daemon-2/ze-responder.conf", got)
 	}
 	// Reusing a block (a restart) returns its already-assigned file.
 	if got := zeConfigFileName(rec, "config"); got != "ze-bgp.conf" {
 		t.Errorf("reused first block = %q, want ze-bgp.conf", got)
 	}
-	if got := zeConfigFileName(rec, "responder"); got != "ze-responder.conf" {
-		t.Errorf("reused second block = %q, want ze-responder.conf", got)
+	if got := zeConfigFileName(rec, "responder"); got != "daemon-2/ze-responder.conf" {
+		t.Errorf("reused second block = %q, want daemon-2/ze-responder.conf", got)
+	}
+}
+
+// Distinct block names may sanitize identically but must never share a store.
+func TestZeConfigDirectoriesDoNotCollide(t *testing.T) {
+	rec := &Record{}
+	zeConfigFileName(rec, "first")
+	a := zeConfigFileName(rec, "a/b")
+	b := zeConfigFileName(rec, "a-b")
+	if a == b {
+		t.Fatalf("distinct daemons share %q", a)
 	}
 }
 

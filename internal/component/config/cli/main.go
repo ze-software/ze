@@ -81,7 +81,7 @@ var subcommandHandlers = map[string]func([]string) int{
 // Run executes the config subcommand with filesystem storage (backward compat).
 // Returns exit code.
 func Run(args []string) int {
-	return RunWithStorage(storage.NewFilesystem(), args)
+	return RunWithStorage(nil, args)
 }
 
 // RunWithStorage executes the config subcommand with the given storage backend.
@@ -150,10 +150,10 @@ func usage() {
 				{Name: "activate <file> <path>", Desc: "Clear the inactive flag on a node"},
 			}},
 			{Title: "Storage", Entries: []helpfmt.HelpEntry{
-				{Name: "import [--name n] <file>...", Desc: "Import files into the database"},
-				{Name: "rename <old> <new>", Desc: "Rename a config in the database"},
-				{Name: "list [prefix]", Desc: "List configs in the database"},
-				{Name: "cat <key>", Desc: "Print a database entry"},
+				{Name: "import [--dir folder] [--name n] <file>...", Desc: "Import files into an initialized store"},
+				{Name: "rename <old> <new>", Desc: "Rename a stored config"},
+				{Name: "list", Desc: "List stored and loose configs"},
+				{Name: "cat <key>", Desc: "Print a stored entry"},
 			}},
 			{Title: "Inspection", Entries: []helpfmt.HelpEntry{
 				{Name: "validate <file>", Desc: "Validate configuration file"},
@@ -181,6 +181,7 @@ func usage() {
 			"ze config edit",
 			"ze config import router.conf",
 			"ze config import --name production.conf /etc/ze/router.conf",
+			"ze config import --dir /etc/ze /tmp/router.conf",
 			"ze config validate router.conf",
 			"ze config show router.conf bgp peer edge1",
 			"ze config set router.conf bgp local as 65000",

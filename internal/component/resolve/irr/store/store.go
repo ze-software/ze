@@ -3,22 +3,14 @@
 // Package store provides PrefixStore, a shared cache of IRR-resolved prefix
 // lists keyed by name (an ASN like "AS13335" or an AS-SET like "AS-CLOUDFLARE").
 // It resolves prefixes via the IRR whois client, discovers AS-SETs for bare
-// ASNs via PeeringDB, and persists each entry to zefs under meta/irr/{name}.
+// ASNs via PeeringDB, and persists each entry under meta/irr/{name}.
 //
 // It lives in a subpackage of resolve/irr (not package irr) so it can import
 // resolve/peeringdb directly: peeringdb imports resolve/irr, and irr never
 // imports this store, so store -> peeringdb -> irr is acyclic.
 //
-// Consumers (BGP filter_irr, the upcoming firewall-irr) are process-isolated
-// plugins; they do NOT share a PrefixStore instance. Each builds its own and
-// they share cached data through the zefs file on disk. In-process writers are
-// serialized by fileMu: each persist opens the file, flushes it atomically
-// (zefs pwrites in place for small updates, full-rewrites with atomic rename on
-// growth), and closes it, so concurrent in-process refreshes cannot lose
-// each other's keys. NOTE: zefs's Lock is an in-process mutex, not a file lock,
-// so two PROCESSES writing the same store file would clobber each other on
-// flush -- a single writer process per store file is required until zefs gains
-// a cross-process lock (tracked for the firewall-irr consumer).
+// The caller supplies the daemon's owned store or its plugin state RPC client.
+// PrefixStore never opens a second writer and never closes the supplied store.
 package store
 
 import (
@@ -26,13 +18,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/netip"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -89,14 +82,22 @@ func (e *CachedEntry) PrefixList() irr.PrefixList {
 	return irr.PrefixList{IPv4: e.IPv4, IPv6: e.IPv6}
 }
 
-// PrefixStore resolves and caches IRR prefix lists, persisting each entry to a
-// zefs file. The IRR client is required; the PeeringDB client may be nil
-// (AS-SET discovery is then skipped, falling back to the literal "AS<asn>"
-// name). An empty path disables persistence (in-memory only).
-type PrefixStore struct {
-	path string
+// KeyStore is the raw-key contract implemented by managed storage and plugin
+// state RPCs. The caller owns its lifetime.
+type KeyStore interface {
+	ReadKey(string) ([]byte, error)
+	WriteKey(string, []byte) error
+	RemoveKey(string) error
+	ListKeys(string) ([]string, error)
+}
 
-	fileMu sync.Mutex // serializes in-process open->write->flush on the shared zefs file
+// PrefixStore resolves and caches IRR prefix lists. A nil store explicitly
+// selects in-memory operation. The caller MUST keep persistence alive until
+// all refreshes finish. Safe for concurrent use.
+type PrefixStore struct {
+	persistence KeyStore
+
+	fileMu sync.Mutex // Serializes cache persistence and legacy migration.
 
 	// mu guards the cache and the two clients. The clients change when a config
 	// reload moves the IRR server or the PeeringDB URL (UseClients), and the
@@ -108,13 +109,21 @@ type PrefixStore struct {
 }
 
 // New creates a PrefixStore. irrClient must be non-nil.
-func New(irrClient *irr.IRR, pdb *peeringdb.PeeringDB, path string) *PrefixStore {
+func New(irrClient *irr.IRR, pdb *peeringdb.PeeringDB, persistence KeyStore) *PrefixStore {
 	return &PrefixStore{
-		irrClient: irrClient,
-		pdb:       pdb,
-		path:      path,
-		entries:   make(map[string]*CachedEntry),
+		irrClient:   irrClient,
+		pdb:         pdb,
+		persistence: persistence,
+		entries:     make(map[string]*CachedEntry),
 	}
+}
+
+// UsePersistence binds a runtime store after the plugin startup handshake.
+// The caller MUST call this before starting refresh workers.
+func (s *PrefixStore) UsePersistence(persistence KeyStore) {
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	s.persistence = persistence
 }
 
 // UseClients points the store at new resolvers and keeps every cached entry.
@@ -160,7 +169,7 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 
 // Refresh resolves prefixes for name and persists the result.
 //
-// name is the identity and the zefs key (e.g. "AS13335" or "AS-CLOUDFLARE").
+// name is the identity and the storage key (e.g. "AS13335" or "AS-CLOUDFLARE").
 // asSet, when non-empty, is the AS-SET to query. When asSet is empty, the store
 // queries name directly if it is an AS-SET, or discovers the AS-SET via
 // PeeringDB if name is a bare ASN (falling back to the literal "AS<asn>" name).
@@ -176,8 +185,8 @@ func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
 // and nothing for the other keeps what is cached for the family that answered
 // nothing, marks the entry stale, and reports no error: it did learn prefixes.
 //
-// On success the in-memory cache and the zefs file are updated, and StaleSince
-// is cleared when both families answered.
+// On success the in-memory cache is updated and persistence is attempted.
+// StaleSince is cleared when both families answered.
 func (s *PrefixStore) Refresh(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	entry, err := s.resolve(ctx, name, asSet)
 	if err != nil {
@@ -324,32 +333,15 @@ func (s *PrefixStore) Purge(name string) bool {
 	return found
 }
 
-// removePersisted drops name's key from the zefs file. It is a no-op when
-// persistence is disabled or the file does not exist.
+// removePersisted drops a key through the caller's owned store.
 func (s *PrefixStore) removePersisted(name string) {
-	if s.path == "" {
-		return
-	}
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
-	bs, err := openExisting(s.path)
-	if err != nil {
-		return // no file: the in-memory delete is the whole job
-	}
-	defer func() { _ = bs.Close() }()
-
-	wl, err := bs.Lock()
-	if err != nil {
+	if s.persistence == nil {
 		return
 	}
-	key := zefs.KeyIRRPrefixCache.Key(name)
-	if wl.Has(key) {
-		if rmErr := wl.Remove(key); rmErr != nil {
-			logger().Warn("irr/store: purge removal failed", "name", name, "error", rmErr)
-		}
-	}
-	if rErr := wl.Release(); rErr != nil {
-		logger().Warn("irr/store: purge lock release failed", "name", name, "error", rErr)
+	if err := s.persistence.RemoveKey(zefs.KeyIRRPrefixCache.Key(name)); err != nil {
+		logger().Warn("irr/store: purge removal failed", "name", name, "error", err)
 	}
 }
 
@@ -358,7 +350,7 @@ func (s *PrefixStore) removePersisted(name string) {
 // The lookup goes through RefreshPrefixes, which always queries the server. A
 // refresh answered from the client's 1h cache would stamp a new RefreshedAt on
 // data nobody re-read, and "update firewall irr as-set X" exists to reach the
-// server. This store is the durable cache, in memory and in zefs.
+// server. This store keeps the cache in memory and persists through its owner.
 func (s *PrefixStore) resolve(ctx context.Context, name, asSet string) (*CachedEntry, error) {
 	if err := validateName(name); err != nil {
 		return nil, err
@@ -401,41 +393,28 @@ func discoverASSet(ctx context.Context, pdb *peeringdb.PeeringDB, asn uint32) st
 	return asnName(asn)
 }
 
-// Open loads persisted entries into memory, first migrating any legacy
-// single-blob cache (meta/bgp/irr-cache) into per-entry keys. It is safe to
-// call when the zefs file does not exist yet (no-op). An empty path disables
-// persistence entirely.
-//
-// The common path is read-only (no write lock): reads coordinate through the
-// store's own RWMutex. A write lock is taken only when a legacy blob is
-// actually present and needs migrating, so reconfigures do not contend for the
-// shared store's write lock.
+// Open loads persisted entries and migrates the legacy cache when writable.
+// A read-only diagnostic loads legacy values without changing its source.
 func (s *PrefixStore) Open() error {
-	if s.path == "" {
-		return nil
-	}
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
-	bs, err := openExisting(s.path)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			// File exists but could not be opened (corrupt/locked): surface it
-			// rather than silently loading an empty cache.
-			logger().Warn("irr/store: cache not loaded", "path", s.path, "error", err)
-		}
+	if s.persistence == nil {
 		return nil
 	}
-	defer func() { _ = bs.Close() }()
-
-	if _, rerr := bs.ReadFile(zefs.KeyIRRCache.Pattern); rerr == nil {
-		s.migrate(bs)
+	bs := s.persistence
+	if err := s.migrate(bs); err != nil {
+		return err
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	dir := zefs.KeyIRRPrefixCache.Dir()
-	for _, key := range bs.List(dir) {
-		data, readErr := bs.ReadFile(key)
+	keys, err := bs.ListKeys(dir)
+	if err != nil {
+		return err
+	}
+	for _, key := range keys {
+		data, readErr := bs.ReadKey(key)
 		if readErr != nil {
 			continue
 		}
@@ -443,9 +422,8 @@ func (s *PrefixStore) Open() error {
 		if json.Unmarshal(data, &e) != nil || e.Name == "" {
 			continue
 		}
-		// Trust the on-disk key segment as the identity, not the blob's
-		// self-reported Name: a corrupt or tampered entry must not land in
-		// another name's slot (the store file is shared across consumers).
+		// Trust the key segment as the identity rather than the value's Name:
+		// a corrupt entry must not occupy another name's slot.
 		if len(key) <= len(dir)+1 || key[len(dir)+1:] != e.Name {
 			logger().Warn("irr/store: entry name does not match its key; skipping", "key", key, "name", e.Name)
 			continue
@@ -464,39 +442,27 @@ type legacyEntry struct {
 	IPv6  []string `json:"ipv6"`
 }
 
-// migrate converts the legacy single-blob cache into per-entry keys, then
-// removes the legacy key. Each entry is keyed by "AS<asn>" (the legacy
-// identity). Existing per-entry keys are never clobbered (newer data wins).
-// All writes and the removal happen under a single write lock, so the flush on
-// Release is atomic: the legacy key disappears only once every new key is
-// written.
-func (s *PrefixStore) migrate(bs *zefs.BlobStore) {
-	wl, err := bs.Lock()
-	if err != nil {
-		return
+// migrate writes all legacy entries before removing their source. A failure
+// keeps the source so a later attempt can resume without losing prefixes.
+func (s *PrefixStore) migrate(bs KeyStore) error {
+	data, err := bs.ReadKey(zefs.KeyIRRCache.Pattern)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
 	}
-	defer func() {
-		if rErr := wl.Release(); rErr != nil {
-			logger().Warn("irr/store: migrate release failed", "error", rErr)
-		}
-	}()
-
-	data, err := wl.ReadFile(zefs.KeyIRRCache.Pattern)
 	if err != nil {
-		return // raced away
+		return err
 	}
 	var old []legacyEntry
-	if json.Unmarshal(data, &old) != nil {
-		if rmErr := wl.Remove(zefs.KeyIRRCache.Pattern); rmErr != nil {
-			logger().Warn("irr/store: drop corrupt legacy cache failed", "error", rmErr)
-		}
-		return
+	if err := json.Unmarshal(data, &old); err != nil {
+		return fmt.Errorf("irr/store: decode legacy cache: %w", err)
 	}
 	for _, c := range old {
 		name := asnName(c.ASN)
 		key := zefs.KeyIRRPrefixCache.Key(name)
-		if wl.Has(key) {
-			continue // newer per-entry data already present
+		if _, err := bs.ReadKey(key); err == nil {
+			continue // Newer per-entry data already exists.
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return err
 		}
 		blob, marshalErr := json.Marshal(&CachedEntry{
 			Name:  name,
@@ -505,55 +471,47 @@ func (s *PrefixStore) migrate(bs *zefs.BlobStore) {
 			IPv6:  parsePrefixes(c.IPv6),
 		})
 		if marshalErr != nil {
-			continue
+			return marshalErr
 		}
-		if wErr := wl.WriteFile(key, blob, 0); wErr != nil {
-			logger().Warn("irr/store: migrate write failed", "key", key, "error", wErr)
+		if err := bs.WriteKey(key, blob); err != nil {
+			if errors.Is(err, storage.ErrReadOnly) {
+				var entry CachedEntry
+				if err := json.Unmarshal(blob, &entry); err != nil {
+					return err
+				}
+				s.mu.Lock()
+				s.entries[name] = &entry
+				s.mu.Unlock()
+				continue
+			}
+			return err
 		}
 	}
-	if rmErr := wl.Remove(zefs.KeyIRRCache.Pattern); rmErr != nil {
-		logger().Warn("irr/store: legacy cache removal failed", "error", rmErr)
+	if err := bs.RemoveKey(zefs.KeyIRRCache.Pattern); err != nil {
+		if !errors.Is(err, storage.ErrReadOnly) {
+			return err
+		}
 	}
+	return nil
 }
 
-// persist writes the given entries to zefs under a single write lock. It is a
-// no-op when persistence is disabled or the zefs file does not exist.
+// persist writes through the existing owner, never a second store handle.
 func (s *PrefixStore) persist(entries []*CachedEntry) {
-	if s.path == "" || len(entries) == 0 {
-		return
-	}
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
-	bs, err := openExisting(s.path)
-	if err != nil {
-		return // no file: in-memory cache is still valid
-	}
-	defer func() { _ = bs.Close() }()
-
-	wl, err := bs.Lock()
-	if err != nil {
+	if s.persistence == nil {
 		return
 	}
 	for _, e := range entries {
-		blob, marshalErr := json.Marshal(e)
-		if marshalErr != nil {
+		data, err := json.Marshal(e)
+		if err != nil {
+			logger().Warn("irr/store: encode cache failed", "name", e.Name, "error", err)
 			continue
 		}
-		if wErr := wl.WriteFile(zefs.KeyIRRPrefixCache.Key(e.Name), blob, 0); wErr != nil {
-			logger().Warn("irr/store: persist write failed", "name", e.Name, "error", wErr)
+		if err := s.persistence.WriteKey(zefs.KeyIRRPrefixCache.Key(e.Name), data); err != nil {
+			logger().Warn("irr/store: persist write failed", "name", e.Name, "error", err)
 		}
 	}
-	if rErr := wl.Release(); rErr != nil {
-		logger().Warn("irr/store: write lock release failed", "error", rErr)
-	}
-}
-
-// openExisting opens the zefs store only if the file exists.
-func openExisting(path string) (*zefs.BlobStore, error) {
-	if _, err := os.Stat(path); err != nil {
-		return nil, err
-	}
-	return zefs.Open(path)
 }
 
 func parsePrefixes(ss []string) []netip.Prefix {

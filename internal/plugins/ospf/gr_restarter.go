@@ -7,7 +7,9 @@
 package ospf
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
@@ -42,7 +44,9 @@ func (m *grManager) prepareRestart(reason uint8) error { //nolint:unparam // RFC
 		InterfaceIDs: m.e.captureInterfaceIDs(),
 		PrefixLSIDs:  m.e.capturePrefixLSIDs(),
 	}
-	m.persistFact(fact)
+	if err := m.persistFact(fact); err != nil {
+		return fmt.Errorf("ospf: persist graceful restart: %w", err)
+	}
 
 	// Retain the FIB across the ensuing stop, and suppress route churn from now on.
 	m.mu.Lock()
@@ -115,22 +119,29 @@ func (m *grManager) maybeUnplannedRestart() {
 // whose grace window is still open, it restores the OSPFv3 preservation maps and enters
 // in-restart mode. A stale (expired) or cleared fact is ignored and the engine boots normally
 // (AC-6, R-10). Called once from the engine start path.
-func (m *grManager) resumeFromNVS() {
+func (m *grManager) resumeFromNVS() error {
 	if m == nil {
-		return
+		return nil
 	}
-	m.resumeOnce.Do(m.resumeFromNVSLocked)
+	if m.e.state == nil {
+		return nil
+	}
+	m.resumeOnce.Do(func() { m.resumeErr = m.resumeFromNVSLocked() })
+	return m.resumeErr
 }
 
-func (m *grManager) resumeFromNVSLocked() {
-	store, ok := openGRStore()
-	if !ok {
-		return
+func (m *grManager) resumeFromNVSLocked() error {
+	ctx, cancel := context.WithTimeout(m.e.ctx, 5*time.Second)
+	defer cancel()
+	fact, found, err := readRestartFact(ctx, m.e.state, m.e.grFactKey())
+	if err != nil {
+		return err
 	}
-	defer func() { _ = store.Close() }()
-	fact, ok := readRestartFact(store, m.e.grFactKey())
-	if !ok || !fact.active(m.now()) {
-		return
+	if !found {
+		return nil
+	}
+	if !fact.active(m.now()) {
+		return nil
 	}
 	// RFC 5187 sec 3.1/3.2: restore the preserved LSA-ID -> prefix map and Interface IDs so
 	// re-originated LSAs match neighbor adjacency state and do not churn.
@@ -138,6 +149,7 @@ func (m *grManager) resumeFromNVSLocked() {
 	m.e.restoreInterfaceIDs(fact.InterfaceIDs)
 	expected := stringsToRouterIDs(fact.Expected)
 	m.enterRestart(time.Unix(fact.GraceEndUnix, 0), fact.Reason, expected)
+	return nil
 }
 
 // enterRestart puts the engine into RFC 3623 sec 2 in-restart mode: origination and route
@@ -268,25 +280,26 @@ func (m *grManager) exitRestart(reason string) {
 	m.clearFact()
 }
 
-// persistFact writes the restart fact to NVS (best-effort: a failure only means a subsequent
-// process restart boots normally instead of resuming, which is safe).
-func (m *grManager) persistFact(fact restartFact) {
-	store, ok := openGRStore()
-	if !ok {
-		return
+// persistFact refuses a planned restart unless its fact is durably acknowledged.
+func (m *grManager) persistFact(fact restartFact) error {
+	if m.e.state == nil {
+		return errors.New("ospf: persistent state client is unavailable")
 	}
-	defer func() { _ = store.Close() }()
-	_ = writeRestartFact(store, m.e.grFactKey(), fact)
+	ctx, cancel := context.WithTimeout(m.e.ctx, 5*time.Second)
+	defer cancel()
+	return writeRestartFact(ctx, m.e.state, m.e.grFactKey(), fact)
 }
 
-// clearFact records that no restart is in flight.
+// clearFact reports a failure because the old restart fact may remain durable.
 func (m *grManager) clearFact() {
-	store, ok := openGRStore()
-	if !ok {
+	if m.e.state == nil {
 		return
 	}
-	defer func() { _ = store.Close() }()
-	_ = clearRestartFact(store, m.e.grFactKey())
+	ctx, cancel := context.WithTimeout(m.e.ctx, 5*time.Second)
+	defer cancel()
+	if err := clearRestartFact(ctx, m.e.state, m.e.grFactKey()); err != nil {
+		m.e.log.Error("ospf: clear graceful restart state failed", "error", err)
+	}
 }
 
 // grOriginateGraceLSAs originates (or, when withdraw, MaxAge-flushes) one Grace-LSA per active

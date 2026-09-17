@@ -432,7 +432,7 @@ func (s *BlobStore) encode() []byte {
 // Used by Import to validate before committing, and by decode for normal loading.
 func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 	// Decode magic netcapstring
-	magicData, _, magicNext, err := decodeNetcapstringRef(data, 0)
+	magicData, _, magicNext, err := DecodeNetcapstringRef(data, 0)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("zefs: magic: %w", err)
 	}
@@ -440,7 +440,7 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 		return nil, nil, nil, fmt.Errorf("zefs: invalid magic: %q", magicData)
 	}
 
-	containerData, containerCap, _, err := decodeNetcapstringRef(data, magicNext)
+	containerData, containerCap, _, err := DecodeNetcapstringRef(data, magicNext)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("zefs: container: %w", err)
 	}
@@ -460,14 +460,14 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 		}
 
 		nameOff := off
-		nameData, nameCap, next, err := decodeNetcapstringRef(containerData, off)
+		nameData, nameCap, next, err := DecodeNetcapstringRef(containerData, off)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("zefs: entry name at %d: %w", off, err)
 		}
 		off = next
 
 		dataOff := off
-		fileData, dataCap, next, err := decodeNetcapstringRef(containerData, off)
+		fileData, dataCap, next, err := DecodeNetcapstringRef(containerData, off)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("zefs: entry data at %d: %w", off, err)
 		}

@@ -303,7 +303,7 @@ func TestParseAllConfigFiles(t *testing.T) {
 		if curatedNativeExampleFixtures[name] {
 			parsed++
 			t.Run(name, func(t *testing.T) {
-				r, err := LoadReactorFileWithPlugins(storage.NewFilesystem(), path, nil)
+				r, err := LoadReactorFileWithPlugins(nil, path, nil)
 				require.NoError(t, err)
 				require.NotNil(t, r)
 			})
@@ -1183,7 +1183,7 @@ bgp {
     }
 }
 `
-	r, err := LoadReactorWithPlugins(storage.NewFilesystem(), input, "-", []string{"ze.bgp-rs"})
+	r, err := LoadReactorWithPlugins(nil, input, "-", []string{"ze.bgp-rs"})
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -1225,17 +1225,17 @@ bgp {
     }
 }
 `
-	// Write config to filesystem first so NewBlob migrates it
+	// Keep a loose copy to prove the stored config remains independently readable.
 	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
-	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, store.WriteFile(configPath, []byte(configContent), 0o600))
 
 	// Delete the filesystem copy to prove we're reading from blob
 	if err := os.Remove(configPath); err != nil {
@@ -1289,12 +1289,12 @@ bgp {
 		t.Fatalf("write config: %v", err)
 	}
 
-	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, store.WriteFile(configPath, []byte(initialConfig), 0o600))
 
 	// Load initial config from blob
 	r1, err := LoadReactorFile(store, configPath)
@@ -1351,10 +1351,6 @@ bgp {
 	require.NoError(t, err)
 	require.Len(t, r2.Peers(), 2, "reloaded config should have 2 peers")
 }
-
-// TestResolveSSHStorage MOVED, not deleted -- ResolveSSHStorage now
-// lives in internal/component/config/infra (spec-feature-gate-10-bgp Bucket 2).
-// The test moved verbatim to internal/component/config/infra/ssh_test.go.
 
 // TestReservedPeerNamesSyncWithRPCs holds reservedPeerNames (resolve.go) to the
 // keywords the merged command tree declares under the BGP `peer` containers.
@@ -1587,7 +1583,7 @@ set bgp peer beta session asn remote 65002
 set bgp peer beta session family ipv4/unicast prefix maximum 10000
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(active), 0o600))
-	store := storage.NewFilesystem()
+	store := newReloadFileStore(t, configPath)
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
 	require.NoError(t, err)
 
@@ -1610,7 +1606,7 @@ func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
 }`
 	candidate := `bgp { peer broken { session { } } }`
 	require.NoError(t, os.WriteFile(configPath, []byte(active), 0o600))
-	store := storage.NewFilesystem()
+	store := newReloadFileStore(t, configPath)
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
 	require.NoError(t, err)
 

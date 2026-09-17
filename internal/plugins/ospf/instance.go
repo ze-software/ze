@@ -114,6 +114,11 @@ type engine struct {
 	// opaque LSAs; set to spfRouterReachable in newEngine, overridable in tests.
 	opaqueReachableFn func(types.RouterID) bool
 	auth              *authStore
+	// state is attached before configuration; I/O starts only when interfaces
+	// start after the SDK handshake. Detached engines have no persistent state.
+	state     stateClient
+	stateOnce sync.Once
+	stateErr  error
 	// translations records the network -> source-NSSA of each Type 7 this router has
 	// translated to a Type 5 (RFC 3101 §3.6), so a translation can be withdrawn when its
 	// source Type 7 disappears or this router loses the translator role. Guarded by mu.
@@ -248,11 +253,6 @@ func newEngineWithCodecAF(t Transport, codec Codec, af addressFamily) *engine {
 	// changes for the helper's sec 3.2 strict-LSA-checking exit.
 	db.SetSelfFlushSuppress(e.gr.suppressSelfFlush)
 	db.SetContentChangeObserver(e.gr.onContentChange)
-	// RFC 7474 §3: seed the authoritative high-order boot word from the ZeFS-persisted,
-	// incremented boot count so the aggregate cryptographic sequence strictly increases
-	// across a cold restart. loadOSPFBootCount tolerates an absent store and falls back
-	// to a hashed high-resolution clock seed. Done once per engine, never per packet.
-	e.auth.setBootCount(loadOSPFBootCount(openBootCountStore()))
 	e.initSPF()
 	e.dispatch.areaOK = e.acceptsArea
 	e.dispatch.onInstanceMismatch = e.recordInstanceMismatch
@@ -656,10 +656,9 @@ func (e *engine) setEventSink(s *eventSink) {
 }
 
 func (e *engine) openInterfaces() error {
-	// RFC 3623 sec 2.1 / RFC 5187: on start, if a planned restart fact is still within its
-	// grace window, resume in-restart mode (suppress origination + install, retain the FIB)
-	// before any self-LSA is originated. A stale/absent fact is a no-op (boots normally).
-	e.gr.resumeFromNVS()
+	if err := e.initializeState(); err != nil {
+		return err
+	}
 	// RFC 3623 sec 5: with unplanned-outage support enabled (opt-in) and no planned fact,
 	// originate Grace-LSAs before any Hello for an unexpected restart. No-op by default.
 	e.gr.maybeUnplannedRestart()

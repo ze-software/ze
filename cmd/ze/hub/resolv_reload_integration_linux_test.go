@@ -33,10 +33,11 @@ func TestSessionCommitReloadWritesResolvConf(t *testing.T) {
 	resolvPath := filepath.Join(dir, "resolv.conf")
 
 	seed := "set system dns resolv-conf-path " + resolvPath + "\n"
-	require.NoError(t, os.WriteFile(configPath, []byte(seed), 0o600))
+	store := newTestStore(t, dir)
+	require.NoError(t, store.WriteFile(configPath, []byte(seed), 0o600))
 
 	// SSH-shaped session editor: set one leaf-list member and commit.
-	ed, err := cli.NewEditor(configPath)
+	ed, err := cli.NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	ed.SetSession(cli.NewEditSession("thomas", "ssh"))
@@ -47,9 +48,9 @@ func TestSessionCommitReloadWritesResolvConf(t *testing.T) {
 	require.Empty(t, result.Conflicts)
 	require.Equal(t, 1, result.Applied)
 
-	// Reload-path system effect: parse the committed file the way the
-	// daemon's load path does and run the post-reload resolv.conf write.
-	data, err := os.ReadFile(configPath)
+	// Reload reads the committed configuration from the owned store before
+	// applying the system resolver effect.
+	data, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	schema, err := zeconfig.YANGSchema()
 	require.NoError(t, err)

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -19,7 +20,10 @@ import (
 // hasActiveConfig reports whether file/active/ze.conf exists in the database.
 func hasActiveConfig(t *testing.T, dbPath string) bool {
 	t.Helper()
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
+	if filepath.Ext(dbPath) == ".zefs" {
+		store, err = storage.OpenBlob(dbPath, false)
+	}
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -32,10 +36,13 @@ func hasActiveConfig(t *testing.T, dbPath string) bool {
 // given seed flag and returns the database path.
 func runInitSeed(t *testing.T, seed bool) string {
 	t.Helper()
-	dbPath := filepath.Join(t.TempDir(), "database.zefs")
+	dbPath := t.TempDir()
 	creds := "admin\nsecret123\n0.0.0.0\n22\nze\n"
-	if code := runInit(strings.NewReader(creds), nil, dbPath, false, "", "", seed); code != 0 {
+	if code := runInit(strings.NewReader(creds), nil, dbPath, false, "", "", seed, false); code != 0 {
 		t.Fatalf("runInit(seed=%v) exit = %d, want 0", seed, code)
+	}
+	if seed {
+		return filepath.Join(dbPath, "database.zefs")
 	}
 	return dbPath
 }
@@ -47,7 +54,7 @@ func TestZeInitSeedSkipsActiveConfig(t *testing.T) {
 	}
 
 	// --seed only skips interface discovery; credentials must still be written.
-	store, err := zefs.Open(seedDB)
+	store, err := storage.OpenBlob(seedDB, false)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

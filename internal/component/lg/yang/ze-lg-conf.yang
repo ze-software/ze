@@ -57,7 +57,7 @@ module ze-lg-conf {
             leaf tls {
                 type boolean;
                 default true;
-                description "TLS needs blob storage for the certificates. The default
+                description "Self-signed TLS certificates persist in the configuration store. The default
                              true holds because the looking glass binds 0.0.0.0 and
                              publishes route data. Set it to false to serve plaintext,
                              for example when a proxy in front of Ze serves TLS.";
@@ -80,8 +80,7 @@ module ze-lg-conf {
                      holds no private key, ze exits with an error and rejects a
                      reload. ze never falls back to a self-signed certificate
                      for a configured name.
-                     A named certificate needs no blob storage, because the
-                     material comes from the pki container.
+                     A named certificate comes from the pki container.
                      Environment variable: ze.looking-glass.certificate.";
                 ze:help
                     "PKI store certificate served on the looking-glass listener (ze.looking-glass.certificate).";

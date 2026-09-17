@@ -3,7 +3,7 @@
 // Gokrazy serial console authentication. When ze is invoked with argv[0]
 // basename "ash" or "sh" (via /tmp/serial-busybox/ash symlink), this handler
 // prompts for credentials before exec'ing into the real shell binary.
-// Fail-open when ZeFS is missing: serial console is the last-resort recovery path.
+// Fail-open when storage is unavailable: serial is the last-resort recovery path.
 
 //go:build ze_core
 
@@ -13,13 +13,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -52,11 +52,10 @@ func loginMain() int {
 	if dir == "" {
 		dir = defaultZeFSDir
 	}
-	dbPath := filepath.Join(dir, "database.zefs")
 
-	db, err := zefs.Open(dbPath)
+	db, err := storage.OpenReadOnly(dir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cannot open %s: %v (granting access without authentication)\n", dbPath, err) //nolint:errcheck // serial console output
+		fmt.Fprintf(os.Stderr, "warning: cannot open store folder %s: %v (granting access without authentication)\n", dir, err) //nolint:errcheck // serial console output
 		return execShellFn()
 	}
 	defer db.Close() //nolint:errcheck // read-only access

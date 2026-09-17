@@ -8,10 +8,7 @@
 # start-router.conf), exercising the literal `ze start <file>` form rather than
 # the stdin (`ze -`) rewrite the runner applies elsewhere.
 #
-# ze.storage.blob=false is set explicitly so the daemon reads the config file
-# directly from its working directory, independent of the runner's storage
-# heuristic (which also forces file storage for a `ze start <file>.conf` launch).
-option=env:var=ze.storage.blob:value=false
+# The explicit config file is authoritative and its parent owns the tree.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

@@ -2,9 +2,9 @@ package detect
 
 import (
 	"math"
-	"path/filepath"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -17,14 +17,13 @@ func makeSamples(n int, v float64) []float64 {
 	return s
 }
 
-// useBaselineStore registers a fresh temp database.zefs as the process-wide
-// statestore so baseline persistence round-trips through the real zefs store (not a
-// loose file), and resets the store to nil on cleanup.
+// useBaselineStore registers a private tree for baseline persistence and clears
+// the process reference before closing the owner.
 func useBaselineStore(t *testing.T) {
 	t.Helper()
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {

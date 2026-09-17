@@ -2,7 +2,6 @@ package engine
 
 import (
 	"net/netip"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,9 +9,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bfd/auth"
 	"github.com/ze-software/ze/internal/component/bfd/packet"
 	"github.com/ze-software/ze/internal/component/bfd/transport"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/statestore"
-	"github.com/ze-software/ze/pkg/zefs"
 )
 
 const (
@@ -234,9 +233,9 @@ func TestLoopStopFlushesPinnedPersister(t *testing.T) {
 	// registered process-wide via statestore.SetStore, so the engine's
 	// internal persister and the reopen below both write through the same
 	// shared handle.
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {

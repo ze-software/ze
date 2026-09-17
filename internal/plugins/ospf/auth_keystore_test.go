@@ -8,13 +8,15 @@
 package ospf
 
 import (
-	"io/fs"
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
@@ -313,56 +315,56 @@ func TestSignKeyUnsetLifetimeUsesFirst(t *testing.T) {
 	assert.Equal(t, uint32(7), k.KeyID, "with no lifetimes the first chain key signs")
 }
 
-// fakeBootStore is an in-memory bootCountStore that survives across loadOSPFBootCount
-// calls, modeling ZeFS persistence across a cold restart.
-type fakeBootStore struct {
-	data map[string][]byte
+// daemonStateClient exercises the shared daemon state implementation while the
+// OSPF unit tests isolate the engine lifecycle from transport scheduling.
+type daemonStateClient struct{}
+
+func newDaemonStateClient(t *testing.T) daemonStateClient {
+	t.Helper()
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	statestore.SetStore(store)
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		require.NoError(t, store.Close())
+	})
+	return daemonStateClient{}
 }
 
-func newFakeBootStore() *fakeBootStore { return &fakeBootStore{data: map[string][]byte{}} }
-
-func (f *fakeBootStore) ReadFile(name string) ([]byte, error) {
-	b, ok := f.data[name]
-	if !ok {
-		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
-	}
-	out := make([]byte, len(b))
-	copy(out, b)
-	return out, nil
+func (daemonStateClient) StateGet(_ context.Context, key string) ([]byte, bool, error) {
+	return statestore.Read(key)
 }
 
-func (f *fakeBootStore) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	b := make([]byte, len(data))
-	copy(b, data)
-	f.data[name] = b
-	return nil
+func (daemonStateClient) StatePut(_ context.Context, key string, data []byte) error {
+	return statestore.Write(key, data)
+}
+
+func (daemonStateClient) StateIncrement(_ context.Context, key string) (uint32, error) {
+	return statestore.Increment(key)
 }
 
 // TestBootCountMonotonicAcrossRestart drives AC-18 / RFC 7474 §3: a persisted boot
 // count strictly increases on each load (each load models one cold restart).
 func TestBootCountMonotonicAcrossRestart(t *testing.T) {
-	// RFC requirement: RFC7474-2-4 positive -- the persisted boot count strictly increases on each cold restart (each load models one restart), preserving the aggregate 64-bit sequence's strictly-increasing property for the router's deployed life (loadOSPFBootCount auth_keystore.go:124-132).
-	store := newFakeBootStore()
-	first := loadOSPFBootCount(store)
-	second := loadOSPFBootCount(store)
-	third := loadOSPFBootCount(store)
+	// RFC requirement: RFC7474-2-4 positive -- the persisted boot count strictly increases on each cold restart (each load models one restart), preserving the aggregate 64-bit sequence's strictly-increasing property for the router's deployed life.
+	store := newDaemonStateClient(t)
+	first, err := loadOSPFBootCount(context.Background(), store)
+	require.NoError(t, err)
+	second, err := loadOSPFBootCount(context.Background(), store)
+	require.NoError(t, err)
+	third, err := loadOSPFBootCount(context.Background(), store)
+	require.NoError(t, err)
 	assert.Greater(t, second, first, "second boot count strictly greater than first")
 	assert.Greater(t, third, second, "third boot count strictly greater than second")
 	assert.Equal(t, uint32(1), first, "first boot from an empty store is 1")
 	assert.Equal(t, uint32(3), third, "persisted boot count is the increment count")
 }
 
-// TestBootCountNilStoreFallsBack drives AC-18: with no ZeFS store the seed comes from
-// the hashed high-resolution clock (non-zero, advancing), never a plain Unix-seconds seed.
-func TestBootCountNilStoreFallsBack(t *testing.T) {
-	bc := loadOSPFBootCount(nil)
-	assert.NotZero(t, bc, "the hashed-clock fallback yields a non-zero seed")
-	// Two hashed-clock seeds taken at different nanoseconds differ with overwhelming
-	// probability; this guards against a constant/zero fallback.
-	a := bootCountFromClock()
-	time.Sleep(time.Microsecond)
-	b := bootCountFromClock()
-	assert.NotEqual(t, a, b, "successive hashed-clock seeds differ")
+// A missing daemon state client cannot produce an acknowledged boot count.
+func TestBootCountNilStoreRefused(t *testing.T) {
+	bc, err := loadOSPFBootCount(context.Background(), nil)
+	require.Error(t, err)
+	assert.Zero(t, bc)
 }
 
 // TestSetBootCountSeedsSequence drives AC-18: the engine-resolved boot count becomes

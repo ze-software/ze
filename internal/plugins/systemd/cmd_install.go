@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/plugin-modes.md — ze systemd install: unit file + account setup
+// Design: docs/architecture/cli/plugin-modes.md — ze install systemd: unit file + account setup
 
 package systemd
 
@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -28,7 +29,7 @@ func (rt *serviceRuntime) cmdInstall(args []string) int {
 	var force bool
 	var dryRun bool
 
-	fs := newFlagSet("systemd install", rt.stderr, func() { installUsageTo(rt.stderr) })
+	fs := newFlagSet("install systemd", rt.stderr, func() { installUsageTo(rt.stderr) })
 	fs.StringVar(&configDirFlag, "config", "", "Override config directory in the unit file")
 	fs.BoolVar(&start, "start", false, "Start ze.service after install")
 	fs.BoolVar(&force, "force", false, "Overwrite an existing ze.service unit file")
@@ -41,7 +42,7 @@ func (rt *serviceRuntime) cmdInstall(args []string) int {
 		return exitError
 	}
 	if fs.NArg() != 0 {
-		writeln(rt.stderr, "error: ze systemd install takes no positional arguments")
+		writeln(rt.stderr, "error: ze install systemd takes no positional arguments")
 		fs.Usage()
 		return exitError
 	}
@@ -115,7 +116,7 @@ func (rt *serviceRuntime) cmdInstall(args []string) int {
 	if start {
 		writeln(rt.stderr, "service started")
 	}
-	printSocketHint(rt.stderr)
+	printSocketHint(rt.stderr, configDir)
 	return exitOK
 }
 
@@ -148,7 +149,7 @@ func (rt *serviceRuntime) verifyConfigReady(configDir string) error {
 		}
 		return fmt.Errorf("checking config directory %s: %w", configDir, err)
 	}
-	dbPath := filepath.Join(configDir, "database.zefs")
+	dbPath := filepath.Join(configDir, "database")
 	if _, err := rt.ops.stat(dbPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return errors.New(tb.Reset().Str("ze init has not been run: ").Str(dbPath).Str(" not found").String())
@@ -226,12 +227,8 @@ func (rt *serviceRuntime) nologinShell() (string, error) {
 }
 
 func (rt *serviceRuntime) chownConfig(configDir string) error {
-	if err := rt.ops.chown(configDir, serviceUser, serviceGroup); err != nil {
-		return fmt.Errorf("chown %s: %w", configDir, err)
-	}
-	dbPath := filepath.Join(configDir, "database.zefs")
-	if err := rt.ops.chown(dbPath, serviceUser, serviceGroup); err != nil {
-		return fmt.Errorf("chown %s: %w", dbPath, err)
+	if err := rt.ops.transferOwnership(configDir, serviceUser, serviceGroup); err != nil {
+		return fmt.Errorf("transfer store %s to %s: %w", configDir, serviceUser, err)
 	}
 	return nil
 }
@@ -248,13 +245,13 @@ func (rt *serviceRuntime) warnDaemonUserConfig(configDir string) {
 }
 
 func (r realServiceOps) activeConfigs(configDir string) ([][]byte, error) {
-	store, err := zefs.Open(filepath.Join(configDir, "database.zefs"))
+	store, err := storage.OpenReadOnly(configDir)
 	if err != nil {
 		return nil, err
 	}
 	defer store.Close() //nolint:errcheck // read-only inspection
 
-	entries, err := store.ReadDir(zefs.KeyFileActive.Dir())
+	entries, err := store.List(zefs.KeyFileActive.Dir())
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
@@ -263,11 +260,7 @@ func (r realServiceOps) activeConfigs(configDir string) ([][]byte, error) {
 	}
 	configs := make([][]byte, 0, len(entries))
 	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		var tb textbuf.Buffer
-		data, err := store.ReadFile(tb.Str(zefs.KeyFileActive.Dir()).Byte('/').Str(entry.Name()).String())
+		data, err := store.ReadFile(entry)
 		if err != nil {
 			return nil, err
 		}
@@ -294,17 +287,18 @@ func userSuffix(out []byte) string {
 	return ""
 }
 
-func printSocketHint(w io.Writer) {
+func printSocketHint(w io.Writer, configDir string) {
 	writeln(w, "")
 	writeln(w, "socket access: ze runs with XDG_RUNTIME_DIR=/run/ze, so the daemon socket is /run/ze/ze.socket")
-	writeln(w, "for operator CLI access, set daemon socket \"/run/ze/ze.socket\" in config or export XDG_RUNTIME_DIR=/run/ze")
+	writef(w, "stored credentials and offline maintenance require the store owner: sudo -u ze env ZE_CONFIG_DIR=%s XDG_RUNTIME_DIR=/run/ze ze cli\n", configDir)
+	writeln(w, "other users can pass --user with ze.ssh.password and an explicit remote address")
 }
 
 func installUsageTo(w io.Writer) {
 	p := helpfmt.Page{
-		Command:   "ze systemd install",
+		Command:   "ze install systemd",
 		ShortHelp: "Install ze as a systemd service",
-		Usage:     []string{"ze systemd install [--config <dir>] [--start] [--force]", "ze systemd install --dry-run [--config <dir>]"},
+		Usage:     []string{"ze install systemd [--config <dir>] [--start] [--force]", "ze install systemd --dry-run [--config <dir>]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--config <dir>", Desc: "Override config directory in the unit file"},
@@ -313,14 +307,14 @@ func installUsageTo(w io.Writer) {
 				{Name: "--dry-run", Desc: "Print unit file to stdout without writing files or calling systemctl"},
 			}},
 			{Title: "Prerequisite", Entries: []helpfmt.HelpEntry{
-				{Name: "ze init", Desc: "Must be run before install so database.zefs exists"},
+				{Name: "ze init", Desc: "Must create the live database directory before install; stop its owning daemon first"},
 			}},
 		},
 		Examples: []string{
-			"sudo ze systemd install",
-			"sudo ze systemd install --start",
-			"sudo ze systemd install --config /opt/ze/etc/ze",
-			"ze systemd install --dry-run",
+			"sudo ze install systemd",
+			"sudo ze install systemd --start",
+			"sudo ze install systemd --config /opt/ze/etc/ze",
+			"ze install systemd --dry-run",
 		},
 	}
 	p.WriteTo(w, false)

@@ -17,7 +17,7 @@ import (
 
 func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "ze.conf")
 	activeStamp := "20260524-090000.000"
 	reloadCalled := false
@@ -56,7 +56,7 @@ func TestWireManagedCommitStagesCandidateAndPromotes(t *testing.T) {
 
 func TestWireManagedCommitClearsCandidateOnReloadFailure(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "ze.conf")
 	activeStamp := "20260524-090000.000"
 

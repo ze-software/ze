@@ -85,7 +85,7 @@ func TestShowIRRReportsStaleEntry(t *testing.T) {
 		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
 	})
 	plug := &irrPlugin{
-		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
 		config: &irrConfig{
 			Server: addr,
 			refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
@@ -110,7 +110,7 @@ func TestShowIRRReportsStaleEntry(t *testing.T) {
 	}
 
 	// A second refresh against a server that answers "key not found".
-	plug.prefixStore = store.New(irr.NewIRR(fakeIRRWhois(t, nil)), nil, "")
+	plug.prefixStore = store.New(irr.NewIRR(fakeIRRWhois(t, nil)), nil, nil)
 	plug.prefixStore.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
 	if _, err := plug.prefixStore.Refresh(context.Background(), "AS-TEST", "AS-TEST"); err == nil {
 		t.Fatal("expected the empty answer to be reported")
@@ -133,7 +133,7 @@ func TestShowIRRReportsStaleEntry(t *testing.T) {
 // PREVENTS: a deregistered AS-SET being enforced forever, now that an empty
 // answer no longer clears it.
 func TestClearFirewallIRRPurgesEntry(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
 	plug := &irrPlugin{prefixStore: ps, config: &irrConfig{Server: defaultServer}}
 

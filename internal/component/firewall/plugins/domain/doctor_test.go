@@ -156,9 +156,8 @@ func TestFailureOnANameWithNoEntryWritesNothing(t *testing.T) {
 func TestDoctorReportsAGroupWithNoAddresses(t *testing.T) {
 	cfg := oneGroupConfig()
 	dir := t.TempDir()
-	cache := newStore(dir + "/database.zefs")
+	cache := newStore(domainTestStorage(t, dir))
 	require.NoError(t, cache.open(cfg.groups))
-	t.Cleanup(cache.close)
 
 	diags := domainGroupDiagnostics(cfg, cache, time.Now())
 	require.Len(t, diags, 1)
@@ -178,9 +177,8 @@ func TestDoctorReportsAGroupWithNoAddresses(t *testing.T) {
 func TestDoctorReportsALongFailureAsStale(t *testing.T) {
 	cfg := oneGroupConfig()
 	dir := t.TempDir()
-	cache := newStore(dir + "/database.zefs")
+	cache := newStore(domainTestStorage(t, dir))
 	require.NoError(t, cache.open(cfg.groups))
-	t.Cleanup(cache.close)
 
 	now := time.Now()
 	key := nameKey{group: "cdn", name: "a.invalid", family: familyV4}
@@ -220,9 +218,8 @@ func TestDoctorReportsALongFailureAsStale(t *testing.T) {
 func TestDoctorIgnoresAGroupNoRuleNames(t *testing.T) {
 	cfg := &domainConfig{groups: []group{{Name: "cdn", Names: []string{"a.invalid"}}}}
 	dir := t.TempDir()
-	cache := newStore(dir + "/database.zefs")
+	cache := newStore(domainTestStorage(t, dir))
 	require.NoError(t, cache.open(cfg.groups))
-	t.Cleanup(cache.close)
 
 	assert.Empty(t, domainGroupDiagnostics(cfg, cache, time.Now()))
 }

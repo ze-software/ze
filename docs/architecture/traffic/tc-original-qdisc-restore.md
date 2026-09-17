@@ -8,10 +8,11 @@ before, and "before" survives a daemon restart. That needs a persisted snapshot.
 
 <!-- source: internal/plugins/traffic/netlink/snapshot_linux.go -- tcSnapshotStore, loadTCSnapshots, saveTCSnapshots -->
 
-The snapshot is a versioned JSON blob in the shared zefs store
-(`database.zefs`) through `internal/core/statestore`, under
-`KeyTrafficTCSnapshot`. It is not a loose file, so appliance state stays inside
-the managed, backed-up store.
+The snapshot is versioned JSON in the daemon's selected `database/` tree,
+through `internal/core/statestore`, under `KeyTrafficTCSnapshot`. The same
+owning handle serves configuration and runtime state for the daemon's lifetime.
+Explicit-file startup selects the tree beside that file without a
+`ze.config.dir` pin.
 
 - A missing key yields an empty set with no error: there is nothing to restore.
 - A blob that fails to parse, or that carries an unsupported version, fails the
@@ -74,3 +75,32 @@ unconditionally, before the root qdisc goes back: the desired end state is "no
 policer at that priority", and asking the kernel for it is correct whether or
 not this process installed one. That also clears a policer orphaned by a
 restart, which a remembered-state check would miss.
+
+## Reapplying a root with the same handle
+
+<!-- source: internal/plugins/traffic/netlink/backend_linux.go -- replaceRootQdisc -->
+
+Ze uses root handle `1:0`. After a crash that root remains in the kernel.
+Linux routes a replacement with the same handle through `qdisc_change`
+(`net/sched/sch_api.c`). HTB has no change callback, so this request returns
+`EINVAL`, even with a valid HTB version and an available kernel scheduler.
+
+The backend reads the live root before replacement. If its handle matches the
+requested handle, it deletes that root before installing the replacement.
+This also removes its old classes and filters before the backend rebuilds them.
+The original snapshot remains durable throughout both operations. Restoration
+uses the same path because the original qdisc can also have handle `1:0`.
+
+## Restart evidence
+
+`storage/consumer-restart tc` creates a private dummy interface with an
+`fq_codel` root carrying a custom limit and quantum. It starts Ze from an
+explicit config, waits for HTB in the kernel, and kills that daemon after the
+snapshot was published. A second daemon starts from the same config and its
+shutdown must restore the original handle and both custom parameters. The
+snapshot key must then be absent.
+
+The draft carrier is `test/draft/traffic/storage-tc-restart.ci`. It requires
+Linux, `CAP_NET_ADMIN`, and `iproute2`, so a host without those capabilities
+uses the disposable QEMU guest. It changes only its own dummy interface.
+<!-- source: internal/test/fixture/storage_consumer_tc.go -- storageTCRestart -->

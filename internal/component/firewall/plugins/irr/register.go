@@ -9,6 +9,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // configRoot is the YANG container this plugin reads, and dependencyFirewall is
@@ -20,6 +22,7 @@ const (
 )
 
 func init() {
+	statestore.RegisterPluginKeys("firewall-irr", zefs.KeyIRRPrefixCache, zefs.KeyIRRCache)
 	registerIRRDoctor()
 
 	reg := registry.Registration{

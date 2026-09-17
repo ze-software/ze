@@ -2,169 +2,119 @@ package init
 
 import (
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// VALIDATES: daemonRunning positively identifies a ze daemon by its
-// "SSH-2.0-ze" SSH banner and ignores any other TCP listener (host OpenSSH, a
-// bare/silent listener, an oversized flood). AC-1 of
-// spec-fixit-appliance-evidence-config.
-// PREVENTS: `ze init --force` false-reporting a running daemon when the
-// configured SSH port is answered by a non-ze listener (e.g. host sshd on
-// 0.0.0.0:22), which silently aborts a fresh init and reuses a stale seed DB.
-
-// seedSSHDefaultDB writes a minimal zefs database whose meta/ssh/default points
-// daemonRunning's probe at host:port.
-func seedSSHDefaultDB(t *testing.T, dbPath, host, port string) {
-	t.Helper()
-	store, err := zefs.Create(dbPath)
+// Store ownership protects replacement even when the selected SSH target is remote
+// or unreachable. The owning process need not expose an SSH listener.
+func TestInitForceRefusesOwnerRegardlessTarget(t *testing.T) {
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("Create: %v", err)
+		t.Fatal(err)
 	}
-	if err := store.WriteFile(zefs.KeySSHDefault.Pattern, []byte(host+"/"+port), 0); err != nil {
-		t.Fatalf("write ssh default: %v", err)
+	defer owner.Close() //nolint:errcheck // test cleanup
+	if err := owner.WriteKey(zefs.KeySSHDefault.Pattern, []byte("192.0.2.1/9")); err != nil {
+		t.Fatal(err)
 	}
-	if err := store.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
+	if code := runInit(strings.NewReader("new-admin\nsecret\n\n\n\n"), nil, dir, false, "", "", false, true); code == 0 {
+		t.Fatal("forced initialization replaced a store with a live owner")
+	}
+	got, err := owner.ReadKey(zefs.KeySSHDefault.Pattern)
+	if err != nil || string(got) != "192.0.2.1/9" {
+		t.Fatalf("owned credentials changed: %q, %v", got, err)
 	}
 }
 
-// startBannerListener starts a 127.0.0.1 TCP listener that, on each connection,
-// writes banner (when non-empty) then closes. It returns the bound host and
-// port and is closed on test cleanup.
-func startBannerListener(t *testing.T, banner string) (host, port string) {
-	t.Helper()
-	var lc net.ListenConfig
-	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+// An unrelated TCP listener cannot prevent replacing an unowned store. The
+// listener deliberately never accepts, so probing it would hang initialization.
+func TestInitForceIgnoresListenersWithoutOwner(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("listen: %v", err)
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
-
-	go func() {
-		for {
-			conn, acceptErr := ln.Accept()
-			if acceptErr != nil {
-				return
-			}
-			if banner != "" {
-				conn.Write([]byte(banner)) //nolint:errcheck // best-effort test banner
-			}
-			conn.Close() //nolint:errcheck // test listener
-		}
-	}()
-
-	host, port, err = net.SplitHostPort(ln.Addr().String())
+	defer listener.Close() //nolint:errcheck // test cleanup
+	host, port, err := net.SplitHostPort(listener.Addr().String())
 	if err != nil {
-		t.Fatalf("split host port: %v", err)
+		t.Fatal(err)
 	}
-	return host, port
-}
-
-func TestDaemonRunningIgnoresNonZeListener(t *testing.T) {
-	cases := []struct {
-		name   string
-		banner string
-	}{
-		{"host-openssh", "SSH-2.0-OpenSSH_9.6\r\n"},
-		{"generic-go-ssh", "SSH-2.0-Go\r\n"},                                           // the old default; no longer ze
-		{"empty-immediate-close", ""},                                                  // answers TCP, sends nothing
-		{"non-ssh-noise", "HELLO not-an-ssh-server\n"},                                 // random protocol
-		{"oversized-non-ze-no-newline", "SSH-2.0-OpenSSH_" + strings.Repeat("x", 300)}, // flood, no '\n'
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			host, port := startBannerListener(t, tc.banner)
-			dbPath := filepath.Join(t.TempDir(), "database.zefs")
-			seedSSHDefaultDB(t, dbPath, host, port)
-
-			if daemonRunning(dbPath) {
-				t.Fatalf("daemonRunning = true for non-ze listener (banner %q); want false", tc.banner)
-			}
-		})
+	if err := owner.WriteKey(zefs.KeySSHDefault.Pattern, []byte(host+"/"+port)); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if code := runInit(strings.NewReader("new-admin\nsecret\n\n\n\n"), nil, dir, false, "", "", false, true); code != 0 {
+		t.Fatalf("unowned store replacement = %d", code)
 	}
 }
 
-func TestDaemonRunningAcceptsZeBanner(t *testing.T) {
-	host, port := startBannerListener(t, sshclient.ServerVersionBanner+"\r\n")
-	dbPath := filepath.Join(t.TempDir(), "database.zefs")
-	seedSSHDefaultDB(t, dbPath, host, port)
-
-	if !daemonRunning(dbPath) {
-		t.Fatalf("daemonRunning = false for a ze %q banner; want true", sshclient.ServerVersionBanner)
+// A certificate failure after credential writes leaves no published partial tree.
+func TestInitAtomicTree(t *testing.T) {
+	dir := t.TempDir()
+	if code := runInit(strings.NewReader("admin\nsecret\n\n\n\n"), nil, dir, false, "", "\u2603", false, false); code == 0 {
+		t.Fatal("invalid certificate name accepted")
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "database")); !os.IsNotExist(err) {
+		t.Fatalf("failed initialization published database: %v", err)
 	}
 }
 
-func TestDaemonRunningFalseWhenPortUnreachable(t *testing.T) {
-	// Bind then immediately release the port so nothing is listening.
-	var lc net.ListenConfig
-	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+// An existing seed is never silently converted or overwritten by regular init.
+func TestInitRefusesExistingBlob(t *testing.T) {
+	dir := t.TempDir()
+	seed, err := storage.CreateBlob(filepath.Join(dir, "database.zefs"))
 	if err != nil {
-		t.Fatalf("listen: %v", err)
+		t.Fatal(err)
 	}
-	host, port, err := net.SplitHostPort(ln.Addr().String())
-	if err != nil {
-		t.Fatalf("split host port: %v", err)
+	if err := seed.WriteKey(zefs.KeyInstanceName.Pattern, []byte("seed-owner")); err != nil {
+		t.Fatal(err)
 	}
-	if closeErr := ln.Close(); closeErr != nil {
-		t.Fatalf("close: %v", closeErr)
+	if err := seed.Close(); err != nil {
+		t.Fatal(err)
 	}
-
-	dbPath := filepath.Join(t.TempDir(), "database.zefs")
-	seedSSHDefaultDB(t, dbPath, host, port)
-
-	if daemonRunning(dbPath) {
-		t.Fatal("daemonRunning = true with nothing listening; want false")
+	if code := runInit(strings.NewReader("admin\nsecret\n\n\n\n"), nil, dir, false, "", "", false, false); code == 0 {
+		t.Fatal("initialization replaced an existing seed")
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "database")); !os.IsNotExist(err) {
+		t.Fatalf("initialization beside blob published database: %v", err)
 	}
 }
 
-// TestDaemonRunningTimesOutOnSilentListener proves the bounded read: a listener
-// that accepts and never speaks must not hang the probe, and yields false.
-func TestDaemonRunningTimesOutOnSilentListener(t *testing.T) {
-	var lc net.ListenConfig
-	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+// A failed replacement leaves the previous credentials available under the live name.
+func TestInitForcePopulationFailurePreservesStore(t *testing.T) {
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("listen: %v", err)
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { ln.Close() }) //nolint:errcheck // test cleanup
-
-	held := make(chan net.Conn, 1)
-	go func() {
-		conn, acceptErr := ln.Accept()
-		if acceptErr != nil {
-			return
-		}
-		held <- conn // hold open, never write
-	}()
-	t.Cleanup(func() {
-		select {
-		case c := <-held:
-			c.Close() //nolint:errcheck // test cleanup
-		default:
-		}
-	})
-
-	host, port, err := net.SplitHostPort(ln.Addr().String())
+	if err := owner.WriteKey(zefs.KeyLocalAdminUsername.Pattern, []byte("old-admin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := owner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if code := runInit(strings.NewReader("new-admin\nsecret\n\n\n\n"), nil, dir, false, "", "\u2603", false, true); code == 0 {
+		t.Fatal("invalid certificate name accepted")
+	}
+	remaining, err := storage.OpenReadOnly(dir)
 	if err != nil {
-		t.Fatalf("split host port: %v", err)
+		t.Fatal(err)
 	}
-	dbPath := filepath.Join(t.TempDir(), "database.zefs")
-	seedSSHDefaultDB(t, dbPath, host, port)
-
-	done := make(chan bool, 1)
-	go func() { done <- daemonRunning(dbPath) }()
-	select {
-	case got := <-done:
-		if got {
-			t.Fatal("daemonRunning = true for a silent listener; want false")
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("daemonRunning hung on a silent listener (bounded read not enforced)")
+	defer remaining.Close() //nolint:errcheck // test cleanup
+	got, err := remaining.ReadKey(zefs.KeyLocalAdminUsername.Pattern)
+	if err != nil || string(got) != "old-admin" {
+		t.Fatalf("failed replacement lost credentials: %q, %v", got, err)
 	}
 }

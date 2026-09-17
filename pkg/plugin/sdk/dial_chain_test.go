@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -45,12 +44,12 @@ func hubUnderTest(t *testing.T) (*pluginipc.PluginAcceptor, *zepki.Root) {
 	return acceptor, root
 }
 
-// sdkTestRoot generates one certificate authority in a temporary blob store,
+// sdkTestRoot generates one certificate authority in a temporary tree store,
 // the way a daemon does on first start.
 func sdkTestRoot(t *testing.T) *zepki.Root {
 	t.Helper()
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, store.Close()) })
 

@@ -5,12 +5,9 @@
 package infra
 
 import (
-	"path/filepath"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/paths"
 )
 
 // ExtractSSHConfig extracts SSH server configuration from the parsed config tree.
@@ -69,32 +66,4 @@ func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 	}
 
 	return cfg
-}
-
-// ResolveSSHStorage returns blob storage for SSH host key persistence.
-// When the main storage is already blob-backed, it is used directly.
-// Otherwise, opens the zefs database independently so SSH host keys
-// always go into the blob store rather than the filesystem.
-// Tries configDir first, then DefaultConfigDir (binary-relative), because
-// configDir may not contain database.zefs (e.g., stdin mode, temp dirs).
-// Falls back to the passed store if zefs is not available anywhere.
-func ResolveSSHStorage(mainStore storage.Storage, configDir string) storage.Storage {
-	if storage.IsBlobStorage(mainStore) {
-		return mainStore
-	}
-	// Try configDir first, then binary-relative default.
-	// configDir is almost never empty (LoadConfig sets it to cwd for stdin),
-	// but may not contain database.zefs when the config file is elsewhere.
-	candidates := [2]string{configDir, paths.DefaultConfigDir()}
-	for _, dir := range candidates {
-		if dir == "" {
-			continue
-		}
-		dbPath := filepath.Join(dir, "database.zefs")
-		blobStore, err := storage.NewBlob(dbPath, dir)
-		if err == nil {
-			return blobStore
-		}
-	}
-	return mainStore
 }

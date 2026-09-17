@@ -43,6 +43,8 @@ type EditorManager struct {
 	maxSessions        int
 	idleTimeout        time.Duration
 	commitHook         func() error
+	readSource         func() ([]byte, error)
+	commitSource       func(expected, content []byte) error
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
@@ -65,6 +67,17 @@ func NewEditorManager(store storage.Storage, configPath string, schema *config.S
 func (m *EditorManager) SetCommitHook(hook func() error) {
 	m.mu.Lock()
 	m.commitHook = hook
+	m.mu.Unlock()
+}
+
+// SetConfigSource binds downloads and uploads to the daemon's selected source.
+// The caller MUST install both callbacks before serving requests. The commit
+// callback MUST check expected bytes and publish history and the source through
+// the owning daemon, including reload; the manager does not reload it twice.
+func (m *EditorManager) SetConfigSource(read func() ([]byte, error), commit func(expected, content []byte) error) {
+	m.mu.Lock()
+	m.readSource = read
+	m.commitSource = commit
 	m.mu.Unlock()
 }
 
@@ -233,38 +246,46 @@ func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) 
 // This is the on-disk config (the baseline the daemon runs), not any user's
 // pending draft. Used by the web config-download endpoint (AC-3).
 func (m *EditorManager) committedConfig() ([]byte, error) {
-	data, err := m.store.ReadFile(m.configPath)
+	m.mu.RLock()
+	read := m.readSource
+	m.mu.RUnlock()
+	if read != nil {
+		return read()
+	}
+	data, err := storage.ReadActiveConfig(m.store, m.configPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading committed config %s: %w", m.configPath, err)
 	}
 	return data, nil
 }
 
-// applyCommittedContent writes content as the committed configuration and runs
-// the reload hook, replacing the whole configuration at once. It is the
-// upload-endpoint counterpart of Commit (AC-4): the caller MUST validate content
-// first (a full config, not a per-leaf draft). On reload-hook failure the prior
-// content is restored so a rejected config never leaves the daemon running
-// against config it could not load. Concurrency mirrors Commit's hook read.
+// applyCommittedContent publishes a complete, already-validated configuration.
+// A daemon owns source publication and reload through commitSource. Standalone
+// managers stage a candidate so rejection leaves the active config untouched.
 func (m *EditorManager) applyCommittedContent(content string) error {
 	m.mu.RLock()
+	commit := m.commitSource
 	hook := m.commitHook
 	m.mu.RUnlock()
 
-	prev, prevErr := m.store.ReadFile(m.configPath)
-	if err := m.store.WriteFile(m.configPath, []byte(content), 0o600); err != nil {
-		return fmt.Errorf("writing config %s: %w", m.configPath, err)
-	}
-	if hook != nil {
-		if err := hook(); err != nil {
-			// Restore the previous content so the daemon is not left with config
-			// its reload rejected. Best-effort: if the prior read failed there is
-			// nothing to restore to.
-			if prevErr == nil {
-				_ = m.store.WriteFile(m.configPath, prev, 0o600)
-			}
-			return fmt.Errorf("reloading config after upload: %w", err)
+	if commit != nil {
+		expected, err := m.committedConfig()
+		if err != nil {
+			return err
 		}
+		return commit(expected, []byte(content))
+	}
+	if _, err := storage.WriteCandidateVersion(m.store, m.configPath, []byte(content), time.Now()); err != nil {
+		return fmt.Errorf("staging config %s: %w", m.configPath, err)
+	}
+	if hook == nil {
+		return storage.PromoteCandidate(m.store, m.configPath)
+	}
+	if err := hook(); err != nil {
+		if clearErr := storage.ClearCandidate(m.store, m.configPath); clearErr != nil {
+			return fmt.Errorf("reloading config after upload: %w; clearing candidate: %w", err, clearErr)
+		}
+		return fmt.Errorf("reloading config after upload: %w", err)
 	}
 	return nil
 }

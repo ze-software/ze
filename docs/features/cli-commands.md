@@ -129,6 +129,17 @@ refuses what it cannot support, from the answer it has in hand, after it runs.
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
 
+Interactive `ze config edit` and `ze cli` run their models in the daemon over
+SSH. The daemon owns their drafts, commits, and command history. A named stored
+config selects that config, not another config with the daemon's active path.
+Invalid or missing selections are refused.
+
+`ze config edit -f <file>` edits a loose file offline. It does not bypass an
+active writer's store lock. For a running daemon, omit `-f`.
+<!-- source: internal/core/ssh/client/terminal.go -- RunInteractive -->
+<!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+
 ### Schema Discovery
 
 | Command | Description |

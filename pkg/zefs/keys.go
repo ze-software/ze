@@ -3,8 +3,8 @@
 
 package zefs
 
-// Registered ZeFS keys. All zefs blob key strings in the codebase
-// should reference these vars instead of hardcoding string literals.
+// Registered storage keys, shared by live trees and ZeFS artifacts. Callers
+// reference these declarations instead of hardcoding registered key strings.
 var (
 	KeySSHUsername           = MustRegister(KeyEntry{Pattern: "meta/ssh/{host}/{port}/username", Description: "SSH authentication username"})
 	KeySSHPassword           = MustRegister(KeyEntry{Pattern: "meta/ssh/{host}/{port}/password", Description: "SSH password (bcrypt hash)", Private: true})
@@ -21,10 +21,12 @@ var (
 	KeyOSPFAuthBootCount     = MustRegister(KeyEntry{Pattern: "meta/ospf/auth/boot-count", Description: "OSPFv2 cryptographic-auth boot count (4-byte, RFC 7474 monotonic high word)"})
 	KeyHistoryMax            = MustRegister(KeyEntry{Pattern: "meta/history/max", Description: "Maximum history entries per mode"})
 	KeyHistory               = MustRegister(KeyEntry{Pattern: "meta/history/{username}/{mode}", Description: "Per-user command history"})
-	KeyConfigActive          = MustRegister(KeyEntry{Pattern: "meta/config/active", Description: "Active config version pointer"})
-	KeyConfigCandidate       = MustRegister(KeyEntry{Pattern: "meta/config/candidate", Description: "Pending config version pointer"})
-	KeyConfigRollback        = MustRegister(KeyEntry{Pattern: "meta/config/rollback", Description: "Previous active config version pointer"})
-	KeyConfigRecovery        = MustRegister(KeyEntry{Pattern: "meta/config/recovery", Description: "Operator-selected recovery config version pointer"})
+	KeyConfigActive          = MustRegister(KeyEntry{Pattern: "meta/config/{name}/active", Description: "Active config version pointer"})
+	KeyConfigCandidate       = MustRegister(KeyEntry{Pattern: "meta/config/{name}/candidate", Description: "Pending config version pointer"})
+	KeyConfigRollback        = MustRegister(KeyEntry{Pattern: "meta/config/{name}/rollback", Description: "Previous active config version pointer"})
+	KeyConfigRecovery        = MustRegister(KeyEntry{Pattern: "meta/config/{name}/recovery", Description: "Operator-selected recovery config version pointer"})
+	KeyConfigFileCommit      = MustRegister(KeyEntry{Pattern: "meta/config/{name}/file-commit", Description: "Durable explicit-file commit intent", Private: true})
+	KeyOSPFGRFact            = MustRegister(KeyEntry{Pattern: "meta/ospf/gr-fact-{instance}", Description: "OSPF graceful restart state"})
 	KeyFileActive            = MustRegister(KeyEntry{Pattern: "file/active/{basename}", Description: "Current active config file"})
 	KeyFileCandidate         = MustRegister(KeyEntry{Pattern: "file/candidate/{basename}", Description: "Candidate config file"})
 	KeyFileDraft             = MustRegister(KeyEntry{Pattern: "file/draft/{basename}", Description: "Draft config file (in progress)"})
@@ -53,9 +55,9 @@ var (
 // The certificate authority Ze issues its own components' certificates from.
 // The root CERTIFICATE is public material an operator copies into a peer's
 // trust anchor, so it stays listable. The root KEY is Private, which keeps its
-// pattern out of "ze data registered". Neither flag is a file mode: ZeFS has no
-// per-key mode, and the 0600 that protects the key is on the blob file itself
-// (store.go, atomicWrite).
+// pattern out of "ze data registered". The flag controls discovery only.
+// Live trees enforce 0600 for every frame; blob artifacts protect all their
+// values with the enclosing file's 0600 mode.
 //
 // They are their own declaration rather than two more lines of the block above,
 // so that a later key added here does not read as an edit to every var in that

@@ -227,7 +227,7 @@ bgp {
 }
 `
 	configPath := writeTestConfig(t, content)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 

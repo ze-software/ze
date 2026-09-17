@@ -1,11 +1,6 @@
-# Test: a structural delete under filesystem storage appears in the pending-change review
-# VALIDATES: spec-fixit-zefs-diff-structural-ops AC-1 -- the blob-backed review must
-#            match filesystem storage exactly, so this test states what filesystem
-#            storage does. It is the counterpart of diff-structural-op-blob.et and
-#            differs from it in one line: option=storage:value=blob is absent.
-# PREVENTS: "matches filesystem storage" resting on code symmetry alone. Without a
-#           filesystem run of the same delete, a change to the review surface could
-#           move both backends together and no test would name the disagreement.
+# Test: default storage retains structural deletes in pending-change review
+# VALIDATES: the default editor store exposes local and cross-session deletes.
+# PREVENTS: default store selection silently losing the structural-op review.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {

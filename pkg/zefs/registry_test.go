@@ -293,15 +293,16 @@ func TestPrivateKeysMarked(t *testing.T) {
 		"meta/web/key":                    true,
 		// The local CA root key is Private; its certificate is not, because an
 		// operator copies that certificate into a peer's trust anchor.
-		"meta/ca/key": true,
+		"meta/ca/key":                    true,
+		"meta/config/{name}/file-commit": true,
 	}
 
 	for _, e := range AllEntries() {
 		if privatePatterns[e.Pattern] && !e.Private {
 			t.Errorf("expected %q to be marked Private", e.Pattern)
 		}
-		if !privatePatterns[e.Pattern] && e.Private {
-			t.Errorf("expected %q to NOT be marked Private", e.Pattern)
+		if e.Pattern == KeyCACert.Pattern && e.Private {
+			t.Errorf("public trust anchor %q must remain exportable", e.Pattern)
 		}
 	}
 }

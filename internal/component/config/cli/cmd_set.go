@@ -10,7 +10,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config/storage"
-	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -20,7 +19,7 @@ func cmdSetWithStorage(store storage.Storage, args []string) int {
 }
 
 func cmdSet(args []string) int {
-	return cmdSetImpl(storage.NewFilesystem(), args)
+	return cmdSetImpl(nil, args)
 }
 
 func cmdSetImpl(store storage.Storage, args []string) int {
@@ -75,14 +74,6 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
 
-	// For filesystem storage, check file exists (stdin "-" has no path to stat).
-	if !cliio.IsStdin(configPath) && !storage.IsBlobStorage(store) {
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "error: config file not found: %s\n", configPath)
-			return exitError
-		}
-	}
-
 	ed, err := openEditableConfig(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -132,6 +123,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	// A weak password is set, not refused. The warning is printed before the
 	// success line so the operator reads it in the order it happened.
 	printCommitWarnings(warnings)
+	noticeUnrecordedVersion(ed, configPath)
 	fmt.Fprintf(os.Stderr, "set %s %s\n", displayPath, displayValue)
 
 	// Editing a stored config does not contact the daemon by default; --reload

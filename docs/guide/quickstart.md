@@ -27,9 +27,10 @@ tagged release -- there are no tagged releases yet.
 
 ## Initialize
 
-Ze runs an SSH server on localhost for CLI access (`ze cli`, `ze show`, `ze signal`). This keeps the control plane authenticated even in multi-user environments. Set up credentials once:
+Ze runs an SSH server on localhost for CLI access (`ze cli`, `ze show`, `ze signal`). This keeps the control plane authenticated even in multi-user environments. Initialize the folder that will hold the example config:
 
 ```bash
+export ZE_CONFIG_DIR="$PWD"
 ./ze init
 ```
 
@@ -40,13 +41,27 @@ This prompts for username, password, SSH host (default `127.0.0.1`), port (defau
 echo -e "admin\nsecret" | bin/ze init
 ```
 
-Running `ze init` a second time will refuse with `error: database already exists`. To reinitialize, use `--force` -- this backs up the old database as `database.zefs.replaced-<date>` before creating a new one:
+Initialization creates a private `database/` tree in the selected folder.
+Every directory under the store is 0700 and every frame file 0600, owned by the
+caller. Running `ze init` a second time refuses either an existing tree or a
+`database.zefs` seed. To reinitialize, use `--force`; this preserves the old tree
+as `database.replaced-<stamp>` before publishing the fully seeded replacement.
 
 ```bash
 ./ze signal stop             # stop daemon first
 ./ze init --force            # prompts for confirmation, then backs up and reinitializes
 ```
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
+
+`--force --yes` confirms replacement in a script. Replacement refuses while any
+process owns the store, regardless of the selected SSH target. Ordinary startup
+refuses an existing blob without converting it. The diagnostic names
+`ze init from`, a standalone import command planned for storage-2.
+Appliance first boot already imports its seed. `ze init --seed` writes an
+explicit blob artifact for appliance builders.
+<!-- source: internal/plugins/init/main.go -- Run -->
+<!-- source: internal/component/config/storage/open.go -- detect -->
+<!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 
 <!-- terminal-demo: zefs-config -->
 
@@ -154,6 +169,13 @@ configuration valid: example.conf
 <!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
 
 The config path goes behind the `start` keyword. A bare `./ze example.conf` is rejected with `unknown command: example.conf` (exit 1); global flags such as `-d` are consumed before the keyword, so they stay ahead of it.
+
+An explicit path selects the store in that file's folder, before
+`ZE_CONFIG_DIR` or the default path. If neither a tree nor a seed exists there,
+startup creates a private tree. Every explicit-file start reads the supplied file;
+daemon commits update that file and stored history. Bare `ze start` uses the
+stored active config instead. Keep `ZE_CONFIG_DIR` set in the second terminal so
+CLI commands read the credentials from the same folder.
 
 Ze logs to stderr. You should see something like:
 

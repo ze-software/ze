@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/test/syslog"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // hasJSONExpectations reports whether the record declares any expect=json line.
@@ -435,6 +436,9 @@ func (r *Runner) validateFileChecks(rec *Record) error {
 }
 
 func validateOneFileCheck(baseDir string, check fileCheck) error {
+	if check.Key {
+		baseDir = filepath.Join(baseDir, "database")
+	}
 	if check.Path != "" {
 		return validateOnePathCheck(baseDir, check)
 	}
@@ -446,7 +450,7 @@ func validateOnePathCheck(baseDir string, check fileCheck) error {
 	if err != nil {
 		return err
 	}
-	data, readErr := os.ReadFile(path) //nolint:gosec // path is constrained relative to test temp dir
+	data, readErr := readCheckValue(path, check.Key)
 	if check.Absent {
 		if errors.Is(readErr, os.ErrNotExist) {
 			return nil
@@ -481,9 +485,16 @@ func validateOneGlobCheck(baseDir string, check fileCheck) error {
 	if check.Exists && len(matches) == 0 {
 		return fmt.Errorf("expect=file:glob=%s: expected at least one match", check.Glob)
 	}
+	if check.Key && check.Contains == "" && check.NotContains == "" {
+		for _, match := range matches {
+			if _, err := readCheckValue(match, true); err != nil {
+				return fmt.Errorf("expect=key:glob=%s: read %s: %w", check.Glob, match, err)
+			}
+		}
+	}
 	if check.Contains != "" {
 		for _, match := range matches {
-			data, readErr := os.ReadFile(match) //nolint:gosec // path comes from constrained glob under test temp dir
+			data, readErr := readCheckValue(match, check.Key)
 			if readErr != nil {
 				return fmt.Errorf("expect=file:glob=%s: read %s: %w", check.Glob, match, readErr)
 			}
@@ -495,7 +506,7 @@ func validateOneGlobCheck(baseDir string, check fileCheck) error {
 	}
 	if check.NotContains != "" {
 		for _, match := range matches {
-			data, readErr := os.ReadFile(match) //nolint:gosec // path comes from constrained glob under test temp dir
+			data, readErr := readCheckValue(match, check.Key)
 			if readErr != nil {
 				return fmt.Errorf("expect=file:glob=%s: read %s: %w", check.Glob, match, readErr)
 			}
@@ -515,6 +526,23 @@ func validateFileContent(label, content string, check fileCheck) error {
 		return fmt.Errorf("expect=file:path=%s: found forbidden %q", label, check.NotContains)
 	}
 	return nil
+}
+
+// readCheckValue verifies the complete frame before an assertion sees its data.
+// Reading directly also permits root-run fixtures to inspect a dropped-UID child.
+func readCheckValue(path string, key bool) ([]byte, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // constrained test artifact path
+	if err != nil || !key {
+		return data, err
+	}
+	value, _, next, err := zefs.DecodeNetcapstringRef(data, 0)
+	if err != nil {
+		return nil, fmt.Errorf("decode key %s: %w", path, err)
+	}
+	if next != len(data) {
+		return nil, fmt.Errorf("key %s has trailing frame bytes", path)
+	}
+	return value, nil
 }
 
 func resolveCheckPath(baseDir, rel string) (string, error) {

@@ -3,10 +3,10 @@ package irr
 
 import (
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -154,8 +154,8 @@ func TestAnUnreadableSeedAnswersNoTable(t *testing.T) {
 // PREVENTS: `ze resolve rir` on the host answering from the seed alone because
 // the running daemon holds database.zefs.
 func TestTheHostReadsTheStoreWhileItIsHeldOpen(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "database.zefs")
-	held, err := zefs.Create(path)
+	path := t.TempDir()
+	held, err := storage.Create(path)
 	if err != nil {
 		t.Fatalf("zefs.Create: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestTheHostLookupAnswersFromANewerStoredCopy(t *testing.T) {
 		t.Fatalf("point the config directory at the test store: %v", err)
 	}
 
-	store, err := zefs.Create(filepath.Join(dir, storeFileName))
+	store, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("zefs.Create: %v", err)
 	}
@@ -217,8 +217,8 @@ func TestTheHostLookupAnswersFromANewerStoredCopy(t *testing.T) {
 // PREVENTS: an appliance that never refreshed reporting every AS number as
 // undelegated.
 func TestAStoreWithNoDelegationKeyAnswersNothingStored(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "database.zefs")
-	bs, err := zefs.Create(path)
+	path := t.TempDir()
+	bs, err := storage.Create(path)
 	if err != nil {
 		t.Fatalf("zefs.Create: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestAStoreWithNoDelegationKeyAnswersNothingStored(t *testing.T) {
 // PREVENTS: a transient zefs handle in the hub, which makes the config store's
 // next flush drop every state key (internal/core/statestore package doc).
 func TestTheDaemonReadsTheStoredCopyThroughTheStateStore(t *testing.T) {
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
 		t.Fatalf("zefs.Create: %v", err)
 	}

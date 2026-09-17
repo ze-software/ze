@@ -38,7 +38,7 @@ func (e *Editor) saveEditState() error {
 
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
-	if err := e.store.WriteFile(editPath, []byte(e.workingContent), 0o600); err != nil {
+	if err := e.writeFile(editPath, []byte(e.workingContent)); err != nil {
 		return fmt.Errorf("failed to write edit file: %w", err)
 	}
 	return nil
@@ -50,7 +50,7 @@ func (e *Editor) saveEditState() error {
 func (e *Editor) deleteEditFile() {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
-	_ = e.store.Remove(editPath) // Ignore error if doesn't exist
+	_ = e.removeFile(editPath) // Ignore error if doesn't exist
 }
 
 // deleteEditFileGuard removes the .edit file through an already-held write guard.
@@ -972,13 +972,30 @@ func (e *Editor) Save() ([]string, error) {
 		return nil, err
 	}
 
+	if e.commitWriter != nil {
+		if err := e.commitWriter([]byte(e.originalContent), []byte(content)); err != nil {
+			return nil, err
+		}
+		e.MarkCommittedContent(content)
+		return warnings, nil
+	}
+	if e.looseFile {
+		current, err := e.readFile(e.originalPath)
+		if err != nil {
+			return nil, err
+		}
+		if string(current) != e.originalContent {
+			return nil, fmt.Errorf("config %s changed externally; reload before committing", e.originalPath)
+		}
+	}
+
 	// Create backup of original
 	if err := e.createBackup(e.originalContent, nil); err != nil {
 		return nil, fmt.Errorf("failed to create backup: %w", err)
 	}
 
 	// Write serialized tree (or raw text fallback) to original path
-	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
+	if err := e.writeFile(e.originalPath, []byte(content)); err != nil {
 		return nil, fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -1050,7 +1067,7 @@ func (e *Editor) commitContent() (string, []string, error) {
 // RestoreOriginalContent writes the previous committed content back to disk
 // after a failed runtime reload while keeping the current candidate in memory.
 func (e *Editor) RestoreOriginalContent(content string) error {
-	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
+	if err := e.writeFile(e.originalPath, []byte(content)); err != nil {
 		return fmt.Errorf("failed to restore config: %w", err)
 	}
 	e.originalContent = content

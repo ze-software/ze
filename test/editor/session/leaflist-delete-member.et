@@ -34,5 +34,5 @@ expect=error:none
 expect=dirty:false
 
 # Only the deleted member is gone; the other remains
-expect=file:path=test.conf:contains=9.9.9.9
-expect=file:path=test.conf:not-contains=8.8.8.8
+expect=key:path=file/active/test.conf:contains=9.9.9.9
+expect=key:path=file/active/test.conf:not-contains=8.8.8.8

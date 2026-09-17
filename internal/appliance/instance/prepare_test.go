@@ -129,7 +129,8 @@ func writePreparedParentFixture(t *testing.T, origConfig []byte) (root, srcParen
 	srcParent = filepath.Join(root, "gokrazy")
 	zeMod := filepath.Join(srcParent, "ze", "builddir", "github.com", "ze-software", "ze")
 	gokMod := filepath.Join(srcParent, "ze", "builddir", "github.com", "gokrazy", "gokrazy")
-	for _, d := range []string{zeMod, gokMod} {
+	vendored := filepath.Join(root, "vendor", "example.com", "patched")
+	for _, d := range []string{zeMod, gokMod, vendored} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -144,6 +145,8 @@ func writePreparedParentFixture(t *testing.T, origConfig []byte) (root, srcParen
 	write(filepath.Join(gokMod, "go.mod"), []byte(gokrazyMod))
 	write(filepath.Join(srcParent, "ze", "config.json"), origConfig)
 	write(filepath.Join(srcParent, "ze", "ze.conf"), []byte("seed"))
+	write(filepath.Join(root, "vendor", "modules.txt"), []byte("# example.com/patched v1.2.3\n## explicit; go 1.26\nexample.com/patched\n"))
+	write(filepath.Join(vendored, "patched.go"), []byte("package patched\nconst Patched = true\n"))
 	return root, srcParent
 }
 
@@ -207,22 +210,34 @@ func TestPrepare(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse prepared ze go.mod: %v", err)
 	}
-	if len(f.Replace) != 1 {
-		t.Fatalf("prepared ze go.mod has %d replaces, want 1:\n%s", len(f.Replace), preparedData)
+	var selfReplace *modfile.Replace
+	for _, r := range f.Replace {
+		if r.Old.Path == "github.com/ze-software/ze" {
+			selfReplace = r
+		}
+	}
+	if selfReplace == nil {
+		t.Fatalf("prepared ze go.mod lost its self-replace:\n%s", preparedData)
 	}
 	// Compare resolved paths, not spellings: copyBuildDir resolves the builddir
 	// source through EvalSymlinks, and on darwin the tempdir prefix /var is a
 	// symlink to /private/var, so the written target is the resolved form of
 	// the same directory. The property under test is "the replace resolves to
 	// the repository root", not a particular spelling of it.
-	got := f.Replace[0].New.Path
+	got := selfReplace.New.Path
 	gotResolved, gotErr := filepath.EvalSymlinks(got)
 	wantResolved, wantErr := filepath.EvalSymlinks(root)
 	if gotErr != nil || wantErr != nil || gotResolved != wantResolved {
 		t.Errorf("replace target = %q (resolved %q, %v), want the repo root %q (resolved %q, %v)",
 			got, gotResolved, gotErr, root, wantResolved, wantErr)
 	}
-	if len(f.Require) != 1 || f.Require[0].Mod.Path != "github.com/ze-software/ze" {
+	hasZe := false
+	for _, r := range f.Require {
+		if r.Mod.Path == "github.com/ze-software/ze" {
+			hasZe = true
+		}
+	}
+	if !hasZe {
 		t.Errorf("prepared ze go.mod lost its require:\n%s", preparedData)
 	}
 
@@ -587,5 +602,67 @@ replace github.com/gokrazy/gokrazy v0.0.0-20200501080617-f3445e01a904 => github.
 	}
 	if string(out) != versionReplace {
 		t.Errorf("version replace was rewritten:\n%s", out)
+	}
+}
+
+// TestPrepareBindsCanonicalVendorSources guards source identity, embed-compatible
+// files and nested-module ownership, which module version comparisons cannot see.
+func TestPrepareBindsCanonicalVendorSources(t *testing.T) {
+	root, srcParent := writePreparedParentFixture(t, []byte(`{"Hostname":"ze"}`))
+	vendor := filepath.Join(root, "vendor")
+	declarations := "# example.com/patched v1.2.3\n## explicit; go 1.26\nexample.com/patched\n" +
+		"# example.com/patched/nested v1.0.0\n## explicit; go 1.25\nexample.com/patched/nested\n"
+	if err := os.WriteFile(filepath.Join(vendor, "modules.txt"), []byte(declarations), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"example.com/patched/assets/data.txt", "example.com/patched/nested/nested.go"} {
+		path := filepath.Join(vendor, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("canonical source\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	parent, cleanup, err := Prepare(srcParent, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	goMod := filepath.Join(parent, Name, buildDirName, "github.com", "ze-software", "ze", GoModName)
+	data, err := os.ReadFile(goMod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := modfile.Parse(goMod, data, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacements := make(map[string]string)
+	for _, r := range f.Replace {
+		replacements[r.Old.Path] = r.New.Path
+	}
+	for modulePath, rel := range map[string]string{
+		"example.com/patched":        "assets/data.txt",
+		"example.com/patched/nested": "nested.go",
+	} {
+		dst := replacements[modulePath]
+		if dst == "" {
+			t.Fatalf("prepared build has no source binding for %s", modulePath)
+		}
+		source, err := os.Stat(filepath.Join(vendor, filepath.FromSlash(modulePath), rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		bound, err := os.Lstat(filepath.Join(dst, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bound.Mode().IsRegular() || !os.SameFile(source, bound) {
+			t.Errorf("%s does not expose the canonical regular file", modulePath)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(replacements["example.com/patched"], "nested")); !os.IsNotExist(err) {
+		t.Fatalf("parent module contains the nested module, causing ambiguous imports: %v", err)
 	}
 }

@@ -42,9 +42,8 @@ const (
 // tunnel. An authentication failure would hide that path.
 const L2TPPPPSecrets = "* * s3cr3t\n"
 
-// writeInputs lays out the directory both daemons read from: the peer's three
-// files, ze's configuration, and the empty directory ze writes its
-// configuration store into.
+// writeInputs lays out the peer's files and ze's private configuration directory.
+// The daemon creates its database tree beside ze.conf in that directory.
 func (l *L2TPPPP) writeInputs(work string) error {
 	if err := os.MkdirAll(filepath.Join(work, "ze"), 0o750); err != nil {
 		return err
@@ -58,7 +57,7 @@ func (l *L2TPPPP) writeInputs(work string) error {
 		{PeerConfigFile, l.peerConfig(work), inputMode},
 		{PeerSecretsFile, L2TPPPPSecrets, secretsMode},
 		{PeerOptionsFile, l.pppOptions(work), inputMode},
-		{"ze.conf", l.daemonConfig(), inputMode},
+		{filepath.Join("ze", "ze.conf"), l.daemonConfig(), inputMode},
 	}
 	for _, file := range files {
 		if err := os.WriteFile(filepath.Join(work, file.name), []byte(file.body), file.mode); err != nil {

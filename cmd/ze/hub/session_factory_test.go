@@ -85,7 +85,8 @@ func TestSessionFactoryModelRefusesSaveBeforeDispatch(t *testing.T) {
 		},
 	)
 	factory := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
-	created := factory("operator", "192.0.2.10:2222", nil)
+	created, createErr := factory("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	require.NoError(t, createErr)
 	model, ok := created.(cli.Model)
 	require.True(t, ok, "session model type = %T, want cli.Model", created)
 
@@ -114,9 +115,10 @@ func TestSessionFactoryEditorModelRefusesSaveBeforeDispatch(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.conf")
 	require.NoError(t, os.WriteFile(configPath, nil, 0o600))
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = store.Close() })
+	require.NoError(t, store.WriteFile(configPath, nil, 0o600))
 
 	server, err := zessh.NewServer(zessh.Config{
 		HostKeyPath: filepath.Join(t.TempDir(), "host-key"),
@@ -138,7 +140,8 @@ func TestSessionFactoryEditorModelRefusesSaveBeforeDispatch(t *testing.T) {
 		ConfigPath: configPath,
 		Store:      store,
 	}, nil, nil)
-	created := factory("operator", "192.0.2.10:2222", nil)
+	created, createErr := factory("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	require.NoError(t, createErr)
 	model, ok := created.(cli.Model)
 	require.True(t, ok, "session model type = %T, want cli.Model", created)
 	assert.Contains(t, model.View().Content, "ze#", "storage-backed sessions must start in editor config mode")
@@ -167,4 +170,21 @@ func TestSessionFactoryEditorModelRefusesSaveBeforeDispatch(t *testing.T) {
 	assert.Equal(t, int32(1), dispatches.Load(), "a refused editor PTY save reached the executor")
 	_, statErr := os.Stat(path)
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+// A requested edit target is not permission to silently fall back to the
+// daemon's own config or to a command-only session.
+func TestSessionFactoryRefusesUnavailableEditTarget(t *testing.T) {
+	store := newTestStore(t)
+	require.NoError(t, store.WriteFile("router.conf", nil, 0o600))
+	server, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
+	require.NoError(t, err)
+	factory := buildSessionModelFactory(server, infra.HookParams{Store: store, ConfigPath: "router.conf"}, nil, nil)
+	model, err := factory("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{ConfigName: "missing.conf", Mode: "edit"})
+	require.Error(t, err)
+	require.Nil(t, model)
+	storeless := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
+	model, err = storeless("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{Mode: "edit"})
+	require.Error(t, err)
+	require.Nil(t, model)
 }

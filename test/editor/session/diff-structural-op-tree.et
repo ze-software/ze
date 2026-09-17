@@ -1,6 +1,5 @@
-# Test: a structural delete under blob storage appears in the pending-change review
-# VALIDATES: spec-fixit-zefs-diff-structural-ops AC-1 -- delete bgp peer is counted
-#            as a pending change when config storage is a zefs blob
+# Test: a structural delete on a tree appears in the pending-change review
+# VALIDATES: delete bgp peer is counted as a pending change in persistent storage.
 # VALIDATES: AC-2 -- the cross-session scan (show | changes all) sees the same op
 # PREVENTS: an operator reviewing an empty diff, committing it, and changing the
 #           configuration anyway. Structural ops live only in the per-user change
@@ -32,7 +31,7 @@ bgp {
 EOF_CONF
 
 option=file:path=test.conf
-option=storage:value=blob
+option=storage:value=tree
 option=timeout:value=10s
 option=session:user=thomas:origin=local
 

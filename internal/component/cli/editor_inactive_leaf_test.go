@@ -25,7 +25,7 @@ func newEditorWithConfig(t *testing.T) *Editor {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(editorTestConfig), 0o600))
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	return ed

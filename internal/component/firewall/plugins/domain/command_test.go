@@ -179,9 +179,8 @@ func TestClearDomainGroupSurvivesARestart(t *testing.T) {
 
 	_ = decodeCommand(t, plug, cmdClearDomainGroup, "cdn")
 
-	reopened := newStore(plug.cache.path)
+	reopened := newStore(plug.cache.keys)
 	require.NoError(t, reopened.open(cfg.groups))
-	t.Cleanup(reopened.close)
 	assert.Empty(t, reopened.groupAddresses("cdn", []string{"a.invalid"}, familyV4),
 		"the purge must reach the disk, not only memory")
 }

@@ -27,6 +27,7 @@ type v6EngineSet struct {
 	engines map[addressFamily]*engine
 	started bool
 	afGauge metrics.GaugeVec
+	state   stateClient
 }
 
 // newV6EngineSet builds an empty set and registers the ze_ospf_af_instances gauge.
@@ -51,6 +52,7 @@ func newV6EngineSet() *v6EngineSet {
 func (m *v6EngineSet) spawn(af addressFamily) *engine {
 	v6transport := ospfv3transport.New(ospfv3transport.NewBackend())
 	e := newEngineWithCodecAF(v6transport, v6Codec{}, af)
+	e.state = m.state
 	if reg := getMetricsRegistry(); reg != nil {
 		e.transport.SetMetrics(reg)
 		e.setMetrics(reg)
@@ -102,7 +104,7 @@ func (m *v6EngineSet) configure(families []v6AFConfig, multiAF bool) {
 // apply reconciles the running engine set against the configured families (plugin
 // OnConfigApply): a new AF's engine is created and (once started) brought up; an existing
 // engine is reconciled; an AF no longer configured is shut down and forgotten (AC-12).
-func (m *v6EngineSet) apply(families []v6AFConfig, multiAF bool) {
+func (m *v6EngineSet) apply(families []v6AFConfig, multiAF bool) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	want := make(map[addressFamily]*v6AFConfig, len(families))
@@ -122,6 +124,11 @@ func (m *v6EngineSet) apply(families []v6AFConfig, multiAF bool) {
 	for af, fam := range want {
 		existing, ok := m.engines[af]
 		if ok {
+			if m.started {
+				if err := existing.initializeState(); err != nil {
+					return err
+				}
+			}
 			existing.setMultiAF(multiAF)
 			existing.reconcile(fam.cfg)
 			continue
@@ -131,10 +138,11 @@ func (m *v6EngineSet) apply(families []v6AFConfig, multiAF bool) {
 		e.setConfig(fam.cfg)
 		if m.started {
 			if err := m.bringUpLocked(e); err != nil {
-				e.log.Warn("ospf: bringing up address family failed", "af", af.String(), "err", err)
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 // start brings up every configured AF for the initial plugin start (plugin OnStarted).
@@ -158,6 +166,9 @@ func (m *v6EngineSet) start(families []v6AFConfig, multiAF bool) error {
 
 // bringUpLocked subscribes an engine to interface events and opens its interfaces.
 func (m *v6EngineSet) bringUpLocked(e *engine) error {
+	if err := e.initializeState(); err != nil {
+		return err
+	}
 	e.subscribeIfaceEvents(getEventBus())
 	// RFC 5443/6138 LDP-IGP sync: the OSPFv3 (IPv6) family reuses the AF-neutral LDP-sync
 	// machine on the shared interface model; subscribe this AF engine to LDP session events

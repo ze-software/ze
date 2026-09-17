@@ -2,16 +2,14 @@
 //
 // A .ci test may spawn more than one long-lived `ze -` daemon (e.g. an IKE
 // responder + initiator pair, one cmd=background and one cmd=foreground). Each
-// daemon's config is written into the shared per-test tmpfs directory. Writing
-// them all to one fixed filename makes the second daemon clobber the first, so
-// the pair loads a single config and can never negotiate. zeConfigFileName keys
-// the filename on the daemon's stdin block so distinct daemons get distinct
-// files, while the first block keeps the ze-bgp.conf name that
-// action=rewrite:dest=ze-bgp.conf and restart tests read.
+// daemon needs its own store directory, not merely a distinct config filename.
+// The first uses WorkDir so bare-name fixtures still rewrite the actual source.
+// Further blocks use numbered subdirectories; restarts reuse their assignment.
 
 package runner
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -21,12 +19,9 @@ import (
 // to; action=rewrite:dest=ze-bgp.conf and restart tests read this file.
 const zeDefaultConfigName = "ze-bgp.conf"
 
-// zeConfigFileName returns the tmpfs config filename for a ze daemon spawned
-// from the given stdin block. The first distinct block in a test gets
-// ze-bgp.conf (the name single-daemon and action=rewrite:dest=ze-bgp.conf tests
-// read); each additional distinct block gets its own ze-<block>.conf. Reusing a
-// block (a restart) returns its already assigned file. The rec map is created
-// lazily on first use.
+// zeConfigFileName returns a path relative to WorkDir. The first block retains
+// ze-bgp.conf; further blocks get distinct directories even if their sanitized
+// names collide. Reusing a block reuses its source and storage directory.
 func zeConfigFileName(rec *Record, block string) string {
 	if rec.zeConfigFiles == nil {
 		rec.zeConfigFiles = make(map[string]string)
@@ -36,10 +31,10 @@ func zeConfigFileName(rec *Record, block string) string {
 	}
 	name := zeDefaultConfigName
 	if len(rec.zeConfigFiles) > 0 {
-		// A distinct additional concurrent daemon: give it a per-block file so
-		// it does not overwrite the first daemon's ze-bgp.conf.
+		// A sequence number distinguishes blocks whose sanitized names collide.
 		var tb textbuf.Buffer
-		name = tb.Str("ze-").Str(sanitizeConfigBlock(block)).Str(".conf").String()
+		dir := tb.Str("daemon-").Int(int64(len(rec.zeConfigFiles) + 1)).String()
+		name = filepath.Join(dir, "ze-"+sanitizeConfigBlock(block)+".conf")
 	}
 	rec.zeConfigFiles[block] = name
 	return name

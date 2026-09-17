@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/reactor"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 
 	// The reload closure parses the file, which builds the YANG schema. This
@@ -70,7 +69,7 @@ func TestReloadVerifyLeavesTheRenderedNotation(t *testing.T) {
 	// (nil, nil) for the empty tree below. A condition that changed under this
 	// test would then let verify succeed on the fallback, and the test would
 	// stay green over nothing.
-	reload := createReloadFunc(storage.NewFilesystem(), r)
+	reload := createReloadFunc(newReloadFileStore(t, configPath), r)
 	called := false
 	r.SetConfigPath(configPath)
 	r.SetReloadFunc(func(path string) ([]*reactor.PeerSettings, error) {

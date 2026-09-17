@@ -8,7 +8,7 @@
                     {"label_only": "Install"},
                     {"href": "guides/quickstart/", "icon": "🚀", "title": "Quickstart", "desc": "Two BGP peers in under five minutes", "feature": true},
                     {"href": "guides/ze-install/", "icon": "💿", "title": "Install Ze", "desc": "Run Ze on Linux or as a bootable appliance"},
-                    {"href": "guides/ubuntu-build-install/", "icon": "🐧", "title": "Ubuntu build", "desc": "Compile Ze, install it, create zefs, and start SSH"}
+                    {"href": "guides/ubuntu-build-install/", "icon": "\ud83d\udc27", "title": "Ubuntu build", "desc": "Compile Ze, install it, initialize the store, and start SSH"}
                 ],
                 [
                     {"label_only": "Learn"},

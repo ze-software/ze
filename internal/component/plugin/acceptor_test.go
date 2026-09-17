@@ -12,7 +12,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -23,20 +22,20 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// caRoot opens a blob store in a temporary directory, generates the daemon's
+// caRoot creates a temporary live store, generates the daemon's
 // root in it, and returns the root with the parsed root certificate and a pool
 // holding it. The pool is what a peer builds from the exported root PEM.
 func caRoot(t *testing.T) (*pki.Root, *x509.Certificate, *x509.CertPool) {
 	t.Helper()
 
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("open blob store: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	t.Cleanup(func() {
 		if closeErr := store.Close(); closeErr != nil {
-			t.Errorf("close blob store: %v", closeErr)
+			t.Errorf("close store: %v", closeErr)
 		}
 	})
 

@@ -3,7 +3,6 @@
 # PREVENTS: concurrent commits racing candidate pointers and promoting the wrong config.
 
 option=timeout:value=45s
-option=env:var=ZE_STORAGE_BLOB:value=false
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -69,7 +68,7 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start concurrent-config-commit.conf:timeout=45s
 expect=exit:code=0
 expect=file:path=concurrent.ok:contains=OK: concurrent commit rejected second candidate
-expect=file:path=meta/config/active:exists=true
-expect=file:path=meta/config/candidate:absent=true
+expect=key:path=meta/config/concurrent-config-commit.conf/active:exists=true
+expect=key:path=meta/config/concurrent-config-commit.conf/candidate:absent=true
 expect=file:path=concurrent-config-commit.conf:contains=router-id 10.0.0.2
 expect=file:path=concurrent-config-commit.conf:not-contains=router-id 10.0.0.3

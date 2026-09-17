@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
@@ -173,7 +172,7 @@ func secretEditorManager(t *testing.T, schema *config.Schema) *EditorManager {
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(secretConfigFile), 0o600))
 
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, schema,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
@@ -427,7 +426,7 @@ func TestContentAtPathAnswersNothingWhenItCannotMask(t *testing.T) {
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(secretConfigFile), 0o600))
 
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, nil,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, nil,
 		testEditorFactory(), testEditSessionFactory())
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
@@ -453,7 +452,7 @@ func TestAnUntouchedSecretIsNeitherRewrittenNorDeleted(t *testing.T) {
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(""), 0o600))
 
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, schema,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
@@ -569,7 +568,7 @@ func TestUploadedConfigWithAMaskedSecretIsRefused(t *testing.T) {
 	original := "environment {\n    api-server {\n        token \"" + storedSecret + "\";\n    }\n}\n"
 	require.NoError(t, os.WriteFile(configPath, []byte(original), 0o600))
 
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, schema,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
 	handler := HandleConfigUpload(mgr, webGoldenValidate, configPath, adminWebAuthorizer(), nil)
 
@@ -582,7 +581,7 @@ func TestUploadedConfigWithAMaskedSecretIsRefused(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), config.SecretDataPlaceholder,
 		"the error must name the placeholder it refused")
 
-	stored, err := os.ReadFile(configPath) //nolint:gosec // the test wrote this path
+	stored, err := mgr.store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, original, string(stored), "a refused upload must leave the stored configuration alone")
 }

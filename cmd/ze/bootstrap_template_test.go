@@ -5,7 +5,6 @@
 package main
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,7 +21,7 @@ import (
 // web/l2tp never start on the appliance.
 func TestBootstrapConfigFromTemplateAppliesWebL2TP(t *testing.T) {
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}

@@ -5,21 +5,15 @@
 // owner package: the offline configuration CLI lives with
 // internal/component/config, not under cmd/ze.
 //
-// The root command and the snapshot shortcuts (history, list, cat) need the blob
-// store, which is opened only after global flag parsing. The root handler
-// receives it through the RuntimeContext; the local shortcuts (which have the
-// func(args)int signature and so get no context) resolve it lazily through the
-// registry's runtime storage resolver, which cmd/ze/main.go installs.
+// Every handler parses its operands before resolving an optional store. Loose
+// file readers never resolve runtime storage.
 package cli
 
 import (
-	"fmt"
-	"os"
 	"slices"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -38,37 +32,16 @@ func subcommands() string {
 	return textbuf.Join(cmds, ", ")
 }
 
-// storageShortcut builds a local handler for a storage-backed `show config
-// <sub>` shortcut. It resolves the blob store lazily through the registry's
-// runtime storage resolver, runs the command, and closes the store.
+// storageShortcut shares argument parsing with the config root command.
 func storageShortcut(sub string) registry.LocalHandler {
 	return func(args []string) int {
-		store, ok := registry.RuntimeStorage().(storage.Storage)
-		if !ok {
-			fmt.Fprintln(os.Stderr, "error: config storage unavailable")
-			return 1
-		}
-		defer func() {
-			if err := store.Close(); err != nil {
-				_ = err // best-effort cleanup before exit
-			}
-		}()
-		return RunWithStorage(store, append([]string{sub}, args...))
+		return Run(append([]string{sub}, args...))
 	}
 }
 
 func init() {
-	registry.MustRegisterRootHandler("config", func(rctx *registry.RuntimeContext, args []string) int {
-		store, ok := registry.StorageAs[storage.Storage](rctx)
-		if !ok {
-			fmt.Fprintln(os.Stderr, "error: config requires storage")
-			return 1
-		}
-		code := RunWithStorage(store, args)
-		if err := store.Close(); err != nil {
-			_ = err // best-effort cleanup before exit
-		}
-		return code
+	registry.MustRegisterRootHandler("config", func(_ *registry.RuntimeContext, args []string) int {
+		return Run(args)
 	}, registry.Meta{
 		ShortHelp: "Configuration editing, formatting, validation, and history",
 		Mode:      modeOffline,
@@ -76,7 +49,7 @@ func init() {
 		Subs:      subcommands(),
 	})
 
-	// Non-storage shortcuts: read the candidate/running config without the blob.
+	// Read-only shortcuts read their explicit candidate/running config source.
 	// Each of these answers with DATA, so the operator's pipe chain renders it
 	// and no command carries a rendering flag of its own. They printed and
 	// returned an exit code before, which is why
@@ -107,13 +80,13 @@ func init() {
 			"answer describes the config as it would run.",
 	})
 
-	// Storage-backed shortcuts: resolve the blob store lazily at dispatch.
+	// History shortcuts resolve the store lazily after parsing arguments.
 	registry.MustRegisterLocalData("show config history", dataHistory, registry.Meta{
 		ShortHelp: "List config snapshots with timestamps and commit messages.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show config list", dataList, registry.Meta{
-		ShortHelp: "List all config snapshots stored in the blob store.",
+		ShortHelp: "List stored config snapshots and loose config files.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 

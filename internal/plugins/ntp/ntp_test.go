@@ -2,7 +2,6 @@ package ntp
 
 import (
 	"errors"
-	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/beevik/ntp"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -21,16 +21,15 @@ import (
 	ntpevents "github.com/ze-software/ze/internal/plugins/ntp/events"
 )
 
-// newTimeStore registers an empty database.zefs as the process-wide statestore so
-// NTP time persistence round-trips through the real zefs store (not a loose file).
+// newTimeStore registers a private tree for time persistence.
 // It resets the store to nil on cleanup. The statestore is process-global, so tests
 // that call this MUST NOT call t.Parallel(): a parallel sibling would clobber the
 // registered store (see the non-parallel show-handler tests for the same pattern).
 func newTimeStore(t *testing.T) {
 	t.Helper()
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {

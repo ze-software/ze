@@ -155,9 +155,10 @@ ze appliance build edge-01
 ```
 
 The named appliance keeps its config and secrets between builds. The build
-assembles its ZeFS database, builds the disk image through vendored gokrazy,
-formats the persistent partition, injects the database, and writes the build
-manifest.
+assembles its ZeFS seed artifact, builds the disk image through vendored gokrazy,
+formats the persistent partition, injects `database.zefs`, and writes the build
+manifest. Seed assembly uses the explicit blob-artifact storage API, so image
+building continues to produce the same blob format.
 
 ```bash
 ze appliance show edge-01
@@ -199,7 +200,15 @@ Or import into Proxmox:
 qm importdisk <vmid> tmp/gokrazy/ze.img <storage>
 ```
 
-The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and loads its active configuration from `/perm/ze/database.zefs` (bootstrapped from the seed template on first boot). The serial console requires authentication with the local admin credentials before granting shell access. If the credentials database is missing or unreadable, access is granted without authentication for emergency recovery. When `admin-enabled: false` is set in the appliance config, the serial console denies the built-in admin (fail-closed) and prints "local admin login disabled".
+The machine boots to a serial console (115200 baud). On first boot Ze explicitly
+imports `/perm/ze/database.zefs` into `/perm/ze/database/`, logs the import, and
+retires the seed as `database.zefs.replaced-*`. Subsequent starts use the live
+tree. Ze gets a DHCP address and loads its active configuration from that tree.
+The serial console requires authentication with the local admin credentials
+before granting shell access. If the store is missing or unreadable, access is
+granted without authentication for emergency recovery. When
+`admin-enabled: false` is set in the appliance config, the serial console denies
+the built-in admin (fail-closed) and prints "local admin login disabled".
 <!-- source: cmd/ze/login.go -- loginMain, fail-open path, admin-disabled check -->
 
 ## Configuration
@@ -231,7 +240,10 @@ workflow's `config-base` and per-appliance `ze.conf` files.
 
 ### Runtime config
 
-Once booted, use `ze config edit` over SSH to modify the running configuration. Changes are stored in `/perm/ze/database.zefs` and persist across reboots and image updates.
+Once booted, use `ze config edit` over SSH to modify the running configuration.
+Changes are stored in `/perm/ze/database/` and persist across reboots and image
+updates. The daemon owns the store for its lifetime; offline maintenance must
+run as the store owner after the daemon stops.
 
 ### Environment variables
 
@@ -240,7 +252,7 @@ Ze's environment is set in `gokrazy/ze/config.json` under `PackageConfig`:
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `ze.config.dir` | `/perm/ze` | Persistent storage for database.zefs |
+| `ze.config.dir` | `/perm/ze` | Configuration folder containing the live `database/` tree |
 | `ze.bgp.api.socketpath` | `/tmp/ze.socket` | API socket location |
 | `ze.bgp.daemon.drop` | `false` | No privilege dropping (no `zeuser` on gokrazy) |
 | `ze.log` | `info` | Log level |
@@ -322,7 +334,11 @@ Gokrazy's init restarts Ze if it exits with a non-zero status (except 125, which
 
 ### Persistent storage
 
-The `/perm` partition (ext4) survives image updates. Ze stores its database (`database.zefs`), TLS certificates, and config state there via the `ze.config.dir=/perm/ze` environment variable.
+The `/perm` partition (ext4) survives image updates. The configuration folder
+`/perm/ze`, selected by `ze.config.dir`, contains the live `database/` tree.
+Credentials, TLS material and config history are keys in that tree, with 0700
+directories and 0600 frame files owned by the daemon user. The retired seed
+remains beside it for recovery.
 
 ## Repo layout
 
@@ -754,7 +770,7 @@ Config-push uses SSH (operator's key via ssh-agent) to upload the merged config 
 
 ### Device-side config behavior
 
-At boot, unmanaged devices resolve the active config in ZeFS. If no active
+At boot, unmanaged devices resolve the active config in the live tree. If no active
 config exists, Ze bootstraps one from the seed template or interface discovery.
 If `/perm/ze/config-pushed.conf` exists and parses as Ze config, Ze writes it
 over the active config. If the pushed config fails validation, Ze deletes that
@@ -762,8 +778,8 @@ pushed file and continues with the existing active config.
 
 | Stage | Source | Location |
 |-------|--------|----------|
-| 1 | Existing or bootstrapped active config | `file/active/ze.conf` in ZeFS |
-| 2 | Seed template, only when active config is missing | `file/template/ze.conf` in ZeFS |
+| 1 | Existing or bootstrapped active config | `file/active/ze.conf` in the live tree |
+| 2 | Seed template, only when active config is missing | `file/template/ze.conf` in the live tree |
 | 3 | Valid pushed config, applied over active config | `/perm/ze/config-pushed.conf` |
 
 After loading the effective config, the device writes its SHA-256 hash to
@@ -772,8 +788,8 @@ After loading the effective config, the device writes its SHA-256 hash to
 <!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
 
 **Last-known-good hash:** at build time, `ze appliance build` writes the SHA-256
-of the assembled seed config to `meta/config/last-known-good` in ZeFS. This
-serves as the build-time integrity baseline.
+of the assembled seed config to `meta/config/last-known-good` in the seed blob.
+First boot imports this build-time integrity baseline into the live tree.
 <!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS last-known-good -->
 
 **Config push and health monitor:** `config-push` connects over SSH, stages the

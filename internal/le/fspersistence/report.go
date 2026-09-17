@@ -35,16 +35,16 @@ func (f Findings) Text() string {
 	}
 
 	tb.Str("direct-fs-persistence: ").Int(int64(len(f))).
-		Str(" raw filesystem write(s) that may persist runtime state:\n")
+		Str(" persistence-layer bypass(es):\n")
 	for _, finding := range f {
 		tb.Str("  ").Str(finding.File).Byte(':').Int(int64(finding.Line)).
 			Str(" (").Str(finding.Pkg).Byte('.').Str(finding.Fn).Str("): ").Str(finding.Code).Byte('\n')
 	}
 	tb.Byte('\n')
-	tb.Str("Daemon runtime state must persist through the managed zefs store, not loose\n")
-	tb.Str("files: use internal/core/statestore (Put/Get under a registered pkg/zefs key)\n")
-	tb.Str("so appliance state lives inside database.zefs. If this write is a genuine\n")
-	tb.Str("non-state file (kernel knob, ephemeral scratch, external artifact, storage\n")
-	tb.Str("layer), add an allowlist entry with a reason in internal/le/fspersistence/actions.go.\n")
+	tb.Str("Daemon runtime state must persist through internal/core/statestore under a\n")
+	tb.Str("registered key. Live stores are opened only through config/storage; the\n")
+	tb.Str("live-zefs-open rule also scans internal/core and accepts only named blob\n")
+	tb.Str("artifact owners. Raw-write exceptions do not authorize direct blob opens.\n")
+	tb.Str("Document genuine artifact exceptions in internal/le/fspersistence/fspersistence.go.\n")
 	return tb.String()
 }

@@ -11,7 +11,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -32,9 +31,9 @@ func TestStartManagedServerServesBlobConfig(t *testing.T) {
 	)
 
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "hub.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	// Admin provisions the client's config on the hub blob.
 	if err := store.WriteFile(pluginserver.ClientConfigKey(clientName), []byte(cfgV1), 0o600); err != nil {
@@ -100,9 +99,9 @@ func TestStartManagedServerServesBlobConfig(t *testing.T) {
 // no managed server.
 func TestStartManagedServerNilWithoutClients(t *testing.T) {
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "hub.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	hubConfig := &zePlugin.HubConfig{
 		Servers: []zePlugin.HubServerConfig{{Name: "local", Host: "127.0.0.1", Port: 0}},

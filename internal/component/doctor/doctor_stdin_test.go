@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 )
 
@@ -18,7 +17,7 @@ func TestDoctorLoadRenamed(t *testing.T) {
 	restore := cliio.SwapStreams(strings.NewReader(cfg), &bytes.Buffer{})
 	defer restore()
 
-	data, name, err := loadDoctorConfig(storage.NewFilesystem(), "-")
+	data, name, err := loadDoctorConfig(nil, "-")
 	if err != nil {
 		t.Fatalf("loadDoctorConfig(-): %v", err)
 	}

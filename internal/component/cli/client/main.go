@@ -40,7 +40,7 @@ import (
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
-	"github.com/ze-software/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/core/statestore"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -204,13 +204,7 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 }
 
 func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
-	var history *unicli.History
-	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
-		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
-			defer store.Close() //nolint:errcheck // best-effort history
-			history = unicli.NewHistory(store, os.Getenv("USER"))
-		}
-	}
+	history := unicli.NewHistory(statestore.Store(), os.Getenv("USER"))
 
 	executor := unicli.CommandExecutor(dispatch)
 
@@ -283,39 +277,10 @@ func silenceDaemonOutput() func() {
 }
 
 func runInteractiveSession(client *cliClient) int {
-	m := unicli.NewCommandModel(unicli.FilesystemAuthorityOperatorLocal)
-
-	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
-		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
-			defer store.Close() //nolint:errcheck // best-effort history
-			m.SetHistory(unicli.NewHistory(store, os.Getenv("USER")))
-		}
-	}
-
-	executor := client.modelExecutor()
-
-	if tf := openTranscriptFile(); tf != nil {
-		tw := unicli.NewTranscriptWriter(tf, os.Getenv("USER"), client.creds.Host+":"+client.creds.Port)
-		defer tw.Close() //nolint:errcheck // best-effort transcript
-		executor = unicli.WrapExecutorWithTranscript(executor, tw)
-	}
-
-	m.SetCommandExecutor(executor)
-
-	cmdTree := buildRuntimeTree(client)
-	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
-
-	injectViewFactories(&m, client.dashboardPoller)
-
-	p := tea.NewProgram(m)
-	if _, err := p.Run(); err != nil {
-		if errors.Is(err, tea.ErrProgramPanic) {
-			crashlog.HandleCaughtPanic(err)
-		}
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	if err := sshclient.RunInteractive(client.creds, "", true); err != nil {
+		fmt.Fprintf(os.Stderr, "error: interactive session: %v\n", err)
 		return 1
 	}
-
 	return 0
 }
 

@@ -34,9 +34,9 @@ func runUIFixtureCLIDataConfigDir(ctx context.Context) error {
 		return err
 	}
 
-	databasePath := filepath.Join(initDir, "database.zefs")
+	databasePath := filepath.Join(initDir, "database")
 	info, statErr := os.Stat(databasePath)
-	if statErr != nil || !info.Mode().IsRegular() {
+	if statErr != nil || !info.IsDir() {
 		fmt.Fprintf(os.Stderr, "FAIL: ze init did not create %s\n", databasePath)
 		return errors.New("fixture failed")
 	}

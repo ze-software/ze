@@ -8,16 +8,17 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // writeZefsCreds builds a zefs database with local power-user credentials and,
 // optionally, outbound remote credentials plus meta/ssh/default. When user is
 // empty, no local credential entries are written (empty database).
-func writeZefsCreds(t *testing.T, user, hash string) *zefs.BlobStore {
+func writeZefsCreds(t *testing.T, user, hash string) storage.Storage {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "database.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.Create(filepath.Dir(path))
 	if err != nil {
 		t.Fatalf("zefs.Create: %v", err)
 	}
@@ -35,7 +36,7 @@ func writeZefsCreds(t *testing.T, user, hash string) *zefs.BlobStore {
 		t.Fatalf("close: %v", err)
 	}
 
-	db, err := zefs.Open(path)
+	db, err := storage.OpenReadOnly(filepath.Dir(path))
 	if err != nil {
 		t.Fatalf("zefs.Open: %v", err)
 	}
@@ -43,7 +44,7 @@ func writeZefsCreds(t *testing.T, user, hash string) *zefs.BlobStore {
 	return db
 }
 
-func writeRemoteCreds(t *testing.T, store *zefs.BlobStore, host, port, user, hash string, writePointer bool) {
+func writeRemoteCreds(t *testing.T, store storage.Storage, host, port, user, hash string, writePointer bool) {
 	t.Helper()
 	if user != "" {
 		if err := store.WriteFile(zefs.KeySSHUsername.Key(host, port), []byte(user), 0); err != nil {
@@ -65,7 +66,7 @@ func writeRemoteCreds(t *testing.T, store *zefs.BlobStore, host, port, user, has
 func TestUsersFromZefsDBReadsLocalPowerCredentials(t *testing.T) {
 	db := writeZefsCreds(t, "admin", "$2y$10$hash")
 
-	users, err := usersFromZefsDB(db)
+	users, err := usersFromStore(db)
 	if err != nil {
 		t.Fatalf("usersFromZefsDB: %v", err)
 	}
@@ -83,7 +84,7 @@ func TestUsersFromZefsDBReadsLocalPowerCredentials(t *testing.T) {
 func TestUsersFromZefsDBCarriesRecoveryProfile(t *testing.T) {
 	db := writeZefsCreds(t, "admin", "$2y$10$hash")
 
-	users, err := usersFromZefsDB(db)
+	users, err := usersFromStore(db)
 	if err != nil {
 		t.Fatalf("usersFromZefsDB: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestUsersFromZefsDBCarriesRecoveryProfile(t *testing.T) {
 // PREVENTS: changing the outbound default remote from changing local admin auth.
 func TestUsersFromZefsDBIgnoresRemoteDefaultPointer(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.Create(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,13 +114,13 @@ func TestUsersFromZefsDBIgnoresRemoteDefaultPointer(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := zefs.Open(path)
+	db, err := storage.OpenReadOnly(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
 
-	users, err := usersFromZefsDB(db)
+	users, err := usersFromStore(db)
 	if err != nil {
 		t.Fatalf("usersFromZefsDB: %v", err)
 	}
@@ -132,7 +133,7 @@ func TestUsersFromZefsDBIgnoresRemoteDefaultPointer(t *testing.T) {
 // PREVENTS: outbound remote-client state from becoming an implicit login source.
 func TestUsersFromZefsDBRejectsLegacySSHOnlyDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.Create(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,13 +141,13 @@ func TestUsersFromZefsDBRejectsLegacySSHOnlyDatabase(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := zefs.Open(path)
+	db, err := storage.OpenReadOnly(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
 
-	if _, err := usersFromZefsDB(db); err == nil {
+	if _, err := usersFromStore(db); err == nil {
 		t.Fatal("expected legacy ssh-only database to be rejected")
 	}
 }
@@ -154,7 +155,7 @@ func TestUsersFromZefsDBRejectsLegacySSHOnlyDatabase(t *testing.T) {
 func TestUsersFromZefsDBFailsClosedOnMissingCreds(t *testing.T) {
 	db := writeZefsCreds(t, "", "")
 
-	if _, err := usersFromZefsDB(db); err == nil {
+	if _, err := usersFromStore(db); err == nil {
 		t.Fatal("expected error for missing credentials (fail closed)")
 	}
 }
@@ -162,7 +163,7 @@ func TestUsersFromZefsDBFailsClosedOnMissingCreds(t *testing.T) {
 func TestUsersFromZefsDBFailsClosedOnEmptyHash(t *testing.T) {
 	db := writeZefsCreds(t, "admin", "")
 
-	if _, err := usersFromZefsDB(db); !errors.Is(err, errEmptyPasswordInZefs) {
+	if _, err := usersFromStore(db); !errors.Is(err, errEmptyPasswordInZefs) {
 		t.Fatalf("got %v, want errEmptyPasswordInZefs", err)
 	}
 }
@@ -171,7 +172,7 @@ func TestUsersFromZefsDBFailsClosedOnEmptyHash(t *testing.T) {
 // PREVENTS: built-in admin remaining active after operator explicitly disables it.
 func TestUsersFromZefsDBRespectsAdminDisabled(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.Create(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,13 +188,13 @@ func TestUsersFromZefsDBRespectsAdminDisabled(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := zefs.Open(path)
+	db, err := storage.OpenReadOnly(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
 
-	if _, err := usersFromZefsDB(db); !errors.Is(err, errAdminDisabledInZefs) {
+	if _, err := usersFromStore(db); !errors.Is(err, errAdminDisabledInZefs) {
 		t.Fatalf("got %v, want errAdminDisabledInZefs", err)
 	}
 }
@@ -201,7 +202,7 @@ func TestUsersFromZefsDBRespectsAdminDisabled(t *testing.T) {
 // VALIDATES: admin-disabled="false" does not block power user loading.
 func TestUsersFromZefsDBAllowsExplicitFalse(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "database.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.Create(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,13 +218,13 @@ func TestUsersFromZefsDBAllowsExplicitFalse(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	db, err := zefs.Open(path)
+	db, err := storage.OpenReadOnly(filepath.Dir(path))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
 
-	users, err := usersFromZefsDB(db)
+	users, err := usersFromStore(db)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

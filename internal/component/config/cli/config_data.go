@@ -30,8 +30,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/resolve"
+
 	"github.com/ze-software/ze/internal/component/cli"
-	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -52,11 +53,11 @@ const (
 // It is storageShortcut's half that acquires the store, without the half that
 // dispatches a subcommand by name, so a data handler reaches the same storage
 // the printing handler does.
-func withRuntimeStore(fn func(storage.Storage) (any, int)) (any, int) {
-	store, ok := registry.RuntimeStorage().(storage.Storage)
-	if !ok {
-		fmt.Fprintln(os.Stderr, "error: config storage unavailable")
-		return nil, 1
+func withRuntimeStore(configPath string, fn func(storage.Storage) (any, int)) (any, int) {
+	store, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: config storage: %v\n", err)
+		return nil, exitError
 	}
 	defer func() {
 		if err := store.Close(); err != nil {
@@ -115,19 +116,21 @@ func dataDump(args []string) (any, int) {
 // The printer wrote `[data] <key>` and `[fs] <path>` lines. The bracket prefix
 // becomes a FIELD, which is what a row operator can select on: `| match data`
 // used to match the prefix by accident of it being in the line.
-func dataList(_ []string) (any, int) {
-	return withRuntimeStore(func(store storage.Storage) (any, int) {
+func dataList(args []string) (any, int) {
+	if len(args) != 0 {
+		fmt.Fprintln(os.Stderr, "usage: show config list")
+		return nil, exitError
+	}
+	return withRuntimeStore("", func(store storage.Storage) (any, int) {
 		rows := make([]map[string]any, 0)
 
-		if storage.IsBlobStorage(store) {
-			for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
-				keys, err := store.List(prefix)
-				if err != nil {
-					continue // the directory does not exist yet
-				}
-				for _, key := range keys {
-					rows = append(rows, map[string]any{keySource: "data", keyPath: key})
-				}
+		for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
+			keys, err := store.List(prefix)
+			if err != nil {
+				continue // the directory does not exist yet
+			}
+			for _, key := range keys {
+				rows = append(rows, map[string]any{keySource: "data", keyPath: key})
 			}
 		}
 
@@ -157,8 +160,8 @@ func dataList(_ []string) (any, int) {
 // `draft  (editing in progress)` before the numbered revisions, which no row
 // operator could reach.
 func dataHistory(args []string) (any, int) {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "error: requires a config file")
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "error: requires exactly one config file")
 		return nil, exitError
 	}
 	if cliio.IsStdin(args[0]) {
@@ -167,28 +170,21 @@ func dataHistory(args []string) (any, int) {
 		return nil, exitError
 	}
 
-	return withRuntimeStore(func(store storage.Storage) (any, int) {
-		ed, err := cli.NewEditorWithStorage(store, args[0])
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
-			return nil, exitError
-		}
-		defer ed.Close() //nolint:errcheck // best effort cleanup
-
-		backups, err := ed.ListBackups()
+	return withRuntimeStore(args[0], func(store storage.Storage) (any, int) {
+		backups, err := store.ListVersions(args[0])
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			return nil, exitError
 		}
 
 		rows := make([]map[string]any, 0, len(backups)+1)
-		if ed.HasDraft() {
+		if store.Exists(cli.DraftPath(args[0])) {
 			rows = append(rows, map[string]any{keyRevision: "draft", "state": "editing in progress"})
 		}
 		for i, b := range backups {
 			rows = append(rows, map[string]any{
 				keyRevision: i + 1,
-				"timestamp": b.Timestamp.Format("2006-01-02 15:04:05"),
+				"timestamp": b.Date.Format("2006-01-02 15:04:05"),
 				keyPath:     b.Path,
 			})
 		}
@@ -233,7 +229,7 @@ func dataValidate(args []string) (any, int) {
 //
 // It is ONE document holding three keyed sets rather than rows.
 func dataDiff(args []string) (any, int) {
-	diff, code := resolveDiff(storage.NewFilesystem(), args)
+	diff, code := resolveDiff(nil, args)
 	if diff == nil {
 		return nil, code
 	}

@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -20,8 +19,7 @@ import (
 func setupPushedConfigTest(t *testing.T) storage.Storage {
 	t.Helper()
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(dbPath, dir)
+	store, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}

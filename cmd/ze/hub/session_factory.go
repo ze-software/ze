@@ -11,6 +11,8 @@ package hub
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/infra"
@@ -37,7 +39,21 @@ import (
 func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, recorder audit.Recorder, reloadFn func() error) zessh.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
-	return func(username, remoteAddr string, authorizer plugin.Authorizer) tea.Model {
+	return func(username, remoteAddr string, authorizer plugin.Authorizer, request zessh.SessionRequest) (tea.Model, error) {
+		configPath := params.ConfigPath
+		commitReload := reloadFn
+		if request.ConfigName != "" {
+			if request.ConfigName != filepath.Base(configPath) {
+				configPath = request.ConfigName
+				commitReload = nil
+			}
+			if params.Store == nil {
+				return nil, fmt.Errorf("configuration %q unavailable: no persistent store", request.ConfigName)
+			}
+			if !params.Store.Exists(configPath) {
+				return nil, fmt.Errorf("configuration %q does not exist", request.ConfigName)
+			}
+		}
 		// Build command tree for tab completion. The tree is rebuilt per session
 		// and plugin commands are merged in lazily from the live dispatcher, so a
 		// plugin registered (or gone) since the daemon started is reflected in the
@@ -60,17 +76,24 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		executor := srv.ExecutorForUser(username, remoteAddr, authorizer)
 
 		// Try to create editor-capable model.
-		if params.ConfigPath != "" && params.Store != nil {
-			ed, err := newSessionEditor(params.Store, params.ConfigPath, username, sessionOriginSSH, reloadFn)
+		if configPath != "" && configPath != "-" && params.Store != nil {
+			ed, err := newSessionEditor(params.Store, configPath, username, sessionOriginSSH, commitReload)
 			if err != nil {
+				if request.Mode == "edit" {
+					return nil, err
+				}
 				log.Warn("session editor creation failed", "user", username, "error", err)
 			} else {
 				m, modelErr := cli.NewModel(ed, cli.FilesystemAuthorityUnknown)
 				if modelErr != nil {
 					log.Warn("session model creation failed", "user", username, "error", modelErr)
+					if request.Mode == "edit" {
+						return nil, modelErr
+					}
 				} else {
 					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
+					m.SetHistory(cli.NewHistory(params.Store, username))
 					if executor != nil {
 						m.SetCommandExecutor(cliExecutor(executor))
 						injectViewFactories(&m, executor)
@@ -88,14 +111,23 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 						m.SetRestartFunc(restartFn)
 					}
 					m.SetLoginWarnings(cliWarnings)
-					return m
+					if request.Mode == "command" {
+						m.SetMode(cli.ModeOperational)
+					}
+					return m, nil
 				}
 			}
+		}
+		if request.Mode == "edit" {
+			return nil, fmt.Errorf("configuration editing unavailable: no persistent configuration source")
 		}
 
 		// Fallback: command-only model.
 		m := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 		m.SetCommandCompleter(cmdCompleter)
+		if params.Store != nil {
+			m.SetHistory(cli.NewHistory(params.Store, username))
+		}
 		if executor != nil {
 			m.SetCommandExecutor(cliExecutor(executor))
 			injectViewFactories(&m, executor)
@@ -113,7 +145,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 			m.SetRestartFunc(restartFn)
 		}
 		m.SetLoginWarnings(cliWarnings)
-		return m
+		return m, nil
 	}
 }
 

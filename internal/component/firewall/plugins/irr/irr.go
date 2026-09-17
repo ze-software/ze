@@ -61,6 +61,7 @@ func setMetricsRegistry(reg metrics.Registry) {
 type irrPlugin struct {
 	plugin      *sdk.Plugin
 	prefixStore *store.PrefixStore
+	state       store.KeyStore // Bound only after the startup handshake.
 
 	mu          sync.RWMutex
 	config      *irrConfig
@@ -102,7 +103,7 @@ func runFirewallIRR(conn net.Conn) int {
 			ps = store.New(
 				irr.NewIRR(defaultServer),
 				nil,
-				cacheStorePath(),
+				plug.state,
 			)
 			if err := ps.Open(); err != nil {
 				return fmt.Errorf("firewall-irr: cache not available: %w", err)
@@ -133,12 +134,24 @@ func runFirewallIRR(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	defer close(plug.stopCh)
+	p.OnStarted(func(ctx context.Context) error {
+		plug.mu.Lock()
+		plug.state = p.StateKeys(ctx)
+		ps := plug.prefixStore
+		cfg := plug.config
+		plug.mu.Unlock()
+		if ps == nil {
+			return nil
+		}
+		ps.UsePersistence(plug.state)
+		return plug.configure(cfg)
+	})
 
 	if err := p.Run(ctx, sdk.Registration{
 		Commands:    commandDecls(),
 		WantsConfig: []string{configRoot},
 		// The cache this plugin serves the firewall from survives a restart in
-		// the zefs store, so a crashed process comes back and programs its sets
+		// the owned store, so a crashed process comes back and programs its sets
 		// again from what it had. Without the restart the registry holds back
 		// every table naming an IRR set for the life of the daemon.
 		FailurePolicy: sdk.FailureRestart,
@@ -178,8 +191,10 @@ func (plug *irrPlugin) configure(cfg *irrConfig) error {
 		logger().Warn("firewall-irr: apply failed", "error", err)
 	}
 
-	if cfg.RefreshInterval > 0 {
-		go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+	if plug.state != nil {
+		if cfg.RefreshInterval > 0 {
+			go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
+		}
 	}
 
 	logger().Debug("configured", "server", cfg.Server, "refresh-interval", cfg.RefreshInterval)
@@ -197,10 +212,10 @@ func (plug *irrPlugin) configure(cfg *irrConfig) error {
 // reading the store this function now keeps, so the reload removed from the
 // kernel a table that was filtering a minute earlier.
 //
-// Open is called on each configure, not only at creation: the zefs file is
-// shared with the BGP IRR filter, and reading it again picks up what that
-// consumer has fetched since. It only adds. An entry in both places is the same
-// entry, because every store mutation persists before it returns.
+// Open rereads the daemon's shared key space on each runtime configure, so the
+// BGP IRR filter's successful refreshes are available here too. During the
+// initial handshake persistence is unbound; OnStarted binds it and configures
+// again before starting refresh workers.
 func (plug *irrPlugin) configureStore(cfg *irrConfig) *store.PrefixStore {
 	irrClient := irr.NewIRR(cfg.Server)
 	pdb := peeringdb.NewPeeringDB(cfg.PeeringDBURL)
@@ -208,7 +223,7 @@ func (plug *irrPlugin) configureStore(cfg *irrConfig) *store.PrefixStore {
 	plug.mu.Lock()
 	ps := plug.prefixStore
 	if ps == nil {
-		ps = store.New(irrClient, pdb, cacheStorePath())
+		ps = store.New(irrClient, pdb, plug.state)
 		plug.prefixStore = ps
 	} else {
 		ps.UseClients(irrClient, pdb)

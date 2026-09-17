@@ -724,10 +724,6 @@ func zeDaemonUsesWeb(args []string) bool {
 	return false
 }
 
-func zeDaemonShouldForceFileStorage(args []string) bool {
-	return zeDaemonConfigArgIndex(args) >= 0 && !zeDaemonUsesWeb(args)
-}
-
 // zeDaemonVerbs are the ze subcommands that start a long-running or blocking
 // process (they run until the runner kills them), as opposed to the many
 // offline/one-shot subcommands (config, show, bgp decode, format, doctor,

@@ -146,7 +146,7 @@ func runHTTP(cfg installConfig) int {
 		return 1
 	}
 	slog.Info("injecting database", "partition", part4)
-	if err := mountInjectDB(part4, tb.Reset().Str(baseURL).String()); err != nil {
+	if err := mountInjectDB(part4, tb.Reset().Str(baseURL).String(), "/mnt/perm"); err != nil {
 		slog.Error("database injection failed", "error", err)
 		return 1
 	}

@@ -23,7 +23,8 @@ func testShowModel(t *testing.T) *Model {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
@@ -453,7 +454,8 @@ func testScopedShowModel(t *testing.T) *Model {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testScopedShowConfig), 0o600))
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
@@ -550,7 +552,7 @@ func TestEditorShowColumnPreferences(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -578,7 +580,8 @@ func TestEditorSavedDraftContent(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -587,7 +590,7 @@ func TestEditorSavedDraftContent(t *testing.T) {
 
 	// Create a draft file
 	draftPath := configPath + ".draft"
-	err = os.WriteFile(draftPath, []byte("draft content here"), 0o600)
+	err = store.WriteFile(draftPath, []byte("draft content here"), 0o600)
 	require.NoError(t, err)
 
 	assert.Equal(t, "draft content here", ed.savedDraftContent())
@@ -603,7 +606,8 @@ func TestWalkMetaPath(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -753,7 +757,8 @@ func TestCmdShowPipeCompareRollback(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
@@ -811,7 +816,8 @@ func TestCmdShowPipeCompareRollbackStackFormat(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
@@ -847,7 +853,7 @@ func TestCmdShowConfirmed(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
@@ -884,13 +890,14 @@ func TestCmdShowSaved(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
+	store := newTestTreeStore(t, configPath)
 	// Create a draft file with different content.
 	draftContent := "set bgp router-id 8.8.8.8\nset bgp local as 65000\n"
 	draftPath := configPath + ".draft"
-	err = os.WriteFile(draftPath, []byte(draftContent), 0o600)
+	err = store.WriteFile(draftPath, []byte(draftContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 
@@ -932,7 +939,8 @@ func TestCmdShowCompareUsername(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 

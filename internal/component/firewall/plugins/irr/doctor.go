@@ -11,12 +11,13 @@
 package irr
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -67,7 +68,16 @@ func checkIRRDataFreshness(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 		return nil
 	}
 
-	ps := store.New(nil, nil, doctorCachePath(ctx.ConfigDir))
+	dir := ctx.ConfigDir
+	if dir == "" {
+		dir = resolve.StoreDir("")
+	}
+	persistence, err := storage.OpenReadOnly(dir)
+	if err != nil {
+		return nil // The storage check reports unavailable or unsafe stores.
+	}
+	defer func() { _ = persistence.Close() }()
+	ps := store.New(nil, nil, persistence)
 	if err := ps.Open(); err != nil {
 		return nil // the cache file is the store's own problem to report
 	}
@@ -122,14 +132,4 @@ func updateHelp(ref irrRef) string {
 	}
 	tb.Byte('\'')
 	return tb.String()
-}
-
-// doctorCachePath is the zefs file holding the persisted prefix cache. Doctor
-// may be pointed at a config directory other than the default, so its own
-// directory wins when it has one.
-func doctorCachePath(configDir string) string {
-	if configDir == "" {
-		return cacheStorePath()
-	}
-	return filepath.Join(configDir, "database.zefs")
 }

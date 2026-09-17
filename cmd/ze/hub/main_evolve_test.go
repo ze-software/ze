@@ -9,7 +9,6 @@ import (
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/migration"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/version"
 )
 
@@ -56,12 +55,8 @@ func TestApplyEvolutionsBackupCreated(t *testing.T) {
 	if err := os.WriteFile(configPath, originalData, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	rollbackDir := filepath.Join(dir, "rollback")
-	if err := os.MkdirAll(rollbackDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
 
-	store := storage.NewFilesystem()
+	store := newTestFileStore(t, configPath)
 	tree, err := parseTestConfig(t, string(originalData))
 	if err != nil {
 		t.Fatal(err)
@@ -76,13 +71,13 @@ func TestApplyEvolutionsBackupCreated(t *testing.T) {
 		t.Fatal("expected evolutions to apply")
 	}
 
-	entries, err := os.ReadDir(rollbackDir)
+	entries, err := store.ListVersions(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	foundBackup := false
 	for _, e := range entries {
-		backupData, rErr := os.ReadFile(filepath.Join(rollbackDir, e.Name()))
+		backupData, rErr := store.ReadFile(e.Path)
 		if rErr != nil {
 			continue
 		}
@@ -92,7 +87,7 @@ func TestApplyEvolutionsBackupCreated(t *testing.T) {
 		}
 	}
 	if !foundBackup {
-		t.Error("original config should have been backed up to rollback dir before write-back")
+		t.Error("original config should remain in stored history before write-back")
 	}
 }
 
@@ -107,11 +102,8 @@ func TestApplyEvolutionsDataUpdated(t *testing.T) {
 	if err := os.WriteFile(configPath, originalData, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dir, "rollback"), 0o700); err != nil {
-		t.Fatal(err)
-	}
 
-	store := storage.NewFilesystem()
+	store := newTestFileStore(t, configPath)
 	tree, err := parseTestConfig(t, string(originalData))
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +135,7 @@ func TestApplyEvolutionsNoEvolutionsNeeded(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store := storage.NewFilesystem()
+	store := newTestStore(t)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	outcome, evolveErr := applyEvolutions(logger, store, "", originalData, tree, "26.05.01")
 	if evolveErr != nil {
@@ -168,7 +160,7 @@ func TestApplyEvolutionsStdinConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store := storage.NewFilesystem()
+	store := newTestStore(t)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	outcome, evolveErr := applyEvolutions(logger, store, "-", originalData, tree, "26.05.01")
 	if evolveErr != nil {
@@ -193,11 +185,8 @@ func TestApplyEvolutionsWriteBackMatchesDisk(t *testing.T) {
 	if err := os.WriteFile(configPath, originalData, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dir, "rollback"), 0o700); err != nil {
-		t.Fatal(err)
-	}
 
-	store := storage.NewFilesystem()
+	store := newTestFileStore(t, configPath)
 	tree, err := parseTestConfig(t, string(originalData))
 	if err != nil {
 		t.Fatal(err)

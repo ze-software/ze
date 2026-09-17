@@ -425,6 +425,7 @@ type fileCheck struct {
 	Exists      bool
 	Absent      bool
 	Count       *int
+	Key         bool // Decode a database/ key rather than read an ordinary file.
 }
 
 // newRecord creates a new test record.

@@ -11,14 +11,12 @@
 # guard passes the loopback address, and the listener reports where it actually
 # bound. A discarded address falls back to resolveWebListeners' 0.0.0.0:3443
 # default, which this test rejects.
-# The web server needs blob storage (startWebServer, service_web.go), so `ze init`
-# runs as its own declarative command before the daemon.
+# Initialize the per-test tree before the daemon starts its web listener.
 
 option=exclusive:group=mgmt-guard
 option=timeout:value=60s
 option=env:var=ze.web.enabled:value=1
 option=env:var=ZE_CONFIG_DIR:value=.
-option=env:var=ZE_STORAGE_BLOB:value=true
 
 stdin=init-answers:terminator=EOF_INIT
 webadmin

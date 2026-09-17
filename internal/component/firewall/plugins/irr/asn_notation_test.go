@@ -128,7 +128,7 @@ func TestClearASNReadsEveryNotation(t *testing.T) {
 		{"1.10", "AS65546"},  // asdot
 		{"0.100", "AS100"},   // asdot+, which asdot writes as plain 100
 	} {
-		ps := store.New(nil, nil, "")
+		ps := store.New(nil, nil, nil)
 		ps.Put(tc.cached, []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
 		plug := &irrPlugin{prefixStore: ps, config: &irrConfig{Server: defaultServer}}
 
@@ -147,7 +147,7 @@ func TestClearASNReadsEveryNotation(t *testing.T) {
 
 	// A dotted token whose low field overflows names no AS number, so the
 	// command still refuses it.
-	plug := &irrPlugin{prefixStore: store.New(nil, nil, ""), config: &irrConfig{Server: defaultServer}}
+	plug := &irrPlugin{prefixStore: store.New(nil, nil, nil), config: &irrConfig{Server: defaultServer}}
 	if _, _, err := plug.handleCommand("clear firewall irr asn", []string{"0.65546"}); err == nil {
 		t.Error("clear firewall irr asn accepted 0.65546, which names no AS number")
 	}

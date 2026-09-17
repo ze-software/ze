@@ -65,6 +65,7 @@ const (
 	CodeDoctorPKICert                              = "doctor-pki-cert"
 	CodeDoctorRandomSeed                           = "doctor-random-seed"
 	CodeDoctorStoreIntegrity                       = "doctor-store-integrity"
+	CodeDoctorStorePermissions                     = "doctor-store-permissions"
 	CodeDoctorTLSExpired                           = "doctor-tls-expired"
 	CodeDoctorTLSInvalid                           = "doctor-tls-invalid"
 	CodeDoctorTLSMissing                           = "doctor-tls-missing"
@@ -236,7 +237,13 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        CodeDoctorStoreIntegrity,
 		Title:       "Store integrity failure",
-		Description: "The zefs database has corrupt entries or a container-level error.",
+		Description: "A managed store key failed its CRC32c check. The diagnostic names the damaged key. Stop the daemon and use ze data check and ze data repair --output to recover valid entries without overwriting the source.",
+		Examples:    []string{exampleDoctorJSON},
+	},
+	{
+		Code:        CodeDoctorStorePermissions,
+		Title:       "Store permissions refused",
+		Description: "The store contains a directory or file with unsafe permissions, a different owner, or an unsupported node such as a symlink. The diagnostic names the path and the required chmod or chown. Ownership is checked against the caller even for root.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
@@ -265,8 +272,8 @@ var builtinCodes = []CodeMeta{
 	},
 	{
 		Code:        "doctor-storage-unavailable",
-		Title:       "Blob storage unavailable",
-		Description: "The zefs database could not be opened.",
+		Title:       "Config storage unavailable",
+		Description: "The managed store could not be opened read-only. Run ze init when no store exists, or follow the named import or repair command. Doctor never creates a store.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
@@ -452,7 +459,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        CodeDoctorDiskSpace,
 		Title:       "Low disk space on config partition",
-		Description: "The partition containing the config directory has less than 5% free space. The zefs database may fail to write.",
+		Description: "The partition containing the config directory has less than 5% free space. Managed store writes may fail.",
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
@@ -660,7 +667,7 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-ospf-graceful-restart-nvs",
 		Title:       "OSPF Graceful Restart NVS path unwritable",
-		Description: "OSPF Graceful Restart is enabled (restarter support planned or planned-and-unplanned, RFC 3623 / RFC 5187), which requires a writable non-volatile store to persist the restart fact (RFC 3623 Section 2.1) across a planned restart, but the ZeFS blob store directory cannot be resolved or written. Without it a planned restart cannot record its grace deadline, so the resumed engine boots normally instead of staying on the forwarding path, defeating non-stop forwarding. Ensure a persistent config directory is configured and writable.",
+		Description: "OSPF Graceful Restart is enabled (restarter support planned or planned-and-unplanned, RFC 3623 / RFC 5187), which requires a writable non-volatile store to persist the restart fact (RFC 3623 Section 2.1) across a planned restart, but the managed store directory cannot be resolved or written. Without it a planned restart cannot record its grace deadline, so the resumed engine boots normally instead of staying on the forwarding path, defeating non-stop forwarding. Ensure a persistent config directory is configured and writable.",
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-graceful-restart-nvs"},
 	},
 	{

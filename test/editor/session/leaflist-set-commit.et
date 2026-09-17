@@ -29,7 +29,7 @@ expect=dirty:true
 expect=error:none
 
 # The per-user change file must contain the member (was empty before the fix)
-expect=file:path=test.conf.change.thomas:contains=8.8.8.8
+expect=key:path=file/active/test.conf.change.thomas:contains=8.8.8.8
 
 # Commit the change
 input=type:text=commit
@@ -39,6 +39,6 @@ expect=error:none
 expect=status:contains=1 change(s) applied
 
 # Committed config holds the member; session state is cleaned up
-expect=file:path=test.conf:contains=name-server 8.8.8.8
-expect=file:path=test.conf.change.thomas:absent
-expect=file:path=test.conf.draft:absent
+expect=key:path=file/active/test.conf:contains=name-server 8.8.8.8
+expect=key:path=file/active/test.conf.change.thomas:absent
+expect=key:path=file/active/test.conf.draft:absent

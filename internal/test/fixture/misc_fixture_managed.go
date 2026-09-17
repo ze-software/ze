@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -91,7 +92,7 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 		return err
 	}
 	defer os.RemoveAll(cfgDir) //nolint:errcheck // fixture cleanup
-	dbPath := filepath.Join(cfgDir, "database.zefs")
+	dbPath := filepath.Join(cfgDir, "database")
 	env := miscEnvironment(map[string]string{
 		envConfigDir:              cfgDir,
 		"ZE_MANAGED_TLS_INSECURE": valueTrue,
@@ -172,8 +173,17 @@ func runManagedScenario(ctx context.Context, name string, hubPort, pluginPort in
 	} else if !strings.Contains(activeText, "router-id 2.2.2.2") {
 		return fmt.Errorf("accepted push did not update active config:\n%s", activeText)
 	}
-	if data, err := managedRunCommand(ctx, env, cfgDir, "", "data", "--path", dbPath, "cat", "meta/config/candidate"); err == nil {
-		return fmt.Errorf("candidate pointer remains after %s scenario: %s", name, data)
+	store, err := storage.OpenReadOnly(cfgDir)
+	if err != nil {
+		return err
+	}
+	_, _, candidate, readErr := storage.ReadCandidateConfig(store, managedClientName+".conf")
+	closeErr := store.Close()
+	if err := errors.Join(readErr, closeErr); err != nil {
+		return fmt.Errorf("inspect candidate after %s: %w", name, err)
+	}
+	if candidate {
+		return fmt.Errorf("candidate pointer remains after %s scenario", name)
 	}
 	return nil
 }

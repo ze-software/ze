@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,20 +23,17 @@ func writeTestConfig(t *testing.T, content string) string {
 	return configPath
 }
 
-// writeBlobConfig creates a blob store, writes a config into it, and returns
-// the store and the config key (absolute path) used inside the blob.
+// writeBlobConfig supplies a stored config fixture for storage-aware commands.
 func writeBlobConfig(t *testing.T, content string) (storage.Storage, string) {
 	t.Helper()
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test.conf")
-	// Write to filesystem first so NewBlob migrates it in
-	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("create blob: %v", err)
+	}
+	if err := store.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() }) //nolint:errcheck // test cleanup
 	return store, configPath
@@ -83,9 +81,9 @@ func TestCmdSetBasic(t *testing.T) {
 	}
 }
 
-// TestCmdSetCreatesBackup verifies that set creates a backup file.
+// TestCmdSetCreatesBackup verifies that set preserves the previous configuration.
 //
-// VALIDATES: Backup is created before modifying config.
+// VALIDATES: A store-backed edit records the prior value before replacing it.
 // PREVENTS: Data loss from unintended modifications.
 func TestCmdSetCreatesBackup(t *testing.T) {
 	configPath := writeTestConfig(t, `bgp {
@@ -104,29 +102,45 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 	}
 }
 `)
+	original, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := storage.Create(filepath.Dir(configPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(configPath, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	code := cmdSet([]string{configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
 
-	// Check for backup file in rollback/ subdirectory
-	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
-	entries, err := os.ReadDir(rollbackDir)
+	store, err = storage.OpenReadOnly(filepath.Dir(configPath))
 	if err != nil {
-		t.Fatalf("readdir rollback/: %v", err)
+		t.Fatal(err)
 	}
-
-	backupFound := false
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "test-") && strings.HasSuffix(e.Name(), ".conf") {
-			backupFound = true
-			break
+	defer store.Close() //nolint:errcheck // test cleanup
+	versions, err := store.ListVersions(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range versions {
+		data, err := store.ReadFile(version.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Equal(data, original) {
+			return
 		}
 	}
-	if !backupFound {
-		t.Error("expected backup file to be created in rollback/")
-	}
+	t.Fatal("stored history lost the configuration replaced by set")
 }
 
 // TestCmdSetDryRun verifies dry-run mode does not modify the file.

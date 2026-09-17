@@ -428,6 +428,23 @@ func injectZeFS(imgPath, dbPath, manifestPath string) int {
 		return exitError
 	}
 
+	// The image is assembled by a host user, but gokrazy runs Ze as root.
+	// Explicit metadata avoids importing host ownership or debugfs defaults
+	// into the strict on-device storage boundary.
+	for _, command := range []string{
+		"set_inode_field ze mode 040700",
+		"set_inode_field ze uid 0",
+		"set_inode_field ze gid 0",
+		"set_inode_field ze/database.zefs mode 0100600",
+		"set_inode_field ze/database.zefs uid 0",
+		"set_inode_field ze/database.zefs gid 0",
+	} {
+		if _, err := runExternalFn(debugfs, "-w", "-R", command, permImg); err != nil {
+			fmt.Fprintf(os.Stderr, "error: debugfs seed permissions: %v\n", err)
+			return exitError
+		}
+	}
+
 	if manifestPath != "" {
 		var tb textbuf.Buffer
 		manifestCmd := tb.Str("write ").Str(manifestPath).Str(" ze/build.json").String()

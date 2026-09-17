@@ -47,18 +47,22 @@ func firstLine(raw []byte) string {
 // config was written by a newer binary (its stamp release > this binary's release).
 // It walks rollback versions newest-first, skipping those from newer binaries,
 // and attempts a full parse on each candidate. The first version that parses
-// successfully is written back as the current config (re-stamped with this
-// binary's release) so the active config matches what is on disk.
+// successfully is published through the caller's authority-aware transaction
+// (re-stamped with this binary's release) before it is returned.
 //
 // Returns the loaded result and true if recovery succeeded, or nil and false
 // if no compatible rollback was found.
-func RecoverConfig(store storage.Storage, configPath string, currentData []byte, cliPlugins []string) (*LoadConfigResult, bool) {
+func RecoverConfig(store storage.Storage, configPath string, currentData []byte, cliPlugins []string, publish func([]byte) error) (*LoadConfigResult, bool) {
 	logger := slogutil.Logger("config.recover")
 
 	configRelease := ScanStampRelease(currentData)
 	binaryRelease := version.Release()
 
 	if !version.IsNewerRelease(configRelease, binaryRelease) {
+		return nil, false
+	}
+	if store == nil || publish == nil {
+		logger.Error("config recovery requires persistent history and a publication handler")
 		return nil, false
 	}
 
@@ -90,28 +94,21 @@ func RecoverConfig(store storage.Storage, configPath string, currentData []byte,
 
 		if backupErr := store.WriteVersion(configPath, currentData, time.Now()); backupErr != nil {
 			logger.Error("backup current config before recovery", "error", backupErr)
+			return nil, false
 		}
-
-		writtenBack := false
 		schema, schemaErr := YANGSchema()
-		if schemaErr == nil {
-			stamped := FormatSchemaStamp() + SerializeSetWithMeta(result.Tree, NewMetaTree(), schema)
-			if writeErr := store.WriteFile(configPath, []byte(stamped), 0o600); writeErr != nil {
-				logger.Error("write recovered config", "error", writeErr)
-			} else {
-				writtenBack = true
-			}
+		if schemaErr != nil {
+			logger.Error("load schema for recovered config", "error", schemaErr)
+			return nil, false
 		}
-
-		if writtenBack {
-			logger.Warn("recovered config from rollback",
-				"rollback-release", rollbackRelease,
-				"rollback-date", v.Date.Format("2006-01-02 15:04:05"))
-		} else {
-			logger.Warn("recovered config from rollback (write-back failed, will re-recover on next restart)",
-				"rollback-release", rollbackRelease,
-				"rollback-date", v.Date.Format("2006-01-02 15:04:05"))
+		stamped := FormatSchemaStamp() + SerializeSetWithMeta(result.Tree, NewMetaTree(), schema)
+		if publishErr := publish([]byte(stamped)); publishErr != nil {
+			logger.Error("publish recovered config", "error", publishErr)
+			return nil, false
 		}
+		logger.Warn("recovered config from rollback",
+			"rollback-release", rollbackRelease,
+			"rollback-date", v.Date.Format("2006-01-02 15:04:05"))
 
 		return result, true
 	}

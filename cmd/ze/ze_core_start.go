@@ -8,10 +8,12 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -31,15 +33,20 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// resolveStorage creates the appropriate storage backend.
-// Default: blob storage at {configDir}/database.zefs.
-// Fallback: filesystem if blob cannot be created or ZE_STORAGE_BLOB=false.
-func resolveStorage() storage.Storage {
-	s, err := internalresolve.Storage()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: blob storage unavailable (%v), using filesystem\n", err)
+// openExplicitStore creates only a genuinely absent store. Permission,
+// ownership, corruption and artifact refusals are never startup fallbacks.
+func openExplicitStore(configPath string) (storage.Storage, error) {
+	store, err := internalresolve.StorageFor(configPath)
+	if !errors.Is(err, storage.ErrNoStore) {
+		return store, err
 	}
-	return s
+	dir := internalresolve.StoreDir(configPath)
+	store, err = storage.Create(dir)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Fprintf(os.Stderr, "created live store: %s\n", filepath.Join(dir, "database"))
+	return store, nil
 }
 
 func validPort(s string) bool {
@@ -50,7 +57,7 @@ func validPort(s string) bool {
 func startUsage() {
 	p := helpfmt.Page{
 		Command:   "ze start",
-		ShortHelp: "Start the Ze daemon from blob storage, or from an optional config file",
+		ShortHelp: "Start the Ze daemon from the live store, or from an explicit config file",
 		Usage:     []string{"ze start [<config-file>] [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: helpOptionsSectionTitle, Entries: []helpfmt.HelpEntry{
@@ -107,7 +114,7 @@ func startConfigPath(args []string) string {
 		case flagStartCLI, flagStartWebOnly, flagStartInsecureWeb:
 			// value-less flags: no path here
 		default:
-			if !strings.HasPrefix(args[i], "-") {
+			if args[i] == "-" || !strings.HasPrefix(args[i], "-") {
 				return args[i]
 			}
 		}
@@ -188,27 +195,30 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		}
 	}
 
-	// An explicit config path (ze start <config-file>) launches the daemon from
-	// that file. Keyword-first grammar (ai/rules/cli.md R1) places the
-	// path behind the `start` keyword; this is the SUPPORTED (and only) form. The
-	// free-form positional path in zeDispatch (`ze <config-file>`) was REMOVED by
-	// spec-fixit-config-file-positional-grammar; only the `-` stdin sentinel
-	// remains there. This branch is the simple file-launch flow (blob-then-
-	// filesystem fallback), NOT the managed/bootstrap blob-default path below,
-	// which applies only when no explicit path is given.
+	// Explicit-file mode keeps an absolute path through reload and commit.
+	// Stored-config mode below carries only the config's name.
 	if configPath := startConfigPath(args); configPath != "" {
 		if webOnly {
 			fmt.Fprintf(os.Stderr, "error: --web-only cannot be combined with a config-file path\n")
 			return 1
 		}
-		store := resolveStorage()
-		configPath = config.ResolveConfigPath(configPath)
-		if storage.IsBlobStorage(store) && !store.Exists(configPath) {
-			if _, statErr := os.Stat(configPath); statErr != nil {
-				store.Close() //nolint:errcheck // closing blob before filesystem fallback
-				store = storage.NewFilesystem()
-			}
+		if configPath == "-" {
+			return withPanicCapture(func() int {
+				return hub.Run(nil, configPath, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken, cliEnabled)
+			})
 		}
+		configPath, err := filepath.Abs(config.ResolveConfigPath(configPath))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: resolve config path: %v\n", err)
+			return 1
+		}
+		store, err := openExplicitStore(configPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: open config store: %v\n", err)
+			return 1
+		}
+		defer store.Close() //nolint:errcheck // shutdown releases store ownership
+		store = internalresolve.BindConfigSource(store, configPath, internalresolve.ConfigSourceFile)
 		// One runtime for every config: hub.Run reads the file and parses it
 		// against the YANG schema, whatever top-level blocks it declares.
 		return withPanicCapture(func() int {
@@ -216,28 +226,20 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		})
 	}
 
-	store := resolveStorage()
-	defer func() {
-		if store != nil {
-			store.Close() //nolint:errcheck // best-effort
+	store, err := internalresolve.StorageFor("")
+	if err != nil {
+		if !env.IsEnabled("ze.gokrazy.enabled") {
+			fmt.Fprintf(os.Stderr, "error: open config store: %v\n", err)
+			return 1
 		}
-	}()
-
-	if !storage.IsBlobStorage(store) {
-		if env.IsEnabled("ze.gokrazy.enabled") {
-			store.Close() //nolint:errcheck // closing filesystem fallback before re-resolve
-			var initErr error
-			store, initErr = gokrazyAutoInit()
-			if initErr != nil {
-				slog.Error("gokrazy auto-init failed", "error", initErr)
-				return 1
-			}
-			slog.Info("gokrazy: auto-init fallback, created database")
-		} else {
-			fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
+		store, err = gokrazyAutoInit()
+		if err != nil {
+			slog.Error("gokrazy auto-init failed", "error", err)
 			return 1
 		}
 	}
+	defer store.Close() //nolint:errcheck // shutdown releases store ownership
+	store = internalresolve.BindConfigSource(store, internalresolve.DefaultConfig(store), internalresolve.ConfigSourceStored)
 
 	// Explicit --web-only: start standalone web UI, no daemon.
 	if webOnly {

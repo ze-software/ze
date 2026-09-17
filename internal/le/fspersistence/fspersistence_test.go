@@ -22,6 +22,11 @@ import (
 func writeTree(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
+	for _, root := range scanRoots {
+		if err := os.MkdirAll(filepath.Join(dir, root), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for rel, body := range files {
 		path := filepath.Join(dir, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
@@ -279,5 +284,67 @@ func TestADeadExemptionRuleIsRefused(t *testing.T) {
 	}
 	if _, err := CheckCheckout(tree, scanFloor); !errors.Is(err, ErrDeadAllowlistEntry) {
 		t.Errorf("a rule suppressing nothing answered %v, want ErrDeadAllowlistEntry", err)
+	}
+}
+
+// TestLiveStoreBypass refuses constructors across every runtime root, including
+// aliases and files already exempt from the unrelated raw-write rule.
+func TestLiveStoreBypass(t *testing.T) {
+	source := "package fixture\nimport blob \"github.com/ze-software/ze/pkg/zefs\"\nvar open = blob.Open\n"
+	tree := writeTree(t, map[string]string{
+		"internal/core/ssh/client/open.go":          source,
+		"internal/component/demo/open.go":           source,
+		"internal/component/support/support.go":     source,
+		"internal/plugins/demo/open.go":             source,
+		"cmd/ze/open.go":                            source,
+		"internal/core/direct/open.go":              "package direct\nimport \"github.com/ze-software/ze/pkg/zefs\"\nfunc open() { zefs.Open(\"database.zefs\") }\n",
+		"internal/core/create/open.go":              "package direct\nimport \"github.com/ze-software/ze/pkg/zefs\"\nfunc open() { zefs.Create(\"artifact.zefs\") }\n",
+		"internal/core/dot/open.go":                 "package dot\nimport . \"github.com/ze-software/ze/pkg/zefs\"\nvar open = Open\n",
+		"internal/plugins/debug/profile.go":         source,
+		"internal/component/config/storage/blob.go": source,
+	})
+	findings, err := Check(tree, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{
+		"internal/core/ssh/client/open.go":      true,
+		"internal/component/demo/open.go":       true,
+		"internal/component/support/support.go": true,
+		"internal/plugins/demo/open.go":         true,
+		"internal/core/direct/open.go":          true,
+		"internal/core/create/open.go":          true,
+		"internal/core/dot/open.go":             true,
+		"cmd/ze/open.go":                        true,
+	}
+	for _, finding := range findings {
+		if !want[finding.File] {
+			t.Errorf("unexpected finding: %+v", finding)
+		}
+		if !strings.Contains(finding.Code, "live-zefs-open") {
+			t.Errorf("missing rule name: %+v", finding)
+		}
+		delete(want, finding.File)
+	}
+	if len(want) != 0 {
+		t.Fatalf("unreported live-store bypasses: %v", want)
+	}
+}
+
+// A retired artifact exemption must stop authorizing future bypasses.
+func TestDeadBlobArtifactExemption(t *testing.T) {
+	original := blobArtifactAllowlist
+	blobArtifactAllowlist = map[string]string{"internal/core/unused.go": "retired artifact"}
+	t.Cleanup(func() { blobArtifactAllowlist = original })
+	tree, err := lepath.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = CheckCheckout(tree, scanFloor)
+	if !errors.Is(err, ErrDeadAllowlistEntry) {
+		t.Fatalf("stale artifact exemption: %v", err)
+	}
+	if !strings.Contains(err.Error(), "live-zefs-open:internal/core/unused.go") {
+		t.Fatalf("stale artifact rule unnamed: %v", err)
 	}
 }

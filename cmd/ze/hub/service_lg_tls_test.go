@@ -14,7 +14,6 @@ import (
 	"crypto/x509/pkix"
 	"log/slog"
 	"math/big"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -122,10 +121,11 @@ func loadLGPKIStore(t *testing.T) {
 func lgBlobStorage(t *testing.T) storage.Storage {
 	t.Helper()
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("storage.NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
+	t.Cleanup(func() { _ = store.Close() })
 	return store
 }
 
@@ -231,7 +231,7 @@ func TestBuildLGServiceNamedCertificateWithoutBlobStorage(t *testing.T) {
 		LGTLS:         true,
 		LGTLSExplicit: true,
 		LGCertificate: "lg-cert",
-		Store:         storage.NewFilesystem(),
+		Store:         nil,
 	})
 	if err != nil {
 		t.Fatalf("a named certificate must not need blob storage: %v", err)
@@ -266,16 +266,13 @@ func TestBuildLGServiceEmptyNameKeepsStorageRules(t *testing.T) {
 			LGTLS:         true,
 			LGTLSExplicit: true,
 			LGCertificate: "",
-			Store:         storage.NewFilesystem(),
+			Store:         nil,
 		})
 		if err == nil {
 			t.Fatal("explicit TLS with no blob storage must fail, not fall back to plaintext")
 		}
 		if svc != nil {
 			t.Fatal("a refused looking glass must leave no service")
-		}
-		if !strings.Contains(err.Error(), "blob storage") {
-			t.Fatalf("error must name the missing certificate store, got %v", err)
 		}
 	})
 
@@ -286,7 +283,7 @@ func TestBuildLGServiceEmptyNameKeepsStorageRules(t *testing.T) {
 			LGTLS:         true,
 			LGTLSExplicit: false,
 			LGCertificate: "",
-			Store:         storage.NewFilesystem(),
+			Store:         nil,
 		})
 		if err != nil {
 			t.Fatalf("defaulted TLS with no blob storage must still start: %v", err)
@@ -358,7 +355,7 @@ func TestPlaintextLGHoldsNoRotationHandle(t *testing.T) {
 			LGAddrs:       []string{"127.0.0.1:0"},
 			LGTLS:         true,
 			LGTLSExplicit: false,
-			Store:         storage.NewFilesystem(),
+			Store:         nil,
 		})
 		if lm.lg == nil {
 			t.Fatal("the looking glass must still be wired for listener migration")
@@ -396,7 +393,7 @@ func TestPlaintextLGHoldsNoRotationHandle(t *testing.T) {
 			LGTLS:         true,
 			LGTLSExplicit: true,
 			LGCertificate: "lg-cert",
-			Store:         storage.NewFilesystem(),
+			Store:         nil,
 		})
 		if lm.lgTLS == nil {
 			t.Fatal("a looking glass serving TLS must hold the certificate-rotation handle")

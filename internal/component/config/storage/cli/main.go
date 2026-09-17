@@ -1,6 +1,6 @@
-// Design: docs/architecture/zefs-format.md -- ZeFS blob store CLI
+// Design: docs/architecture/zefs-format.md -- managed store and blob artifact CLI
 //
-// Package data provides the ze data subcommand for managing ZeFS blob stores.
+// Package cli provides offline key operations over managed stores and blob artifacts.
 package cli
 
 import (
@@ -11,18 +11,19 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
-	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/suggest"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-const defaultBlobName = "database.zefs"
+const defaultStoreName = "database"
 
 // subcommandHandlers maps subcommand names to their handler functions.
-// Each handler receives the blob path and remaining args.
+// Each handler receives the store path and remaining args.
 var subcommandHandlers = map[string]func(string, []string) int{
 	"import":     cmdImport,
 	"write":      cmdWrite,
@@ -69,7 +70,7 @@ func Run(args []string) int {
 	return 1
 }
 
-// extractPathFlag parses --path <path> from args and returns the blob path and remaining args.
+// extractPathFlag parses --path <path> and returns the store path and remaining args.
 func extractPathFlag(args []string) (string, []string) {
 	storePath := ""
 	remaining := make([]string, 0, len(args))
@@ -86,32 +87,37 @@ func extractPathFlag(args []string) (string, []string) {
 	}
 
 	if storePath == "" {
-		configDir := paths.DefaultConfigDir()
-		if configDir == "" {
-			storePath = defaultBlobName
-		} else {
-			storePath = filepath.Join(configDir, defaultBlobName)
-		}
+		storePath = filepath.Join(resolve.StoreDir(""), defaultStoreName)
 	}
 
 	return storePath, remaining
 }
 
-// openStore opens an existing blob store or returns an error.
-func openStore(storePath string) (*zefs.BlobStore, error) {
-	s, err := zefs.Open(storePath)
+// openStore opens a database directory or an explicitly named blob artifact.
+// The caller MUST close the returned handle, releasing ownership for writers.
+func openStore(storePath string, writable bool) (storage.Storage, error) {
+	info, err := os.Stat(storePath)
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", storePath, err)
 	}
-	return s, nil
+	if !info.IsDir() {
+		return storage.OpenBlob(storePath, writable)
+	}
+	return storage.OpenTree(storePath, writable)
 }
 
-// openOrCreateStore opens an existing store or creates a new one.
-func openOrCreateStore(storePath string) (*zefs.BlobStore, error) {
-	if _, err := os.Stat(storePath); err == nil {
-		return zefs.Open(storePath)
+// openOrCreateStore only creates explicitly named blob artifacts. Live stores
+// are initialized by ze init, never by a data command.
+func openOrCreateStore(storePath string) (storage.Storage, error) {
+	if _, err := os.Stat(storePath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if strings.HasSuffix(storePath, ".zefs") {
+				return storage.CreateBlob(storePath)
+			}
+		}
+		return nil, fmt.Errorf("open %s: %w; run ze init to create a live store", storePath, err)
 	}
-	return zefs.Create(storePath)
+	return openStore(storePath, true)
 }
 
 // filePathToKey converts a filesystem path to a blob key under the file/active/ namespace.
@@ -140,7 +146,7 @@ func cmdWrite(storePath string, args []string) int {
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
-	if writeErr := s.WriteFile(key, data, 0); writeErr != nil {
+	if writeErr := s.WriteKey(key, data); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: write %s: %v\n", key, writeErr)
 		return 2
 	}
@@ -162,20 +168,14 @@ func cmdImport(storePath string, args []string) int {
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
-	wl, err := s.Lock()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: lock %s: %v\n", storePath, err)
-		return 2
-	}
-
 	imported := 0
 	stdinConflict := false
 	for _, path := range args {
 		data, readErr := cliio.ReadFile(path)
 		if readErr != nil {
 			fmt.Fprintf(os.Stderr, "error: read %s: %v\n", path, readErr)
-			// stdin can be read once: a second "-" fails closed (mirrors config
-			// import, AC-9). break so the write lock is still released below.
+			// Stdin can be read once; a second "-" fails closed after any
+			// preceding successful imports, as with config import.
 			if errors.Is(readErr, cliio.ErrStdinClaimed) {
 				stdinConflict = true
 				break
@@ -185,7 +185,7 @@ func cmdImport(storePath string, args []string) int {
 
 		key := filePathToKey(path)
 
-		if writeErr := wl.WriteFile(key, data, 0); writeErr != nil {
+		if writeErr := s.WriteKey(key, data); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: write %s: %v\n", key, writeErr)
 			continue
 		}
@@ -194,10 +194,6 @@ func cmdImport(storePath string, args []string) int {
 		imported++
 	}
 
-	if err := wl.Release(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: flush: %v\n", err)
-		return 2
-	}
 	if stdinConflict {
 		return 2
 	}
@@ -215,32 +211,21 @@ func cmdRm(storePath string, args []string) int {
 		return 1
 	}
 
-	s, err := openStore(storePath)
+	s, err := openStore(storePath, true)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
-	wl, err := s.Lock()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: lock %s: %v\n", storePath, err)
-		return 2
-	}
-
 	removed := 0
 	for _, key := range args {
-		if rmErr := wl.Remove(key); rmErr != nil {
+		if rmErr := s.RemoveKey(key); rmErr != nil {
 			fmt.Fprintf(os.Stderr, "error: remove %s: %v\n", key, rmErr)
 			continue
 		}
 		fmt.Printf("removed %s\n", key)
 		removed++
-	}
-
-	if err := wl.Release(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: flush: %v\n", err)
-		return 2
 	}
 
 	fmt.Printf("%d entries removed from %s\n", removed, storePath)
@@ -251,7 +236,7 @@ func cmdRm(storePath string, args []string) int {
 }
 
 func cmdList(storePath string, args []string) int {
-	s, err := openStore(storePath)
+	s, err := openStore(storePath, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
@@ -263,7 +248,11 @@ func cmdList(storePath string, args []string) int {
 		prefix = args[0]
 	}
 
-	keys := s.List(prefix)
+	keys, err := s.ListKeys(prefix)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: list %s: %v\n", storePath, err)
+		return 2
+	}
 	for _, key := range keys {
 		fmt.Println(key)
 	}
@@ -276,14 +265,14 @@ func cmdCat(storePath string, args []string) int {
 		return 1
 	}
 
-	s, err := openStore(storePath)
+	s, err := openStore(storePath, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
 	}
 	defer s.Close() //nolint:errcheck // best-effort close
 
-	data, readErr := s.ReadFile(args[0])
+	data, readErr := s.ReadKey(args[0])
 	if readErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", readErr)
 		return 2
@@ -337,14 +326,14 @@ func printKeyRow(w *tabwriter.Writer, cols ...string) {
 func usage() {
 	p := helpfmt.Page{
 		Command:   "ze data",
-		ShortHelp: "Manage ZeFS blob stores",
+		ShortHelp: "Manage store keys and blob artifacts",
 		Usage:     []string{"ze data [--path <store>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
-				{Name: "import <file>...", Desc: "Import files into the blob store"},
-				{Name: "rm <key>...", Desc: "Remove entries from the blob store"},
-				{Name: "list [prefix]", Desc: "List entries in the blob store"},
+				{Name: "import <file>...", Desc: "Import files into the store"},
+				{Name: "rm <key>...", Desc: "Remove entries from the store"},
+				{Name: "list [prefix]", Desc: "List all matching keys recursively"},
 				{Name: "cat <key>", Desc: "Print entry content to stdout"},
 				{Name: "registered", Desc: "List all registered key patterns"},
 				{Name: "check", Desc: "Verify store integrity (CRC32c)"},
@@ -352,7 +341,7 @@ func usage() {
 				{Name: "encode [--crc|--header] [--cap N] <string>", Desc: "Show netcapstring encoding"},
 			}},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{
-				{Name: "--path <store>", Desc: "Path to the blob store (default: {configDir}/database.zefs)"},
+				{Name: "--path <store>", Desc: "Database directory or blob artifact (default: {configDir}/database)"},
 			}},
 		},
 		Examples: []string{

@@ -2112,6 +2112,21 @@ This avoids bgp importing ssh, cli, or web.
 <!-- source: internal/component/bgp/config/infra_hook.go -- LoginWarning, the BGP-side alias -->
 <!-- source: internal/component/config/infra/hook.go -- SSHExtractedConfig, HookParams, Hook, SetHook -->
 
+### Configuration storage
+
+The daemon owns one directory-backed `Storage` for config history, credentials
+and runtime state. Its `database/` tree lives in the config folder; a stable
+sibling `database.lock` excludes other writers for the handle's lifetime.
+Read-only inspection remains available. Each key is one CRC-checked netcapstring
+installed by rename, with 0700 key directories and 0600 regular files owned by the
+caller. Blob files are explicit seed, import and backup artifacts; opening the
+live store never converts one. Config mapping, per-name pointers, metadata and
+write observers share one core across both encodings. See
+[Configuration storage](storage-backends.md) for publication and recovery rules.
+<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, lockOwner -->
+<!-- source: internal/component/config/storage/store.go -- store, guard -->
+<!-- source: internal/component/config/storage/tree.go -- treeEncoding -->
+
 ---
 
 ## 20. System Update Backend

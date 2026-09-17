@@ -54,6 +54,47 @@ func TestAssembleProducesZeFS(t *testing.T) {
 	}
 }
 
+// TestAssembleReplacesRetainedSeed proves a second assembly publishes current
+// configuration and discards obsolete keys from the previous artifact.
+func TestAssembleReplacesRetainedSeed(t *testing.T) {
+	dir := assembleTestAppliance(t, "rebuilt", nil)
+	if code := runAssemble([]string{"--keep", "rebuilt"}); code != exitOK {
+		t.Fatalf("initial assembly returned %d", code)
+	}
+	path := databasePath(dir, "rebuilt")
+	old, err := zefs.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := old.WriteFile("meta/obsolete", []byte("old artifact"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := old.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if code := runAssemble([]string{"--keep", "rebuilt"}); code != exitOK {
+		t.Fatalf("reassembly returned %d", code)
+	}
+	rebuilt, err := zefs.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rebuilt.Close() //nolint:errcheck // Read-only test inspection.
+	if _, err := rebuilt.ReadFile("meta/obsolete"); !os.IsNotExist(err) {
+		t.Fatalf("obsolete artifact key survived reassembly: %v", err)
+	}
+	name, err := rebuilt.ReadFile(zefs.KeyInstanceName.Pattern)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(name) != "rebuilt" {
+		t.Fatalf("reassembled instance name = %q", name)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "rebuilt", "database")); !os.IsNotExist(err) {
+		t.Fatalf("assembly created a live store instead of an artifact: %v", err)
+	}
+}
+
 func TestAssembleReusesExistingCert(t *testing.T) {
 	dir := assembleTestAppliance(t, "cert-reuse", nil)
 

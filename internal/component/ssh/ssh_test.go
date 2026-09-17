@@ -166,7 +166,7 @@ func TestNewServerNoHostKeyNoConfigDir(t *testing.T) {
 func TestResolveHostKeyFromBlobStorage(t *testing.T) {
 	dir := t.TempDir()
 	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.CreateBlob(blobPath)
 	require.NoError(t, err)
 	defer store.Close() //nolint:errcheck // test cleanup
 
@@ -201,7 +201,7 @@ func TestResolveHostKeyFromBlobStorage(t *testing.T) {
 	assert.Equal(t, data, data2, "key should not be regenerated")
 }
 
-// VALIDATES: resolveHostKeyOption generates key in memory when storage is nil or filesystem.
+// VALIDATES: storeless keys stay in memory and configured stores retain keys.
 // PREVENTS: host key files being created on the physical filesystem by Wish.
 func TestResolveHostKeyFilesystemMode(t *testing.T) {
 	t.Run("nil storage", func(t *testing.T) {
@@ -223,21 +223,24 @@ func TestResolveHostKeyFilesystemMode(t *testing.T) {
 		assert.True(t, os.IsNotExist(statPubErr), "pub file must not be created on filesystem")
 	})
 
-	t.Run("filesystem storage", func(t *testing.T) {
+	t.Run("tree storage", func(t *testing.T) {
 		dir := t.TempDir()
 		keyPath := filepath.Join(dir, "host_key")
+		store, err := storage.Create(dir)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, store.Close()) })
 		cfg := Config{
 			Listen:      "127.0.0.1:0",
 			HostKeyPath: keyPath,
-			Storage:     storage.NewFilesystem(),
+			Storage:     store,
 		}
 		srv, err := NewServer(cfg)
 		require.NoError(t, err)
 		opt, err := srv.resolveHostKeyOption()
 		require.NoError(t, err)
 		assert.NotNil(t, opt, "should return a valid ssh.Option")
-		// Private key is written via storage.WriteFile (filesystem).
-		data, readErr := os.ReadFile(keyPath)
+		// The store retains the key without creating a loose file.
+		data, readErr := store.ReadFile(keyPath)
 		require.NoError(t, readErr, "key should be persisted via storage")
 		assert.Contains(t, string(data), "PRIVATE KEY")
 		// .pub must NOT exist — Wish's WithHostKeyPath is no longer used.
@@ -260,7 +263,9 @@ func TestResolveHostKeyWithCertificate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write host key PEM to storage.
-	store := storage.NewFilesystem()
+	store, err := storage.Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	hostPEM := marshalED25519PrivateKey(t, hostPriv)
 	require.NoError(t, store.WriteFile(keyPath, hostPEM, 0o600))
 
@@ -304,7 +309,9 @@ func TestResolveHostKeyWithCertificateMissing(t *testing.T) {
 	dir := t.TempDir()
 	keyPath := filepath.Join(dir, "host_key")
 
-	store := storage.NewFilesystem()
+	store, err := storage.Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	_, hostPriv, err := ed25519Generate()
 	require.NoError(t, err)
 	hostPEM := marshalED25519PrivateKey(t, hostPriv)
@@ -331,7 +338,9 @@ func TestResolveHostKeyWithCertificateNotACert(t *testing.T) {
 	keyPath := filepath.Join(dir, "host_key")
 	certPath := filepath.Join(dir, "not_a_cert.pub")
 
-	store := storage.NewFilesystem()
+	store, err := storage.Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	_, hostPriv, err := ed25519Generate()
 	require.NoError(t, err)
 	hostPEM := marshalED25519PrivateKey(t, hostPriv)
@@ -411,8 +420,7 @@ func TestServerAnnouncesZeBanner(t *testing.T) {
 		return true
 	}, 3*time.Second, 5*time.Millisecond)
 
-	assert.Equal(t, sshclient.ServerVersionBanner, banner,
-		"ze SSH server must announce its distinctive banner so daemonRunning can identify it")
+	assert.Equal(t, sshclient.ServerVersionBanner, banner)
 }
 
 // VALIDATES: Bug 3 — double Start returns error instead of leaking first server.
@@ -513,14 +521,15 @@ func TestSSHUsesSessionModelFactory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Inject a test factory that creates a command-only model.
-	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		factoryCalled = true
 		receivedUsername = username
 		receivedRemoteAddr = remoteAddr
-		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
+		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
 
-	model := srv.createSessionModel("testuser", "203.0.113.5:2222", nil)
+	model, err := srv.createSessionModel("testuser", "203.0.113.5:2222", nil, SessionRequest{})
+	require.NoError(t, err)
 	require.NotNil(t, model, "factory should return a model")
 	assert.True(t, factoryCalled, "factory should be called")
 	assert.Equal(t, "testuser", receivedUsername)
@@ -539,28 +548,27 @@ func TestSSHSessionGetsEditor(t *testing.T) {
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		receivedUser = username
 		receivedRemoteAddr = remoteAddr
-		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
+		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
-	srv.createSessionModel("alice", "198.51.100.1:22", nil)
+	_, err = srv.createSessionModel("alice", "198.51.100.1:22", nil, SessionRequest{})
+	require.NoError(t, err)
 	assert.Equal(t, "alice", receivedUser)
 	assert.Equal(t, "198.51.100.1:22", receivedRemoteAddr)
 }
 
-// TestSSHSessionFallbackWithoutConfig verifies nil factory returns nil model.
-//
-// VALIDATES: SSH session without factory set returns nil (no panic).
-// PREVENTS: Panic when SSH starts before hub wires factory.
+// VALIDATES: an unavailable SSH terminal returns an explicit error.
+// PREVENTS: an unconfigured terminal being reported as a successful login.
 func TestSSHSessionFallbackWithoutConfig(t *testing.T) {
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	// No factory set -- createSessionModel should return nil.
-	model := srv.createSessionModel("alice", "198.51.100.1:22", nil)
+	model, err := srv.createSessionModel("alice", "198.51.100.1:22", nil, SessionRequest{})
+	require.Error(t, err)
 	assert.Nil(t, model)
 }
 
@@ -651,13 +659,14 @@ func TestCreateSessionModelPreservesRemoteAddr(t *testing.T) {
 		gotRemoteAddr string
 	)
 
-	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
-		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
+		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
 
-	model := srv.createSessionModel("alice", "203.0.113.5:2222", nil)
+	model, err := srv.createSessionModel("alice", "203.0.113.5:2222", nil, SessionRequest{})
+	require.NoError(t, err)
 	require.NotNil(t, model)
 	assert.Equal(t, "alice", gotUser)
 	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)

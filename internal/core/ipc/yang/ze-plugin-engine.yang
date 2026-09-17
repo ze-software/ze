@@ -14,6 +14,88 @@ module ze-plugin-engine {
         description "Initial revision";
     }
 
+    grouping state-key {
+        leaf key {
+            type string { length "1..512"; pattern 'meta/[A-Za-z0-9_.:/-]+'; }
+            mandatory true;
+            ze:help "Registered state key or prefix owned by this plugin";
+            description "The daemon checks the plugin's compiled key grants before accessing this raw key.";
+        }
+    }
+    grouping state-data {
+        leaf data {
+            type binary { length "0..1048576"; }
+            ze:help "State value encoded as base64";
+            description "Raw state bytes bounded to one MiB. An empty value is valid.";
+        }
+    }
+    grouping state-result {
+        leaf status {
+            type enumeration {
+                enum ok { ze:help "Operation completed"; }
+                enum absent { ze:help "No value is stored"; }
+                enum unavailable { ze:help "Daemon has no persistent store"; }
+                enum corrupt { ze:help "Stored state failed integrity checks"; }
+                enum read-failed { ze:help "Stored state could not be read"; }
+                enum persist-failed { ze:help "Mutation was not durably acknowledged"; }
+            }
+            mandatory true;
+            ze:help "Explicit persistence outcome";
+            description "Only ok acknowledges a mutation. Absence is distinct from unavailable or corrupt storage.";
+        }
+        leaf message {
+            type string { length "0..4096"; }
+            ze:help "Failure detail";
+            description "An unsuccessful operation explains the failure without returning the stored value.";
+        }
+    }
+
+    rpc state-get {
+        ze:help "Read a registered runtime key.";
+        description "Read through the daemon-owned store after the startup handshake. Both transports check plugin ownership.";
+        input { uses state-key; }
+        output { uses state-result; uses state-data; }
+    }
+    rpc state-put {
+        ze:help "Persist a registered runtime key.";
+        description "Write through the daemon-owned store and acknowledge only after the durable write completes.";
+        input { uses state-key; uses state-data; }
+        output { uses state-result; }
+    }
+    rpc state-remove {
+        ze:help "Remove a registered runtime key.";
+        description "Delete an owned key after startup. An absent key is already removed; unavailable storage is an error.";
+        input { uses state-key; }
+        output { uses state-result; }
+    }
+    rpc state-list {
+        ze:help "List owned runtime keys under a prefix.";
+        description "Return only matching keys granted to the calling plugin. An oversized enumeration fails without truncation.";
+        input { uses state-key; }
+        output {
+            uses state-result;
+            leaf-list keys {
+                type string { length "1..512"; }
+                max-elements 4096;
+                ze:help "Owned keys matching the prefix";
+                description "Complete enumeration of matching owned keys, including nested keys.";
+            }
+        }
+    }
+    rpc state-increment {
+        ze:help "Atomically advance a durable uint32 counter.";
+        description "Increment a big-endian counter under the store write guard. Absent counters start at one; corruption and exhaustion are refused.";
+        input { uses state-key; }
+        output {
+            uses state-result;
+            leaf value {
+                type uint32 { range "1..4294967295"; }
+                ze:help "Durably stored counter value";
+                description "The counter after the increment. No value is returned for a failed write.";
+            }
+        }
+    }
+
     // Stage 1: Plugin declares itself to the engine.
 
     rpc declare-registration {

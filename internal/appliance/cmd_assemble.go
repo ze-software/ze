@@ -3,11 +3,13 @@
 package appliance
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -97,7 +99,16 @@ func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte,
 		return exitError
 	}
 
-	store, err := zefs.Create(dbPath)
+	// The seed is an offline artifact. Publish only a complete replacement,
+	// without retaining extra copies of its plaintext secrets after a rebuild.
+	staging, err := os.MkdirTemp(filepath.Dir(dbPath), ".ze-seed-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: stage database: %v\n", err)
+		return exitError
+	}
+	defer os.RemoveAll(staging) //nolint:errcheck // Remove private staging on every error path.
+	stagedPath := filepath.Join(staging, "database.zefs")
+	store, err := storage.CreateBlob(stagedPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: create database: %v\n", err)
 		return exitError
@@ -141,17 +152,29 @@ func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte,
 	}
 
 	for _, e := range entries {
-		if writeErr := store.WriteFile(e.key, []byte(e.value), 0); writeErr != nil {
+		if writeErr := store.WriteKey(e.key, []byte(e.value)); writeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: write %s: %v\n", e.key, writeErr)
-			store.Close()     //nolint:errcheck // cleanup
-			os.Remove(dbPath) //nolint:errcheck // cleanup
+			store.Close() //nolint:errcheck // cleanup
 			return exitError
 		}
 	}
 
 	if err := store.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: close database: %v\n", err)
-		os.Remove(dbPath) //nolint:errcheck // cleanup
+		return exitError
+	}
+
+	if err := os.Rename(stagedPath, dbPath); err != nil {
+		fmt.Fprintf(os.Stderr, "error: publish database: %v\n", err)
+		return exitError
+	}
+	parent, err := os.Open(filepath.Dir(dbPath))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: open database folder: %v\n", err)
+		return exitError
+	}
+	if err := errors.Join(parent.Sync(), parent.Close()); err != nil {
+		fmt.Fprintf(os.Stderr, "error: sync database folder: %v\n", err)
 		return exitError
 	}
 

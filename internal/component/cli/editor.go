@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/archive"
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -35,24 +36,27 @@ type ReloadNotifier func() error
 // back to stored raw text for configs that can't be parsed.
 type Editor struct {
 	originalPath      string
-	store             storage.Storage // Storage backend (filesystem or blob)
+	store             storage.Storage // Shared store, or history-only for a loose-file editor.
+	looseFile         bool            // Explicit file authority; store, if present, holds history only.
+	ownsStore         bool            // Close releases an offline editor's lifetime ownership.
 	originalContent   string
 	workingContent    string         // Fallback when tree can't parse
 	tree              *config.Tree   // Parsed config tree (canonical when treeValid)
 	schema            *config.Schema // YANG schema for Serialize
 	treeValid         bool           // True when tree was parsed successfully
 	dirty             atomic.Bool
-	hasPendingEdit    bool                         // true if .edit file exists
-	session           *EditSession                 // Optional: concurrent editing session
-	meta              *config.MetaTree             // Optional: metadata tree for write-through
-	draftMtime        time.Time                    // Last known draft file mtime (for polling)
-	onReload          ReloadNotifier               // Optional: called after successful save
-	onArchive         archive.Notifier             // Optional: called after successful save to archive config
-	preCommitValidate func(candidate string) error // Optional: validate candidate config before writing
-	showColumns       map[string]bool              // In-memory show column preferences (sticky per session)
-	diffGutter        bool                         // Whether diff gutter (+/-) markers are shown (default true)
-	draftSaved        bool                         // True when changes have been persisted to draft (reset on new edits)
-	stdoutSink        io.Writer                    // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
+	hasPendingEdit    bool                                 // true if .edit file exists
+	session           *EditSession                         // Optional: concurrent editing session
+	meta              *config.MetaTree                     // Optional: metadata tree for write-through
+	draftMtime        time.Time                            // Last known draft file mtime (for polling)
+	commitWriter      func(expected, content []byte) error // Daemon-owned source publication.
+	onReload          ReloadNotifier                       // Optional: called after successful save
+	onArchive         archive.Notifier                     // Optional: called after successful save to archive config
+	preCommitValidate func(candidate string) error         // Optional: validate candidate config before writing
+	showColumns       map[string]bool                      // In-memory show column preferences (sticky per session)
+	diffGutter        bool                                 // Whether diff gutter (+/-) markers are shown (default true)
+	draftSaved        bool                                 // True when changes have been persisted to draft (reset on new edits)
+	stdoutSink        io.Writer                            // Non-nil for a stdin-sourced ("-") editor: Save emits here instead of writing a file
 	// now supplies the wall clock for version stamps. A field rather than a
 	// direct time.Now() call so a test can pin it: the same-millisecond backup
 	// collision this guards is otherwise unreproducible on demand, and a test
@@ -70,15 +74,30 @@ type BackupInfo struct {
 	Timestamp time.Time
 }
 
-// NewEditor creates a new editor for the given configuration file.
-// Uses filesystem storage by default. For blob storage, use NewEditorWithStorage.
-func NewEditor(configPath string) (*Editor, error) {
-	return NewEditorWithStorage(storage.NewFilesystem(), configPath)
+// NewLooseFileEditor opens an explicit config file. A supplied store records
+// versions; nil leaves the file usable without creating a store.
+// The caller MUST close any supplied store after closing the editor.
+func NewLooseFileEditor(store storage.Storage, configPath string) (*Editor, error) {
+	data, err := cliio.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read config file: %w", err)
+	}
+	ed, err := newEditor(store, configPath, string(data), false)
+	if err != nil {
+		return nil, err
+	}
+	ed.looseFile = true
+	_, err = os.Stat(configPath + ".edit")
+	ed.hasPendingEdit = err == nil
+	return ed, nil
 }
 
 // NewEditorWithStorage creates a new editor backed by the given storage.
 // All file I/O (config, draft, backup, lock) goes through the storage interface.
 func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, error) {
+	if store == nil {
+		return nil, fmt.Errorf("config editor: %w; run ze init", storage.ErrNoStore)
+	}
 	// Read original file
 	data, err := store.ReadFile(configPath)
 	if err != nil {
@@ -94,7 +113,7 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 // editor is shown or emitted to stdout (see SetStdoutSink), never written back
 // to a path derived from identity.
 func NewEditorFromContent(content []byte, identity string) (*Editor, error) {
-	return newEditor(storage.NewFilesystem(), identity, string(content), false)
+	return newEditor(nil, identity, string(content), false)
 }
 
 // newEditor parses content into the tree/meta and assembles the Editor.
@@ -157,9 +176,20 @@ func (e *Editor) ListKeys(listName string) []string {
 	return e.tree.ListKeys(listName)
 }
 
-// Close cleans up any resources.
+// Close releases the store acquired by an offline editor. Callers MUST call
+// Close when finished; daemon-owned stores are never closed here.
 func (e *Editor) Close() error {
+	if e.ownsStore {
+		e.ownsStore = false
+		return e.store.Close()
+	}
 	return nil
+}
+
+// OwnStore transfers an offline store's close obligation to this editor.
+// The caller MUST call Close after transferring ownership.
+func (e *Editor) OwnStore() {
+	e.ownsStore = true
 }
 
 // OriginalPath returns the path to the original configuration file.
@@ -178,21 +208,20 @@ func (e *Editor) HasPendingEdit() bool {
 }
 
 // pendingEditTime returns the modification time of the .edit file.
-// Returns zero time if no edit file exists. For blob storage, mod time is
-// unavailable so this returns zero time even when the edit exists; callers
-// handle zero time gracefully in the prompt.
+// Returns zero time when the source cannot supply a timestamp.
 func (e *Editor) pendingEditTime() time.Time {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
-	if !e.store.Exists(editPath) {
-		return time.Time{}
+	if e.looseFile {
+		if info, err := os.Stat(editPath); err == nil {
+			return info.ModTime()
+		}
+	} else if e.store != nil {
+		if info, err := e.store.Stat(editPath); err == nil {
+			return info.ModTime
+		}
 	}
-	// Best-effort: filesystem stat for mod time (blob returns zero time).
-	info, err := os.Stat(editPath)
-	if err != nil {
-		return time.Time{}
-	}
-	return info.ModTime()
+	return time.Time{}
 }
 
 // pendingEditDiff returns the diff between original and pending edit content.
@@ -200,7 +229,7 @@ func (e *Editor) pendingEditTime() time.Time {
 func (e *Editor) pendingEditDiff() string {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
-	data, err := e.store.ReadFile(editPath)
+	data, err := e.readFile(editPath)
 	if err != nil {
 		return ""
 	}
@@ -276,7 +305,7 @@ func (e *Editor) PromptPendingEdit() PendingEditAction {
 func (e *Editor) LoadPendingEdit() error {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
-	data, err := e.store.ReadFile(editPath)
+	data, err := e.readFile(editPath)
 	if err != nil {
 		return fmt.Errorf("cannot read edit file: %w", err)
 	}
@@ -315,6 +344,12 @@ func (e *Editor) NotifyReload() error {
 		return nil
 	}
 	return e.onReload()
+}
+
+// SetCommitWriter selects the owning daemon's source-authority transaction.
+// The callback MUST publish both configuration and history before returning nil.
+func (e *Editor) SetCommitWriter(fn func(expected, content []byte) error) {
+	e.commitWriter = fn
 }
 
 // SetArchiveNotifier sets an optional function to archive config after save.
@@ -789,8 +824,8 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 		}
 	}
 
-	for _, cf := range e.listChangeFiles() {
-		meta, _, err := e.readChangeFileContent(cf)
+	for _, cf := range e.listChangeFiles(e.store) {
+		meta, _, err := e.readChangeFileContent(e.store, cf)
 		if err != nil {
 			continue
 		}
@@ -809,6 +844,15 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 // PendingChanges returns the unified pending-change view for a specific session,
 // or all sessions when sessionID is empty.
 func (e *Editor) PendingChanges(sessionID string) []config.PendingChange {
+	return e.pendingChanges(e.store, sessionID)
+}
+
+type pendingChangeReader interface {
+	ReadFile(string) ([]byte, error)
+	List(string) ([]string, error)
+}
+
+func (e *Editor) pendingChanges(reader pendingChangeReader, sessionID string) []config.PendingChange {
 	seen := make(map[string]bool)
 	var changes []config.PendingChange
 
@@ -835,8 +879,8 @@ func (e *Editor) PendingChanges(sessionID string) []config.PendingChange {
 		}
 	}
 
-	for _, cf := range e.listChangeFiles() {
-		meta, ops, err := e.readChangeFileContent(cf)
+	for _, cf := range e.listChangeFiles(reader) {
+		meta, ops, err := e.readChangeFileContent(reader, cf)
 		if err != nil {
 			continue
 		}
@@ -882,9 +926,12 @@ func (e *Editor) ActiveSessions() []string {
 }
 
 // listChangeFiles returns all per-user change file paths for this config.
-func (e *Editor) listChangeFiles() []string {
+func (e *Editor) listChangeFiles(reader pendingChangeReader) []string {
+	if reader == nil {
+		return nil
+	}
 	dir := filepath.Dir(e.originalPath)
-	files, err := e.store.List(dir)
+	files, err := reader.List(dir)
 	if err != nil {
 		return nil
 	}
@@ -902,8 +949,8 @@ func (e *Editor) listChangeFiles() []string {
 	return result
 }
 
-func (e *Editor) readChangeFileContent(path string) (*config.MetaTree, []config.StructuralOp, error) {
-	data, err := e.store.ReadFile(path)
+func (e *Editor) readChangeFileContent(reader pendingChangeReader, path string) (*config.MetaTree, []config.StructuralOp, error) {
+	data, err := reader.ReadFile(path)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1059,6 +1106,9 @@ func atomicWriteFile(path string, data []byte) error {
 // (unlike pointer.go, which names the stamp in a pointer it writes), so it is the
 // right place to step to a free slot.
 func (e *Editor) createBackup(content string, guard storage.WriteGuard) error {
+	if e.store == nil {
+		return nil
+	}
 	now := e.nextBackupStamp()
 	if guard != nil {
 		return guard.WriteVersion(e.originalPath, []byte(content), now)
@@ -1091,8 +1141,16 @@ func (e *Editor) nextBackupStamp() time.Time {
 	return now
 }
 
+// HasHistory reports whether commits can record persistent rollback versions.
+func (e *Editor) HasHistory() bool {
+	return e.store != nil
+}
+
 // ListBackups returns available backup files, sorted by timestamp descending.
 func (e *Editor) ListBackups() ([]BackupInfo, error) {
+	if e.store == nil {
+		return nil, fmt.Errorf("config history: %w; run ze init", storage.ErrNoStore)
+	}
 	versions, err := e.store.ListVersions(e.originalPath)
 	if err != nil {
 		return nil, err
@@ -1111,7 +1169,10 @@ func (e *Editor) readBackupContent(path string) ([]byte, error) {
 
 // HasDraft returns true if a draft file exists for this config.
 func (e *Editor) HasDraft() bool {
-	return e.store.Exists(DraftPath(e.originalPath))
+	if e.store == nil {
+		return false
+	}
+	return e.fileExists(DraftPath(e.originalPath))
 }
 
 // livePath returns the path to the .live.conf file.
@@ -1128,7 +1189,7 @@ func (e *Editor) livePath() string {
 // Used by "commit confirmed" to create the trial config.
 func (e *Editor) saveLive() error {
 	content := e.WorkingContent()
-	if err := e.store.WriteFile(e.livePath(), []byte(content), 0o600); err != nil {
+	if err := e.writeFile(e.livePath(), []byte(content)); err != nil {
 		return fmt.Errorf("failed to write live config: %w", err)
 	}
 	return nil
@@ -1137,13 +1198,13 @@ func (e *Editor) saveLive() error {
 // HasPendingLive returns true if a .live.conf file exists.
 // This indicates an unconfirmed "commit confirmed" from a previous session.
 func (e *Editor) HasPendingLive() bool {
-	return e.store.Exists(e.livePath())
+	return e.fileExists(e.livePath())
 }
 
 // deleteLive removes the .live.conf file if it exists.
 // Errors are ignored because the file may not exist.
 func (e *Editor) deleteLive() {
-	_ = e.store.Remove(e.livePath()) // Ignore error if doesn't exist
+	_ = e.removeFile(e.livePath()) // Ignore error if doesn't exist
 }
 
 // Rollback restores the configuration from a backup file.
@@ -1156,7 +1217,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	}
 
 	// Read current committed config from storage (not cache) for accurate backup.
-	currentData, readErr := e.store.ReadFile(e.originalPath)
+	currentData, readErr := e.readFile(e.originalPath)
 	if readErr != nil {
 		return fmt.Errorf("cannot read current config for backup: %w", readErr)
 	}
@@ -1165,7 +1226,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	}
 
 	// Write to original path
-	if err := e.store.WriteFile(e.originalPath, data, 0o600); err != nil {
+	if err := e.writeFile(e.originalPath, data); err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 

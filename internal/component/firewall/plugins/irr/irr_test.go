@@ -146,7 +146,7 @@ func useRecordingBackend(t *testing.T) *recordingBackend {
 func newTestPlugin(t *testing.T, addr string) (*irrPlugin, *recordingBackend) {
 	t.Helper()
 	return &irrPlugin{
-		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
 		config: &irrConfig{
 			Server: addr,
 			refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},
@@ -174,7 +174,7 @@ func TestRefreshFailureKeepsLastGood(t *testing.T) {
 
 	// Point the same store at a server that answers "key not found", the way a
 	// real one does during an outage or a bad database load.
-	plug.prefixStore = store.New(irr.NewIRR(fakeIRRWhois(t, nil)), nil, "")
+	plug.prefixStore = store.New(irr.NewIRR(fakeIRRWhois(t, nil)), nil, nil)
 	plug.prefixStore.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")}, nil)
 
 	if err := plug.refreshName("AS-TEST"); err == nil {
@@ -355,7 +355,7 @@ func TestRefreshOutcomeCountsSuccess(t *testing.T) {
 // no prefixes, so a binding that can filter nothing never commits.
 // PREVENTS: a zero-prefix entry reading as a valid answer at commit time.
 func TestVerifyRefsRefusesEmptyEntry(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-EMPTY", nil, nil)
 
 	refs := []irrRef{{Name: "AS-EMPTY", IsASSet: true}}
@@ -530,7 +530,7 @@ func TestRefreshAllSurvivesPanic(t *testing.T) {
 		"!a4AS-TEST": "A1\n10.0.0.0/24\nC\n",
 	})
 	plug := &irrPlugin{
-		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		prefixStore: store.New(irr.NewIRR(addr), nil, nil),
 		config: &irrConfig{
 			Server: addr,
 			refs:   []irrRef{{Name: "AS-TEST", IsASSet: true, TableName: "ze_wan"}},

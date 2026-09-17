@@ -74,10 +74,7 @@ EOF_CONF
 
 option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
-# The runner adds this one itself when the launched binary IS ze. Here the
-# launched binary is the fault-injection launcher, so the test states it:
-# a functional daemon keeps its state out of the developer's shared zefs.
-option=env:var=ze.storage.blob:value=false
+# Wrapped stdin remains piped; the runner isolates this daemon's config directory.
 
 cmd=background:seq=1:exec=ze-test fail-syscall syscall recvfrom errno ENETDOWN length 1500 -- ze -:stdin=config
 cmd=foreground:seq=2:exec=ze-test fixture l2tp/failing-socket $PORT2:timeout=30s

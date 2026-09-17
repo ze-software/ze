@@ -78,16 +78,19 @@ func EncodeNetcapstring(data []byte, capacity int) ([]byte, error) {
 	if len(data) > capacity {
 		return nil, fmt.Errorf("zefs: data length %d exceeds capacity %d", len(data), capacity)
 	}
+	if capacity > int(^uint(0)>>1)-netcapstringHeaderLen(capacity)-1 {
+		return nil, fmt.Errorf("zefs: encoded capacity %d overflows int", capacity)
+	}
 	buf := make([]byte, netcapstringTotalLen(capacity))
 	writeNetcapstring(buf, 0, data, capacity)
 	return buf, nil
 }
 
 // decodeNetcapstring reads a netcapstring at the given offset, returning a copy.
-// This is the safe-copy variant of decodeNetcapstringRef (which returns sub-slices
+// This is the safe-copy variant of DecodeNetcapstringRef (which returns sub-slices
 // of the input buffer). Used by tests to verify round-trip correctness.
 func decodeNetcapstring(buf []byte, off int) (data []byte, capacity, next int, err error) {
-	ref, cap_, next, err := decodeNetcapstringRef(buf, off)
+	ref, cap_, next, err := DecodeNetcapstringRef(buf, off)
 	if err != nil {
 		return nil, 0, 0, err
 	}
@@ -96,107 +99,126 @@ func decodeNetcapstring(buf []byte, off int) (data []byte, capacity, next int, e
 	return result, cap_, next, nil
 }
 
-// decodeNetcapstringRef reads a netcapstring at the given offset without copying.
-// The returned data is a sub-slice of buf and shares its backing array.
-// Callers must not modify the returned data.
-func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int, err error) {
+// DecodeNetcapstringRef reads and verifies one frame without copying its data.
+// The result shares buf's backing array; callers MUST keep buf valid and MUST
+// NOT modify it while using the result. A standalone frame caller MUST require
+// next == len(buf); blob callers use next to decode the following frame.
+func DecodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int, err error) {
 	start := off
-
-	if off >= len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: unexpected end of buffer at offset %d", start)
+	dataOff, capacity, used, headerCRC, err := netcapstringHeader(buf, off, true)
+	if err != nil {
+		return nil, 0, 0, err
 	}
+	// Reserve the terminator by comparison, never by adding to an untrusted cap.
+	if capacity >= len(buf)-dataOff {
+		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: capacity %d, available %d", start, capacity, len(buf)-dataOff)
+	}
+	end := dataOff + capacity
+	if buf[end] != '\n' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected trailing '\\n' at offset %d, got 0x%02X", end, buf[end])
+	}
+	data = buf[dataOff : dataOff+used : dataOff+used]
+	actualCRC := crc32.Checksum(data, CRC32cTable)
+	if actualCRC != headerCRC {
+		return nil, 0, 0, fmt.Errorf("zefs: CRC mismatch at offset %d: header=%08x computed=%08x", start, headerCRC, actualCRC)
+	}
+	return data, capacity, end + 1, nil
+}
 
-	// Scan for number field (digits until next ':')
-	numStart := off
-	for off < len(buf) && buf[off] != ':' {
+// netcapstringHeader validates the header independently of the payload so repair
+// can inspect a truncated container. Diagnostic callers may ignore invalid CRC
+// text; DecodeNetcapstringRef always requires a valid checksum field.
+func netcapstringHeader(buf []byte, off int, requireCRC bool) (dataOff, capacity, used int, checksum uint32, err error) {
+	start := off
+	if off < 0 {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: negative offset %d", off)
+	}
+	if off >= len(buf) {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: unexpected end of buffer at offset %d", off)
+	}
+	// Width has at most two digits (1..19). Bound the scan before parsing.
+	for off < len(buf) {
+		if buf[off] == ':' {
+			break
+		}
+		if off-start == 2 {
+			return 0, 0, 0, 0, fmt.Errorf("zefs: invalid number field at offset %d", start)
+		}
 		off++
 	}
-	if off >= len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: unterminated number field at offset %d", start)
+	if off == len(buf) {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: unterminated number field at offset %d", start)
 	}
-	number, err := strconv.Atoi(string(buf[numStart:off]))
-	if err != nil || number <= 0 || number > maxNumberWidth {
-		return nil, 0, 0, fmt.Errorf("zefs: invalid number field at offset %d: %q", start, buf[numStart:off])
+	width, parseErr := netcapstringDecimal(buf[start:off])
+	if parseErr != nil {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: invalid number field at offset %d: %w", start, parseErr)
 	}
-	off++ // skip ':'
-
-	// Read cap (number digits)
-	if off+number > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated capacity at offset %d", start)
+	if width < 1 {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: invalid number field at offset %d", start)
 	}
-	cap_, err := strconv.Atoi(string(buf[off : off+number]))
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("zefs: invalid capacity at offset %d: %w", start, err)
-	}
-	off += number
-
-	// Expect ':'
-	if off >= len(buf) || buf[off] != ':' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected ':' after capacity at offset %d", start)
+	if width > maxNumberWidth {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: invalid number field at offset %d", start)
 	}
 	off++
-
-	// Read used (number digits)
-	if off+number > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated used at offset %d", start)
+	// width is now bounded, and subtraction protects off near MaxInt.
+	if 2*width+11 > len(buf)-off {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: truncated header at offset %d", start)
 	}
-	used, err := strconv.Atoi(string(buf[off : off+number]))
-	if err != nil {
-		return nil, 0, 0, fmt.Errorf("zefs: invalid used at offset %d: %w", start, err)
+	capacity, parseErr = netcapstringDecimal(buf[off : off+width])
+	if parseErr != nil {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: invalid capacity at offset %d: %w", start, parseErr)
 	}
-	off += number
-
-	// Expect ':' after used
-	if off >= len(buf) || buf[off] != ':' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected ':' after used at offset %d", start)
+	off += width
+	if buf[off] != ':' {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: expected ':' after capacity at offset %d", start)
 	}
 	off++
-
-	// Read CRC (8 hex chars)
-	const crcWidth = 8
-	if off+crcWidth > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated CRC at offset %d", start)
+	used, parseErr = netcapstringDecimal(buf[off : off+width])
+	if parseErr != nil {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: invalid used at offset %d: %w", start, parseErr)
 	}
-	var crcBytes [4]byte
-	if _, err := hex.Decode(crcBytes[:], buf[off:off+crcWidth]); err != nil {
-		return nil, 0, 0, fmt.Errorf("zefs: invalid CRC hex at offset %d: %w", start, err)
+	if used > capacity {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: used %d exceeds capacity %d at offset %d", used, capacity, start)
 	}
-	headerCRC := uint32(crcBytes[0])<<24 | uint32(crcBytes[1])<<16 | uint32(crcBytes[2])<<8 | uint32(crcBytes[3])
-	off += crcWidth
-
-	// Expect '\n'
-	if off >= len(buf) || buf[off] != '\n' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected '\\n' after CRC at offset %d", start)
+	off += width
+	if buf[off] != ':' {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: expected ':' after used at offset %d", start)
 	}
 	off++
-
-	// Validate
-	if cap_ < 0 {
-		return nil, 0, 0, fmt.Errorf("zefs: negative capacity at offset %d: %d", start, cap_)
+	var decoded [4]byte
+	if _, parseErr := hex.Decode(decoded[:], buf[off:off+8]); parseErr != nil {
+		if requireCRC {
+			return 0, 0, 0, 0, fmt.Errorf("zefs: invalid CRC hex at offset %d: %w", start, parseErr)
+		}
 	}
-	if used < 0 || used > cap_ {
-		return nil, 0, 0, fmt.Errorf("zefs: used %d exceeds capacity %d at offset %d", used, cap_, start)
+	checksum = uint32(decoded[0])<<24 | uint32(decoded[1])<<16 | uint32(decoded[2])<<8 | uint32(decoded[3])
+	off += 8
+	if buf[off] != '\n' {
+		return 0, 0, 0, 0, fmt.Errorf("zefs: expected '\\n' after CRC at offset %d", start)
 	}
+	return off + 1, capacity, used, checksum, nil
+}
 
-	// Check data region + trailing newline fits in buffer (subtraction avoids int overflow on crafted cap_ values)
-	if cap_+1 > len(buf)-off {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_+1, len(buf)-off)
+// netcapstringDecimal accepts decimal digits only and checks before multiplying.
+func netcapstringDecimal(buf []byte) (int, error) {
+	if len(buf) == 0 {
+		return 0, fmt.Errorf("empty decimal")
 	}
-
-	// Expect trailing '\n'
-	endOff := off + cap_
-	if buf[endOff] != '\n' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected trailing '\\n' at offset %d, got 0x%02X", endOff, buf[endOff])
+	value := 0
+	for _, c := range buf {
+		if c < '0' {
+			return 0, fmt.Errorf("invalid decimal digit")
+		}
+		if c > '9' {
+			return 0, fmt.Errorf("invalid decimal digit")
+		}
+		digit := int(c - '0')
+		if value > (int(^uint(0)>>1)-digit)/10 {
+			return 0, fmt.Errorf("decimal overflows int")
+		}
+		value = value*10 + digit
 	}
-
-	// Verify CRC32c
-	dataCRC := crc32.Checksum(buf[off:off+used], CRC32cTable)
-	if dataCRC != headerCRC {
-		return nil, 0, 0, fmt.Errorf("zefs: CRC mismatch at offset %d: header=%08x computed=%08x", start, headerCRC, dataCRC)
-	}
-
-	// Zero-copy: return sub-slice with capped length to prevent access to padding
-	return buf[off : off+used : off+used], cap_, endOff + 1, nil
+	return value, nil
 }
 
 // writeZeroPadded writes n as a zero-padded decimal of the given width into buf.

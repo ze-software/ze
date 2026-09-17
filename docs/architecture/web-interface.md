@@ -121,9 +121,13 @@ Each session has an isolated working tree, change tracking, and serialized acces
 
 `Commit` detects conflicts when two users modify the same leaf and returns `CommitResult` with conflict details. Limits: 50 concurrent sessions, 1 hour idle timeout.
 
-Editors with a reload hook commit transactionally: `CommitSessionCandidate` stages a candidate version, the hook (`reloadAfterCommit`) reloads the daemons and promotes the candidate. Editors without a hook write `config.conf` directly via `CommitSession`. Three surfaces wire the hook: the web editor manager, the SSH session factory, and the `ze start --cli` console. A commit from any of them reaches the running daemons ("commit = apply + propagate").
+Editors with a reload hook commit transactionally: `CommitSessionCandidate` stages a candidate version, the hook (`reloadAfterCommit`) reloads the daemons and promotes the candidate. Editors without a hook commit through the shared configuration store. The web editor manager, SSH session factory and `ze start --cli` console borrow the daemon's one owning store handle.
+An explicit-file daemon keeps that file authoritative: publication checks for external changes, updates the file and records stored history. Bare `ze start` uses the stored active configuration.
 <!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor reload notifier wiring, attachedConsoleEditor -->
 <!-- source: cmd/ze/hub/main.go -- sessionReloadHolder late binding -->
+
+Configuration downloads read the daemon's selected source, including external edits to an explicit file. Uploads use the same daemon-owned publication callback and report conflict or reload failures without replacing the committed configuration. Standalone managers stage uploads as candidates and promote them only after acceptance.
+<!-- source: internal/component/web/editor.go -- SetConfigSource, committedConfig, applyCommittedContent -->
 
 ## YANG Schema Integration
 
@@ -154,7 +158,7 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 
 Self-signed ECDSA P-256 certificate, valid 365 days. `WebCertHosts` is the one declaration of the SAN set: localhost, the two loopback addresses, the listen address, and any extra name the caller gives. When listening on `0.0.0.0`, all non-loopback interface IPs are added so the cert is valid regardless of which IP the client connects to. The appliance build host takes the same list and has its certificate authority issue the leaf instead (`architecture/appliance/builder.md`).
 
-Certificates are persisted in zefs (`meta/web/cert`, `meta/web/key`) via the `CertStore` interface. On restart, the existing cert is loaded instead of regenerated, so browsers don't need to re-accept.
+Certificates are persisted in the configuration store (`meta/web/cert`, `meta/web/key`) via the `CertStore` interface. On restart, the existing cert is loaded instead of regenerated, so browsers don't need to re-accept.
 
 TLS handshake errors from browsers rejecting self-signed certs are suppressed in the server error log.
 

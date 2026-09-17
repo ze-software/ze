@@ -75,13 +75,8 @@ var (
 
 var caLog = slogutil.LazyLogger("pki.ca")
 
-// rootGenerationMu serializes root generation inside this process, so two
-// goroutines racing to start a listener end with one root rather than two.
-//
-// It is deliberately IN-PROCESS only. zefs takes no file lock (pkg/zefs, which
-// TestBlobStoreNoFlock asserts), so a second daemon sharing one blob already
-// replaces arbitrary state rather than only the root, and a lock here would
-// suggest a protection it does not give.
+// rootGenerationMu serializes root generation inside this process. Persistent
+// callers MUST already own their storage handle's lifetime writer lock.
 var rootGenerationMu sync.Mutex
 
 // RootStore is the persistence the certificate authority needs: three
@@ -96,9 +91,7 @@ type RootStore interface {
 	// none.
 	ReadFile(name string) ([]byte, error)
 
-	// WriteFile stores data under name. The filesystem backend applies perm;
-	// the ZeFS backend accepts and ignores it, and the mode that protects the
-	// key there is the blob file's own 0600.
+	// WriteFile stores data under name with owner-only permissions.
 	WriteFile(name string, data []byte, perm fs.FileMode) error
 
 	// Exists reports whether name holds a value.
@@ -109,9 +102,8 @@ type RootStore interface {
 // from: the hub acceptor's leaf, and every other internal listener that has no
 // operator-named certificate.
 //
-// LoadOrGenerateRoot is the only constructor. Every field is written before the
-// value is returned and is read-only after, so a Root is safe for concurrent
-// use.
+// Every field is written before construction returns and is read-only after,
+// so a Root is safe for concurrent use.
 type Root struct {
 	cert *x509.Certificate
 	key  *ecdsa.PrivateKey
@@ -142,12 +134,28 @@ func (r *Root) CertificatePEM() []byte {
 // presents the same root, so every copy an operator already distributed keeps
 // working.
 //
-// This is the constructor every component takes. A caller that must choose the
-// lifetime itself calls LoadOrGenerateRootFor, and the appliance build host is
-// the one such caller: its root has to outlive the leaf it signs, whose life an
-// operator sets.
+// Persistent callers use this constructor. A caller that must choose the
+// lifetime itself calls LoadOrGenerateRootFor; the appliance build host needs
+// its root to outlive the leaf it signs. Truly storeless stdin startup uses
+// NewEphemeralRoot explicitly rather than falling back after an error here.
 func LoadOrGenerateRoot(store RootStore) (*Root, error) {
 	return LoadOrGenerateRootFor(store, rootValidity)
+}
+
+// NewEphemeralRoot explicitly creates a process-lifetime authority without
+// writing any key material. It is only for genuinely storeless stdin startup,
+// never a fallback for an unreadable persistent authority. The caller MUST
+// retain this root for every listener, plugin trust anchor and renewal.
+func NewEphemeralRoot() (*Root, error) {
+	rootGenerationMu.Lock()
+	defer rootGenerationMu.Unlock()
+	root, _, _, err := generateRoot(rootValidity)
+	if err != nil {
+		return nil, err
+	}
+	currentRoot.Store(root)
+	caLog().Warn("using ephemeral local CA: authority changes on restart")
+	return root, nil
 }
 
 // LoadOrGenerateRootFor is LoadOrGenerateRoot with the root's lifetime named at
@@ -171,15 +179,29 @@ func LoadOrGenerateRootFor(store RootStore, validity time.Duration) (*Root, erro
 	certKey := zefs.KeyCACert.Pattern
 	keyKey := zefs.KeyCAKey.Pattern
 
-	// Both halves must be present. One half alone is a store that was written
-	// part-way, and reading it would produce a CA that cannot sign.
-	if store.Exists(certKey) && store.Exists(keyKey) {
+	// Read both halves even when Exists would hide an I/O or integrity error.
+	// A partial persistent pair is corruption, never permission to rotate trust.
+	_, certErr := store.ReadFile(certKey)
+	_, keyErr := store.ReadFile(keyKey)
+	if certErr == nil {
+		if keyErr != nil {
+			return nil, fmt.Errorf("pki: read root private key: %w", keyErr)
+		}
 		root, err := loadRoot(store, certKey, keyKey)
 		if err != nil {
 			return nil, err
 		}
 		currentRoot.Store(root)
 		return root, nil
+	}
+	if !errors.Is(certErr, fs.ErrNotExist) {
+		return nil, fmt.Errorf("pki: read root certificate: %w", certErr)
+	}
+	if keyErr == nil {
+		return nil, errors.New("pki: stored root private key has no certificate")
+	}
+	if !errors.Is(keyErr, fs.ErrNotExist) {
+		return nil, fmt.Errorf("pki: read root private key: %w", keyErr)
 	}
 
 	root, certPEM, keyPEM, err := generateRoot(validity)

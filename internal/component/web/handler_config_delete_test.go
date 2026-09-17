@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +18,7 @@ import (
 // fileModeEditorAdapter forces the file-mode (non write-through) editor path by
 // dropping the session EditorManager.GetOrCreate assigns unconditionally
 // (editor.go, GetOrCreate -> ed.SetSession). Without this seam the manager can
-// only ever be exercised in zefs session mode, so the file-mode branch of
+// only ever be exercised in session mode, so the file-mode branch of
 // Editor.DeleteListEntry would never be reached from the web entry point.
 type fileModeEditorAdapter struct {
 	contract.Editor
@@ -57,7 +56,7 @@ func peerEntries(t *testing.T, mgr *EditorManager, username string) map[string]*
 
 // TestHandleConfigDeleteRemovesListEntrySession verifies that the web delete
 // endpoint removes a BGP peer (a YANG list entry), not just a leaf, and that in
-// zefs session mode the removal is recorded in the per-user change file.
+// session mode the removal is recorded in the per-user change file.
 //
 // VALIDATES: POST /config/delete/bgp/peer/ with leaf=<peer-key> removes the
 // entry from the working tree and writes a delete-entry structural op to the
@@ -81,7 +80,7 @@ func TestHandleConfigDeleteRemovesListEntrySession(t *testing.T) {
 	assert.Nil(t, peerEntries(t, mgr, "alice")["london"],
 		"list entry must be gone from the working tree after delete")
 
-	changeFile, err := os.ReadFile(cli.ChangePath(mgr.configPath, "alice"))
+	changeFile, err := mgr.store.ReadFile(cli.ChangePath(mgr.configPath, "alice"))
 	require.NoError(t, err, "session mode must have written a per-user change file")
 	assert.Contains(t, string(changeFile), "delete-entry bgp peer london",
 		"session-mode delete must reach the change file as a structural op")
@@ -91,7 +90,7 @@ func TestHandleConfigDeleteRemovesListEntrySession(t *testing.T) {
 // endpoint against an editor with no session must remove the entry from the tree.
 //
 // VALIDATES: the schema-aware delete reaches Editor.DeleteListEntry's direct
-// tree path when no zefs session is active.
+// tree path when no session is active.
 // PREVENTS: fixing only the session-mode branch and leaving file-mode deletes inert.
 func TestHandleConfigDeleteRemovesListEntryFileMode(t *testing.T) {
 	mgr := newFileModeTestManager(t)

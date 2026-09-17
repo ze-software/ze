@@ -3,19 +3,18 @@ package filter_irr
 import (
 	"encoding/json"
 	"net/netip"
-	"path/filepath"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// seedStore writes the given entries to a fresh zefs file and returns its path.
-func seedStore(t *testing.T, entries ...store.CachedEntry) string {
+// seedStore writes entries through a lifetime owner and returns that owner.
+func seedStore(t *testing.T, entries ...store.CachedEntry) storage.Storage {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "database.zefs")
-	bs, err := zefs.Create(path)
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
 		t.Fatalf("create zefs: %v", err)
 	}
@@ -29,10 +28,12 @@ func seedStore(t *testing.T, entries ...store.CachedEntry) string {
 			t.Fatalf("write %s: %v", entry.Name, wErr)
 		}
 	}
-	if err := bs.Close(); err != nil {
-		t.Fatalf("close zefs: %v", err)
-	}
-	return path
+	t.Cleanup(func() {
+		if err := bs.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	return bs
 }
 
 // VALIDATES: AC-8/AC-9 wiring -- loadFromStore applies cached prefixes only to
@@ -77,7 +78,7 @@ func TestLoadFromStoreEnrolledOnly(t *testing.T) {
 func TestLoadFromStoreMissingFile(t *testing.T) {
 	plug := &irrPlugin{
 		byASN:       map[uint32]*asnState{65001: {asn: 65001}},
-		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), nil, filepath.Join(t.TempDir(), "absent.zefs")),
+		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), nil, nil),
 	}
 	if err := plug.prefixStore.Open(); err != nil {
 		t.Fatalf("Open: %v", err)

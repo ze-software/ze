@@ -21,7 +21,7 @@ import (
 // config from stdin when configFile is "-" (via cliio) and otherwise from the
 // store. The stdin form parses the piped bytes directly; no file is touched.
 func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, error) {
-	if cliio.IsStdin(configFile) {
+	if store == nil || cliio.IsStdin(configFile) {
 		data, err := cliio.ReadFile(configFile)
 		if err != nil {
 			return nil, err
@@ -47,7 +47,7 @@ func openShowEditor(store storage.Storage, configFile string) (*editor.Editor, e
 // Like `ze config dump`/`validate`, it reads a config file directly from the
 // filesystem (not the blob store), so a plain path works without `-f`.
 func cmdShow(args []string) int {
-	return showConfig(os.Stdout, storage.NewFilesystem(), args)
+	return showConfig(os.Stdout, nil, args)
 }
 
 // showConfig is the io.Writer-parameterised core of `ze config show`, so tests

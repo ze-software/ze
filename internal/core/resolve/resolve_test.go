@@ -21,7 +21,10 @@ import (
 var errStubUnused = errors.New("fakeStore: method not used by these tests")
 
 // fakeStore implements storage.Storage; only ReadFile carries behavior.
-type fakeStore struct{ data map[string][]byte }
+type fakeStore struct {
+	storage.Storage
+	data map[string][]byte
+}
 
 func (f fakeStore) ReadFile(name string) ([]byte, error) {
 	if b, ok := f.data[name]; ok {

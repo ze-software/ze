@@ -32,5 +32,5 @@ expect=status:contains=committed
 expect=dirty:false
 
 # Verify config.conf now contains set-format lines (not hierarchical braces)
-expect=file:path=test.conf:contains=set bgp
-expect=file:path=test.conf:not-contains={
+expect=key:path=file/active/test.conf:contains=set bgp
+expect=key:path=file/active/test.conf:not-contains={

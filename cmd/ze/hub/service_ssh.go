@@ -54,7 +54,7 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 	if cfg.ConfigDir == "" {
 		cfg.ConfigDir = coreenv.Get("ze.config.dir")
 	}
-	cfg.Storage = infra.ResolveSSHStorage(params.Store, params.ConfigDir)
+	cfg.Storage = params.Store
 	cfg.ConfigPath = params.ConfigPath
 
 	srv, sshErr := zessh.NewServer(cfg)

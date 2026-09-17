@@ -436,7 +436,7 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 		t.Fatalf("accel readiness argv = %v", got)
 	}
 	if got := clientPeers[1].Arguments; !reflect.DeepEqual(got, []string{
-		"--privileged", "-e", "ze.log.interface=debug", "-e", "ZE_STORAGE_BLOB=false",
+		"--privileged", "-e", "ze.log.interface=debug",
 	}) {
 		t.Fatalf("Ze-client docker arguments = %v", got)
 	}
@@ -463,7 +463,6 @@ func TestScenarioPlansPreserveImagesConfigsAndArguments(t *testing.T) {
 		"--privileged",
 		"-e", "ze.log.pppoe=debug",
 		"-e", "ze.log.l2tp=debug",
-		"-e", "ZE_STORAGE_BLOB=false",
 	}
 	if !reflect.DeepEqual(acPeers[0].Arguments, wantACArguments) {
 		t.Fatalf("Ze-AC docker arguments = %v, want %v", acPeers[0].Arguments, wantACArguments)

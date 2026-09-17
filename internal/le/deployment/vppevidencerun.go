@@ -9,6 +9,7 @@ package deployment
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -252,7 +253,7 @@ func (v *VPP) runFIB(container, work string, mpls bool) (VPPScenarioReport, erro
 		peerBody.Str(":label=").Int(int64(label))
 	}
 	peerBody.Byte('\n')
-	if err := v.writeConfig(work, peerFile, peerBody.String()); err != nil {
+	if err := os.WriteFile(filepath.Join(work, peerFile), peerBody.Bytes(), 0o644); err != nil { //nolint:gosec // a scratch script the compiled peer reads
 		return VPPScenarioReport{}, err
 	}
 	if err := v.writeConfig(work, configFile, vppFIBConfig(mpls)); err != nil {

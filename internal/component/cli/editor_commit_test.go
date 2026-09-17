@@ -97,7 +97,8 @@ system {
 `
 	configPath := writeTestConfig(t, seed)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	ed.SetSession(NewEditSession("thomas", "local"))
@@ -108,7 +109,7 @@ system {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	data, err := os.ReadFile(configPath)
+	data, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	written := string(data)
 
@@ -148,7 +149,8 @@ system {
 `
 	configPath := writeTestConfig(t, seed)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	ed.SetSession(NewEditSession("thomas", "local"))
@@ -159,7 +161,7 @@ system {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	data, err := os.ReadFile(configPath)
+	data, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 
 	assert.NotContains(t, string(data), "plaintext-password",
@@ -175,9 +177,10 @@ func newBlobEditor(t *testing.T, seed string) (*Editor, storage.Storage, string)
 	configPath := filepath.Join(dir, "config.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(seed), 0o600))
 
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.CreateBlob(filepath.Join(dir, "database.zefs"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = store.Close() })
+	require.NoError(t, store.WriteFile(configPath, []byte(seed), 0o600))
 	require.NoError(t, os.Remove(configPath))
 
 	ed, err := NewEditorWithStorage(store, configPath)
@@ -244,7 +247,8 @@ func TestDiscardSessionPathOnBlob(t *testing.T) {
 func TestCommitStampsSchemaVersion(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -258,7 +262,7 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	data, err := os.ReadFile(configPath)
+	data, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 
 	content := string(data)
@@ -283,7 +287,7 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
 	if assert.NotEmpty(t, backups, "should have at least one backup") {
-		backupData, readErr := os.ReadFile(backups[0].Path)
+		backupData, readErr := store.ReadFile(backups[0].Path)
 		require.NoError(t, readErr)
 		backupRelease := config.ScanStampRelease(backupData)
 		assert.NotEmpty(t, backupRelease,
@@ -323,7 +327,8 @@ func newInsertConflictEditor(t *testing.T) (*Editor, string) {
 	t.Helper()
 	configPath := writeTestConfig(t, insertConflictConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	ed.SetSession(NewEditSession("thomas", "local"))
@@ -346,7 +351,7 @@ func TestCommitInsertRefRemovedIsConflict(t *testing.T) {
 	// Concurrent commit removes the reference member alpha.
 	modified := strings.Replace(insertConflictConfig,
 		"import [ alpha bravo ];", "import [ bravo ];", 1)
-	require.NoError(t, os.WriteFile(configPath, []byte(modified), 0o600))
+	require.NoError(t, ed.store.WriteFile(configPath, []byte(modified), 0o600))
 
 	result, err := ed.CommitSession()
 	require.NoError(t, err,
@@ -372,7 +377,7 @@ func TestCommitCandidateInsertRefRemovedIsConflict(t *testing.T) {
 
 	modified := strings.Replace(insertConflictConfig,
 		"import [ alpha bravo ];", "import [ bravo ];", 1)
-	require.NoError(t, os.WriteFile(configPath, []byte(modified), 0o600))
+	require.NoError(t, ed.store.WriteFile(configPath, []byte(modified), 0o600))
 
 	result, _, err := ed.CommitSessionCandidate(time.Now())
 	require.NoError(t, err,
@@ -393,7 +398,7 @@ func TestCommitInsertMemberAlreadyPresentNoConflict(t *testing.T) {
 	// Concurrent commit removed alpha but already contains charlie.
 	modified := strings.Replace(insertConflictConfig,
 		"import [ alpha bravo ];", "import [ charlie bravo ];", 1)
-	require.NoError(t, os.WriteFile(configPath, []byte(modified), 0o600))
+	require.NoError(t, ed.store.WriteFile(configPath, []byte(modified), 0o600))
 
 	result, err := ed.CommitSession()
 	require.NoError(t, err)

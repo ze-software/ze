@@ -327,6 +327,10 @@ func copyBuildDir(src, dst string) error {
 			if err != nil {
 				return err
 			}
+			data, err = bindVendoredModules(target, data)
+			if err != nil {
+				return err
+			}
 			modules++
 		}
 		if writeErr := os.WriteFile(target, data, 0o600); writeErr != nil {

@@ -28,15 +28,12 @@ import (
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// stubStorage overlays a filesystem store with in-memory files, so a test can
-// stand in the blob store the web listener reads its pair from.
+// stubStorage injects read failures over the same tree store the listener uses.
 type stubStorage struct {
 	storage.Storage
-	data map[string][]byte
 	// unreadable names files that exist in storage and fail to read, the state
 	// a corrupt or unreadable file reaches. Exists says yes, ReadFile says no.
 	unreadable map[string]error
@@ -46,16 +43,10 @@ func (s *stubStorage) ReadFile(name string) ([]byte, error) {
 	if err, ok := s.unreadable[name]; ok {
 		return nil, err
 	}
-	if d, ok := s.data[name]; ok {
-		return d, nil
-	}
 	return s.Storage.ReadFile(name)
 }
 
 func (s *stubStorage) Exists(name string) bool {
-	if _, ok := s.data[name]; ok {
-		return true
-	}
 	if _, ok := s.unreadable[name]; ok {
 		return true
 	}
@@ -89,26 +80,27 @@ func webEnabledTree() *zeconfig.Tree {
 	return tree
 }
 
-func storedPair(cert, key []byte) *stubStorage {
-	data := map[string][]byte{}
+func storedPair(t *testing.T, cert, key []byte) *stubStorage {
+	t.Helper()
+	store := testEmptyStore(t)
 	if cert != nil {
-		data[zefs.KeyWebCert.Pattern] = cert
+		require.NoError(t, store.WriteKey(zefs.KeyWebCert.Pattern, cert))
 	}
 	if key != nil {
-		data[zefs.KeyWebKey.Pattern] = key
+		require.NoError(t, store.WriteKey(zefs.KeyWebKey.Pattern, key))
 	}
-	return &stubStorage{Storage: storage.NewFilesystem(), data: data}
+	return &stubStorage{Storage: store}
 }
 
 func TestCheckWebTLSMaterial_NoCerts(t *testing.T) {
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storage.NewFilesystem()})
-	assert.Empty(t, diags, "no blob certs should produce no diagnostics")
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: testEmptyStore(t)})
+	assert.Empty(t, diags, "no stored certs should produce no diagnostics")
 }
 
 func TestCheckWebTLSMaterial_ExpiredCert(t *testing.T) {
 	certPEM, keyPEM := webMaterialCertPEM(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))
 
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(certPEM, keyPEM)})
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(t, certPEM, keyPEM)})
 	require.Len(t, diags, 1)
 	assert.Equal(t, diagnostic.CodeDoctorTLSExpired, diags[0].Code)
 }
@@ -116,23 +108,23 @@ func TestCheckWebTLSMaterial_ExpiredCert(t *testing.T) {
 func TestCheckWebTLSMaterial_CertWithoutKey(t *testing.T) {
 	certPEM, _ := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(certPEM, nil)})
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(t, certPEM, nil)})
 	require.Len(t, diags, 1)
 	assert.Equal(t, diagnostic.CodeDoctorTLSMissing, diags[0].Code)
 	assert.Contains(t, diags[0].Message, "key missing")
 }
 
 func TestCheckWebTLSMaterial_KeyWithoutCert(t *testing.T) {
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(nil, []byte("key-data"))})
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(t, nil, []byte("key-data"))})
 	require.Len(t, diags, 1)
 	assert.Equal(t, diagnostic.CodeDoctorTLSMissing, diags[0].Code)
 	assert.Contains(t, diags[0].Message, "certificate missing")
 }
 
 func TestCheckWebTLSMaterial_Disabled(t *testing.T) {
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: zeconfig.NewTree(), Store: storage.NewFilesystem()})
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: zeconfig.NewTree(), Store: testEmptyStore(t)})
 	assert.Empty(t, diags, "web not enabled should skip")
-	assert.Empty(t, checkWebTLSMaterial(diagnostic.DoctorCheckContext{Store: storage.NewFilesystem()}), "nil tree")
+	assert.Empty(t, checkWebTLSMaterial(diagnostic.DoctorCheckContext{Store: testEmptyStore(t)}), "nil tree")
 }
 
 func TestCheckWebTLSMaterial_MatchingPair(t *testing.T) {
@@ -140,7 +132,7 @@ func TestCheckWebTLSMaterial_MatchingPair(t *testing.T) {
 	// PREVENTS: a pair check that reports every stored pair as unusable.
 	certPEM, keyPEM := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(certPEM, keyPEM)})
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(t, certPEM, keyPEM)})
 	assert.Empty(t, diags, "a matching pair is not a finding")
 }
 
@@ -152,7 +144,7 @@ func TestCheckWebTLSMaterial_MismatchedPair(t *testing.T) {
 	certPEM, _ := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 	_, foreignKeyPEM := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 
-	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(certPEM, foreignKeyPEM)})
+	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: storedPair(t, certPEM, foreignKeyPEM)})
 	require.Len(t, diags, 1)
 	assert.Equal(t, diagnostic.CodeDoctorTLSInvalid, diags[0].Code)
 	assert.Equal(t, diagnostic.SeverityError, diags[0].Severity)
@@ -172,7 +164,7 @@ func TestCheckWebTLSMaterial_UnreadableKey(t *testing.T) {
 	// which names the wrong file and sends the operator to the wrong fix.
 	certPEM, _ := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 
-	store := storedPair(certPEM, nil)
+	store := storedPair(t, certPEM, nil)
 	store.unreadable = map[string]error{zefs.KeyWebKey.Pattern: errors.New("input/output error")}
 	diags := checkWebTLSMaterial(diagnostic.DoctorCheckContext{Tree: webEnabledTree(), Store: store})
 	require.Len(t, diags, 1)
@@ -220,7 +212,7 @@ func TestWebTLSMaterialDoctorCheckRegistered(t *testing.T) {
 
 // TestDoctorReportsUnusableWebTLSPair drives the check from the entry point an
 // operator reaches: the doctor provider `ze doctor` and `show doctor` both run,
-// over a config file and a filesystem store.
+// over a config file and a tree store.
 //
 // VALIDATES: `ze doctor` reaches the pair check through the registry.
 // PREVENTS: a check proven only by a unit test that calls it directly, while
@@ -229,20 +221,12 @@ func TestDoctorReportsUnusableWebTLSPair(t *testing.T) {
 	certPEM, _ := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 	_, foreignKeyPEM := webMaterialCertPEM(t, time.Now().Add(-time.Hour), time.Now().Add(365*24*time.Hour))
 
-	previous := env.Get("ze.storage.blob")
-	require.NoError(t, env.Set("ze.storage.blob", "false"))
-	t.Cleanup(func() {
-		require.NoError(t, env.Set("ze.storage.blob", previous))
-	})
-
-	// Filesystem storage resolves a key pattern against the working directory.
 	root := t.TempDir()
 	cfgPath := filepath.Join(root, "ze.conf")
 	require.NoError(t, os.WriteFile(cfgPath, []byte("environment {\n\tweb {\n\t\tenabled true\n\t}\n}\n"), 0o600))
-	require.NoError(t, os.MkdirAll(filepath.Join(root, filepath.Dir(zefs.KeyWebCert.Pattern)), 0o750))
-	require.NoError(t, os.WriteFile(filepath.Join(root, zefs.KeyWebCert.Pattern), certPEM, 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(root, zefs.KeyWebKey.Pattern), foreignKeyPEM, 0o600))
-	t.Chdir(root)
+	store := testConfigStore(t, cfgPath)
+	require.NoError(t, store.WriteKey(zefs.KeyWebCert.Pattern, certPEM))
+	require.NoError(t, store.WriteKey(zefs.KeyWebKey.Pattern, foreignKeyPEM))
 
 	diags := diagnostic.RunDoctorChecks(cfgPath)
 	require.NotEmpty(t, diags, "the doctor provider ran no check: is internal/component/doctor linked into this binary?")

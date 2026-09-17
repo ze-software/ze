@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
 	hostinv "github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/component/iface"
@@ -401,14 +402,10 @@ func collectPlatform(opts *collectOptions) (any, error) {
 // collectConfig loads and optionally sanitizes the configuration.
 func collectConfig(opts *collectOptions) (any, error) {
 	var tb textbuf.Buffer
-	store, err := resolve.Storage()
-	if err != nil {
-		return map[string]any{keyAvailable: false, keyReason: tb.Str("storage: ").Err(err).String()}, nil
-	}
-	defer func() { _ = store.Close() }()
 
 	var configData []byte
 	var configName string
+	var err error
 
 	if opts.ConfigPath != "" {
 		configData, err = cliio.ReadFile(opts.ConfigPath) // "-" reads stdin
@@ -417,6 +414,11 @@ func collectConfig(opts *collectOptions) (any, error) {
 		}
 		configName = opts.ConfigPath
 	} else {
+		store, openErr := storage.OpenReadOnly(resolve.StoreDir(""))
+		if openErr != nil {
+			return map[string]any{keyAvailable: false, keyReason: tb.Str("storage: ").Err(openErr).String()}, nil
+		}
+		defer func() { _ = store.Close() }()
 		configName = resolve.DefaultConfig(store)
 		configData, err = store.ReadFile(configName)
 		if err != nil {

@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/test/golden"
 )
 
@@ -529,7 +528,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 		t.Fatalf("write the capture config: %v", err)
 	}
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	editorMgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 	broker := NewEventBroker(0)
 	dispatch := webGoldenDispatch()

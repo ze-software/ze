@@ -112,7 +112,28 @@ opening this page.
 | pmacct `pmbmpd` | 172.30.0.13 | `ze-iop-pmacct-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
+
 <!-- source: internal/le/interoplab/bgp/prepare.go -- container naming, IP addresses -->
+
+The IPsec, L2TP, PPPoE and RADIUS labs mount only Ze's input configuration file
+read-only. Its parent `/etc/ze` belongs to the container and remains writable,
+so `start /etc/ze/ze.conf` creates its database tree there without writing to
+the scenario source directory. Each new container gets its own tree.
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- zePeer -->
+<!-- source: internal/le/interoplab/pppoe/scenarios.go -- prepareZeClient, prepareZeAccessConcentrator -->
+<!-- source: internal/le/interoplab/radius/radius.go -- zePeerConfig -->
+
+The deployment L2TP PPP proof uses a private `/tmp` directory owned by its
+invoking user and writes Ze's explicit configuration beneath `ze/`. VPP stages
+each input from the host scratch mount into `/run/ze/<scenario-config>/` inside
+the container, where its explicit `ze.conf` and database tree live together.
+The root daemon cannot use a database directory beneath a mount owned by another
+user. A scenario's disable-and-restart check recopies the new input into the
+same private directory before each start.
+<!-- source: internal/le/deployment/l2tppppinputs.go -- writeInputs -->
+<!-- source: internal/le/deployment/vppiface.go -- writeScratch, stageConfig, daemonArgs -->
+<!-- source: internal/le/deployment/vppevidence.go -- writeConfig, evidenceDaemonArgs -->
 
 ### Scenario Structure
 
@@ -737,15 +758,13 @@ The tell is `"peers": 0` from `show bgp rib status` while `show bgp peer list`
 reports both sessions Established. Ze also logs it at startup: *"the plugin
 declared events and no peer attaches it"*.
 
-#### Editing a config means recreating the container, not restarting it
+#### Explicit configuration is authoritative at every start
 
-Ze persists its configuration, so `docker restart` on a scenario container runs
-the peers of the FIRST boot and ignores the edited file the mount now carries.
-`docker exec ... cat /etc/ze/bgp.conf` shows the new text while `show bgp peer
-list` shows the old peers, which reads as a config that had no effect. Remove
-the container and start a new one instead. Every restart-based config
-experiment in a hand-built lab is void, and the harness is unaffected because it
-creates each container once.
+`ze start <file>` reads that file on every start, including a container restart.
+Persisted configuration from a previous run does not replace the explicit input.
+The labs mount individual configuration files, so replacing a source file by
+rename can leave an existing container's bind mount on the old inode. Recreating
+the container refreshes the mount; the harness creates each container once.
 
 For Ze's configuration syntax, see [docs/architecture/config/syntax.md](../config/syntax.md).
 Copy an existing scenario's `ze.conf` as a starting point.

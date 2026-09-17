@@ -1,0 +1,8 @@
+# Test: storage-1 AC18 rir consumer survives a selected-folder daemon restart.
+# VALIDATES: Refreshes five local registry feeds, stops their server, and checks the ASN registry and whois answer after restart.
+# PREVENTS: a working generic state RPC hiding a consumer that never restores.
+# The fixture launches ze start <selected>/router.conf without a config-dir pin.
+option=timeout:value=70s
+cmd=foreground:seq=1:exec=ze-test fixture storage/consumer-restart rir:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: rir consumer restored operational state from selected tree without config-dir pin

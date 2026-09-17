@@ -176,29 +176,40 @@ func (v *vppIface) vppArgs(name string) []string {
 }
 
 // daemonArgs answers ze, started inside the container reading the named
-// configuration file out of the scratch mount.
+// configuration file out of a private container-owned directory.
 //
-// Blob storage is off and the configuration directory is inside the mount, so
-// the run leaves nothing behind in the checkout. The `start` keyword is
-// explicit because the bare `ze <config>` launch form was removed from the CLI
-// (learned 1248) and a positional path now dies with "unknown command".
+// Each scenario stages its input from the scratch mount before launch.
+// The `start` keyword is explicit because the bare `ze <config>` launch form
+// was removed from the CLI (learned 1248).
 func (v *vppIface) daemonArgs(name, binaryRel, configFile string) []string {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
-	tb.Reset()
-	config := tb.Str(vppMount).Byte('/').Str(configFile).String()
+	config := filepath.Join("/run/ze", configFile, "ze.conf")
 
 	return []string{
 		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_VPP=info",
 		dockerEnv, "ZE_LOG_INTERFACE=debug",
 		dockerEnv, "ZE_LOG_BGP=info",
-		dockerEnv, storageBlobDisabledEnv,
-		dockerEnv, "ZE_CONFIG_DIR=/run/vpp/ze",
+		dockerEnv, tb.Reset().Str("ZE_CONFIG_DIR=").Str(filepath.Dir(config)).String(),
 		name,
 		binary,
 		"start", config,
 	}
+}
+
+// stageConfig copies the explicit input out of the host-owned scratch mount.
+// The container's root daemon must own every ancestor of its database folder.
+func (v *vppIface) stageConfig(container, configFile string) error {
+	directory := filepath.Join("/run/ze", configFile)
+	if output, ok := v.dockerText(dockerExec, container, "mkdir", "-p", directory); !ok {
+		return errors.New("create private ze config directory: " + output)
+	}
+	source := filepath.Join(vppMount, "ze", configFile, "ze.conf")
+	if output, ok := v.dockerText(dockerExec, container, "cp", source, filepath.Join(directory, "ze.conf")); !ok {
+		return errors.New("stage explicit ze configuration: " + output)
+	}
+	return nil
 }
 
 // vppctlArgs answers one query put to VPP's own command line, as the words
@@ -211,9 +222,8 @@ func vppctlArgs(query string) []string {
 	return append(argv, words...)
 }
 
-// writeScratch creates the directory that VPP and ze both read. It contains
-// VPP's own startup file, each scenario's configuration, and the empty directory
-// where ze writes its configuration store.
+// writeScratch creates VPP's startup file and the inputs stageConfig copies
+// into each scenario's private configuration directory.
 func (v *vppIface) writeScratch(work string) error {
 	if err := os.MkdirAll(filepath.Join(work, "ze"), 0o750); err != nil {
 		return err
@@ -223,7 +233,11 @@ func (v *vppIface) writeScratch(work string) error {
 	}
 	for i := range vppScenarios {
 		one := &vppScenarios[i]
-		if err := os.WriteFile(filepath.Join(work, one.file), []byte(one.config), 0o644); err != nil { //nolint:gosec // a scratch file ze reads inside a container
+		directory := filepath.Join(work, "ze", one.file)
+		if err := os.MkdirAll(directory, 0o750); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(directory, "ze.conf"), []byte(one.config), 0o644); err != nil { //nolint:gosec // a scratch file ze reads inside a container
 			return err
 		}
 	}
@@ -321,6 +335,10 @@ func (v *vppIface) proveOne(container string, one *vppScenario, loaded map[strin
 		result.Outcome = OutcomeSkip
 		result.Detail = one.skipDetail
 		return result, nil
+	}
+
+	if err := v.stageConfig(container, one.file); err != nil {
+		return result, err
 	}
 
 	// The collector does not watch for a verdict. The verdict comes from VPP's

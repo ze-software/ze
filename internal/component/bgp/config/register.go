@@ -3,7 +3,6 @@
 package bgpconfig
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -19,8 +18,6 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
-
-var errBgpCoordinatorMissingBgpStore = errors.New("bgp: coordinator missing bgp.store")
 
 func init() {
 	zeconfig.RegisterPluginExtractor(extractBGPInlinePlugins)
@@ -117,30 +114,25 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	cliPlugins := bs.CLIPlugins
 	configData := bs.ConfigData
 
+	// The hub records the selected source in stored history before startup.
+	// A newly enabled BGP plugin uses the staged reload candidate; a restarted
+	// plugin uses the accepted version. Neither reopens a mutable loose file.
+	// Captured bytes remain authoritative for stdin and storeless startup.
 	store := bs.Store
-	if store == nil {
-		return nil, errBgpCoordinatorMissingBgpStore
-	}
-
-	// Re-read config from disk for reload support. Stdin uses captured data.
-	// Mirrors the hub's initial-load fallback (cmd/ze/hub/main.go Run): try the
-	// blob store first, and if the store is blob-only (e.g., gokrazy read-only
-	// root) fall back to a direct filesystem read. Without this fallback, all
-	// encode/plugin .ci tests that pass a /tmp/... config path via `ze <file>`
-	// fail with "read file/active/...: file does not exist" because the
-	// filesystem path is not a valid blob key.
-	var data []byte
-	if configPath != "" && configPath != "-" && store != nil {
-		var err error
-		data, err = store.ReadFile(configPath)
-		if err != nil && storage.IsBlobStorage(store) {
-			data, err = os.ReadFile(configPath) //nolint:gosec // path supplied by the daemon operator
-		}
+	data := configData
+	if store != nil && configPath != "" && configPath != "-" {
+		candidate, _, present, err := storage.ReadCandidateConfig(store, configPath)
 		if err != nil {
-			return nil, fmt.Errorf("re-read config for reactor: %w", err)
+			return nil, fmt.Errorf("read reactor candidate: %w", err)
 		}
-	} else {
-		data = configData
+		if present {
+			data = candidate
+		} else {
+			data, err = storage.ReadActiveConfig(store, configPath)
+			if err != nil {
+				return nil, fmt.Errorf("read accepted reactor config: %w", err)
+			}
+		}
 	}
 
 	// Set YANG validator for runtime attribute validation (origin enum, med/local-pref ranges).

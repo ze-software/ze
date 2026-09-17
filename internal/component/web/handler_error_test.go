@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/errorfragment"
 )
 
@@ -379,7 +378,7 @@ func TestRefusedSecretValueNeverReachesTheBrowser(t *testing.T) {
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(""), 0o600))
 
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, schema,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
 
 	mux := http.NewServeMux()
@@ -429,7 +428,7 @@ func TestRefusedSecretWithAQuoteNeverReachesTheBrowser(t *testing.T) {
 	configPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(""), 0o600))
 
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, schema,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
 
 	mux := http.NewServeMux()

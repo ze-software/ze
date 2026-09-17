@@ -1,7 +1,6 @@
 package hub
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,15 +11,15 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
-// sessionEditorStore writes a config and opens the blob storage over it.
+// sessionEditorStore seeds a stored config for session editing.
 func sessionEditorStore(t *testing.T) (storage.Storage, string) {
 	t.Helper()
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte("set system host-name test\n"), 0o600))
 
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err)
+	require.NoError(t, store.WriteFile(configPath, []byte("set system host-name test\n"), 0o600))
 	t.Cleanup(func() { _ = store.Close() })
 	return store, configPath
 }

@@ -22,17 +22,15 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// newRootStore opens a real blob store in a temporary directory and returns it
-// with the path of its backing file. The daemon passes exactly this type, so the
-// tests below exercise the production persistence rather than a fake.
+// newRootStore opens a real tree and returns the path of its root.
 func newRootStore(t *testing.T) (storage.Storage, string) {
 	t.Helper()
 
 	dir := t.TempDir()
-	path := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(path, dir)
+	path := filepath.Join(dir, "database")
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("open blob store: %v", err)
+		t.Fatalf("create tree store: %v", err)
 	}
 	t.Cleanup(func() {
 		if closeErr := store.Close(); closeErr != nil {
@@ -75,7 +73,7 @@ func TestRootIsGeneratedOnceAndReused(t *testing.T) {
 		t.Fatalf("close store: %v", err)
 	}
 	dir := filepath.Dir(path)
-	reopened, err := storage.NewBlob(path, dir)
+	reopened, err := storage.Open(dir)
 	if err != nil {
 		t.Fatalf("reopen blob store: %v", err)
 	}
@@ -97,9 +95,7 @@ func TestRootKeyIsWrittenPrivate(t *testing.T) {
 		t.Fatalf("LoadOrGenerateRoot: %v", err)
 	}
 
-	// The key entry is registered Private, so no listing shows it. zefs has no
-	// per-key file mode, so the registry flag and the blob's own mode are what
-	// AC-1 asserts.
+	// The registry hides the private entry; the key frame itself is owner-only.
 	if !zefs.KeyCAKey.Private {
 		t.Fatal("the root key entry must be registered Private")
 	}
@@ -119,7 +115,7 @@ func TestRootKeyIsWrittenPrivate(t *testing.T) {
 		t.Fatalf("%s is not registered at all", zefs.KeyCAKey.Pattern)
 	}
 
-	info, err := os.Stat(path)
+	info, err := os.Stat(filepath.Join(path, zefs.KeyCAKey.Pattern))
 	if err != nil {
 		t.Fatalf("stat blob file: %v", err)
 	}

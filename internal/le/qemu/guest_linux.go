@@ -96,10 +96,9 @@ const macvlanModeBridge = "bridge"
 const pingCommand = "ping"
 
 const (
-	guestStorageBlobKey = "ZE_STORAGE_BLOB"
-	guestConfigDirKey   = "ZE_CONFIG_DIR"
-	guestEvidenceZeKey  = "ZE_EVIDENCE_ZE_BINARY"
-	guestTestBinKey     = "ZE_TEST_BIN"
+	guestConfigDirKey  = "ZE_CONFIG_DIR"
+	guestEvidenceZeKey = "ZE_EVIDENCE_ZE_BINARY"
+	guestTestBinKey    = "ZE_TEST_BIN"
 )
 
 var execLookPath = exec.LookPath

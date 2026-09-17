@@ -32,7 +32,6 @@ import (
 
 func TestMain(m *testing.M) {
 	diagnostic.RegisterBuiltinCodes()
-	env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: "false", Description: "blob storage"})
 	env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "config dir"})
 	os.Exit(m.Run())
 }
@@ -382,14 +381,14 @@ func (s *stubStorage) Exists(name string) bool {
 }
 
 func TestResolveDefaultConfig_NoInstanceFile(t *testing.T) {
-	store := storage.NewFilesystem()
+	store := doctorTestStore(t)
 	name := resolve.DefaultConfig(store)
 	assert.Equal(t, "ze.conf", name, "filesystem storage with no instance file should return ze.conf")
 }
 
 func TestResolveDefaultConfig_InvalidRegex(t *testing.T) {
 	store := &stubStorage{
-		Storage: storage.NewFilesystem(),
+		Storage: doctorTestStore(t),
 		data:    map[string][]byte{zefs.KeyInstanceName.Pattern: []byte("../etc")},
 	}
 	name := resolve.DefaultConfig(store)
@@ -398,7 +397,7 @@ func TestResolveDefaultConfig_InvalidRegex(t *testing.T) {
 
 func TestResolveDefaultConfig_ValidName(t *testing.T) {
 	store := &stubStorage{
-		Storage: storage.NewFilesystem(),
+		Storage: doctorTestStore(t),
 		data:    map[string][]byte{zefs.KeyInstanceName.Pattern: []byte("myrouter")},
 	}
 	name := resolve.DefaultConfig(store)
@@ -446,13 +445,16 @@ func TestCollectSchemaListeners_SSHExplicit(t *testing.T) {
 	assert.True(t, found, "expected explicit ssh listener from fallback collection")
 }
 
-func TestResolveStorageWithDiag_Fallback(t *testing.T) {
-	store, diags := resolveStorageWithDiag()
-	assert.NotNil(t, store, "should always return a usable storage")
-	for _, d := range diags {
-		assert.NotEqual(t, diagnostic.SeverityError, d.Severity,
-			"storage fallback should not produce errors")
-	}
+func TestResolveStorageWithDiag_ReadOnly(t *testing.T) {
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, owner.Close()) })
+	store, diags := resolveStorageWithDiag(filepath.Join(dir, "ze.conf"))
+	require.NotNil(t, store)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	assert.Empty(t, diags)
+	assert.ErrorIs(t, store.WriteKey("meta/test", []byte("refused")), storage.ErrReadOnly)
 }
 
 func requireDiag(t *testing.T, diags []diagnostic.Diagnostic, code string, severity diagnostic.Severity) {
@@ -631,15 +633,20 @@ func pinConfigDir(t *testing.T, dir string) {
 // unit (internal/plugins/systemd/unit.go) while the binary sits in a standard prefix.
 func TestCheckStoreIntegrity_HonorsConfigDirEnv(t *testing.T) {
 	dir := t.TempDir()
-	// Not a valid zefs container: Check must fail on the CONTENT, which proves the
-	// file was actually opened rather than skipped as missing.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "database.zefs"), []byte("not a valid zefs store"), 0o600))
+	// A damaged frame proves the configured tree was visited.
+	store, err := storage.Create(dir)
+	require.NoError(t, err)
+	require.NoError(t, store.WriteKey("meta/test", []byte("good")))
+	require.NoError(t, store.Close())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "database", "meta", "test"), []byte("not a valid frame"), 0o600))
 	pinConfigDir(t, dir)
 
-	diags := checkStoreIntegrity()
+	diags := checkStoreIntegrity("")
 
 	require.Len(t, diags, 1, "corrupt store at ze.config.dir must produce a diagnostic, not a silent skip")
 	assert.Equal(t, "doctor-store-integrity", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "meta/test")
+	assert.Equal(t, filepath.Join(dir, "database", "meta", "test"), diags[0].Path)
 }
 
 // VALIDATES: checkStoreIntegrity stays silent when the pinned dir holds no store.
@@ -648,7 +655,7 @@ func TestCheckStoreIntegrity_HonorsConfigDirEnv(t *testing.T) {
 func TestCheckStoreIntegrity_NoStoreIsSilent(t *testing.T) {
 	pinConfigDir(t, t.TempDir())
 
-	assert.Empty(t, checkStoreIntegrity(), "missing store must report nothing")
+	assert.Empty(t, checkStoreIntegrity(""), "absence is reported by the open diagnostic, not corruption")
 }
 
 // notADirConfigDir pins ze.config.dir BELOW a regular file and returns that path.
@@ -684,12 +691,44 @@ func notADirConfigDir(t *testing.T) string {
 func TestCheckStoreIntegrity_UnreadableStoreIsReported(t *testing.T) {
 	notADir := notADirConfigDir(t)
 
-	diags := checkStoreIntegrity()
+	diags := checkStoreIntegrity("")
 
 	require.Len(t, diags, 1, "an unreadable store must be reported, not treated as healthy")
 	assert.Equal(t, "doctor-store-integrity", diags[0].Code)
 	assert.Equal(t, diagnostic.SeverityError, diags[0].Severity)
 	assert.Contains(t, diags[0].Message, notADir, "the message must name the path that could not be read")
+}
+
+func doctorTestStore(t *testing.T) storage.Storage {
+	t.Helper()
+	store, err := storage.Create(t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	return store
+}
+
+// A missing or unsafe store must have a named diagnosis without creating one.
+func TestStorageOpenDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "ze.conf")
+	store, diags := resolveStorageWithDiag(configPath)
+	require.Nil(t, store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, "doctor-storage-unavailable", diags[0].Code)
+	assert.Contains(t, diags[0].Message, "ze init")
+	_, err := os.Stat(filepath.Join(dir, "database"))
+	require.True(t, os.IsNotExist(err))
+
+	owner, err := storage.Create(dir)
+	require.NoError(t, err)
+	require.NoError(t, owner.Close())
+	require.NoError(t, os.Chmod(filepath.Join(dir, "database"), 0o755))
+	store, diags = resolveStorageWithDiag(configPath)
+	require.Nil(t, store)
+	require.Len(t, diags, 1)
+	assert.Equal(t, diagnostic.CodeDoctorStorePermissions, diags[0].Code)
+	assert.Contains(t, diags[0].Message, filepath.Join(dir, "database"))
+	assert.Contains(t, diags[0].Message, "755")
 }
 
 // VALIDATES: checkDiskSpace stays silent when the config dir does not exist.

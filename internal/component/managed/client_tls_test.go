@@ -27,18 +27,18 @@ import (
 
 const testHubToken = "0123456789abcdef0123456789abcdef"
 
-// testRoot generates one certificate authority in a temporary blob store, the
+// testRoot generates one certificate authority in a temporary live store, the
 // way a daemon does on first start.
 func testRoot(t *testing.T) *pki.Root {
 	t.Helper()
 	dir := t.TempDir()
-	store, err := storage.NewBlob(dir+"/database.zefs", dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("open blob store: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 	t.Cleanup(func() {
 		if closeErr := store.Close(); closeErr != nil {
-			t.Errorf("close blob store: %v", closeErr)
+			t.Errorf("close store: %v", closeErr)
 		}
 	})
 

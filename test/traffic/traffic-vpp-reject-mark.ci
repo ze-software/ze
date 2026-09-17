@@ -34,7 +34,6 @@
 # (internal/component/traffic/register.go) as
 # `traffic-control backend "vpp": interface "eth0": class "control": ...`.
 
-option=env:var=ZE_STORAGE_BLOB:value=false
 option=env:var=ze.log.traffic:value=info
 
 stdin=peer:terminator=EOF_PEER
@@ -149,12 +148,6 @@ EOF_BAD_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
-cmd=foreground:seq=3:exec=ze config validate tx-vpp-mark.conf:exit=1:timeout=20s
-
-# Offline: `ze config validate` refuses the same candidate, on stdout, exit 1.
-expect=stdout:contains=configuration invalid
-expect=stdout:contains=filter mark: not supported by backend vpp (Linux SKB fwmark has no faithful VPP equivalent
-
 # Half one: the commit is REFUSED, and the error names the real reason. The
 # await fence holds the daemon until its relayed stderr carries the rejection,
 # so the assertion never races teardown. Its needle carries no ':' because
@@ -163,13 +156,19 @@ await=stderr:contains=Linux SKB fwmark has no faithful VPP equivalent
 expect=stderr:contains=reload error
 expect=stderr:contains=filter mark: not supported by backend vpp (Linux SKB fwmark has no faithful VPP equivalent
 
+cmd=foreground:seq=3:exec=ze config validate tx-vpp-mark.conf:exit=1:timeout=20s
+
+# Offline: `ze config validate` refuses the same candidate, on stdout, exit 1.
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=filter mark: not supported by backend vpp (Linux SKB fwmark has no faithful VPP equivalent
+
 # Half two: the previously active configuration is STILL ACTIVE. The candidate
 # was cleared, no rollback pointer was left dangling, and the stored snapshot is
 # the OLD file: it still selects backend tc and carries none of the candidate.
-expect=file:path=meta/config/active:exists=true
-expect=file:path=meta/config/candidate:absent=true
-expect=file:path=meta/config/rollback:absent=true
-expect=file:glob=rollback/ze-bgp-*.conf:count=1
-expect=file:glob=rollback/ze-bgp-*.conf:contains=backend tc
-expect=file:glob=rollback/ze-bgp-*.conf:not-contains=backend vpp
-expect=file:glob=rollback/ze-bgp-*.conf:not-contains=match mark
+expect=key:path=meta/config/ze-bgp.conf/active:exists=true
+expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
+expect=key:path=meta/config/ze-bgp.conf/rollback:absent=true
+expect=key:glob=file/[0-9]*/ze-bgp.conf:count=1
+expect=key:glob=file/[0-9]*/ze-bgp.conf:contains=backend tc
+expect=key:glob=file/[0-9]*/ze-bgp.conf:not-contains=backend vpp
+expect=key:glob=file/[0-9]*/ze-bgp.conf:not-contains=match mark

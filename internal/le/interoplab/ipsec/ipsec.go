@@ -318,10 +318,12 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 		return fail(err)
 	}
 	peers = append(peers, interoplab.PeerConfig{
-		Name:        zePeer,
-		Container:   zeContainer,
-		Image:       zePeer,
-		Host:        2,
+		Name:      zePeer,
+		Container: zeContainer,
+		Image:     zePeer,
+		Host:      2,
+		// Mount only the input file; /etc/ze remains container-owned and writable
+		// for the database tree created beside that explicit configuration.
 		Mounts:      []interoplab.Mount{{Source: renderedConfig, Target: "/etc/ze/ze.conf", ReadOnly: true}},
 		Environment: environment,
 		Arguments:   []string{dockerPrivileged},
@@ -332,7 +334,6 @@ func prepareScenario(root string, source interoplab.ScenarioSource, state *scena
 
 func zeEnvironment(directory string) ([]interoplab.EnvironmentVariable, error) {
 	variables := []interoplab.EnvironmentVariable{
-		{Name: "ZE_STORAGE_BLOB", Value: "false"},
 		{Name: "ZE_LOG_LEVEL", Value: "debug"},
 	}
 	content, err := readFileUnder(directory, "ze-env")

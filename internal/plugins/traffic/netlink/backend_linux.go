@@ -119,7 +119,7 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 	if err != nil {
 		return fmt.Errorf("translate qdisc: %w", err)
 	}
-	if err := b.ops.qdiscReplace(rootQdisc); err != nil {
+	if err := b.replaceRootQdisc(link, rootQdisc); err != nil {
 		return fmt.Errorf("qdisc replace: %w", err)
 	}
 
@@ -153,6 +153,28 @@ func (b *backend) applyInterface(link netlink.Link, qos *traffic.InterfaceQoS) e
 	// the download direction. The upload direction arrives on the ingress hook,
 	// where a policer is the enforcement available (policer_linux.go).
 	return b.applyIngressPolicer(link, qos.Ingress)
+}
+
+// replaceRootQdisc rebuilds a root even when its handle is already installed.
+// Linux qdisc_change (net/sched/sch_api.c) treats a same-handle replacement as
+// an in-place change. HTB has no change callback and returns EINVAL; other
+// schedulers can retain stale classes and filters. Delete that root first.
+// Both callers retain the durable original snapshot until restoration succeeds.
+func (b *backend) replaceRootQdisc(link netlink.Link, desired netlink.Qdisc) error {
+	qdiscs, err := b.ops.qdiscList(link)
+	if err != nil {
+		return fmt.Errorf("list qdiscs before replacement: %w", err)
+	}
+	for _, current := range qdiscs {
+		attrs := current.Attrs()
+		if desired.Attrs().Handle != 0 && attrs.Parent == netlink.HANDLE_ROOT && attrs.Handle == desired.Attrs().Handle {
+			if err := b.ops.qdiscDel(current); err != nil {
+				return fmt.Errorf("delete same-handle root qdisc: %w", err)
+			}
+			break
+		}
+	}
+	return b.ops.qdiscReplace(desired)
 }
 
 func (b *backend) ensureSnapshot(link netlink.Link) error {
@@ -281,7 +303,7 @@ func (b *backend) restoreOriginalLocked(ifaceName string) error {
 		if err != nil {
 			return fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
 		}
-		if err := b.ops.qdiscReplace(qdisc); err != nil {
+		if err := b.replaceRootQdisc(link, qdisc); err != nil {
 			return fmt.Errorf("trafficnetlink: interface %q: restore qdisc %q: %w", ifaceName, qdisc.Type(), err)
 		}
 	}

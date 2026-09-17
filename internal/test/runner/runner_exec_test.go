@@ -3,8 +3,8 @@ package runner
 import "testing"
 
 func TestZeDaemonConfigArgIndex(t *testing.T) {
-	// VALIDATES: runner only disables blob storage for ze daemon config
-	// invocations, not for ze subcommands that consume config paths themselves.
+	// VALIDATES: daemon config arguments are separated from verb operands,
+	// so only daemon stdin blocks become restartable source files.
 	tests := []struct {
 		name string
 		args []string
@@ -19,7 +19,7 @@ func TestZeDaemonConfigArgIndex(t *testing.T) {
 		{name: "service subcommand", args: []string{"service", "install", "--dry-run"}, want: -1},
 		// After spec-fixit-config-file-positional-grammar the runner launches a
 		// config file as `ze start <config>`; the leading verb is skipped so the
-		// path is still found (and blob storage is still forced for it).
+		// path is still found for source routing.
 		{name: "start verb with config", args: []string{"start", "x.conf"}, want: 1},
 		{name: "start verb no path", args: []string{"start"}, want: -1},
 		{name: "start verb web flags", args: []string{"start", "--web", "3443", "--insecure-web", "test.conf"}, want: 4},
@@ -108,33 +108,6 @@ func TestNetnsChildIDs(t *testing.T) {
 			}
 			if ok && (uid != tt.wantUID || gid != tt.wantGID) {
 				t.Fatalf("netnsChildIDs() = (%d, %d), want (%d, %d)", uid, gid, tt.wantUID, tt.wantGID)
-			}
-		})
-	}
-}
-
-func TestZeDaemonShouldForceFileStorage(t *testing.T) {
-	// VALIDATES: web functional tests keep blob storage enabled because the web
-	// server requires it, while plain daemon tests still avoid shared zefs state.
-	tests := []struct {
-		name string
-		args []string
-		want bool
-	}{
-		{name: "plain config", args: []string{"test.conf"}, want: true},
-		{name: "web config", args: []string{"--web", "3443", "--insecure-web", "test.conf"}, want: false},
-		{name: "web equals", args: []string{"--web=3443", "test.conf"}, want: false},
-		{name: "subcommand", args: []string{"config", "validate", "test.conf"}, want: false},
-		// `ze start <config>` (the post-migration daemon launch) still forces file
-		// storage; `ze start --web ... <config>` keeps blob for the web server.
-		{name: "start verb config", args: []string{"start", "test.conf"}, want: true},
-		{name: "start verb web config", args: []string{"start", "--web", "3443", "test.conf"}, want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := zeDaemonShouldForceFileStorage(tt.args); got != tt.want {
-				t.Fatalf("zeDaemonShouldForceFileStorage(%v) = %v, want %v", tt.args, got, tt.want)
 			}
 		})
 	}

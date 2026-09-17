@@ -239,14 +239,14 @@ func TestAuthenticatedSSHPTYRefusesSaveBeforeModelDispatch(t *testing.T) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"version":"unused"}`)), nil
 	})
 	server.SetSessionModelFactory(
-		func(username, _ string, _ plugin.Authorizer) tea.Model {
+		func(username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			factoryCalled.Store(username == "operator")
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetCommandExecutor(func(string) (cli.CommandOutput, error) {
 				dispatched.Store(true)
 				return cli.CommandOutput{Text: `{"version":"test"}`}, nil
 			})
-			return model
+			return model, nil
 		},
 	)
 
@@ -288,4 +288,58 @@ func TestAuthenticatedSSHPTYRefusesSaveBeforeModelDispatch(t *testing.T) {
 	assert.False(t, dispatched.Load(), "a refused PTY save must not reach the command dispatcher")
 	_, statErr := os.Stat(path)
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+func TestSSHPTYRefusesInvalidSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		env  [][2]string
+		want string
+	}{
+		{"traversal", [][2]string{{sshclient.EnvConfigName, "../meta/users"}}, "one stored filename"},
+		{"duplicate_config", [][2]string{{sshclient.EnvConfigName, "one.conf"}, {sshclient.EnvConfigName, "two.conf"}}, "duplicate configuration"},
+		{"unknown_mode", [][2]string{{sshclient.EnvCLIMode, "root"}}, "unknown mode"},
+		{"duplicate_mode", [][2]string{{sshclient.EnvCLIMode, sshclient.CLIModeEdit}, {sshclient.EnvCLIMode, sshclient.CLIModeCommand}}, "duplicate mode"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var dispatched atomic.Bool
+			server := answerServer(t, func(string) (*plugin.Response, error) {
+				return plugin.NewResponse(plugin.StatusDone, nil), nil
+			})
+			server.SetSessionModelFactory(func(_, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+				dispatched.Store(true)
+				return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
+			})
+			client, err := gossh.Dial("tcp", server.Address(), &gossh.ClientConfig{
+				User:            "operator",
+				Auth:            []gossh.AuthMethod{gossh.Password("read-pass")},
+				HostKeyCallback: gossh.InsecureIgnoreHostKey(), //nolint:gosec // Ephemeral test server.
+				Timeout:         5 * time.Second,
+			})
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = client.Close() })
+			session, err := client.NewSession()
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = session.Close() })
+			var screen synchronizedBuffer
+			session.Stdout, session.Stderr = &screen, &screen
+			for _, pair := range tc.env {
+				require.NoError(t, session.Setenv(pair[0], pair[1]))
+			}
+			require.NoError(t, session.RequestPty("xterm", 24, 80, gossh.TerminalModes{gossh.ECHO: 0}))
+			require.NoError(t, session.Shell())
+			result := make(chan error, 1)
+			go func() { result <- session.Wait() }()
+			select {
+			case err := <-result:
+				var exit *gossh.ExitError
+				require.ErrorAs(t, err, &exit)
+				assert.Equal(t, 1, exit.ExitStatus())
+			case <-time.After(5 * time.Second):
+				t.Fatal("invalid selection did not terminate the SSH session")
+			}
+			assert.Contains(t, screen.String(), tc.want)
+			assert.False(t, dispatched.Load(), "invalid selection must not open a daemon editor")
+		})
+	}
 }

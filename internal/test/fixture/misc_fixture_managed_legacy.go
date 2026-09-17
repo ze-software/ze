@@ -30,12 +30,16 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 	if err := os.WriteFile("daemon.ready", nil, 0o600); err != nil {
 		return err
 	}
-	dir, err := os.MkdirTemp("", "managed-fixture-")
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	dir, err := os.MkdirTemp(cwd, "managed-fixture-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(dir) //nolint:errcheck // fixture cleanup
-	db := filepath.Join(dir, "database.zefs")
+	db := filepath.Join(dir, "database")
 	managed := scenario == scenarioClientBackupStart || scenario == scenarioClientCachedBoot || scenario == scenarioClientFirstBoot || scenario == scenarioClientReconnect || scenario == scenarioInitManagedKey
 	name := ""
 	switch scenario {

@@ -4,8 +4,10 @@ package connect
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"slices"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -101,7 +104,7 @@ func runAdd(args []string) int {
 		return 1
 	}
 
-	dbPath := sshclient.ResolveDBPath()
+	dbPath := sshclient.ResolveStoreDir("")
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
@@ -111,7 +114,7 @@ func runAdd(args []string) int {
 }
 
 func runList() int {
-	dbPath := sshclient.ResolveDBPath()
+	dbPath := sshclient.ResolveStoreDir("")
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
@@ -126,7 +129,7 @@ func runRemove(args []string) int {
 		return 1
 	}
 
-	dbPath := sshclient.ResolveDBPath()
+	dbPath := sshclient.ResolveStoreDir("")
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
@@ -141,7 +144,7 @@ func runDefault(args []string) int {
 		return 1
 	}
 
-	dbPath := sshclient.ResolveDBPath()
+	dbPath := sshclient.ResolveStoreDir("")
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
@@ -193,7 +196,7 @@ func AddCredentials(dbPath, host, port, user, password string) int {
 		return 1
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.Open(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: open database: %v\n", err)
 		return 1
@@ -203,11 +206,11 @@ func AddCredentials(dbPath, host, port, user, password string) int {
 	usernameKey := zefs.KeySSHUsername.Key(host, port)
 	passwordKey := zefs.KeySSHPassword.Key(host, port)
 
-	if err := store.WriteFile(usernameKey, []byte(user), 0); err != nil {
+	if err := store.WriteKey(usernameKey, []byte(user)); err != nil {
 		fmt.Fprintf(os.Stderr, "error: write username: %v\n", err)
 		return 1
 	}
-	if err := store.WriteFile(passwordKey, hashedPassword, 0); err != nil {
+	if err := store.WriteKey(passwordKey, hashedPassword); err != nil {
 		fmt.Fprintf(os.Stderr, "error: write password: %v\n", err)
 		return 1
 	}
@@ -218,19 +221,27 @@ func AddCredentials(dbPath, host, port, user, password string) int {
 
 // ListRemotes prints all stored remote credentials.
 func ListRemotes(dbPath string) int {
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: open database: %v\n", err)
 		return 1
 	}
 	defer store.Close() //nolint:errcheck // best-effort
 
-	dflt := ""
-	if data, err := store.ReadFile(zefs.KeySSHDefault.Pattern); err == nil {
-		dflt = string(data)
+	data, err := store.ReadKey(zefs.KeySSHDefault.Pattern)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "error: read default: %v\n", err)
+			return 1
+		}
 	}
+	dflt := string(data)
 
-	entries := store.List("meta/ssh")
+	entries, err := store.ListKeys("meta/ssh")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: list credentials: %v\n", err)
+		return 1
+	}
 	type remoteEntry struct {
 		host, port, user string
 	}
@@ -253,9 +264,12 @@ func ListRemotes(dbPath string) int {
 			seen[id] = r
 		}
 		if leaf == "username" {
-			if data, err := store.ReadFile(key); err == nil {
-				r.user = string(data)
+			data, err := store.ReadKey(key)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: read %s: %v\n", key, err)
+				return 1
 			}
+			r.user = string(data)
 		}
 	}
 
@@ -288,7 +302,7 @@ func RemoveCredentials(dbPath, host, port string) int {
 		return 1
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.Open(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: open database: %v\n", err)
 		return 1
@@ -298,7 +312,7 @@ func RemoveCredentials(dbPath, host, port string) int {
 	usernameKey := zefs.KeySSHUsername.Key(host, port)
 	passwordKey := zefs.KeySSHPassword.Key(host, port)
 
-	if !store.Has(usernameKey) {
+	if !store.Exists(usernameKey) {
 		fmt.Fprintf(os.Stderr, "error: no credentials for %s:%s\n", host, port)
 		return 1
 	}
@@ -312,8 +326,18 @@ func RemoveCredentials(dbPath, host, port string) int {
 		return 1
 	}
 
-	if data, err := store.ReadFile(zefs.KeySSHDefault.Pattern); err == nil && string(data) == host+"/"+port {
-		store.Remove(zefs.KeySSHDefault.Pattern) //nolint:errcheck // best-effort cleanup
+	data, err := store.ReadKey(zefs.KeySSHDefault.Pattern)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "error: read default: %v\n", err)
+			return 1
+		}
+	}
+	if string(data) == host+"/"+port {
+		if err := store.RemoveKey(zefs.KeySSHDefault.Pattern); err != nil {
+			fmt.Fprintf(os.Stderr, "error: remove default: %v\n", err)
+			return 1
+		}
 	}
 
 	fmt.Fprintf(os.Stdout, "removed remote %s:%s\n", host, port) //nolint:errcheck // status output
@@ -327,7 +351,7 @@ func SetDefault(dbPath, host, port string) int {
 		return 1
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.Open(dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: open database: %v\n", err)
 		return 1
@@ -335,12 +359,12 @@ func SetDefault(dbPath, host, port string) int {
 	defer store.Close() //nolint:errcheck // best-effort
 
 	usernameKey := zefs.KeySSHUsername.Key(host, port)
-	if !store.Has(usernameKey) {
+	if !store.Exists(usernameKey) {
 		fmt.Fprintf(os.Stderr, "error: no credentials for %s:%s\n", host, port)
 		return 1
 	}
 
-	if err := store.WriteFile(zefs.KeySSHDefault.Pattern, []byte(host+"/"+port), 0); err != nil {
+	if err := store.WriteKey(zefs.KeySSHDefault.Pattern, []byte(host+"/"+port)); err != nil {
 		fmt.Fprintf(os.Stderr, "error: write default: %v\n", err)
 		return 1
 	}

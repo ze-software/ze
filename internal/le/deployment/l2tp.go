@@ -263,9 +263,8 @@ func (l *L2TP) installArgs(name string) []string {
 // from standard input.
 //
 // The kernel probe is skipped because the container's kernel is the host's and
-// the proof is about the control plane; blob storage is off and the config
-// directory is the scratch mount, so the run leaves nothing behind in the
-// checkout.
+// the proof is about the control plane. The selected configuration directory
+// lives in the scratch mount, so the run leaves nothing in the checkout.
 func (l *L2TP) daemonArgs(name, binaryRel string) []string {
 	var tb textbuf.Buffer
 	binary := tb.Str("/src/").Str(filepath.ToSlash(binaryRel)).String()
@@ -274,7 +273,6 @@ func (l *L2TP) daemonArgs(name, binaryRel string) []string {
 		dockerExec, dockerInteractiveArg,
 		dockerEnv, "ZE_LOG_L2TP=debug",
 		dockerEnv, "ze.l2tp.skip-kernel-probe=true",
-		dockerEnv, storageBlobDisabledEnv,
 		dockerEnv, "ZE_CONFIG_DIR=/run/l2tp/ze",
 		name,
 		binary,

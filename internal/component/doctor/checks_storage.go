@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -26,12 +27,11 @@ import (
 // defaultNTPPersistPath is the gokrazy default for environment/ntp persist-path.
 const defaultNTPPersistPath = "/perm/ze/timefile"
 
-func checkStoreIntegrity() []diagnostic.Diagnostic {
-	configDir := paths.DefaultConfigDir()
+func checkStoreIntegrity(configDir string) []diagnostic.Diagnostic {
 	if configDir == "" {
-		return nil
+		configDir = resolve.StoreDir("")
 	}
-	storePath := filepath.Join(configDir, "database.zefs")
+	storePath := filepath.Join(configDir, "database")
 	var tb textbuf.Buffer
 	if _, err := os.Stat(storePath); err != nil {
 		// Absence is not corruption: the host has not run ze init yet.
@@ -49,7 +49,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		}}
 	}
 
-	report, err := zefs.Check(storePath)
+	report, err := zefs.CheckPath(storePath)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     diagnostic.CodeDoctorStoreIntegrity,
@@ -66,15 +66,19 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		}}
 	}
 
-	if report.CorruptEntries > 0 {
-		return []diagnostic.Diagnostic{{
+	var diags []diagnostic.Diagnostic
+	for _, entry := range report.Entries {
+		if entry.Status == "ok" {
+			continue
+		}
+		diags = append(diags, diagnostic.Diagnostic{
 			Code:     diagnostic.CodeDoctorStoreIntegrity,
 			Severity: diagnostic.SeverityError,
-			Message:  tb.Reset().Str("store has ").Int(int64(report.CorruptEntries)).Str(" corrupt entries").String(),
-		}}
+			Message:  tb.Reset().Str("store key ").Str(entry.Key).Str(": ").Str(entry.Error).String(),
+			Path:     filepath.Join(storePath, filepath.FromSlash(entry.Key)),
+		})
 	}
-
-	return nil
+	return diags
 }
 func checkDiskSpace() []diagnostic.Diagnostic {
 	configDir := paths.DefaultConfigDir()

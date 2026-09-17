@@ -526,9 +526,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.textInput.SetWidth(msg.Width - 4)
-		// Resize viewport
-		m.viewport.SetWidth(msg.Width - 4)
+		// PTY shutdown and early resize messages can report zero columns.
+		contentWidth := max(msg.Width-4, 1)
+		m.textInput.SetWidth(contentWidth)
+		m.viewport.SetWidth(contentWidth)
 		m.viewport.SetHeight(max(msg.Height-10, 5))
 		// Show config on first size event (startup)
 		if !m.showViewport && m.viewportContent == "" {
@@ -1030,7 +1031,7 @@ func (m *Model) SetStartMode(mode EditorMode) {
 	saved := m.modeStates[mode]
 	saved.statusMessage = m.statusMessage
 	m.modeStates[mode] = saved
-	m.switchMode(mode)
+	m.SetMode(mode)
 }
 
 // SetLoginWarnings sets the login warnings to display in the welcome area.

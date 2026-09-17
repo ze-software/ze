@@ -43,18 +43,24 @@ rejected as unconventional and error-prone. The cost is one divide.
 <!-- source: internal/plugins/ddos/detect/persist.go -- saveBaselines, loadBaselines -->
 <!-- source: internal/plugins/ddos/detect/baseline.go -- snapshot, restore -->
 
-The format copies the traffic tc-snapshot idiom: versioned JSON at
-`<config-dir>/state/ddos-detect-baseline.json`, written to a temp file and
-renamed. `baseline.restore` refuses a blob whose version differs, that holds
-fewer than `min(50, window)` samples, or that holds a NaN, an infinity or a
-negative.
+The format is versioned JSON under `meta/ddos/detect-baseline` in the daemon's
+selected `database/` tree, through `internal/core/statestore`.
+`baseline.restore` refuses a value whose version differs, that holds fewer
+than `min(50, window)` samples, or that holds a NaN, infinity or negative value.
 
-`newDetector` is I/O-free by design. `register.go` sets `statePath` and calls
-`restore()`. `Stop()` saves, which covers both reconfigure and shutdown, and a
-periodic save runs every 300 ticks.
+`newDetector` is I/O-free. `register.go` calls `restore()` before subscribing
+to rate updates. `Stop()` saves after unsubscribing and draining in-flight work,
+which covers reconfiguration and shutdown, and a periodic save runs every
+300 rate-feed ticks. `saveMu` serialises that periodic save against the save on
+stop.
 
-`saveMu` serializes the periodic save against the save on stop. Both wrote the
-same `path + ".tmp"`, so a slow disk let them collide.
+The restart fixture waits for the periodic save to contain a complete
+ten-sample window from the production rate collector. It stops that daemon and
+restarts with detection disabled, then requires both restored baselines to be
+ready. No fresh sample can satisfy that assertion. Its draft carrier is
+`test/draft/plugin/storage-ddos-restart.ci`; the 300-tick save interval accounts
+for most of its running time.
+<!-- source: internal/test/fixture/storage_consumer_restart.go -- storageDDoSRestart -->
 
 ## Confidence
 
@@ -86,9 +92,9 @@ They still report the coarse `Family` from `AttackDetected`.
 
 ## Traps
 
-- `env.Get` caches `os.Environ` at the first call, so `t.Setenv("ZE_CONFIG_DIR", ...)`
-  does not reach `baselineStatePath()` mid-run. A persistence test injects
-  `d.statePath` directly.
+- Restoration runs even when detection is disabled. A restarted, disabled
+  detector can report both baselines ready only by reading persisted samples,
+  because it has no rate subscription to warm them.
 - Adding a YANG leaf to an existing module needs no codegen glue, because the
   module is embedded with `go:embed`. Only a new module or a new plugin touches
   the composition root.

@@ -58,6 +58,11 @@ type engineOp struct {
 // JSON path, the Direct path, and the Bridge wiring all derive from this table;
 // TestPluginRPCRegistryCoversAllPaths guards the method set and the typed set.
 var engineOps = []engineOp{
+	{method: rpc.MethodStateGet, handle: (*Server).opStateGet},
+	{method: rpc.MethodStatePut, handle: (*Server).opStatePut},
+	{method: rpc.MethodStateRemove, handle: (*Server).opStateRemove},
+	{method: rpc.MethodStateList, handle: (*Server).opStateList},
+	{method: rpc.MethodStateIncrement, handle: (*Server).opStateIncrement},
 	{
 		method: rpc.MethodUpdateRoute,
 		handle: (*Server).opUpdateRoute,

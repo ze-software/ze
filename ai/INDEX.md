@@ -498,6 +498,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | Architecture decisions | `docs/architecture/decisions/README.md` |
 | Decision: pull-model metrics | `docs/architecture/decisions/001-pull-model-metrics.md` |
 | ZeFS format | `docs/architecture/zefs-format.md` |
+| Configuration storage | `docs/architecture/storage-backends.md` |
 | Fleet config | `docs/architecture/fleet-config.md` |
 | Web interface | `docs/architecture/web-interface.md` |
 | Web components | `docs/architecture/web-components.md` |
@@ -557,7 +558,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | cache, update cache | `update-cache.md`, `update-density-analysis.md` |
 | metadata, route meta | `meta/README.md` |
 | interop, test infra, raw injector, inject.msg sidecar, python speaker, speaker-args, independent bgp peer | `testing/interop.md`, `testing/ci-format.md`, `../plan/spec-bgp-plugin-speaker.md` |
-| zefs, blob, netcapstring, storage | `zefs-format.md`, `fleet-config.md` |
+| zefs, blob, netcapstring, storage | `storage-backends.md`, `zefs-format.md`, `fleet-config.md` |
 | fleet, managed, server, backup, bootstrap | `fleet-config.md` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |

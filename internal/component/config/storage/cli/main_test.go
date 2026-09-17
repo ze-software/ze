@@ -10,9 +10,13 @@
 package cli
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -45,16 +49,13 @@ func TestExtractPathFlag(t *testing.T) {
 	}
 }
 
-// VALIDATES: with no --path, the store defaults to {ze.config.dir}/database.zefs.
-// PREVENTS: the regression where `ze data check` opened
-// {binary-prefix}/etc/ze/database.zefs while `ze init` had written
-// $ZE_CONFIG_DIR/database.zefs, so check reported ENOENT on a healthy store.
+// The data CLI and init must resolve the same configured store directory.
 func TestExtractPathFlag_DefaultsToConfigDirEnv(t *testing.T) {
 	pinned := t.TempDir()
 	setConfigDirEnv(t, pinned)
 
 	path, rem := extractPathFlag([]string{"check"})
-	if want := filepath.Join(pinned, defaultBlobName); path != want {
+	if want := filepath.Join(pinned, defaultStoreName); path != want {
 		t.Errorf("path = %q, want %q", path, want)
 	}
 	if len(rem) != 1 || rem[0] != "check" {
@@ -91,5 +92,119 @@ func TestFilePathToKey(t *testing.T) {
 	want := zefs.KeyFileActive.Key("ze.conf")
 	if got != want {
 		t.Errorf("filePathToKey = %q, want %q (basename-keyed)", got, want)
+	}
+}
+
+// Raw namespaces and recursive listing must survive the CLI, on both encodings.
+func TestDataRawKeyParity(t *testing.T) {
+	for _, blob := range []bool{false, true} {
+		name := "tree"
+		if blob {
+			name = "blob"
+		}
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "database")
+			var owner storage.Storage
+			var err error
+			if blob {
+				path = filepath.Join(dir, "artifact.zefs")
+				owner, err = storage.CreateBlob(path)
+			} else {
+				owner, err = storage.Create(dir)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := owner.Close(); err != nil {
+				t.Fatal(err)
+			}
+			source := filepath.Join(t.TempDir(), "input.conf")
+			value := []byte("raw-value\n")
+			if err := os.WriteFile(source, value, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{"custom/nested/value", "file/active/input.conf", "meta/example"}
+			for _, key := range []string{want[0], want[2]} {
+				if code := cmdWrite(path, []string{key, source}); code != 0 {
+					t.Fatalf("write %s returned %d", key, code)
+				}
+			}
+			if code := cmdImport(path, []string{source}); code != 0 {
+				t.Fatalf("import returned %d", code)
+			}
+			reader, err := openStore(path, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			keys, err := reader.ListKeys("")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(keys, want) {
+				t.Fatalf("keys = %v, want %v", keys, want)
+			}
+			for _, key := range want {
+				data, err := reader.ReadKey(key)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(data) != string(value) {
+					t.Fatalf("%s = %q", key, data)
+				}
+			}
+			if err := reader.Close(); err != nil {
+				t.Fatal(err)
+			}
+			answer, code := dataList([]string{"--path", path, "custom/"})
+			if code != 0 {
+				t.Fatalf("list returned %d", code)
+			}
+			rows := answer.(map[string]any)["keys"].([]map[string]any)
+			if len(rows) != 1 {
+				t.Fatalf("recursive list = %v", rows)
+			}
+			if rows[0]["key"] != want[0] {
+				t.Fatalf("recursive list = %v", rows)
+			}
+			if code := cmdRm(path, []string{want[0]}); code != 0 {
+				t.Fatalf("remove returned %d", code)
+			}
+			reader, err = openStore(path, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = reader.Close() }()
+			if _, err := reader.ReadKey(want[0]); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("removed key read: %v", err)
+			}
+		})
+	}
+}
+
+// Offline mutations must refuse a live owner while read-only inspection works.
+func TestDataRefusesOwnedStoreMutation(t *testing.T) {
+	dir := t.TempDir()
+	owner, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = owner.Close() }()
+	if err := owner.WriteKey("meta/held", []byte("keep")); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "database")
+	if code := cmdRm(path, []string{"meta/held"}); code != 2 {
+		t.Fatalf("owned-store remove returned %d", code)
+	}
+	if _, code := dataList([]string{"--path", path}); code != 0 {
+		t.Fatalf("read-only inspection returned %d", code)
+	}
+	data, err := owner.ReadKey("meta/held")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "keep" {
+		t.Fatalf("held key = %q", data)
 	}
 }

@@ -3,12 +3,12 @@
 package cli
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // TestCmdHistoryDispatch verifies history is reachable from the Run dispatcher.
@@ -50,6 +50,13 @@ func TestCmdHistoryMissingFile(t *testing.T) {
 // PREVENTS: Crash on empty rollback directory.
 func TestCmdHistoryNoBackups(t *testing.T) {
 	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n")
+	store, err := storage.Create(filepath.Dir(configPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
 	code := cmdHistory([]string{configPath})
 	assert.Equal(t, exitOK, code)
 }
@@ -61,15 +68,15 @@ func TestCmdHistoryNoBackups(t *testing.T) {
 func TestCmdHistoryListsBackups(t *testing.T) {
 	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n")
 
-	// Create rollback dir with a fake backup
-	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
-	if err := os.MkdirAll(rollbackDir, 0o700); err != nil {
-		t.Fatalf("mkdir rollback: %v", err)
+	store, err := storage.Create(filepath.Dir(configPath))
+	if err != nil {
+		t.Fatal(err)
 	}
-	stamp := time.Now().Format("20060102-150405") + ".000"
-	backupName := "test-" + stamp + ".conf"
-	if err := os.WriteFile(filepath.Join(rollbackDir, backupName), []byte("old config"), 0o600); err != nil {
-		t.Fatalf("write backup: %v", err)
+	if err := store.WriteVersion(configPath, []byte("old config"), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
 	}
 
 	code := cmdHistory([]string{configPath})

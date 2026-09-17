@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	// binary imported leaves every block it declares unknown, which the
 	// lenient parse then drops in silence. The daemon registers this one
 	// through the composition root; this test binary registers it here.
+	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/config/system/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
@@ -64,15 +64,13 @@ func handlerFor(t *testing.T, wireMethod string) pluginserver.Handler {
 	return nil
 }
 
-// registerTempStore materializes an empty database.zefs and registers it as
-// the process-wide state store, so a write round-trips through the real shared
-// handle rather than a loose file. statestore never creates the store, so the
-// test creates it first and resets to filesystem-fallback on cleanup.
+// registerTempStore opens one tree owner for the process-wide state store.
+// Test cleanup releases it after every handler has finished.
 func registerTempStore(t *testing.T) {
 	t.Helper()
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {
@@ -264,7 +262,7 @@ func TestRefreshStoresNothingWhenNoRecordIsParsed(t *testing.T) {
 // it against the YANG schema, so a block the schema refuses fails here.
 func writeDelegationConfig(t *testing.T, path, content string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+	if err := statestore.Store().WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("write config %s: %v", path, err)
 	}
 }
@@ -474,6 +472,7 @@ func TestRefreshStopsWhenTheConfigCannotBeRead(t *testing.T) {
 // source and no other.
 func TestTheConfigFileSourceReachesTheRefreshReader(t *testing.T) {
 	const mirror = "https://mirror.example.net/delegated-lacnic-extended-latest"
+	registerTempStore(t)
 
 	configPath := filepath.Join(t.TempDir(), "ze.conf")
 	writeDelegationConfig(t, configPath,

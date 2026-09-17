@@ -1,5 +1,5 @@
 // Design: docs/architecture/system-architecture.md — SSH client helper for CLI tools
-// Related: ../../../../pkg/zefs/store.go — BlobStore reads credentials (meta/ssh/*)
+// Related: ../../../component/config/storage/storage.go: shared credential storage.
 
 // Package client provides SSH client connectivity for ze CLI tools.
 // CLI tools connect to the daemon via SSH instead of Unix sockets.
@@ -12,15 +12,15 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/term"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/paths"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -48,14 +48,10 @@ const (
 // ServerSoftwareVersion is ze's SSH softwareversion token (RFC 4253 §4.2).
 // The ze SSH server announces the identification string "SSH-2.0-" + this
 // token (see internal/component/ssh, which passes it to wish.WithVersion).
-// It is the shared source of truth so the server's banner and any client-side
-// recognition (the `ze init` daemon-liveness probe) cannot drift apart.
 const ServerSoftwareVersion = "ze"
 
-// ServerVersionBanner is the full RFC 4253 §4.2 identification-string prefix
-// that ze's SSH server announces. The daemon-liveness probe requires this
-// prefix to positively distinguish a live ze daemon from a generic SSH server
-// (e.g. host OpenSSH, "SSH-2.0-OpenSSH_*") or a bare TCP listener.
+// ServerVersionBanner is the full RFC 4253 section 4.2 identification string
+// that the Ze SSH server announces.
 const ServerVersionBanner = "SSH-2.0-" + ServerSoftwareVersion
 
 // Credentials holds SSH connection parameters.
@@ -271,9 +267,7 @@ func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, e
 	}, nil
 }
 
-// ReadCredentials reads SSH credentials from a zefs database using the
-// default super-admin username from zefs.
-//
+// ReadCredentials reads the stored super-admin credentials from a config folder.
 // Equivalent to ReadCredentialsWithFlags(dbPath, "").
 func ReadCredentials(dbPath string) (Credentials, error) {
 	return ReadCredentialsWithFlags(dbPath, "")
@@ -311,11 +305,9 @@ func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (C
 // When allowPrompt is false and no non-interactive password source exists,
 // resolution fails with an error the caller can degrade on.
 //
-// The store is one source among several, not a precondition. It is a single
-// shared 0600 file under a binary-derived config dir (/usr/local/bin/ze ->
-// /etc/ze), so every user who did not install ze is unable to read it. Treating
-// it as mandatory refused those users before their credentials were even
-// considered, even when the flag, env, and defaults supplied everything needed.
+// The store is one source among several, not a precondition. Only its owner
+// can read it. Other users can supply their username and password independently
+// through flags, the environment, or an interactive prompt.
 func readCredentials(dbPath, cliUser, remoteHost, remotePort string, allowPrompt bool) (Credentials, error) {
 	store, err := openStoreIfReadable(dbPath)
 	if err != nil && !errors.Is(err, errStoreUnavailable) {
@@ -327,7 +319,10 @@ func readCredentials(dbPath, cliUser, remoteHost, remotePort string, allowPrompt
 
 	host, port := remoteHost, remotePort
 	if host == "" || port == "" {
-		h, p := resolveHostPort(store)
+		h, p, err := resolveHostPort(store)
+		if err != nil {
+			return Credentials{}, err
+		}
 		if host == "" {
 			host = h
 		}
@@ -338,7 +333,10 @@ func readCredentials(dbPath, cliUser, remoteHost, remotePort string, allowPrompt
 
 	// Empty when there is no store, or the store holds no entry for this
 	// host/port. Either way the flag and env may still name the user.
-	zefsUser := storedUsername(store, host, port)
+	zefsUser, err := storedUsername(store, host, port)
+	if err != nil {
+		return Credentials{}, err
+	}
 
 	username := resolveUsername(cliUser, zefsUser)
 	if username == "" {
@@ -376,12 +374,12 @@ var errStoreUnavailable = errors.New("credential store unavailable")
 // Any other failure is returned as-is. A corrupt or truncated store is a real
 // problem and must surface as one -- silently downgrading it to "no credentials"
 // would turn a loud bug into a confusing authentication failure.
-func openStoreIfReadable(dbPath string) (*zefs.BlobStore, error) {
-	store, err := zefs.Open(dbPath)
+func openStoreIfReadable(dbPath string) (storage.Storage, error) {
+	store, err := storage.OpenReadOnly(dbPath)
 	switch {
 	case err == nil:
 		return store, nil
-	case errors.Is(err, fs.ErrNotExist), errors.Is(err, fs.ErrPermission):
+	case errors.Is(err, storage.ErrNoStore), errors.Is(err, fs.ErrPermission):
 		return nil, fmt.Errorf("%w: %s", errStoreUnavailable, dbPath)
 	default:
 		return nil, fmt.Errorf("open database: %w", err)
@@ -390,15 +388,15 @@ func openStoreIfReadable(dbPath string) (*zefs.BlobStore, error) {
 
 // storedUsername returns the super-admin username recorded for host:port, or ""
 // when there is no store or no entry for that target.
-func storedUsername(store *zefs.BlobStore, host, port string) string {
+func storedUsername(store storage.Storage, host, port string) (string, error) {
 	if store == nil {
-		return ""
+		return "", nil
 	}
 	user, err := readKey(store, zefs.KeySSHUsername.Key(host, port))
-	if err != nil {
-		return ""
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
 	}
-	return user
+	return user, err
 }
 
 // resolveUsername picks a username from the CLI flag, env, or zefs in order.
@@ -422,7 +420,7 @@ func resolveUsername(cliUser, zefsUser string) string {
 // allowPrompt is the caller's policy on blocking for input; see readCredentials.
 // A false value turns the prompt into an error, which is what lets unattended
 // callers degrade instead of hanging.
-func resolvePassword(store *zefs.BlobStore, username, host, port string, isSuperAdmin, allowPrompt bool) (string, error) {
+func resolvePassword(store storage.Storage, username, host, port string, isSuperAdmin, allowPrompt bool) (string, error) {
 	if v := env.Get("ze.ssh.password"); v != "" {
 		return v, nil
 	}
@@ -467,7 +465,7 @@ func promptPassword(username string) (string, error) {
 // resolveHostPort picks host and port from env, zefs default pointer, or built-in defaults.
 // Env overrides are treated as a pair: setting either env var bypasses the default pointer
 // entirely (the unset var gets the built-in default, not the pointer's value).
-func resolveHostPort(store *zefs.BlobStore) (string, string) {
+func resolveHostPort(store storage.Storage) (string, string, error) {
 	envHost := env.Get("ze.ssh.host")
 	envPort := env.Get("ze.ssh.port")
 	if envHost != "" || envPort != "" {
@@ -477,24 +475,26 @@ func resolveHostPort(store *zefs.BlobStore) (string, string) {
 		if envPort == "" {
 			envPort = defaultPort
 		}
-		return envHost, envPort
+		return envHost, envPort, nil
 	}
-
-	// The default pointer lives in the store, so a user who cannot read the store
-	// cannot learn it and falls back to the built-in target. A non-default daemon
-	// address must then come from ze.ssh.host / ze.ssh.port or --remote.
-	if store != nil {
-		if dflt, err := readKey(store, zefs.KeySSHDefault.Pattern); err == nil {
-			parts := strings.SplitN(dflt, "/", 2)
-			if len(parts) == 2 {
-				return parts[0], parts[1]
-			}
-		}
+	if store == nil {
+		return defaultHost, defaultPort, nil
 	}
-	return defaultHost, defaultPort
+	dflt, err := readKey(store, zefs.KeySSHDefault.Pattern)
+	if errors.Is(err, fs.ErrNotExist) {
+		return defaultHost, defaultPort, nil
+	}
+	if err != nil {
+		return "", "", err
+	}
+	parts := strings.SplitN(dflt, "/", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid stored SSH default %q", dflt)
+	}
+	return parts[0], parts[1], nil
 }
 
-func readKey(store *zefs.BlobStore, key string) (string, error) {
+func readKey(store storage.Storage, key string) (string, error) {
 	data, err := store.ReadFile(key)
 	if err != nil {
 		return "", fmt.Errorf("read %s: %w", key, err)
@@ -517,13 +517,9 @@ func hostKeyCallback(host string) (ssh.HostKeyCallback, error) {
 	}
 }
 
-// ResolveDBPath determines the database.zefs path from the resolved config dir.
-func ResolveDBPath() string {
-	dir := paths.DefaultConfigDir()
-	if dir == "" {
-		return ""
-	}
-	return filepath.Join(dir, "database.zefs")
+// ResolveStoreDir uses the daemon's config-path, environment, and default precedence.
+func ResolveStoreDir(configPath string) string {
+	return resolve.StoreDir(configPath)
 }
 
 // LoadCredentials reads SSH credentials from the default zefs database
@@ -545,7 +541,7 @@ func LoadCredentials() (Credentials, error) {
 // prompt and freeze the shell mid-completion. Resolution here fails with
 // "no password source" instead, letting the caller degrade quietly.
 func LoadCredentialsNoPrompt() (Credentials, error) {
-	dbPath := ResolveDBPath()
+	dbPath := ResolveStoreDir("")
 	if dbPath == "" {
 		return Credentials{}, errCannotDetermineDatabaseLocation
 	}
@@ -556,7 +552,7 @@ func LoadCredentialsNoPrompt() (Credentials, error) {
 // database, applying a CLI-flag username override when non-empty.
 // See ReadCredentialsWithFlags for the full precedence rules.
 func LoadCredentialsWithFlags(cliUser string) (Credentials, error) {
-	dbPath := ResolveDBPath()
+	dbPath := ResolveStoreDir("")
 	if dbPath == "" {
 		return Credentials{}, errCannotDetermineDatabaseLocation
 	}
@@ -566,7 +562,7 @@ func LoadCredentialsWithFlags(cliUser string) (Credentials, error) {
 // LoadCredentialsForRemote reads SSH credentials for a specific remote
 // host:port from the default zefs database. Used by --remote flag handlers.
 func LoadCredentialsForRemote(cliUser, host, port string) (Credentials, error) {
-	dbPath := ResolveDBPath()
+	dbPath := ResolveStoreDir("")
 	if dbPath == "" {
 		return Credentials{}, errCannotDetermineDatabaseLocation
 	}

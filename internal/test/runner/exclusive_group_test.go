@@ -82,11 +82,8 @@ func TestRecordWithoutExclusiveOptionHasNoGroup(t *testing.T) {
 //     (internal/plugins/firewall/nft/backend_linux.go) lists the node's tables
 //     and deletes every ze_* table it is about to program. So one daemon removes
 //     a sibling's live table, and the sibling reads back terms it never wrote.
-//     The persisted prefix store is shared too. DefaultConfigDir
-//     (internal/core/paths/paths.go) derives it from the binary path, so every
-//     daemon in the run opens one database.zefs. A sibling that fetches AS-TEST
-//     then destroys the cold-cache precondition
-//     firewall-irr-cold-cache-recovers asserts on its first line.
+//     Per-daemon tree directories now isolate prefix caches, but they do not
+//     partition those node-wide kernel objects.
 //
 // Non-overlap is the only property that fixes any of them, so a member without
 // the group is a latent corruption of every sibling.
@@ -114,7 +111,7 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 		{"plugin", "cos-*.ci", "option=needs-linux", "option=exclusive:group=cos-vlan", "the eth0.100 VLAN device they each configure", 3},
 		{"plugin", "*.ci", "ze.bfd.test-parallel", "option=exclusive:group=bfd-ports", "the RFC-fixed BFD ports 3784/3785 they all co-bind", 10},
 		{"ipsec", "*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=ipsec-xfrm", "the node-wide XFRM state and policy tables they each program", 3},
-		{"plugin", "firewall-irr-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=firewall-irr-nft", "the node-wide nftables ruleset and the one database.zefs they all open", 12},
+		{"plugin", "firewall-irr-*.ci", "option=needs-linux:caps=net-admin", "option=exclusive:group=firewall-irr-nft", "the node-wide nftables ruleset they all program", 12},
 		// The flowspec bridge names one table, ze_flowspec, so every member
 		// that reaches the kernel writes and deletes the SAME object. Two of
 		// them at once delete each other's table mid-assertion. Two siblings

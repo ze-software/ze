@@ -11,10 +11,13 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"unicode"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -34,7 +37,7 @@ type serviceOps interface {
 	remove(string) error
 	run(string, ...string) error
 	output(string, ...string) ([]byte, error)
-	chown(string, string, string) error
+	transferOwnership(string, string, string) error
 	activeConfigs(string) ([][]byte, error)
 }
 
@@ -150,8 +153,24 @@ func (r realServiceOps) output(name string, args ...string) ([]byte, error) {
 	return cmd.Output()
 }
 
-func (r realServiceOps) chown(path, user, group string) error {
-	return r.run("chown", user+":"+group, path)
+func (r realServiceOps) transferOwnership(path, username, groupname string) error {
+	account, err := user.Lookup(username)
+	if err != nil {
+		return fmt.Errorf("lookup service user %s: %w", username, err)
+	}
+	group, err := user.LookupGroup(groupname)
+	if err != nil {
+		return fmt.Errorf("lookup service group %s: %w", groupname, err)
+	}
+	uid, err := strconv.Atoi(account.Uid)
+	if err != nil {
+		return fmt.Errorf("service uid %q: %w", account.Uid, err)
+	}
+	gid, err := strconv.Atoi(group.Gid)
+	if err != nil {
+		return fmt.Errorf("service gid %q: %w", group.Gid, err)
+	}
+	return storage.TransferOwnership(path, uid, gid)
 }
 
 func newFlagSet(name string, stderr io.Writer, usage func()) *flag.FlagSet {

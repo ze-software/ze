@@ -33,7 +33,6 @@ import (
 
 	zepb "github.com/ze-software/ze/api/proto"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/env"
@@ -138,7 +137,7 @@ system {
 	exitResult := make(chan int, 1)
 	go func() {
 		exitResult <- runYANGConfig(
-			storage.NewFilesystem(),
+			newTestStore(t),
 			"-",
 			[]byte(configText),
 			nil,

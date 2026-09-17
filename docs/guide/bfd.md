@@ -160,12 +160,14 @@ bfd {
 
 The meticulous variants enforce strict monotonic sequence numbers;
 non-meticulous variants allow a receiver to accept equal sequence
-numbers across retransmits. The `persist-dir` leaf (top-level on
-`bfd { }`) names a directory where ze stores the last TX sequence
-per session so a Meticulous session resumes above the peer's replay
-window after a process restart. Without `persist-dir`, Meticulous
-sessions still work at runtime but briefly re-synchronize after a
-restart while the peer's replay window slides forward.
+numbers across retransmits. A non-empty `persist-dir` leaf (top-level on
+`bfd { }`) enables persistence of the last TX sequence under
+`meta/bfd/auth/<session>` in the daemon's selected `database/` tree. The leaf's
+path is retained as an opt-in setting; it does not select a second directory.
+A Meticulous session resumes above its saved sequence floor after a process
+restart. Without persistence, it must re-synchronise with the peer's replay
+window. Explicit-file startup selects the store beside that file without a
+`ze.config.dir` pin.
 
 Authentication failures increment `ze_bfd_auth_failures_total{mode}`.
 

@@ -2,7 +2,6 @@
 # VALIDATES: AC-7 -- SIGHUP writes edited file as candidate, promotes it to active, and records rollback.
 # PREVENTS: successful reload leaving active pointer stale or candidate pointer present.
 
-option=env:var=ZE_STORAGE_BLOB:value=false
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -79,9 +78,9 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 
 await=stderr:contains=sighup reload complete
-expect=file:path=meta/config/active:exists=true
-expect=file:path=meta/config/candidate:absent=true
-expect=file:path=meta/config/rollback:exists=true
-expect=file:glob=rollback/ze-bgp-*.conf:count=2
-expect=file:glob=rollback/ze-bgp-*.conf:contains=router-id 1.2.3.4
-expect=file:glob=rollback/ze-bgp-*.conf:contains=router-id 2.2.2.2
+expect=key:path=meta/config/ze-bgp.conf/active:exists=true
+expect=key:path=meta/config/ze-bgp.conf/candidate:absent=true
+expect=key:path=meta/config/ze-bgp.conf/rollback:exists=true
+expect=key:glob=file/[0-9]*/ze-bgp.conf:count=2
+expect=key:glob=file/[0-9]*/ze-bgp.conf:contains=router-id 1.2.3.4
+expect=key:glob=file/[0-9]*/ze-bgp.conf:contains=router-id 2.2.2.2

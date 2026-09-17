@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -52,8 +51,9 @@ func TestWebServerUsesTheCallersCredentialsWhenZefsIsUnreadable(t *testing.T) {
 	setAPIConfigDir(t, t.TempDir())
 
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "store.zefs"), dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err, "blob storage")
+	t.Cleanup(func() { _ = store.Close() })
 
 	powerUsers := []authz.UserConfig{{Name: "admin", Hash: bcryptHash(t, "power-secret")}}
 	live := func() ([]authz.UserConfig, error) { return powerUsers, nil }
@@ -127,7 +127,7 @@ func TestBootPowerUsersSaysSoWhenZefsIsUnreadable(t *testing.T) {
 	// selects otherwise, so this handler drops exactly what the daemon drops.
 	log := slog.New(slog.NewTextHandler(&out, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	users := bootPowerUsers(log)
+	users := bootPowerUsers(newTestStore(t), log)
 
 	assert.Empty(t, users, "an unreadable database declares no power user")
 	assert.Contains(t, out.String(), "zefs power user unavailable",
@@ -143,20 +143,20 @@ func TestBootPowerUsersSaysSoWhenZefsIsUnreadable(t *testing.T) {
 // that is working exactly as built is the noisiest one in the fleet.
 func TestBootPowerUsersIsSilentWhenAdminIsDisabled(t *testing.T) {
 	dir := t.TempDir()
-	db, err := zefs.Create(filepath.Join(dir, "database.zefs"))
+	db, err := storage.Create(dir)
 	require.NoError(t, err, "create zefs database")
 	// Credentials present and readable: admin-disabled is the ONLY reason this
 	// boot declares no power user, so a Warn here could come from nothing else.
 	require.NoError(t, db.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0))
 	require.NoError(t, db.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte("$2y$10$hash"), 0))
 	require.NoError(t, db.WriteFile(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true"), 0))
-	require.NoError(t, db.Close())
+	t.Cleanup(func() { _ = db.Close() })
 	setAPIConfigDir(t, dir)
 
 	var out bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&out, &slog.HandlerOptions{Level: slog.LevelWarn}))
 
-	users := bootPowerUsers(log)
+	users := bootPowerUsers(db, log)
 
 	assert.Empty(t, users, "admin-disabled declares no power user")
 	assert.Empty(t, out.String(),
@@ -195,8 +195,9 @@ func captureStderr(t *testing.T, fn func()) string {
 func TestWebServerRefusesToServeWithNoUserSourceWired(t *testing.T) {
 	setAPIConfigDir(t, t.TempDir())
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "store.zefs"), dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err, "blob storage")
+	t.Cleanup(func() { _ = store.Close() })
 
 	powerUsers := []authz.UserConfig{{Name: "admin", Hash: bcryptHash(t, "power-secret")}}
 
@@ -222,8 +223,9 @@ func TestWebServerRefusesToServeWithNoUserSourceWired(t *testing.T) {
 func TestWebServerRefusesToServeWhenTheUserSourceCannotBeRead(t *testing.T) {
 	setAPIConfigDir(t, t.TempDir())
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "store.zefs"), dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err, "blob storage")
+	t.Cleanup(func() { _ = store.Close() })
 
 	powerUsers := []authz.UserConfig{{Name: "admin", Hash: bcryptHash(t, "power-secret")}}
 	readErr := errors.New("running configuration is unreadable")

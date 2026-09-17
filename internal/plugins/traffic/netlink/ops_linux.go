@@ -15,10 +15,9 @@ type tcOps interface {
 	// shared clsact hook at ffff:, whose object the mirror and sampling paths
 	// also attach filters to: replacing it would drop theirs.
 	qdiscAdd(qdisc netlink.Qdisc) error
-	// qdiscDel removes a qdisc. Used only to restore an interface whose original
-	// root was `noqueue`: that is the kernel's own representation of "no queueing
-	// discipline configured", and deleting the root is how it is re-entered.
-	// Adding a qdisc named noqueue is not the inverse operation.
+	// qdiscDel removes the root before a same-handle replacement, or restores
+	// noqueue by deleting Ze's root. Adding a qdisc named noqueue does not
+	// restore the kernel's default queueing discipline.
 	qdiscDel(qdisc netlink.Qdisc) error
 	classList(link netlink.Link, parent uint32) ([]netlink.Class, error)
 	classAdd(class netlink.Class) error

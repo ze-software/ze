@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	zeinit "github.com/ze-software/ze/internal/plugins/init"
 	"github.com/ze-software/ze/pkg/zefs"
 )
@@ -17,7 +18,7 @@ import (
 
 func TestZeInitPipedStdin(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Pipe credentials via stdin: username, password, host, port
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
@@ -27,13 +28,12 @@ func TestZeInitPipedStdin(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	// Verify database was created
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		t.Fatal("database.zefs was not created")
+	if _, err := os.Stat(filepath.Join(dbPath, "database")); os.IsNotExist(err) {
+		t.Fatal("database directory was not created")
 	}
 
 	// Verify credentials can be read back
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -51,14 +51,14 @@ func TestZeInitPipedStdin(t *testing.T) {
 
 func TestZeInitAlreadyExists(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Create existing database
-	store, err := zefs.Create(dbPath)
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.WriteFile("meta/ssh/127.0.0.1/2222/username", []byte("existing"), 0); err != nil {
+	if err := store.WriteKey("meta/ssh/127.0.0.1/2222/username", []byte("existing")); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	store.Close() //nolint:errcheck // test setup
@@ -71,7 +71,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 	}
 
 	// Verify original data preserved
-	store2, err := zefs.Open(dbPath)
+	store2, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 
 func TestZeInitDefaults(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Only provide username and password, empty lines for host and port
 	input := "admin\nsecret123\n\n\n"
@@ -95,7 +95,7 @@ func TestZeInitDefaults(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestZeInitDefaults(t *testing.T) {
 
 func TestZeInitRequiresCredentials(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Empty username
 	code := zeinit.RunWithReader(strings.NewReader("\nsecret\n\n\n"), dbPath, false)
@@ -129,7 +129,7 @@ func TestZeInitRequiresCredentials(t *testing.T) {
 
 func TestZeInitInteractive(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Simulate interactive input
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
@@ -156,7 +156,7 @@ func TestZeInitInteractive(t *testing.T) {
 	}
 
 	// Verify credentials stored
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestZeInitInteractive(t *testing.T) {
 
 func TestZeInitIdentityName(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Provide all fields: username, password, host, port, name
 	input := "admin\nsecret123\n127.0.0.1\n2222\nmy-router\n"
@@ -181,7 +181,7 @@ func TestZeInitIdentityName(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestZeInitIdentityName(t *testing.T) {
 
 func TestZeInitEmptyName(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Provide credentials but empty name -- should default to hostname
 	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
@@ -205,7 +205,7 @@ func TestZeInitEmptyName(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -233,14 +233,14 @@ func TestZeInitNameSpecialChars(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			dbPath := filepath.Join(dir, "database.zefs")
+			dbPath := dir
 
 			code := zeinit.RunWithReader(strings.NewReader(tt.input), dbPath, false)
 			if code != 0 {
 				t.Fatalf("expected exit code 0, got %d", code)
 			}
 
-			store, err := zefs.Open(dbPath)
+			store, err := storage.OpenReadOnly(dbPath)
 			if err != nil {
 				t.Fatalf("Open: %v", err)
 			}
@@ -257,7 +257,7 @@ func TestZeInitNameSpecialChars(t *testing.T) {
 
 func TestZeInitManagedKey(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Without managed: default false
 	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
@@ -266,7 +266,7 @@ func TestZeInitManagedKey(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -275,14 +275,14 @@ func TestZeInitManagedKey(t *testing.T) {
 
 	// With managed=true
 	dir2 := t.TempDir()
-	dbPath2 := filepath.Join(dir2, "database.zefs")
+	dbPath2 := dir2
 
 	code = zeinit.RunWithReader(strings.NewReader(input), dbPath2, true)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store2, err := zefs.Open(dbPath2)
+	store2, err := storage.OpenReadOnly(dbPath2)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -296,14 +296,14 @@ func TestZeInitManagedKey(t *testing.T) {
 
 func TestZeInitForce(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	// Create existing database with a known value
-	store, err := zefs.Create(dbPath)
+	store, err := storage.Create(dbPath)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.WriteFile("meta/ssh/127.0.0.1/2222/username", []byte("old-admin"), 0); err != nil {
+	if err := store.WriteKey("meta/ssh/127.0.0.1/2222/username", []byte("old-admin")); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	store.Close() //nolint:errcheck // test setup
@@ -319,7 +319,7 @@ func TestZeInitForce(t *testing.T) {
 	}
 
 	// New database should have new credentials
-	store2, err := zefs.Open(dbPath)
+	store2, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open new: %v", err)
 	}
@@ -333,18 +333,23 @@ func TestZeInitForce(t *testing.T) {
 	}
 	var found bool
 	for _, e := range entries {
-		if !strings.HasPrefix(e.Name(), "database.zefs.replaced-") {
+		if !strings.HasPrefix(e.Name(), "database.replaced-") {
 			continue
 		}
 		found = true
 		// Verify old data is in the backup
 		backupPath := filepath.Join(dir, e.Name())
-		old, err := zefs.Open(backupPath)
+		frame, err := os.ReadFile(filepath.Join(backupPath, "meta/ssh/127.0.0.1/2222/username"))
 		if err != nil {
-			t.Fatalf("Open backup: %v", err)
+			t.Fatalf("Read backup: %v", err)
 		}
-		assertStoreFile(t, old, "meta/ssh/127.0.0.1/2222/username", "old-admin")
-		old.Close() //nolint:errcheck // test cleanup
+		value, _, next, err := zefs.DecodeNetcapstringRef(frame, 0)
+		if err != nil {
+			t.Fatalf("Decode backup: %v", err)
+		}
+		if next != len(frame) || string(value) != "old-admin" {
+			t.Fatalf("backup credentials = %q, consumed %d/%d", value, next, len(frame))
+		}
 		break
 	}
 	if !found {
@@ -357,7 +362,7 @@ func TestZeInitForce(t *testing.T) {
 
 func TestZeInitForceNoExisting(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "database.zefs")
+	dbPath := dir
 
 	input := "admin\nsecret\n127.0.0.1\n2222\n"
 	code, err := zeinit.RunWithReaderForce(strings.NewReader(input), dbPath, false)
@@ -368,7 +373,7 @@ func TestZeInitForceNoExisting(t *testing.T) {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
 
-	store, err := zefs.Open(dbPath)
+	store, err := storage.OpenReadOnly(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -376,7 +381,7 @@ func TestZeInitForceNoExisting(t *testing.T) {
 	assertStoreFile(t, store, "meta/ssh/127.0.0.1/2222/username", "admin")
 }
 
-func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) {
+func assertStoreFile(t *testing.T, store storage.Storage, key, expected string) {
 	t.Helper()
 	data, err := store.ReadFile(key)
 	if err != nil {
@@ -388,14 +393,14 @@ func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) 
 	}
 }
 
-func assertKeyAbsent(t *testing.T, store *zefs.BlobStore, key string) { //nolint:unused // retained for future tests
+func assertKeyAbsent(t *testing.T, store storage.Storage, key string) { //nolint:unused // retained for future tests
 	t.Helper()
-	if store.Has(key) {
+	if store.Exists(key) {
 		t.Errorf("key %q should not exist but does", key)
 	}
 }
 
-func assertBcryptPassword(t *testing.T, store *zefs.BlobStore, key, plaintext string) {
+func assertBcryptPassword(t *testing.T, store storage.Storage, key, plaintext string) {
 	t.Helper()
 	data, err := store.ReadFile(key)
 	if err != nil {

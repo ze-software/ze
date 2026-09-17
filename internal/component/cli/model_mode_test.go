@@ -21,7 +21,7 @@ func TestModeSwitchToOperational(t *testing.T) {
 		t.Fatalf("expected initial mode ModeConfig, got %v", m.Mode())
 	}
 
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	if m.Mode() != ModeOperational {
 		t.Errorf("expected ModeOperational after switch, got %v", m.Mode())
@@ -31,8 +31,8 @@ func TestModeSwitchToOperational(t *testing.T) {
 func TestModeSwitchToConfig(t *testing.T) {
 	// VALIDATES: AC-2 — edit switches to edit mode
 	m := newTestModel(t)
-	m.switchMode(ModeOperational)
-	m.switchMode(ModeConfig)
+	m.SetMode(ModeOperational)
+	m.SetMode(ModeConfig)
 
 	if m.Mode() != ModeConfig {
 		t.Errorf("expected ModeConfig after switch, got %v", m.Mode())
@@ -43,7 +43,7 @@ func TestModeSwitchNoop(t *testing.T) {
 	// VALIDATES: AC-9, AC-10 — switching to current mode is no-op
 	m := newTestModel(t)
 
-	m.switchMode(ModeConfig) // already in edit
+	m.SetMode(ModeConfig) // already in edit
 	if m.Mode() != ModeConfig {
 		t.Errorf("expected ModeConfig, got %v", m.Mode())
 	}
@@ -51,8 +51,8 @@ func TestModeSwitchNoop(t *testing.T) {
 		t.Errorf("expected no-op status message, got %q", m.StatusMessage())
 	}
 
-	m.switchMode(ModeOperational)
-	m.switchMode(ModeOperational) // already in operational
+	m.SetMode(ModeOperational)
+	m.SetMode(ModeOperational) // already in operational
 	if m.Mode() != ModeOperational {
 		t.Errorf("expected ModeOperational, got %v", m.Mode())
 	}
@@ -74,7 +74,7 @@ func TestModeScreenRestore(t *testing.T) {
 	}
 
 	// Switch to command mode — edit content should be saved
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	// Command mode starts with empty viewport
 	if m.ViewportContent() != "" {
@@ -86,14 +86,14 @@ func TestModeScreenRestore(t *testing.T) {
 	m.setViewportText(cmdContent)
 
 	// Switch back to edit — edit content should be restored
-	m.switchMode(ModeConfig)
+	m.SetMode(ModeConfig)
 
 	if m.ViewportContent() != editContent {
 		t.Errorf("expected edit content restored, got %q", m.ViewportContent())
 	}
 
 	// Switch back to command — command content should be restored
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	if m.ViewportContent() != cmdContent {
 		t.Errorf("expected command content restored, got %q", m.ViewportContent())
@@ -115,7 +115,7 @@ func TestCommandModeCompletionsWired(t *testing.T) {
 	editComps := m.Completions()
 
 	// Switch to command mode — completions merge operational + edit commands
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	m.UpdateCompletions()
 	cmdComps := m.Completions()
 
@@ -164,7 +164,7 @@ func TestOperationalModeDedupsConfigCompletions(t *testing.T) {
 		},
 	}))
 
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	m.UpdateCompletions()
 	comps := m.Completions()
 
@@ -204,7 +204,7 @@ func TestCommandModeDispatch(t *testing.T) {
 	})
 
 	// Completion belongs to Update, after the returned output is applied.
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	// Simulate executeOperationalCommand via Update
 	result, _ := m.Update(commandResultMsg{
@@ -233,7 +233,7 @@ func TestOperationalShowDispatchesToCommandExecutorWithEditor(t *testing.T) {
 		}
 		return CommandOutput{Text: "operational summary"}, nil
 	})
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	m.textInput.SetValue("show bgp")
 
 	next, cmd := m.handleEnter()
@@ -303,7 +303,7 @@ func TestOperationalCommandCompletesAfterResultApplied(t *testing.T) {
 func TestCommandModeDispatchNoExecutor(t *testing.T) {
 	// VALIDATES: command mode without executor shows warning on switch and error on dispatch
 	m := newTestModel(t)
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	// Should warn upfront that daemon is not connected
 	if m.StatusMessage() == "" {
@@ -334,7 +334,7 @@ func TestCommandModeGhostTextWired(t *testing.T) {
 		},
 	}))
 
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	// Type "pe" — ghost text should suggest "er" (completing "peer")
 	m.textInput.SetValue("pe")
@@ -391,7 +391,7 @@ func TestModeHistoryIsolation(t *testing.T) {
 	m.history.Append("show")
 
 	// Switch to command mode
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	if len(m.history.Entries()) != 0 {
 		t.Errorf("expected empty history in fresh command mode, got %v", m.history.Entries())
@@ -401,7 +401,7 @@ func TestModeHistoryIsolation(t *testing.T) {
 	m.history.Append("peer list")
 
 	// Switch back to edit - edit history should be restored
-	m.switchMode(ModeConfig)
+	m.SetMode(ModeConfig)
 
 	entries := m.history.Entries()
 	if len(entries) != 2 {
@@ -412,7 +412,7 @@ func TestModeHistoryIsolation(t *testing.T) {
 	}
 
 	// Switch back to command - command history should be restored
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	entries = m.history.Entries()
 	if len(entries) != 1 {
@@ -440,14 +440,14 @@ func TestModeScrollRestore(t *testing.T) {
 	m.viewport.SetYOffset(5)
 
 	// Switch to command mode
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	if m.viewport.YOffset() != 0 {
 		t.Errorf("expected YOffset 0 in fresh command mode, got %d", m.viewport.YOffset())
 	}
 
 	// Switch back to edit — scroll position should be restored
-	m.switchMode(ModeConfig)
+	m.SetMode(ModeConfig)
 
 	if m.viewport.YOffset() != 5 {
 		t.Errorf("expected YOffset 5 restored in edit mode, got %d", m.viewport.YOffset())
@@ -470,7 +470,7 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 		},
 	}))
 
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 	m.textInput.SetValue("peer detail 12")
 	m.UpdateCompletions()
 
@@ -547,7 +547,7 @@ func TestCrossModeCompletionsConfigInOperationalMode(t *testing.T) {
 		},
 	}))
 
-	m.switchMode(ModeOperational)
+	m.SetMode(ModeOperational)
 
 	// Type "set " — should get YANG completions, not operational
 	m.textInput.SetValue("set ")
@@ -670,7 +670,7 @@ func newTestModel(t *testing.T) *Model {
 	if err := os.WriteFile(configPath, []byte(""), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,16 +8,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
-	"path/filepath"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
-	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -160,7 +160,7 @@ func liveConfigUsers(cp *zeconfig.Provider) ([]authz.UserConfig, error) {
 // liveAcceptedLocalUsers so a rejectable candidate is never exposed.
 //
 // zefsUsers is a startup snapshot and correctly so. Those credentials live in
-// the blob store, not the config file: no reload adds or removes them, and
+// the managed store, not the config file: no reload adds or removes them, and
 // `meta/instance/admin-disabled` is written only at image assembly
 // (internal/appliance/cmd_assemble.go).
 //
@@ -207,27 +207,16 @@ var resolveBootUsers = func(usersLive func() ([]authz.UserConfig, error)) ([]aut
 	return usersLive()
 }
 
-// loadZefsUsers reads credentials from the zefs database (created by ze init).
-func loadZefsUsers() ([]authz.UserConfig, error) {
-	dir := paths.DefaultConfigDir()
-	if dir == "" {
-		return nil, errCannotResolveConfigDirectory
-	}
-	dbPath := filepath.Join(dir, "database.zefs")
-	db, err := zefs.Open(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", dbPath, err)
-	}
-	defer db.Close() //nolint:errcheck // read-only access
-	return usersFromZefsDB(db)
-}
-
-// usersFromZefsDB reads the dedicated local power-user credentials from zefs.
+// usersFromStore reads dedicated local power-user credentials from the owned store.
 // Missing or empty credentials return an error so the caller fails closed.
 // When meta/instance/admin-disabled is "true", returns errAdminDisabledInZefs
 // so the caller skips the built-in power user.
-func usersFromZefsDB(db *zefs.BlobStore) ([]authz.UserConfig, error) {
-	if disabled, err := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern); err == nil && string(disabled) == "true" {
+func usersFromStore(db storage.Storage) ([]authz.UserConfig, error) {
+	disabled, err := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("read local admin status: %w", err)
+	}
+	if string(disabled) == "true" {
 		return nil, errAdminDisabledInZefs
 	}
 	username, err := db.ReadFile(zefs.KeyLocalAdminUsername.Pattern)

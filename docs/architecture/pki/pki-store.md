@@ -95,32 +95,38 @@ removes them.
 Web TLS, SSH host certificates and managed-device authentication are all
 plausible consumers.
 
-**The root lives in ZeFS, not in config.** The root is runtime state the daemon
-generates, so it is not something an operator writes. A private key cannot live
-in config either: the `$9$` encoding is obfuscation and always decodes back, so
-a root in a `pki` block would sit recoverable in `show configuration` and in
-every backup. `meta/ca/cert` and `meta/ca/key` hold it instead, and file
-permissions are the only protection: the blob file is 0600 and the key is not
-encrypted at rest.
+**The root is persistent runtime state.** The daemon stores its certificate and
+private key at `meta/ca/cert` and `meta/ca/key` in the live tree. The tree's
+directories are 0700 and its framed files are 0600, owned by the process user.
+The key is unencrypted at rest. It is absent from configuration displays.
 
 **The root is generated once and read afterwards.** `LoadOrGenerateRoot` reads
 before it writes, so a restart presents the root an operator already
-distributed. Generation is serialized inside the process, which is what makes
-two goroutines racing to start a listener agree on one root. It is not
-serialized across processes: ZeFS takes no file lock, so two daemons sharing one
-blob already replace arbitrary state rather than only the root.
+distributed. Generation is serialized inside the process; the live store's
+lifetime ownership lock excludes another writer. An unreadable certificate or
+key, including a partial pair, stops startup rather than generating new trust.
 
-**The store reaches the daemon's ZeFS handle through a three-method interface.**
+**The authority borrows the daemon's owned handle through a narrow interface.**
 `RootStore` names `ReadFile`, `WriteFile` and `Exists`, which `storage.Storage`
 satisfies, so the daemon passes its own handle with no adapter. A certificate
 authority has no business reaching a config path, a write lock, or a version
 history, so it is given none.
 
+**Storeless stdin selects an ephemeral authority explicitly.** When the resolved
+folder genuinely has no store, the hub calls `NewEphemeralRoot`, which uses the
+same root-generation code and writes no material to disk. It publishes the root
+for `show pki local-ca pem`, passes the same authority to the plugin manager,
+and retains it for leaf renewal until exit. Startup warns that the authority
+changes on restart and names the persistence-dependent features it cannot offer.
+A corrupt or permission-refused store or CA is fatal and cannot select this path.
+<!-- source: internal/component/pki/ca.go -- NewEphemeralRoot, LoadOrGenerateRootFor -->
+<!-- source: cmd/ze/hub/main.go -- run, runYANGConfig -->
+
 **The export command answers from the root this process loaded, not from the
 store.** `LoadOrGenerateRoot` publishes the root it returns, and
 `show pki local-ca pem` reads it back through `loadedRoot`. A command context
-carries no storage handle, so a command that reopened the blob would answer
-about a file rather than about the authority the daemon is signing with. The
+carries no storage handle, so the command answers from the authority the daemon
+is signing with. The
 answer is the certificate, the subject and the expiry. There is no accessor for
 the root private key and there will be none: it leaves this package only into a
 signing operation.

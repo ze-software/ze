@@ -4,6 +4,8 @@
 <!-- source: internal/component/config/transaction/orchestrator.go -- TxCoordinator state machine -->
 <!-- source: internal/component/config/transaction/topics.go -- config namespace event types -->
 <!-- source: internal/component/plugin/server/engine_event_gateway.go -- ConfigEventGateway adapter -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext acceptance and restoration -->
+<!-- source: cmd/ze/hub/config_source.go -- explicit-file publication and recovery -->
 
 Ze uses a stream-based transaction protocol for config changes. All phases (verify,
 apply, rollback) are namespaced stream events delivered through the engine's event
@@ -21,7 +23,7 @@ individual plugins beyond publishing events.
 | Plugin autonomy | Plugins decide what they need. A plugin that depends on an interface being created waits for both the apply event and the interface event. The engine does not manage per-plugin dependency graphs at runtime. |
 | Plugin-estimated timeouts | Plugins declare verify and apply budgets at registration, update them after each transaction. The engine bounds a phase with the SUM of those budgets, because nothing in a phase runs concurrently. No mid-transaction negotiation. |
 | Rollback is an event | The engine emits a single rollback event when any plugin's apply fails or times out. All plugins that already applied undo via their journals. The engine drains rollback acks in reverse dependency-tier order. |
-| Runtime is authoritative | A candidate config is promoted to the active pointer only after runtime reload succeeds. Persistence failure after apply is a warning, not a plugin rollback trigger. |
+| Acceptance follows publication | The hub promotes a candidate after runtime reload succeeds. Publication failure returns an error and triggers an attempted runtime restoration. |
 
 ---
 
@@ -151,16 +153,15 @@ finalization events:
 | Outcome | Action | Event |
 |---------|--------|-------|
 | All plugins applied | Engine emits `(config, committed)`. The hub promotes the staged candidate to active after the full subsystem reload succeeds. | Runtime is authoritative. |
-| All applied, pointer promotion fails | `committed` already emitted. Warning reported to caller. Runtime is live, active pointer may still reference the previous version. | Caller can retry commit/reload. |
+| Runtime applied, pointer promotion fails | The hub attempts to restore the previous runtime and returns the publication error. | A durable explicit-file intent preserves unfinished publication for recovery. |
 | Rollback occurred | Config file untouched, engine emits `(config, rolled-back)`. | File still matches pre-transaction runtime. |
 
-Runtime is the authority, not the file. The transaction succeeds when all
-plugins apply. In production, CLI, web, API, SIGHUP, and managed pushes write
-the proposed config as an immutable version and set `meta/config/candidate`.
-The hub reload path reads that candidate, runs plugin verification/apply, then
-promotes the candidate to `meta/config/active` only after the wider subsystem
-reload succeeds. If pointer promotion fails after runtime apply, the runtime is
-still live and correct, and the caller gets an error/warning to retry.
+Plugin apply completes the coordinator's transaction. The production hub still
+runs subsystem reload and durable publication before it accepts the configuration.
+CLI, web, API, SIGHUP, and managed pushes write an immutable version and set
+`meta/config/<name>/candidate`. The hub reads that candidate and promotes it only
+after the full runtime reload succeeds. If publication fails, the hub attempts
+to restore the previous runtime and returns the error.
 
 `(config, applied)` and `(config, rolled-back)` are informational events for
 observers (monitoring, web UI refresh, logging). `applied` includes a `saved`
@@ -172,15 +173,18 @@ The production commit path stores versioned configs and moves named pointers:
 
 | Pointer | Meaning |
 |---------|---------|
-| `meta/config/active` | Timestamp of the config version that boot and runtime consider active |
-| `meta/config/candidate` | Transient timestamp staged for the current commit attempt |
-| `meta/config/rollback` | Previous active timestamp after a successful promotion |
-| `meta/config/recovery` | Operator-selected known-good timestamp for future recovery commands |
+| `meta/config/<name>/active` | Timestamp of the config version that boot and runtime consider active |
+| `meta/config/<name>/candidate` | Transient timestamp staged for the current commit attempt |
+| `meta/config/<name>/rollback` | Previous active timestamp after a successful promotion |
+| `meta/config/<name>/recovery` | Operator-selected known-good timestamp for future recovery commands |
 
-On success, promotion sets `rollback` to the previous `active`, sets `active`
-to `candidate`, then clears `candidate`. On failure, the hub clears
-`candidate` and leaves `active` unchanged. On boot, stale `candidate` is ignored
-and cleaned up; the daemon loads `active` when present.
+Promotion records `rollback` before publishing `active`, updates the active
+mirror, then clears `candidate`. A rejected reload clears only uncommitted
+candidate state. Durable explicit-file intent retains its candidate for recovery.
+Boot first recovers that intent, refusing an external edit that conflicts with it.
+It then clears stale candidates without deleting referenced versions.
+An explicit-file boot reads the named file and records its active version.
+A store-only boot reads the active pointer.
 
 ---
 
@@ -721,9 +725,9 @@ If the plugin reports `broken` again after restart, the engine stops it and logs
 an error. No restart loop. An operator must investigate and use a command to
 force restart after fixing the underlying issue.
 
-The active pointer matches the last accepted runtime state. A restarted plugin
-converges to that active config by applying its roots from scratch during Stage
-2. A stale candidate left by a crash is ignored on boot.
+A restarted plugin applies its roots from the configuration the daemon selected.
+An explicit-file boot uses the named file; a store-only boot uses the active
+pointer. Boot recovers durable publication intent before stale-candidate cleanup.
 
 ---
 
@@ -737,9 +741,9 @@ converges to that active config by applying its roots from scratch during Stage
 | Rollback callback fails | Log error, continue rollback ack drain for other plugins. |
 | Multiple plugins fail simultaneously | First failure triggers rollback. Subsequent failures are logged. |
 | Plugin receives rollback before starting apply | Skip apply, emit `(config, rollback-ok)` with code `ok`. |
-| Candidate promotion fails (after apply) | Warning/error to caller. Runtime is live. Active pointer may still reference previous version. No plugin rollback. |
+| Candidate promotion fails (after apply) | The hub attempts to restore the previous runtime and returns an error. Durable explicit-file publication intent is retained for recovery. |
 | Concurrent commit attempted | Rejected with error. SIGHUP queued instead of rejected. |
-| Engine crashes during transaction | Plugins hold journals. On restart, no `(config, committed)` arrives. Stale candidate is ignored; active pointer is loaded. Plugins detect stale journal (no matching active tx) and roll back on next startup. |
+| Engine crashes during transaction | Boot recovers durable explicit-file publication intent before selecting the source. Stale candidate cleanup preserves referenced versions. Plugins reconcile stale apply journals at startup. |
 | Plugin exceeds rollback deadline (3x apply) | Treated as `broken`. Engine restarts plugin. |
 | Plugin reports `broken` | Engine restarts plugin once via 5-stage protocol between rollback tiers. Second `broken` stops the plugin. |
 

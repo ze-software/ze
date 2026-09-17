@@ -8,7 +8,6 @@ package hub
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -20,7 +19,7 @@ func TestServiceRegistry_BuildsWeb(t *testing.T) {
 	withCleanRegistry(t)
 	registerService("web", buildWebService, nil)
 
-	store, err := storage.NewBlob(filepath.Join(t.TempDir(), "database.zefs"), t.TempDir())
+	store, err := storage.Create(t.TempDir())
 	if err != nil {
 		t.Fatalf("blob storage: %v", err)
 	}

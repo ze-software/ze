@@ -32,7 +32,7 @@ func editorOnConfig(t *testing.T) Model {
 	path := filepath.Join(t.TempDir(), "test.conf")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 
-	ed, err := NewEditor(path)
+	ed, err := NewLooseFileEditor(nil, path)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() }) //nolint:errcheck // test cleanup
 	ed.MarkDirty()

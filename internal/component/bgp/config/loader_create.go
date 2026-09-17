@@ -7,7 +7,6 @@ package bgpconfig
 import (
 	"fmt"
 	"net/netip"
-	"os"
 	"strconv"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/network"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -320,21 +320,13 @@ func chaosRateFromEnv() float64 {
 // It returns full PeerSettings to ensure reloaded peers are identical to initial load.
 // Uses PeersFromConfigTree which resolves templates and extracts routes directly.
 //
-// Config-read fallback mirrors the hub reload path: candidate, active version,
-// then the direct filesystem path for a file-configured blob store. Reading the
-// candidate is required for transactional commits because promotion happens
-// only after the reactor and every plugin accept the same staged bytes.
+// Candidates are read before the authority chosen at startup, because
+// promotion follows acceptance by the reactor and every plugin.
 //
 // The reactor parameter is used to update dynamic groups on reload.
 func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
-		data, _, hasCandidate, err := storage.ReadCandidateConfig(store, configPath)
-		if err == nil && !hasCandidate {
-			data, err = storage.ReadActiveConfig(store, configPath)
-		}
-		if err != nil && storage.IsBlobStorage(store) {
-			data, err = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
-		}
+		data, err := internalresolve.ReadReloadConfig(store, configPath)
 		if err != nil {
 			return nil, fmt.Errorf("read config %s: %w", configPath, err)
 		}

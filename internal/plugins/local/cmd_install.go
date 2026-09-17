@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/plugin-modes.md — ze local install: binary copy + config scaffold
+// Design: docs/architecture/cli/plugin-modes.md — ze install local: binary copy + config scaffold
 
 package local
 
@@ -28,7 +28,7 @@ var prefixChoices = []struct {
 }
 
 func cmdInstall(args []string) int {
-	fs := flag.NewFlagSet("local install", flag.ContinueOnError)
+	fs := flag.NewFlagSet("install local", flag.ContinueOnError)
 
 	prefix := fs.String("prefix", "", "Installation prefix (e.g. /usr/local)")
 	dryRun := fs.Bool("dry-run", false, "Print what would be done without making changes")
@@ -97,25 +97,24 @@ func cmdInstall(args []string) int {
 	}
 
 	if configDir != "" {
-		dbPath := filepath.Join(configDir, "database.zefs")
-		_, statErr := os.Stat(dbPath)
+		_, statErr := os.Stat(configDir)
 		switch {
 		case statErr == nil:
 			fmt.Fprintf(os.Stderr, "config directory %s already exists, skipping\n", configDir)
 		case os.IsNotExist(statErr):
-			if mkErr := os.MkdirAll(configDir, 0o755); mkErr != nil { // #nosec G301 - standard config directory
+			if mkErr := os.MkdirAll(configDir, 0o700); mkErr != nil {
 				fmt.Fprintf(os.Stderr, "error: creating %s: %v\n", configDir, mkErr)
 				return exitError
 			}
 			fmt.Fprintf(os.Stderr, "created %s\n", configDir)
 		default:
-			fmt.Fprintf(os.Stderr, "error: checking %s: %v\n", dbPath, statErr)
+			fmt.Fprintf(os.Stderr, "error: checking %s: %v\n", configDir, statErr)
 			return exitError
 		}
 	}
 
 	fmt.Fprintf(os.Stderr, "\ninstallation complete. run 'ze init' to bootstrap the database.\n")
-	fmt.Fprintf(os.Stderr, "hint: run 'ze systemd install' to set up systemd service management\n")
+	fmt.Fprintf(os.Stderr, "hint: run 'ze install systemd' to set up systemd service management\n")
 	return exitOK
 }
 
@@ -208,15 +207,14 @@ func copyFile(src, dst string) error {
 func dryRunInstall(src, binPath, configDir string) int {
 	fmt.Fprintf(os.Stderr, "would copy %s -> %s\n", src, binPath)
 	if configDir != "" {
-		dbPath := filepath.Join(configDir, "database.zefs")
-		_, statErr := os.Stat(dbPath)
+		_, statErr := os.Stat(configDir)
 		switch {
 		case statErr == nil:
 			fmt.Fprintf(os.Stderr, "would skip %s (already exists)\n", configDir)
 		case os.IsNotExist(statErr):
 			fmt.Fprintf(os.Stderr, "would create %s\n", configDir)
 		default:
-			fmt.Fprintf(os.Stderr, "error: checking %s: %v\n", dbPath, statErr)
+			fmt.Fprintf(os.Stderr, "error: checking %s: %v\n", configDir, statErr)
 			return exitError
 		}
 	}
@@ -225,9 +223,9 @@ func dryRunInstall(src, binPath, configDir string) int {
 
 func installUsage() {
 	p := helpfmt.Page{
-		Command:   "ze local install",
+		Command:   "ze install local",
 		ShortHelp: "Copy ze binary and create config directory on this machine",
-		Usage:     []string{"ze local install [options]"},
+		Usage:     []string{"ze install local [options]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--prefix <path>", Desc: "Installation prefix (default: interactive selection)"},
@@ -240,10 +238,10 @@ func installUsage() {
 			}},
 		},
 		Examples: []string{
-			"ze local install                   Interactive prefix selection",
-			"ze local install --prefix /usr/local",
-			"ze local install --prefix /opt/ze",
-			"ze local install --dry-run",
+			"ze install local                   Interactive prefix selection",
+			"ze install local --prefix /usr/local",
+			"ze install local --prefix /opt/ze",
+			"ze install local --dry-run",
 		},
 	}
 	p.WriteErr()

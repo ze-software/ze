@@ -3,7 +3,6 @@
 # PREVENTS: REST config commit saving a rejected candidate or closing the session on failure.
 
 option=timeout:value=30s
-option=env:var=ZE_STORAGE_BLOB:value=false
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -67,9 +66,9 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze start api-config-commit-reject.conf:timeout=30s
 expect=exit:code=0
-expect=file:path=meta/config/active:exists=true
-expect=file:path=meta/config/candidate:absent=true
-expect=file:path=meta/config/rollback:absent=true
-expect=file:glob=rollback/api-config-commit-reject-*.conf:count=1
-expect=file:glob=rollback/api-config-commit-reject-*.conf:contains=router-id 1.2.3.4
-expect=file:glob=rollback/api-config-commit-reject-*.conf:not-contains=receive-hold-time 2
+expect=key:path=meta/config/api-config-commit-reject.conf/active:exists=true
+expect=key:path=meta/config/api-config-commit-reject.conf/candidate:absent=true
+expect=key:path=meta/config/api-config-commit-reject.conf/rollback:absent=true
+expect=key:glob=file/[0-9]*/api-config-commit-reject.conf:count=1
+expect=key:glob=file/[0-9]*/api-config-commit-reject.conf:contains=router-id 1.2.3.4
+expect=key:glob=file/[0-9]*/api-config-commit-reject.conf:not-contains=receive-hold-time 2

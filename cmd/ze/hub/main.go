@@ -29,6 +29,7 @@ import (
 	zecli "github.com/ze-software/ze/internal/component/cli/client"
 	showCmd "github.com/ze-software/ze/internal/component/cmd/show"
 	"github.com/ze-software/ze/internal/component/command"
+	commandregistry "github.com/ze-software/ze/internal/component/command/registry"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/config/system"
@@ -46,6 +47,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/privilege"
 	"github.com/ze-software/ze/internal/core/reboot"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -115,7 +117,7 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 }
 
 // Run executes the hub with the given config file path and optional CLI plugins.
-// store provides the I/O backend (filesystem or blob); used for config reads and reload.
+// store is the daemon's lifetime-owned live store, or nil for stdin discovery.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
 func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach ...bool) int {
@@ -142,45 +144,33 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		return 1
 	}
 
-	// Register the daemon's blob store so in-core state persisters
-	// (internal/core/statestore) write into the SAME in-memory tree as config,
-	// not a separate transient instance whose keys the config store's next flush
-	// would drop.
-	if bs, ok := storage.BlobStoreFrom(store); ok {
-		statestore.SetStore(bs)
-	} else if env.Get("ze.config.dir") != "" {
-		// Config is on a filesystem backend (the `ze -` / `ze <file>` CLI path,
-		// storage.NewFilesystem) but the operator pinned a config dir: open a
-		// SEPARATE state-only zefs store at {config-dir}/database.zefs so runtime
-		// state (BFD auth sequence, DDoS baselines, NTP last-time, ...) still
-		// persists across restarts in dev, not only on the appliance. There is no
-		// shared database.zefs with config on this path, so the lost-update BLOCKER
-		// the shared-handle design guards against cannot arise.
-		//
-		// Gated on an EXPLICIT ze.config.dir: without it the default is derived
-		// from the binary location (paths.ConfigDirFromBinary), which is shared by
-		// every `ze` invocation -- so a one-off `ze -` (and the whole functional
-		// test suite) must not create or contend on a database.zefs there. When no
-		// config dir is pinned, statestore stays a best-effort no-op, exactly as
-		// the pre-migration loose-file path was non-fatal on a read-only disk.
-		//
-		// The store is opened DIRECTLY (zefs.Open/Create), NOT through
-		// internalresolve.Storage(): that helper answers "where does my CONFIG
-		// live" and returns a filesystem backend whenever ze.storage.blob=false,
-		// which silently defeated this branch and dropped ALL runtime state --
-		// including the tc original-qdisc snapshot, whose absence makes the
-		// traffic backend refuse to program a qdisc at all
-		// (internal/plugins/traffic/netlink/backend_linux.go errSnapshotPersistUnavailable).
-		// ze.storage.blob selects the CONFIG backend; it must not decide whether
-		// runtime state survives a restart. Opening directly also skips
-		// storage.NewBlob's config migration, so this store stays state-only and
-		// never shadows the on-disk config a SIGHUP reload re-reads.
-		if bs, err := openStateOnlyStore(env.Get("ze.config.dir")); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: runtime state persistence unavailable: %v\n", err)
+	if store == nil {
+		if configPath != "-" {
+			fmt.Fprintln(os.Stderr, "error: config storage unavailable (run ze init first)")
+			return 1
+		}
+		var err error
+		store, err = internalresolve.StorageFor("-")
+		if err != nil {
+			if !errors.Is(err, storage.ErrNoStore) {
+				fmt.Fprintf(os.Stderr, "error: config storage unavailable: %v\n", err)
+				return 1
+			}
+			warnStorelessFeatures()
 		} else {
-			statestore.SetStore(bs)
+			defer store.Close() //nolint:errcheck // release stdin daemon ownership
+		}
+		store = internalresolve.BindConfigSource(store, configPath, internalresolve.ConfigSourceStdin)
+	}
+	if internalresolve.SourceMode(store) == internalresolve.ConfigSourceFile {
+		if err := env.Set("ze.config.dir", internalresolve.StoreDir(configPath)); err != nil {
+			fmt.Fprintf(os.Stderr, "error: publish config directory to plugins: %v\n", err)
+			return 1
 		}
 	}
+	// Every state consumer borrows this handle; none opens a second writer.
+	statestore.SetStore(store)
+	defer statestore.SetStore(nil)
 
 	if !skipRootCheck {
 		for _, w := range privilege.CheckPrivileges() {
@@ -193,26 +183,24 @@ func run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	// "config complete but pipe stays open for liveness monitoring."
 	var data []byte
 	var stdinOpen bool
+	if recoverErr := recoverFileCommit(store, configPath); recoverErr != nil {
+		fmt.Fprintf(os.Stderr, "error: recover explicit config commit: %v\n", recoverErr)
+		return 1
+	}
 	var err error
 	switch {
 	case configPath == "-":
 		data, stdinOpen, err = readStdinConfig()
-	case storage.IsBlobStorage(store):
-		if clearErr := clearStaleCandidateOnBoot(store, configPath); clearErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: clear stale candidate: %v\n", clearErr)
-		}
-		data, err = storage.ReadActiveConfig(store, configPath)
-		if err != nil {
-			// Config may live on the filesystem (e.g., gokrazy read-only root)
-			// while blob handles TLS certs, SSH keys, and persistent state.
-			data, err = os.ReadFile(configPath) //nolint:gosec // user-provided config path
-		}
 	default:
-		data, err = store.ReadFile(configPath)
+		data, err = internalresolve.ReadConfigSource(store, configPath)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read config: %v\n", err)
 		logStartupFailure("read config", err)
+		return 1
+	}
+	if clearErr := clearStaleCandidateOnBoot(store, configPath); clearErr != nil {
+		fmt.Fprintf(os.Stderr, "error: clear stale candidate: %v\n", clearErr)
 		return 1
 	}
 
@@ -299,8 +287,11 @@ func logStartupFailure(stage string, err error) {
 //
 // slog rather than stderr, for the reason logStartupFailure gives above: on the
 // gokrazy appliance stderr goes to the supervisor and the console sees kmsg.
-func bootPowerUsers(log *slog.Logger) []authz.UserConfig {
-	users, err := loadZefsUsers()
+func bootPowerUsers(store storage.Storage, log *slog.Logger) []authz.UserConfig {
+	if store == nil {
+		return nil
+	}
+	users, err := usersFromStore(store)
 	if err == nil {
 		return users
 	}
@@ -371,8 +362,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if err != nil {
 		var recovered *zeconfig.LoadConfigResult
 		ok := false
-		if recoverableLoadError(err) {
-			recovered, ok = zeconfig.RecoverConfig(store, configPath, data, plugins)
+		if recoverableLoadError(err) && store != nil {
+			var publicationErr error
+			recovered, ok = zeconfig.RecoverConfig(store, configPath, data, plugins, func(content []byte) error {
+				publicationErr = publishRecoveredConfig(store, configPath, data, content)
+				if publicationErr == nil {
+					data = content
+				}
+				return publicationErr
+			})
+			if publicationErr != nil {
+				fmt.Fprintf(os.Stderr, "error: publish recovered config: %v\n", publicationErr)
+				return 1
+			}
 		}
 		if ok {
 			loadResult = recovered
@@ -388,7 +390,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	evolveLogger := slogutil.Logger("hub.evolve")
 	outcome, evolveErr := applyEvolutions(evolveLogger, store, configPath, data, loadResult.Tree, zeconfig.ScanStampRelease(data))
 	if evolveErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: schema evolution failed: %v\n", evolveErr)
+		fmt.Fprintf(os.Stderr, "error: schema evolution failed: %v\n", evolveErr)
+		return 1
 	}
 	loadResult.Tree = outcome.tree
 	data = outcome.data
@@ -413,8 +416,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	if configPath != "" && configPath != "-" {
-		if _, _, activeErr := storage.EnsureActiveVersion(store, configPath, data, time.Now()); activeErr != nil {
+	if store != nil && configPath != "" && configPath != "-" {
+		if activeErr := initializeConfigSource(store, configPath, data); activeErr != nil {
 			fmt.Fprintf(os.Stderr, "error: initialize active config: %v\n", activeErr)
 			logStartupFailure("initialize active config", activeErr)
 			return 1
@@ -704,7 +707,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Assemble the boot identity after ConfigProvider population. API listener
 	// resolution runs here as part of that assembly so local users, policy,
 	// per-user mode, shared token mode, and no-auth mode publish once.
-	zefsAuthUsers := bootPowerUsers(slogutil.Logger("hub.aaa"))
+	zefsAuthUsers := bootPowerUsers(store, slogutil.Logger("hub.aaa"))
 	configUsersCandidate := func() ([]authz.UserConfig, error) { return liveConfigUsers(configProvider) }
 	resolveCandidateUsers := liveLocalUsers(zefsAuthUsers, configUsersCandidate, slogutil.Logger("hub.aaa"))
 	bootUsers, bootUsersErr := resolveBootUsers(resolveCandidateUsers)
@@ -755,7 +758,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Every internal listener that has no operator-named certificate takes its
 	// leaf from this root, so a failure here is a startup failure: without a
 	// root the plugin hub can serve nothing a plugin can validate.
-	caRoot, caErr := zepki.LoadOrGenerateRoot(store)
+	var caRoot *zepki.Root
+	var caErr error
+	if store == nil {
+		caRoot, caErr = zepki.NewEphemeralRoot()
+	} else {
+		caRoot, caErr = zepki.LoadOrGenerateRoot(store)
+	}
 	if caErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: local certificate authority: ").Str(caErr.Error()).Byte('\n')
@@ -1005,6 +1014,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Publish the reload for SSH session editors created by the infra hook
 	// (registered before this closure could exist).
 	sessionReloadHolder.Store(&reloadAfterCommit)
+	commandregistry.SetRuntimeConfigCommit(func(path string, expected, content []byte) error {
+		return commitRuntimeConfig(store, configPath, path, expected, content, reloadAfterCommit)
+	})
+	defer commandregistry.SetRuntimeConfigCommit(nil)
 
 	// Without BGP, main owns the AAA bundle for every management surface. Build
 	// and install it before standalone SSH, MCP, REST, or gRPC can bind. The BGP
@@ -1058,7 +1071,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			Authorizer:    noBGPAuthorizer,
 			Recorder:      auditLog,
 			ConfigDir:     configDir,
-			Storage:       infra.ResolveSSHStorage(store, configDir),
+			Storage:       store,
 			ConfigPath:    configPath,
 			EphemeralFile: ephemeralFile,
 			Dispatch:      sshDispatch,
@@ -1212,7 +1225,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	apiServer.SetFullReloadFunc(reloadAfterCommitContext)
 	managedCtx, managedCancel := context.WithCancel(context.Background())
 	defer managedCancel()
-	if managedClient != nil && storage.IsBlobStorage(store) {
+	if managedClient != nil && store != nil {
 		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog)
 	}
 	if apiCfgOK {
@@ -1292,7 +1305,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// daemon is asked to stop, so its verdict is not lost with the process
 	// (awaitReloadWorker, main_reload.go).
 	reloadDone := make(chan struct{})
-	go handleSIGHUPReload(reloadCh, reloadDone, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
+	reloadCtx, reloadCancel := context.WithCancel(context.Background())
+	defer reloadCancel()
+	go handleSIGHUPReload(reloadCtx, reloadCh, reloadDone, apiServer, eng, configProvider, store, configPath, loadBoth, lm, auditLog)
 
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
@@ -1396,7 +1411,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// entries and storage is blob-backed. Independent of the outbound managed client.
 	startManagedServer(managedCtx, store, hubConfig)
 
-	if managedClient != nil && storage.IsBlobStorage(store) {
+	if managedClient != nil && store != nil {
 		go managed.RunManagedClient(managedCtx, *managedClient)
 	}
 
@@ -1426,9 +1441,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	doneCh := make(chan struct{})
 	go waitForServerDone(apiServer, doneCh)
 	waitLoop(sigCh, reloadCh, doneCh)
-	close(reloadCh)
-	awaitReloadWorker(reloadDone, reloadShutdownGrace)
-	fmt.Println("\nShutting down (Ctrl+C again to force)...")
 
 	// A second INTERRUPT forces immediate exit. Shutdown below stops plugins,
 	// gNMI, the API servers and the reactor, each with its own grace period,
@@ -1446,6 +1458,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	forceCh := make(chan os.Signal, 1)
 	signal.Notify(forceCh, syscall.SIGINT, syscall.SIGTERM)
 	go forceExitOnSignal(forceCh)
+
+	close(reloadCh)
+	awaitReloadWorker(reloadDone, reloadShutdownGrace, reloadCancel)
+	fmt.Println("\nShutting down (Ctrl+C again to force)...")
 
 	// MCP shuts down through the construction registry's builtServices defer
 	// (like web/lg), so it is not stopped explicitly here.

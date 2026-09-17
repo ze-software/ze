@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. Compiled fixture creates an expired GR marker (timestamp in the past)
-# 2. Ze starts with GR capability (restart-time=120) and filesystem storage
+# 2. Ze starts with GR capability (restart-time=120) and tree storage
 # 3. Ze reads marker, finds it expired, discards it (no RestartUntil set)
 # 4. Ze connects to ze-peer, session establishes with R=0 (cold start)
 #
@@ -10,14 +10,7 @@
 # PREVENTS: Stale marker causing R=1 after restart window expired.
 
 
-# Use filesystem storage so the on-disk marker file is actually read by ze.
-# With default blob storage, ze looks inside database.zefs (binary-relative),
-# not the tmpfs, so the marker file would be invisible and the test would
-# pass vacuously (reject= would match nothing because no GR code ran).
-# option=env must live OUTSIDE the stdin=peer block: the test runner only
-# parses expect= / action= lines from that block, so option=env inside it
-# is silently ignored.
-option=env:var=ze.storage.blob:value=false
+# The fixture seeds the marker through the same tree store the daemon opens.
 
 # Enable GR subsystem logging to confirm marker is NOT detected as valid
 option=env:var=ze.log.bgp.gr:value=info

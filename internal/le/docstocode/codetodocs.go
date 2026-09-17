@@ -80,7 +80,7 @@ const (
 	// an identifier. Measured over the whole tree: of 372 claims that resolved
 	// against no declaration, 105 are this shape, and every one sampled was
 	// prose. The separators keep the rule narrow: `sa_count` and
-	// `ze.storage.blob` carry no capital either and both name something a
+	// `ze.config.dir` carry no capital either and both name something a
 	// document really claims. The cost is priced and accepted: an all-lowercase
 	// Go declaration can no longer be claimed by an anchor.
 	prosePattern = `^[a-z][a-z0-9]*$`

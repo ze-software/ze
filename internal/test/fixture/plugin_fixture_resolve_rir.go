@@ -15,10 +15,10 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/resolve/irr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -218,7 +218,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	}
 	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup, and the directory is this run's own
 
-	if err := resolveRIRStoreCopy(filepath.Join(workDir, "database.zefs")); err != nil {
+	if err := resolveRIRStoreCopy(workDir); err != nil {
 		return err
 	}
 
@@ -277,7 +277,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stderr, "OK: the lookup answers from the table that refresh stored")
 
-	refreshedCopy, err := resolveRIRStoreCopyBytes(filepath.Join(workDir, "database.zefs"))
+	refreshedCopy, err := resolveRIRStoreCopyBytes(workDir)
 	if err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 	// The registries stop answering, and the next refresh has to leave what the
 	// last one stored exactly as it is.
 	stopRegistries()
-	stored, err := resolveRIRStoreCopyBytes(filepath.Join(workDir, "database.zefs"))
+	stored, err := resolveRIRStoreCopyBytes(workDir)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 
 	daemon.stop()
 
-	if err := resolveRIRStoredCopyUnchanged(filepath.Join(workDir, "database.zefs"), stored); err != nil {
+	if err := resolveRIRStoredCopyUnchanged(workDir, stored); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "OK: the failed refresh left the stored table byte for byte as it was")
@@ -321,17 +321,17 @@ func resolveRIRRefresh(ctx context.Context, args []string) error {
 // resolveRIRStoreCopyBytes answers the delegation table a store holds, so a
 // later run can be compared against it byte for byte.
 func resolveRIRStoreCopyBytes(path string) ([]byte, error) {
-	store, err := zefs.Open(path)
+	store, err := storage.OpenReadOnly(path)
 	if err != nil {
 		return nil, fmt.Errorf("open the store at %s: %w", path, err)
 	}
 	defer func() { _ = store.Close() }()
 
-	blob, err := store.ReadFile(zefs.KeyRIRDelegation.Pattern)
+	blob, err := store.ReadKey(zefs.KeyRIRDelegation.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("read the stored delegation table: %w", err)
 	}
-	return bytes.Clone(blob), nil
+	return blob, nil
 }
 
 // resolveRIRStoreCopy writes a delegation table into a fresh managed store.
@@ -363,11 +363,11 @@ func resolveRIRStoreCopy(path string) error {
 		return err
 	}
 
-	store, err := zefs.Create(path)
+	store, err := storage.Create(path)
 	if err != nil {
 		return err
 	}
-	if err := store.WriteFile(zefs.KeyRIRDelegation.Pattern, table, 0); err != nil {
+	if err := store.WriteKey(zefs.KeyRIRDelegation.Pattern, table); err != nil {
 		_ = store.Close()
 		return err
 	}
@@ -377,13 +377,13 @@ func resolveRIRStoreCopy(path string) error {
 // resolveRIRStoredCopyUnchanged reads the delegation key back and compares it
 // with what was stored before the refresh ran.
 func resolveRIRStoredCopyUnchanged(path string, want []byte) error {
-	store, err := zefs.Open(path)
+	store, err := storage.OpenReadOnly(path)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = store.Close() }()
 
-	got, err := store.ReadFile(zefs.KeyRIRDelegation.Pattern)
+	got, err := store.ReadKey(zefs.KeyRIRDelegation.Pattern)
 	if err != nil {
 		return err
 	}

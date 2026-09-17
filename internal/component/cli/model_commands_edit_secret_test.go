@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 
 	// The OSPFv3 IPsec integrity key is the one ze:sensitive leaf whose YANG
 	// type the completer enforces, so it is what makes the refusal reachable.
@@ -38,7 +39,7 @@ func editModelOverRealSchema(t *testing.T) *Model {
 	configPath := filepath.Join(t.TempDir(), "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	editor, err := NewEditor(configPath)
+	editor, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { editor.Close() }) //nolint:errcheck // test cleanup
 
@@ -116,8 +117,9 @@ func TestCommitConflictNeverEchoesASecret(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	mine := editSessionModel(t, configPath, "alice", typedCLISecret)
-	_ = editSessionModel(t, configPath, "bob", "bob-"+typedCLISecretTail)
+	store := newTestTreeStore(t, configPath)
+	mine := editSessionModel(t, store, configPath, "alice", typedCLISecret)
+	_ = editSessionModel(t, store, configPath, "bob", "bob-"+typedCLISecretTail)
 
 	result, err := mine.dispatchCommand("commit")
 	require.NoError(t, err)
@@ -134,10 +136,10 @@ func TestCommitConflictNeverEchoesASecret(t *testing.T) {
 
 // editSessionModel answers a Model editing configPath as username, with the
 // secret already set on the shared credential leaf.
-func editSessionModel(t *testing.T, configPath, username, secret string) *Model {
+func editSessionModel(t *testing.T, store storage.Storage, configPath, username, secret string) *Model {
 	t.Helper()
 
-	editor, err := NewEditor(configPath)
+	editor, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { editor.Close() }) //nolint:errcheck // test cleanup
 	editor.SetSession(NewEditSession(username, "ssh"))
@@ -167,7 +169,8 @@ func TestPendingChangeSummaryNeverEchoesASecret(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	model := editSessionModel(t, configPath, "alice", typedCLISecret)
+	store := newTestTreeStore(t, configPath)
+	model := editSessionModel(t, store, configPath, "alice", typedCLISecret)
 	_, err := model.dispatchCommand("set bgp router-id 10.9.8.7")
 	require.NoError(t, err)
 

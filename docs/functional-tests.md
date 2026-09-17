@@ -345,7 +345,7 @@ and name, plus periodic progress while tests are still running.
 | Suite | Command | Files | How it works |
 |-------|---------|-------|--------------|
 | Encode | `ze-test bgp encode` | `test/encode/*.ci` | Builds Ze and `ze-peer`, starts peers, then checks BGP wire output from configured routes. |
-| Plugin | `ze-test bgp plugin` | `test/plugin/*.ci` | Runs Ze with embedded process/API fixtures, injects commands or plugin events, then checks BGP, stdout/stderr, syslog, HTTP, or file expectations. |
+| Plugin | `ze-test bgp plugin` | `test/plugin/*.ci` | Runs Ze with embedded process/API fixtures, injects commands or plugin events, then checks BGP, stdout/stderr, syslog, HTTP, decoded storage keys, or exported files. |
 | Parse | `ze-test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
 | Decode | `ze-test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
 | Reload | `ze-test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
@@ -1509,6 +1509,14 @@ action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=1:seq=2
 expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 ```
+
+Each concurrent daemon has a separate tree store. The first stdin block keeps
+`ze-bgp.conf` in the test work directory for existing rewrite fixtures; further
+blocks use numbered `daemon-N/` directories, reused across that daemon's restarts.
+An explicit file is authoritative at every start. A successful SIGHUP must
+therefore be checked against the rewritten source and the post-reload behaviour;
+a reload log alone does not prove that the intended bytes were applied.
+<!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
 
 ### 5. VPP Tests (`test/vpp/`)
 
@@ -2749,13 +2757,25 @@ Editor tests run through `./le functional editor`; select one with `./le job run
 | `tmpfs=` | `tmpfs=test.conf:terminator=EOF` | Embed test files |
 | `option=file:path=` | `option=file:path=test.conf` | Config file to load |
 | `option=mode:value=` | `option=mode:value=command` | Command-only mode (no editor) |
-| `option=history:store` | `option=history:store` | Enable zefs-backed history persistence |
-| `option=storage:value=` | `option=storage:value=blob` | Run the editor on a zefs blob, as the daemon does, instead of the filesystem |
+| `option=history:store` | `option=history:store` | Persist history in the same tree as config |
+| `option=storage:value=` | `option=storage:value=tree` | Explicitly select the default tree; other values are refused |
 | `input=type:text=` | `input=type:text=show` | Type text |
 | `input=enter/up/down/tab` | `input=enter` | Press named key |
 | `expect=input:value=` | `expect=input:value=show` | Assert input buffer content |
 | `expect=mode:is=` | `expect=mode:is=command` | Assert editor mode |
-| `restart=` | `restart=editor` | Simulate exit + relaunch (blob store persists) |
+| `expect=key:path=` | `expect=key:path=file/active/test.conf:contains=65001` | Assert a decoded persistent value |
+| `restart=` | `restart=editor` | Simulate exit + relaunch with the same store |
+
+Config fixtures are seeded once, and session drafts, versions and history use
+the same lifetime store owner. File expectations still inspect loose fixtures
+and exports; persistent assertions use `expect=key`, which rejects unreadable
+or corrupt values rather than treating them as absent.
+
+Discrimination runs retain the compatible runner while reverting or mutating
+product behaviour. An older runner rejecting `expect=key` is a setup failure,
+not evidence that a storage assertion detects a product regression.
+<!-- source: internal/component/cli/testing/runner.go -- runTestCaseIn -->
+<!-- source: internal/component/cli/testing/expect.go -- checkKey -->
 
 ---
 

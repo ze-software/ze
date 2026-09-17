@@ -218,8 +218,11 @@ func registerDoctorOwnedChecks() {
 	}
 }
 
-func doctorCheckStoreIntegrity(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	return checkStoreIntegrity()
+func doctorCheckStoreIntegrity(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	if ctx.Store == nil {
+		return nil // The open diagnostic already names absence or unsafe permissions.
+	}
+	return checkStoreIntegrity(ctx.ConfigDir)
 }
 
 func doctorCheckMachineID(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {

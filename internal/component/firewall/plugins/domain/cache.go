@@ -1,4 +1,4 @@
-// Design: docs/architecture/firewall/firewall-domain-group.md -- last-good address cache in zefs
+// Design: docs/architecture/firewall/firewall-domain-group.md -- persisted last-good address cache
 //
 // The cache is what makes AC-7 work: a box that reboots with its upstream DNS
 // down programs its firewall sets from here, so filtering resumes without
@@ -6,10 +6,8 @@
 // naming a group Ze has never resolved is refused at the terminal rather than
 // discovered later as a table held back.
 //
-// The store is zefs and not a loose file because this is small, bounded,
-// per-group state that must survive a restart, which is what zefs is for
-// (docs/architecture/zefs-format.md). The CHANGE LOG is the opposite shape and
-// lives outside zefs; changelog.go says why.
+// The daemon's owned store holds this bounded per-group state. The append-only
+// change log has a separate file; changelog.go describes its lifetime.
 
 package domain
 
@@ -19,12 +17,10 @@ import (
 	"fmt"
 	"io/fs"
 	"net/netip"
-	"path/filepath"
 	"slices"
 	"sync"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -54,26 +50,23 @@ type resolvedName struct {
 // time, so the meaning of the field stays in one place.
 func (r resolvedName) failing() bool { return !r.FailingSince.IsZero() }
 
-// store holds the last-good addresses for every group, in memory and in zefs.
-// Safe for concurrent use.
-//
-// Every mutation writes through to zefs before it returns, so a plugin killed
-// between two refreshes loses nothing that a refresh had already recorded
-// (zefs flushFull calls tmp.Sync, os.Rename and then dirFd.Sync). The in-memory
-// map is a read cache over that, not a write buffer.
-type store struct {
-	path string
-
-	mu      sync.RWMutex
-	entries map[nameKey]resolvedName
-	blob    *zefs.BlobStore
+// cacheKeys is fulfilled by owned storage and by the plugin state RPC adapter.
+type cacheKeys interface {
+	ReadKey(string) ([]byte, error)
+	WriteKey(string, []byte) error
+	RemoveKey(string) error
 }
 
-// newStore builds a cache over the zefs file at path. It performs no I/O:
-// open reads the file, and a store whose open failed still answers reads with
-// an empty cache rather than a nil map.
-func newStore(path string) *store {
-	return &store{path: path, entries: make(map[nameKey]resolvedName)}
+// store holds last-good answers. It borrows persistence; the caller MUST keep
+// that owner alive until the cache's refresh worker stops. Safe for concurrent use.
+type store struct {
+	mu      sync.RWMutex
+	entries map[nameKey]resolvedName
+	keys    cacheKeys
+}
+
+func newStore(keys cacheKeys) *store {
+	return &store{keys: keys, entries: make(map[nameKey]resolvedName)}
 }
 
 // open reads every cached answer for the named groups into memory. It is
@@ -84,30 +77,10 @@ func newStore(path string) *store {
 // configured group can be programmed: an orphan key from a group an operator
 // deleted must not put addresses back into the kernel.
 //
-// A store file that does not exist is an EMPTY cache, not a failure. A fresh
-// install has never written one, and that is exactly the state AC-6 refuses a
-// commit on: reporting it as an error here would replace the message naming
-// the group and its fetch command with one about a missing file. The file is
-// created by the first write, so open stays read-only and a commit
-// verification never touches the disk.
-//
-// A file that EXISTS and cannot be read is a different fact and is reported.
-// Loading an empty cache over a corrupt one would silently empty every
-// domain-group set on the next apply.
+// A nil persistence handle selects an in-memory startup cache. OnStarted binds
+// the daemon state RPCs and reloads persisted answers before refresh begins.
 func (s *store) open(groups []group) error {
-	if s.path == "" {
-		return errors.New("firewall domain-group: no config directory, the address cache cannot be read")
-	}
-
-	blob, err := zefs.Open(s.path)
-	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("firewall domain-group: cache not available: %w", err)
-		}
-		s.mu.Lock()
-		s.closeBlobLocked()
-		s.entries = make(map[nameKey]resolvedName)
-		s.mu.Unlock()
+	if s.keys == nil {
 		return nil
 	}
 
@@ -116,7 +89,7 @@ func (s *store) open(groups []group) error {
 		for _, name := range g.Names {
 			for _, fam := range families {
 				key := zefs.KeyFirewallDomainGroup.Key(g.Name, name, fam.label)
-				data, readErr := blob.ReadFile(key)
+				data, readErr := s.keys.ReadKey(key)
 				if readErr != nil {
 					// A key this box never wrote is the normal state of a name
 					// that has not resolved yet, and it says nothing. Any other
@@ -145,55 +118,9 @@ func (s *store) open(groups []group) error {
 	}
 
 	s.mu.Lock()
-	s.closeBlobLocked()
-	s.blob = blob
 	s.entries = entries
 	s.mu.Unlock()
 	return nil
-}
-
-// close releases the zefs handle. The caller MUST NOT use the store after it.
-func (s *store) close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.closeBlobLocked()
-}
-
-// closeBlobLocked releases the current handle, if any. The caller MUST hold
-// s.mu. open is reopened on each configure, so the previous handle is finished
-// with and holding both would leak a mapping for each commit.
-func (s *store) closeBlobLocked() {
-	if s.blob == nil {
-		return
-	}
-	_ = s.blob.Close()
-	s.blob = nil
-}
-
-// writable returns the store's blob handle, creating the file when nothing has
-// been written yet. A fresh install has no store, and the first resolved
-// address is what creates one.
-func (s *store) writable() (*zefs.BlobStore, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.blob != nil {
-		return s.blob, nil
-	}
-	if s.path == "" {
-		return nil, errors.New("firewall domain-group: no config directory, the address cache cannot be written")
-	}
-	blob, err := zefs.Open(s.path)
-	if err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("firewall domain-group: cache not available: %w", err)
-		}
-		blob, err = zefs.Create(s.path)
-		if err != nil {
-			return nil, fmt.Errorf("firewall domain-group: create cache: %w", err)
-		}
-	}
-	s.blob = blob
-	return blob, nil
 }
 
 // get returns the last good answer for one name and family.
@@ -214,17 +141,15 @@ func (s *store) put(key nameKey, value resolvedName) error {
 		return fmt.Errorf("firewall domain-group: encode cache entry: %w", err)
 	}
 
+	if s.keys == nil {
+		return errors.New("firewall domain-group: persistence unavailable")
+	}
+	if err := s.keys.WriteKey(zefs.KeyFirewallDomainGroup.Key(key.group, key.name, key.family.label), data); err != nil {
+		return fmt.Errorf("firewall domain-group: write cache entry: %w", err)
+	}
 	s.mu.Lock()
 	s.entries[key] = value
 	s.mu.Unlock()
-
-	blob, err := s.writable()
-	if err != nil {
-		return err
-	}
-	if err := blob.WriteFile(zefs.KeyFirewallDomainGroup.Key(key.group, key.name, key.family.label), data, 0o600); err != nil {
-		return fmt.Errorf("firewall domain-group: write cache entry: %w", err)
-	}
 	return nil
 }
 
@@ -319,41 +244,24 @@ func (s *store) entriesFor(g group) map[nameKey]resolvedName {
 // with `clear firewall domain-group`.
 func (s *store) purge(g group) (removed int, err error) {
 	s.mu.Lock()
-	blob := s.blob
-	var keys []nameKey
+	defer s.mu.Unlock()
+	if s.keys == nil {
+		return 0, errors.New("firewall domain-group: persistence unavailable")
+	}
 	for _, name := range g.Names {
 		for _, fam := range families {
 			key := nameKey{group: g.Name, name: name, family: fam}
 			if _, ok := s.entries[key]; !ok {
 				continue
 			}
+			if err := s.keys.RemoveKey(zefs.KeyFirewallDomainGroup.Key(g.Name, name, fam.label)); err != nil {
+				return removed, err
+			}
 			delete(s.entries, key)
-			keys = append(keys, key)
+			removed++
 		}
 	}
-	s.mu.Unlock()
-
-	if blob == nil {
-		return len(keys), nil
-	}
-	var firstErr error
-	for _, key := range keys {
-		if removeErr := blob.Remove(zefs.KeyFirewallDomainGroup.Key(key.group, key.name, key.family.label)); removeErr != nil && firstErr == nil {
-			firstErr = removeErr
-		}
-	}
-	return len(keys), firstErr
-}
-
-// cacheStorePath is the zefs file the addresses live in. It is the same store
-// the rest of the daemon uses, so an appliance backup carries the firewall's
-// resolved addresses with everything else.
-func cacheStorePath() string {
-	configDir := paths.DefaultConfigDir()
-	if configDir == "" {
-		return ""
-	}
-	return filepath.Join(configDir, "database.zefs")
+	return removed, nil
 }
 
 // addressesFromRecords keeps the records that parse as an address of the

@@ -121,14 +121,9 @@ expect=context:root
 	assert.Contains(t, result.Error, "nonexistent")
 }
 
-// TestRunnerBlobStorage verifies option=storage:value=blob runs the editor on a
-// zefs blob, as the daemon does, and that the tmpfs config is reachable there.
-//
-// VALIDATES: an .et test can exercise blob-only editor behavior.
-// PREVENTS: a blob-only defect staying invisible to the whole .et suite, which
-// ran every test on filesystem storage while the daemon runs on a blob.
-func TestRunnerBlobStorage(t *testing.T) {
-	etContent := `# Blob-backed editor
+// TestRunnerTreeStorage verifies that session edits reach the persistent draft.
+func TestRunnerTreeStorage(t *testing.T) {
+	etContent := `# Tree-backed editor
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   session {
@@ -141,13 +136,14 @@ bgp {
 EOF_CONF
 
 option=file:path=test.conf
-option=storage:value=blob
+option=storage:value=tree
 option=session:user=thomas:origin=local
 
 input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=dirty:true
 expect=error:none
+expect=key:path=file/active/test.conf.change.thomas:contains=5.6.7.8
 `
 
 	result := runETTest(etContent)
@@ -155,19 +151,10 @@ expect=error:none
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 }
 
-// TestRunnerBlobStorageWritesBlobNotFile commits an edit under
-// option=storage:value=blob and then reads both stores, to say where the edit
-// landed: the blob holds it and the config file on disk does not.
-//
-// The method is to run the test case in a directory this test owns, because the
-// runner removes its own temp directory and takes the evidence with it.
-//
-// VALIDATES: AC-5 -- the editor under test reads and writes a zefs blob.
-// PREVENTS: the option resolving to filesystem storage while every assertion
-// stays green. A pass, a dirty flag and an .et run prove the editor did not
-// crash; only the two stores read afterwards prove which one it wrote.
-func TestRunnerBlobStorageWritesBlobNotFile(t *testing.T) {
-	etContent := `# Blob-backed editor, committed
+// TestRunnerTreeStorageWritesTreeNotFile commits and inspects both the stored
+// config and the unchanged fixture, guarding against silent loose-file fallback.
+func TestRunnerTreeStorageWritesTreeNotFile(t *testing.T) {
+	etContent := `# Tree-backed editor, committed
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   session {
@@ -180,7 +167,6 @@ bgp {
 EOF_CONF
 
 option=file:path=test.conf
-option=storage:value=blob
 option=session:user=thomas:origin=local
 
 input=type:text=set bgp router-id 5.6.7.8
@@ -207,48 +193,21 @@ expect=error:none
 	assert.Contains(t, string(onDisk), "1.2.3.4",
 		"the config file on disk keeps its migrated content")
 	assert.NotContains(t, string(onDisk), "5.6.7.8",
-		"a blob-backed editor writes the blob, so the commit must not reach the file")
+		"a stored editor must not write the loose fixture")
 
-	blobStore, err := storage.NewBlob(filepath.Join(tmpDir, "database.zefs"), "")
+	store, err := storage.OpenReadOnly(tmpDir)
 	require.NoError(t, err)
-	defer blobStore.Close() //nolint:errcheck // test cleanup
+	defer store.Close() //nolint:errcheck // test cleanup
 
-	inBlob, err := blobStore.ReadFile("test.conf")
+	persisted, err := store.ReadFile("test.conf")
 	require.NoError(t, err)
-	assert.Contains(t, string(inBlob), "5.6.7.8", "the blob holds the committed edit")
-}
-
-// TestRunnerBlobStorageRefusesFileExpectation verifies the two options that
-// cannot mean anything together are refused.
-//
-// VALIDATES: expect=file: with blob storage stops the test.
-// PREVENTS: a file expectation asserting against the pre-migration copy in the
-// temp directory and passing for content the editor never wrote there.
-func TestRunnerBlobStorageRefusesFileExpectation(t *testing.T) {
-	etContent := `# Blob storage with a file expectation
-tmpfs=test.conf:terminator=EOF_CONF
-bgp {
-  router-id 1.2.3.4
-}
-EOF_CONF
-
-option=file:path=test.conf
-option=storage:value=blob
-
-expect=file:path=test.conf:contains=router-id
-`
-
-	result := runETTest(etContent)
-	require.NotNil(t, result)
-	assert.False(t, result.Passed)
-	assert.Contains(t, result.Error, "expect=file:")
+	assert.Contains(t, string(persisted), "5.6.7.8", "the tree holds the committed edit")
 }
 
 // TestRunnerUnknownStorageBackendFails verifies the storage option fails closed.
 //
 // VALIDATES: an unrecognized backend name stops the test.
-// PREVENTS: a typo silently running on the filesystem while the test claims to
-// prove blob behavior.
+// PREVENTS: a typo silently running on a different storage format.
 func TestRunnerUnknownStorageBackendFails(t *testing.T) {
 	etContent := `# Unknown storage backend
 tmpfs=test.conf:terminator=EOF_CONF

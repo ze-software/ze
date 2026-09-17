@@ -2,23 +2,6 @@
 
 package filter_irr
 
-import (
-	"path/filepath"
-
-	"github.com/ze-software/ze/internal/core/paths"
-)
-
-// cacheStorePath returns the zefs file the shared PrefixStore persists to.
-// It is empty when no config dir is known, in which case persistence is a
-// no-op and the store works in memory only.
-func cacheStorePath() string {
-	configDir := paths.DefaultConfigDir()
-	if configDir == "" {
-		return ""
-	}
-	return filepath.Join(configDir, "database.zefs")
-}
-
 // loadFromStore applies cached prefix data from the shared PrefixStore to
 // enrolled ASNs that have no in-memory list yet. Entries the plugin never
 // enrolled (AS-SETs, other consumers' ASNs) are ignored -- this preserves the

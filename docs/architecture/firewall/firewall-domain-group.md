@@ -129,14 +129,15 @@ reaches because that leaf is an address and carries no port.
 
 | What | Where | Why |
 |------|-------|-----|
-| Last-good addresses | zefs, `meta/firewall/domain-group/{group}/{name}/{family}` | Small, bounded, per-group state that must survive a restart |
+| Last-good addresses | Managed store, `meta/firewall/domain-group/{group}/{name}/{family}` | Small, bounded, per-group state that must survive a restart |
 | Change log | `<config-dir>/firewall-domain-group.dns.jsonl` | Append-only and unbounded in shape |
 
-zefs has no append: `BlobStore.WriteFile` replaces a whole value, and a value
-that outgrows its capacity headroom forces a rewrite of the entire store through
-a temp file and a rename. A log that grows would pay that on every entry.
-`docs/architecture/zefs-format.md` already names `internal/core/audit` as a
-raw-filesystem exception for the same reason, and this log follows it.
+The cache sends state RPCs to the daemon's owned store after `OnStarted`.
+Each write replaces one complete value. The append-only change log uses a
+separate file so an added record does not rewrite all previous records.
+<!-- source: internal/component/firewall/plugins/domain/cache.go -- open, put -->
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- runFirewallDomain -->
+<!-- source: internal/component/firewall/plugins/domain/changelog.go -- append-only change log -->
 
 The log is NOT the operator audit log. That one records operator actions and is
 bounded by how often a person acts; a rotating name is neither, and sharing the
@@ -144,7 +145,7 @@ file would evict commit history to record DNS churn.
 
 ## What earns a write
 
-The steady state writes nothing. Three things earn a zefs write, and each is
+The steady state writes nothing. Three things cause a store write, and each is
 bounded:
 
 - **The addresses changed.** Once per actual move.

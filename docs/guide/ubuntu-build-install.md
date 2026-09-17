@@ -1,13 +1,13 @@
 # Build and install Ze on Ubuntu
 
-This page starts from a blank Ubuntu server and leaves you with an installed `ze` binary, a `database.zefs`, an SSH listener, a systemd service, and one place to add Ze features.
+This page starts from a blank Ubuntu server and leaves you with an installed `ze` binary, a private `database/` store, an SSH listener, a systemd service, and one place to add Ze features.
 
 The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` host. Replace `edge-01` and every password before running them on a real box.
 
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
-<!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 
@@ -98,9 +98,9 @@ sudo ./bin/ze install local --prefix /usr/local
 
 `/usr/local/bin/ze` uses `/etc/ze` as its config directory.
 
-## 4. Create `database.zefs`
+## 4. Create the live store
 
-`ze init` creates `/etc/ze/database.zefs`. It stores the bootstrap admin user, the SSH client defaults, and the instance name. The input lines are:
+`ze init` creates `/etc/ze/database/`. It stores the bootstrap admin user, the SSH client defaults, and the instance name. The input lines are:
 
 1. username
 2. password
@@ -111,16 +111,27 @@ sudo ./bin/ze install local --prefix /usr/local
 ```bash
 sudo install -d -m 0700 /etc/ze
 printf 'admin\nCHANGE_ME_BOOTSTRAP\n\n\nedge-01\n' | sudo /usr/local/bin/ze init
-sudo test -s /etc/ze/database.zefs
+sudo test -d /etc/ze/database
 ```
 
-This creates the zefs bootstrap admin. Keep it as a recovery user until you have tested the configured users below.
+This creates the bootstrap admin in an atomically published tree. Its directories
+are 0700 and files 0600. Both an existing tree and a `database.zefs` artifact
+refuse initialization; `ze init --force --yes` replaces an unowned store and
+retains a `.replaced-<stamp>` backup. Standalone import through `ze init from`
+is planned for storage-2. Keep the bootstrap admin as a recovery user until you
+have tested the configured users below.
+<!-- source: internal/plugins/init/main.go -- Run, runInit -->
 
-## 5. Create the first config in zefs
+## 5. Create the first stored config
 
-Keep the active configuration inside `database.zefs`. Do not create `/etc/ze/edge-01.conf` as a second source of truth. Build the candidate with set-format lines, render the import file, validate it, then load it into zefs with one `ze config import` command.
+Keep the active configuration inside `database/` for bare `ze start`. Do not
+create `/etc/ze/edge-01.conf` as a second source of truth in this workflow.
+An explicit `ze start <file>` has different semantics: that file is authoritative
+on every start, and daemon commits update it as well as stored history. Build the
+candidate with set-format lines, render the import file, validate it, then load
+it with one `ze config import` command.
 
-Hash the configured user passwords before writing the candidate. This keeps plaintext out of shell history, process arguments, and the zefs command history.
+Hash the configured user passwords before writing the candidate. This keeps plaintext out of shell history, process arguments, and stored command history.
 
 ```bash
 ADMIN_HASH="$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)"
@@ -161,7 +172,7 @@ Expected validation output:
 configuration valid: /tmp/tmp.XXXXXXXXXX
 ```
 
-The explicit `admin` user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining `admin` in config keeps the bootstrap name usable with an explicit `admin` profile. `ze start` reads the active `edge-01.conf` config from zefs.
+The explicit `admin` user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining `admin` in config keeps the bootstrap name usable with an explicit `admin` profile. Bare `ze start` reads the stored active `edge-01.conf`.
 
 ## 6. Install and start systemd
 
@@ -170,15 +181,25 @@ sudo /usr/local/bin/ze install systemd --start
 systemctl status ze.service --no-pager
 ```
 
-The generated unit starts `/usr/local/bin/ze start`, uses `/etc/ze` as `ZE_CONFIG_DIR`, and sets the runtime directory to `/run/ze`.
+The generated unit starts `/usr/local/bin/ze start`, uses `/etc/ze` as
+`ZE_CONFIG_DIR`, and sets the runtime directory to `/run/ze`. Installation
+transfers the complete tree and ownership lock to `ze` before service startup,
+and refuses if a daemon already owns it.
+<!-- source: internal/plugins/systemd/cmd_install.go -- serviceRuntime.cmdInstall, serviceRuntime.chownConfig -->
 
-For local operator commands from the shell, either run as root with the same config directory, or point the CLI at the systemd runtime socket:
+After transfer, even root cannot open the store through Ze. Local commands that
+use stored credentials run as the owner:
 
 ```bash
-export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze status
-/usr/local/bin/ze cli -c "help"
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze status
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze cli -c "help"
 ```
+
+Root still manages systemd and binary installation. Offline store maintenance
+requires stopping the daemon first and running the storage command as `ze`.
+Read-only credential lookup remains available while the daemon runs.
+<!-- source: internal/component/config/storage/open.go -- OpenReadOnly -->
+<!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 
 ## 7. Test SSH login and RBAC
 
@@ -205,7 +226,11 @@ There are two kinds of feature work.
 | Compiled service | Explicit Go build tags | `ze_lg` compiles the looking glass server |
 | Runtime feature | Config lines and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
 
-For normal installs, keep the default binary and add runtime features to the active zefs config. The feature pages use this pattern: read the current zefs entry, normalize it to set format, append set-format lines, render a checked import file, validate, import, and reload.
+For normal installs, keep the default binary and add runtime features to the
+stored config. The example below exports the current entry, renders and validates
+a candidate, then stops the owning daemon for an offline import as the store
+owner. The shell supplies the candidate through stdin so its temporary-file
+permissions do not need widening.
 
 ```bash
 set -euo pipefail
@@ -215,7 +240,7 @@ CONFIG_SET="$(mktemp)"
 CONFIG_IMPORT="$(mktemp)"
 trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
 cat >>"$CONFIG_SET" <<'EOF'
 set plugin internal bgp-rr use bgp-rr
@@ -223,8 +248,9 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
-sudo systemctl reload ze.service
+sudo systemctl stop ze.service
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config import --name edge-01.conf - < "$CONFIG_IMPORT"
+sudo systemctl start ze.service
 ```
 
 Use the pages below as feature-specific starting points:
@@ -244,4 +270,4 @@ sudo /usr/local/bin/ze uninstall systemd
 sudo /usr/local/bin/ze uninstall local
 ```
 
-Use `--purge` only when you want to remove `/etc/ze` and `database.zefs`.
+Use `--purge` only when you want to remove `/etc/ze` and its `database/` tree.

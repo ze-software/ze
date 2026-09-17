@@ -17,6 +17,7 @@ package doctor
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -70,9 +71,12 @@ func Run(args []string) int {
 }
 
 func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
-	store, storeDiags := resolveStorageWithDiag()
+	store, storeDiags := resolveStorageWithDiag(configPath)
 	diags = append(diags, storeDiags...)
 	defer func() {
+		if store == nil {
+			return
+		}
 		if err := store.Close(); err != nil {
 			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
@@ -85,7 +89,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 
 	platform, platformDiags := resolveDoctorPlatform()
 	diags = append(diags, platformDiags...)
-	baseCtx := doctorCheckContext{Store: store, Platform: platform}
+	baseCtx := doctorCheckContext{Store: store, ConfigDir: resolve.StoreDir(configPath), Platform: platform}
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePreConfig, baseCtx)...)
 
 	configData, configName, err := loadDoctorConfig(store, configPath)
@@ -123,17 +127,23 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	return diags
 }
 
-func resolveStorageWithDiag() (storage.Storage, []diagnostic.Diagnostic) {
-	s, err := resolve.Storage()
-	if err != nil {
-		var tb textbuf.Buffer
-		return s, []diagnostic.Diagnostic{{
-			Code:     "doctor-storage-unavailable",
-			Severity: diagnostic.SeverityWarning,
-			Message:  tb.Str("blob storage: ").Err(err).String(),
-		}}
+func resolveStorageWithDiag(configPath string) (storage.Storage, []diagnostic.Diagnostic) {
+	s, err := storage.OpenReadOnly(resolve.StoreDir(configPath))
+	if err == nil {
+		return s, nil
 	}
-	return s, nil
+	code := "doctor-storage-unavailable"
+	severity := diagnostic.SeverityError
+	if errors.Is(err, storage.ErrNoStore) {
+		severity = diagnostic.SeverityWarning
+	}
+	if errors.Is(err, storage.ErrPermissions) {
+		code = diagnostic.CodeDoctorStorePermissions
+	}
+	return nil, []diagnostic.Diagnostic{{
+		Code: code, Severity: severity, Message: err.Error(),
+		Path: resolve.StoreDir(configPath),
+	}}
 }
 
 // loadDoctorConfig returns the config bytes for the doctor check: from configPath
@@ -147,6 +157,9 @@ func loadDoctorConfig(store storage.Storage, configPath string) ([]byte, string,
 			return nil, "", fmt.Errorf("config file: %w", err)
 		}
 		return data, configPath, nil
+	}
+	if store == nil {
+		return nil, "", errors.New("config storage unavailable; run ze init or name a config file")
 	}
 
 	configName := resolve.DefaultConfig(store)

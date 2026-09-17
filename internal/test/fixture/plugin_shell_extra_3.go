@@ -12,7 +12,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -20,6 +19,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	sshclient "github.com/ze-software/ze/internal/core/ssh/client"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -76,14 +76,16 @@ func delayedDaemonStopExtra3(delay time.Duration) Driver {
 
 func writeGRMarkerExtra3(timestamp int64) Driver {
 	return func(_ context.Context, _ []string) error {
-		if err := os.MkdirAll(filepath.Join("meta", "bgp"), 0o750); err != nil {
-			return fmt.Errorf("create marker directory: %w", err)
+		store, err := storage.Create(".")
+		if err != nil {
+			return fmt.Errorf("create marker store: %w", err)
 		}
+		defer store.Close() //nolint:errcheck // fixture cleanup
 		marker := []byte{
 			byte(timestamp >> 56), byte(timestamp >> 48), byte(timestamp >> 40), byte(timestamp >> 32),
 			byte(timestamp >> 24), byte(timestamp >> 16), byte(timestamp >> 8), byte(timestamp),
 		}
-		if err := os.WriteFile(filepath.Join("meta", "bgp", "gr-marker"), marker, 0o600); err != nil {
+		if err := store.WriteKey("meta/bgp/gr-marker", marker); err != nil {
 			return fmt.Errorf("write GR marker: %w", err)
 		}
 		return nil

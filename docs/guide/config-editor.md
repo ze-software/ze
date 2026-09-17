@@ -10,7 +10,12 @@ ze config edit                      # Edit default config
 ze config edit myconfig.conf        # Edit specific file
 ```
 
-The editor starts an ephemeral ze instance in the background for live YANG validation and completion suggestions.
+Stored editing runs inside the owning daemon over an SSH terminal session. When
+no daemon answers, the editor starts an ephemeral daemon and connects to it.
+Once connected, the local process holds no writable store handle. Terminal
+resizing and input travel over the SSH PTY, and the daemon persists drafts and
+command history.
+<!-- source: internal/core/ssh/client/terminal.go -- RunInteractive -->
 
 Three more surfaces reach the same editor against a running daemon. An SSH
 session opens in configuration mode. The web interface gives each authenticated
@@ -60,12 +65,9 @@ apply here without becoming operational pipe operators.
 `show | changes` and `show | compare` include the draft's structural operations,
 not only its leaf values. A deleted list entry, a deleted container, a deleted
 list, a `rename`, an `insert` at a position, and a `deactivate` or `activate` are
-recorded in the per-user change file rather than in the value tree. On a
-blob-backed store these were invisible: the diff the operator reviewed read empty
-while the operation still applied at commit, so ze accepted an action and did
-something else. Both surfaces now read the same change file whichever backend
-holds it.
-<!-- source: internal/component/config/storage/blob.go -- resolveDirKey, blobStorage.List -->
+recorded in the per-user change file rather than in the value tree. The tree
+store exposes those change files to both display surfaces, so the reviewed diff
+includes the operations that commit will apply.
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
 
@@ -124,14 +126,46 @@ need on-disk revision history that a piped config does not have.
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
 <!-- source: internal/component/cli/editor.go -- NewEditorFromContent, SetStdoutSink -->
 
+`validate`, `show`, and a diff between two explicit paths read those paths
+without opening a store. Equal filenames in different folders remain separate
+inputs. An offline `set` writes the supplied file and records its previous
+content only when that folder already holds a store. Without one it prints
+`no version recorded`; it does not create a store. `history`, numbered `diff`,
+and `rollback` require the folder's history and name `ze init` when it is absent.
+An offline writer refuses while the daemon owns that store.
+<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
+
+`ze config import --dir <folder> <file>...` selects a destination independently
+of its input files. Without `--dir`, the destination follows `ze.config.dir`
+and then the default config folder. `--name` supplies the destination name for
+one input, including stdin. Duplicate basenames and existing destination names
+are refused before any input is written.
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
+
 ## Editing Modes
 
-The editor operates in one of two modes depending on the storage backend.
-<!-- source: internal/component/config/cli/cmd_edit.go -- runEditor, storage.IsBlobStorage -->
+The selected source determines the editor's mode.
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage, runEditor, runStoredEditor -->
 
-**File mode** (`ze config edit -f` or when no zefs database exists): the editor works directly on a config file. `commit` writes the full configuration tree to disk. All operations (set, delete, load) modify the in-memory tree and the commit serializes the result. This is the simplest path: no change tracking, no conflict detection, no draft files.
+**File mode** (`ze config edit -f <file>`): the editor reads and writes the
+explicit loose file. It keeps its `.edit` recovery file alongside it, and
+records rollback versions in an existing store. A file changed externally
+since it was opened causes commit to fail rather than overwrite the edit.
+`-f` cannot be combined with `--web` or `--insecure-web`; use session mode
+without `-f` to serve the web editor from the owning daemon.
 
-**Session mode** (zefs blob store): each editing session gets an identity (`user@origin%timestamp`) and a per-user change file that records every edit with metadata (who, when, previous value). `commit` applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the [concurrent editing](../research/comparison/freertr/23-concurrent-editing.md) reference for the full protocol.
+**Session mode** (`ze config edit`, SSH, web, or the attached console): the
+owning daemon gives each session an identity (`user@origin%timestamp`) and a
+per-user change file. Commit applies the session's changes with conflict
+detection. The same store holds draft recovery and history for every surface.
+
+When the daemon was started with an explicit file, every start reads that
+file, and daemon commits update it together with stored history. An external
+edit must be reconciled before a competing daemon commit can succeed. Bare
+`ze start` takes its active configuration from the store.
+<!-- source: internal/component/cli/editor.go -- NewLooseFileEditor, NewEditorWithStorage -->
+<!-- source: internal/component/cli/editor_commands.go -- Save -->
 
 Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
 
@@ -156,13 +190,13 @@ leaf-list member rather than a leaf or a path.
 
 Use file mode (`ze config edit -f`) for these operations.
 
-| Feature | File mode | Session mode (zefs) |
-|---------|-----------|-------------------|
-| Commit | Writes full tree | Applies tracked changes |
-| Multi-user | No | Yes (per-user change files) |
-| Conflict detection | No | Live and stale |
+| Feature | File mode | Session mode |
+|---------|-----------|--------------|
+| Commit | Writes explicit file | Applies tracked changes in the owning daemon |
+| Multi-user | Offline writer only | Per-user change files |
+| Conflict detection | External file changes | Live and stale changes |
 | Blame / authorship | No | Yes |
-| Crash recovery | `.edit` file | Change files + draft |
+| Crash recovery | `.edit` file | Change files and draft |
 | Draft / discard path | No | Yes |
 
 ## YANG Completion

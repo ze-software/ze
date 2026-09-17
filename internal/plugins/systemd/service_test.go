@@ -13,7 +13,7 @@ import (
 
 func TestServiceInstallGeneratesUnit(t *testing.T) {
 	// VALIDATES: AC-1 ze install systemd writes the unit and enables ze.service.
-	// VALIDATES: AC-9/AC-11 install creates ze account and chowns config dir/database.zefs.
+	// VALIDATES: AC-9/AC-11 install creates ze account and chowns config dir/database.
 	// PREVENTS: wiring the CLI to a partial installer that never reaches systemd or ownership setup.
 	fake := newFakeServiceOps()
 	rt, stdout, stderr := newTestRuntime(fake)
@@ -32,10 +32,7 @@ func TestServiceInstallGeneratesUnit(t *testing.T) {
 		"systemctl daemon-reload",
 		"systemctl enable ze.service",
 	)
-	assertCalls(t, fake.chownCalls,
-		"/etc/ze ze:ze",
-		"/etc/ze/database.zefs ze:ze",
-	)
+	assertCalls(t, fake.chownCalls, "/etc/ze ze:ze")
 	assertContains(t, stderr.String(), "/run/ze/ze.socket")
 	if stdout.Len() != 0 {
 		t.Fatalf("install wrote unexpected stdout: %q", stdout.String())
@@ -188,7 +185,7 @@ func TestServiceInstallCustomConfig(t *testing.T) {
 	// PREVENTS: enabling a service pointed at the wrong database directory.
 	fake := newFakeServiceOps()
 	fake.files["/custom/path"] = ""
-	fake.files["/custom/path/database.zefs"] = "zefs"
+	fake.files["/custom/path/database"] = "zefs"
 	rt, _, stderr := newTestRuntime(fake)
 
 	code := rt.cmdInstall([]string{"--config", "/custom/path"})
@@ -225,10 +222,10 @@ func TestServiceInstallExistingUnitRequiresForce(t *testing.T) {
 }
 
 func TestUnitFilePrerequisite(t *testing.T) {
-	// VALIDATES: AC-12 install refuses when ze init has not created database.zefs.
+	// VALIDATES: AC-12 install refuses when ze init has not created database.
 	// PREVENTS: enabling a daemon that cannot start because the database is absent.
 	fake := newFakeServiceOps()
-	delete(fake.files, "/etc/ze/database.zefs")
+	delete(fake.files, "/etc/ze/database")
 	rt, _, stderr := newTestRuntime(fake)
 
 	code := rt.cmdInstall(nil)
@@ -355,6 +352,7 @@ type fakeServiceOps struct {
 	chownCalls       []string
 	activeConfigData [][]byte
 	activeConfigErr  error
+	transferErr      error
 }
 
 func newFakeServiceOps() *fakeServiceOps {
@@ -363,9 +361,9 @@ func newFakeServiceOps() *fakeServiceOps {
 		root:           true,
 		executablePath: "/usr/local/bin/ze",
 		files: map[string]string{
-			"/etc/ze":               "",
-			"/etc/ze/database.zefs": "zefs",
-			"/usr/sbin/nologin":     "",
+			"/etc/ze":           "",
+			"/etc/ze/database":  "zefs",
+			"/usr/sbin/nologin": "",
 		},
 		lookPaths: map[string]string{
 			"systemctl": "/bin/systemctl",
@@ -444,9 +442,9 @@ func (f *fakeServiceOps) output(name string, args ...string) ([]byte, error) {
 	return nil, errors.New("not found")
 }
 
-func (f *fakeServiceOps) chown(path, user, group string) error {
+func (f *fakeServiceOps) transferOwnership(path, user, group string) error {
 	f.chownCalls = append(f.chownCalls, path+" "+user+":"+group)
-	return nil
+	return f.transferErr
 }
 
 func (f *fakeServiceOps) activeConfigs(string) ([][]byte, error) {
@@ -467,6 +465,24 @@ func assertCalls(t *testing.T, got []string, wants ...string) {
 	for _, want := range wants {
 		if !slices.Contains(got, want) {
 			t.Fatalf("missing call %q in %#v", want, got)
+		}
+	}
+}
+
+// A busy store refuses installation before any unit or service startup is published.
+func TestServiceInstallRefusesOwnedStore(t *testing.T) {
+	fake := newFakeServiceOps()
+	fake.transferErr = errors.New("store /etc/ze is owned by a running daemon")
+	rt, _, stderr := newTestRuntime(fake)
+	if code := rt.cmdInstall([]string{"--start"}); code != exitError {
+		t.Fatalf("install on owned store = %d, stderr=%s", code, stderr.String())
+	}
+	if _, exists := fake.files[defaultUnitPath]; exists {
+		t.Fatal("busy store published a service unit")
+	}
+	for _, call := range fake.runCalls {
+		if strings.HasPrefix(call, "systemctl ") {
+			t.Fatalf("busy store performed service action %q", call)
 		}
 	}
 }

@@ -97,11 +97,9 @@ func runManagedCATrustScenario(ctx context.Context, scenario string, pluginPort,
 	if err != nil {
 		return err
 	}
-	// The hub is stopped while its store is written, then started again. Two
-	// processes writing one blob replace each other's state (pkg/zefs takes no
-	// file lock), and the restart is worth having anyway: the leaf the client
-	// validates below is issued AFTER the root was exported, which is the whole
-	// point of trusting an issuer.
+	// Offline imports run only while the hub has released its owning handle.
+	// Restart also proves that the exported root validates a leaf issued after
+	// export, rather than pinning the earlier leaf.
 	if err := caTrustImportConfig(ctx, hub, "client-"+caTrustClientName+".conf",
 		caTrustClientConfig(managedPort, caTrustServedRouterID, string(hub.rootPEM))); err != nil {
 		return err
@@ -157,12 +155,12 @@ type caTrustDaemon struct {
 // export command, and stops the daemon again. The returned hub is NOT running.
 func prepareCATrustHub(ctx context.Context, base string, pluginPort, managedPort int) (*caTrustDaemon, error) {
 	dir := filepath.Join(base, "hub")
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	hub := &caTrustDaemon{
 		dir:    dir,
-		dbPath: filepath.Join(dir, "database.zefs"),
+		dbPath: filepath.Join(dir, "database"),
 		env: miscEnvironment(map[string]string{
 			envConfigDir:   dir,
 			envNoColor:     "1",
@@ -205,12 +203,12 @@ func prepareCATrustHub(ctx context.Context, base string, pluginPort, managedPort
 // given anchor, then starts it.
 func startCATrustClient(ctx context.Context, base string, managedPort int, anchorPEM []byte) (*caTrustDaemon, error) {
 	dir := filepath.Join(base, "client")
-	if err := os.MkdirAll(dir, 0o750); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	client := &caTrustDaemon{
 		dir:    dir,
-		dbPath: filepath.Join(dir, "database.zefs"),
+		dbPath: filepath.Join(dir, "database"),
 		// ZE_MANAGED_TLS_INSECURE is deliberately ABSENT. Setting it would make
 		// every scenario here pass against any certificate at all.
 		env: miscEnvironment(map[string]string{
@@ -257,7 +255,7 @@ func caTrustStart(ctx context.Context, daemon *caTrustDaemon) error {
 func caTrustReap(command *exec.Cmd, done chan<- error) { done <- command.Wait() }
 
 // caTrustImportConfig writes one config file and imports it into the daemon's
-// blob store, where `file/active/<name>` is what both daemons read.
+// tree store while it is stopped. Both daemons read `file/active/<name>`.
 func caTrustImportConfig(ctx context.Context, daemon *caTrustDaemon, name, body string) error {
 	path := filepath.Join(daemon.dir, name)
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
@@ -268,7 +266,7 @@ func caTrustImportConfig(ctx context.Context, daemon *caTrustDaemon, name, body 
 }
 
 // caTrustRequireFetch waits for the client's active config to become the one the
-// hub serves. The active blob is the verdict: it changes only after the client
+// hub serves. The active store is the verdict: it changes only after the client
 // completed the TLS handshake, authenticated, fetched, and committed.
 func caTrustRequireFetch(ctx context.Context, client *caTrustDaemon) error {
 	if caTrustPollActive(ctx, client, caTrustServedRouterID, 300) {
@@ -307,7 +305,8 @@ func caTrustPollActive(ctx context.Context, client *caTrustDaemon, routerID stri
 	})
 }
 
-// caTrustActiveConfig reads the client's committed config out of its own store.
+// caTrustActiveConfig uses ze data's read-only tree access while the client owns
+// the writer handle. Reading never opens a second writable handle.
 func caTrustActiveConfig(ctx context.Context, client *caTrustDaemon) (string, error) {
 	data, err := managedRunCommand(ctx, client.env, client.dir, "",
 		"data", "--path", client.dbPath, "cat", "file/active/"+caTrustClientName+".conf")

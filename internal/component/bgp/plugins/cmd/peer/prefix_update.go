@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/component/resolve/peeringdb"
+	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -73,7 +74,7 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		}, errNoPeersMatched
 	}
 
-	ed, err := cli.NewEditor(configPath)
+	ed, err := cli.NewEditorWithStorage(statestore.Store(), configPath)
 	if err != nil {
 		var tb textbuf.Buffer
 		return &plugin.Response{

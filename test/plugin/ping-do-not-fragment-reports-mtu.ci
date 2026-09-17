@@ -23,7 +23,6 @@
 # fixture removes the namespaces when the daemon exits, whatever its exit code.
 
 option=needs-linux:caps=net-admin,net-raw
-option=env:var=ze.storage.blob:value=false
 
 tmpfs=probe.conf:terminator=EOF_CONF
 plugin {

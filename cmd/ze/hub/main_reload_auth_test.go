@@ -305,7 +305,7 @@ func TestRunReloadInvalidAPIListenClearsCandidate(t *testing.T) {
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "router.conf")
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte("candidate"), mustParseReloadStamp(t, "20260817-120000.000"))
 	require.NoError(t, err)
 	load := func() (map[string]any, *zeconfig.Tree, error) {
@@ -553,7 +553,7 @@ func TestRunReloadListenerRollbackFailureStaysFailClosed(t *testing.T) {
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "router.conf")
-	baseStore := storage.NewFilesystem()
+	baseStore := newTestStore(t, dir)
 	_, err := storage.WriteCandidateVersion(baseStore, configPath, []byte("candidate"), mustParseReloadStamp(t, "20260817-100000.000"))
 	require.NoError(t, err)
 	load := func() (map[string]any, *zeconfig.Tree, error) {
@@ -690,7 +690,7 @@ func TestReloadHashesPlaintextPassword(t *testing.T) {
 	t.Cleanup(func() { _ = zepki.Load(nil) })
 
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestFileStore(t, filepath.Join(dir, "router.conf"))
 	configPath := filepath.Join(dir, "router.conf")
 	config := `system {
 	authentication {

@@ -1,449 +1,154 @@
-// Design: docs/architecture/zefs-format.md -- blob storage implementation
-// Overview: storage.go -- Storage interface and filesystem implementation
-
+// Design: docs/architecture/storage-backends.md -- explicit artifact boundary.
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
-	"sync"
-	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// fileMeta tracks per-key modification metadata for blob storage.
-// All sessions are in-process (SSH-only interface), so in-memory tracking
-// is sufficient. The mtime is set automatically on every WriteFile.
-type fileMeta struct {
-	modTime    time.Time
-	modifiedBy string
-}
-
-// blobStorage wraps a zefs BlobStore for config file I/O.
-// All paths are absolute filesystem paths; the leading "/" is stripped to form blob keys.
-type blobStorage struct {
-	store    *zefs.BlobStore
-	blobPath string
-	mu       sync.RWMutex         // protects metas + writeObserver
-	metas    map[string]*fileMeta // per-key metadata
-	// writeObserver, when set, is called after every successful WriteFile with the
-	// RESOLVED key. Used by the managed-config server to push config-changed when a
-	// per-client config blob is written. Set via SetWriteObserver; nil = no observer.
-	writeObserver func(key string)
-}
-
-// NewBlob returns a Storage backed by a zefs blob store at blobPath.
-// If the blob does not exist, it is created and existing config files are migrated.
-// If the blob exists but is unreadable (a truncated or corrupt store, e.g. a
-// 0-byte file left by an interrupted or concurrent write), it is moved aside to
-// <path>.replaced-<date> and recreated rather than failing forever, so a corrupt
-// store self-heals instead of wedging storage on every startup.
-// If creation fails, returns an error (caller decides whether to fall back to filesystem).
-func NewBlob(blobPath, configDir string) (Storage, error) {
-	var store *zefs.BlobStore
-	var err error
-
-	if _, statErr := os.Stat(blobPath); statErr != nil {
-		// No blob yet: create it and migrate any on-disk config files in.
-		store, err = zefs.Create(blobPath)
-		if err == nil {
-			migrateExistingFiles(store, configDir)
-		}
-	} else if store, err = zefs.Open(blobPath); err != nil {
-		// The blob exists but will not open. A present-but-empty file used to
-		// pick this Open path and fail permanently (zefs.Open on a 0-byte file
-		// returns "mmap: empty file"), because the Open-vs-Create choice keyed on
-		// existence, not validity. Preserve the bad file for post-mortem (matching
-		// `ze init --force`'s .replaced-<date> backup) and recreate in its place.
-		slog.Warn("storage: existing blob unreadable, recreating", "path", blobPath, "error", err)
-		dest, aside := zefs.MoveAside(blobPath)
-		if aside != nil {
-			return nil, fmt.Errorf("storage: blob %s: %w", blobPath, aside)
-		}
-		slog.Warn("storage: moved unreadable blob aside", "from", blobPath, "to", dest)
-		store, err = zefs.Create(blobPath)
-		if err == nil {
-			migrateExistingFiles(store, configDir)
-		}
-	}
-	if err != nil {
-		return nil, fmt.Errorf("storage: blob %s: %w", blobPath, err)
-	}
-
-	return &blobStorage{
-		store:    store,
-		blobPath: blobPath,
-		metas:    make(map[string]*fileMeta),
-	}, nil
-}
-
-// Rename renames a blob key. Reads old data, writes to new key, removes old.
-func (s *blobStorage) Rename(oldName, newName string) error {
-	oldKey := resolveKey(oldName)
-	newKey := resolveKey(newName)
-	data, err := s.store.ReadFile(oldKey)
-	if err != nil {
-		return fmt.Errorf("storage: rename read %s: %w", oldKey, err)
-	}
-	if err := s.store.WriteFile(newKey, data, 0); err != nil {
-		return fmt.Errorf("storage: rename write %s: %w", newKey, err)
-	}
-	if err := s.store.Remove(oldKey); err != nil {
-		return fmt.Errorf("storage: rename remove %s: %w", oldKey, err)
-	}
-	// Transfer metadata from old key to new key.
-	s.mu.Lock()
-	if m := s.metas[oldKey]; m != nil {
-		s.metas[newKey] = m
-		delete(s.metas, oldKey)
-	}
-	s.mu.Unlock()
-	return nil
-}
-
-// Close closes the underlying blob store.
-func (s *blobStorage) Close() error {
-	return s.store.Close()
-}
-
-func (s *blobStorage) ReadFile(name string) ([]byte, error) {
-	return s.store.ReadFile(resolveKey(name))
-}
-
-func (s *blobStorage) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	key := resolveKey(name)
-	if err := s.store.WriteFile(key, data, 0); err != nil {
-		return err
-	}
-	// Auto-track mtime on every write.
-	s.mu.Lock()
-	if s.metas[key] == nil {
-		s.metas[key] = &fileMeta{}
-	}
-	s.metas[key].modTime = time.Now()
-	obs := s.writeObserver
-	s.mu.Unlock()
-	// Notify outside the lock: the observer may do network I/O (config-changed push)
-	// or re-enter storage, and must never block or deadlock the write path.
-	if obs != nil {
-		obs(key)
-	}
-	return nil
-}
-
-// SetWriteObserver registers fn to be called after every successful WriteFile with
-// the resolved blob key. It affects only blob-backed storage; on filesystem storage
-// it is a no-op and returns false. Set once at startup before writes begin.
-func SetWriteObserver(s Storage, fn func(key string)) bool {
-	bs, ok := s.(*blobStorage)
-	if !ok {
-		return false
-	}
-	bs.mu.Lock()
-	bs.writeObserver = fn
-	bs.mu.Unlock()
-	return true
-}
-
-func (s *blobStorage) Remove(name string) error {
-	key := resolveKey(name)
-	s.mu.Lock()
-	delete(s.metas, key)
-	s.mu.Unlock()
-	return s.store.Remove(key)
-}
-
-func (s *blobStorage) Exists(name string) bool {
-	return s.store.Has(resolveKey(name))
-}
-
-// Stat returns per-key metadata tracked in memory.
-// ModTime is set automatically on every WriteFile.
-// ModifiedBy is set via SetModifier on the WriteGuard.
-func (s *blobStorage) Stat(name string) (FileMeta, error) {
-	key := resolveKey(name)
-	if !s.store.Has(key) {
-		return FileMeta{}, fmt.Errorf("storage: blob key not found: %s", key)
-	}
-	s.mu.RLock()
-	m := s.metas[key]
-	s.mu.RUnlock()
-	if m == nil {
-		// File exists but no metadata tracked (e.g., loaded from disk before any write).
-		return FileMeta{}, nil
-	}
-	return FileMeta{ModTime: m.modTime, ModifiedBy: m.modifiedBy}, nil
-}
-
-func (s *blobStorage) List(prefix string) ([]string, error) {
-	key := resolveDirKey(prefix)
-	// Use ReadDir for immediate children only (matches filesystem semantics)
-	entries, err := s.store.ReadDir(key)
+// OpenBlob opens an explicitly named artifact; it never detects a live backend.
+// Writable artifacts take a stable sibling lock. Caller MUST Close the result.
+func OpenBlob(path string, writable bool) (Storage, error) {
+	dir, name, err := splitStorePath(path)
 	if err != nil {
 		return nil, err
 	}
-
-	result := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if !e.IsDir() {
-			// Return full blob key (including namespace prefix).
-			// Callers can pass these directly to ReadFile/Remove
-			// because resolveKey is idempotent for namespaced keys.
-			result = append(result, filepath.Join(key, e.Name()))
-		}
-	}
-	return result, nil
-}
-
-func (s *blobStorage) WriteVersion(name string, data []byte, stamp time.Time) error {
-	basename := resolvePathToKey(name)
-	stampStr := FormatVersionStamp(stamp)
-	key := zefs.KeyFileVersion.Key(stampStr, basename)
-	if err := s.store.WriteFile(key, data, 0); err != nil {
-		return err
-	}
-	s.mu.Lock()
-	if s.metas[key] == nil {
-		s.metas[key] = &fileMeta{}
-	}
-	s.metas[key].modTime = stamp
-	s.mu.Unlock()
-	return nil
-}
-
-func (s *blobStorage) ListVersions(name string) ([]VersionInfo, error) {
-	basename := resolvePathToKey(name)
-
-	entries, err := s.store.ReadDir("file")
+	folder, err := openFolder(dir)
 	if err != nil {
-		return nil, nil //nolint:nilerr // no "file" directory means no versions
+		return nil, err
 	}
-
-	reserved := map[string]bool{"active": true, "draft": true, "template": true}
-	var versions []VersionInfo
-
-	for _, entry := range entries {
-		if !entry.IsDir() || reserved[entry.Name()] {
-			continue
-		}
-		stamp := entry.Name()
-		date, parseErr := ParseVersionStamp(stamp)
-		if parseErr != nil {
-			continue
-		}
-		key := zefs.KeyFileVersion.Key(stamp, basename)
-		if !s.store.Has(key) {
-			continue
-		}
-		versions = append(versions, VersionInfo{
-			Stamp: stamp,
-			Date:  date,
-			Path:  key,
-		})
-	}
-
-	sort.Slice(versions, func(i, j int) bool {
-		return versions[i].Date.After(versions[j].Date)
-	})
-
-	return versions, nil
-}
-
-func (s *blobStorage) AcquireLock(_ string) (WriteGuard, error) {
-	wl, err := s.store.Lock()
+	defer folder.Close() //nolint:errcheck // read descriptor.
+	path = filepath.Join(folder.Name(), name)
+	file, err := openNode(folder, name, false)
 	if err != nil {
-		return nil, fmt.Errorf("storage: blob lock: %w", err)
+		return nil, err
 	}
-	return &blobGuard{wl: wl, parent: s}, nil
-}
-
-// blobGuard wraps a zefs WriteLock as a WriteGuard.
-// Lock ordering: WriteLock is acquired first (via AcquireLock), then parent.mu
-// for metadata updates in WriteFile/Remove. Nothing acquires them in reverse.
-type blobGuard struct {
-	wl       *zefs.WriteLock
-	parent   *blobStorage
-	modifier string // session ID set via SetModifier
-}
-
-func (g *blobGuard) ReadFile(name string) ([]byte, error) {
-	return g.wl.ReadFile(resolveKey(name))
-}
-
-func (g *blobGuard) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	key := resolveKey(name)
-	if err := g.wl.WriteFile(key, data, 0); err != nil {
-		return err
+	if err := file.Close(); err != nil {
+		return nil, err
 	}
-	// Auto-track mtime + modifier on every guarded write.
-	g.parent.mu.Lock()
-	if g.parent.metas[key] == nil {
-		g.parent.metas[key] = &fileMeta{}
+	mode := unix.LOCK_SH
+	if writable {
+		mode = unix.LOCK_EX
 	}
-	g.parent.metas[key].modTime = time.Now()
-	g.parent.metas[key].modifiedBy = g.modifier
-	g.parent.mu.Unlock()
-	return nil
-}
-
-func (g *blobGuard) Remove(name string) error {
-	key := resolveKey(name)
-	g.parent.mu.Lock()
-	delete(g.parent.metas, key)
-	g.parent.mu.Unlock()
-	return g.wl.Remove(key)
-}
-
-// Has reports existence through the held WriteLock. WriteLock.Has reads the
-// in-memory tree without re-acquiring the store mutex, so it is safe to call
-// while the guard holds the exclusive lock (unlike blobStorage.Exists, which
-// re-locks and would deadlock).
-func (g *blobGuard) Has(name string) bool {
-	return g.wl.Has(resolveKey(name))
-}
-
-func (g *blobGuard) Release() error {
-	return g.wl.Release()
-}
-
-func (g *blobGuard) SetModifier(sessionID string) {
-	g.modifier = sessionID
-}
-
-func (g *blobGuard) WriteVersion(name string, data []byte, stamp time.Time) error {
-	basename := resolvePathToKey(name)
-	stampStr := FormatVersionStamp(stamp)
-	key := zefs.KeyFileVersion.Key(stampStr, basename)
-	if err := g.wl.WriteFile(key, data, 0); err != nil {
-		return err
-	}
-	g.parent.mu.Lock()
-	if g.parent.metas[key] == nil {
-		g.parent.metas[key] = &fileMeta{}
-	}
-	g.parent.metas[key].modTime = stamp
-	g.parent.metas[key].modifiedBy = g.modifier
-	g.parent.mu.Unlock()
-	return nil
-}
-
-// pathToKey converts an absolute filesystem path to a blob key
-// by stripping the leading "/".
-func pathToKey(path string) string {
-	return strings.TrimPrefix(path, "/")
-}
-
-// isNamespaced returns true if the key already has a meta/ or file/ namespace prefix.
-func isNamespaced(key string) bool {
-	return strings.HasPrefix(key, "file/") || strings.HasPrefix(key, "meta/")
-}
-
-// resolveKey converts a path to a blob FILE key. Idempotent: already-namespaced
-// keys pass through unchanged. A filesystem path keeps only its base filename
-// and gets the file/active/ prefix, so "/etc/ze/router.conf" and "router.conf"
-// both resolve to "file/active/router.conf". Use resolveDirKey for a List
-// prefix, which names a directory rather than a file.
-//
-// NOTE: Keys starting with "meta/" or "file/" pass through unchanged.
-// This means Storage callers passing namespaced keys (e.g., from List results)
-// can read/write them without double-prefixing. It also means a caller
-// passing "meta/ssh/password" as a name accesses the raw meta key.
-func resolveKey(name string) string {
-	trimmed := pathToKey(name)
-	if isNamespaced(trimmed) {
-		return trimmed
-	}
-
-	key := resolvePathToKey(name)
-
-	return zefs.KeyFileActive.Key(key)
-}
-
-// resolvePathToKey resolves a filesystem path to a bare key (no namespace
-// prefix). The blob is flat inside each namespace, so the directory part of a
-// path is dropped and only the base filename becomes the key: both
-// "/etc/ze/laptop.conf" and "laptop.conf" resolve to "laptop.conf".
-func resolvePathToKey(name string) string {
-	return filepath.Base(name)
-}
-
-// resolveDirKey converts a List prefix to a blob DIRECTORY key.
-// An already-namespaced prefix ("file/active", "meta/ssh") names a directory in
-// the blob and passes through unchanged. Every other prefix is a filesystem
-// directory, and resolveKey writes every file under such a directory to
-// file/active/<basename>, so file/active is the directory that holds them.
-//
-// resolveKey cannot serve this: it builds a FILE key, so it reduces a directory
-// prefix to its last path component and looks that up under file/active. ReadDir
-// answers such a key with fs.ErrNotExist, which reads back as "no files".
-func resolveDirKey(prefix string) string {
-	trimmed := pathToKey(prefix)
-	if isNamespaced(trimmed) {
-		return trimmed
-	}
-	return zefs.KeyFileActive.Dir()
-}
-
-// migrateExistingFiles imports config files from configDir into a newly created blob.
-func migrateExistingFiles(store *zefs.BlobStore, configDir string) {
-	if configDir == "" {
-		return
-	}
-
-	wl, err := store.Lock()
+	owner, err := lockStoreFile(folder, filepath.Base(path)+".lock", mode)
 	if err != nil {
-		slog.Warn("storage: migration lock failed", "error", err)
-		return
+		return nil, err
 	}
-
-	imported := 0
-	patterns := []string{
-		filepath.Join(configDir, "*.conf"),
-		filepath.Join(configDir, "*.conf.draft"),
-		filepath.Join(configDir, "rollback", "*.conf"),
-		filepath.Join(configDir, "ssh_host_*"),
-	}
-
-	for _, pattern := range patterns {
-		matches, globErr := filepath.Glob(pattern)
-		if globErr != nil {
-			continue
+	blob, err := zefs.Open(path)
+	if err != nil {
+		if owner != nil {
+			owner.Close()
 		}
-		for _, path := range matches {
-			abs, absErr := filepath.Abs(path)
-			if absErr != nil {
-				continue
-			}
-			key := zefs.KeyFileActive.Key(filepath.Base(abs))
-			if wl.Has(key) {
-				continue // idempotent: skip if already in blob
-			}
-			data, readErr := os.ReadFile(abs) //nolint:gosec // migrating user's config files
-			if readErr != nil {
-				slog.Warn("storage: migration read failed", "path", abs, "error", readErr)
-				continue
-			}
-			if writeErr := wl.WriteFile(key, data, 0); writeErr != nil {
-				slog.Warn("storage: migration write failed", "key", key, "error", writeErr)
-				continue
-			}
-			slog.Info("storage: migrated", "key", key, "bytes", len(data))
-			imported++
+		return nil, err
+	} //nolint:errcheck // original artifact error.
+	return newStore(nil, blob, owner, !writable), nil
+}
+
+// CreateBlob creates an empty explicit artifact without replacing an existing
+// file. Caller MUST Close the returned handle.
+func CreateBlob(path string) (Storage, error) {
+	return CreateBlobPopulated(path, func(Storage) error { return nil }, false)
+}
+
+// CreateBlobPopulated publishes a completely seeded artifact. Replacement keeps
+// a .replaced-<stamp> backup. Caller MUST Close the returned handle.
+func CreateBlobPopulated(path string, populate func(Storage) error, replace bool) (Storage, error) {
+	dir, name, err := splitStorePath(path)
+	if err != nil {
+		return nil, err
+	}
+	folder, err := ensureFolder(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer folder.Close() //nolint:errcheck // publication sync checked explicitly.
+	path = filepath.Join(folder.Name(), name)
+	if filepath.Base(path) == "database.zefs" {
+		liveOwner, err := lockOwner(folder, "database.lock")
+		if err != nil {
+			return nil, err
+		}
+		defer liveOwner.Close() //nolint:errcheck // releases publication ownership.
+		tree := filepath.Join(folder.Name(), "database")
+		if _, err := os.Lstat(tree); err == nil {
+			return nil, fmt.Errorf("live database already exists: %s: %w", tree, fs.ErrExist)
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
 		}
 	}
-
-	if err := wl.Release(); err != nil {
-		slog.Warn("storage: migration flush failed", "error", err)
-		return
+	owner, err := lockOwner(folder, filepath.Base(path)+".lock")
+	if err != nil {
+		return nil, err
 	}
-
-	if imported > 0 {
-		slog.Info("storage: migration complete", "files", imported)
+	result, err := populateBlob(folder, owner, filepath.Base(path), populate, replace)
+	if err != nil {
+		owner.Close()
+	} //nolint:errcheck // preserve operation error.
+	return result, err
+}
+func populateBlob(folder, owner *os.File, name string, populate func(Storage) error, replace bool) (Storage, error) {
+	path := filepath.Join(folder.Name(), name)
+	if replace {
+		existing, err := openNode(folder, name, false)
+		if err == nil {
+			if err := existing.Close(); err != nil {
+				return nil, err
+			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
 	}
+	if !replace {
+		if _, err := os.Lstat(path); err == nil {
+			return nil, fmt.Errorf("database already exists: %s: %w", path, fs.ErrExist)
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	}
+	stage, err := os.CreateTemp(folder.Name(), ".ze-blob-*")
+	if err != nil {
+		return nil, err
+	}
+	if err := stage.Close(); err != nil {
+		return nil, err
+	}
+	defer os.Remove(stage.Name()) //nolint:errcheck // private artifact staging.
+	blob, err := zefs.Create(stage.Name())
+	if err != nil {
+		return nil, err
+	}
+	seed := newStore(nil, blob, nil, false)
+	if err := populate(seed); err != nil {
+		return nil, errors.Join(err, seed.Close())
+	}
+	if err := seed.Close(); err != nil {
+		return nil, err
+	}
+	if replace {
+		if _, err := os.Lstat(path); err == nil {
+			if _, err := moveAside(folder, name); err != nil {
+				return nil, err
+			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	}
+	if err := renameNoReplace(folder, filepath.Base(stage.Name()), name); err != nil {
+		return nil, err
+	}
+	if err := folder.Sync(); err != nil {
+		return nil, err
+	}
+	blob, err = zefs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	return newStore(nil, blob, owner, false), nil
 }

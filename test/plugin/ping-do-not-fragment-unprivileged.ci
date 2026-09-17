@@ -19,7 +19,6 @@
 # for the markers as the privileged test: QEMU guest as root.
 
 option=needs-linux:caps=net-admin,net-raw
-option=env:var=ze.storage.blob:value=false
 
 tmpfs=probe.conf:terminator=EOF_CONF
 plugin {

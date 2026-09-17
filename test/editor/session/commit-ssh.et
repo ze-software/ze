@@ -25,7 +25,7 @@ input=type:text=set bgp session asn local 65001
 input=enter
 expect=dirty:true
 expect=error:none
-expect=file:path=test.conf.change.alice:contains=#alice @ssh
+expect=key:path=file/active/test.conf.change.alice:contains=#alice @ssh
 
 # Commit the change
 input=type:text=commit
@@ -35,6 +35,6 @@ expect=error:none
 expect=status:contains=committed
 
 # Verify committed config changed and per-session draft state was removed
-expect=file:path=test.conf:contains=65001
-expect=file:path=test.conf.change.alice:absent
-expect=file:path=test.conf.draft:absent
+expect=key:path=file/active/test.conf:contains=65001
+expect=key:path=file/active/test.conf.change.alice:absent
+expect=key:path=file/active/test.conf.draft:absent

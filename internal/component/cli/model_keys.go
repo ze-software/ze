@@ -72,7 +72,7 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.confirmQuit = false
 				m.confirmExitConfig = false
 				m.textInput.SetValue("")
-				m.switchMode(ModeOperational)
+				m.SetMode(ModeOperational)
 				m.updateCompletions()
 				return m, nil
 			}
@@ -489,7 +489,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.textInput.SetValue("")
-		m.switchMode(ModeConfig)
+		m.SetMode(ModeConfig)
 		m.updateCompletions()
 		return m, nil
 	}
@@ -501,7 +501,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 	if m.mode == ModeOperational && isConfigCommand(input) && !isOperationalVerb(input) {
 		if m.hasEditor() {
-			m.switchMode(ModeConfig)
+			m.SetMode(ModeConfig)
 			// Fall through to normal dispatch -- history/clear happens below,
 			// executeCommand runs with the switched mode.
 		} else {
@@ -524,7 +524,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.textInput.SetValue("")
-			m.switchMode(ModeOperational)
+			m.SetMode(ModeOperational)
 			m.updateCompletions()
 			return m, nil
 		}

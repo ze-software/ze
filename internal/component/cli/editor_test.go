@@ -2,10 +2,10 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +17,19 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/storage"
 )
+
+// newTestTreeStore seeds one real store owned by this test. Editors sharing a
+// config MUST receive this same handle; cleanup closes it after their cleanup.
+func newTestTreeStore(t *testing.T, configPath string) storage.Storage {
+	t.Helper()
+	content, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	store, err := storage.Create(filepath.Dir(configPath))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
+	require.NoError(t, store.WriteFile(configPath, content, 0o600))
+	return store
+}
 
 func TestNewEditor(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -30,7 +43,7 @@ local-as 65000
 	require.NoError(t, err)
 
 	// Create editor
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -39,7 +52,7 @@ local-as 65000
 }
 
 func TestEditorLoadNonExistent(t *testing.T) {
-	_, err := NewEditor("/nonexistent/path/config.conf")
+	_, err := NewLooseFileEditor(nil, "/nonexistent/path/config.conf")
 	require.Error(t, err)
 }
 
@@ -54,7 +67,7 @@ local-as 65000
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(initial), 0o600))
 
-	fromPath, err := NewEditor(configPath)
+	fromPath, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer fromPath.Close() //nolint:errcheck,gosec // best effort
 
@@ -88,7 +101,7 @@ func TestEditorStdoutSink(t *testing.T) {
 	tmpDir := t.TempDir()
 	p := filepath.Join(tmpDir, "c.conf")
 	require.NoError(t, os.WriteFile(p, []byte(content), 0o600))
-	ed2, err := NewEditor(p)
+	ed2, err := NewLooseFileEditor(nil, p)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // best effort
 	ed2.MarkDirty()
@@ -109,7 +122,8 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor and modify
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -126,14 +140,14 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	assert.Len(t, backups, 1)
 
 	// Verify backup contains original content
-	backupData, err := os.ReadFile(backups[0].Path)
+	backupData, err := store.ReadFile(backups[0].Path)
 	require.NoError(t, err)
 	assert.Equal(t, initial, string(backupData))
 }
 
-// TestEditorBackupInRollbackDir verifies backups are stored in rollback/ subdirectory.
+// TestEditorBackupInRollbackDir verifies backups stay out of the active config namespace.
 //
-// VALIDATES: Backups are created in <dir>/rollback/ (Junos-style).
+// VALIDATES: History occupies version keys, not the loose config directory.
 // PREVENTS: Backups polluting the config directory root.
 func TestEditorBackupInRollbackDir(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -142,7 +156,8 @@ func TestEditorBackupInRollbackDir(t *testing.T) {
 	err := os.WriteFile(configPath, []byte("router-id 1.2.3.4;"), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -150,18 +165,24 @@ func TestEditorBackupInRollbackDir(t *testing.T) {
 	_, err = ed.Save()
 	require.NoError(t, err)
 
-	// Verify rollback/ directory was created
-	rollbackDir := filepath.Join(tmpDir, "rollback")
-	info, err := os.Stat(rollbackDir)
-	require.NoError(t, err, "rollback/ directory should exist")
-	assert.True(t, info.IsDir(), "rollback/ should be a directory")
+	// The loose directory holds no backup files.
+	entries, err := os.ReadDir(tmpDir)
+	require.NoError(t, err)
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), ".conf") {
+			assert.Equal(t, "test.conf", entry.Name())
+		}
+	}
 
-	// Verify backup is inside rollback/
+	// The backup is a version key, never an active config key.
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
 	require.Len(t, backups, 1)
-	assert.True(t, strings.HasPrefix(backups[0].Path, rollbackDir),
-		"backup path %s should be under rollback/", backups[0].Path)
+	assert.True(t, strings.HasPrefix(backups[0].Path, "file/"))
+	assert.False(t, strings.HasPrefix(backups[0].Path, "file/active/"))
+	data, err := store.ReadFile(backups[0].Path)
+	require.NoError(t, err)
+	assert.Equal(t, "router-id 1.2.3.4;", string(data))
 }
 
 func TestEditorBackupNaming(t *testing.T) {
@@ -172,10 +193,13 @@ func TestEditorBackupNaming(t *testing.T) {
 	err := os.WriteFile(configPath, []byte("test"), 0o600)
 	require.NoError(t, err)
 
-	// Create multiple backups
-	for range 3 {
-		ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	// Create multiple backups at distinct timestamps across editor lifetimes.
+	stamp := time.Now().Truncate(time.Millisecond)
+	for i := range 3 {
+		ed, err := NewLooseFileEditor(store, configPath)
 		require.NoError(t, err)
+		ed.now = func() time.Time { return stamp.Add(time.Duration(i) * time.Millisecond) }
 		ed.MarkDirty()
 		_, err = ed.Save()
 		require.NoError(t, err)
@@ -183,7 +207,7 @@ func TestEditorBackupNaming(t *testing.T) {
 	}
 
 	// Check backup naming
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -193,7 +217,7 @@ func TestEditorBackupNaming(t *testing.T) {
 
 	today := time.Now().Format("20060102")
 
-	// Backups should be named: myconfig-YYYYMMDD-HHMMSS.conf
+	// Version keys contain the timestamp and retain the config basename.
 	for i, b := range backups {
 		assert.True(t, strings.Contains(b.Path, today),
 			"backup %d should contain today's date: %s", i, b.Path)
@@ -214,7 +238,7 @@ func TestEditorDiscard(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -238,7 +262,8 @@ func TestEditorRollback(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create first backup
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	ed.MarkDirty()
 	_, err = ed.Save()
@@ -251,7 +276,7 @@ func TestEditorRollback(t *testing.T) {
 	require.NoError(t, err)
 
 	// Rollback to first backup
-	ed, err = NewEditor(configPath)
+	ed, err = NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -273,7 +298,7 @@ func TestEditorRollback(t *testing.T) {
 	require.Len(t, backups, 2, "rollback should create a backup of the current config before restoring")
 
 	// The newest backup (index 0) should contain version2
-	backupData, err := os.ReadFile(backups[0].Path) //nolint:gosec // Test path
+	backupData, err := store.ReadFile(backups[0].Path) //nolint:gosec // Test path
 	require.NoError(t, err)
 	assert.Equal(t, version2, string(backupData), "pre-rollback backup should preserve the overwritten config")
 }
@@ -344,9 +369,9 @@ func TestAtomicWriteFileNoTempFileLeftBehind(t *testing.T) {
 	}
 }
 
-// TestListBackupsSkipsMalformedFiles verifies junk files in rollback/ are ignored.
+// TestListBackupsSkipsMalformedFiles verifies malformed version keys are ignored.
 //
-// VALIDATES: Non-matching files in rollback/ don't appear in backup list.
+// VALIDATES: Invalid version stamps and other config names stay out of the backup list.
 // PREVENTS: Panic or incorrect entries from malformed filenames.
 func TestListBackupsSkipsMalformedFiles(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -354,19 +379,15 @@ func TestListBackupsSkipsMalformedFiles(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(configPath, []byte("content"), 0o600))
 
-	// Create rollback dir with junk + one valid backup
-	rollbackDir := filepath.Join(tmpDir, "rollback")
-	require.NoError(t, os.MkdirAll(rollbackDir, 0o700))
+	store := newTestTreeStore(t, configPath)
+	// Malformed version stamps and other config names must not become backups.
+	require.NoError(t, store.WriteKey("file/notes/test.conf", []byte("junk")))
+	require.NoError(t, store.WriteKey("file/broken/test.conf", []byte("junk")))
+	require.NoError(t, store.WriteKey("file/99999999-999999.999/test.conf", []byte("junk")))
+	require.NoError(t, store.WriteKey("file/20260101-120000.000/other.conf", []byte("junk")))
+	require.NoError(t, store.WriteKey("file/20260101-120000.000/test.conf", []byte("backup")))
 
-	// Junk files
-	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "notes.txt"), []byte("junk"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "test-broken.conf"), []byte("junk"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "test-99999999-999999.999.conf"), []byte("junk"), 0o600))
-
-	// Valid backup
-	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "test-20260101-120000.000.conf"), []byte("backup"), 0o600))
-
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -383,7 +404,8 @@ func TestEditorListBackupsEmpty(t *testing.T) {
 	err := os.WriteFile(configPath, []byte("test"), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -402,7 +424,7 @@ local-as 65000
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -436,7 +458,7 @@ func TestEditFilePersistence(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 
 	// No edit file yet
@@ -481,7 +503,7 @@ func TestEditFileResume(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor - should detect and report edit file
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -512,7 +534,7 @@ func TestEditFileDeletedOnCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor and make changes
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 
 	ed.setWorkingContent(`router-id 2.2.2.2`)
@@ -550,7 +572,7 @@ func TestEditFileDeletedOnDiscard(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor and make changes
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 
 	ed.setWorkingContent(`router-id 2.2.2.2`)
@@ -588,7 +610,7 @@ func TestPendingEditTime(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor - no edit file yet
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 
 	// No pending edit, time should be zero
@@ -601,7 +623,7 @@ func TestPendingEditTime(t *testing.T) {
 
 	// Recreate editor to detect edit file
 	ed.Close() //nolint:errcheck,gosec // test cleanup: recreating editor below
-	ed, err = NewEditor(configPath)
+	ed, err = NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -635,7 +657,7 @@ peer-as 65001`
 	require.NoError(t, err)
 
 	// Create editor
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -660,7 +682,7 @@ func TestPendingEditDiffNoEditFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor - no edit file
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -686,7 +708,7 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create editor
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -732,11 +754,11 @@ func writeTestConfig(t *testing.T, content string) string {
 
 // TestEditorTreeValid verifies treeValid is set when config parses.
 //
-// VALIDATES: NewEditor sets treeValid=true and stores schema for valid configs.
+// VALIDATES: NewLooseFileEditor sets treeValid=true and stores schema for valid configs.
 // PREVENTS: Tree always invalid, falling back to raw text.
 func TestEditorTreeValid(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -751,7 +773,7 @@ func TestEditorTreeValid(t *testing.T) {
 // PREVENTS: Crash when opening garbled config files.
 func TestEditorTreeInvalidFallback(t *testing.T) {
 	configPath := writeTestConfig(t, `this is not { valid } config syntax !!!`)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -764,7 +786,7 @@ func TestEditorTreeInvalidFallback(t *testing.T) {
 // PREVENTS: Tree navigation returning nil for valid paths.
 func TestEditorTreeNavigation(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -783,7 +805,7 @@ func TestEditorTreeNavigation(t *testing.T) {
 // PREVENTS: List entries unreachable via tree navigation.
 func TestEditorTreeNavigationListKey(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -805,7 +827,7 @@ func TestEditorTreeNavigationListKey(t *testing.T) {
 // PREVENTS: Panic on invalid path navigation.
 func TestEditorTreeNavigationMissing(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -820,7 +842,7 @@ func TestEditorTreeNavigationMissing(t *testing.T) {
 // PREVENTS: Mutations silently lost, dirty flag not set.
 func TestEditorTreeSet(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -842,7 +864,7 @@ func TestEditorTreeSet(t *testing.T) {
 // PREVENTS: SetValue only updating existing keys, ignoring new ones.
 func TestEditorTreeSetNewKey(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -870,7 +892,7 @@ func TestEditorEnsureListEntry(t *testing.T) {
 }
 `
 	configPath := writeTestConfig(t, content)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -901,7 +923,7 @@ func TestEditorEnsureListEntry(t *testing.T) {
 // PREVENTS: Delete being a no-op stub.
 func TestEditorTreeDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -921,7 +943,7 @@ func TestEditorTreeDelete(t *testing.T) {
 // PREVENTS: Container deletion not working.
 func TestEditorTreeDeleteContainer(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -937,7 +959,7 @@ func TestEditorTreeDeleteContainer(t *testing.T) {
 // PREVENTS: List entry deletion not working.
 func TestEditorTreeDeleteListEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -954,7 +976,7 @@ func TestEditorTreeDeleteListEntry(t *testing.T) {
 // PREVENTS: delete bgp peer 1.1.1.1 failing because WalkPath can't resolve list paths.
 func TestEditorDeleteByPathListEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -970,7 +992,7 @@ func TestEditorDeleteByPathListEntry(t *testing.T) {
 // PREVENTS: Leaf deletion broken by schema-aware path logic.
 func TestEditorDeleteByPathLeaf(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -990,7 +1012,7 @@ func TestEditorDeleteByPathLeaf(t *testing.T) {
 // PREVENTS: Container deletion broken by schema-aware path logic.
 func TestEditorDeleteByPathContainer(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1006,7 +1028,7 @@ func TestEditorDeleteByPathContainer(t *testing.T) {
 // PREVENTS: Bug 21 -- delete of a whole list silently succeeds but removes nothing.
 func TestEditorDeleteByPathList(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1026,7 +1048,7 @@ func TestEditorDeleteByPathList(t *testing.T) {
 // PREVENTS: WorkingContent returning stale raw text after tree mutation.
 func TestEditorContentAfterSet(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1044,7 +1066,7 @@ func TestEditorContentAfterSet(t *testing.T) {
 // PREVENTS: Serialization losing or corrupting data.
 func TestEditorSerializeRoundtrip(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1076,7 +1098,7 @@ func TestEditorSerializeRoundtrip(t *testing.T) {
 // PREVENTS: Save writing outdated workingContent after tree mutations.
 func TestEditorSaveSerialized(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1101,7 +1123,7 @@ func TestEditorSaveSerialized(t *testing.T) {
 // PREVENTS: Discard leaving tree in mutated state.
 func TestEditorDiscardReparse(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1128,7 +1150,7 @@ func TestEditorDiscardReparse(t *testing.T) {
 // PREVENTS: SetWorkingContent leaving tree stale after text-based load.
 func TestEditorSetWorkingContentParse(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
@@ -1158,7 +1180,7 @@ func TestDirtyFalseAfterDiscard(t *testing.T) {
 	err := os.WriteFile(configPath, []byte("bgp { router-id 1.2.3.4; }"), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1239,7 +1261,8 @@ func TestSerializationRoundTrip(t *testing.T) {
 func TestEditorWriteThrough(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1253,7 +1276,7 @@ func TestEditorWriteThrough(t *testing.T) {
 
 	// Change file should exist (not draft — draft is only created by SaveDraft).
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err, "change file should exist after write-through")
 
 	changeContent := string(changeData)
@@ -1283,7 +1306,8 @@ func TestEditorWriteThrough(t *testing.T) {
 func TestEditorWriteThroughDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1296,7 +1320,7 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 
 	// Change file should exist (not draft — draft is only created by SaveDraft).
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err, "change file should exist after write-through delete")
 
 	changeContent := string(changeData)
@@ -1328,7 +1352,8 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 func TestEditorWriteThroughRenameListEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1341,7 +1366,7 @@ func TestEditorWriteThroughRenameListEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err)
 
 	changeTree, changeMeta, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed.schema))
@@ -1387,7 +1412,8 @@ func TestEditorWriteThroughRenameListEntry(t *testing.T) {
 func TestEditorWriteThroughRenameChainCoalesced(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1399,7 +1425,7 @@ func TestEditorWriteThroughRenameChainCoalesced(t *testing.T) {
 	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer2", "peer3")
 	require.NoError(t, err)
 
-	changeData, err := os.ReadFile(ChangePath(configPath, session.User))
+	changeData, err := store.ReadFile(ChangePath(configPath, session.User))
 	require.NoError(t, err)
 	_, _, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed.schema))
 	require.NoError(t, err)
@@ -1412,7 +1438,8 @@ func TestEditorWriteThroughRenameChainCoalesced(t *testing.T) {
 func TestSaveDraftAppliesRenameListEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1424,7 +1451,7 @@ func TestSaveDraftAppliesRenameListEntry(t *testing.T) {
 	err = ed.SaveDraft()
 	require.NoError(t, err)
 
-	draftData, err := os.ReadFile(DraftPath(configPath))
+	draftData, err := store.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
 	draftContent := string(draftData)
 	assert.NotContains(t, draftContent, " rename ")
@@ -1439,7 +1466,8 @@ func TestSaveDraftAppliesRenameListEntry(t *testing.T) {
 func TestEditorWriteThroughRenameListEntryWithPendingLeafEdits(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1454,7 +1482,7 @@ func TestEditorWriteThroughRenameListEntryWithPendingLeafEdits(t *testing.T) {
 	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "renamed")
 	require.NoError(t, err)
 
-	changeData, err := os.ReadFile(ChangePath(configPath, session.User))
+	changeData, err := store.ReadFile(ChangePath(configPath, session.User))
 	require.NoError(t, err)
 	content := string(changeData)
 
@@ -1479,7 +1507,8 @@ func TestEditorWriteThroughRenameListEntryWithPendingLeafEdits(t *testing.T) {
 func TestEditorRenameListEntryRejectsLiveConflict(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 	oldSession := NewEditSession("alice", "ssh")
@@ -1487,7 +1516,7 @@ func TestEditorRenameListEntryRejectsLiveConflict(t *testing.T) {
 	err = ed1.SetValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote", "65009")
 	require.NoError(t, err)
 
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 	newSession := NewEditSession("bob", "local")
@@ -1497,8 +1526,8 @@ func TestEditorRenameListEntryRejectsLiveConflict(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pending change conflict")
 
-	_, statErr := os.Stat(ChangePath(configPath, newSession.User))
-	assert.True(t, os.IsNotExist(statErr), "failed rename should not create a change file")
+	_, statErr := store.Stat(ChangePath(configPath, newSession.User))
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "failed rename should not create a change file")
 
 	bgp := ed2.tree.GetContainer("bgp")
 	require.NotNil(t, bgp)
@@ -1513,7 +1542,8 @@ func TestEditorRenameListEntryRejectsLiveConflict(t *testing.T) {
 func TestEditorRenameListEntryRejectsSavedDraftConflict(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 	oldSession := NewEditSession("alice", "ssh")
@@ -1523,7 +1553,7 @@ func TestEditorRenameListEntryRejectsSavedDraftConflict(t *testing.T) {
 	err = ed1.SaveDraft()
 	require.NoError(t, err)
 
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 	newSession := NewEditSession("bob", "local")
@@ -1548,7 +1578,8 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Create first editor session and make a change.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1559,7 +1590,7 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create second editor session and make a different change.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1571,13 +1602,13 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 
 	// Read alice's change file.
 	aliceChangePath := ChangePath(configPath, "alice")
-	aliceData, err := os.ReadFile(aliceChangePath)
+	aliceData, err := store.ReadFile(aliceChangePath)
 	require.NoError(t, err, "alice's change file should exist")
 	aliceContent := string(aliceData)
 
 	// Read thomas's change file.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	thomasData, err := os.ReadFile(thomasChangePath)
+	thomasData, err := store.ReadFile(thomasChangePath)
 	require.NoError(t, err, "thomas's change file should exist")
 	thomasContent := string(thomasData)
 
@@ -1599,7 +1630,8 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 func TestEditorWriteThroughPrevious(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1612,7 +1644,7 @@ func TestEditorWriteThroughPrevious(t *testing.T) {
 
 	// Read the change file and parse to check Previous.
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err)
 
 	// Parse change file to extract metadata.
@@ -1639,7 +1671,8 @@ func TestEditorWriteThroughPrevious(t *testing.T) {
 func TestEditorWriteThroughListEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1652,7 +1685,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 
 	// Change file should exist with metadata for the list entry leaf.
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err, "change file should exist after write-through")
 
 	changeContent := string(changeData)
@@ -1694,6 +1727,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 // PREVENTS: File corruption from overlapping writes.
 func TestEditorConcurrentWrite(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
+	store := newTestTreeStore(t, configPath)
 
 	const goroutines = 4
 	const writesPerGoroutine = 5
@@ -1710,7 +1744,7 @@ func TestEditorConcurrentWrite(t *testing.T) {
 	for i := range goroutines {
 		go func(idx int) {
 			defer wg.Done()
-			ed, edErr := NewEditor(configPath)
+			ed, edErr := NewEditorWithStorage(store, configPath)
 			if edErr != nil {
 				errCh <- edErr
 				return
@@ -1741,7 +1775,7 @@ func TestEditorConcurrentWrite(t *testing.T) {
 	parser := config.NewSetParser(schema)
 	for i := range goroutines {
 		changePath := ChangePath(configPath, fmt.Sprintf("user%d", i))
-		changeData, err := os.ReadFile(changePath)
+		changeData, err := store.ReadFile(changePath)
 		require.NoError(t, err, "change file for user%d should exist", i)
 		_, _, parseErr := parser.ParseWithMeta(string(changeData))
 		assert.NoError(t, parseErr, "change file for user%d should parse without errors", i)
@@ -1755,7 +1789,8 @@ func TestEditorConcurrentWrite(t *testing.T) {
 func TestEditorCommitSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1773,7 +1808,7 @@ func TestEditorCommitSession(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// Config.conf should contain the new value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "5.6.7.8", "config should have committed value")
 
@@ -1783,8 +1818,8 @@ func TestEditorCommitSession(t *testing.T) {
 
 	// Draft file should be deleted (no other sessions).
 	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after commit with no other sessions")
+	_, err = store.Stat(draftPath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "draft should be deleted after commit with no other sessions")
 }
 
 // TestEditorConflictConvergentDelete verifies no false positive when both sessions
@@ -1796,7 +1831,8 @@ func TestEditorConflictConvergentDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 2 deletes router-id first (creates draft with Previous="1.2.3.4").
-	ed2, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1806,7 +1842,7 @@ func TestEditorConflictConvergentDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 1 also deletes router-id (both sessions have pending deletes).
-	ed1, err := NewEditor(configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1837,7 +1873,8 @@ func TestEditorConflictDeleteVsSet(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session A deletes local-as.
-	edA, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	edA, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edA.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1847,7 +1884,7 @@ func TestEditorConflictDeleteVsSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session B sets local-as to a different value.
-	edB, err := NewEditor(configPath)
+	edB, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edB.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1882,7 +1919,8 @@ func TestEditorConflictSetVsDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session A sets local-as to a new value.
-	edA, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	edA, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edA.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1892,7 +1930,7 @@ func TestEditorConflictSetVsDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session B deletes local-as.
-	edB, err := NewEditor(configPath)
+	edB, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edB.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1925,7 +1963,8 @@ func TestEditorConflictSetVsDelete(t *testing.T) {
 func TestEditorConflictStale(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1938,7 +1977,7 @@ func TestEditorConflictStale(t *testing.T) {
 
 	// Simulate another commit by modifying config.conf directly.
 	modifiedConfig := strings.Replace(validBGPConfig, "1.2.3.4", "9.9.9.9", 1)
-	err = os.WriteFile(configPath, []byte(modifiedConfig), 0o600)
+	err = store.WriteFile(configPath, []byte(modifiedConfig), 0o600)
 	require.NoError(t, err)
 
 	// Commit should detect stale conflict.
@@ -1967,7 +2006,8 @@ func TestEditorConflictLive(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id to 10.0.0.1.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -1977,7 +2017,7 @@ func TestEditorConflictLive(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes router-id to 10.0.0.2 (different value, same path).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2010,7 +2050,8 @@ func TestEditorConflictAgreement(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id to 10.0.0.1.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2020,7 +2061,7 @@ func TestEditorConflictAgreement(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes router-id to the SAME value.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2043,7 +2084,8 @@ func TestEditorConflictAgreement(t *testing.T) {
 func TestEditorDiscardAll(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2062,8 +2104,8 @@ func TestEditorDiscardAll(t *testing.T) {
 
 	// Draft should be deleted (no other sessions).
 	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after discard all")
+	_, err = store.Stat(draftPath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "draft should be deleted after discard all")
 
 	// In-memory tree should reflect original values.
 	bgpTree := ed.tree.GetContainer("bgp")
@@ -2089,7 +2131,8 @@ func TestEditorDiscardPreservesOtherSessions(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 makes a change.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2099,7 +2142,7 @@ func TestEditorDiscardPreservesOtherSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 makes a change and then discards.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2114,12 +2157,12 @@ func TestEditorDiscardPreservesOtherSessions(t *testing.T) {
 
 	// Thomas's change file should be deleted.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	_, statErr := os.Stat(thomasChangePath)
-	assert.True(t, os.IsNotExist(statErr), "thomas's change file should be deleted after discard")
+	_, statErr := store.Stat(thomasChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "thomas's change file should be deleted after discard")
 
 	// Alice's change file should still exist with her changes.
 	aliceChangePath := ChangePath(configPath, "alice")
-	changeData, err := os.ReadFile(aliceChangePath)
+	changeData, err := store.ReadFile(aliceChangePath)
 	require.NoError(t, err, "alice's change file should exist with her changes")
 
 	changeContent := string(changeData)
@@ -2136,7 +2179,8 @@ func TestEditorConflictBlocksEntireCommit(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2146,7 +2190,7 @@ func TestEditorConflictBlocksEntireCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes router-id (conflict) AND local-as (no conflict).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2164,7 +2208,7 @@ func TestEditorConflictBlocksEntireCommit(t *testing.T) {
 	assert.Equal(t, 0, result.Applied, "no changes should be applied when conflicts exist")
 
 	// Verify config.conf is unchanged.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.NotContains(t, string(configData), "65002", "local as should not be in config.conf")
 }
@@ -2177,7 +2221,8 @@ func TestEditorConflictResetAfterSet(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Read original router-id from config.
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2189,10 +2234,10 @@ func TestEditorConflictResetAfterSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Externally modify config.conf (simulating another user's commit).
-	origData, err := os.ReadFile(configPath)
+	origData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	newData := strings.Replace(string(origData), "1.2.3.4", "9.9.9.9", 1)
-	err = os.WriteFile(configPath, []byte(newData), 0o644)
+	err = store.WriteFile(configPath, []byte(newData), 0o644)
 	require.NoError(t, err)
 
 	// Re-set: Previous should now reflect 9.9.9.9.
@@ -2213,7 +2258,8 @@ func TestEditorConflictResetAfterSet(t *testing.T) {
 func TestEditorDiscardNewlyAdded(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2226,7 +2272,7 @@ func TestEditorDiscardNewlyAdded(t *testing.T) {
 
 	// Verify it's in the change file.
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err)
 	assert.Contains(t, string(changeData), "65001")
 
@@ -2235,8 +2281,8 @@ func TestEditorDiscardNewlyAdded(t *testing.T) {
 	require.NoError(t, err)
 
 	// Change file should be deleted (no remaining entries).
-	_, err = os.Stat(changePath)
-	assert.True(t, os.IsNotExist(err), "change file should be deleted after discarding only session")
+	_, err = store.Stat(changePath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "change file should be deleted after discarding only session")
 }
 
 // TestEditorBlameView verifies blame-annotated output includes user and timestamp.
@@ -2246,7 +2292,8 @@ func TestEditorDiscardNewlyAdded(t *testing.T) {
 func TestEditorBlameView(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2268,7 +2315,8 @@ func TestEditorSessionChanges(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2278,7 +2326,7 @@ func TestEditorSessionChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes local-as.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2304,7 +2352,8 @@ func TestEditorSessionChanges(t *testing.T) {
 func TestEditorActiveSessions(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2313,7 +2362,7 @@ func TestEditorActiveSessions(t *testing.T) {
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err)
 
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2334,7 +2383,8 @@ func TestEditorDisconnectSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2344,7 +2394,7 @@ func TestEditorDisconnectSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes local-as.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2359,12 +2409,12 @@ func TestEditorDisconnectSession(t *testing.T) {
 
 	// Alice's change file should be deleted.
 	aliceChangePath := ChangePath(configPath, "alice")
-	_, statErr := os.Stat(aliceChangePath)
-	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
+	_, statErr := store.Stat(aliceChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "alice's change file should be deleted after disconnect")
 
 	// Thomas's change file should still exist with his changes.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	changeData, err := os.ReadFile(thomasChangePath)
+	changeData, err := store.ReadFile(thomasChangePath)
 	require.NoError(t, err, "thomas's change file should survive")
 	changeContent := string(changeData)
 
@@ -2380,7 +2430,8 @@ func TestEditorDisconnectSession(t *testing.T) {
 func TestEditorSessionCommit(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2393,7 +2444,7 @@ func TestEditorSessionCommit(t *testing.T) {
 
 	// Change file should exist before commit.
 	changePath := ChangePath(configPath, session.User)
-	_, err = os.Stat(changePath)
+	_, err = store.Stat(changePath)
 	require.NoError(t, err, "change file should exist before commit")
 
 	// Commit (CommitSession calls SaveDraft internally, creating and then cleaning up the draft).
@@ -2403,15 +2454,15 @@ func TestEditorSessionCommit(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// config.conf should have the new value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "5.6.7.8", "committed value should be in config.conf")
 	assert.NotContains(t, string(configData), "1.2.3.4", "old value should be gone")
 
 	// Draft should be deleted (no other sessions).
 	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after sole session commits")
+	_, err = store.Stat(draftPath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "draft should be deleted after sole session commits")
 
 	// In-memory state should reflect committed.
 	assert.False(t, ed.Dirty())
@@ -2429,7 +2480,8 @@ func TestEditorSessionCommit(t *testing.T) {
 func TestEditorDiscardPath(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2448,7 +2500,7 @@ func TestEditorDiscardPath(t *testing.T) {
 
 	// Change file should still exist (local-as change remains).
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err)
 	changeContent := string(changeData)
 
@@ -2472,7 +2524,8 @@ func TestEditorDiscardPath(t *testing.T) {
 func TestEditorDiscardSubtree(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2491,8 +2544,8 @@ func TestEditorDiscardSubtree(t *testing.T) {
 
 	// Change file should be deleted (no remaining session entries).
 	changePath := ChangePath(configPath, session.User)
-	_, err = os.Stat(changePath)
-	assert.True(t, os.IsNotExist(err), "change file should be deleted after subtree discard removes all entries")
+	_, err = store.Stat(changePath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "change file should be deleted after subtree discard removes all entries")
 }
 
 // TestEditorDiscardBareRejected verifies that bare discard (no args) is rejected in session mode.
@@ -2502,7 +2555,8 @@ func TestEditorDiscardSubtree(t *testing.T) {
 func TestEditorDiscardBareRejected(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2528,7 +2582,8 @@ func TestEditorDiscardBareRejected(t *testing.T) {
 func TestEditorDiscardPathBoundary(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -2553,7 +2608,7 @@ func TestEditorDiscardPathBoundary(t *testing.T) {
 	// match "bgp router-id" (it wouldn't with the old code either, but exercises
 	// the boundary logic for space-separated YANG paths).
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err, "change file should still exist (router-id change remains)")
 
 	changeContent := string(changeData)
@@ -2570,7 +2625,8 @@ func TestHierarchicalToSetMigration(t *testing.T) {
 	// Write a hierarchical config (the legacy format).
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2588,7 +2644,7 @@ func TestHierarchicalToSetMigration(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// Read config.conf -- it should now be in set format, not hierarchical.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 
@@ -2608,7 +2664,8 @@ func TestHierarchicalToSetMigration(t *testing.T) {
 func TestWorkingContentSessionFormat(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2637,7 +2694,8 @@ func TestWorkingContentSessionFormat(t *testing.T) {
 func TestSaveGuardInSessionMode(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2662,7 +2720,7 @@ func TestSaveGuardInSessionMode(t *testing.T) {
 func TestSaveWorksWithoutSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2688,7 +2746,8 @@ func TestSaveWorksWithoutSession(t *testing.T) {
 func TestWorkingContentSessionNoChanges(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2711,7 +2770,8 @@ func TestWorkingContentSessionNoChanges(t *testing.T) {
 func TestEditorDeleteThenCommit(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2739,7 +2799,7 @@ func TestEditorDeleteThenCommit(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// config.conf should NOT contain the deleted asn local value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	// The "session" container and "asn" container might still exist but without "local" leaf
@@ -2766,7 +2826,8 @@ func TestEditorDeleteThenCommit(t *testing.T) {
 func TestEditorConflictStaleNewValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2802,7 +2863,7 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 	}
 }
 `
-	err = os.WriteFile(configPath, []byte(modifiedConfig), 0o600)
+	err = store.WriteFile(configPath, []byte(modifiedConfig), 0o600)
 	require.NoError(t, err)
 
 	// Commit should detect stale conflict: Previous="" but committed="0.0.0.0:179".
@@ -2834,7 +2895,8 @@ func TestEditorDisconnectLastSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) makes a change.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2844,7 +2906,7 @@ func TestEditorDisconnectLastSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) has NO changes, just disconnects session 1.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2856,8 +2918,8 @@ func TestEditorDisconnectLastSession(t *testing.T) {
 
 	// Alice's change file should be deleted (disconnect removes it).
 	aliceChangePath := ChangePath(configPath, "alice")
-	_, err = os.Stat(aliceChangePath)
-	assert.True(t, os.IsNotExist(err), "alice's change file should be deleted after disconnect")
+	_, err = store.Stat(aliceChangePath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "alice's change file should be deleted after disconnect")
 
 	// In-memory tree should have committed value (alice's change was reverted).
 	bgpTree := ed2.tree.GetContainer("bgp")
@@ -2876,7 +2938,8 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2886,7 +2949,7 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes local-as.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2902,13 +2965,13 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// config.conf should have alice's committed value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "10.0.0.1", "alice's value should be committed")
 
 	// Thomas's change file should still exist with his pending changes.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	changeData, err := os.ReadFile(thomasChangePath)
+	changeData, err := store.ReadFile(thomasChangePath)
 	require.NoError(t, err, "thomas's change file should survive when other sessions remain")
 
 	changeContent := string(changeData)
@@ -2924,7 +2987,8 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 func TestEditorCommitNoChanges(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2949,7 +3013,8 @@ func TestEditorCommitAfterDisconnect(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) changes router-id to 10.0.0.1.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2959,7 +3024,7 @@ func TestEditorCommitAfterDisconnect(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) changes router-id to 10.0.0.2 (would be a live conflict).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2979,7 +3044,7 @@ func TestEditorCommitAfterDisconnect(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// config.conf should have thomas's value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "10.0.0.2", "thomas's value should be committed")
 	assert.NotContains(t, string(configData), "10.0.0.1", "alice's disconnected value should not appear")
@@ -2994,7 +3059,8 @@ func TestEditorDiscardAfterOtherCommit(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id and commits.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3004,7 +3070,7 @@ func TestEditorDiscardAfterOtherCommit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes local-as.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3047,7 +3113,8 @@ func TestEditorDiscardAfterOtherCommit(t *testing.T) {
 func TestEditorDisconnectNoDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3067,7 +3134,7 @@ func TestEditorDisconnectNoDraft(t *testing.T) {
 func TestCommitSessionNilSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3085,7 +3152,7 @@ func TestCommitSessionNilSession(t *testing.T) {
 func TestDiscardSessionPathNilSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3102,7 +3169,7 @@ func TestDiscardSessionPathNilSession(t *testing.T) {
 func TestDisconnectSessionNilSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3119,7 +3186,8 @@ func TestDisconnectSessionNilSession(t *testing.T) {
 func TestWriteThroughSetUnknownPath(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3133,8 +3201,8 @@ func TestWriteThroughSetUnknownPath(t *testing.T) {
 
 	// Draft should NOT be created (error before write).
 	draftPath := DraftPath(configPath)
-	_, statErr := os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(statErr), "draft should not exist after failed write-through")
+	_, statErr := store.Stat(draftPath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "draft should not exist after failed write-through")
 }
 
 // TestWriteThroughDeletePathNotFound verifies DeleteValue with session returns error for missing path.
@@ -3144,7 +3212,8 @@ func TestWriteThroughSetUnknownPath(t *testing.T) {
 func TestWriteThroughDeletePathNotFound(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3166,7 +3235,8 @@ func TestWriteThroughDeletePathNotFound(t *testing.T) {
 func TestDiscardPartialDirtyFlag(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3209,7 +3279,8 @@ func TestDiscardRestoresOtherSessionValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) changes router-id to 10.0.0.1.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3219,7 +3290,7 @@ func TestDiscardRestoresOtherSessionValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) changes same leaf to 10.0.0.2.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3235,12 +3306,12 @@ func TestDiscardRestoresOtherSessionValue(t *testing.T) {
 
 	// Thomas's change file should be deleted.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	_, statErr := os.Stat(thomasChangePath)
-	assert.True(t, os.IsNotExist(statErr), "thomas's change file should be deleted after discard")
+	_, statErr := store.Stat(thomasChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "thomas's change file should be deleted after discard")
 
 	// Alice's change file should still exist with her value.
 	aliceChangePath := ChangePath(configPath, "alice")
-	draftData, err := os.ReadFile(aliceChangePath)
+	draftData, err := store.ReadFile(aliceChangePath)
 	require.NoError(t, err, "alice's change file should exist with her changes")
 
 	changeContent := string(draftData)
@@ -3257,7 +3328,8 @@ func TestDisconnectRestoresOtherSessionValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) changes router-id to 10.0.0.1.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3267,7 +3339,7 @@ func TestDisconnectRestoresOtherSessionValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) changes same leaf to 10.0.0.2.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3283,12 +3355,12 @@ func TestDisconnectRestoresOtherSessionValue(t *testing.T) {
 
 	// Alice's change file should be gone.
 	aliceChangePath := ChangePath(configPath, "alice")
-	_, statErr := os.Stat(aliceChangePath)
-	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
+	_, statErr := store.Stat(aliceChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "alice's change file should be deleted after disconnect")
 
 	// Thomas's change file should still have his value.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	changeData, err := os.ReadFile(thomasChangePath)
+	changeData, err := store.ReadFile(thomasChangePath)
 	require.NoError(t, err, "thomas's change file should exist")
 
 	changeContent := string(changeData)
@@ -3308,7 +3380,8 @@ func TestStaleConflictNewValueBothAdded(t *testing.T) {
 
 	// Session adds "description my-router" via write-through. Previous="" because
 	// committed config has no description field at this point.
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3320,7 +3393,7 @@ func TestStaleConflictNewValueBothAdded(t *testing.T) {
 	// Simulate external commit: directly write config.conf with "description other-router".
 	// This bypasses write-through (another editor session committed externally).
 	externalConfig := "set bgp router-id 1.2.3.4\nset bgp session asn local 65000\nset bgp peer peer1 description other-router\nset bgp peer peer1 connection remote ip 1.1.1.1\nset bgp peer peer1 session asn remote 65001\nset bgp peer peer1 timer receive-hold-time 90\n"
-	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
+	err = store.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
 	// Thomas tries to commit: Previous="" (it was new when he edited),
@@ -3343,7 +3416,8 @@ func TestStaleConflictNewValueBothAdded(t *testing.T) {
 func TestDiscardFullCleansUpDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3355,7 +3429,7 @@ func TestDiscardFullCleansUpDraft(t *testing.T) {
 
 	// Verify change file exists before discard.
 	changePath := ChangePath(configPath, session.User)
-	_, err = os.Stat(changePath)
+	_, err = store.Stat(changePath)
 	require.NoError(t, err, "change file should exist before discard")
 
 	// Discard all changes.
@@ -3363,8 +3437,8 @@ func TestDiscardFullCleansUpDraft(t *testing.T) {
 	require.NoError(t, err)
 
 	// Change file should be gone.
-	_, err = os.Stat(changePath)
-	assert.True(t, os.IsNotExist(err), "change file should be deleted after full discard")
+	_, err = store.Stat(changePath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "change file should be deleted after full discard")
 
 	// Dirty should be false.
 	assert.False(t, ed.Dirty(), "should be clean after full discard")
@@ -3384,7 +3458,8 @@ func TestDiscardFullCleansUpDraft(t *testing.T) {
 func TestCommitSessionNoDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3408,7 +3483,8 @@ func TestCommitSessionNoDraft(t *testing.T) {
 func TestDiscardSessionNoDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3430,7 +3506,8 @@ func TestDiscardSessionNoDraft(t *testing.T) {
 func TestWriteThroughCorruptDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3439,7 +3516,7 @@ func TestWriteThroughCorruptDraft(t *testing.T) {
 
 	// Write a corrupt change file (invalid set format).
 	changePath := ChangePath(configPath, session.User)
-	err = os.WriteFile(changePath, []byte("this is not valid set format {{{{"), 0o600) //nolint:gosec // test file
+	err = store.WriteFile(changePath, []byte("this is not valid set format {{{{"), 0o600) //nolint:gosec // test file
 	require.NoError(t, err)
 
 	// Write-through set succeeds: corrupt change file is discarded and replaced.
@@ -3458,7 +3535,8 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) changes router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3468,7 +3546,7 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) changes local-as (stored in thomas's change file).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3494,7 +3572,7 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 
 	// Thomas's change file should still exist with his pending changes.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	changeData, readErr := os.ReadFile(thomasChangePath)
+	changeData, readErr := store.ReadFile(thomasChangePath)
 	require.NoError(t, readErr, "thomas's change file should survive after alice commits")
 	assert.Contains(t, string(changeData), "65001", "thomas's pending value should be in his change file")
 
@@ -3509,7 +3587,8 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 func TestSequentialCommits(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3527,7 +3606,7 @@ func TestSequentialCommits(t *testing.T) {
 	assert.False(t, ed.Dirty())
 
 	// Verify first commit: config.conf has the new value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "5.6.7.8")
 
@@ -3549,7 +3628,7 @@ func TestSequentialCommits(t *testing.T) {
 	assert.False(t, ed.Dirty())
 
 	// Verify second commit: both values should be in config.conf.
-	configData, err = os.ReadFile(configPath)
+	configData, err = store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "65002", "second commit value should be in config")
 	assert.Contains(t, string(configData), "5.6.7.8", "first commit value should still be present")
@@ -3557,8 +3636,8 @@ func TestSequentialCommits(t *testing.T) {
 
 	// Draft should not exist.
 	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after final commit")
+	_, err = store.Stat(draftPath)
+	assert.True(t, errors.Is(err, os.ErrNotExist), "draft should be deleted after final commit")
 }
 
 // TestWriteThroughPreviousTracksCommits verifies that after a commit, the next
@@ -3569,7 +3648,8 @@ func TestSequentialCommits(t *testing.T) {
 func TestWriteThroughPreviousTracksCommits(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3591,7 +3671,7 @@ func TestWriteThroughPreviousTracksCommits(t *testing.T) {
 	// The change file should now record Previous=5.6.7.8 (from the committed config),
 	// NOT Previous=1.2.3.4 (the original before the first commit).
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err)
 
 	changeContent := string(changeData)
@@ -3608,7 +3688,8 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) adds "listen" -- a leaf not in committed config.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3618,7 +3699,7 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) also makes a change (so draft survives disconnect).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3633,12 +3714,12 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 
 	// Alice's change file should be deleted.
 	aliceChangePath := ChangePath(configPath, "alice")
-	_, statErr := os.Stat(aliceChangePath)
-	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
+	_, statErr := store.Stat(aliceChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "alice's change file should be deleted after disconnect")
 
 	// Thomas's change file should still have his value.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	changeData, err := os.ReadFile(thomasChangePath)
+	changeData, err := store.ReadFile(thomasChangePath)
 	require.NoError(t, err, "thomas's change file should survive")
 
 	changeContent := string(changeData)
@@ -3657,7 +3738,8 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) adds "listen" -- not in committed config.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3667,7 +3749,7 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 (thomas) also makes a change (so draft survives discard).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3682,12 +3764,12 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 
 	// Alice's change file should be deleted.
 	aliceChangePath := ChangePath(configPath, "alice")
-	_, statErr := os.Stat(aliceChangePath)
-	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after discard")
+	_, statErr := store.Stat(aliceChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "alice's change file should be deleted after discard")
 
 	// Thomas's change file should still have his value.
 	thomasChangePath := ChangePath(configPath, "thomas")
-	changeData, err := os.ReadFile(thomasChangePath)
+	changeData, err := store.ReadFile(thomasChangePath)
 	require.NoError(t, err, "thomas's change file should survive after alice discards")
 
 	changeContent := string(changeData)
@@ -3705,7 +3787,8 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 func TestCommitMetadataUserInConfig(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3719,7 +3802,7 @@ func TestCommitMetadataUserInConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.Applied)
 
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 
@@ -3737,7 +3820,8 @@ func TestCommitMetadataUserInConfig(t *testing.T) {
 func TestCommitRenameOnlyPreservesExistingMetadata(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 	firstSession := NewEditSession("alice", "local")
@@ -3748,7 +3832,7 @@ func TestCommitRenameOnlyPreservesExistingMetadata(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.Applied)
 
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 	renameSession := NewEditSession("bob", "ssh")
@@ -3759,7 +3843,7 @@ func TestCommitRenameOnlyPreservesExistingMetadata(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.Applied)
 
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "set bgp peer peer2 timer receive-hold-time 120")
@@ -3790,7 +3874,8 @@ func TestCommitRenameOnlyPreservesExistingMetadata(t *testing.T) {
 func TestCommitOriginalContentUpdated(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3804,7 +3889,7 @@ func TestCommitOriginalContentUpdated(t *testing.T) {
 	require.NoError(t, err)
 
 	// OriginalContent should match what was written to config.conf.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 
 	assert.Equal(t, string(configData), ed.OriginalContent(),
@@ -3823,7 +3908,8 @@ func TestCommitOriginalContentUpdated(t *testing.T) {
 func TestCommitMultipleChanges(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3844,7 +3930,7 @@ func TestCommitMultipleChanges(t *testing.T) {
 	assert.Equal(t, 3, result.Applied, "all three changes should be applied")
 
 	// Verify all three values in config.conf.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "9.9.9.9", "router-id should be updated")
@@ -3862,7 +3948,8 @@ func TestCommitMultipleChanges(t *testing.T) {
 func TestCommitConvergentDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3876,7 +3963,7 @@ func TestCommitConvergentDelete(t *testing.T) {
 	// Simulate external commit that also deleted local-as.
 	// Write config.conf without local-as.
 	externalConfig := "set bgp router-id 1.2.3.4\nset bgp peer peer1 connection remote ip 1.1.1.1\nset bgp peer peer1 session asn remote 65001\nset bgp peer peer1 timer receive-hold-time 90\n"
-	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
+	err = store.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
 	// Commit should succeed: both sessions deleted the same value (convergent).
@@ -3895,7 +3982,8 @@ func TestCommitConvergentDelete(t *testing.T) {
 func TestSetOverwriteSameLeaf(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3915,7 +4003,7 @@ func TestSetOverwriteSameLeaf(t *testing.T) {
 	assert.Equal(t, 1, result.Applied, "overwritten leaf should count as one change")
 
 	// config.conf should have the SECOND value.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "6.6.6.6", "second set value should win")
 	assert.NotContains(t, string(configData), "5.5.5.5", "first set value should be gone")
@@ -3930,7 +4018,8 @@ func TestCommitBackupContainsFreshData(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (alice) makes a change and commits first.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3945,7 +4034,7 @@ func TestCommitBackupContainsFreshData(t *testing.T) {
 
 	// Session 2 (thomas) was created before alice committed, so its originalContent
 	// has the OLD router-id (1.2.3.4). Now thomas commits local-as.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3960,16 +4049,10 @@ func TestCommitBackupContainsFreshData(t *testing.T) {
 
 	// The backup should contain alice's committed value (10.0.0.1),
 	// NOT the original (1.2.3.4). This proves the backup uses fresh disk data.
-	backupDir := filepath.Join(filepath.Dir(configPath), "rollback")
-	entries, err := os.ReadDir(backupDir)
+	backups, err := ed2.ListBackups()
 	require.NoError(t, err)
-	require.NotEmpty(t, entries, "backup directory should have at least one entry")
-
-	// Find the most recent backup (latest by name).
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name() > entries[j].Name()
-	})
-	backupData, err := os.ReadFile(filepath.Join(backupDir, entries[0].Name()))
+	require.NotEmpty(t, backups, "commits must preserve rollback history")
+	backupData, err := store.ReadFile(backups[0].Path)
 	require.NoError(t, err)
 	assert.Contains(t, string(backupData), "10.0.0.1",
 		"backup should contain alice's committed value, not stale original")
@@ -3983,7 +4066,8 @@ func TestCommitBackupContainsFreshData(t *testing.T) {
 func TestSecondCommitReadsSetMetaFormat(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -3998,7 +4082,7 @@ func TestSecondCommitReadsSetMetaFormat(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// Verify config.conf is now in set+meta format.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "#thomas",
 		"first commit should write set+meta format with user annotation")
@@ -4012,7 +4096,7 @@ func TestSecondCommitReadsSetMetaFormat(t *testing.T) {
 	assert.Empty(t, result.Conflicts)
 
 	// Verify both values are in config.conf.
-	configData, err = os.ReadFile(configPath)
+	configData, err = store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "5.6.7.8", "first committed value should persist")
@@ -4028,7 +4112,8 @@ func TestSecondCommitReadsSetMetaFormat(t *testing.T) {
 func TestCommitMixedSetAndDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4046,7 +4131,7 @@ func TestCommitMixedSetAndDelete(t *testing.T) {
 	assert.Empty(t, result.Conflicts)
 	assert.Equal(t, 2, result.Applied, "both set and delete should count as applied")
 
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "9.9.9.9", "set value should be present")
@@ -4061,7 +4146,8 @@ func TestCommitMixedSetAndDelete(t *testing.T) {
 func TestDiscardExactPathMatch(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4080,7 +4166,7 @@ func TestDiscardExactPathMatch(t *testing.T) {
 
 	// Change file should still exist (router-id change remains).
 	changePath := ChangePath(configPath, session.User)
-	changeData, err := os.ReadFile(changePath)
+	changeData, err := store.ReadFile(changePath)
 	require.NoError(t, err, "change file should still exist after partial discard")
 	changeContent := string(changeData)
 	// router-id change should still be pending.
@@ -4109,7 +4195,8 @@ func TestLiveConflictAgreementSameValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 sets router-id to 10.0.0.1.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4119,7 +4206,7 @@ func TestLiveConflictAgreementSameValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 sets router-id to the SAME value.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4143,7 +4230,8 @@ func TestLiveConflictAgreementSameValue(t *testing.T) {
 func TestCommitDeleteMetadataCleanup(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4159,7 +4247,7 @@ func TestCommitDeleteMetadataCleanup(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// config.conf should NOT contain any trace of local-as (no value, no metadata).
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.NotContains(t, configContent, "local 65000", "deleted asn local leaf should have no value or metadata in committed config")
@@ -4173,7 +4261,8 @@ func TestCommitDeleteMetadataCleanup(t *testing.T) {
 func TestHasPendingSessionChangesAfterCommit(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4198,7 +4287,7 @@ func TestHasPendingSessionChangesAfterCommit(t *testing.T) {
 func TestHasPendingSessionChangesNoMeta(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4215,7 +4304,8 @@ func TestHasPendingSessionChangesNoMeta(t *testing.T) {
 func TestDisconnectSelfRejected(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4235,7 +4325,8 @@ func TestDisconnectSelfRejected(t *testing.T) {
 func TestDisconnectNoArgs(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4255,7 +4346,8 @@ func TestDisconnectNoArgs(t *testing.T) {
 func TestCmdDiscardSessionPathMessage(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4277,7 +4369,8 @@ func TestCmdDiscardSessionPathMessage(t *testing.T) {
 func TestCmdDiscardSessionAll(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4299,7 +4392,8 @@ func TestCmdDiscardSessionAll(t *testing.T) {
 func TestCmdShowChangesEmpty(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4319,7 +4413,8 @@ func TestCmdShowChangesEmpty(t *testing.T) {
 func TestCmdShowChangesFormatsDeleteEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4342,7 +4437,8 @@ func TestCmdShowChangesFormatsDeleteEntry(t *testing.T) {
 func TestCmdShowChangesNewVsModified(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4368,7 +4464,8 @@ func TestCmdShowChangesAllMultiSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 makes a change.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4378,7 +4475,7 @@ func TestCmdShowChangesAllMultiSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 makes a change.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4402,7 +4499,8 @@ func TestCmdShowChangesAllMultiSession(t *testing.T) {
 func TestCmdWhoEmpty(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4423,7 +4521,8 @@ func TestCmdWhoEmpty(t *testing.T) {
 func TestCmdWhoMarksOwnSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4447,7 +4546,8 @@ func TestCmdCommitSessionConflictFormatting(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 changes router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4457,7 +4557,7 @@ func TestCmdCommitSessionConflictFormatting(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 changes same leaf to different value.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4496,7 +4596,8 @@ func TestCommitMetadataPreservesPriorAnnotations(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1: commit a change to router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4509,12 +4610,12 @@ func TestCommitMetadataPreservesPriorAnnotations(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read config.conf: should have alice's metadata for router-id.
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "alice", "first commit should annotate with alice")
 
 	// Session 2: commit a change to local-as only.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4527,7 +4628,7 @@ func TestCommitMetadataPreservesPriorAnnotations(t *testing.T) {
 	require.NoError(t, err)
 
 	// config.conf should still have alice's annotation for router-id.
-	configData, err = os.ReadFile(configPath)
+	configData, err = store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "alice", "prior commit annotation should survive new commit")
@@ -4543,7 +4644,8 @@ func TestDisconnectDeleteEntry(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 deletes local-as.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4553,7 +4655,7 @@ func TestDisconnectDeleteEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 disconnects session 1.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4568,8 +4670,8 @@ func TestDisconnectDeleteEntry(t *testing.T) {
 
 	// Alice's change file should be deleted (disconnect removed it).
 	aliceChangePath := ChangePath(configPath, "alice")
-	_, statErr := os.Stat(aliceChangePath)
-	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
+	_, statErr := store.Stat(aliceChangePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "alice's change file should be deleted after disconnect")
 
 	// In-memory tree for ed2 should still have local asn (alice's delete was abandoned).
 	bgpTree := ed2.tree.GetContainer("bgp")
@@ -4590,7 +4692,8 @@ func TestSessionChangesAllSessions(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 makes a change.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4600,7 +4703,7 @@ func TestSessionChangesAllSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 makes a different change.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4621,7 +4724,7 @@ func TestSessionChangesAllSessions(t *testing.T) {
 func TestActiveSessionsEmpty(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4637,7 +4740,7 @@ func TestActiveSessionsEmpty(t *testing.T) {
 func TestBlameViewNilMeta(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -4665,7 +4768,8 @@ func TestCmdCommitSessionMigrationWarningFormat(t *testing.T) {
 
 	// Also verify CommitResult.Warnings is empty for normal commits.
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -5165,14 +5269,15 @@ func TestEditorWithBlobStorage(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test.conf")
 
-	// Write config to filesystem so blob migration picks it up
+	// Seed the artifact explicitly; no constructor imports loose files.
 	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.CreateBlob(blobPath)
 	require.NoError(t, err)
 	defer store.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, store.WriteFile(configPath, []byte(validBGPConfig), 0o600))
 
 	// Remove filesystem copy to prove reads come from blob
 	err = os.Remove(configPath)
@@ -5201,11 +5306,10 @@ func TestEditorWithBlobStorage(t *testing.T) {
 	assert.Contains(t, string(data), "9.9.9.9", "saved config should contain new router-id")
 }
 
-// TestEditorFilesystemOverride verifies that filesystem storage is used when -f flag
-// causes storage to be replaced with NewFilesystem().
+// TestEditorFilesystemOverride verifies that -f selects the explicit loose file.
 //
-// VALIDATES: Editor with filesystem storage reads from real filesystem.
-// PREVENTS: -f flag not actually switching to filesystem storage.
+// VALIDATES: A loose-file editor reads the supplied file without storage.
+// PREVENTS: Explicit-file editing depending on a persistent store.
 func TestEditorFilesystemOverride(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test.conf")
@@ -5214,10 +5318,8 @@ func TestEditorFilesystemOverride(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	// Use filesystem storage directly (simulates -f flag)
-	store := storage.NewFilesystem()
-
-	ed, err := NewEditorWithStorage(store, configPath)
+	// Open the loose file directly (simulates -f flag).
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5234,7 +5336,8 @@ func TestEditorAdoptSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Session 1 (old) makes a change, simulating an orphaned session.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5250,13 +5353,13 @@ func TestEditorAdoptSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify draft has old session.
-	draftData, err := os.ReadFile(DraftPath(configPath))
+	draftData, err := store.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
 	assert.Contains(t, string(draftData), "@"+oldSession.Origin, "draft should have old session origin")
 
 	// Session 2 (new) adopts the old session's entries.
 	// Use "ssh" origin so the session ID differs even within the same second.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5267,7 +5370,7 @@ func TestEditorAdoptSession(t *testing.T) {
 	require.NoError(t, err)
 
 	// Draft should now have new session's origin, not old.
-	draftData, err = os.ReadFile(DraftPath(configPath))
+	draftData, err = store.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
 	draftContent := string(draftData)
 	assert.NotContains(t, draftContent, "@"+oldSession.Origin+" ", "old session origin should be gone")
@@ -5278,7 +5381,8 @@ func TestEditorAdoptSession(t *testing.T) {
 func TestEditorAdoptSessionRenameOp(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5289,7 +5393,7 @@ func TestEditorAdoptSessionRenameOp(t *testing.T) {
 	err = ed1.SaveDraft()
 	require.NoError(t, err)
 
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5301,7 +5405,7 @@ func TestEditorAdoptSessionRenameOp(t *testing.T) {
 	err = ed2.AdoptSession(oldSession.ID)
 	require.NoError(t, err)
 
-	changeData, err := os.ReadFile(ChangePath(configPath, newSession.User))
+	changeData, err := store.ReadFile(ChangePath(configPath, newSession.User))
 	require.NoError(t, err)
 	_, _, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed2.schema))
 	require.NoError(t, err)
@@ -5312,7 +5416,7 @@ func TestEditorAdoptSessionRenameOp(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.Applied, "adopted rename should commit as one applied change")
 
-	configData, err := os.ReadFile(configPath)
+	configData, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "set bgp peer peer2 connection remote ip 1.1.1.1")
@@ -5327,7 +5431,8 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Old session makes a change.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5341,7 +5446,7 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	require.NoError(t, err)
 
 	// New session does NOT adopt.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5349,7 +5454,7 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	ed2.SetSession(newSession)
 
 	// Draft should still have old session's user (not adopted, not changed).
-	draftData, err := os.ReadFile(DraftPath(configPath))
+	draftData, err := store.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
 	assert.Contains(t, string(draftData), "#"+oldSession.User, "old session user should remain in draft")
 }
@@ -5365,12 +5470,12 @@ func TestCheckDraftChangedOwnWriteNotReported(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err)
 	defer store.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, store.WriteFile(configPath, []byte(validBGPConfig), 0o600))
 
-	// Remove filesystem copy to prove reads come from blob.
+	// Remove filesystem copy to prove reads come from the tree.
 	err = os.Remove(configPath)
 	require.NoError(t, err)
 
@@ -5415,10 +5520,10 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	blobPath := filepath.Join(dir, "database.zefs")
-	store, err := storage.NewBlob(blobPath, dir)
+	store, err := storage.Create(dir)
 	require.NoError(t, err)
 	defer store.Close() //nolint:errcheck // test cleanup
+	require.NoError(t, store.WriteFile(configPath, []byte(validBGPConfig), 0o600))
 
 	err = os.Remove(configPath)
 	require.NoError(t, err)
@@ -5461,14 +5566,15 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 }
 
 // TestCheckDraftChangedFilesystemMtimeDetection verifies that CheckDraftChanged
-// detects a newer draft mtime on filesystem storage.
+// detects a newer draft mtime in tree storage.
 //
-// VALIDATES: CheckDraftChanged returns true when draft mtime advances on filesystem storage.
-// PREVENTS: Silent failure to detect draft changes on filesystem storage.
+// VALIDATES: CheckDraftChanged returns true when draft mtime advances in tree storage.
+// PREVENTS: Silent failure to detect draft changes in tree storage.
 func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5477,7 +5583,7 @@ func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 
 	// Create an initial draft by writing directly (simulating another user's save).
 	draftPath := DraftPath(configPath)
-	err = os.WriteFile(draftPath, []byte("set bgp router-id 5.6.7.8\n"), 0o600)
+	err = store.WriteFile(draftPath, []byte("set bgp router-id 5.6.7.8\n"), 0o600)
 	require.NoError(t, err)
 
 	// Seed mtime (first poll).
@@ -5487,15 +5593,15 @@ func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 	// Write a newer draft and poll until filesystem mtime granularity has advanced enough
 	// for CheckDraftChanged to detect it.
 	require.Eventually(t, func() bool {
-		writeErr := os.WriteFile(draftPath, []byte("set bgp router-id 9.9.9.9\n"), 0o600)
+		writeErr := store.WriteFile(draftPath, []byte("set bgp router-id 9.9.9.9\n"), 0o600)
 		if writeErr != nil {
 			return false
 		}
 		// Poll: should detect the newer mtime.
-		// On filesystem storage, ModifiedBy is empty so notifications don't include session ID.
+		// Direct store writes have no ModifiedBy session identity.
 		detected, _ := ed.checkDraftChanged()
 		return detected
-	}, 2*time.Second, time.Millisecond, "newer draft mtime should be detected on filesystem storage")
+	}, 2*time.Second, time.Millisecond, "newer draft mtime should be detected in tree storage")
 }
 
 // --- Per-user change file tests ---
@@ -5508,7 +5614,8 @@ func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 func TestWriteThroughToChangeFile(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5520,11 +5627,11 @@ func TestWriteThroughToChangeFile(t *testing.T) {
 
 	// Change file should exist.
 	changePath := ChangePath(configPath, "thomas")
-	_, statErr := os.Stat(changePath)
-	assert.False(t, os.IsNotExist(statErr), "change file should exist after set")
+	_, statErr := store.Stat(changePath)
+	assert.False(t, errors.Is(statErr, os.ErrNotExist), "change file should exist after set")
 
 	// Change file should contain the set entry with metadata.
-	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	data, readErr := store.ReadFile(changePath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	content := string(data)
 	assert.Contains(t, content, "router-id")
@@ -5533,8 +5640,8 @@ func TestWriteThroughToChangeFile(t *testing.T) {
 
 	// Draft should NOT exist (no longer written on each set).
 	draftPath := DraftPath(configPath)
-	_, draftStatErr := os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(draftStatErr), "draft should not exist after set (only change file)")
+	_, draftStatErr := store.Stat(draftPath)
+	assert.True(t, errors.Is(draftStatErr, os.ErrNotExist), "draft should not exist after set (only change file)")
 }
 
 // TestDeleteToChangeFile verifies that delete with an active session writes
@@ -5545,7 +5652,8 @@ func TestWriteThroughToChangeFile(t *testing.T) {
 func TestDeleteToChangeFile(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5557,7 +5665,7 @@ func TestDeleteToChangeFile(t *testing.T) {
 
 	// Change file should exist with delete entry.
 	changePath := ChangePath(configPath, "thomas")
-	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	data, readErr := store.ReadFile(changePath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	content := string(data)
 	assert.Contains(t, content, "receive-hold-time")
@@ -5572,7 +5680,8 @@ func TestDeleteToChangeFile(t *testing.T) {
 func TestChangeFileReplacesSameLeaf(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5587,7 +5696,7 @@ func TestChangeFileReplacesSameLeaf(t *testing.T) {
 
 	// Change file should contain only the latest value.
 	changePath := ChangePath(configPath, "thomas")
-	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	data, readErr := store.ReadFile(changePath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	content := string(data)
 	assert.Contains(t, content, "9.9.9.9", "latest value should be present")
@@ -5603,7 +5712,8 @@ func TestDetectConflictSameLeaf(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Alice sets router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 	session1 := NewEditSession("alice", "ssh")
@@ -5612,7 +5722,7 @@ func TestDetectConflictSameLeaf(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob sets same leaf to different value.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 	session2 := NewEditSession("bob", "ssh")
@@ -5637,7 +5747,8 @@ func TestNoConflictDifferentLeaves(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	// Alice sets router-id.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 	session1 := NewEditSession("alice", "ssh")
@@ -5646,7 +5757,7 @@ func TestNoConflictDifferentLeaves(t *testing.T) {
 	require.NoError(t, err)
 
 	// Bob sets a different leaf.
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 	session2 := NewEditSession("bob", "ssh")
@@ -5667,7 +5778,8 @@ func TestNoConflictDifferentLeaves(t *testing.T) {
 func TestSaveDraftAppliesToDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5689,13 +5801,13 @@ func TestSaveDraftAppliesToDraft(t *testing.T) {
 	// Draft should exist with the change applied.
 	draftPath := DraftPath(configPath)
 	assert.FileExists(t, draftPath, "draft should exist after save")
-	draftData, readErr := os.ReadFile(draftPath) //nolint:gosec // test file
+	draftData, readErr := store.ReadFile(draftPath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	assert.Contains(t, string(draftData), "5.6.7.8", "draft should contain saved value")
 
 	// Change file should be deleted.
-	_, statErr := os.Stat(changePath)
-	assert.True(t, os.IsNotExist(statErr), "change file should be deleted after save")
+	_, statErr := store.Stat(changePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "change file should be deleted after save")
 }
 
 // TestCommitSavesThenApplies verifies that commit saves first (creating draft),
@@ -5706,7 +5818,8 @@ func TestSaveDraftAppliesToDraft(t *testing.T) {
 func TestCommitSavesThenApplies(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5725,18 +5838,18 @@ func TestCommitSavesThenApplies(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 
 	// Config.conf should have the new value.
-	data, readErr := os.ReadFile(configPath) //nolint:gosec // test file
+	data, readErr := store.ReadFile(configPath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	assert.Contains(t, string(data), "5.6.7.8", "config.conf should contain committed value")
 
 	// Both change file and draft should be cleaned up.
 	changePath := ChangePath(configPath, "thomas")
-	_, changeStatErr := os.Stat(changePath)
-	assert.True(t, os.IsNotExist(changeStatErr), "change file should be deleted after commit")
+	_, changeStatErr := store.Stat(changePath)
+	assert.True(t, errors.Is(changeStatErr, os.ErrNotExist), "change file should be deleted after commit")
 
 	draftPath := DraftPath(configPath)
-	_, draftStatErr := os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(draftStatErr), "draft should be deleted after commit")
+	_, draftStatErr := store.Stat(draftPath)
+	assert.True(t, errors.Is(draftStatErr, os.ErrNotExist), "draft should be deleted after commit")
 }
 
 // TestDiscardDeletesChangeFile verifies that discard deletes the own change file
@@ -5747,7 +5860,8 @@ func TestCommitSavesThenApplies(t *testing.T) {
 func TestDiscardDeletesChangeFile(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5765,8 +5879,8 @@ func TestDiscardDeletesChangeFile(t *testing.T) {
 
 	// Change file should be deleted.
 	changePath := ChangePath(configPath, "thomas")
-	_, statErr := os.Stat(changePath)
-	assert.True(t, os.IsNotExist(statErr), "change file should be deleted after discard")
+	_, statErr := store.Stat(changePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "change file should be deleted after discard")
 
 	// In-memory tree should be back to original.
 	assert.False(t, ed.Dirty(), "should not be dirty after discard")
@@ -5782,7 +5896,8 @@ func TestDiscardDeletesChangeFile(t *testing.T) {
 func TestChangeFileFormatChangesOnly(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5795,7 +5910,7 @@ func TestChangeFileFormatChangesOnly(t *testing.T) {
 
 	// Change file should contain ONLY the changed entry.
 	changePath := ChangePath(configPath, "thomas")
-	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	data, readErr := store.ReadFile(changePath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	content := string(data)
 
@@ -5928,7 +6043,8 @@ func TestLoadDraftRevealsOrphanedSessions(t *testing.T) {
 
 	// Old session makes a change and saves to draft.
 	// Use explicit earlier time to guarantee different session ID from new session.
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5946,7 +6062,7 @@ func TestLoadDraftRevealsOrphanedSessions(t *testing.T) {
 	require.NoError(t, err)
 
 	// New session opens a fresh editor (simulating reconnect).
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5980,7 +6096,7 @@ func TestLoadDraftRevealsOrphanedSessions(t *testing.T) {
 // PREVENTS: Nil pointer dereference in conflict detection.
 func TestDetectConflictsNilSession(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -5995,7 +6111,8 @@ func TestDetectConflictsNilSession(t *testing.T) {
 func TestDetectConflictsSameValue(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 	session1 := NewEditSession("alice", "ssh")
@@ -6003,7 +6120,7 @@ func TestDetectConflictsSameValue(t *testing.T) {
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err)
 
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 	session2 := NewEditSession("bob", "ssh")

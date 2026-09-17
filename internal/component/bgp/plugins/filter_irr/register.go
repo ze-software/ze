@@ -8,9 +8,12 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/statestore"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 func init() {
+	statestore.RegisterPluginKeys(pluginName, zefs.KeyIRRPrefixCache, zefs.KeyIRRCache)
 	reg := registry.Registration{
 		Name:         pluginName,
 		Description:  "IRR-based prefix-list filter for eBGP peers",

@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/authz"
 	zeconfig "github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 )
@@ -223,7 +222,7 @@ func TestAPIBootUsersFailClosed(t *testing.T) {
 	require.NoError(t, err)
 	os.Stderr = w
 	t.Cleanup(func() { os.Stderr = originalStderr })
-	exit := runYANGConfig(storage.NewFilesystem(), "-", nil, nil, 0, -1, false, false, "", false, "", "", false, nil)
+	exit := runYANGConfig(newTestStore(t), "-", nil, nil, 0, -1, false, false, "", false, "", "", false, nil)
 	require.NoError(t, w.Close())
 	os.Stderr = originalStderr
 	stderr, readErr := io.ReadAll(r)
@@ -269,7 +268,7 @@ func TestAPIBootWarnsExactlyWhenNoUsersAndNoToken(t *testing.T) {
 
 	var exit int
 	stderr := captureHubStderr(t, func() {
-		exit = runYANGConfig(storage.NewFilesystem(), "-", nil, nil, 0, -1, false, false, "", false, "", "", false, nil)
+		exit = runYANGConfig(newTestStore(t), "-", nil, nil, 0, -1, false, false, "", false, "", "", false, nil)
 	})
 
 	assert.Equal(t, 1, exit, "the REST build seam must stop boot after the warning producer runs")

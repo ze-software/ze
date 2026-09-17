@@ -6,7 +6,7 @@ Use these pages to install Ze, configure a network role, operate the system, and
 
 - [Quickstart](quickstart/): bring up two BGP peers quickly.
 - [Install Ze](ze-install/): install the daemon or provision an appliance.
-- [Build and install on Ubuntu](ubuntu-build-install/): compile, install, create zefs, and start SSH.
+- [Build and install on Ubuntu](ubuntu-build-install/): compile, install, initialize the store, and start SSH.
 - [CLI tour](cli/): use interactive, one-shot, pipe, and runtime commands.
 - [Configuration](configuration-model/): understand the hierarchical configuration format.
 - [Lifecycle and rollback](lifecycle/): reload, restart, archive, update, and recover.

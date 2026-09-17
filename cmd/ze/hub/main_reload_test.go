@@ -110,7 +110,7 @@ func (r *reloadTestReactor) ReleaseUpdates([]uint64, string) error { return nil 
 
 func TestDoReloadPromotesCandidateOnSuccess(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
@@ -154,7 +154,7 @@ func TestDoReloadPromotesCandidateOnSuccess(t *testing.T) {
 
 func TestDoReloadClearsCandidateOnFailure(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
@@ -190,7 +190,7 @@ func TestDoReloadClearsCandidateOnFailure(t *testing.T) {
 
 func TestDoReloadRollsBackOnListenerMigrationFailure(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}
 	newTree := map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}}
@@ -266,7 +266,7 @@ func TestRecordDaemonReloadAudit(t *testing.T) {
 
 func TestStageSIGHUPCandidateRejectsExistingCandidate(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	require.NoError(t, store.WriteFile(configPath, []byte("edited-file"), 0o600))
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte("in-flight"), mustParseReloadStamp(t, "20260524-100000.000"))
@@ -286,7 +286,7 @@ func TestStageSIGHUPCandidateRejectsExistingCandidate(t *testing.T) {
 
 func TestClearStaleCandidateOnBoot(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	activeStamp := "20260524-090000.000"
 
@@ -310,7 +310,7 @@ func TestClearStaleCandidateOnBoot(t *testing.T) {
 
 func TestEnsureActivePointerProtectsFailedFirstSIGHUP(t *testing.T) {
 	dir := t.TempDir()
-	store := storage.NewFilesystem()
+	store := newTestStore(t, dir)
 	configPath := filepath.Join(dir, "router.conf")
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
@@ -342,44 +342,40 @@ func TestEnsureActivePointerProtectsFailedFirstSIGHUP(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// VALIDATES: "shutdown waits for the SIGHUP reload worker to report, and gives
-// up after the grace rather than holding the daemon open."
-// PREVENTS: a SIGTERM that arrives during a reload taking the reload's verdict
-// with it, which is how test/reload/config-reload-invalid-validator.ci lost the
-// refusal it asserts. And its opposite: a wedged reload that never ends,
-// blocking shutdown for as long as it runs.
+// PREVENTS: shutdown closing storage or plugin connections while a canceled
+// reload still owns them.
 func TestAwaitReloadWorker(t *testing.T) {
 	t.Parallel()
 
-	t.Run("waits for the worker", func(t *testing.T) {
+	t.Run("completed worker needs no cancellation", func(t *testing.T) {
 		t.Parallel()
-
 		done := make(chan struct{})
-		reported := make(chan struct{})
-
-		go func() {
-			time.Sleep(50 * time.Millisecond)
-			close(reported)
-			close(done)
-		}()
-
-		awaitReloadWorker(done, 10*time.Second)
-
-		select {
-		case <-reported:
-		default:
-			t.Error("returned before the worker reported")
-		}
+		close(done)
+		awaitReloadWorker(done, time.Hour, func() {
+			t.Error("completed reload was canceled")
+		})
 	})
 
-	t.Run("gives up after the grace", func(t *testing.T) {
+	t.Run("cancellation waits for cleanup", func(t *testing.T) {
 		t.Parallel()
-
-		start := time.Now()
-		awaitReloadWorker(make(chan struct{}), 50*time.Millisecond)
-
-		if elapsed := time.Since(start); elapsed > 5*time.Second {
-			t.Errorf("waited %v for a worker that never returns, want the grace", elapsed)
+		done := make(chan struct{})
+		canceled := make(chan struct{})
+		returned := make(chan struct{})
+		go func() {
+			awaitReloadWorker(done, 0, func() { close(canceled) })
+			close(returned)
+		}()
+		<-canceled
+		select {
+		case <-returned:
+			t.Error("shutdown returned while reload still owned its resources")
+		default:
+		}
+		close(done)
+		select {
+		case <-returned:
+		case <-t.Context().Done():
+			t.Fatal("shutdown did not return after reload cleanup")
 		}
 	})
 }

@@ -27,7 +27,8 @@ func TestCreateBackupInSameMillisecondKeepsBoth(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
 

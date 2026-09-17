@@ -5,16 +5,12 @@
 package ospf
 
 import (
-	"crypto/sha1" //nolint:gosec // G505: not used as a security primitive; only to diffuse a high-resolution clock into a 32-bit boot-count seed (RFC 7474 high word) when ZeFS persistence is unavailable.
-	"encoding/binary"
-	"io/fs"
-	"path/filepath"
+	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/secret"
-	"github.com/ze-software/ze/internal/core/env"
-	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -71,13 +67,8 @@ type authStore struct {
 	srcByIface map[string][4]byte       // interface -> IPv4 source address (RFC 7474 Apad bind)
 	sendSeq    map[string]uint32        // interface -> per-packet send counter (low-order word)
 	recvSeq    map[replayKey]uint64     // last accepted sequence
-	// bootCount is the RFC 7474 high-order boot word. It is the authoritative
-	// monotonic source so the aggregate 64-bit cryptographic sequence strictly
-	// increases for the router's lifetime, including across a cold restart (a peer
-	// enforcing a strictly-increasing sequence keeps the adjacency). The engine seeds
-	// it from the ZeFS-persisted, incremented boot count (loadOSPFBootCount) when
-	// persistence is available; otherwise newAuthStore seeds it from a hashed
-	// high-resolution clock (bootCountFromClock) which advances on every restart.
+	// bootCount is the durable RFC 7474 high-order word. Runtime engines MUST
+	// initialize it through the daemon before any packet is sent.
 	bootCount uint32
 	// now is the wall clock used for send-key selection and for the receive-side
 	// accept-lifetime gate. It defaults to time.Now and is overridden in tests for
@@ -91,129 +82,34 @@ func newAuthStore() *authStore {
 		srcByIface: map[string][4]byte{},
 		sendSeq:    map[string]uint32{},
 		recvSeq:    map[replayKey]uint64{},
-		bootCount:  bootCountFromClock(),
+		bootCount:  0,
 		now:        time.Now,
 	}
 }
 
-// setBootCount overrides the RFC 7474 high-order boot word with the authoritative
-// (ZeFS-persisted, incremented) value the engine resolves at startup. Call once,
-// before the store signs any packet.
+// setBootCount installs the durably incremented high word. Runtime callers MUST
+// finish this before enabling packet processing.
 func (s *authStore) setBootCount(bc uint32) {
 	s.mu.Lock()
 	s.bootCount = bc
 	s.mu.Unlock()
 }
 
-// bootCountFromClock derives a boot-count seed by hashing a high-resolution
-// timestamp and truncating the digest to 32 bits. RFC 7474 requires the aggregate
-// sequence to strictly increase across restarts; when ZeFS persistence is
-// unavailable a plain seconds-granularity wall clock can collide on a fast
-// restart, so the nanosecond clock is diffused through SHA-1 to spread successive
-// boots across the 32-bit space.
-func bootCountFromClock() uint32 {
-	var buf [8]byte
-	binary.BigEndian.PutUint64(buf[:], uint64(time.Now().UnixNano()))
-	sum := sha1.Sum(buf[:]) //nolint:gosec // G401: diffusion of a timestamp, not a security digest.
-	return binary.BigEndian.Uint32(sum[:4])
+// stateClient is the daemon RPC surface needed by OSPF. Both internal and external
+// plugins use the SDK; protocol-only engines may remain detached from a daemon.
+type stateClient interface {
+	StateGet(context.Context, string) ([]byte, bool, error)
+	StatePut(context.Context, string, []byte) error
+	StateIncrement(context.Context, string) (uint32, error)
 }
 
-// bootCountStore is the minimal ZeFS surface loadOSPFBootCount needs. Satisfied by
-// *zefs.BlobStore.
-type bootCountStore interface {
-	ReadFile(name string) ([]byte, error)
-	WriteFile(name string, data []byte, perm fs.FileMode) error
-}
-
-// loadOSPFBootCount reads the persisted OSPF auth boot count from store, increments
-// it once (this boot), writes it back, and returns the incremented value. RFC 7474
-// §3: the aggregate 64-bit sequence (boot count high word | per-packet low word) must
-// strictly increase across a cold restart; persisting and incrementing the boot count
-// is the authoritative mechanism for that. When store is nil or any read/write fails,
-// it falls back to the hashed high-resolution clock seed (which still advances per
-// restart, just without durable monotonicity). This is the single per-boot write; the
-// per-packet counter never touches ZeFS.
-func loadOSPFBootCount(store bootCountStore) uint32 {
-	if store == nil {
-		return bootCountFromClock()
+// loadOSPFBootCount requests one atomic durable increment. A failed request
+// MUST stop runtime initialization; a clock-derived value cannot preserve order.
+func loadOSPFBootCount(ctx context.Context, client stateClient) (uint32, error) {
+	if client == nil {
+		return 0, errors.New("ospf: persistent state client is unavailable")
 	}
-	key := zefs.KeyOSPFAuthBootCount.Key()
-	var prev uint32
-	if data, err := store.ReadFile(key); err == nil && len(data) == 4 {
-		prev = binary.BigEndian.Uint32(data)
-	}
-	next := prev + 1
-	var buf [4]byte
-	binary.BigEndian.PutUint32(buf[:], next)
-	if err := store.WriteFile(key, buf[:], 0); err != nil {
-		// The increment could not be made durable; fall back so the high word still
-		// advances this boot rather than reusing prev (which a peer would reject).
-		return bootCountFromClock()
-	}
-	return next
-}
-
-// pinnedStateDir returns the config directory ONLY when the operator pinned one
-// with ze.config.dir, and "" otherwise.
-//
-// This mirrors the gate the daemon applies to runtime-state persistence
-// (cmd/ze/hub/main.go: the `else if env.Get("ze.config.dir") != ""` branch, whose
-// comment spells out why). Without an explicit pin, paths.DefaultConfigDir falls
-// back to the binary-relative etc/ze, which EVERY `ze` invocation on the host
-// shares. The OSPF engine runs as its own process, and zefs's lock is an
-// in-process sync.RWMutex (pkg/zefs/lock.go) that cannot serialize across
-// processes -- so opening that shared database.zefs put 64 functional-test
-// daemons on one file. That contention is what produced the SIGBUS behind
-// test/ospf/ospf-ldp-sync-restore.ci.
-//
-// Unpinned, both callers degrade exactly as they already do when no store can be
-// found: the boot count falls back to the hashed clock seed, and GR restart facts
-// are not persisted across a restart.
-// resolve is passed in rather than called directly so a test can observe the
-// gate: under `go test` the binary lives in a build temp dir, so
-// paths.DefaultConfigDir returns "" on its own and a gate that did nothing would
-// look identical to one that works.
-func pinnedStateDir(resolve func() string) string {
-	if env.Get("ze.config.dir") == "" {
-		return ""
-	}
-	return resolve()
-}
-
-// openBootCountStore opens the pinned ZeFS database for boot-count persistence,
-// returning nil when the operator pinned no config dir (pinnedStateDir) or no
-// store can be opened there (a fresh appliance before its database exists). A nil
-// return makes loadOSPFBootCount fall back to the hashed clock seed. The boot
-// count is a single read+write at startup, so the store is closed immediately
-// rather than held for the engine's lifetime.
-func openBootCountStore() bootCountStore {
-	dir := pinnedStateDir(paths.DefaultConfigDir)
-	if dir == "" {
-		return nil
-	}
-	store, err := zefs.Open(filepath.Join(dir, "database.zefs"))
-	if err != nil {
-		return nil
-	}
-	// The boot count is read+incremented+written synchronously below by the caller;
-	// wrap the store so it is closed once that single operation completes.
-	return &closingBootCountStore{store: store}
-}
-
-// closingBootCountStore closes the underlying BlobStore after the one-shot boot-count
-// write, so the OSPF engine does not keep the shared database mmap'd for its lifetime.
-type closingBootCountStore struct {
-	store *zefs.BlobStore
-}
-
-func (c *closingBootCountStore) ReadFile(name string) ([]byte, error) {
-	return c.store.ReadFile(name)
-}
-
-func (c *closingBootCountStore) WriteFile(name string, data []byte, perm fs.FileMode) error {
-	err := c.store.WriteFile(name, data, perm)
-	_ = c.store.Close() // best-effort: the boot count is the only write this boot.
-	return err
+	return client.StateIncrement(ctx, zefs.KeyOSPFAuthBootCount.Key())
 }
 
 func authAuType(algo string, esn bool) packet.AuType {

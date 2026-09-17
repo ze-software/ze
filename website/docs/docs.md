@@ -11,7 +11,7 @@ job you are trying to do, then follow the links inside that path.
         <div class="link-list">
             <a href="../guides/quickstart/">Quickstart <span>two BGP peers talking in under five minutes</span></a>
             <a href="../guides/ze-install/">Install Ze <span>daemon install or bootable appliance</span></a>
-            <a href="../guides/ubuntu-build-install/">Build on Ubuntu <span>compile, install, create zefs, set up SSH</span></a>
+            <a href="../guides/ubuntu-build-install/">Build on Ubuntu <span>compile, install, initialize the store, start SSH</span></a>
             <a href="../features/bgp-configuration/">BGP configuration <span>peer settings, inheritance, validation, and policy</span></a>
             <a href="../features/cli-commands/"><code>CLI</code> commands <span>diff, commit, history, and operator commands</span></a>
             <a href="../guides/cli/">CLI tour <span>interactive, one-shot, pipes, and runtime control</span></a>

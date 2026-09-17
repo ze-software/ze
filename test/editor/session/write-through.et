@@ -28,4 +28,4 @@ expect=dirty:true
 expect=error:none
 
 # Verify change file exists with session metadata (not draft)
-expect=file:path=test.conf.change.thomas:contains=#thomas @local
+expect=key:path=file/active/test.conf.change.thomas:contains=#thomas @local

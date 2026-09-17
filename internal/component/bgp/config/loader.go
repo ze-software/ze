@@ -135,12 +135,11 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 // reactor. A standalone reactor comes from LoadReactorWithPluginsStandalone, whose
 // callers hold the config text rather than a path.
 func loadReactorFile(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
-	// "-" reads stdin (claiming it once); a real path goes through the storage
-	// abstraction, which may be a blob store where path is a key, not a file.
+	// A nil store is a loose-file loader, used by offline consumers.
 	var data []byte
 	var err error
 
-	if cliio.IsStdin(path) {
+	if store == nil || cliio.IsStdin(path) {
 		data, err = cliio.ReadFile(path)
 	} else {
 		data, err = store.ReadFile(path)

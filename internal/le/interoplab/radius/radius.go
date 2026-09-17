@@ -258,11 +258,12 @@ func zePeerConfig(source interoplab.ScenarioSource, container string) interoplab
 		Container: container,
 		Image:     zePeer,
 		Host:      2,
+		// Only the input file is mounted; its writable, container-owned parent
+		// isolates the database tree from the source checkout and other peers.
 		Mounts: []interoplab.Mount{
 			{Source: filepath.Join(source.Directory, "ze.conf"), Target: zeConfigTarget, ReadOnly: true},
 		},
 		Environment: []interoplab.EnvironmentVariable{
-			{Name: "ZE_STORAGE_BLOB", Value: "false"},
 			{Name: "ZE_LOG_LEVEL", Value: "debug"},
 		},
 		// The hostname is what ze sends as NAS-Identifier, so fixing it here

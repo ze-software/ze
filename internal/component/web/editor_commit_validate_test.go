@@ -99,7 +99,7 @@ func newCommitTestManager(t *testing.T) (*EditorManager, string) {
 	require.NoError(t, os.WriteFile(configPath, []byte(commitTestConfig), 0o600))
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
-	mgr := NewEditorManager(storage.NewFilesystem(), configPath, schema,
+	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		validatingEditorFactory(), testEditSessionFactory())
 	return mgr, configPath
 }
@@ -121,7 +121,7 @@ func TestWebCommitBlocksWhenThePeerPipelineRefuses(t *testing.T) {
 	require.Error(t, err, "the refused config must not reach .conf")
 	assert.Contains(t, err.Error(), "peer1", "the operator is told which peer")
 
-	data, readErr := os.ReadFile(configPath)
+	data, readErr := mgr.store.ReadFile(configPath)
 	require.NoError(t, readErr)
 	assert.NotContains(t, string(data), "65001", "nothing was staged")
 }
@@ -153,7 +153,7 @@ func TestWebCommitValidatesTheTreeItStagesNotTheDraft(t *testing.T) {
 	require.Error(t, err, "the staged tree is refused, so the commit is refused")
 	assert.Contains(t, err.Error(), "1.2.3.4", "the refusal names the tree that was staged")
 
-	data, readErr := os.ReadFile(configPath)
+	data, readErr := mgr.store.ReadFile(configPath)
 	require.NoError(t, readErr)
 	assert.NotContains(t, string(data), "65001", "nothing was staged")
 }
@@ -188,7 +188,7 @@ func TestWebCommitCandidateValidatesTheTreeItStages(t *testing.T) {
 	assert.Contains(t, err.Error(), "1.2.3.4", "the refusal names the tree that was staged")
 	assert.False(t, reloaded, "the commit must not reach the daemon")
 
-	_, _, hasCandidate, candErr := storage.ReadCandidateConfig(storage.NewFilesystem(), configPath)
+	_, _, hasCandidate, candErr := storage.ReadCandidateConfig(mgr.store, configPath)
 	require.NoError(t, candErr)
 	assert.False(t, hasCandidate, "no candidate version was staged")
 }
@@ -214,7 +214,7 @@ func TestWebCommitPassesWhenThePeerPipelineAccepts(t *testing.T) {
 	assert.Empty(t, result.Conflicts)
 	assert.True(t, asked, "the web commit consults the peer pipeline")
 
-	data, readErr := os.ReadFile(configPath)
+	data, readErr := mgr.store.ReadFile(configPath)
 	require.NoError(t, readErr)
 	assert.True(t, strings.Contains(string(data), "65001"), "the accepted config is committed")
 }

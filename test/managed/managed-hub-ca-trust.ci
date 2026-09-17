@@ -20,7 +20,7 @@
 #
 # The assertions are compiled because the verdict is a daemon's own committed
 # state: internal/test/fixture/misc_fixture_managed_ca_trust.go reads the
-# client's `file/active/edge-01.conf` out of its blob store.
+# client's `file/active/edge-01.conf` out of its tree store.
 
 option=timeout:value=180s
 

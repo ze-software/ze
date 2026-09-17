@@ -16,7 +16,7 @@ and is constructed explicitly at hub startup.
 | `resolve/cymru/` | Team Cymru ASN name resolution via TXT DNS | 1h via shared cache |
 | `resolve/peeringdb/` | PeeringDB HTTP client for prefix counts | 1h via shared cache + 1s rate limit |
 | `resolve/irr/` | IRR whois client for AS-SET expansion | 1h via shared cache |
-| `resolve/irr/store/` | Shared IRR prefix store (resolve + PeeringDB discovery + zefs persistence) | zefs `meta/irr/{name}` + in-memory map |
+| `resolve/irr/store/` | Shared IRR prefix store (resolution, PeeringDB discovery and persistence) | Managed store `meta/irr/{name}` + in-memory map |
 
 <!-- source: internal/component/resolve/dns/resolver.go -- DNS resolver -->
 <!-- source: internal/component/resolve/cymru/cymru.go -- Cymru resolver -->
@@ -93,20 +93,18 @@ it cannot import the reactor package.
 (an ASN like `AS13335` or an AS-SET like `AS-CLOUDFLARE`). It owns the full
 resolution pipeline: AS-SET discovery for bare ASNs via PeeringDB (falling back
 to the literal `AS<asn>` name when PeeringDB has no answer), the IRR prefix
-lookup, and persistence to zefs under per-entry keys `meta/irr/{name}`.
+lookup, and persistence under per-entry keys `meta/irr/{name}`.
 
-Consumers (the BGP `filter_irr` plugin, the upcoming `firewall-irr` plugin) are
-process-isolated plugins; they do not share a `PrefixStore` instance. Each
-builds its own and they share cached data through the zefs file on disk.
-In-process writers are serialized by the store's own mutex (each persist flushes
-atomically -- in-place for small updates, full rewrite on growth). zefs's `Lock` is an in-process mutex, not a
-file lock, so two writer **processes** would clobber each other on flush: exactly
-one process may write a given store file until zefs gains a cross-process lock (a
-prerequisite for the firewall-irr consumer).
+The BGP `filter_irr` and `firewall-irr` plugins each keep a `PrefixStore`.
+Their persistence handles send state RPCs to the daemon, which owns the single
+writable store for its lifetime. Cache loading and refresh workers begin after
+`OnStarted`, when those RPCs are available. Reload keeps using the same owner.
+Doctor supplies a read-only `Storage` handle and never creates a store.
 
-On `Open`, a legacy single-blob cache (`meta/bgp/irr-cache`, keyed by ASN) is
-migrated once into per-entry keys, and the legacy key is removed only after
-every per-entry key is written.
+On `Open`, a legacy cache (`meta/bgp/irr-cache`, keyed by ASN) is copied
+into per-entry keys. Its source key is removed only after every new key is
+written successfully. Read-only inspection loads legacy entries into memory
+without changing them.
 
 ### An empty answer never replaces cached prefixes
 
@@ -134,24 +132,15 @@ that has prefixes and one drop term that names no family.
 `CachedEntry.Stale` reports the condition, and `Purge` is the deliberate way to
 remove prefixes for a name that is gone upstream.
 
-Three properties of the store keep one bad entry from taking the shared file
-down. Each one is a guard, not a convention.
+The cache validates both its lookup name and the identity of each stored entry.
 
-- A name of `.`, or a name that contains `..`, poisons the whole store.
-  `irr.ValidateASSetName` permits `.`, so a refresh under that name writes the
-  key `meta/irr/.`. The zefs decoder rejects that key and fails the whole file,
-  so every other consumer's entries go with it. `validateName` rejects both
-  names before they reach a key.
+- `validateName` rejects `.` and names containing `..` before constructing a
+  key. These names cannot identify a cache entry safely.
   <!-- source: internal/component/resolve/irr/store/store.go -- validateName -->
-  <!-- source: pkg/zefs/store.go -- decode key validation -->
-- `Open` keys the in-memory map by the on-disk zefs key segment, never by the
-  entry's self-reported JSON `Name`. The file is shared, so a tampered blob
-  under `meta/irr/AS13335` that claims `"name":"AS99999"` would otherwise land
-  in the AS99999 slot. A segment that disagrees with the name is skipped with a
-  warning.
-- `Open` reads without a zefs write lock. It takes one only when a legacy blob
-  must be migrated. A write lock on every configure delayed the first refresh of
-  the BGP filter, and the filter then lost a race against an incoming UPDATE.
+- `Open` compares each key's name segment with the JSON `Name`. A value under
+  `meta/irr/AS13335` that claims `"name":"AS99999"` is skipped with a warning.
+- Persistence uses raw keys through the supplied owner. A cache never opens
+  a writer of its own, and read-only doctor handles refuse mutations.
   <!-- source: internal/component/resolve/irr/store/store.go -- Open, migrate -->
 
 ## RIR Delegation Table
@@ -265,14 +254,14 @@ could not.
 | Process | How it reads the stored copy |
 |---------|------------------------------|
 | The daemon, where a state store is registered | `statestore.Get` on the config system's own handle |
-| Every other process: the host CLI, a plugin process | `{config-dir}/database.zefs` opened read-only, and only if that file exists |
+| Every other process: the host CLI, a plugin process | `storage.OpenReadOnly` on the resolved config directory; reads `database/` without acquiring writer ownership |
 
 <!-- source: internal/component/resolve/irr/stored.go -- storedDelegation, storedDelegationFile -->
 
-Neither path writes. `zefs.Open` memory-maps the file and takes no lock, so the
-host reads a store the daemon holds open without blocking it. A file that
-exists and cannot be read answers "nothing stored" and says so, because a
-corrupt or half-written store is not evidence that nobody refreshed.
+Neither path writes. Tree values are installed by atomic rename, so a host can
+read them while the daemon owns the store. A store that exists and cannot be
+read answers "nothing stored" and logs the reason; the shipped seed remains
+available without treating damaged bytes as a delegation table.
 <!-- source: internal/component/resolve/irr/stored.go -- storedDelegationFile -->
 
 ### Three answers, never two

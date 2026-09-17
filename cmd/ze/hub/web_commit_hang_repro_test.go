@@ -3,7 +3,6 @@
 package hub
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +24,7 @@ import (
 // the whole web UI and silently losing the committed config (F2).
 func TestWebCommitHangRepro(t *testing.T) {
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "database.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
 		t.Fatalf("blob storage: %v", err)
 	}

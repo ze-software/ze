@@ -68,8 +68,8 @@ func (m Model) Mode() EditorMode {
 	return m.mode
 }
 
-// switchMode switches the editor to the given mode, saving and restoring screen state.
-func (m *Model) switchMode(target EditorMode) {
+// SetMode switches the editor to the given mode, saving and restoring screen state.
+func (m *Model) SetMode(target EditorMode) {
 	if m.mode == target {
 		var tb textbuf.Buffer
 		m.statusMessage = tb.Str("already in ").Str(target.String()).Str(" mode").String()

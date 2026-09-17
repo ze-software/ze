@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	zeconfig "github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/engine"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/pkg/ze"
@@ -53,7 +52,8 @@ func (s *reloadProbeSubsystem) Reload(_ context.Context, cfg ze.ConfigProvider) 
 // VALIDATES: Hub returns error for non-existent config.
 // PREVENTS: Silent failure when config file not found.
 func TestRunMissingConfig(t *testing.T) {
-	exit := Run(storage.NewFilesystem(), "/nonexistent/config.conf", nil, 0, -1, false, "", false, "", "")
+	path := filepath.Join(t.TempDir(), "missing.conf")
+	exit := Run(newTestFileStore(t, path), path, nil, 0, -1, false, "", false, "", "")
 	assert.Equal(t, 1, exit)
 }
 
@@ -82,7 +82,7 @@ func TestEphemeralDaemonStartsSSH(t *testing.T) {
 	// Send SIGINT after a short delay to unblock it.
 	exitCh := make(chan int, 1)
 	go func() {
-		exitCh <- Run(storage.NewFilesystem(), configPath, nil, 0, -1, false, "", false, "", "")
+		exitCh <- Run(newTestFileStore(t, configPath), configPath, nil, 0, -1, false, "", false, "", "")
 	}()
 
 	// Wait for the ephemeral address file to appear (SSH started).
@@ -159,7 +159,7 @@ func TestRunInvalidConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exit := Run(storage.NewFilesystem(), configPath, nil, 0, -1, false, "", false, "", "")
+	exit := Run(newTestFileStore(t, configPath), configPath, nil, 0, -1, false, "", false, "", "")
 	assert.Equal(t, 1, exit)
 }
 
@@ -213,7 +213,7 @@ func TestRunPassesCLIPluginsToConfigLoad(t *testing.T) {
 
 	exited := make(chan int, 1)
 	go func() {
-		exited <- Run(storage.NewFilesystem(), configPath, []string{"ze.no-such-plugin"}, 0, -1, false, "", false, "", "")
+		exited <- Run(newTestFileStore(t, configPath), configPath, []string{"ze.no-such-plugin"}, 0, -1, false, "", false, "", "")
 	}()
 
 	select {

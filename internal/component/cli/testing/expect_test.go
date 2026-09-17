@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -372,6 +373,7 @@ func (m *MockState) TriggerCompletions()                             {}
 func (m *MockState) Mode() cli.EditorMode                            { return m.mode }
 func (m *MockState) InputValue() string                              { return m.inputValue }
 func (m *MockState) TmpDir() string                                  { return "" }
+func (m *MockState) ReadKey(string) ([]byte, error)                  { return nil, os.ErrNotExist }
 func (m *MockState) MessageHint() string                             { return m.messageHint }
 func (m *MockState) Explanation() string                             { return m.explanation }
 

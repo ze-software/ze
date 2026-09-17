@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 // leafListSeedConfig seeds a valid config with an existing leaf-list so
@@ -24,9 +24,9 @@ system {
 // name-server members from the multi-value store (the store every
 // serializer reads). Reading through a fresh parse proves the change
 // survives a restart.
-func committedNameServers(t *testing.T, configPath string) []string {
+func committedNameServers(t *testing.T, store storage.Storage, configPath string) []string {
 	t.Helper()
-	data, err := os.ReadFile(configPath)
+	data, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
@@ -40,9 +40,9 @@ func committedNameServers(t *testing.T, configPath string) []string {
 // committedNameServerState re-reads the committed config and returns the full
 // ordered member view (including deactivated members, tagged), for tests that
 // must observe per-member deactivation surviving commit.
-func committedNameServerState(t *testing.T, configPath string) []config.MemberState {
+func committedNameServerState(t *testing.T, store storage.Storage, configPath string) []config.MemberState {
 	t.Helper()
-	data, err := os.ReadFile(configPath)
+	data, err := store.ReadFile(configPath)
 	require.NoError(t, err)
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
@@ -64,11 +64,12 @@ func stripSchemaStamp(content string) string {
 	return content
 }
 
-// newLeafListSessionEditor creates a filesystem-backed editor with an active session.
+// newLeafListSessionEditor creates a tree-backed editor with an active session.
 func newLeafListSessionEditor(t *testing.T, seed string) (*Editor, string) {
 	t.Helper()
 	configPath := writeTestConfig(t, seed)
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = ed.Close() })
 	ed.SetSession(NewEditSession("thomas", "local"))
@@ -89,7 +90,7 @@ func TestSessionLeafListSetCommits(t *testing.T) {
 
 	require.NoError(t, ed.SetValue([]string{"system"}, "name-server", "8.8.8.8"))
 
-	changeData, err := os.ReadFile(ChangePath(configPath, "thomas"))
+	changeData, err := ed.store.ReadFile(ChangePath(configPath, "thomas"))
 	require.NoError(t, err, "change file should exist after write-through")
 	assert.Contains(t, string(changeData), "8.8.8.8",
 		"change file must contain the leaf-list member (was empty before the fix)")
@@ -99,7 +100,7 @@ func TestSessionLeafListSetCommits(t *testing.T) {
 	require.Empty(t, result.Conflicts)
 	assert.Equal(t, 1, result.Applied, "leaf-list set must count as an applied change")
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, ed.store, configPath)
 	assert.Equal(t, []string{"8.8.8.8"}, members,
 		"committed config must hold the member in the multi-value store")
 }
@@ -119,7 +120,7 @@ func TestSessionLeafListAddMember(t *testing.T) {
 	require.Empty(t, result.Conflicts)
 	assert.Equal(t, 2, result.Applied, "each added member counts as one change")
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, ed.store, configPath)
 	assert.ElementsMatch(t, []string{"8.8.8.8", "1.1.1.1"}, members,
 		"both members must survive commit (add-member, not replace)")
 }
@@ -138,7 +139,7 @@ func TestSessionLeafListAddMemberPreservesExisting(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, ed.store, configPath)
 	assert.ElementsMatch(t, []string{"9.9.9.9", "8.8.8.8"}, members,
 		"committed member must be preserved alongside the new one")
 }
@@ -158,7 +159,7 @@ func TestSessionLeafListSetIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, ed.store, configPath)
 	assert.Equal(t, []string{"8.8.8.8"}, members, "duplicate set must not duplicate the member")
 }
 
@@ -181,7 +182,7 @@ system {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, ed.store, configPath)
 	assert.Equal(t, []string{"9.9.9.9"}, members,
 		"only the deleted member is removed; the other remains")
 }
@@ -201,7 +202,7 @@ func TestScalarLeafStillCommits(t *testing.T) {
 	require.Empty(t, result.Conflicts)
 	assert.Equal(t, 1, result.Applied)
 
-	data, err := os.ReadFile(configPath)
+	data, err := ed.store.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "router-id 9.9.9.9")
 }
@@ -216,12 +217,13 @@ func TestScalarLeafStillCommits(t *testing.T) {
 func TestLeafListConflictDetection(t *testing.T) {
 	configPath := writeTestConfig(t, leafListSeedConfig)
 
-	edA, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	edA, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edA.Close() //nolint:errcheck // test cleanup
 	edA.SetSession(NewEditSession("alice", "local"))
 
-	edB, err := NewEditor(configPath)
+	edB, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edB.Close() //nolint:errcheck // test cleanup
 	edB.SetSession(NewEditSession("bob", "local"))
@@ -240,7 +242,7 @@ func TestLeafListConflictDetection(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, resultB.Conflicts, "no stale conflict for non-overlapping members")
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, store, configPath)
 	assert.ElementsMatch(t, []string{"9.9.9.9", "8.8.8.8", "1.1.1.1"}, members,
 		"both sessions' members and the seed member must all be committed")
 
@@ -263,12 +265,13 @@ func TestLeafListConflictDetection(t *testing.T) {
 func TestDiscardPathPreservesOtherSessionMembers(t *testing.T) {
 	configPath := writeTestConfig(t, leafListSeedConfig)
 
-	edA, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	edA, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edA.Close() //nolint:errcheck // test cleanup
 	edA.SetSession(NewEditSession("thomas", "local"))
 
-	edB, err := NewEditor(configPath)
+	edB, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer edB.Close() //nolint:errcheck // test cleanup
 	// Different origin: session IDs embed user@origin%start-second, so two
@@ -280,7 +283,7 @@ func TestDiscardPathPreservesOtherSessionMembers(t *testing.T) {
 
 	require.NoError(t, edA.DiscardSessionPath([]string{"system", "name-server"}))
 
-	changeData, err := os.ReadFile(ChangePath(configPath, "thomas"))
+	changeData, err := store.ReadFile(ChangePath(configPath, "thomas"))
 	require.NoError(t, err)
 	content := string(changeData)
 	assert.NotContains(t, content, "8.8.8.8",
@@ -291,7 +294,7 @@ func TestDiscardPathPreservesOtherSessionMembers(t *testing.T) {
 	result, err := edB.CommitSession()
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, store, configPath)
 	assert.ElementsMatch(t, []string{"9.9.9.9", "1.1.1.1"}, members,
 		"commit after sibling discard must apply only the surviving member")
 }
@@ -339,12 +342,12 @@ system {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	members := committedNameServers(t, configPath)
+	members := committedNameServers(t, ed.store, configPath)
 	assert.Equal(t, []string{"1.1.1.1", "9.9.9.9"}, members,
 		"active members survive commit in order (deactivated member excluded from effective view)")
 	assert.Equal(t, []config.MemberState{
 		{Value: "1.1.1.1"}, {Value: "9.9.9.9"}, {Value: "8.8.8.8", Inactive: true},
-	}, committedNameServerState(t, configPath),
+	}, committedNameServerState(t, ed.store, configPath),
 		"insert position and per-member deactivation must survive commit exactly")
 
 	require.NoError(t, ed.ActivateLeafListValue([]string{"system"}, "name-server", "8.8.8.8"),
@@ -353,7 +356,7 @@ system {
 	require.NoError(t, err)
 	require.Empty(t, result.Conflicts)
 
-	members = committedNameServers(t, configPath)
+	members = committedNameServers(t, ed.store, configPath)
 	assert.Equal(t, []string{"1.1.1.1", "9.9.9.9", "8.8.8.8"}, members,
 		"activation must restore the member in place")
 }

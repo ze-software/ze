@@ -1,6 +1,6 @@
 # ZeFS File Format
 
-ZeFS is a netcapstring-framed blob store. A single `.zefs` file holds multiple named entries (files) with hierarchical keys, zero-copy reads via mmap, and in-place update support via capacity-aware framing.
+ZeFS is the blob artifact format used for seeds, backups and explicit imports. A single `.zefs` file holds named entries with hierarchical keys, zero-copy reads via mmap, and capacity-aware framing. The live store is a directory of framed values, described in [Storage backends](storage-backends.md); opening that store never converts or falls back to a blob.
 <!-- source: pkg/zefs/store.go -- Store implementation -->
 
 ## Netcapstring
@@ -43,7 +43,7 @@ The header separators are `:` (between number, cap, used, and crc) and `\n` (aft
 - **Self-describing width.** The `<number>` field tells the parser how many digits to read for `<cap>` and `<used>`. No magic constants needed.
 - **Cap-first, fixed-width used.** Since `<used>` is always zero-padded to the same width as `<cap>`, and `<used>` <= `<cap>` by definition, the header size never changes when data grows within capacity. This is the critical invariant for in-place writes.
 - **Per-record CRC32c.** Each netcapstring carries a CRC32c (Castagnoli, hardware-accelerated on arm64/amd64) of its `<used>` data bytes. Corruption is detected on decode. The container's CRC covers all encoded entries, giving whole-file structural verification.
-- **No artificial size limit.** The `<number>` field is itself variable-width, so entries can be arbitrarily large (limited only by available memory).
+- **Bounded parsing.** Decimal fields must fit a Go `int`, and capacity must fit the available bytes including the terminator. Integrity tools also impose file-size and entry-count limits.
 
 ### Examples
 
@@ -67,7 +67,8 @@ The total header length for a given capacity is: `3 + digitCount(digitCount(cap)
 
 ### Capacity growth
 
-Keys are exact fit (keys never change). Data capacity is data length + 10%, both on first write and on growth.
+New keys are exact fit except under `file/active/`, where `writeFileNoFlush` reserves 20 extra bytes. Data capacity is data length + 10%, both on first write and on growth. `encode` uses exact-fit container capacity for the encoded entries plus their terminating newline.
+<!-- source: pkg/zefs/store.go -- writeFileNoFlush, encode -->
 
 ### Parsing
 
@@ -83,6 +84,12 @@ Keys are exact fit (keys never change). Data capacity is data length + 10%, both
 10. Skip `<cap>` - `<used>` bytes of space padding
 11. Read `\n` (verify terminator)
 12. Next entry starts at the byte after the terminator
+
+`DecodeNetcapstringRef` validates the frame and CRC without copying its payload.
+It returns a capped slice into the caller's buffer and the next offset. Blob
+decoding chains frames through that offset. A tree value must contain exactly
+one frame, so its reader also requires the next offset to equal the file length;
+appended bytes and concatenated frames are errors.
 
 ## ZeFS File
 
@@ -143,7 +150,7 @@ On unix, the backing file is memory-mapped (`PROT_READ`, `MAP_PRIVATE`). Tree no
 
 ### Single-process ownership
 
-Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze start router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze data list`) detect the running daemon by dialing the SSH port and become SSH clients, sending commands through the daemon rather than opening the blob directly. When no daemon is running, the editor starts an ephemeral daemon, connects via SSH, and stops it when done.
+Blob artifacts are opened offline and require one owning process. The blob's mutex protects goroutines within that process; it does not exclude another process. Live operations use the daemon's tree-backed storage handle and its lifetime ownership lock, as described in [Storage backends](storage-backends.md).
 
 ### In-process locking
 
@@ -154,20 +161,9 @@ All blob concurrency is in-process, handled by `sync.RWMutex`:
 | `ReadLock` | `RLock` (shared) | Zero-copy reads; multiple readers concurrent |
 | `WriteLock` | `Lock` (exclusive) | Batched writes; single writer, blocks readers |
 
-`WriteLock` batches all writes in memory and flushes atomically on `Release()`. No cross-process `flock` is needed because only one process has the blob open.
-
-### Daemon mutual exclusion
-
-The SSH server binds to its configured listen address on startup. If the port is already in use, the daemon fails with a clear error (port conflict), preventing two daemon instances.
-
-### Terminal commands as SSH clients
-
-When the daemon is running, terminal processes connect via SSH and send commands. The daemon's config component executes operations with mutex protection and returns results via the SSH session.
-
-| Scenario | Terminal behavior |
-|----------|-------------------|
-| Daemon running | SSH client to daemon |
-| No daemon | Ephemeral daemon started, then SSH client |
+`WriteLock` batches changes in memory and flushes on `Release()`. A flush uses
+either in-place writes or a full temp-and-rename rewrite, as detailed below.
+The guard's slices remain valid only while the guard is held.
 
 ## Key Namespaces
 
@@ -181,10 +177,11 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `file/<date>/` | Historical config versions | `file/20260318-100000.000/router.conf` |
 <!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername -->
 
-The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys with two functions, because a key names either a file or a directory. `resolveKey()` builds a FILE key and serves every read, write, remove and version path: it keeps the base filename alone, so `/etc/ze/router.conf` and `router.conf` both become `file/active/router.conf`. `resolveDirKey()` builds a DIRECTORY key and serves `List()` alone: it maps any filesystem directory to `file/active`, which is where `resolveKey()` put those files. Both are idempotent, so an already-namespaced key passes through unchanged and a `List()` result can be fed back to `ReadFile()` without double-prefixing.
-<!-- source: internal/component/config/storage/blob.go -- resolveKey, resolveDirKey, blobStorage.List -->
-
-`ze data` operates on raw blob keys. `ze init` writes `meta/` keys directly.
+The configuration storage layer maps config paths into this key space and also
+exposes raw-key operations for data commands. Its mapping, per-config pointers
+and recursive enumeration contract are described in
+[Storage backends](storage-backends.md). `ze data` accepts either an explicit
+blob artifact or the live tree root; mutations require offline ownership.
 
 ## Key Registry
 
@@ -230,10 +227,9 @@ When a value changes but fits within its existing slot capacity, `flush()` uses 
 
 | Condition | Write strategy |
 |-----------|---------------|
-| Entry value fits slot capacity | pwrite: entry header+data + container header CRC |
+| Existing entry value fits slot capacity and layout is unchanged | pwrite: entry header+data + container header CRC |
 | Entry value exceeds slot capacity | Full rewrite via temp+rename |
-| Entry added within container capacity | pwrite: append entry + update container header |
-| Entry added exceeding container capacity | Full rewrite via temp+rename |
+| Entry added, regardless of container capacity | Full rewrite via temp+rename |
 | Entry removed | Full rewrite (entries shift) |
 | Non-unix platform | Full rewrite (no pwrite) |
 
@@ -243,16 +239,58 @@ After pwrite, the backing mmap is released and re-acquired so the read path sees
 
 ## Integrity checking
 
-`zefs.Check(path)` reads a store file, validates the magic, container CRC, and every entry's CRC32c. Returns a structured `CheckReport` with per-entry status.
+`zefs.Check(path)` reads a blob, validates the magic, container CRC, and each
+entry's CRC32c, and returns a `CheckReport`. A failed container checksum remains
+a failure even when its framing permits a bounded scan of the inner entries.
+The scan reports the damaged key where recoverable, otherwise the blob path
+and byte offset.
 
-`zefs.Repair(src, dst)` scans a potentially corrupt store entry-by-entry, skips entries with CRC mismatches or parse errors, and writes valid entries to a new store. The source file is never modified.
+`zefs.Repair(src, dst)` reads a damaged blob and writes recoverable entries to
+a new artifact. It follows intact frame boundaries and stops when a boundary
+cannot be recovered; bytes resembling headers inside damaged payloads do not
+become keys.
 
-`zefs.MoveAside(path)` renames a store file to `<path>.replaced-<date>` (local time) and returns the backup path, preserving the original for post-mortem. It is the shared backup step used when a store must be replaced rather than repaired in place.
+`zefs.CheckPath(path)` and `zefs.RepairPath(src, dst)` dispatch on a blob file or
+a framed directory tree. On Linux and Darwin, traversal opens every source and
+destination-parent component from `/` using descriptor-relative, no-follow opens.
+It refuses symlinks anywhere in those paths and special files in the tree.
+Ancestors must be root-owned or caller-owned. Writable shared ancestors need
+the sticky bit until a caller-owned directory with no group or other access
+prevents outsiders from traversing the remaining path. An unsafe writable
+ancestor before that boundary is refused, even if a later directory is private.
+Leaving the private subtree with `..` removes that protection. The tree root
+and its descendants require caller ownership, directories exactly 0700 and
+files exactly 0600, including when the caller is root.
 
-The config storage layer self-heals on top of these. When `storage.NewBlob` opens a store that exists but is unreadable (corrupt, or a 0-byte file left by an interrupted or concurrent write), it moves the bad file aside with `MoveAside` and recreates a fresh store, so a corrupt store recovers automatically instead of wedging on every open. `ze init --force` uses the same `MoveAside` backup before writing a new database.
+Darwin's fixed `/tmp` and `/var` system aliases select `/private/tmp` and
+`/private/var` directly before that walk. Their symlink entries are never
+followed, and the canonical base and every supplied component remain checked.
+Other platforms retain blob support and explicitly refuse tree integrity operations.
+
+Tree checks verify one complete frame per key. Tree repair skips corrupt frames,
+preserves good frames byte-for-byte in a new tree, and never changes the source.
+Its private staging directory is beside the destination, outside the key tree;
+publication refuses an existing destination with Linux `RENAME_NOREPLACE` or
+Darwin `RENAME_EXCL`. Staging creation, key writes, publication and cleanup all
+use retained directory descriptors, so a replaced ancestor cannot redirect them.
+Files and directories are synced before publication and created with modes
+suitable for reopening the live store.
+Traversal is iterative and enumerates directory entries in bounded batches.
+Tree depth, key count and value size have no smaller integrity-only limits than
+the live writer: native path, descriptor and available-memory limits apply.
+Each frame read is bounded by the opened inode's size and refuses a size change.
+
+`zefs.MoveAside(path)` preserves a file or tree under
+`<path>.replaced-<date>T<time>`. Live open is non-mutating: a blob or corrupt store
+is refused rather than moved aside and replaced with empty credentials.
 
 CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
-<!-- source: pkg/zefs/check.go -- Check, Repair, MoveAside -->
+Checks retain exit codes 0 for clean, 1 for corruption, and 2 for unreadable or
+unsafe paths.
+<!-- source: pkg/zefs/check.go -- Check, Repair, CheckPath, RepairPath, MoveAside -->
+<!-- source: pkg/zefs/check_tree_unix.go -- openFrameDirectory, walkFrameTree, repairFrameTree -->
+<!-- source: pkg/zefs/check_tree_linux.go -- renameFrameTree -->
+<!-- source: pkg/zefs/check_tree_darwin.go -- renameFrameTree, trustedFramePath -->
 
 ### Integrity design decisions
 
@@ -275,62 +313,22 @@ CLI: `ze data check`, `ze data repair --output <path>`, `ze data encode`.
   for a post-mortem.
 <!-- source: pkg/zefs/store.go -- flushInPlace, flushFull, container CRC patching -->
 <!-- source: internal/component/config/storage/cli/cmd_integrity.go -- check, repair and encode commands -->
-<!-- source: internal/component/config/storage/blob.go -- NewBlob corrupt-store self-heal -->
-<!-- source: internal/plugins/init/main.go -- moveAsideDB uses zefs.MoveAside -->
+<!-- source: internal/component/config/storage/open.go -- Open, Create -->
 
 ## Runtime state through statestore
 
-Runtime state persists through the managed zefs store, never as a loose file.
-`internal/core/statestore` is the plugin-facing wrapper:
-`statestore.Put(key, data)` and `statestore.Get(key)`, keyed by a registered
-`pkg/zefs` key of the form `meta/<subsystem>/<name>` declared in
-`pkg/zefs/keys.go`.
+Runtime state uses the daemon's shared `storage.Storage` handle through
+`internal/core/statestore`, with registered keys from `pkg/zefs/keys.go`.
+Plugins persist through the daemon rather than opening another store.
+`Put` retains its best-effort no-store result for unwired callers; operations
+that require acknowledged persistence use the state RPC contract.
 
-On the gokrazy appliance the writable `/perm` partition holds exactly one
-managed artifact, `database.zefs`. It is integrity-checked, seeded at install,
-and understood by the image build and verify tooling. A loose `state/foo.json`
-next to it is invisible to all of that: not backed up, not verified, and gone
-after a reimage.
-
-Three properties decide how `statestore` is used.
-
-- **One shared handle, not a transient open.** The config system opens
-  `database.zefs` once at startup and holds that single `*zefs.BlobStore` for
-  the process, and a flush re-encodes the whole file from its in-memory tree.
-  A separate transient store would let the config store's next flush drop every
-  state key, and a state write could revert a concurrent config commit. So
-  `statestore` writes through that same handle, registered with
-  `statestore.SetStore` in `cmd/ze/hub`, serialized by the store's own lock.
-- **Best-effort.** `Put` is a no-op when no blob store is registered, which is
-  the filesystem-fallback mode used on a dev machine. Persistence stays
-  non-fatal.
-- **Whole-file flush.** A write rewrites the whole store per flush, so write
-  cadences stay modest: best-effort caches, never per-packet.
-
-```go
-// save (best-effort; a no-op when no blob store is registered)
-data, _ := json.Marshal(snapshot)
-_, _ = statestore.Put(zefs.KeyDDoSDetectBaseline.Pattern, data)
-
-// restore
-if data, ok := statestore.Get(zefs.KeyDDoSDetectBaseline.Pattern); ok {
-    _ = json.Unmarshal(data, &snapshot) // keep version and sanity guards
-}
-```
-
+The appliance imports its `database.zefs` seed explicitly into `database/` on
+first boot and retires the seed only after verification. Persistent runtime
+state then lives in framed keys under that tree. See
+[Storage backends](storage-backends.md) for ownership, import recovery and the
+live-store contract.
 <!-- source: internal/core/statestore/statestore.go -- Put, Get, SetStore -->
-
-`./le fs-persistence check`, which runs inside `./le verify worktree` and
-`./le verify current mode changed`, flags any non-allowlisted raw filesystem
-write in the scanned trees. The categories that legitimately stay raw are
-kernel and device control (`/proc`, `/sys`, `/dev`, cgroup, ethtool), ephemeral
-scratch (`/tmp`, `/run`, pid files, sockets, probe and ready files), artifacts
-produced for another consumer (`resolv.conf`, systemd units, PEM exports, MRT
-dumps, the ze binary during self-update, the externally-written
-`config-pushed.conf` inbox), and the storage layer itself
-(`internal/component/config/storage`, `pkg/zefs`, the crash-time writers in
-`internal/core/crashlog`, and the append-only audit log in
-`internal/core/audit`).
 
 ## Implementation
 

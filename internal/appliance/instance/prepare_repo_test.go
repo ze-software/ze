@@ -138,9 +138,40 @@ func listModules(t *testing.T, dir, modcache string) (string, error) {
 	return string(out), err
 }
 
+// vendorGraph keeps the selected source graph for Ze. Upstream-only test
+// requirements disappear when source modules receive minimal bridge manifests.
+func vendorGraph(t *testing.T, root, graph string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, "vendor", "modules.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	modules, err := parseVendorModules(string(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := map[string]bool{
+		"github.com/ze-software/ze":               true,
+		"gokrazy/build/github.com/ze-software/ze": true,
+	}
+	for _, m := range modules {
+		selected[m.path] = true
+	}
+	var result strings.Builder
+	for line := range strings.SplitSeq(graph, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && selected[fields[0]] {
+			result.WriteString(line)
+			result.WriteByte('\n')
+		}
+	}
+	return result.String()
+}
+
 // TestPreparedModulesResolveIdenticallyToTracked verifies that every builddir
-// module resolves to exactly the same version graph after preparation as before
-// it, offline and against the checked-in module cache.
+// module keeps its selected source versions after preparation, offline and
+// against the checked-in module cache. Ze compares its canonical vendor graph;
+// system and kernel modules compare their complete upstream graphs.
 //
 // This is the assertion that would have caught the 2026-07-18 defect on the day
 // it landed. "The build succeeded" does not distinguish a build that used the
@@ -231,6 +262,10 @@ func TestPreparedModulesResolveIdenticallyToTracked(t *testing.T) {
 		if gotErr != nil {
 			t.Errorf("%s: prepared module does not resolve offline though the tracked one does: %v\n%s", rel, gotErr, got)
 			continue
+		}
+		if filepath.ToSlash(rel) == "github.com/ze-software/ze" {
+			want = vendorGraph(t, root, want)
+			got = vendorGraph(t, root, got)
 		}
 		if got != want {
 			t.Errorf("%s: preparation changed the resolved module graph\n--- tracked ---\n%s\n--- prepared ---\n%s", rel, want, got)

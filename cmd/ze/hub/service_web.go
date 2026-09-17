@@ -33,24 +33,10 @@ import (
 	zeweb "github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/health"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/zefs"
 )
-
-// resolveConfigPath returns the config file path for the editor. It carries
-// this file's build constraint because runWebOnly below is its only caller.
-func resolveConfigPath(store storage.Storage) string {
-	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
-	if err == nil && len(data) > 0 {
-		name := strings.TrimSpace(string(data))
-		if name != "" {
-			var tb textbuf.Buffer
-			return tb.Str(name).Str(".conf").String()
-		}
-	}
-	return "ze.conf"
-}
 
 type webService struct {
 	*zeweb.WebServer
@@ -134,7 +120,7 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	// is no AAA chain here to share the read with. An unreadable database leaves
 	// the power user out of both the serve-or-not test and the live view, which
 	// is the same answer both would reach separately.
-	powerUsers, powerErr := loadZefsUsers()
+	powerUsers, powerErr := usersFromStore(store)
 	if powerErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", powerErr)
 	}
@@ -283,8 +269,8 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		authorizer = nil
 	}
 
-	if !storage.IsBlobStorage(store) {
-		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
+	if store == nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: persistent store unavailable (run ze init first)\n")
 		return nil, nil
 	}
 
@@ -382,7 +368,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Ensure a config file exists for the editor.
 	if configPath == "" {
-		configPath = resolveConfigPath(store)
+		configPath = internalresolve.DefaultConfig(store)
 	}
 	if !store.Exists(configPath) {
 		if writeErr := store.WriteFile(configPath, []byte("# ze config\n"), 0o600); writeErr != nil {
@@ -404,6 +390,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	if commitHook != nil {
 		// Install before serving so early commits cannot bypass daemon reload.
 		editorMgr.SetCommitHook(commitHook)
+		editorMgr.SetConfigSource(func() ([]byte, error) {
+			return internalresolve.ReadConfigSource(store, configPath)
+		}, func(expected, content []byte) error {
+			return commitRuntimeConfig(store, configPath, configPath, expected, content, commitHook)
+		})
 	}
 
 	var commandCompleter zeweb.CommandCompleter

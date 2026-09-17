@@ -56,7 +56,7 @@ var (
 	// recordExpectTypesParsed are the expect types parseExpect reads from a
 	// key=value map.
 	recordExpectTypesParsed = []string{
-		directiveTypeBGP, "event", "exit", directiveTypeFile, "json",
+		directiveTypeBGP, "event", "exit", directiveTypeFile, "key", "json",
 		directiveTypeStderr, directiveTypeStdout, directiveTypeSyslog,
 	}
 

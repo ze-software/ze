@@ -14,7 +14,7 @@ import (
 )
 
 func cmdCheck(storePath string, _ []string) int {
-	report, err := zefs.Check(storePath)
+	report, err := zefs.CheckPath(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
@@ -22,13 +22,15 @@ func cmdCheck(storePath string, _ []string) int {
 
 	if report.ContainerError != "" {
 		fmt.Fprintf(os.Stderr, "FAIL: %s\n", report.ContainerError)
-		return 1
 	}
 
 	for _, e := range report.Entries {
 		if e.Status != "ok" {
 			fmt.Fprintf(os.Stderr, "CORRUPT: %s: %s\n", e.Key, e.Error)
 		}
+	}
+	if report.ContainerError != "" {
+		return 1
 	}
 
 	if report.CorruptEntries > 0 {
@@ -59,7 +61,7 @@ func cmdRepair(storePath string, args []string) int {
 		return 1
 	}
 
-	report, err := zefs.Repair(storePath, outputPath)
+	report, err := zefs.RepairPath(storePath, outputPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2

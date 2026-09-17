@@ -22,6 +22,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/env"
+	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -34,9 +35,8 @@ import (
 // The reload therefore needs no branch of its own for either -- the SAME
 // function that hashes a plaintext-password at boot hashes it at SIGHUP.
 //
-// It reads the candidate first, then the active version, then the file, which
-// is what makes a store that is blob-only (gokrazy read-only root, ze-test
-// tmpfs) reload from a filesystem path at all.
+// Candidate reads precede the explicitly selected source. Read errors are fatal,
+// never a reason to choose another authority.
 //
 // This is a named function rather than a closure inside runYANGConfig so a test
 // can drive the loader the daemon actually uses. A test that builds its own
@@ -46,16 +46,7 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 	loadBoth func() (map[string]any, *zeconfig.Tree, error),
 ) {
 	readAndParse := func() (*zeconfig.LoadConfigResult, error) {
-		var reloadData []byte
-		var readErr error
-		var hasCandidate bool
-		reloadData, _, hasCandidate, readErr = storage.ReadCandidateConfig(store, configPath)
-		if readErr == nil && !hasCandidate {
-			reloadData, readErr = storage.ReadActiveConfig(store, configPath)
-		}
-		if readErr != nil {
-			reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
-		}
+		reloadData, readErr := internalresolve.ReadReloadConfig(store, configPath)
 		if readErr != nil {
 			return nil, fmt.Errorf("read config: %w", readErr)
 		}
@@ -91,16 +82,19 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 // It closes done when reloadCh is closed and the reload it was running has
 // reported. Shutdown waits on that (awaitReloadWorker), so a SIGTERM racing a
 // SIGHUP does not take the verdict with it.
-func handleSIGHUPReload(reloadCh <-chan os.Signal, done chan<- struct{}, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder) {
+func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done chan<- struct{}, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder) {
 	defer close(done)
 
 	for range reloadCh {
+		if ctx.Err() != nil {
+			return
+		}
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
 		if err := stageSIGHUPCandidate(store, configPath); err != nil {
 			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
 			continue
 		}
-		if err := doReload(s, eng, cp, store, configPath, load, lm); err != nil {
+		if err := doReloadContext(ctx, s, eng, cp, store, configPath, load, lm); err != nil {
 			if errors.Is(err, pluginserver.ErrReloadInProgress) {
 				fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
 				s.QueueSIGHUP()
@@ -112,13 +106,13 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, done chan<- struct{}, s *plug
 			reloadComplete()
 		}
 		// After reload completes, drain any queued SIGHUP.
-		if s.DrainSIGHUP() {
+		if ctx.Err() == nil && s.DrainSIGHUP() {
 			fmt.Fprintf(os.Stderr, "replaying queued SIGHUP...\n")
 			if err := stageSIGHUPCandidate(store, configPath); err != nil {
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
 				continue
 			}
-			if err := doReload(s, eng, cp, store, configPath, load, lm); err != nil {
+			if err := doReloadContext(ctx, s, eng, cp, store, configPath, load, lm); err != nil {
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
 			} else {
 				recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "queued SIGHUP")
@@ -128,35 +122,20 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, done chan<- struct{}, s *plug
 	}
 }
 
-// reloadShutdownGrace bounds how long shutdown waits for the SIGHUP reload
-// worker to finish the reload it is running and report the verdict.
-//
-// It matches the txShutdownGrace the plugin server already spends waiting for
-// an in-flight config transaction to unwind (plugin/server/reload.go). That
-// wait covers a reload that reached a transaction. It covers nothing before
-// one: a reload refused by the config parser, the value validators, the PKI
-// load or the provider snapshot decides its verdict in runReload and never
-// reaches ReloadConfig at all.
-//
-// So an operator who sends SIGHUP and then SIGTERM saw "received SIGHUP,
-// reloading config..." as the daemon's last word and never learned whether the
-// config was applied or refused. test/reload/config-reload-invalid-validator.ci
-// is where that surfaced: ze-peer signals SIGTERM a fixed 500ms after SIGHUP
-// (pauseForSignal, internal/test/peer/peer.go), and under load the daemon exited
-// with the refusal still unprinted. The test asserts the refusal, so it went red
-// for the one reason a test must never go red: the daemon dropped the answer.
+// reloadShutdownGrace gives the running reload time to finish before shutdown
+// cancels it. Cancellation still requires a join before closing its resources.
 const reloadShutdownGrace = 3 * time.Second
 
-// awaitReloadWorker waits for the SIGHUP reload worker to drain its channel and
-// return, so a reload already running when SIGTERM arrives still reports what it
-// decided. A worker that outlasts the grace is left behind rather than holding
-// shutdown open, and it says so: a missing verdict with no explanation is the
-// thing this whole path exists to remove.
-func awaitReloadWorker(done <-chan struct{}, grace time.Duration) {
+// awaitReloadWorker cancels an overdue worker and waits for its cleanup to finish.
+// Plugin callbacks and candidate publication borrow the daemon's resources until
+// done closes. A second termination signal remains available for a forced exit.
+func awaitReloadWorker(done <-chan struct{}, grace time.Duration, cancel context.CancelFunc) {
 	select {
 	case <-done:
 	case <-time.After(grace):
-		fmt.Fprintf(os.Stderr, "shutdown: config reload still running after %s, stopping without its result\n", grace)
+		fmt.Fprintf(os.Stderr, "shutdown: canceling config reload after %s; waiting for cleanup\n", grace)
+		cancel()
+		<-done
 	}
 }
 
@@ -283,7 +262,7 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		if !candidateSet {
 			return nil
 		}
-		return storage.ClearCandidate(store, configPath)
+		return clearUncommittedCandidate(store, configPath)
 	}
 
 	if load == nil {
@@ -611,9 +590,12 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 	reloadSmartManager(parsedTree)
 
 	if candidateSet {
-		if err := storage.PromoteCandidate(store, configPath); err != nil {
+		if err := promoteConfigCandidate(store, configPath); err != nil {
 			if rollbackErr := rollbackReload(reloadCtx, s, eng, cp, priorProvider, priorPKI); rollbackErr != nil {
 				return fmt.Errorf("reload: promote candidate: %w (rollback failed: %w)", err, rollbackErr)
+			}
+			if clearErr := clearCandidate(); clearErr != nil {
+				return fmt.Errorf("reload: promote candidate: %w (candidate cleanup failed: %w)", err, clearErr)
 			}
 			return fmt.Errorf("reload: promote candidate: %w", err)
 		}
@@ -676,10 +658,7 @@ func stageSIGHUPCandidate(store storage.Storage, configPath string) error {
 		}
 		return storage.ErrCandidateExists
 	}
-	data, err := os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
-	if err != nil && storage.IsBlobStorage(store) {
-		data, err = store.ReadFile(configPath)
-	}
+	data, err := internalresolve.ReadConfigSource(store, configPath)
 	if err != nil {
 		return fmt.Errorf("stage SIGHUP candidate: read config: %w", err)
 	}

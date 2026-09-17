@@ -7,34 +7,51 @@
 package ospf
 
 import (
-	"io/fs"
+	"context"
+	"encoding/binary"
+	"errors"
+	"sync"
 	"testing"
 	"time"
 )
 
-// fakeGRStore is an in-memory grBlobStore for the NVS unit tests: it survives a simulated
+// fakeGRStore is an in-memory state client for the NVS unit tests: it survives a simulated
 // process restart because the same instance is reused across the write/read pair.
 type fakeGRStore struct {
 	files map[string][]byte
+	mu    sync.Mutex
 }
 
 func newFakeGRStore() *fakeGRStore { return &fakeGRStore{files: map[string][]byte{}} }
 
-func (s *fakeGRStore) ReadFile(name string) ([]byte, error) {
-	data, ok := s.files[name]
-	if !ok {
-		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
-	}
-	out := make([]byte, len(data))
-	copy(out, data)
-	return out, nil
+func (s *fakeGRStore) StateGet(_ context.Context, name string) ([]byte, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, found := s.files[name]
+	return append([]byte(nil), data...), found, nil
 }
 
-func (s *fakeGRStore) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	cp := make([]byte, len(data))
-	copy(cp, data)
-	s.files[name] = cp
+func (s *fakeGRStore) StatePut(_ context.Context, name string, data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.files[name] = append([]byte(nil), data...)
 	return nil
+}
+
+func (s *fakeGRStore) StateIncrement(_ context.Context, name string) (uint32, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var previous uint32
+	if data, found := s.files[name]; found {
+		if len(data) != 4 {
+			return 0, errors.New("corrupt counter")
+		}
+		previous = binary.BigEndian.Uint32(data)
+	}
+	data := make([]byte, 4)
+	binary.BigEndian.PutUint32(data, previous+1)
+	s.files[name] = data
+	return previous + 1, nil
 }
 
 // TestRestartFactPersistsAcrossRestart (AC-6, A-11): a restart fact written before a restart
@@ -58,12 +75,15 @@ func TestRestartFactPersistsAcrossRestart(t *testing.T) {
 		InterfaceIDs: map[string]uint32{"eth0": 7, "eth1": 9},
 		PrefixLSIDs:  map[string]uint32{"2001:db8::/64": 42},
 	}
-	if err := writeRestartFact(store, key, want); err != nil {
+	if err := writeRestartFact(context.Background(), store, key, want); err != nil {
 		t.Fatalf("writeRestartFact: %v", err)
 	}
 
 	// Simulate the process restart: a fresh read against the same durable store.
-	got, ok := readRestartFact(store, key)
+	got, ok, err := readRestartFact(context.Background(), store, key)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !ok {
 		t.Fatalf("readRestartFact: fact not found after restart")
 	}
@@ -100,10 +120,13 @@ func TestStaleRestartFactIgnored(t *testing.T) {
 	const key = grRestartFactKeyPrefix + "v4"
 	now := time.Unix(2_000_000, 0)
 	stale := restartFact{Restarting: true, GraceEndUnix: now.Add(-time.Second).Unix(), Reason: 1}
-	if err := writeRestartFact(store, key, stale); err != nil {
+	if err := writeRestartFact(context.Background(), store, key, stale); err != nil {
 		t.Fatalf("writeRestartFact: %v", err)
 	}
-	got, ok := readRestartFact(store, key)
+	got, ok, err := readRestartFact(context.Background(), store, key)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !ok {
 		t.Fatalf("readRestartFact: fact not found")
 	}
@@ -115,10 +138,13 @@ func TestStaleRestartFactIgnored(t *testing.T) {
 	}
 
 	// A cleared fact is likewise inactive.
-	if err := clearRestartFact(store, key); err != nil {
+	if err := clearRestartFact(context.Background(), store, key); err != nil {
 		t.Fatalf("clearRestartFact: %v", err)
 	}
-	cleared, ok := readRestartFact(store, key)
+	cleared, ok, err := readRestartFact(context.Background(), store, key)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !ok {
 		t.Fatalf("readRestartFact after clear: %v", ok)
 	}
@@ -130,7 +156,7 @@ func TestStaleRestartFactIgnored(t *testing.T) {
 // TestReadRestartFactAbsent: a cold boot with no stored fact reads no fact (boot normally).
 func TestReadRestartFactAbsent(t *testing.T) {
 	store := newFakeGRStore()
-	if _, ok := readRestartFact(store, grRestartFactKeyPrefix+"v4"); ok {
+	if _, ok, err := readRestartFact(context.Background(), store, grRestartFactKeyPrefix+"v4"); ok || err != nil {
 		t.Fatalf("expected no fact on a fresh store")
 	}
 }

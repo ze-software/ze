@@ -1,0 +1,21 @@
+# Test: doctor reports an unreadable legacy blob without modifying it.
+# VALIDATES: corrupt legacy storage requires explicit import or repair.
+# PREVENTS: an inspection command replacing persistent state behind the operator.
+
+option=env:var=ZE_CONFIG_DIR:value=.
+
+# A malformed blob remains available for explicit diagnosis.
+tmpfs=database.zefs:terminator=EOF_DB
+not a valid zefs store
+EOF_DB
+
+tmpfs=probe.conf:terminator=EOF_CONF
+# ze config
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json probe.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-storage-unavailable
+expect=file:path=database.zefs:contains=not a valid zefs store
+expect=file:glob=database.zefs.replaced-*:count=0
+expect=file:glob=database/*:count=0

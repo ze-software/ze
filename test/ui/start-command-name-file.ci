@@ -9,10 +9,7 @@
 # established a session. Had `ze start signal` instead run the signal command,
 # no daemon would start and the peer would report no exchange.
 #
-# "signal" has no config suffix, so the runner's blob-storage-force heuristic
-# does not fire for it; ze.storage.blob=false is set explicitly so the daemon
-# reads the file directly from its working directory.
-option=env:var=ze.storage.blob:value=false
+# An explicit source named "signal" remains authoritative even without a suffix.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER

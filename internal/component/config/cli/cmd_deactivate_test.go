@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
 const deactivateTestConfig = `bgp {
@@ -46,7 +44,7 @@ const deactivateTestConfig = `bgp {
 func TestCmdDeactivateLeaf(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	rc := cmdDeactivateImpl(nil, []string{
 		configPath,
 		"bgp", "router-id",
 	})
@@ -68,7 +66,7 @@ func TestCmdDeactivateLeaf(t *testing.T) {
 func TestCmdDeactivateContainer(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	rc := cmdDeactivateImpl(nil, []string{
 		configPath,
 		"bgp", "peer", "peer1",
 	})
@@ -89,7 +87,7 @@ func TestCmdDeactivateContainer(t *testing.T) {
 func TestCmdDeactivateLeafListValue(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	rc := cmdDeactivateImpl(nil, []string{
 		configPath,
 		"bgp", "filter", "import", "no-self-as",
 	})
@@ -111,12 +109,12 @@ func TestCmdDeactivateLeafListValue(t *testing.T) {
 func TestCmdActivateRoundTrip(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
-	if rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	if rc := cmdDeactivateImpl(nil, []string{
 		configPath, "bgp", "router-id",
 	}); rc != exitOK {
 		t.Fatalf("deactivate rc = %d", rc)
 	}
-	if rc := cmdActivateImpl(storage.NewFilesystem(), []string{
+	if rc := cmdActivateImpl(nil, []string{
 		configPath, "bgp", "router-id",
 	}); rc != exitOK {
 		t.Fatalf("activate rc = %d", rc)
@@ -143,7 +141,7 @@ func TestCmdDeactivateBadPath(t *testing.T) {
 		t.Fatalf("read before: %v", err)
 	}
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	rc := cmdDeactivateImpl(nil, []string{
 		configPath, "no", "such", "path",
 	})
 	if rc == exitOK {
@@ -166,13 +164,13 @@ func TestCmdDeactivateBadPath(t *testing.T) {
 func TestCmdDeactivateAlreadyInactive(t *testing.T) {
 	configPath := writeTestConfig(t, deactivateTestConfig)
 
-	if rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	if rc := cmdDeactivateImpl(nil, []string{
 		configPath, "bgp", "router-id",
 	}); rc != exitOK {
 		t.Fatalf("first deactivate rc = %d", rc)
 	}
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	rc := cmdDeactivateImpl(nil, []string{
 		configPath, "bgp", "router-id",
 	})
 	if rc != exitOK {
@@ -182,7 +180,7 @@ func TestCmdDeactivateAlreadyInactive(t *testing.T) {
 
 // TestCmdDeactivateMissingArgs verifies the usage check.
 func TestCmdDeactivateMissingArgs(t *testing.T) {
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{"only-one-arg"})
+	rc := cmdDeactivateImpl(nil, []string{"only-one-arg"})
 	if rc == exitOK {
 		t.Fatalf("expected non-zero exit when args insufficient")
 	}
@@ -229,7 +227,7 @@ func TestCmdDeactivatePositionalListEntry(t *testing.T) {
 		t.Fatalf("read before: %v", err)
 	}
 
-	rc := cmdDeactivateImpl(storage.NewFilesystem(), []string{
+	rc := cmdDeactivateImpl(nil, []string{
 		configPath,
 		"bgp", "peer", "peer1", "session", "capability", "nexthop", "ipv4/unicast",
 	})

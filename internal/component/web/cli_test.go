@@ -20,7 +20,6 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
-	"github.com/ze-software/ze/internal/component/config/storage"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"   // Required by ze-bgp-conf.yang.
 	_ "github.com/ze-software/ze/internal/component/iface/yang" // Register interface YANG for scoped terminal tests.
 	"github.com/ze-software/ze/internal/component/plugin"
@@ -156,7 +155,7 @@ func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
 	require.NoError(t, os.WriteFile(configPath, []byte(configContent), 0o644))
 
 	schema, _ := buildTestSchemaAndTree()
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 
 	renderer, err := NewRenderer()
@@ -177,7 +176,7 @@ func setupCLITerminalYANGTest(t *testing.T) (*EditorManager, *config.Schema, *co
 	tree, err := config.NewParser(schema).Parse(terminalScopedConfig)
 	require.NoError(t, err)
 
-	store := storage.NewFilesystem()
+	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 
 	return mgr, schema, tree, configPath
@@ -878,13 +877,10 @@ func TestTerminalCompareRollbackScopesToShowPath(t *testing.T) {
 	_, err := mgr.GetOrCreate("testuser")
 	require.NoError(t, err)
 
-	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
-	require.NoError(t, os.MkdirAll(rollbackDir, 0o755))
-	base := strings.TrimSuffix(filepath.Base(configPath), filepath.Ext(configPath))
-	backupPath := filepath.Join(rollbackDir, base+"-20260101-120000.000.conf")
+	backupPath := "file/20260101-120000.000/" + filepath.Base(configPath)
 	backupContent := strings.ReplaceAll(terminalScopedConfig, "1.2.3.4", "7.7.7.7")
 	backupContent = strings.ReplaceAll(backupContent, "committed uplink", "rollback uplink")
-	require.NoError(t, os.WriteFile(backupPath, []byte(backupContent), 0o600))
+	require.NoError(t, mgr.store.WriteFile(backupPath, []byte(backupContent), 0o600))
 
 	require.NoError(t, mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9"))
 	require.NoError(t, mgr.SetValue("testuser", []string{"interface", "ethernet", "eth0"}, "description", "working uplink"))

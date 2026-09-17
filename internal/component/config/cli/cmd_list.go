@@ -9,24 +9,36 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// cmdListWithStorage lists config files from both blob storage and filesystem.
-func cmdListWithStorage(store storage.Storage, _ []string) int {
+// cmdListWithStorage lists stored configurations and explicit loose files.
+func cmdListWithStorage(store storage.Storage, args []string) int {
+	if len(args) != 0 {
+		fmt.Fprintln(os.Stderr, "usage: ze config list")
+		return exitError
+	}
+	if store == nil {
+		var err error
+		store, err = storage.OpenReadOnly(resolve.StoreDir(""))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: config list: %v\n", err)
+			return exitError
+		}
+		defer store.Close() //nolint:errcheck // Read-only inspection.
+	}
 	found := false
 
-	// List from blob storage
-	if storage.IsBlobStorage(store) {
-		for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
-			keys, err := store.List(prefix)
-			if err != nil {
-				continue // directory doesn't exist yet
-			}
-			for _, key := range keys {
-				fmt.Println("[data] " + key)
-				found = true
-			}
+	// List stored config namespaces.
+	for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
+		keys, err := store.List(prefix)
+		if err != nil {
+			continue // directory doesn't exist yet
+		}
+		for _, key := range keys {
+			fmt.Println("[data] " + key)
+			found = true
 		}
 	}
 
@@ -74,11 +86,20 @@ func configSearchDirs() []string {
 	return dirs
 }
 
-// cmdCatWithStorage prints the content of a key from the blob store.
+// cmdCatWithStorage prints the content of a stored key.
 func cmdCatWithStorage(store storage.Storage, args []string) int {
 	if len(args) != 1 {
 		fmt.Fprintf(os.Stderr, "usage: ze config cat <key>\n")
 		return 1
+	}
+	if store == nil {
+		var err error
+		store, err = storage.OpenReadOnly(resolve.StoreDir(""))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: config cat: %v\n", err)
+			return exitError
+		}
+		defer store.Close() //nolint:errcheck // Read-only inspection.
 	}
 
 	data, err := store.ReadFile(args[0])

@@ -1,6 +1,6 @@
 // Design: docs/architecture/firewall/firewall-domain-group.md -- firewall domain-group plugin entry point
 // Related: schedule.go -- the per-name, per-family TTL schedule this file drives
-// Related: cache.go -- the zefs last-good addresses a restart programs from
+// Related: cache.go -- the persisted last-good addresses a restart programs from
 // Related: changelog.go -- the JSON-lines record of what a name pointed at, and when it moved
 //
 // Package domain populates nftables sets from what DNS names resolve to.
@@ -175,7 +175,16 @@ func runFirewallDomain(conn net.Conn) int {
 	// engine call is safe: the five-stage handshake has completed, so the
 	// startup coordinator is no longer reading the connection for this plugin's
 	// `ready` (Plugin.OnStarted, pkg/plugin/sdk/sdk_callbacks.go).
-	p.OnStarted(func(context.Context) error {
+	p.OnStarted(func(ctx context.Context) error {
+		plug.cache.keys = p.StateKeys(ctx)
+		plug.mu.RLock()
+		cfg := plug.config
+		plug.mu.RUnlock()
+		if cfg != nil {
+			if err := plug.configure(cfg); err != nil {
+				return err
+			}
+		}
 		plug.startRefreshWorker()
 		return nil
 	})
@@ -188,7 +197,7 @@ func runFirewallDomain(conn net.Conn) int {
 		Commands:    commandDecls(),
 		Enrichers:   []sdk.EnricherDecl{{Command: enrichCommand, Key: enrichKey}},
 		WantsConfig: []string{configRoot},
-		// The resolved addresses survive a restart in the zefs store, so a
+		// The resolved addresses survive a restart in the owned store, so a
 		// crashed process comes back and programs its sets again from the cache.
 		// Without the restart the registry holds back every table naming a
 		// domain-group set for the life of the daemon.
@@ -209,7 +218,7 @@ func newDomainPlugin(p *sdk.Plugin, resolve resolveFunc) *domainPlugin {
 	return &domainPlugin{
 		plugin:    p,
 		resolve:   resolve,
-		cache:     newStore(cacheStorePath()),
+		cache:     newStore(nil),
 		changeLog: newChangeLog(changeLogPath()),
 		sched:     newSchedule(),
 		wake:      make(chan struct{}, 1),
@@ -392,7 +401,6 @@ func (plug *domainPlugin) stop() {
 		if started {
 			<-plug.done
 		}
-		plug.cache.close()
 	})
 }
 

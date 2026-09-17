@@ -91,7 +91,9 @@ func TestAFReconcileAddRemove(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	m.apply(only6.v6Families(), only6.multiAF())
+	if err := m.apply(only6.v6Families(), only6.multiAF()); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := m.engineFor(afIPv4Unicast); ok {
 		t.Fatal("IPv4-unicast engine present before it was configured")
 	}
@@ -101,13 +103,17 @@ func TestAFReconcileAddRemove(t *testing.T) {
 
 	// Add the IPv4-unicast AF.
 	both := twoAFConfig(t)
-	m.apply(both.v6Families(), both.multiAF())
+	if err := m.apply(both.v6Families(), both.multiAF()); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := m.engineFor(afIPv4Unicast); !ok {
 		t.Fatal("IPv4-unicast engine not spawned on add")
 	}
 
 	// Remove the IPv4-unicast AF: its engine stops; the IPv6-unicast engine survives.
-	m.apply(only6.v6Families(), only6.multiAF())
+	if err := m.apply(only6.v6Families(), only6.multiAF()); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := m.engineFor(afIPv4Unicast); ok {
 		t.Error("IPv4-unicast engine still present after removal")
 	}

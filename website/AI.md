@@ -74,10 +74,9 @@ the command surfaces and asset bundles, and removes every source-only path.
 presentation decks with `./le site bundle input <deck.html>` and renders the
 repository activity page with `./le site activity`.
 
-The live CLI catalog is rendered in-process by `internal/le/docvalid`, which
-also regenerates the wiki catalogue through `internal/le/wikicatalog`. The
-documentation drift gate therefore reads the same typed command contract as
-the site build and starts no interpreter.
+The site build writes the live CLI catalog to its output directory.
+The separate `./le wiki-catalog update file ../wiki/command-catalog.md` action
+updates the wiki catalog. Both use the typed command registrations.
 
 Hand-authored pages (`zeledon/`, `labs/*/`, `style-guide/`, `performance/`)
 hold their body content as HTML. The `authored` producer reads each one,

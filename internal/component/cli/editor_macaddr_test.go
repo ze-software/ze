@@ -2,7 +2,6 @@
 package cli
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +29,8 @@ import (
 func TestWriteThroughInterfaceAddressRoundTrip(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -44,7 +44,7 @@ func TestWriteThroughInterfaceAddressRoundTrip(t *testing.T) {
 	require.NoError(t, ed.SetValue([]string{"interface", "ethernet", "iface-test", "unit", "0", "ipv6"}, "address", "fd00::1/64"))
 
 	changePath := ChangePath(configPath, session.User)
-	data, rerr := os.ReadFile(changePath) //nolint:gosec // test path
+	data, rerr := store.ReadFile(changePath) //nolint:gosec // test path
 	require.NoError(t, rerr)
 	assert.Contains(t, string(data), "mac address 00:aa:bb:cc:dd:01")
 	// address is a bracket-syntax leaf-list, serialized as `address [ <cidr> ]`.

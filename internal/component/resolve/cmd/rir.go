@@ -166,7 +166,7 @@ func configuredDelegationSources(cc *pluginserver.CommandContext) (map[string]st
 		return none, nil
 	}
 
-	ed, err := cli.NewEditor(configPath)
+	ed, err := cli.NewEditorWithStorage(statestore.Store(), configPath)
 	if err != nil {
 		return nil, fmt.Errorf("read the config at %s: %w", configPath, err)
 	}

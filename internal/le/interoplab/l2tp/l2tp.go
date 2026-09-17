@@ -198,6 +198,8 @@ func prepareScenario(_ context.Context, root string, source interoplab.ScenarioS
 }
 
 func zePeer(suffix, config string) interoplab.PeerConfig {
+	// The file is read-only, while its parent belongs to this container and
+	// stays writable for the database tree beside the explicit configuration.
 	mounts := []interoplab.Mount{{Source: config, Target: "/etc/ze/ze.conf", ReadOnly: true}}
 	if modulesAvailable() {
 		mounts = append(mounts, interoplab.Mount{Source: modulesPath, Target: modulesPath, ReadOnly: true})
@@ -212,7 +214,6 @@ func zePeer(suffix, config string) interoplab.PeerConfig {
 		Arguments: []string{privilegedArgument},
 		Environment: []interoplab.EnvironmentVariable{
 			{Name: "ZE_LOG_L2TP", Value: "debug"},
-			{Name: "ZE_STORAGE_BLOB", Value: "false"},
 			{Name: "ze.l2tp.ncp.enable-ipv6cp", Value: "false"},
 			{Name: "ze.l2tp.ncp.ip-timeout", Value: "15s"},
 			{Name: "ze.l2tp.auth.timeout", Value: "15s"},

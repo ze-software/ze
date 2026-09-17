@@ -1,13 +1,14 @@
 package client
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
 	unicli "github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/config/storage"
+	"github.com/ze-software/ze/internal/core/statestore"
 )
 
 // attachedTestConfig is a config the YANG schema accepts, so the editor parses
@@ -23,11 +24,21 @@ func attachedTestDispatch(string) (unicli.CommandOutput, error) {
 // attachedTestEditor builds a storage-backed editor over a temporary config.
 func attachedTestEditor(t *testing.T) *unicli.Editor {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "config.conf")
-	if err := os.WriteFile(path, []byte(attachedTestConfig), 0o600); err != nil {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.conf")
+	store, err := storage.Create(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statestore.SetStore(store)
+	t.Cleanup(func() {
+		statestore.SetStore(nil)
+		store.Close() //nolint:errcheck // Test cleanup.
+	})
+	if err := store.WriteFile(path, []byte(attachedTestConfig), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
-	ed, err := unicli.NewEditor(path)
+	ed, err := unicli.NewEditorWithStorage(store, path)
 	if err != nil {
 		t.Fatalf("new editor: %v", err)
 	}

@@ -1,10 +1,6 @@
-# Test: ze config history reports no revisions for a fresh config file
-# VALIDATES: `ze config history <file>` opens the file through filesystem
-#            storage, lists rollback revisions, and -- with no rollback/
-#            snapshots and no draft -- prints the "No rollback revisions
-#            found" line (cmd_history.go) and exits 0.
-# PREVENTS: regressions where config history errors on a config that simply
-#           has no history yet, or drops the empty-state message.
+# Test: ze config history reports no revisions in an initialized empty store.
+# VALIDATES: a config with no snapshots reports the empty history, not an error.
+# PREVENTS: the empty-history path being hidden behind missing-store refusal.
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
 	router-id 10.0.0.1
@@ -31,8 +27,8 @@ bgp {
 }
 EOF_FILE
 
-option=env:var=ze.storage.blob:value=false
 
-cmd=foreground:seq=1:exec=ze config history test.conf
+cmd=foreground:seq=1:exec=ze-test fixture storage/empty-tree:exit=0
+cmd=foreground:seq=2:exec=ze config history test.conf
 expect=exit:code=0
 expect=stdout:contains=No rollback revisions found

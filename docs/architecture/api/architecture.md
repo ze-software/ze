@@ -464,13 +464,13 @@ Monitor supports filtering by peer address, event type, and direction. Pipe oper
 
 ### REST and gRPC authentication flow
 
-At boot, `runYANGConfig` loads the zefs user snapshot once. It creates
+At boot, `runYANGConfig` loads the managed-store user snapshot once. It creates
 `liveLocalUsers` after the config provider contains the running tree.
 `liveLocalUsers` merges that snapshot with `system.authentication.user`.
-A config user replaces a same-name zefs user. Only surviving zefs users retain
+A config user replaces a same-name stored user. Only surviving stored users retain
 their recovery profile.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromZefsDB -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromStore -->
 
 `runYANGConfig` calls the live source once to produce the shared boot snapshot.
 A source error stops startup before AAA installation or management listener

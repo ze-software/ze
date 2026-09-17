@@ -34,7 +34,7 @@ func TestModelErrorsCommand(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -61,7 +61,7 @@ func TestModelErrorsCommandNoIssues(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -86,7 +86,7 @@ func TestModelCmdTop(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -119,7 +119,7 @@ func TestModelCmdEditHierarchical(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -149,7 +149,7 @@ func TestModelCmdEditWildcardTemplate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -173,7 +173,7 @@ func TestModelCmdEditNotFound(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -216,7 +216,7 @@ func TestModelCmdEditFromContext(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -272,7 +272,7 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -299,7 +299,7 @@ func TestModelCmdUp(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -329,7 +329,7 @@ func TestModelCmdUpFromTemplate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -361,7 +361,7 @@ func TestModelCmdUpAtRoot(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -422,7 +422,7 @@ func TestModelPipeShowGrep(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -471,7 +471,7 @@ func TestModelPipeShowHead(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -508,7 +508,7 @@ func TestModelPipeChain(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -557,7 +557,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -672,7 +672,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -709,7 +709,7 @@ func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -793,7 +793,7 @@ func TestEditQuotedListKey(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -829,7 +829,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -865,7 +865,8 @@ func TestCommitTriggersReload(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -877,7 +878,7 @@ func TestCommitTriggersReload(t *testing.T) {
 		require.True(t, ok, "candidate must be staged before reload notification")
 		assert.Contains(t, string(candidate), "router-id 1.2.3.4")
 
-		activeBefore, readErr := os.ReadFile(configPath)
+		activeBefore, readErr := store.ReadFile(configPath)
 		require.NoError(t, readErr)
 		assert.Equal(t, testValidBGPConfig, string(activeBefore), "active file must not change before promotion")
 
@@ -911,7 +912,8 @@ func TestCommitReloadFailsGracefully(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -928,7 +930,7 @@ func TestCommitReloadFailsGracefully(t *testing.T) {
 	result, err := model.cmdCommit()
 	require.NoError(t, err, "commit failure is reported as command status")
 
-	data, readErr := os.ReadFile(configPath)
+	data, readErr := store.ReadFile(configPath)
 	require.NoError(t, readErr)
 	assert.Equal(t, testValidBGPConfig, string(data), "active file should remain unchanged")
 	assert.True(t, ed.Dirty(), "editor should remain dirty after rejected commit")
@@ -954,7 +956,7 @@ func TestCommitValidationFailsNoReload(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -987,7 +989,7 @@ func TestCommitNoNotifierStandalone(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -1011,7 +1013,7 @@ func TestCLIConfigCommitAuditRecord(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 	ed.setWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
@@ -1041,7 +1043,7 @@ func TestCLIConfigDiscardAuditRecord(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 	ed.setWorkingContent(strings.Replace(testValidBGPConfig, "router-id 1.2.3.4", "router-id 5.6.7.8", 1))
@@ -1071,7 +1073,8 @@ func TestCLIConfigRollbackAuditRecord(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewLooseFileEditor(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 	require.NoError(t, ed.createBackup(ed.OriginalContent(), nil))
@@ -1104,7 +1107,7 @@ func TestSetThroughList(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1130,7 +1133,7 @@ func TestSetRejectsNonLeafPath(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1152,7 +1155,7 @@ func TestSetInContextPreserved(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1183,7 +1186,7 @@ func TestSetThroughListDescription(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1208,7 +1211,7 @@ func TestSetRejectsConfigFalse(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1237,7 +1240,7 @@ func TestSetListKeyKeywordThenChild(t *testing.T) {
 }`
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1264,7 +1267,7 @@ func TestSetRejectsMissingListKey(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1287,7 +1290,7 @@ func TestSetRejectsUnknownPath(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1310,7 +1313,8 @@ func TestWhoWithSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
 
@@ -1436,7 +1440,7 @@ func TestCmdOptionBlameRedirectsToPipe(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1461,7 +1465,7 @@ func TestCmdOptionChangesReportsColumnState(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1483,7 +1487,7 @@ func TestCmdShowFormatConfigWithoutSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1506,7 +1510,7 @@ func TestCmdWhoRequiresSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1528,7 +1532,7 @@ func TestCmdDisconnectRequiresSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1550,7 +1554,8 @@ func TestCmdDisconnectOwnSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1575,7 +1580,8 @@ func TestCmdDisconnectNoArgs(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1600,7 +1606,8 @@ func TestCmdSaveSessionMode(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1621,13 +1628,13 @@ func TestCmdSaveSessionMode(t *testing.T) {
 
 	// Draft file should now exist (SaveDraft created it).
 	draftPath := DraftPath(configPath)
-	_, statErr := os.Stat(draftPath)
-	assert.False(t, os.IsNotExist(statErr), "draft should exist after save in session mode")
+	_, statErr := store.Stat(draftPath)
+	assert.False(t, errors.Is(statErr, os.ErrNotExist), "draft should exist after save in session mode")
 
 	// Change file should be gone (SaveDraft consumed it).
 	changePath := ChangePath(configPath, "alice")
-	_, statErr = os.Stat(changePath)
-	assert.True(t, os.IsNotExist(statErr), "change file should be deleted after save")
+	_, statErr = store.Stat(changePath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "change file should be deleted after save")
 }
 
 // TestCmdWhoOutputFormat verifies who command output format.
@@ -1640,7 +1647,8 @@ func TestCmdWhoOutputFormat(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1672,7 +1680,8 @@ func TestCmdShowChangesNoChanges(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1698,7 +1707,8 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 1 makes a change
-	ed1, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1708,7 +1718,7 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 	require.NoError(t, err)
 
 	// Session 2 makes a different change
-	ed2, err := NewEditor(configPath)
+	ed2, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1739,7 +1749,8 @@ func TestCmdCommitConfirmedRejectedInSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1764,7 +1775,8 @@ func TestHasPendingChangesSessionAware(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1794,7 +1806,8 @@ func TestAutoSaveOnQuitSkipsSession(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1808,8 +1821,8 @@ func TestAutoSaveOnQuitSkipsSession(t *testing.T) {
 
 	// .edit file should NOT exist (session mode skips auto-save)
 	editPath := configPath + ".edit"
-	_, statErr := os.Stat(editPath)
-	assert.True(t, os.IsNotExist(statErr), ".edit should not exist in session mode")
+	_, statErr := store.Stat(editPath)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), ".edit should not exist in session mode")
 }
 
 // TestCmdCommitSessionReload verifies session commit stages a candidate before reload.
@@ -1822,7 +1835,8 @@ func TestCmdCommitSessionReload(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1834,7 +1848,7 @@ func TestCmdCommitSessionReload(t *testing.T) {
 		require.True(t, ok, "session candidate must be staged before reload notification")
 		assert.Contains(t, string(candidate), "router-id 9.9.9.9")
 
-		activeBefore, readErr := os.ReadFile(configPath)
+		activeBefore, readErr := store.ReadFile(configPath)
 		require.NoError(t, readErr)
 		assert.Equal(t, testValidBGPConfigSimplePeer, string(activeBefore), "active file must not change before promotion")
 
@@ -1879,7 +1893,8 @@ func TestCmdCommitSessionDeleteContainerClearsDirty(t *testing.T) {
 }`
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1909,7 +1924,8 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -1928,7 +1944,7 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	result, err := model.cmdCommitSession()
 	require.NoError(t, err, "session commit failure is reported as command status")
 
-	data, readErr := os.ReadFile(configPath)
+	data, readErr := store.ReadFile(configPath)
 	require.NoError(t, readErr)
 	assert.Equal(t, testValidBGPConfigSimplePeer, string(data), "active file should remain unchanged")
 	assert.True(t, ed.Dirty(), "editor should remain dirty after rejected session commit")
@@ -1950,7 +1966,8 @@ func TestCmdCommitSessionRejectsExistingCandidate(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 	ed.SetReloadNotifier(func() error { return nil })
@@ -1985,7 +2002,8 @@ func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -2081,7 +2099,8 @@ bgp {
 }`
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
-	ed, err := NewEditor(configPath)
+	store := newTestTreeStore(t, configPath)
+	ed, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
@@ -2108,7 +2127,7 @@ func TestRenameListEntry(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2140,7 +2159,7 @@ func TestRenameListEntryWithContext(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2173,7 +2192,7 @@ func TestRenameListEntryNotFound(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2208,7 +2227,7 @@ func TestRenameListEntryTargetExists(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2231,7 +2250,7 @@ func TestRenameListEntryBadSyntax(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2267,7 +2286,7 @@ func TestRenameViaDispatch(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2301,7 +2320,7 @@ func TestRenameQuotedListKey(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2338,7 +2357,7 @@ func TestRenameKeyNamedTo(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2366,7 +2385,7 @@ func TestCopyListEntry(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2396,7 +2415,7 @@ func TestCopyListEntryDeepCopy(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2436,7 +2455,7 @@ func TestCopyListEntryWithContext(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2480,7 +2499,7 @@ func TestCopyListEntryTargetExists(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2503,7 +2522,7 @@ func TestCopyListEntryBadSyntax(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2562,7 +2581,7 @@ func TestInsertLeafList(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2613,7 +2632,7 @@ func TestInsertLeafListFirst(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2639,7 +2658,7 @@ func TestInsertBadSyntax(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2672,7 +2691,7 @@ system {
 	err := os.WriteFile(configPath, []byte(configWithNameServer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2728,7 +2747,7 @@ func TestDeactivateLeafListValue(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2783,7 +2802,7 @@ func TestActivateLeafListValue(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2834,7 +2853,7 @@ func TestDeactivateLeafListPerPeer(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(configWithPeerFilter), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2885,7 +2904,7 @@ func TestInsertDuplicateRejected(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2909,7 +2928,7 @@ func TestInsertNonLeafListRejected(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
@@ -2933,7 +2952,7 @@ func TestCopyViaDispatch(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
-	ed, err := NewEditor(configPath)
+	ed, err := NewLooseFileEditor(nil, configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 

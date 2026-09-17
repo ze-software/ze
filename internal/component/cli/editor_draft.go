@@ -692,7 +692,7 @@ func (e *Editor) validateRenameLiveConflict(guard storage.WriteGuard, proposed c
 		return nil
 	}
 	seen := make(map[string]bool)
-	for _, other := range e.PendingChanges("") {
+	for _, other := range e.pendingChanges(guard, "") {
 		if other.SessionID == "" || other.SessionID == e.session.ID {
 			continue
 		}

@@ -55,6 +55,7 @@ var headlessCommandTree = sync.OnceValues(func() (*command.Node, error) {
 type headlessModel struct {
 	model   cli.Model
 	editor  *cli.Editor
+	store   storage.Storage
 	pending []<-chan tea.Msg // timer commands that exceeded the processing deadline
 	tmpDir  string           // temp directory for file expectations
 }
@@ -82,6 +83,7 @@ func newHeadlessModel(store storage.Storage, configPath string) (*headlessModel,
 	hm := &headlessModel{
 		model:  model,
 		editor: ed,
+		store:  store,
 	}
 
 	// Trigger initial completion population
@@ -113,6 +115,7 @@ func newHeadlessModelWithSession(store storage.Storage, configPath, user, origin
 	hm := &headlessModel{
 		model:  model,
 		editor: ed,
+		store:  store,
 	}
 
 	hm.model.UpdateCompletions()
@@ -155,6 +158,14 @@ func (hm *headlessModel) TmpDir() string {
 // setTmpDir sets the temp directory for file expectations.
 func (hm *headlessModel) setTmpDir(dir string) {
 	hm.tmpDir = dir
+}
+
+// ReadKey reads the decoded value from the model's lifetime store.
+func (hm *headlessModel) ReadKey(key string) ([]byte, error) {
+	if hm.store == nil {
+		return nil, errors.New("key expectation requires a store")
+	}
+	return hm.store.ReadKey(key)
 }
 
 // Model returns the underlying cli.Model.

@@ -212,7 +212,7 @@ func (m *instanceManager) setConfig(cfg ospfConfig) {
 // reconcile reconciles the engine set and applies cfg live: existing engines reconcile,
 // newly created ones are configured and (if the manager has started) open their interfaces,
 // and removed instances are torn down inside ensureSet.
-func (m *instanceManager) reconcile(cfg ospfConfig) {
+func (m *instanceManager) reconcile(cfg ospfConfig) error {
 	created, started := m.ensureSet(cfg.instanceIDSet())
 	createdSet := make(map[uint8]bool, len(created))
 	for _, id := range created {
@@ -220,21 +220,29 @@ func (m *instanceManager) reconcile(cfg ospfConfig) {
 	}
 	for id, eng := range m.snapshot() {
 		sub := cfg.forInstance(id)
+		if createdSet[id] {
+			eng.setConfig(sub)
+		}
+		if started {
+			if err := eng.initializeState(); err != nil {
+				return err
+			}
+		}
 		if !createdSet[id] {
 			eng.reconcile(sub)
 			continue
 		}
-		eng.setConfig(sub)
 		if started {
 			eng.subscribeIfaceEvents(getEventBus())
 			// RFC 5443/6138 LDP-IGP sync: subscribe each v4 instance engine to LDP
 			// SessionUp/SessionDown (unsubscribed on shutdown); no-op when LDP is absent.
 			eng.subscribeLDPSyncEvents(getEventBus())
 			if err := eng.openInterfaces(); err != nil {
-				eng.log.Warn("ospf: instance open failed", "instance", id, "err", err)
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 // start marks the manager started and, for a present config, configures, subscribes, and
@@ -251,6 +259,9 @@ func (m *instanceManager) start(cfg ospfConfig) error {
 			continue
 		}
 		eng.setConfig(cfg.forInstance(id))
+		if err := eng.initializeState(); err != nil {
+			return err
+		}
 		eng.subscribeIfaceEvents(eb)
 		// RFC 5443/6138 LDP-IGP sync: subscribe each v4 instance engine to LDP
 		// SessionUp/SessionDown (unsubscribed on shutdown); no-op when LDP is absent.

@@ -351,7 +351,7 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the blob store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.
+**Corrupt change files:** If a per-user change file in the live store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.

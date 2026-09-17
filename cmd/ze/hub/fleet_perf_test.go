@@ -21,7 +21,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -49,9 +48,9 @@ func TestFleetManyClientsPerf(t *testing.T) {
 	const clients = 128
 
 	dir := t.TempDir()
-	store, err := storage.NewBlob(filepath.Join(dir, "hub.zefs"), dir)
+	store, err := storage.Create(dir)
 	if err != nil {
-		t.Fatalf("NewBlob: %v", err)
+		t.Fatalf("create store: %v", err)
 	}
 
 	// Provision one distinct config + secret per client.

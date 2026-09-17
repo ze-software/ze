@@ -82,7 +82,6 @@ func TestTheDaemonEnvironmentStripsTheEscapeAndCarriesTheSettings(t *testing.T) 
 
 	wanted := []string{
 		"ZE_LOG_L2TP=debug",
-		"ZE_STORAGE_BLOB=false",
 		"ZE_CONFIG_DIR=" + filepath.Join(work, "ze"),
 		"ze.l2tp.ncp.enable-ipv6cp=false",
 		"ze.l2tp.ncp.ip-timeout=15s",
@@ -141,7 +140,7 @@ func TestTheRunWritesFourInputsAndNarrowsTheSecrets(t *testing.T) {
 	if err := run.writeInputs(work); err != nil {
 		t.Fatalf("write the inputs: %v", err)
 	}
-	for _, name := range []string{"xl2tpd.conf", "l2tp-secrets", "ppp-options", "ze.conf"} {
+	for _, name := range []string{"xl2tpd.conf", "l2tp-secrets", "ppp-options", filepath.Join("ze", "ze.conf")} {
 		if _, err := os.Stat(filepath.Join(work, name)); err != nil {
 			t.Errorf("the run did not write %s: %v", name, err)
 		}

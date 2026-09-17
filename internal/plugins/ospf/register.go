@@ -20,12 +20,14 @@ import (
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/statestore"
 	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
 	"github.com/ze-software/ze/internal/plugins/ospf/transport"
 	ospfyang "github.com/ze-software/ze/internal/plugins/ospf/yang"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 var (
@@ -87,6 +89,7 @@ func setRouteInstallClient(p *sdk.Plugin) {
 func routeInstallClient() *sdk.Plugin { return routeInstallPtr.Load() }
 
 func registerOSPF() {
+	statestore.RegisterPluginKeys(Namespace, zefs.KeyOSPFAuthBootCount, zefs.KeyOSPFGRFact)
 	_ = events.RegisterNamespace(Namespace, EventNeighborUp, EventNeighborDown, EventSPFRun, EventLSDBChange, EventInterfaceState, EventDRChange, EventNeighborChange)
 
 	// Register the single "ospf" redistribution source at init (not OnStarted) so
@@ -325,6 +328,7 @@ func runOSPFEngine(conn net.Conn) int {
 	// processes it.
 	wireV4Engine := func() *engine {
 		e := newEngine(transport.New(transport.NewBackend()))
+		e.state = p
 		// Register the RFC 3630 / RFC 5392 TE opaque consumers (Opaque type 1 + 6) for the IPv4
 		// engine (spec-ospf-ext-2). OSPFv3 TE is out of scope, so only the v4 engine registers.
 		if err := registerTEConsumer(e); err != nil {
@@ -393,6 +397,7 @@ func runOSPFEngine(conn net.Conn) int {
 	// Each spawned engine wires the shared metric registry (setMetrics), so its RFC 7770
 	// ze_ospf_ri_* series publish under the af=v3 label (spec-ospf-ext-3), deduped by name.
 	v6set := newV6EngineSet()
+	v6set.state = p
 
 	var (
 		cfgMu       sync.Mutex
@@ -448,12 +453,41 @@ func runOSPFEngine(conn net.Conn) int {
 		}
 		cfg := activeCfg
 		cfgMu.Unlock()
-		instances.reconcile(cfg)
-		v6set.apply(cfg.v6Families(), cfg.multiAF())
-		return nil
+		if err := instances.reconcile(cfg); err != nil {
+			return err
+		}
+		return v6set.apply(cfg.v6Families(), cfg.multiAF())
+	})
+
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		if name != "ospf-state" {
+			return nil, fmt.Errorf("unknown ospf doctor check %s", name)
+		}
+		cfgMu.Lock()
+		cfg := activeCfg
+		cfgMu.Unlock()
+		if !grRestarterConfigured(&cfg) {
+			return nil, nil
+		}
+		if err := checkGRState(p.StateKeys(eng.ctx)); err != nil {
+			return []rpc.DoctorCheckDiagnostic{{
+				Code:     codeOSPFGracefulRestartNVS,
+				Severity: "warning",
+				Message:  fmt.Sprintf("ospf graceful-restart state unavailable: %v", err),
+			}}, nil
+		}
+		return nil, nil
 	})
 
 	p.OnStarted(func(_ context.Context) error {
+		cfgMu.Lock()
+		cfg := activeCfg
+		cfgMu.Unlock()
+		if cfg.Present() {
+			if err := eng.initializeState(); err != nil {
+				return err
+			}
+		}
 		// Wire redistribution before the idle check so a `redistribute { destination
 		// ospf { import <source> } }` rule has a consumer even when OSPF is idle.
 		// ReregisterConsumer (not RegisterConsumer) because OnStarted re-fires on SDK
@@ -481,10 +515,17 @@ func runOSPFEngine(conn net.Conn) int {
 		// on engine shutdown.
 		eng.watchDefaultRoute()
 
-		cfgMu.Lock()
-		cfg := activeCfg
-		cfgMu.Unlock()
 		if !cfg.Present() {
+			// Config-apply remains a live startup path even when this handshake
+			// had no OSPF configuration. The base subscription sees no enrolled
+			// interfaces until reconcile has initialized its durable state.
+			instances.mu.Lock()
+			instances.started = true
+			instances.mu.Unlock()
+			v6set.mu.Lock()
+			v6set.started = true
+			v6set.mu.Unlock()
+			eng.subscribeIfaceEvents(getEventBus())
 			log.Warn("ospf: no config present, engine idle")
 			return nil
 		}
@@ -690,6 +731,10 @@ func runOSPFEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands:     commandDecls(),
+		DoctorChecks: []rpc.DoctorCheckDecl{{
+			Name: "ospf-state", Phase: rpc.DoctorPhasePostConfig,
+			Codes: []string{codeOSPFGracefulRestartNVS},
+		}},
 	})
 	if err != nil {
 		log.Error("ospf engine failed", "error", err)

@@ -35,7 +35,7 @@ func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, e
 	return core.OpenProtocolSession(creds, command)
 }
 
-// ReadCredentials reads SSH credentials from the blob store at dbPath.
+// ReadCredentials reads SSH credentials from the configured store directory.
 func ReadCredentials(dbPath string) (Credentials, error) {
 	return core.ReadCredentials(dbPath)
 }
@@ -50,10 +50,7 @@ func ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort string) (C
 	return core.ReadCredentialsForRemote(dbPath, cliUser, remoteHost, remotePort)
 }
 
-// ResolveDBPath returns the default blob-store path for credentials.
-func ResolveDBPath() string { return core.ResolveDBPath() }
-
-// LoadCredentials loads credentials from the default blob-store path.
+// LoadCredentials loads credentials from the default store directory.
 // May block on an interactive password prompt. Callers that must not block
 // (shell tab completion) want core.LoadCredentialsNoPrompt; no re-export exists
 // here because this facade has no importers to serve.

@@ -23,6 +23,7 @@ func TestDoctorCheckCodesRegistered(t *testing.T) {
 	// every platform too.
 	codes := []string{
 		diagnostic.CodeDoctorStoreIntegrity,
+		diagnostic.CodeDoctorStorePermissions,
 		diagnostic.CodeDoctorDiskSpace,
 		diagnostic.CodeDoctorWriteDestination,
 		diagnostic.CodeDoctorTLSMissing,

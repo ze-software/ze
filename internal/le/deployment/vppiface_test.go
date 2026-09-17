@@ -123,16 +123,14 @@ func TestTheDaemonIsStartedWithTheStartKeyword(t *testing.T) {
 	argv := run.daemonArgs("ze-vpp-iface-1", daemonRel(run.Goarch), "tunnel.conf")
 
 	line := strings.Join(argv, " ")
-	if !strings.HasSuffix(line, "start /run/vpp/tunnel.conf") {
-		t.Errorf("the daemon argv does not end at `start /run/vpp/tunnel.conf`:\n%s", line)
+	if !strings.HasSuffix(line, "start /run/ze/tunnel.conf/ze.conf") {
+		t.Errorf("the daemon argv does not end at its isolated explicit configuration:\n%s", line)
 	}
 	if !strings.Contains(line, "/src/tmp/evidence/bin/ze-linux-amd64") {
 		t.Errorf("the daemon argv does not name the cross-compiled binary inside the mount:\n%s", line)
 	}
-	for _, want := range []string{"ZE_STORAGE_BLOB=false", "ZE_CONFIG_DIR=/run/vpp/ze"} {
-		if !strings.Contains(line, want) {
-			t.Errorf("the daemon argv does not carry %q, so the run writes into the checkout:\n%s", want, line)
-		}
+	if !strings.Contains(line, "ZE_CONFIG_DIR=/run/ze/tunnel.conf") {
+		t.Errorf("the daemon argv does not select its private config directory:\n%s", line)
 	}
 }
 
@@ -154,8 +152,8 @@ func TestAQueryReachesVppctlAsWords(t *testing.T) {
 	}
 }
 
-// VALIDATES: the scratch directory holds VPP's startup file, every scenario's
-// configuration, and the empty directory ze writes its own store into.
+// VALIDATES: the scratch directory holds VPP's startup file and every scenario's
+// configuration in a separate directory for its database tree.
 // PREVENTS: a scenario whose configuration was never written, which starts ze on
 // a path that does not exist and reports the feature as absent.
 func TestTheScratchDirectoryHoldsEveryConfiguration(t *testing.T) {
@@ -175,7 +173,7 @@ func TestTheScratchDirectoryHoldsEveryConfiguration(t *testing.T) {
 
 	for i := range vppScenarios {
 		one := &vppScenarios[i]
-		written, err := os.ReadFile(filepath.Join(work, one.file)) //nolint:gosec // a path this test made
+		written, err := os.ReadFile(filepath.Join(work, "ze", one.file, "ze.conf")) //nolint:gosec // a path this test made
 		if err != nil {
 			t.Errorf("read %s: %v", one.file, err)
 			continue

@@ -1,20 +1,18 @@
 package cli
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ze-software/ze/pkg/zefs"
+	"github.com/ze-software/ze/internal/component/config/storage"
 )
 
-// helper: create a temp zefs store and a History backed by it.
-func newTestHistory(t *testing.T) (*History, *zefs.BlobStore) {
+// newTestHistory creates one tree owner and history backed by it.
+func newTestHistory(t *testing.T) (*History, storage.Storage) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "test.zefs")
-	store, err := zefs.Create(path)
+	store, err := storage.Create(t.TempDir())
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() }) //nolint:errcheck // test cleanup
 	h := NewHistory(store, "testuser")
@@ -112,8 +110,8 @@ func TestHistoryPerMode(t *testing.T) {
 	assert.Equal(t, []string{"peer list", "daemon status"}, h2.Load("operational"))
 }
 
-// VALIDATES: Nil store (no zefs) returns empty on load, save is no-op.
-// PREVENTS: Panic or error when running without blob storage.
+// VALIDATES: Nil store returns empty on load, save is no-op.
+// PREVENTS: Panic or error when running without persistent storage.
 func TestHistoryNilGraceful(t *testing.T) {
 	h := NewHistory(nil, "")
 

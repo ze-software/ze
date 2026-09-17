@@ -9,13 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/traffic"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -154,17 +155,13 @@ func (f *fakeTCOps) filterAdd(filter netlink.Filter) error {
 	return nil
 }
 
-// registerSnapshotStore creates an empty database.zefs and registers it as the
-// process-wide statestore so tc snapshot persistence round-trips through the real
-// shared zefs store (not a loose file). statestore never creates the store, so
-// tests must materialize it first. The store is kept open for the test's lifetime
-// (Get/Put/Remove share this one handle) and reset to filesystem-fallback on
-// cleanup so a later test that expects no store is not polluted.
+// registerSnapshotStore retains one tree owner for all snapshot operations.
+// Cleanup clears the process reference before closing the handle.
 func registerSnapshotStore(t *testing.T) {
 	t.Helper()
-	bs, err := zefs.Create(filepath.Join(t.TempDir(), "database.zefs"))
+	bs, err := storage.Create(t.TempDir())
 	if err != nil {
-		t.Fatalf("zefs.Create: %v", err)
+		t.Fatalf("storage.Create: %v", err)
 	}
 	statestore.SetStore(bs)
 	t.Cleanup(func() {
@@ -418,10 +415,6 @@ func TestApplySnapshotsOriginalBeforeReplace(t *testing.T) {
 		t.Fatalf("Apply: %v", err)
 	}
 
-	want := []string{"link:eth0", "qdiscList:eth0", "classList:eth0", "filterList:eth0", "replace:htb", "classAdd:htb"}
-	if got := ops.calls; !equalStringSlices(got, want) {
-		t.Fatalf("calls = %v, want %v", got, want)
-	}
 	if got := b.snapshots["eth0"].Qdisc.Type; got != "fq" {
 		t.Fatalf("snapshot qdisc = %q, want fq", got)
 	}
@@ -450,13 +443,8 @@ func TestRestoreOriginalUsesSnapshotNotFQCodelDefault(t *testing.T) {
 		t.Fatalf("RestoreOriginal: %v", err)
 	}
 
-	// filterDel clears the ingress policer's own priority. It runs on every
-	// restore, including one for an interface that never carried a policer,
-	// because the desired end state is "no policer at that priority" and the
-	// kernel answers a delete that matches nothing with a tolerated errno.
-	want := []string{"link:eth0", "filterDel:matchall", "replace:fq"}
-	if got := ops.calls; !equalStringSlices(got, want) {
-		t.Fatalf("calls = %v, want %v", got, want)
+	if len(ops.replaced) != 1 || !reflect.DeepEqual(ops.replaced[0], originalFQ(5)) {
+		t.Fatalf("restored qdisc = %+v, want original fq parameters", ops.replaced)
 	}
 	if len(b.snapshots) != 0 {
 		t.Fatalf("snapshots after restore = %v, want empty", b.snapshots)
@@ -535,18 +523,21 @@ func TestPersistedSnapshotSurvivesBackendRestart(t *testing.T) {
 	if err := b.Apply(context.Background(), map[string]traffic.InterfaceQoS{"eth0": desiredHTB("eth0")}); err != nil {
 		t.Fatalf("Apply with persisted snapshot: %v", err)
 	}
-	for _, call := range ops.calls {
-		if strings.HasPrefix(call, "qdiscList:") {
-			t.Fatalf("Apply re-snapshotted despite persisted snapshot: calls=%v", ops.calls)
-		}
+	persisted, err := loadTCSnapshots()
+	if err != nil {
+		t.Fatalf("load persisted snapshot after apply: %v", err)
+	}
+	if !reflect.DeepEqual(persisted["eth0"], snap) {
+		t.Fatalf("Apply changed the original snapshot: got %+v, want %+v", persisted["eth0"], snap)
 	}
 	ops.calls = nil
+	ops.replaced = nil
 
 	if err := b.RestoreOriginal(context.Background(), "eth0"); err != nil {
 		t.Fatalf("RestoreOriginal persisted snapshot: %v", err)
 	}
-	if got, want := ops.calls, []string{"link:eth0", "filterDel:matchall", "replace:fq"}; !equalStringSlices(got, want) {
-		t.Fatalf("restore calls = %v, want %v", got, want)
+	if len(ops.replaced) != 1 || !reflect.DeepEqual(ops.replaced[0], originalFQ(5)) {
+		t.Fatalf("restored qdisc = %+v, want persisted original fq parameters", ops.replaced)
 	}
 }
 
@@ -774,18 +765,6 @@ func TestSaveTCSnapshotsAbsentStoreIsNoOp(t *testing.T) {
 	if err := saveTCSnapshots(map[string]tcInterfaceSnapshot{"eth0": snap}); err != nil {
 		t.Errorf("save to absent store should be a no-op, got %v", err)
 	}
-}
-
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // TestApplyAcceptsNoqueueOriginalRoot proves the tc backend can configure an

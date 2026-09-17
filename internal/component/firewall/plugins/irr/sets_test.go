@@ -107,7 +107,7 @@ func TestBuildSetsEmptyBoth(t *testing.T) {
 
 	// The consumer, not just the builder: a term naming an entry with no
 	// prefixes must yield no table at all.
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS13335", nil, nil)
 	tables := buildIRRTables(ps, []irrRef{{Name: "AS13335", TableName: "ze_wan"}})
 	if len(tables) != 0 {
@@ -166,7 +166,7 @@ func TestBuildTermSetsPairsTheFamilies(t *testing.T) {
 
 	// The consumer: the table an IPv4-only entry produces declares the IPv6
 	// set the v6 twin names, so the merged table resolves every provided set.
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS13335", v4, nil)
 	tables := buildIRRTables(ps, []irrRef{{Name: "AS13335", TableName: "ze_wan"}})
 	if len(tables) != 1 {
@@ -222,7 +222,7 @@ func TestPrefixRangeIPv6(t *testing.T) {
 // VALIDATES: AC-1 per-interface table with ingress chain and sets.
 // PREVENTS: missing chain or sets in per-interface filter table.
 func TestBuildIfaceTables(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-FOO", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
 		[]netip.Prefix{netip.MustParsePrefix("2001:db8::/32")})
 
@@ -263,7 +263,7 @@ func TestBuildIfaceTables(t *testing.T) {
 // VALIDATES: AC-3 multiple interfaces get independent terms.
 // PREVENTS: second interface binding overwriting the first.
 func TestBuildIfaceTablesMultiple(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-FOO", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}, nil)
 	ps.Put("AS-BAR", []netip.Prefix{netip.MustParsePrefix("172.16.0.0/12")}, nil)
 
@@ -286,7 +286,7 @@ func TestBuildIfaceTablesMultiple(t *testing.T) {
 // VALIDATES: shared AS-SET across interfaces produces one set, not duplicates.
 // PREVENTS: nftables EEXIST rejection from duplicate set names in same table.
 func TestBuildIfaceTablesSharedASSet(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-FOO", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}, nil)
 
 	bindings := []ifaceBinding{
@@ -316,7 +316,7 @@ func TestBuildIfaceTablesSharedASSet(t *testing.T) {
 // VALIDATES: AC-4 no table generated when bindings removed.
 // PREVENTS: stale chain remaining after config removal.
 func TestBuildIfaceTablesEmpty(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	tables := buildIfaceTables(ps, nil)
 	if len(tables) != 0 {
 		t.Errorf("expected 0 tables for empty bindings, got %d", len(tables))
@@ -327,7 +327,7 @@ func TestBuildIfaceTablesEmpty(t *testing.T) {
 // produces a table whose only term drops everything on that interface.
 // PREVENTS: an IRR answer that learned nothing blackholing a customer port.
 func TestBuildIfaceTablesNeverBlackholes(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-EMPTY", nil, nil)
 
 	bindings := []ifaceBinding{{Interface: "eth1", ASSet: "AS-EMPTY"}}
@@ -363,7 +363,7 @@ func termDropsInterface(term firewall.Term, iface string) bool {
 // so the accept terms still act as a whitelist.
 // PREVENTS: the no-blackhole guard disabling ingress filtering outright.
 func TestBuildIfaceTablesKeepsDropWhenPopulated(t *testing.T) {
-	ps := store.New(nil, nil, "")
+	ps := store.New(nil, nil, nil)
 	ps.Put("AS-FULL", []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}, nil)
 
 	tables := buildIfaceTables(ps, []ifaceBinding{{Interface: "eth1", ASSet: "AS-FULL"}})

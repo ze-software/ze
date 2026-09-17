@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -37,13 +36,12 @@ func TestGokrazyAutoInitCreatesDB(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test
 
-	if !storage.IsBlobStorage(store) {
-		t.Fatal("expected blob storage after auto-init")
+	if err := store.WriteKey("meta/test/autoinit", []byte("persisted")); err != nil {
+		t.Fatal(err)
 	}
-
-	dbPath := filepath.Join(configDir, "database.zefs")
-	if _, statErr := os.Stat(dbPath); statErr != nil {
-		t.Fatalf("database.zefs should exist at %s: %v", dbPath, statErr)
+	dbPath := filepath.Join(configDir, "database")
+	if info, statErr := os.Stat(dbPath); statErr != nil || !info.IsDir() {
+		t.Fatalf("live tree should exist at %s: %v", dbPath, statErr)
 	}
 }
 
