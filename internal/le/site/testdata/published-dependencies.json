@@ -104,7 +104,7 @@
             "modules": [
                 {
                     "module": "github.com/gaissmai/bart",
-                    "why": "Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store."
+                    "why": "Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store."
                 },
                 {
                     "module": "go.fd.io/govpp",

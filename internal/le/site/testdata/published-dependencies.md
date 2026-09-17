@@ -42,7 +42,7 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
-| `github.com/gaissmai/bart` | `v0.29.0` | Balanced Adaptive Radix Trie: the longest-prefix-match structure underneath Ze's RIB store. |
+| `github.com/gaissmai/bart` | `v0.29.0` | Balanced Routing Table, built on Knuth's Allotment Routing Table (ART): the longest-prefix-match structure underneath Ze's RIB store. |
 | `go.fd.io/govpp` | `v0.13.0` | Binary-API client for FD.io VPP, used by the optional VPP dataplane backends for interfaces, firewall, traffic, FIB, and IKE. |
 
 ## Config, RPC & Telemetry (5)
