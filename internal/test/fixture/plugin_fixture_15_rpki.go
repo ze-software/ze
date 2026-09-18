@@ -72,8 +72,16 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 	if r := plugin15Dispatch(ctx, p, "request quiesce"); !plugin15Done(r) {
 		return fmt.Errorf("quiesce failed: %s", r.text())
 	}
-	rib := plugin15Dispatch(ctx, p, "show bgp adj-rib-in")
-	if !plugin15Done(rib) || !strings.Contains(rib.text(), "10.0.1.0/24") {
+	// Polled, not read once. `request quiesce` above drains what ze owes the
+	// wire and what it owes its plugins, and this route waits on NEITHER: it
+	// sits in the adj-RIB-in's pending set until the RPKI decision comes BACK
+	// from the validator and accept-routes moves it. No barrier covers a round
+	// trip through a plugin, so the test waits for the effect it asserts.
+	var rib plugin15Result
+	if !Poll(ctx, 60, 100*time.Millisecond, func() bool {
+		rib = plugin15Dispatch(ctx, p, "show bgp adj-rib-in")
+		return plugin15Done(rib) && strings.Contains(rib.text(), "10.0.1.0/24")
+	}) {
 		return fmt.Errorf("invalid route 10.0.1.0/24 should be ACCEPTED via per-peer override: status=%s data=%s", rib.status, rib.text())
 	}
 	status, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp rpki status"))
