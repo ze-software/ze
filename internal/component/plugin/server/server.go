@@ -220,6 +220,8 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	// Register the reactor's forward pool as a quiescer so `request quiesce`
 	// drains queued routes to peer sockets (see quiesce.go).
 	registerReactorQuiescer(s, reactor)
+	// And the inbound half: what ze owes its plugins (see quiesce.go).
+	registerPluginEventQuiescer(s)
 
 	// Wire the plugin write-watchdog counter. When a write on a non-deadline
 	// transport (SSH channel, io.Pipe) stalls past the watchdog window, the rpc

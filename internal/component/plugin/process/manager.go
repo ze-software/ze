@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -586,4 +588,32 @@ func (pm *ProcessManager) deletePluginStatusLabel(name string) {
 		return
 	}
 	pm.pmetrics.status.Delete(name)
+}
+
+// DrainEventDelivery returns when every process has delivered the events it
+// held when the call started. It is the inbound half of `request quiesce`: the
+// two reactor quiescers drain what ze owes the WIRE, and this drains what ze
+// owes its PLUGINS.
+//
+// Without it a barrier built on quiesce is unsound in one direction. A command
+// that reaches a plugin through the event rail, such as an RPKI validation
+// decision returning to the adj-RIB-in, is still in a 64-deep channel when
+// quiesce answers, so a caller told "settled" reads state the decision has not
+// reached yet.
+//
+// Every process is drained concurrently: they are independent, and a serial
+// walk would charge the slowest plugin's timeout to each of the others.
+func (pm *ProcessManager) DrainEventDelivery(ctx context.Context) error {
+	pm.mu.RLock()
+	procs := make([]*Process, 0, len(pm.processes))
+	for _, proc := range pm.processes {
+		procs = append(procs, proc)
+	}
+	pm.mu.RUnlock()
+
+	var group errgroup.Group
+	for _, proc := range procs {
+		group.Go(func() error { return proc.DrainEvents(ctx) })
+	}
+	return group.Wait()
 }

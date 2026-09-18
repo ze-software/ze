@@ -131,6 +131,29 @@ func registerReactorQuiescer(s *Server, reactor plugin.ReactorLifecycle) {
 	s.registerQuiescer("bgp-peer-sync", reactor.DrainPeerSync)
 }
 
+// registerPluginEventQuiescer registers the INBOUND half of `request quiesce`.
+//
+// The two reactor quiescers above drain what ze owes the WIRE. Nothing drained
+// what ze owes its PLUGINS, and the two are not the same barrier: an event
+// reaches a plugin through a 64-deep per-process channel consumed on its own
+// goroutine (process/delivery.go), so quiesce could answer "settled" while a
+// command was still in flight. A caller then reads state the command has not
+// produced yet -- measured as a 2-in-10 loss with no load at all, where an RPKI
+// validation decision had not returned to the adj-RIB-in when the barrier
+// released (plan/journal/false-synchronization-claim.md, 2026-09-18).
+//
+// The manager is read at quiesce time rather than captured here: it is replaced
+// on a config reload, and a captured pointer would drain the previous one.
+func registerPluginEventQuiescer(s *Server) {
+	s.registerQuiescer("plugin-event-delivery", func(ctx context.Context) error {
+		pm := s.procManager.Load()
+		if pm == nil {
+			return nil // no processes: nothing is owed
+		}
+		return pm.DrainEventDelivery(ctx)
+	})
+}
+
 // handleQuiesce implements `request quiesce` (ze-system:quiesce): drain every
 // registered subsystem and reply when all have settled. Tests use it as a
 // barrier in place of a fixed sleep.

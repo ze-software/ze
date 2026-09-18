@@ -44,6 +44,12 @@ type EventDelivery struct {
 	Event     any                // Structured event for DirectBridge consumers (nil for text/JSON)
 	Result    chan<- EventResult // Caller-provided result channel (nil if fire-and-forget)
 	OnFailure func()             // Called on fire-and-forget delivery failure (e.g. cache count release)
+	// Barrier carries no event and reaches no plugin. The channel is FIFO and
+	// the delivery loop answers every Result in the batch it processed, so a
+	// barrier answered means every item enqueued BEFORE it has been delivered.
+	// That is what makes it a drain: DrainEvents waits on one, and
+	// `request quiesce` waits on every process's (quiesce.go).
+	Barrier bool
 }
 
 // EventResult is sent back to the caller after delivery completes.
@@ -170,12 +176,25 @@ func (p *Process) drainBatch(buf []EventDelivery, first EventDelivery) []EventDe
 // eventsBuf is a reusable slice for the string events — returned for reuse.
 func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeout time.Duration) []string {
 	eventsBuf = eventsBuf[:0]
+	carried := batch[:0:0]
 	for _, req := range batch {
+		// A barrier is answered like every other item below, and carries
+		// nothing to the plugin: it exists to be ordered, not to be delivered.
+		if req.Barrier {
+			continue
+		}
+		carried = append(carried, req)
 		eventsBuf = append(eventsBuf, req.Output)
 	}
 	events := eventsBuf
 
-	batchErr := p.sendBatch(batch, events, timeout)
+	// A batch of barriers alone has nothing to send. Calling sendBatch with an
+	// empty event set would hand the plugin an empty delivery, which a text
+	// consumer writes as a bare newline and a bridge consumer counts as a call.
+	var batchErr error
+	if len(carried) != 0 {
+		batchErr = p.sendBatch(carried, events, timeout)
+	}
 
 	isCacheConsumer := p.IsCacheConsumer()
 	for _, req := range batch {
@@ -299,4 +318,27 @@ func (p *Process) deliverViaConn(events []string, timeout time.Duration) error {
 		)
 	}
 	return err
+}
+
+// DrainEvents returns when every event enqueued for this process before the
+// call has reached the plugin, or when ctx ends.
+//
+// It enqueues one Barrier item and waits for its answer. The channel is FIFO
+// and deliveryLoop answers every Result in the batch it processed, so an
+// answered barrier is a statement about everything ahead of it and about
+// nothing behind it. A process whose channel is closed or whose context has
+// ended owes nothing and returns at once, because a stopped plugin cannot be
+// waited for and reporting one as a drain failure would fail `request quiesce`
+// for a plugin that is gone.
+func (p *Process) DrainEvents(ctx context.Context) error {
+	result := make(chan EventResult, 1)
+	if !p.Deliver(EventDelivery{Barrier: true, Result: result}) {
+		return nil
+	}
+	select {
+	case <-result:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("plugin %s: event delivery did not drain: %w", p.Name(), ctx.Err())
+	}
 }
