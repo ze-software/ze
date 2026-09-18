@@ -1258,7 +1258,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// The fence is a PRECONDITION of the peer wait, never a replacement for
 		// it. A needle the FIRST reload prints says nothing about the work the
 		// peer script still owes: reload-rapid-sighup signals three times, and
-		// tearing the daemon down here left its peer signalling a process that
+		// tearing the daemon down here left its peer signaling a process that
 		// was already gone ("sighup pid N: no such process"), a string neither
 		// classifier arm matches, so the record landed in state "unknown".
 		// The reject-fence bucket starts no peer, so this waits on nothing there.
