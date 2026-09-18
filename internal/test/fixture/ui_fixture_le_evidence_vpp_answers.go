@@ -242,7 +242,7 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if containsCall(brokenCalls, "start /run/vpp/") {
+	if containsCall(brokenCalls, "start /run/ze/") {
 		return errors.New("ze was started on a plugin answer nobody obtained")
 	}
 
@@ -292,8 +292,8 @@ func leEvidenceVPPAnswers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(vppCalls) != 62 {
-		return fmt.Errorf("the VPP deployment proof made %d Docker calls, want 62 (57 distinct steps plus five cleanup polls)", len(vppCalls))
+	if len(vppCalls) != 90 {
+		return fmt.Errorf("the VPP deployment proof made %d Docker calls, want 90 (57 distinct steps, five cleanup polls, and the mkdir plus cp that stage each of the fourteen daemon configs)", len(vppCalls))
 	}
 	for _, owed := range []string{"TestVPPRealDataplaneInstalls", "show ip fib 10.20.0.0/24", "show classify tables", "show acl-plugin acl"} {
 		if !containsCall(vppCalls, owed) {
@@ -530,7 +530,7 @@ func readWork() string {
 }
 
 func configHas(name, text string) bool {
-    data, _ := os.ReadFile(filepath.Join(readWork(), name))
+    data, _ := os.ReadFile(filepath.Join(readWork(), "ze", name, "ze.conf"))
     return strings.Contains(string(data), text)
 }
 
@@ -671,12 +671,12 @@ func dockerExec(args []string, joined string) {
     case strings.Contains(joined, "ip link show"):
         record(args)
         fmt.Println("1: lo: <LOOPBACK,UP>")
-    case strings.Contains(joined, "start /run/vpp/"):
+    case strings.Contains(joined, "start /run/ze/"):
         record(args)
         conf := ""
         for _, arg := range args {
-            if strings.HasPrefix(arg, "/run/vpp/") && strings.HasSuffix(arg, ".conf") {
-                conf = strings.TrimPrefix(arg, "/run/vpp/")
+            if strings.HasPrefix(arg, "/run/ze/") && strings.HasSuffix(arg, "/ze.conf") {
+                conf = strings.TrimSuffix(strings.TrimPrefix(arg, "/run/ze/"), "/ze.conf")
             }
         }
         _ = os.WriteFile(workPath()+"."+conf, nil, 0644)
