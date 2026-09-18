@@ -136,6 +136,15 @@ screenlog.*
 /ze.audit.jsonl
 etc/ze/*.tmp
 etc/ze/debug.zefs
+# The live config store is a TREE after storage-1, not a blob, so the rule
+# above it stopped covering it: `ze init --from etc/ze/database.zefs` now
+# writes a directory, its owner lock and, mid-import, its intent and stage.
+etc/ze/database/
+etc/ze/database.lock
+etc/ze/database.import-intent
+etc/ze/database.replaced-*/
+etc/ze/database.import-tmp-*/
+etc/ze/database.init-tmp-*/
 # ddos-detect (and other plugins) persist rolling runtime state here; never commit it.
 etc/ze/state/
 internal/appliance/build/
