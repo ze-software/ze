@@ -246,8 +246,8 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		realTreeRows, selftestJSON.stdout)
 
 	// The listing is itself part of the public contract: every action is
-	// present, in published order, and exactly the mutating ones are marked as
-	// writers.
+	// present and exactly the mutating ones are marked as writers. Order is not
+	// asserted, because the comparison below is over a map.
 	listing := runLE(root, "rfc")
 	leRFCAnswersRequire(listing.code == 0,
 		"rfc listing exited %d\nstdout:\n%s\nstderr:\n%s",
@@ -270,11 +270,24 @@ func leRFCAnswers(ctx context.Context) (err error) {
 		"discriminate-record": wordWrites,
 		actionCheck:           fieldChecks,
 		actionSelftest:        fieldChecks,
+		"approve":             wordWrites,
 		"reseal":              wordWrites,
 		actionIndexUpdate:     wordWrites,
 	}
+	// The expectation is written out rather than derived from the action table
+	// the binary renders: a list read from that table would agree with it
+	// whatever it said. The count is computed from this map so the message
+	// cannot go stale the way "ten actions with exactly five writers" did when
+	// `approve` was added.
+	wantWriters := 0
+	for _, kind := range wantListed {
+		if kind == wordWrites {
+			wantWriters++
+		}
+	}
 	leRFCAnswersRequire(reflect.DeepEqual(listed, wantListed),
-		"rfc listing does not name ten actions with exactly five writers:\n%s", listing.stdout)
+		"rfc listing does not name %d actions with exactly %d writers:\n%s",
+		len(wantListed), wantWriters, listing.stdout)
 	for _, action := range []string{"extraction-status", actionCheck, actionSelftest, "reseal", actionIndexUpdate} {
 		refused := runLE(root, "rfc", action, "rfc7606")
 		leRFCAnswersRequire(refused.code == 2,
