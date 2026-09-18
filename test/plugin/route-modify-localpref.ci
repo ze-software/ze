@@ -13,6 +13,10 @@
 option=env:var=ze.log.bgp.filter.modify:value=info
 
 stdin=peer:terminator=EOF_PEER
+# The peer has no expectation left once it sends, so without linger it closes
+# the instant its write lands. ze reads that as session-down and purges the
+# peer's routes, which is the state this test's observer polls for.
+option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=15s
 # UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
