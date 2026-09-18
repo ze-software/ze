@@ -14,6 +14,11 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// defaultConfigName is the config filename a store with no usable instance
+// name answers with. DefaultConfig is the only producer, so the name is
+// written once here rather than at each arm that falls back to it.
+const defaultConfigName = "ze.conf"
+
 // validInstanceName matches alphanumeric names with hyphens, max 64 chars.
 // Prevents path traversal in blob keys.
 var validInstanceName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
@@ -42,15 +47,15 @@ func StorageFor(configPath string) (storage.Storage, error) {
 // DefaultConfig returns the config filename from meta/instance/name or "ze.conf".
 func DefaultConfig(store storage.Storage) string {
 	if store == nil {
-		return "ze.conf"
+		return defaultConfigName
 	}
 	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
 	if err != nil || len(data) == 0 {
-		return "ze.conf"
+		return defaultConfigName
 	}
 	name := strings.TrimSpace(string(data))
 	if name == "" || !validInstanceName.MatchString(name) {
-		return "ze.conf"
+		return defaultConfigName
 	}
 	var tb textbuf.Buffer
 	return tb.Str(name).Str(".conf").String()

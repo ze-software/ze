@@ -630,28 +630,6 @@ func spliceSelector(full, sel string) (string, bool) {
 	return "", false
 }
 
-// argDefs answers the argument definitions the lister registered for the
-// command named, as command.WriteInvocation reads them: the name and the
-// anchor of each typed parameter. It answers nil when the server holds no
-// lister or the lister does not know the name, and every value then follows
-// the command in keyword form, which is where an unanchored value goes.
-func (s *server) argDefs(commandName string) []command.ArgDef {
-	if s.commands == nil {
-		return nil
-	}
-	for _, info := range s.commands() {
-		if info.Name != commandName {
-			continue
-		}
-		defs := make([]command.ArgDef, len(info.Params))
-		for i, p := range info.Params {
-			defs[i] = command.ArgDef{Name: p.Name, Anchor: p.Anchor, Mandatory: p.Required}
-		}
-		return defs
-	}
-	return nil
-}
-
 // server runs one tool dispatch.
 //
 // Lifetime: one *server per HTTP request. `Streamable.callTool` creates it
@@ -687,6 +665,28 @@ type server struct {
 	// them.
 	inputResponses map[string]any
 	completion     *plugin.RenderedResponse
+}
+
+// argDefs answers the argument definitions the lister registered for the
+// command named, as command.WriteInvocation reads them: the name and the
+// anchor of each typed parameter. It answers nil when the server holds no
+// lister or the lister does not know the name, and every value then follows
+// the command in keyword form, which is where an unanchored value goes.
+func (s *server) argDefs(commandName string) []command.ArgDef {
+	if s.commands == nil {
+		return nil
+	}
+	for _, info := range s.commands() {
+		if info.Name != commandName {
+			continue
+		}
+		defs := make([]command.ArgDef, len(info.Params))
+		for i, p := range info.Params {
+			defs[i] = command.ArgDef{Name: p.Name, Anchor: p.Anchor, Mandatory: p.Required}
+		}
+		return defs
+	}
+	return nil
 }
 
 // context returns the context every dispatch this runner makes MUST run under.

@@ -194,7 +194,7 @@ func addProbeRoute(t *testing.T, linkIndex, table int) {
 func buildDummyLink(t *testing.T) int {
 	t.Helper()
 
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zepr0"}} //nolint:embedlit // netlink.Dummy embeds LinkAttrs, and naming it is how the field is set
+	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zepr0"}} //nolint:modernize // netlink.Dummy embeds LinkAttrs, and naming it is how the field is set
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Skipf("needs CAP_NET_ADMIN to create a dummy interface: %v", err)
 	}

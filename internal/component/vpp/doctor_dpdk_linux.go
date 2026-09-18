@@ -49,7 +49,7 @@ func vppDPDKDoctorCheck() diagnostic.DoctorCheck {
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        2220,
 		Component:    componentVPP,
-		Dependencies: []string{"kernel", "sysfs"},
+		Dependencies: []string{dependencyKernel, "sysfs"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{doctorVPPDPDKCode},
 		Check:        checkVPPDPDK,

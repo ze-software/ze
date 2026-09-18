@@ -12,41 +12,44 @@ import (
 // TestApproveWritesTheSessionRow proves AC-1: one command writes one row into
 // the session's approval file, a second call for the same unit replaces the
 // reason rather than adding a row, and a malformed call writes nothing.
+// approvalSession is the one commit namespace these tests write under. It is
+// a package constant so the reader below takes only the root it reads from.
+const approvalSession = "abcd1234"
+
 func TestApproveWritesTheSessionRow(t *testing.T) {
 	root := t.TempDir()
-	const session = "abcd1234"
 
-	report, err := Approve(root, session, "pkg.TestX", "Thomas approved the new count")
+	report, err := Approve(root, approvalSession, "pkg.TestX", "Thomas approved the new count")
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
-	if report.Path != ApprovalPath(session) || report.Replaced {
+	if report.Path != ApprovalPath(approvalSession) || report.Replaced {
 		t.Fatalf("first approval = %#v", report)
 	}
-	content := readApprovals(t, root, session)
+	content := readApprovals(t, root)
 	if strings.Count(content, "| pkg.TestX |") != 1 ||
 		!strings.Contains(content, "| pkg.TestX | Thomas approved the new count |") {
 		t.Fatalf("first approval wrote:\n%s", content)
 	}
 
-	report, err = Approve(root, session, "pkg.TestX", "Thomas changed his mind: the old count")
+	report, err = Approve(root, approvalSession, "pkg.TestX", "Thomas changed his mind: the old count")
 	if err != nil {
 		t.Fatalf("second approval: %v", err)
 	}
 	if !report.Replaced {
 		t.Fatalf("second approval = %#v, want Replaced", report)
 	}
-	content = readApprovals(t, root, session)
+	content = readApprovals(t, root)
 	if strings.Count(content, "| pkg.TestX |") != 1 ||
 		strings.Contains(content, "the new count") ||
 		!strings.Contains(content, "| pkg.TestX | Thomas changed his mind: the old count |") {
 		t.Fatalf("second approval wrote:\n%s", content)
 	}
 
-	if _, err := Approve(root, session, "other.TestY", "a second unit"); err != nil {
+	if _, err := Approve(root, approvalSession, "other.TestY", "a second unit"); err != nil {
 		t.Fatalf("second unit: %v", err)
 	}
-	if content = readApprovals(t, root, session); strings.Count(content, "\n| ") != 3 {
+	if content = readApprovals(t, root); strings.Count(content, "\n| ") != 3 {
 		t.Fatalf("two units did not give two rows under the header:\n%s", content)
 	}
 
@@ -62,13 +65,13 @@ func TestApproveWritesTheSessionRow(t *testing.T) {
 		{"unit with a space", "pkg.Test Z", "yes"},
 		{"empty unit", "", "yes"},
 	}
-	before := readApprovals(t, root, session)
+	before := readApprovals(t, root)
 	for _, tc := range refused {
-		if _, err := Approve(root, session, tc.unit, tc.reason); err == nil {
+		if _, err := Approve(root, approvalSession, tc.unit, tc.reason); err == nil {
 			t.Errorf("%s: approved unit %q reason %q", tc.name, tc.unit, tc.reason)
 		}
 	}
-	if after := readApprovals(t, root, session); after != before {
+	if after := readApprovals(t, root); after != before {
 		t.Fatalf("a refused approval changed the file:\n%s", after)
 	}
 
@@ -78,9 +81,9 @@ func TestApproveWritesTheSessionRow(t *testing.T) {
 	}
 }
 
-func readApprovals(t *testing.T, root, session string) string {
+func readApprovals(t *testing.T, root string) string {
 	t.Helper()
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(ApprovalPath(session))))
+	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(ApprovalPath(approvalSession))))
 	if err != nil {
 		t.Fatal(err)
 	}

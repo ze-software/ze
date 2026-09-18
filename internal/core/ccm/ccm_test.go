@@ -252,7 +252,7 @@ func TestOpenRefusesDataShorterThanItsTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if _, err := aead.Open(nil, nonce, bytes.Repeat([]byte{0x00}, 15), nil); !errors.Is(err, ErrOpen) {
+	if _, err := aead.Open(nil, nonce, make([]byte, 15), nil); !errors.Is(err, ErrOpen) {
 		t.Errorf("Open over fifteen octets under a sixteen octet tag = %v, want ErrOpen", err)
 	}
 }

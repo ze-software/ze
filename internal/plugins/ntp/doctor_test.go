@@ -12,14 +12,14 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
-// ntpTree builds the smallest config that carries an environment/ntp block,
-// enabled or not, with one server for each address.
-func ntpTree(enabled bool, servers ...string) *config.Tree {
+// ntpTree builds the smallest ENABLED config that carries an environment/ntp
+// block, with one server for each address. Every caller wants it enabled; a
+// test of the disabled arm builds its own tree rather than passing a flag
+// whose only value is true.
+func ntpTree(servers ...string) *config.Tree {
 	tree := config.NewTree()
 	ntp := tree.GetOrCreateContainer(configRootEnvironment).GetOrCreateContainer("ntp")
-	if enabled {
-		ntp.Set("enabled", "true")
-	}
+	ntp.Set("enabled", "true")
 	for _, addr := range servers {
 		server := config.NewTree()
 		server.Set("address", addr)
@@ -102,7 +102,7 @@ func TestCheckNTPClientReportsADisabledClientPerPlatform(t *testing.T) {
 func TestCheckNTPClientReportsUnreachableServers(t *testing.T) {
 	withServerProbe(t, false)
 
-	diags := checkNTPClient(diagnostic.DoctorCheckContext{Tree: ntpTree(true, "pool.ntp.org"), Platform: platform(host.PlatformGokrazy)})
+	diags := checkNTPClient(diagnostic.DoctorCheckContext{Tree: ntpTree("pool.ntp.org"), Platform: platform(host.PlatformGokrazy)})
 	requireOneDiag(t, diags, codeNTPServerUnreachable, diagnostic.SeverityWarning)
 }
 
@@ -115,12 +115,12 @@ func TestCheckNTPClientReportsUnreachableServers(t *testing.T) {
 // PREVENTS: configured Ze-owned clock sync being reported as absent.
 func TestCheckNTPClientIsSilentWhenAServerAnswers(t *testing.T) {
 	withServerProbe(t, true)
-	if diags := checkNTPClient(diagnostic.DoctorCheckContext{Tree: ntpTree(true, "pool.ntp.org"), Platform: platform(host.PlatformGokrazy)}); len(diags) != 0 {
+	if diags := checkNTPClient(diagnostic.DoctorCheckContext{Tree: ntpTree("pool.ntp.org"), Platform: platform(host.PlatformGokrazy)}); len(diags) != 0 {
 		t.Fatalf("server answers: diagnostics = %d, want 0: %+v", len(diags), diags)
 	}
 
 	withServerProbe(t, false)
-	if diags := checkNTPClient(diagnostic.DoctorCheckContext{Tree: ntpTree(true), Platform: platform(host.PlatformGokrazy)}); len(diags) != 0 {
+	if diags := checkNTPClient(diagnostic.DoctorCheckContext{Tree: ntpTree(), Platform: platform(host.PlatformGokrazy)}); len(diags) != 0 {
 		t.Fatalf("no server: diagnostics = %d, want 0: %+v", len(diags), diags)
 	}
 	if diags := checkNTPClient(diagnostic.DoctorCheckContext{Platform: platform(host.PlatformGokrazy)}); len(diags) != 0 {

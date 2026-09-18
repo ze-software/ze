@@ -462,8 +462,8 @@ func TestApplySnapshotsOriginalBeforeReplace(t *testing.T) {
 func TestReplaceRootQdiscDeletesSameHandleRoot(t *testing.T) {
 	ops := newFakeTCOps()
 	ops.links["eth0"] = testLink("eth0", 5)
-	desired := &netlink.Htb{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(1, 0), Parent: netlink.HANDLE_ROOT}}
-	ops.qdiscs["eth0"] = []netlink.Qdisc{&netlink.Fq{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(1, 0), Parent: netlink.HANDLE_ROOT}}}
+	desired := &netlink.Htb{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(1, 0), Parent: netlink.HANDLE_ROOT}}                           //nolint:modernize // netlink.Htb embeds QdiscAttrs, and naming it is how the field is set
+	ops.qdiscs["eth0"] = []netlink.Qdisc{&netlink.Fq{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(1, 0), Parent: netlink.HANDLE_ROOT}}} //nolint:modernize // netlink.Fq embeds QdiscAttrs, and naming it is how the field is set
 	b := testBackend(t, ops)
 
 	if err := b.replaceRootQdisc(ops.links["eth0"], desired); err != nil {
@@ -478,7 +478,7 @@ func TestReplaceRootQdiscDeletesSameHandleRoot(t *testing.T) {
 
 	other := newFakeTCOps()
 	other.links["eth0"] = testLink("eth0", 5)
-	other.qdiscs["eth0"] = []netlink.Qdisc{&netlink.Fq{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(2, 0), Parent: netlink.HANDLE_ROOT}}}
+	other.qdiscs["eth0"] = []netlink.Qdisc{&netlink.Fq{QdiscAttrs: netlink.QdiscAttrs{LinkIndex: 5, Handle: netlink.MakeHandle(2, 0), Parent: netlink.HANDLE_ROOT}}} //nolint:modernize // netlink.Fq embeds QdiscAttrs, and naming it is how the field is set
 	b = testBackend(t, other)
 	if err := b.replaceRootQdisc(other.links["eth0"], desired); err != nil {
 		t.Fatalf("replaceRootQdisc: %v", err)

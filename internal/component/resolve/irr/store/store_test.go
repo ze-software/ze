@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -319,7 +320,7 @@ func TestLegacyReadOnlyInspection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(after) != string(legacy) {
+	if !bytes.Equal(after, legacy) {
 		t.Fatal("read-only inspection changed legacy data")
 	}
 	if owner.Exists(zefs.KeyIRRPrefixCache.Key("AS13335")) {

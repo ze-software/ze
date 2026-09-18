@@ -66,7 +66,7 @@ func checkTelemetryProcfs(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 	if prom == nil {
 		return nil
 	}
-	if enabled, _ := prom.Get("enabled"); enabled != "true" {
+	if enabled, _ := prom.Get("enabled"); enabled != configEnabled {
 		return nil
 	}
 	path := kernelcap.ProcPath("stat")

@@ -331,7 +331,7 @@ func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Dur
 		// platform with no IP_MTU): the key stays absent rather than zero.
 		// This package holds no logger, so the read failure itself is not
 		// surfaced.
-		return result, nil
+		return result, nil //nolint:nilerr // mtuErr is not the ping's verdict: the echo batch above succeeded, and an absent path-MTU key is the documented answer when the kernel holds no estimate
 	}
 	result[fieldPathMTU] = int(mtu)
 	return result, nil

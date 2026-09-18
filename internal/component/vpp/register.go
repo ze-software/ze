@@ -22,7 +22,9 @@ import (
 
 // defaultVPPBinary is the default path to the VPP executable.
 const (
-	componentVPP     = "vpp"
+	componentVPP = "vpp"
+	// dependencyKernel names the doctor check every VPP check runs behind.
+	dependencyKernel = "kernel"
 	defaultVPPBinary = "/usr/bin/vpp"
 	defaultConfDir   = "/etc/vpp"
 )

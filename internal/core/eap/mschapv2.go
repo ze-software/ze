@@ -4,7 +4,7 @@
 package eap
 
 import (
-	"crypto/des"  //nolint:gosec // required by MS-CHAPv2 (RFC 2759)
+	"crypto/des" //nolint:gosec // required by MS-CHAPv2 (RFC 2759)
 	"crypto/hkdf"
 	"crypto/sha1" //nolint:gosec // required by MS-CHAPv2 (RFC 2759)
 	"crypto/sha256"

@@ -53,7 +53,7 @@ func TestAPIRPCInputMatchesCommandTree(t *testing.T) {
 		require.NotEmpty(t, paths, "%s is declared in ze-iface-api.yang and bound to no command path", wire)
 		for _, path := range paths {
 			defs := argDefs[path]
-			// A command modelled with modifier containers, `request interface
+			// A command modeled with modifier containers, `request interface
 			// migrate from <x> to <y> address <z>`, carries its leaves BELOW
 			// the path, so PathToArgDefs answers nothing for it and there is
 			// nothing to compare against the rpc here.

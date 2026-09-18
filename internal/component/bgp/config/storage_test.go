@@ -56,7 +56,11 @@ func TestReactorFactoryUsesCandidateThenAcceptedConfig(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			peers := handle.(*reactor.Reactor).Peers()
+			reactorHandle, ok := handle.(*reactor.Reactor)
+			if !ok {
+				t.Fatalf("createReactorFromCoordinator returned %T, want *reactor.Reactor", handle)
+			}
+			peers := reactorHandle.Peers()
 			if len(peers) != 1 || peers[0].Settings().PeerAS != 65001 {
 				t.Fatal("reactor did not load the candidate peer")
 			}

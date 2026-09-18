@@ -34,7 +34,7 @@ func withProcess(t *testing.T, uid int, status string) {
 func TestCheckNTPClockPrivilegeWarnsWithoutCapSysTime(t *testing.T) {
 	withProcess(t, 1000, "Name:\tze\nCapEff:\t0000000000000000\n")
 
-	diags := checkNTPClockPrivilege(diagnostic.DoctorCheckContext{Tree: ntpTree(true)})
+	diags := checkNTPClockPrivilege(diagnostic.DoctorCheckContext{Tree: ntpTree()})
 	requireOneDiag(t, diags, codeNTPClockPrivilege, diagnostic.SeverityWarning)
 }
 
@@ -47,12 +47,12 @@ func TestCheckNTPClockPrivilegeWarnsWithoutCapSysTime(t *testing.T) {
 // client.
 func TestCheckNTPClockPrivilegeIsSilentWhenGranted(t *testing.T) {
 	withProcess(t, 1000, "Name:\tze\nCapEff:\t0000000002000000\n")
-	if diags := checkNTPClockPrivilege(diagnostic.DoctorCheckContext{Tree: ntpTree(true)}); len(diags) != 0 {
+	if diags := checkNTPClockPrivilege(diagnostic.DoctorCheckContext{Tree: ntpTree()}); len(diags) != 0 {
 		t.Fatalf("granted: diagnostics = %d, want 0: %+v", len(diags), diags)
 	}
 
 	withProcess(t, 0, "Name:\tze\nCapEff:\t0000000000000000\n")
-	if diags := checkNTPClockPrivilege(diagnostic.DoctorCheckContext{Tree: ntpTree(true)}); len(diags) != 0 {
+	if diags := checkNTPClockPrivilege(diagnostic.DoctorCheckContext{Tree: ntpTree()}); len(diags) != 0 {
 		t.Fatalf("root: diagnostics = %d, want 0: %+v", len(diags), diags)
 	}
 

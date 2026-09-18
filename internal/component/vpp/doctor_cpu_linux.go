@@ -31,7 +31,7 @@ func vppCPUIsolationDoctorCheck() diagnostic.DoctorCheck {
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        821,
 		Component:    componentVPP,
-		Dependencies: []string{"kernel"},
+		Dependencies: []string{dependencyKernel},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{doctorVPPCPUIsolationCode},
 		Check:        checkVPPCPUIsolation,

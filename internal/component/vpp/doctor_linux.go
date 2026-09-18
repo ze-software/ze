@@ -57,7 +57,7 @@ func vppHugepagesDoctorCheck() diagnostic.DoctorCheck {
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        820,
 		Component:    componentVPP,
-		Dependencies: []string{"kernel"},
+		Dependencies: []string{dependencyKernel},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{doctorVPPHugepagesCode},
 		Check:        checkVPPHugepages,

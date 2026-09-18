@@ -80,6 +80,11 @@ type collectorConfig struct {
 	Interval int
 }
 
+// configEnabled is the value a YANG boolean leaf carries when the switch is
+// on. The config tree hands every leaf over as a string, so each gate reads
+// this one name rather than repeating the literal.
+const configEnabled = "true"
+
 const (
 	defaultTelemetryHost  = "127.0.0.1"
 	defaultPrometheusPath = "/metrics"
@@ -241,7 +246,7 @@ func extractTelemetryConfig(tree map[string]any) telemetryConfig {
 
 	// Service must be explicitly enabled (default false).
 	enabled, _ := prom["enabled"].(string)
-	if enabled != "true" {
+	if enabled != configEnabled {
 		return zero
 	}
 
@@ -298,7 +303,7 @@ func extractBasicAuthConfig(prom map[string]any) basicAuthConfig {
 	if !ok {
 		return cfg
 	}
-	if enabled, ok := authMap["enabled"].(string); ok && enabled == "true" {
+	if enabled, ok := authMap["enabled"].(string); ok && enabled == configEnabled {
 		cfg.Enabled = true
 	}
 	if realm, ok := authMap["realm"].(string); ok && realm != "" {

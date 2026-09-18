@@ -185,7 +185,7 @@ func unique(values []string) []string {
 // A trailer is a record a script reads back, so it is never wrapped, and a
 // subject or body line the author writes as one is refused: the record is
 // the owner's, and `create` writes it from `./le rfc approve` alone.
-func Message(subject string, body []string, trailers []string) (string, error) {
+func Message(subject string, body, trailers []string) (string, error) {
 	subject = strings.TrimSpace(subject)
 	if subject == "" {
 		return "", errors.New("subject is required")

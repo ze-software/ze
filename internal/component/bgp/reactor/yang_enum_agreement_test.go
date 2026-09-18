@@ -62,13 +62,18 @@ func yangModel(t *testing.T) *configyang.Loader {
 	return loader
 }
 
+// enumModule is the YANG module these agreement tests read, without its
+// `.yang` suffix. Every leaf they compare is declared in it.
+const enumModule = "ze-bgp-conf"
+
 // yangEnumValues answers the values of the enumeration the leaf at path
-// declares, sorted. module is the module name without its `.yang` suffix.
+// declares, sorted.
 //
 // It FAILS rather than answering an empty set for a leaf it cannot reach: a
 // test comparing a Go table against nothing passes over every drift there is.
-func yangEnumValues(t *testing.T, module string, path ...string) []string {
+func yangEnumValues(t *testing.T, path ...string) []string {
 	t.Helper()
+	module := enumModule
 
 	entry := yangModel(t).GetEntry(module)
 	require.NotNil(t, entry, "YANG module %s is not loaded", module)
@@ -93,7 +98,7 @@ func yangEnumValues(t *testing.T, module string, path ...string) []string {
 // changed on one side, which an operator writes in the config and never sees in
 // the log line.
 func TestPrefixReconnectNamesMatchTheYANGModel(t *testing.T) {
-	declared := yangEnumValues(t, "ze-bgp-conf", "bgp", "group", "peer", "session", "family", "prefix", "reconnect")
+	declared := yangEnumValues(t, "bgp", "group", "peer", "session", "family", "prefix", "reconnect")
 
 	// Index 0 is PrefixReconnectUnset, whose name says the family stated no
 	// value at all. The model has no value for that, so the comparison starts
@@ -125,7 +130,7 @@ func TestPrefixReconnectNamesMatchTheYANGModel(t *testing.T) {
 // PREVENTS: a keyword the model accepts and the forward path ignores, which
 // silently forwards a community type the operator asked to suppress.
 func TestSendCommunityKeywordsMatchTheYANGModel(t *testing.T) {
-	declared := yangEnumValues(t, "ze-bgp-conf", "bgp", "group", "peer", "session", "community", "send")
+	declared := yangEnumValues(t, "bgp", "group", "peer", "session", "community", "send")
 
 	// The mask a word the reader does not know leaves. Nothing was named, so
 	// every type is suppressed: the reader fails closed rather than forwarding
@@ -156,7 +161,7 @@ func TestSendCommunityKeywordsMatchTheYANGModel(t *testing.T) {
 // PREVENTS: a direction the model accepts resolving to AddPathNone, which
 // advertises no ADD-PATH for a family the operator enabled.
 func TestAddPathDirectionsMatchTheYANGModel(t *testing.T) {
-	declared := yangEnumValues(t, "ze-bgp-conf", "bgp", "group", "peer", "session", "capability", "add-path", "direction")
+	declared := yangEnumValues(t, "bgp", "group", "peer", "session", "capability", "add-path", "direction")
 
 	for _, value := range declared {
 		require.NotEqual(t, capability.AddPathNone, parseAddPathDirection(value),
@@ -174,7 +179,7 @@ func TestAddPathDirectionsMatchTheYANGModel(t *testing.T) {
 // PREVENTS: a mode the model accepts that parsePeerFromTree compares against no
 // constant, so the family silently takes the default instead.
 func TestAddPathModeKeywordsMatchTheYANGModel(t *testing.T) {
-	declared := yangEnumValues(t, "ze-bgp-conf", "bgp", "group", "peer", "session", "capability", "add-path", "family", "mode")
+	declared := yangEnumValues(t, "bgp", "group", "peer", "session", "capability", "add-path", "family", "mode")
 
 	known := []string{valEnable, valDisable, valRequire, valRefuse}
 	slices.Sort(known)
