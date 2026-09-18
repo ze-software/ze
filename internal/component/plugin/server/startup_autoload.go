@@ -121,8 +121,9 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 
 	needed = s.appendDataPlaneWriter(needed, s.config.DataPlane)
 
-	// Resolve transitive dependencies.
-	resolved, err := registry.ResolveDependencies(needed)
+	// nil: hasConfiguredPlugin above excluded every configured name, so nothing
+	// here was declared by an `external` block.
+	resolved, err := registry.ResolveDependencies(needed, nil)
 	if err != nil {
 		logger().Warn("config-path auto-load: dependency resolution failed",
 			"plugins", needed, "error", err)
@@ -258,7 +259,7 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		return nil, nil
 	}
 
-	resolved, err := registry.ResolveDependencies(needed)
+	resolved, err := registry.ResolveDependencies(needed, nil)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
 			"plugins", needed, "error", err)
@@ -558,8 +559,8 @@ func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(str
 		return nil
 	}
 
-	// Resolve transitive dependencies.
-	resolved, err := registry.ResolveDependencies(needed)
+	// nil: every configured name was excluded before this point.
+	resolved, err := registry.ResolveDependencies(needed, nil)
 	if err != nil {
 		logger().Warn(kind+" auto-load: dependency resolution failed, loading without dependencies",
 			"plugins", needed, "error", err)

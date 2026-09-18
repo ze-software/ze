@@ -1246,11 +1246,22 @@ func Restore(snap RegistrySnapshot) {
 
 // ResolveDependencies expands a list of plugin names by iteratively adding
 // dependencies declared in the registry. Returns the expanded list with no
-// duplicates. Plugins not in the registry (external) are kept but their deps
-// are not expanded (they come from the protocol layer instead).
-// Returns ErrCircularDependency on cycles, ErrMissingDependency when a
-// registered plugin declares a dependency on an unregistered name.
-func ResolveDependencies(requested []string) ([]string, error) {
+// duplicates. Returns ErrCircularDependency on cycles, ErrMissingDependency
+// when a registered plugin declares a dependency on an unregistered name.
+//
+// A name in external is kept and never expanded, WHETHER OR NOT this binary
+// carries a registration for it. An `external` config block names another
+// PROGRAM, so its dependencies come from that program's own declaration over
+// the protocol; answering them from a same-named compiled-in registration
+// starts plugins the program never asked for. That is the rule
+// docs/architecture/plugin/plugin-system.md already states for the declaration
+// a plugin row shows, and it holds for dependencies too. A name absent from the
+// registry is external by the same reasoning, so it is skipped as before.
+//
+// external MAY be nil where no config block can reach the caller: the
+// auto-load paths exclude a configured plugin before they resolve
+// (hasConfiguredPlugin), so a name that arrives there is always the registry's.
+func ResolveDependencies(requested []string, external map[string]bool) ([]string, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
@@ -1268,6 +1279,10 @@ func ResolveDependencies(requested []string) ([]string, error) {
 	// Track resolution path per-plugin for cycle detection.
 	for i := 0; i < len(result); i++ {
 		name := result[i]
+		if external[name] {
+			// A named program: its dependencies come from its own declaration.
+			continue
+		}
 		reg, ok := plugins[name]
 		if !ok {
 			// External plugin — skip (deps come from protocol layer).
@@ -1297,7 +1312,7 @@ func ResolveDependencies(requested []string) ([]string, error) {
 	}
 
 	// Cycle detection: walk dependency chains looking for back-edges.
-	if err := detectCycles(result); err != nil {
+	if err := detectCycles(result, external); err != nil {
 		return nil, err
 	}
 
@@ -1306,7 +1321,7 @@ func ResolveDependencies(requested []string) ([]string, error) {
 
 // detectCycles checks for circular dependencies using DFS with coloring.
 // white=unvisited, gray=in-progress, black=done.
-func detectCycles(names []string) error {
+func detectCycles(names []string, external map[string]bool) error {
 	const (
 		white = 0
 		gray  = 1
@@ -1323,7 +1338,7 @@ func detectCycles(names []string) error {
 	visit = func(name string) error {
 		color[name] = gray
 		reg, ok := plugins[name]
-		if ok {
+		if ok && !external[name] {
 			// Cycle detection walks ALL declared deps (hard + optional) so the
 			// resolved graph stays acyclic regardless of which kind each edge
 			// uses. Optional-dep edges only affect the walk when both endpoints
@@ -1377,8 +1392,10 @@ func detectCycles(names []string) error {
 //
 // Returns ErrCircularDependency if the dependency graph contains a cycle.
 // Only considers dependencies within the requested name set; external names
-// (not in the requested set or registry) are ignored for ordering purposes.
-func TopologicalTiers(names []string) ([][]string, error) {
+// are ignored for ordering purposes, both those absent from the registry and
+// those in external, which an `external` config block named. A named program's
+// edges are its own declaration's, never a same-named registration's.
+func TopologicalTiers(names []string, external map[string]bool) ([][]string, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
@@ -1396,6 +1413,9 @@ func TopologicalTiers(names []string) ([][]string, error) {
 	}
 
 	for _, name := range names {
+		if external[name] {
+			continue // A named program: its edges are not this binary's registration
+		}
 		reg, ok := plugins[name]
 		if !ok {
 			continue // External plugin — no known deps, stays at in-degree 0

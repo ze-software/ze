@@ -515,6 +515,7 @@ func MergeCliPlugins(plugins []plugin.PluginConfig, cliPlugins []string) ([]plug
 func ExpandDependencies(plugins []plugin.PluginConfig) ([]plugin.PluginConfig, error) {
 	names := make([]string, 0, len(plugins))
 	existing := make(map[string]bool, len(plugins))
+	external := make(map[string]bool, len(plugins))
 	for _, p := range plugins {
 		// Keyed on the registered name, not the operator's label, and
 		// plugin.RegistryName is the one rule that answers which registry row a
@@ -530,9 +531,17 @@ func ExpandDependencies(plugins []plugin.PluginConfig) ([]plugin.PluginConfig, e
 		name := plugin.RegistryName(p)
 		names = append(names, name)
 		existing[name] = true
+		// An `external` block names a PROGRAM, and that program declares its own
+		// dependencies over the protocol. Where this binary also carries a plugin
+		// of that name, the registration is NOT this block's: expanding it starts
+		// plugins the program never asked for, and the operator sees a plugin they
+		// did not configure fail on a platform they never named.
+		if !p.Internal && p.Run != "" {
+			external[name] = true
+		}
 	}
 
-	resolved, err := registry.ResolveDependencies(names)
+	resolved, err := registry.ResolveDependencies(names, external)
 	if err != nil {
 		return nil, fmt.Errorf("expand dependencies: %w", err)
 	}

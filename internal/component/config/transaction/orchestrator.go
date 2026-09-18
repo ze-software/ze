@@ -29,7 +29,12 @@ func logger() *slog.Logger { return slogutil.Logger("config.transaction") }
 // deadline is a sum over participants and reads no tier
 // (orchestrator_budget.go). Package-level so tests can override it without
 // mutating the global plugin registry.
-var tierFn = registry.TopologicalTiers
+// A transaction's participants are RUNNING processes, and nothing here carries
+// the config block that started each one, so no name can be marked as declared
+// by an `external` block. The cost is an ordering constraint too many when an
+// external plugin shares a name with a compiled-in one: rollback acks are
+// collected in a stricter order than needed, never a wrong one.
+var tierFn = func(names []string) ([][]string, error) { return registry.TopologicalTiers(names, nil) }
 
 // Report bus source and codes for config transaction error events.
 // The bus is the operator-visible feed behind `ze show errors`.

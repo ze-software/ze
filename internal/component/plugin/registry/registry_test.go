@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -625,7 +626,7 @@ func TestResolveDependencies_NoDeps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"standalone"})
+	result, err := ResolveDependencies([]string{"standalone"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -652,7 +653,7 @@ func TestResolveDependencies_DirectDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"a"})
+	result, err := ResolveDependencies([]string{"a"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -685,7 +686,7 @@ func TestResolveDependencies_TransitiveDep(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a"})
+	result, err := ResolveDependencies([]string{"a"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -717,7 +718,7 @@ func TestResolveDependencies_AlreadyPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"a", "b"})
+	result, err := ResolveDependencies([]string{"a", "b"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -752,7 +753,7 @@ func TestResolveDependencies_CircularDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := ResolveDependencies([]string{"a"})
+	_, err := ResolveDependencies([]string{"a"}, nil)
 	if !errors.Is(err, ErrCircularDependency) {
 		t.Errorf("expected ErrCircularDependency, got %v", err)
 	}
@@ -772,7 +773,7 @@ func TestResolveDependencies_MissingDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := ResolveDependencies([]string{"a"})
+	_, err := ResolveDependencies([]string{"a"}, nil)
 	if !errors.Is(err, ErrMissingDependency) {
 		t.Errorf("expected ErrMissingDependency, got %v", err)
 	}
@@ -798,7 +799,7 @@ func TestResolveDependenciesOptionalPresent(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a"})
+	result, err := ResolveDependencies([]string{"a"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -828,7 +829,7 @@ func TestResolveDependenciesOptionalAbsent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"a"})
+	result, err := ResolveDependencies([]string{"a"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -860,7 +861,7 @@ func TestResolveDependenciesMixedDeps(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a"})
+	result, err := ResolveDependencies([]string{"a"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -895,7 +896,7 @@ func TestTopologicalTiersOptionalDep(t *testing.T) {
 		}
 	}
 
-	tiers, err := TopologicalTiers([]string{"a", "b"})
+	tiers, err := TopologicalTiers([]string{"a", "b"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -953,7 +954,7 @@ func TestResolveDependenciesOptionalCycle(t *testing.T) {
 		}
 	}
 
-	_, err := ResolveDependencies([]string{"a"})
+	_, err := ResolveDependencies([]string{"a"}, nil)
 	if !errors.Is(err, ErrCircularDependency) {
 		t.Errorf("expected ErrCircularDependency through optional edge, got %v", err)
 	}
@@ -978,7 +979,7 @@ func TestTopologicalTiers(t *testing.T) {
 		}
 	}
 
-	tiers, err := TopologicalTiers([]string{"bgp-adj-rib-in", "bgp-rs"})
+	tiers, err := TopologicalTiers([]string{"bgp-adj-rib-in", "bgp-rs"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1012,7 +1013,7 @@ func TestTopologicalTiersCycle(t *testing.T) {
 		}
 	}
 
-	_, err := TopologicalTiers([]string{"a", "b"})
+	_, err := TopologicalTiers([]string{"a", "b"}, nil)
 	if !errors.Is(err, ErrCircularDependency) {
 		t.Errorf("expected ErrCircularDependency, got %v", err)
 	}
@@ -1031,7 +1032,7 @@ func TestTopologicalTiersNoDeps(t *testing.T) {
 		}
 	}
 
-	tiers, err := TopologicalTiers([]string{"alpha", "bravo", "charlie"})
+	tiers, err := TopologicalTiers([]string{"alpha", "bravo", "charlie"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1063,7 +1064,7 @@ func TestTopologicalTiersTransitive(t *testing.T) {
 		}
 	}
 
-	tiers, err := TopologicalTiers([]string{"a", "b", "c"})
+	tiers, err := TopologicalTiers([]string{"a", "b", "c"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1101,7 +1102,7 @@ func TestTopologicalTiersMultipleSameTier(t *testing.T) {
 		}
 	}
 
-	tiers, err := TopologicalTiers([]string{"a", "b", "c"})
+	tiers, err := TopologicalTiers([]string{"a", "b", "c"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1137,7 +1138,7 @@ func TestTopologicalTiersUnknownPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tiers, err := TopologicalTiers([]string{"external", "known"})
+	tiers, err := TopologicalTiers([]string{"external", "known"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1226,7 +1227,7 @@ func TestResolveDependencies_Diamond(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a", "b"})
+	result, err := ResolveDependencies([]string{"a", "b"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1310,5 +1311,85 @@ func TestRegisterFilterObligationWithoutFilterType(t *testing.T) {
 	reg.FilterObligations = []string{"an-obligation"}
 	if err := Register(reg); err == nil {
 		t.Error("expected an error for an obligation with no filter type, got nil")
+	}
+}
+
+// TestResolveDependenciesExternalNameIgnoresRegistration verifies that a name an
+// `external` config block declared takes no dependency from a compiled-in
+// registration of the same name.
+//
+// VALIDATES: an external block names another PROGRAM, whose dependencies come
+// from its own declaration over the protocol. docs/architecture/plugin/plugin-system.md
+// states the same rule for the declaration a plugin row shows.
+// PREVENTS: starting plugins the named program never asked for. A fixture that
+// ran an external observer called `ospf` made the daemon start the compiled-in
+// ospf's `interface` dependency, which refuses on darwin with "no backend
+// configured and no OS default available", and the daemon never came up.
+func TestResolveDependenciesExternalNameIgnoresRegistration(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	heavy := validReg("collides")
+	heavy.Dependencies = []string{"needs-a-kernel"}
+	if err := Register(heavy); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(validReg("needs-a-kernel")); err != nil {
+		t.Fatal(err)
+	}
+
+	external, err := ResolveDependencies([]string{"collides"}, map[string]bool{"collides": true})
+	if err != nil {
+		t.Fatalf("external resolution: %v", err)
+	}
+	if len(external) != 1 || external[0] != "collides" {
+		t.Errorf("an external block's name pulled in a registration's dependencies: %v", external)
+	}
+
+	// The same name, NOT declared external, still resolves from the registry:
+	// the fix removes an inherited dependency, it does not remove the feature.
+	registered, err := ResolveDependencies([]string{"collides"}, nil)
+	if err != nil {
+		t.Fatalf("registry resolution: %v", err)
+	}
+	if len(registered) != 2 || !slices.Contains(registered, "needs-a-kernel") {
+		t.Errorf("a registered plugin lost its dependency: %v", registered)
+	}
+}
+
+// TestTopologicalTiersExternalNameTakesNoEdge verifies the ordering half of the
+// same rule: a named program constrains nothing through a registration it does
+// not own.
+//
+// VALIDATES: an external name sits at tier 0 beside the plugin its same-named
+// registration declares a dependency on.
+// PREVENTS: a startup order derived from a registration the running program
+// never declared.
+func TestTopologicalTiersExternalNameTakesNoEdge(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	heavy := validReg("collides")
+	heavy.Dependencies = []string{"needs-a-kernel"}
+	if err := Register(heavy); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(validReg("needs-a-kernel")); err != nil {
+		t.Fatal(err)
+	}
+
+	names := []string{"collides", "needs-a-kernel"}
+	tiers, err := TopologicalTiers(names, map[string]bool{"collides": true})
+	if err != nil {
+		t.Fatalf("external tiers: %v", err)
+	}
+	if len(tiers) != 1 || len(tiers[0]) != 2 {
+		t.Errorf("an external name took an edge from a registration it does not own: %v", tiers)
+	}
+
+	ordered, err := TopologicalTiers(names, nil)
+	if err != nil {
+		t.Fatalf("registry tiers: %v", err)
+	}
+	if len(ordered) != 2 {
+		t.Errorf("a registered plugin lost its ordering: %v", ordered)
 	}
 }

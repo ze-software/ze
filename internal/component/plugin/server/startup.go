@@ -297,10 +297,17 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 
 	// Step (b): Compute dependency tiers from plugin configs.
 	names := make([]string, len(plugins))
+	external := make(map[string]bool, len(plugins))
 	for i, p := range plugins {
 		names[i] = p.Name
+		// The tiers order what this daemon starts, so a block that named a
+		// program takes its edges from that program's declaration and never from
+		// a same-named compiled-in registration.
+		if !p.Internal && p.Run != "" {
+			external[p.Name] = true
+		}
 	}
-	tiers, err := registry.TopologicalTiers(names)
+	tiers, err := registry.TopologicalTiers(names, external)
 	if err != nil {
 		logger().Error("tier computation failed", "error", err)
 		pm.Stop()

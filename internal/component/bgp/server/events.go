@@ -492,11 +492,18 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 
 	// Collect process names for tier computation.
 	names := make([]string, len(procs))
+	external := make(map[string]bool, len(procs))
 	for i, p := range procs {
 		names[i] = p.Name()
+		// A process started from an `external` block takes its edges from the
+		// program it runs, not from a compiled-in registration that happens to
+		// share its name.
+		if config := p.Config(); !config.Internal && config.Run != "" {
+			external[p.Name()] = true
+		}
 	}
 
-	tiers, err := registry.TopologicalTiers(names)
+	tiers, err := registry.TopologicalTiers(names, external)
 	if err != nil {
 		// Fallback: sort by name for deterministic ordering.
 		sort.Slice(procs, func(i, j int) bool {

@@ -136,6 +136,18 @@ even where this binary carries a plugin of the same name: the block names
 another program, so answering it from the registration would put commands that
 program does not serve into a row that reads `kind: external`.
 
+The same rule governs DEPENDENCIES and startup ORDER. `ResolveDependencies` and
+`TopologicalTiers` take the set of names an `external` block declared, and
+expand neither from a compiled-in registration of that name: a named program
+declares what it needs over the protocol. Before 2026-09-18 both keyed on the
+name alone, so an external plugin called `ospf` started the compiled-in ospf's
+`interface` dependency, which refuses on a host with no interface backend, and
+the daemon never came up. The auto-load paths pass no such set because
+`hasConfiguredPlugin` excludes a configured name before they resolve, and a
+transaction's participants pass none because a running process is matched by
+name alone there; the cost of the second is one ordering constraint too many,
+never a wrong one.
+
 The queried child is started with `ZE_PLUGIN_MODE=declare` and with every
 inherited variable in the `ze.plugin.` namespace removed, under any spelling,
 so it gets no hub host, no token and no CA. The spelling is load-bearing:
