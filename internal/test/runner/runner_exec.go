@@ -1255,6 +1255,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Duration = time.Since(rec.StartTime)
 			return false
 		}
+		// The fence is a PRECONDITION of the peer wait, never a replacement for
+		// it. A needle the FIRST reload prints says nothing about the work the
+		// peer script still owes: reload-rapid-sighup signals three times, and
+		// tearing the daemon down here left its peer signalling a process that
+		// was already gone ("sighup pid N: no such process"), a string neither
+		// classifier arm matches, so the record landed in state "unknown".
+		// The reject-fence bucket starts no peer, so this waits on nothing there.
+		err = waitForPeers(peerOutputs)
 	case rec.ExpectExitCode != nil && fgProc != nil:
 		// Testing exit code: wait for foreground process
 		err = fgProc.Wait()
@@ -1265,18 +1273,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		err = lastQuickZeErr
 	default:
 		// Wait for all peer processes (each validates its own messages).
-		// Daemons run until killed below. Collect all errors so no peer
-		// failure is silently lost.
-		var peerErrs []error
-		for i := range peerOutputs {
-			if peerOutputs[i].proc != nil {
-				if waitErr := peerOutputs[i].proc.Wait(); waitErr != nil {
-					peerErrs = append(peerErrs, waitErr)
-				}
-				peerOutputs[i].waited = true
-			}
-		}
-		err = errors.Join(peerErrs...)
+		// Daemons run until killed below.
+		err = waitForPeers(peerOutputs)
 	}
 
 	// Gracefully stop remaining processes (daemons). The daemon that the test's
@@ -1457,4 +1455,21 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		rec.recordStep("file-check", true, "")
 	}
 	return true
+}
+
+// waitForPeers waits for every peer process the test started and joins their
+// errors, so no peer failure is silently lost. Each awaited record is marked,
+// and a test that runs no peer waits on nothing and answers nil.
+func waitForPeers(peerOutputs []peerOutput) error {
+	var peerErrs []error
+	for i := range peerOutputs {
+		if peerOutputs[i].proc == nil {
+			continue
+		}
+		if waitErr := peerOutputs[i].proc.Wait(); waitErr != nil {
+			peerErrs = append(peerErrs, waitErr)
+		}
+		peerOutputs[i].waited = true
+	}
+	return errors.Join(peerErrs...)
 }
