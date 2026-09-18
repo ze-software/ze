@@ -10,6 +10,10 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
+# The peer has no expectation left once it sends, so without linger it closes
+# the instant its write lands. ze reads that as session-down and purges the
+# peer's routes, which is the state this test's observer polls for.
+option=linger:value=true
 option=timeout:value=10s
 
 # Step 1: Expect automatic EOR (empty UPDATE for IPv4/unicast) after session establishment
