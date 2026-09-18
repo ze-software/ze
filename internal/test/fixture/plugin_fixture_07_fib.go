@@ -147,17 +147,25 @@ func runZePatterns07(ctx context.Context, config string, env, required []string)
 	observed := make(chan string, len(required))
 	scanErr := make(chan error, 1)
 	go func() {
+		// Each pattern is reported ONCE. A pattern can match many lines --
+		// subsystem=fib.kernel matches most of them -- and the send used to
+		// drop on a full channel, so duplicates of one pattern filled the
+		// buffer and a DIFFERENT pattern's only line was discarded in silence.
+		// The reader then hit its deadline and reported that pattern missing,
+		// which is how a log line that did arrive was read as one that never
+		// came. Reporting once bounds the sends by len(required), which is the
+		// buffer, so the send never blocks and nothing is dropped.
+		sent := make(map[string]bool, len(required))
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			line := scanner.Text()
 			fmt.Fprintln(os.Stderr, line)
 			for _, pattern := range required {
-				if strings.Contains(line, pattern) {
-					select {
-					case observed <- pattern:
-					default:
-					}
+				if sent[pattern] || !strings.Contains(line, pattern) {
+					continue
 				}
+				sent[pattern] = true
+				observed <- pattern
 			}
 		}
 		scanErr <- scanner.Err()
