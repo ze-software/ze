@@ -34,7 +34,15 @@ func RunInteractive(creds Credentials, configName string, commandMode bool) erro
 		return err
 	}
 	defer session.Close() //nolint:errcheck // Session error takes precedence.
-	tty, err := os.OpenFile("/dev/tty", os.O_RDWR|syscall.O_NONBLOCK, 0)
+	// The terminal is opened BLOCKING. The ssh session pumps this file with
+	// io.Copy, and a non-blocking /dev/tty is not registered with the runtime
+	// poller, so EAGAIN reaches the caller instead of parking the goroutine:
+	// the stdin pump dies on its first read before a key is pressed, and the
+	// stdout pump dies on the first short write at the 1024-byte tty buffer.
+	// The session then waits forever for input that can never arrive. Every
+	// other user of this descriptor takes the raw fd (term.GetSize,
+	// term.MakeRaw, term.Restore) and wants blocking semantics too.
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		return fmt.Errorf("open interactive terminal: %w", err)
 	}
