@@ -325,6 +325,17 @@ func metricsOwned(ctx context.Context, _ []string) error {
 			}
 			fmt.Fprintf(os.Stderr, "OK: %s* metrics present\n", prefix)
 		}
+		// Returning dispatches `request shutdown`, and nothing above holds the
+		// session open: this scenario observes the metrics list and never the
+		// peer. `request quiesce` runs first and is not a barrier here, because
+		// DrainPeerSync skips a peer whose queue is empty and this test announces
+		// no route, so it answers done before the initial-sync End-of-RIB reaches
+		// the wire. The daemon's Cease then overtakes the EOR and the peer reports
+		// a NOTIFICATION where it expected an UPDATE. The wait is the ordering
+		// constraint the assertions never needed; it asserts nothing new.
+		if err := fixture10WaitEOR(ctx, p, "*", 60); err != nil {
+			return err
+		}
 		return nil
 	})
 }
