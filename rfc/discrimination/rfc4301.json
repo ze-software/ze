@@ -119,7 +119,7 @@
       "claim-sha": "48a6ff76aeb91bf5",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-      "producer-sha": "72a79b187f3dbec0",
+      "producer-sha": "633e57f6c14caa5b",
       "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "55a4639bb8a0c218",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
-      "producer-sha": "72a79b187f3dbec0",
+      "producer-sha": "633e57f6c14caa5b",
       "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -12,7 +12,9 @@
 stdin=peer:terminator=EOF_PEER
 # The peer has no expectation left once it sends, so without linger it closes
 # the instant its write lands. ze reads that as session-down and purges the
-# peer's routes, which is the state this test's observer polls for.
+# peer's routes, which is what a session down owes under RFC 4271. A real
+# peer stays up; this one closing is the artifact, so it is corrected here
+# rather than worked around at the observer.
 option=linger:value=true
 option=timeout:value=10s
 
