@@ -40,8 +40,8 @@ after a release the same change would owe a migration under operators.
 - [ ] `docs/architecture/storage-backends.md` (storage-1) - the contract, the version and pointer model in the core
   → Constraint: versions and pointers exist once, in the shared core, over an encoding that stores bytes by key; this spec changes that core and neither encoding
   → Constraint: the conformance table runs over both encodings; every row this spec adds runs over both
-  → Constraint: `WriteGuard` (`internal/core/statestore/storage.go`) already carries `List`; what it has no route to is a RAW key. Its eight methods are all name-based or `Has`, and `resolveKey` turns a name outside `meta/` and `file/` into `file/active/<base>`, so an object cannot be reached through any of them. The sweep needs `ReadKey`, `WriteKey`, `RemoveKey` and `ListKeys` on the guard
-  → Constraint: calling `Storage` under a held guard HANGS the process, it does not error: `store.acquire` takes `s.mu.Lock()` and only `Release` unlocks it, so `ReadFile`, `ReadKey`, `Exists`, `Stat`, `List`, `ListKeys`, `ListVersions` and a second `AcquireLock` all self-deadlock. The guard's own methods bypass both mutexes, as `guard.Has` does, and the four raw-key methods this spec adds MUST do the same. Nothing tests this today
+  → Constraint: `WriteGuard` (`internal/core/statestore/storage.go`) already carries `List`; what it has no route to is a RAW key. Its eight methods are all name-based or `Has`, and `resolveKey` turns a name outside `meta/` and `file/` into `file/active/<base>`, so an object cannot be reached through any of them. The sweep needs all four raw-key methods on the guard: storage-2's backup walk adds `ReadKey` and `ListKeys`, and this spec adds `WriteKey` and `RemoveKey`
+  → Constraint: calling `Storage` under a held guard HANGS the process, it does not error: `store.acquire` takes `s.mu.Lock()` and only `Release` unlocks it, so `ReadFile`, `ReadKey`, `Exists`, `Stat`, `List`, `ListKeys`, `ListVersions` and a second `AcquireLock` all self-deadlock. The guard's own methods bypass both mutexes, as `guard.Has` does, and the two raw-key methods this spec adds MUST do the same, as storage-2's two do. Nothing tests this today
 - [ ] `docs/architecture/zefs-format.md` - frames and CRC
   → Constraint: the frame CRC stays on every key, objects included; the hash names the object, the CRC guards the frame. They answer different questions and both are kept
 - [ ] `plan/journal/pointer-shared-across-the-names-it-indexes.md`
@@ -89,7 +89,7 @@ after a release the same change would owe a migration under operators.
 - `file/<stamp>/<name>` holds `sha256:<hex>`; bytes live at `object/<hex>`
 - `ReadVersion(name, stamp)` is ADDED to the `statestore.Storage` contract and resolves entry → object with the hash verified; `readVersion` and `readVersionLocked` dereference too, so `ReadActiveConfig`, `ReadCandidateConfig` and `PromoteCandidate`'s guarded read all get bytes rather than a hash; the three byte readers of `VersionInfo.Path` call it by stamp; `VersionInfo.Path` keeps its value and its meaning, the entry key
 - `RemoveVersion` and `ClearCandidate` delete the object when no remaining entry of any name references it
-- `WriteGuard` gains the raw-key four, `ReadKey`, `WriteKey`, `RemoveKey` and `ListKeys`, on both encodings, each bypassing the store mutex and the blob mutex as `guard.Has` does
+- `WriteGuard` gains `WriteKey` and `RemoveKey` on both encodings, beside the `ReadKey` and `ListKeys` storage-2's backup walk added, each bypassing the store mutex and the blob mutex as `guard.Has` does
 - `removeVersionLocked` reports whether it deleted, so the object sweep runs only when the entry really went
 - storage-2 `restore config` reads the source's active version through the same entry → object path; `restore full` and `ImportBlob` copy objects like any key, writing `object/*` before `file/*`
 - `ze data check` reports orphan objects (warning) and dangling entries (error); `repair` drops a dangling entry and reports it
@@ -104,18 +104,18 @@ after a release the same change would owe a migration under operators.
 ### Transformation Path
 1. Write: SHA-256 over `data` → `object/<hex>`; when the key is absent, write the object frame; when it is present, read it and hash it, and write the entry only when the stored bytes hash to the key. Existence alone never settles identity, because `ze data write` and a repaired frame can both put wrong bytes under a right name. Both steps under the guard's lock, through the guard's raw-key methods; object before entry, so a crash leaves an unreferenced object, never a dangling entry.
 2. Read: entry → `sha256:<hex>` → object frame (CRC checked by the encoding) → SHA-256 over the bytes must equal the hex → bytes. A mismatch is an error naming the entry and both hashes; an entry whose value is not `sha256:<64 hex>` is an error naming the entry.
-3. Remove: read the entry's hash → ask `removeVersionLocked` to delete the entry → when it reports the entry RETAINED (a pointer names that stamp), stop, the object stays → otherwise `guard.ListKeys("file/")`, which is recursive and raw, read each remaining three-part key of any name through `guard.ReadKey` → delete `object/<hex>` when none holds that hash. Under the guard the caller already holds, and never through `Storage`, which would deadlock.
+3. Remove: read the entry's hash → ask `removeVersionLocked` to delete the entry → when it reports the entry RETAINED (a pointer names that stamp), stop, the object stays → otherwise enumerate every `file/` key through the guard's raw recursive list, keep only the HISTORY entries, and read each through `guard.ReadKey` → delete `object/<hex>` when none holds that hash. A three-part split is not the classification: `file/active/<name>`, `file/draft/<name>` and `file/template/<name>` have three components too, and each holds a MUTABLE value that can contain `sha256:<hex>`, which would falsely retain an object. The classification is `ListVersions`' own: `parseVersionStamp(parts[1])` must succeed, which is what skips `active`, `draft` and `template`. Under the guard the caller already holds, and never through `Storage`, which would deadlock.
 4. Import and restore (storage-1, storage-2): the walks order `object/*` before `file/*` so an interrupted walk never leaves a dangling entry; the equality check is unchanged (keys and bytes).
 5. Check: every `file/<stamp>/*` entry's hash must name an existing object (else error); every `object/<hex>` must hash to its own name (else error: a CRC-valid frame proves only that the bytes are the ones written, never that they are the content the name promises); every `object/*` must be named by an entry (else warning). `repair` drops a dangling entry and a wrong-hash object, reports each, and reports every pointer left naming a dropped entry, which is a store a daemon refuses to start on.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Core ↔ encoding | ordinary keys; no encoding learns about objects; `List` added to the guard on both | No |
+| Core ↔ encoding | raw keys; no encoding learns about objects; the guard gains `WriteKey` and `RemoveKey` on both, over the `ReadKey` and `ListKeys` storage-2 added | No |
 | Store ↔ blob artifact (storage-2) | a backup carries `object/*` and entries as keys; import writes objects first | No |
 
 ### Integration Points
-- storage-1 conformance table - new rows: write two equal versions, one object; remove one, object stays; remove the other, object goes; a version a pointer names is retained with its object; an entry with a missing object errors; an object whose bytes do not hash to its name errors on write and on check; the guard's raw-key four on both encodings
+- storage-1 conformance table - new rows: write two equal versions, one object; remove one, object stays; remove the other, object goes; a version a pointer names is retained with its object; an entry with a missing object errors; an object whose bytes do not hash to its name errors on write and on check; the guard's write pair on both encodings, over the read pair storage-2 added
 - storage-2 `restore config` - reads the source's active version through `ReadVersion` on the blob-backed `Storage`; a source whose object is absent is refused naming the hash
 - storage-1 `ImportBlob`, storage-2 backup and restore walks - object-first ordering
 - `ze data check` and `repair` - reachability report
@@ -139,8 +139,8 @@ after a release the same change would owe a migration under operators.
 | A-2 | Only history is content-addressed; `file/active/*`, `file/draft/*`, `file/template/*` and `meta/*` stay direct keys | design 2026-09-16: mutable keys addressed by content would make every edit an object plus a rename | nothing else in the model changes | owner confirmation | unvalidated |
 | A-3 | Every reference to an object is a `file/<stamp>/*` entry, found by the recursive raw walk `ListKeys("file/")` and a three-part split, as `ListVersions` already walks; no other key holds `sha256:<hex>` that names an object | `pkg/zefs/keys.go`: `KeyConfigActiveHash` and `KeyConfigLastKnownGood` hold digests of a config, not object references, and never cause a removal to keep or drop an object | a reference outside `file/<stamp>/` would be missed by the removal check; the check reads `file/<stamp>/*` only, by design, and `ze data check` reports the orphan | `TestRemoveChecksEveryName` | unvalidated |
 | A-4 | SHA-256 over configs of a few KB per commit is not a performance concern | commit is an operator action | none | `BenchmarkWriteVersion` | unvalidated |
-| A-5 | Adding the raw-key four to `WriteGuard` is safe on both encodings: the guard already reaches the in-memory tree and the tree encoding without re-locking, as `Has`, `List` and `ReadFile` do (`guard.List` → `blobLock.List` → `node.walk`; the tree arm → `tree.list`) | `internal/component/config/storage/store.go` guard methods, `pkg/zefs/lock.go` | the sweep would need to run after `Release`, outside the guard, with its own lock, and the removal would stop being atomic | `TestGuardRawKeyNoDeadlock` | confirmed by the producer |
-| A-6 | The two encodings' guarded list agree closely enough for a raw recursive walk: `guard.ListKeys("file/")` is a whole-directory prefix, which the blob's segment walk and the tree's string-prefix filter answer identically | `pkg/zefs/tree.go` `node.walk`, `tree.go` `list`; they diverge only on a prefix that is not a whole directory path | the sweep would take one implementation in the core over `ListKeys("")` and filter itself | conformance row for `guard.ListKeys` on both encodings | unvalidated |
+| A-5 | Adding the raw-key write pair to `WriteGuard` is safe on both encodings: the guard already reaches the in-memory tree and the tree encoding without re-locking, as `Has`, `List` and `ReadFile` do (`guard.List` → `blobLock.List` → `node.walk`; the tree arm → `tree.list`) | `internal/component/config/storage/store.go` guard methods, `pkg/zefs/lock.go` | the sweep would need to run after `Release`, outside the guard, with its own lock, and the removal would stop being atomic | `TestGuardWriteKeyNoDeadlock` | confirmed by the producer |
+| A-6 | The sweep can rely on storage-2's `guard.ListKeys` being literal-prefix, recursive and sorted on both encodings, so `guard.ListKeys("file/")` answers every history entry | storage-2 AC-21, which states that contract. It is NOT a property of the existing guard: `guard.List` is one level deep and its blob arm reaches `node.walk`, which splits on `/` and answers NOTHING for a trailing slash, so a sweep written against today's guard would find no entry and delete a shared object | the sweep would enumerate with `guard.ListKeys("")` and filter the `file/` prefix itself | storage-2's conformance rows, re-run here | depends on storage-2 |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -154,6 +154,7 @@ after a release the same change would owe a migration under operators.
 | R-7 | An entry whose value is not `sha256:<64 hex>` (a hand-written `ze data write`) | `TestReadVersionRejectsBadEntry` | an error naming the entry; `ze data check` reports it as dangling |
 | R-8 | An `object/<hex>` holding bytes that do not hash to its name, from `ze data write` or a repaired frame, is reused by dedup and passes today's CRC-only `check` | `TestWriteVersionRefusesWrongObject`, `TestCheckReportsWrongHashObject` | the write path verifies an existing object before it references it, `check` hashes every object, and `repair` drops a wrong-hash one |
 | R-9 | A future edit calls `Storage` inside a held guard and the process HANGS with no error and no test | `TestGuardRawKeyNoDeadlock`, which would time out | the four new methods live on the guard and bypass both mutexes like `Has`; the removal path takes the guard's methods only |
+| R-11 | A startup rebuild from the explicit file promotes over a valid `rollback` | `TestRebuildPreservesValidRollback` | promotion is recovery-aware: an active stamp that does not resolve is not copied into `rollback`. The `recovery` pointer is NOT used for this: it is registered and honored by the retention check, and nothing in production writes it, so writing an unresolvable stamp there would create a reference to a version that does not exist |
 | R-10 | `repair` drops a dangling entry and leaves a pointer naming it, after which `ReadActiveConfig` errors and `ze start` exits 1 | `TestRepairReportsDanglingPointer` | `repair` reports every pointer left dangling, naming the pointer and the stamp, so the operator fixes it before a restart; in `ConfigSourceFile` mode `initializeConfigSource` rebuilds the version from the file and says so in the log rather than silently |
 
 ## Blast Radius
@@ -184,14 +185,15 @@ after a release the same change would owe a migration under operators.
 | AC-5 | removal of one of two entries sharing an object | the object stays; removing the second deletes it; an entry of another name sharing the object keeps it; and a version an `active`, `rollback`, `recovery` or `candidate` pointer names is RETAINED, entry and object both, because `removeVersionLocked` did not delete |
 | AC-6 | `ClearCandidate` | the candidate's entry is removed and its object deleted when unreferenced |
 | AC-7 | `ListVersions(name)` | unchanged shape and order; `VersionInfo` still carries `Stamp`, `Date` and `Path`, and `Path` is still the entry key `file/<stamp>/<name>`, so `ze config history` and the `data history` JSON print what they print today |
-| AC-8 | `WriteGuard.ReadKey`, `WriteKey`, `RemoveKey` and `ListKeys` on the tree and on the blob, inside a held guard | each answers what the same-named `Storage` method answers outside a guard, without deadlock; `ListKeys("file/")` is recursive and returns full raw keys; the test fails by timing out, which is what calling `Storage` there would do |
+| AC-8 | `WriteGuard.WriteKey` and `RemoveKey` on the tree and on the blob, inside a held guard | each does what the same-named `Storage` method does outside a guard, without deadlock, and the guarded `ReadKey` and `ListKeys` storage-2 added see the result; the test fails by timing out, which is what calling `Storage` there would do |
 | AC-9 | the storage-1 conformance table | passes on both encodings with the rows this spec adds |
-| AC-10 | `ze data check` | reports an unreferenced object as a warning, and each of an entry with no object, a malformed entry value, and an `object/<hex>` whose bytes do not hash to `<hex>` as an error (exit 1), naming the key and, for the last, both hashes |
-| AC-11 | `ze data repair --output` | writes a store where every entry's object exists and every object hashes to its name; a dangling or malformed entry and a wrong-hash object are dropped and reported; orphans are kept; every pointer left naming a dropped entry is reported |
+| AC-10 | `ze data check` | reports an unreferenced object as a warning, and each of an entry with no object, a malformed entry value, an `object/<hex>` whose bytes do not hash to `<hex>`, and a `meta/config/<name>/<pointer>` naming a stamp with no entry as an error (exit 1), naming the key and, for the last two, both hashes or the pointer and the stamp. The pointer pass lives in the storage component over `CheckPath`'s entry list: `zefs.Check` validates frames and `fs.ValidPath` and is key-agnostic by design, so a key's MEANING is never its question |
+| AC-11 | `ze data repair --output` | writes a store where every entry's object exists and every object hashes to its name; a dangling or malformed entry and a wrong-hash object are dropped and reported; orphans are kept; every pointer left naming a dropped entry is reported and NEVER retargeted, and checking the repaired output reports those pointers rather than exiting 0. `repair` is the usual producer of a dangling pointer: it salvages frame by frame, and a small pointer frame survives a corruption the large version frame does not |
 | AC-12 | storage-1 `ImportBlob` and storage-2 `restore full` walks | write every `object/*` key before any `file/*` key |
 | AC-13 | storage-2 `restore config` from a source whose active entry names an object the source lacks | refused before any write, naming the hash |
 | AC-14 | `ze data registered` | lists `object/{hex}`, which is all registration does: it is discovery, not access control or validation |
-| AC-15 | a pointer naming a stamp whose entry `repair` dropped | `ReadActiveConfig` errors naming the pointer and the stamp, `ze start` exits 1 with that error, and no empty config is served; in `ConfigSourceFile` mode the daemon rebuilds the version from the explicit file and logs that it did |
+| AC-15 | a pointer naming a stamp whose entry `repair` dropped | `ReadActiveConfig` errors naming the pointer and the stamp, `ze start` exits 1 with that error, and no empty config is served; in `ConfigSourceFile` mode the daemon rebuilds the version from the explicit file and logs that it did, naming the stamp that would not resolve |
+| AC-17 | the rebuild of AC-15 on a store whose `rollback` pointer names a version that DOES resolve | `rollback` still names that stamp afterwards and still reads. Plain `PromoteCandidate` would overwrite it: it reads the active POINTER, which is intact, so it copies the unresolvable active stamp into `rollback` and the operator loses the one version they could go back to, while the old rollback's entry becomes unreferenced and collectable. Promotion is recovery-aware: when the current active stamp does not resolve, `rollback` is left untouched |
 | AC-16 | `WriteVersion` when `object/<hex>` already exists but holds bytes that hash to something else | refused before the entry is written, naming the key, the expected hash and the stored one; the entry is not written, so no reference to the wrong object exists |
 
 ## End-to-End User Stories
@@ -211,9 +213,9 @@ after a release the same change would owe a migration under operators.
 | `TestWriteVersionStoresObject`, `TestWriteVersionDedups`, `TestWriteVersionObjectFirst` | `internal/component/config/storage/history_test.go` | AC-1, AC-2 | |
 | `TestReadVersionVerifiesHash`, `TestReadVersionMissingObject`, `TestReadVersionRejectsBadEntry`, `TestReadFileEntryRaw` | `history_test.go` | AC-3, AC-4 | |
 | `TestSharedObjectSurvivesOneRemove`, `TestRemoveChecksEveryName`, `TestClearCandidateDeletesObject`, `TestPointedVersionRetainedWithObject` | `history_test.go` | AC-5, AC-6, A-3 | |
-| `TestGuardRawKeyNoDeadlock`, `TestGuardListKeysRecursive` | `conformance_test.go` | AC-8, A-5, A-6 | |
+| `TestGuardWriteKeyNoDeadlock`, `TestGuardRemoveKeyNoDeadlock` | `conformance_test.go` | AC-8, A-5, A-6 | |
 | conformance rows | `conformance_test.go` | AC-9 | |
-| `TestCheckReportsOrphanAndDangling`, `TestCheckReportsWrongHashObject`, `TestRepairDropsDangling`, `TestRepairReportsDanglingPointer`, `TestWriteVersionRefusesWrongObject` | `pkg/zefs/check_test.go` or the storage package, wherever the walker lives after storage-1 | AC-10, AC-11, AC-15, AC-16, R-8, R-10 | |
+| `TestCheckReportsOrphanAndDangling`, `TestCheckReportsWrongHashObject`, `TestCheckReportsDanglingPointer`, `TestRepairDropsDangling`, `TestRepairReportsDanglingPointer`, `TestCheckOnRepairedOutputStillReportsPointer`, `TestRebuildPreservesValidRollback`, `TestWriteVersionRefusesWrongObject` | `pkg/zefs/check_test.go` or the storage package, wherever the walker lives after storage-1 | AC-10, AC-11, AC-15, AC-16, AC-17, R-8, R-10, R-11 | |
 | `TestImportObjectsFirst`, `TestRestoreConfigRefusesMissingObject` | `import_test.go`, `restore_test.go` | AC-12, AC-13 | |
 | `BenchmarkWriteVersion` | `history_test.go` | A-4 | |
 
@@ -230,12 +232,14 @@ after a release the same change would owe a migration under operators.
 | `history-rollback-object`, `data-check-history`, `data-restore-config-object` | `test/plugin/*.ci` | AC-3, AC-10, AC-13 | |
 
 ## Files to Modify
-- `internal/component/config/storage/store.go` - `WriteVersion`, `ListVersions` over entries, `VersionInfo` without `Path`. Design doc: `docs/architecture/storage-backends.md`
-- `internal/component/config/storage/storage.go`, `internal/core/statestore/storage.go` - `ReadVersion` on `Storage`, and `ReadKey`, `WriteKey`, `RemoveKey`, `ListKeys` on `WriteGuard`; the contract is declared in the leaf tier and aliased in the component
-- `internal/component/config/storage/store.go` (guard methods), `blob.go`, `tree.go` - the raw-key four on both guards, each bypassing the store mutex and the blob mutex as `Has` does
+- `internal/component/config/storage/store.go` - `WriteVersion` over entries and objects; `ListVersions` and `VersionInfo` are unchanged, `Path` included. Design doc: `docs/architecture/storage-backends.md`
+- `internal/component/config/storage/storage.go`, `internal/core/statestore/storage.go` - `ReadVersion` on `Storage`, and `WriteKey` and `RemoveKey` on `WriteGuard` beside the `ReadKey` and `ListKeys` storage-2 added; the contract is declared in the leaf tier and aliased in the component
+- `internal/component/config/storage/store.go` (guard methods), `blob.go`, `tree.go` - the guarded `WriteKey` and `RemoveKey` on both encodings, each bypassing the store mutex and the blob mutex as `Has` does
 - `internal/component/config/storage/pointer.go` - `ReadVersion` resolves entry → object; `removeVersionLocked` reports whether it deleted and `ClearCandidate` runs the object sweep only when it did
 - `internal/component/config/storage/import.go` (storage-1), `backup.go`, `restore.go` (storage-2) - object-first ordering; `restore config` through `ReadVersion` and the missing-object refusal
-- `internal/component/config/storage/cli/cmd_integrity.go` - reachability report, `repair` dropping dangling entries
+- `internal/component/config/storage/cli/cmd_integrity.go` - the reachability and pointer report, `repair` dropping dangling entries and reporting the pointers left naming them
+- `internal/component/doctor/checks_storage.go` (`checkStoreIntegrity`) - raise the same pointer and object findings, so an unattended host reports them
+- `cmd/ze/hub/config_source.go` (`initializeConfigSource`), `internal/component/config/storage/pointer.go` (`PromoteCandidate`) - recovery-aware promotion: an unresolvable active stamp is not written into `rollback`, and the rebuild is logged
 - `internal/component/config/stamp.go`, `internal/component/cli/editor.go` (`ListBackups`, `Rollback`, `readBackupContent`), `internal/component/config/cli/cmd_rollback.go`, `internal/component/config/cli/cmd_diff.go` (`resolveRollbackPath`, `loadAndResolve`) - `ReadVersion` by stamp. `cmd_history.go` and `config_data.go` publish `VersionInfo.Path` and are untouched
 - `pkg/zefs/keys.go` - register `object/{hex}`
 - `docs/architecture/storage-backends.md`, `docs/architecture/zefs-format.md` (key namespaces table), `docs/guide/command-reference.md` (`ze data check` output), `docs/guide/operations.md`, `ai/INDEX.md`, `ai/CODE-TO-DOCS.md`, `ai/DOCS-TO-CODE.md`
@@ -256,7 +260,7 @@ after a release the same change would owe a migration under operators.
 | Functional test for new RPC/API | Yes | the `.ci`/`.et` above |
 | Pipe completeness | Yes | `ze data check` rows gain `orphan` and `dangling` fields so `\| match` selects them |
 | Env var registration | N-A | none |
-| Doctor check for runtime dependencies | Yes | `doctor-store-integrity` (storage-1) reports dangling entries as an error and orphans as a warning; codes in `internal/core/diagnostic/codes.go` |
+| Doctor check for runtime dependencies | Yes | `doctor-store-integrity` (storage-1) reports dangling entries and pointers naming a missing entry as errors, and orphans as a warning, from the same report `ze data check` renders; `checkStoreIntegrity` (`internal/component/doctor/checks_storage.go`) relays only `CheckPath` today, so an unattended host currently surfaces none of it. Codes in `internal/core/diagnostic/codes.go` |
 | Prometheus counters/metrics | N-A | none |
 | BGP family surface (new SAFI / capability / attribute) | N-A | not BGP |
 
@@ -274,7 +278,7 @@ after a release the same change would owe a migration under operators.
 | 9 | RFC behavior implemented, changed, or newly proven? | No | not protocol |
 | 10 | Test infrastructure changed? | No | none |
 | 11 | Affects daemon comparison? | No | verified by grep of `docs/comparison.md` for `history` at implementation |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/storage-backends.md` (objects, entries, removal check), `docs/architecture/zefs-format.md` (namespace table gains `object/`) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/storage-backends.md` (objects, entries, the removal check and its pointer retention), `docs/architecture/zefs-format.md` (the namespace table gains `object/`, and the Key Registry section says registration is discovery and grant validation, never access control) |
 | 13 | Route metadata keys added/changed? | No | none |
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` if it lists doctor codes |
@@ -288,11 +292,13 @@ Design documents declared by the `// Design:` headers of files in scope:
 | `docs/architecture/storage-backends.md` | Yes | the version model section (Phase 2) |
 | `docs/architecture/zefs-format.md` | Yes | key namespace table (Phase 2) |
 | `docs/architecture/config/syntax.md` | No | declared by `cmd_rollback.go` for the parser; the parser is untouched |
+| `docs/architecture/hub-architecture.md` | No | declared by `cmd/ze/hub/config_source.go`; recovery-aware promotion changes no component boundary the page draws, and the page says nothing about which pointer a rebuild writes |
+| `docs/features/ai-first.md` | No | declared by `internal/component/doctor/checks_storage.go`; the page describes the doctor as a surface, not the findings one check raises |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- the history functions, `Storage.ReadVersion` and the guard's raw-key four exist, the conformance rows fail
-   - Tests: conformance rows for objects and the guard's raw-key four, `history-dedup.et`
+1. **Phase: Wiring (MANDATORY FIRST)** -- the history functions, `Storage.ReadVersion` and the guard's `WriteKey` and `RemoveKey` exist, the conformance rows fail
+   - Tests: conformance rows for objects and the guard's write pair, `history-dedup.et`
    - Files: `history.go` (stubs), `storage.go`, `internal/core/statestore/storage.go`, `store.go`, `blob.go`, `tree.go`, `keys.go`, `conformance_test.go`
    - Verify: rows fail on behavior
 2. **Phase: Objects** -- write, verified read, dedup, `ReadVersion` by stamp at the three readers
@@ -305,7 +311,7 @@ Design documents declared by the `// Design:` headers of files in scope:
    - Verify: AC-5, AC-6, AC-8
 4. **Phase: Walks and integrity** -- object-first ordering, restore-config refusal, check and repair
    - Tests: `TestImportObjectsFirst`, `TestRestoreConfigRefusesMissingObject`, `TestCheckReportsOrphanAndDangling`, `TestRepairDropsDangling`, the `.ci` files
-   - Files: `import.go`, `backup.go`, `restore.go`, `cmd_integrity.go`, `diagnostic/codes.go`, `docs/guide/command-reference.md`, `docs/guide/operations.md`, `docs/features.md`
+   - Files: `import.go`, `backup.go`, `restore.go`, `cmd_integrity.go`, `checks_storage.go`, `config_source.go`, `pointer.go`, `diagnostic/codes.go`, `docs/guide/command-reference.md`, `docs/guide/operations.md`, `docs/features.md`
    - Verify: AC-10 to AC-14
 
 ### Critical Review Checklist
@@ -314,7 +320,7 @@ Design documents declared by the `// Design:` headers of files in scope:
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | object before entry on write; an existing object verified before it is referenced; entry before object on remove, and no object step when the entry was retained; hash verified on every `ReadVersion`; the removal lists entries of every name through the guard's recursive raw walk; `ReadFile` never dereferences |
+| Correctness | every pointer resolves to an entry and every entry to an object, checked at check, repair and doctor; a promotion never writes an unresolvable stamp into rollback; object before entry on write; an existing object verified before it is referenced; entry before object on remove, and no object step when the entry was retained; hash verified on every `ReadVersion`; the removal lists entries of every name through the guard's recursive raw walk; `ReadFile` never dereferences |
 | Naming | `object/<64 lowercase hex>`; entry value `sha256:<hex>` |
 | Data flow | no caller outside the storage core reads or writes `object/*`, and inside it every object access is a RAW key call; the three byte readers of `VersionInfo.Path` call `ReadVersion`; no `Storage` method is called inside a held guard |
 | Rule: `ai/rules/no-layering.md` | the copying `WriteVersion` is gone; no fallback arm reads a copy |
@@ -366,7 +372,7 @@ Design documents declared by the `// Design:` headers of files in scope:
 | No migration | value-sniffing or key-based legacy detection with an on-open pass | pre-release: no store on `main` holds history anyone keeps; a migration is a spec of its own the day one does |
 | `sha256:<hex>` entry spelling | bare 64-hex | the repository already spells digests this way (`writeConfigActiveHash`) |
 | Objects reached by raw key inside package `storage` | teach `isNamespaced` and `resolveDirKey` the `object/` prefix | the resolver's contract is carried by both encodings and by `CheckName`; extending it for a namespace no caller outside the core names buys nothing and risks the silent `file/active/` rewrite everywhere else |
-| The guard gains the raw-key four | run the sweep after `Release` with its own lock | a removal that is not atomic can lose an object between the entry delete and the sweep; and a `Storage` call inside a guard hangs rather than errors, so the safe route must exist on the guard |
+| The guard gains the raw-key write pair, storage-2 having added the read pair | run the sweep after `Release` with its own lock | a removal that is not atomic can lose an object between the entry delete and the sweep; and a `Storage` call inside a guard hangs rather than errors, so the safe route must exist on the guard |
 | `VersionInfo.Path` kept as the entry key | delete the field | it still names a real key, and deleting it changes `ze config history` text and the `data history` JSON `keyPath` for no gain |
 | An existing object is verified before it is referenced | trust the key's existence | a CRC proves the bytes are what was written, never that they are what the name promises; `ze data write` and `repair` can both produce a wrong-hash object |
 
