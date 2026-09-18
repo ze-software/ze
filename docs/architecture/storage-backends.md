@@ -76,7 +76,12 @@ limits. Values are limited by addressable memory; the existing ZeFS blob import
 limit remains 256 MiB.
 
 Config operations map a bare name to `file/active/<name>`. An explicit path must
-belong to that store's config directory. Already namespaced `file/` and `meta/`
+belong to that store's config directory. Belonging is decided by directory
+IDENTITY, not by the spelling of the path: the check stats both directories and
+accepts them when they are the same one. A store folder and a caller's path
+disagree in text whenever a symlink stands between them, and the framed-tree
+opener canonicalizes its own folder, so a text comparison refuses a config that
+is inside the store. A directory that cannot be stat'ed is refused. Already namespaced `file/` and `meta/`
 keys pass through unchanged. `List` returns immediate file children as keys that
 `ReadFile` accepts unchanged. `ReadKey`, `WriteKey`, `RemoveKey` and `ListKeys`
 bypass config-name mapping. `ListKeys` recursively returns sorted keys matching

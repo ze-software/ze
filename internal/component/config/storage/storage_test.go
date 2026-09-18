@@ -3,6 +3,7 @@ package storage
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -305,4 +306,38 @@ func TestParseVersionStampRejectsInvalid(t *testing.T) {
 		_, err := parseVersionStamp(stamp)
 		require.Error(t, err, stamp)
 	}
+}
+
+// VALIDATES: CheckName accepts a config whose directory is the store folder
+// under a DIFFERENT SPELLING, and still refuses one that is really elsewhere.
+//
+// The guard compared filepath.Abs strings until 2026-09-18, and filepath.Abs
+// resolves no symlink. On darwin os.MkdirTemp answers /var/folders/... while
+// the framed-tree opener canonicalizes the same directory to /private/var/...,
+// so every caller that passed an absolute config path was refused with "is
+// outside store folder" about a file that was inside it. The editor suite,
+// 165 of its 170 tests, failed on exactly that.
+func TestCheckNameAcceptsAnotherSpellingOfTheStoreFolder(t *testing.T) {
+	dir := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	if resolved == dir {
+		// A host whose temporary directory crosses no symlink cannot pose the
+		// question, so the symlink is made rather than assumed.
+		resolved = filepath.Join(t.TempDir(), "store")
+		require.NoError(t, os.Mkdir(resolved, 0o750))
+		dir = filepath.Join(t.TempDir(), "link")
+		require.NoError(t, os.Symlink(resolved, dir))
+	}
+
+	s := newTreeStorage(t, resolved)
+	store, ok := s.(*store)
+	require.True(t, ok, "Create returned %T, want *store", s)
+
+	require.NoError(t, store.CheckName(filepath.Join(resolved, "ze.conf")),
+		"the canonical spelling of the store folder is the store folder")
+	require.NoError(t, store.CheckName(filepath.Join(dir, "ze.conf")),
+		"another spelling of the store folder is the same directory")
+	require.Error(t, store.CheckName(filepath.Join(t.TempDir(), "ze.conf")),
+		"a config in another directory stays refused")
 }

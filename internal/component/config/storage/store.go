@@ -85,15 +85,26 @@ func (s *store) CheckName(name string) error {
 	if filepath.Dir(name) == "." {
 		return nil
 	}
-	folder, err := filepath.Abs(s.tree.folder.Name())
+	// The two directories are compared by IDENTITY, never by spelling. One
+	// directory reaches this guard under two names whenever a symlink stands in
+	// the path: filepath.Abs does not resolve one, and the framed-tree opener
+	// canonicalizes its own folder (on darwin trustedFramePath rewrites /var to
+	// /private/var, pkg/zefs/check_tree_darwin.go). A text comparison then
+	// refuses a config that sits in the store folder, and says "outside" about
+	// a file that is inside it.
+	folderInfo, err := s.tree.folder.Stat()
 	if err != nil {
 		return err
 	}
-	parent, err := filepath.Abs(filepath.Dir(name))
+	folder := s.tree.folder.Name()
+	parentInfo, err := os.Stat(filepath.Dir(name))
 	if err != nil {
-		return err
+		// A directory that cannot be stat'ed is not shown to be the store
+		// folder, so the guard refuses: it fails closed, and the error says
+		// which read failed.
+		return fmt.Errorf("config %s is outside store folder %s: %w", name, folder, err)
 	}
-	if folder != parent {
+	if !os.SameFile(folderInfo, parentInfo) {
 		return fmt.Errorf("config %s is outside store folder %s", name, folder)
 	}
 	return nil
