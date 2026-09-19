@@ -909,6 +909,10 @@
   ],
   "unlisted": [
     {
+      "slug": "CLAUDE",
+      "why": "agent instructions, not reader content"
+    },
+    {
       "slug": "command-catalog",
       "why": "a generated command dump; the site publishes its own command reference"
     }
