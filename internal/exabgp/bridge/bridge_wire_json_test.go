@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -52,4 +53,39 @@ func TestWireUpdateRendersTheFixtureItIsMeasuredAgainst(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, string(wantJSON), string(gotJSON),
 		"the rendered frame does not match the expectation the fixture states for it")
+}
+
+// TestASPathKeepsItsSegments pins the member ze's own JSON cannot carry.
+//
+// VALIDATES: an AS_PATH renders as ExaBGP states it, keyed by segment index
+// with each segment's element type named.
+// PREVENTS: the information loss that made this necessary. appendASPathJSON
+// (internal/core/bgp/attribute/json.go) walks every segment and appends every
+// ASN, discarding seg.Type and the boundaries, so `[65533]` cannot say whether
+// the path was an AS_SEQUENCE or an AS_SET -- and RFC 4271 Section 4.3 makes a
+// set UNORDERED, which is a different statement about the path.
+func TestASPathKeepsItsSegments(t *testing.T) {
+	// ORIGIN igp, AS_PATH (one as-sequence holding 65533), NEXT_HOP 1.1.1.1,
+	// NLRI 10.0.0.0/24. Attribute length 0x18 covers the four attributes.
+	payload, err := hex.DecodeString("0000001840010100" + "40020602010000FFFD" + "40030401010101" + "180A0000")
+	require.NoError(t, err)
+
+	got, err := WireUpdateToExabgpJSON(payload, SessionFacts{
+		Local:   netip.MustParseAddr("127.0.0.1"),
+		Peer:    netip.MustParseAddr("127.0.0.1"),
+		LocalAS: 65535, PeerAS: 65535,
+	}, rpc.DirectionReceived)
+	require.NoError(t, err)
+
+	update := got["neighbor"].(map[string]any)["message"].(map[string]any)["update"].(map[string]any)
+	attributes, ok := update["attribute"].(map[string]any)
+	require.True(t, ok, "the update states no attributes")
+
+	segments, ok := attributes["as-path"].(map[string]any)
+	require.True(t, ok, "as-path is not the segment map ExaBGP states, it is %T", attributes["as-path"])
+	first, ok := segments["0"].(map[string]any)
+	require.True(t, ok, "no segment 0 in %v", segments)
+	assert.Equal(t, "as-sequence", first["element"],
+		"the segment type is what tells an ordered path from an unordered set")
+	assert.Equal(t, []any{float64(65533)}, first["value"])
 }
