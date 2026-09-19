@@ -15,6 +15,16 @@ option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=15s
 option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65999:next-hop=10.0.0.1
+# The FENCE. Same origin AS, so it takes the same Invalid verdict, the same
+# per-peer override and the same path: pending, then promoted by the
+# validator's batch-validate, which applies its decisions in slice order
+# under one lock (adj_rib_in/rib_commands.go). The fence therefore cannot
+# be installed before the route under test, so the observer waits for THIS
+# one and then reads the other once. A route through the software is the
+# synchronisation point; a poll on the route under test would be a sleep
+# with a loop around it, and it would pass on a fast host and fail on a
+# slow one.
+option=update:value=send-route:prefix=10.0.99.0/24:origin-as=65999:next-hop=10.0.0.1
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER

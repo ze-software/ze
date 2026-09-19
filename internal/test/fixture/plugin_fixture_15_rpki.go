@@ -72,17 +72,29 @@ func plugin15RPKIPerPeer(ctx context.Context, p *sdk.Plugin) error {
 	if r := plugin15Dispatch(ctx, p, "request quiesce"); !plugin15Done(r) {
 		return fmt.Errorf("quiesce failed: %s", r.text())
 	}
-	// Polled, not read once. `request quiesce` above drains what ze owes the
-	// wire and what it owes its plugins, and this route waits on NEITHER: it
-	// sits in the adj-RIB-in's pending set until the RPKI decision comes BACK
-	// from the validator and accept-routes moves it. No barrier covers a round
-	// trip through a plugin, so the test waits for the effect it asserts.
+	// The peer sends a FENCE route, 10.0.99.0/24, behind the route under test.
+	// Both carry origin AS 65999, so both are Invalid against the one VRP, both
+	// take the per-peer accept, and both travel one path: stored pending, then
+	// promoted by the validator's batch-validate, which applies its decisions in
+	// slice order under a single lock (adj_rib_in/rib_commands.go). The fence
+	// therefore cannot be installed before the route ahead of it.
+	//
+	// So the wait is on the FENCE and the assertion is one read of the route
+	// under test. Waiting on the route itself would be a sleep wearing a loop:
+	// it encodes "six seconds ought to be enough", which is true on this host
+	// and false on a loaded one, and it reports a product defect when the guess
+	// runs out. `request quiesce` above cannot serve here either -- it drains
+	// what ze owes the wire and its plugins, and this route waits on a round
+	// trip OUT to the validator and back, which no queue drain can promise.
 	var rib plugin15Result
 	if !Poll(ctx, 60, 100*time.Millisecond, func() bool {
 		rib = plugin15Dispatch(ctx, p, "show bgp adj-rib-in")
-		return plugin15Done(rib) && strings.Contains(rib.text(), "10.0.1.0/24")
+		return plugin15Done(rib) && strings.Contains(rib.text(), "10.0.99.0/24")
 	}) {
-		return fmt.Errorf("invalid route 10.0.1.0/24 should be ACCEPTED via per-peer override: status=%s data=%s", rib.status, rib.text())
+		return fmt.Errorf("the fence route 10.0.99.0/24 never reached the adj-RIB-in, so the validator answered nothing: status=%s data=%s", rib.status, rib.text())
+	}
+	if !strings.Contains(rib.text(), "10.0.1.0/24") {
+		return fmt.Errorf("invalid route 10.0.1.0/24 should be ACCEPTED via per-peer override, and the fence behind it arrived: status=%s data=%s", rib.status, rib.text())
 	}
 	status, err := plugin15Map(plugin15Dispatch(ctx, p, "show bgp rpki status"))
 	if err != nil {
