@@ -306,8 +306,7 @@ func driveSends(t *testing.T, fc *fakePingConn, clk *sim.FakeClock, interval tim
 		t.Fatalf("first send seq = %d, want 0", r0.seq)
 	}
 	for want := uint16(1); want < uint16(count); want++ {
-		clk.Add(interval)
-		clk.FireTickers()
+		pingTick(t, clk, interval)
 		r := <-fc.wrote
 		if r.seq != want {
 			t.Fatalf("send seq = %d, want %d", r.seq, want)

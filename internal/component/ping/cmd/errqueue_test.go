@@ -142,8 +142,7 @@ func TestPingRefusedAtSendReportsCachedEstimate(t *testing.T) {
 
 	fc.setWriteErr(syscall.EMSGSIZE)
 	fc.queueError(cachedRefusal(1400))
-	clk.Add(time.Second)
-	clk.FireTickers()
+	pingTick(t, clk, time.Second)
 
 	r := <-out
 	if r[fieldStatus] != statusTooBigCached {
@@ -213,8 +212,7 @@ func TestPingRefusedSendKeepsTheRouterAnswerAhead(t *testing.T) {
 	fc.queueError(routerRefusal(testPID(), w.seq, 1400))
 	fc.setWriteErr(syscall.EMSGSIZE)
 	fc.queueError(cachedRefusal(1400))
-	clk.Add(time.Second)
-	clk.FireTickers()
+	pingTick(t, clk, time.Second)
 
 	first := <-out
 	if first[fieldStatus] != statusTooBig {

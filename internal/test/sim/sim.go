@@ -28,6 +28,9 @@ type FakeClock struct {
 	tickers []*fakeTicker
 	timers  []*fakeTimer // scheduled AfterFunc timers, fired on Add/Set
 	seq     uint64       // FIFO tie-break for same-deadline timers
+	// added is closed and replaced every time NewTicker hands one out, which
+	// is how AwaitTickers wakes without polling.
+	added chan struct{}
 }
 
 // NewFakeClock creates a FakeClock starting at the given time.
@@ -128,7 +131,42 @@ func (c *FakeClock) NewTicker(time.Duration) clock.Ticker {
 	defer c.mu.Unlock()
 	ft := &fakeTicker{ch: make(chan time.Time, 1)}
 	c.tickers = append(c.tickers, ft)
+	if c.added != nil {
+		close(c.added)
+	}
+	c.added = make(chan struct{})
 	return ft
+}
+
+// AwaitTickers blocks until this clock has handed out at least n tickers, and
+// answers false when within expires first.
+//
+// It is the fence a test needs before FireTickers. A ticker the goroutine under
+// test has not created yet receives nothing, and FireTickers keeps no pending
+// tick for one created later, so a fire that wins that race is lost and the
+// test waits for a tick that will never come. Waiting on wall-clock time would
+// only narrow the window; this waits on the event itself. The bound is real
+// time rather than fake time on purpose: what is being waited for is the other
+// goroutine being scheduled, which the simulated clock knows nothing about.
+func (c *FakeClock) AwaitTickers(n int, within time.Duration) bool {
+	expired := time.After(within)
+	for {
+		c.mu.Lock()
+		have := len(c.tickers)
+		if c.added == nil {
+			c.added = make(chan struct{})
+		}
+		added := c.added
+		c.mu.Unlock()
+		if have >= n {
+			return true
+		}
+		select {
+		case <-added:
+		case <-expired:
+			return false
+		}
+	}
 }
 
 // FireTickers sends the current fake time to all non-stopped tickers.

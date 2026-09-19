@@ -195,6 +195,26 @@ func startSessionOn(clk clock.Clock, dest netip.Addr, echo, echoReply byte, inte
 	return fc, out, cancel
 }
 
+// pingTick advances the fake clock by d and delivers the tick to the session's
+// interval ticker, after a fence that proves the ticker exists.
+//
+// runPingSession writes the first probe and only then calls clk.NewTicker
+// (stream.go, "First probe goes out immediately ... the ticker paces the rest").
+// A test that observes the first write and fires at once can therefore reach a
+// clock with no ticker registered. FireTickers keeps no pending tick for a
+// ticker created afterwards, so that tick is lost for good and the test blocks
+// on the next send until the package alarm kills the whole run 20 minutes later
+// (plan/journal/false-synchronization-claim.md). AwaitTickers waits for the
+// ticker itself rather than for a length of time.
+func pingTick(t *testing.T, clk *sim.FakeClock, d time.Duration) {
+	t.Helper()
+	if !clk.AwaitTickers(1, 10*time.Second) {
+		t.Fatal("the ping session never created its interval ticker")
+	}
+	clk.Add(d)
+	clk.FireTickers()
+}
+
 // TestStreamPingCadenceHoldsUnderLoss VALIDATES AC-1/AC-2: probe cadence holds
 // at `interval` under 100% loss. No reply is ever injected; the sends must still
 // be spaced exactly one interval apart. Against the old serial design this test
@@ -211,8 +231,7 @@ func TestStreamPingCadenceHoldsUnderLoss(t *testing.T) {
 
 	prev := r0
 	for want := uint16(1); want <= 3; want++ {
-		clk.Add(time.Second)
-		clk.FireTickers()
+		pingTick(t, clk, time.Second)
 		r := <-fc.wrote
 		if r.seq != want {
 			t.Fatalf("send seq = %d, want %d", r.seq, want)
@@ -281,8 +300,7 @@ func TestStreamPingMatchesLateReply(t *testing.T) {
 		t.Fatalf("first send seq = %d, want 0", r0.seq)
 	}
 
-	clk.Add(time.Second)
-	clk.FireTickers()
+	pingTick(t, clk, time.Second)
 	r1 := <-fc.wrote // seq 1 at epoch+1s; seq 0 still in flight
 	if r1.seq != 1 {
 		t.Fatalf("second send seq = %d, want 1", r1.seq)
@@ -319,8 +337,7 @@ func TestStreamPingMixedLossOutOfOrder(t *testing.T) {
 	sends := make([]writeRec, 3)
 	sends[0] = <-fc.wrote // seq 0 at epoch
 	for i := 1; i < 3; i++ {
-		clk.Add(time.Second)
-		clk.FireTickers()
+		pingTick(t, clk, time.Second)
 		sends[i] = <-fc.wrote // seq i at epoch+i s
 	}
 	for i, r := range sends {
@@ -380,8 +397,7 @@ func TestStreamPingCountCompletesAfterLastReply(t *testing.T) {
 		t.Fatalf("first send seq = %d, want 0", r0.seq)
 	}
 	for want := uint16(1); want < count; want++ {
-		clk.Add(time.Second)
-		clk.FireTickers()
+		pingTick(t, clk, time.Second)
 		r := <-fc.wrote
 		if r.seq != want {
 			t.Fatalf("send seq = %d, want %d", r.seq, want)
@@ -524,8 +540,7 @@ func sendTwo(t *testing.T, clk *sim.FakeClock, fc *fakePingConn) {
 	if r := <-fc.wrote; r.seq != 0 {
 		t.Fatalf("first send seq = %d, want 0", r.seq)
 	}
-	clk.Add(time.Second)
-	clk.FireTickers()
+	pingTick(t, clk, time.Second)
 	if r := <-fc.wrote; r.seq != 1 {
 		t.Fatalf("second send seq = %d, want 1", r.seq)
 	}
@@ -637,8 +652,7 @@ func TestStreamPingDuplicateAndUnknownReplyIgnored(t *testing.T) {
 	fc.injectReply(pid, 0)
 	fc.inject(testEchoReply, pid, 99, nil)
 
-	clk.Add(time.Second)
-	clk.FireTickers()
+	pingTick(t, clk, time.Second)
 	<-fc.wrote // seq 1
 	fc.injectReply(pid, 1)
 

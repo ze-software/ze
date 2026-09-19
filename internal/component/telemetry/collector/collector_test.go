@@ -41,6 +41,12 @@ func newFakeClockManager(reg metrics.Registry, prefix string, interval time.Dura
 func tick(t *testing.T, fc *sim.FakeClock, c *fakeCollector) {
 	t.Helper()
 	before := c.collectN.Load()
+	// The manager creates its ticker on the goroutine Start launches, so a fire
+	// that arrives first reaches a clock with no ticker and is lost: FireTickers
+	// keeps no pending tick for a ticker created afterwards.
+	if !fc.AwaitTickers(1, 10*time.Second) {
+		t.Fatal("the manager never created its collection ticker")
+	}
 	fc.Add(time.Second)
 	fc.FireTickers()
 	deadline := time.Now().Add(5 * time.Second)
