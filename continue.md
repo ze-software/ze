@@ -256,7 +256,7 @@ with the spec removed at `b9f7cadeb`.
   not saved because a reboot may be how an operator clears state, and the attack is
   re-detected and re-instantiated on the next start. Implemented in `c23134ce1`.
 - **2026-09-08, RFC-tagged test.** He approved the arity-only edit to
-  `TestOwnerAutoDetection`; the row is `test/rfc-changed/ff31c770.md`.
+  `TestOwnerAutoDetection`; the row is `test/rfc-changed/ff31c770.md`.  <!-- doc-links: ignore (test/rfc-changed/ is the route owner approval took when this was written; ./le rfc approve replaced it, writing tmp/commit-rfc-approved-<session>.md that the commit carries as RFC-approved: trailers. Repointing a handover would rewrite the record of what the session met) -->
 
 **Open for him, asked and unanswered:** an interface's own `cost` leaf still
 restarts that interface, so ze gives two different answers to what a cost change

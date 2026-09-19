@@ -31,7 +31,7 @@ directive that landing is the presumption, and got three answers:
 
 - The documentation and site edits LANDED.
 - The OSPF group was refused by the commit gate: it changes 32 RFC-tagged tests and
-  owes owner-approval rows in `test/rfc-changed/`, which an author may not write for
+  owes owner-approval rows in `test/rfc-changed/`, which an author may not write for  <!-- doc-links: ignore (test/rfc-changed/ is the route owner approval took when this was written; ./le rfc approve replaced it, writing tmp/commit-rfc-approved-<session>.md that the commit carries as RFC-approved: trailers. Repointing a handover would rewrite the record of what the session met) -->
   their own change and certainly not for another session's.
 - The component group was refused by the harness as a shared-resource change.
 
@@ -105,7 +105,7 @@ verification run.
 3. `go vet ./internal/plugins/ospf/`. It must exit 0. If it does not, someone has
    changed `buildIPsecSA` again.
 4. `./le verify worktree`. It has never run green in this work. Expect it to fail
-   at stage 3 (`rfc/check`) while the two AH rows stand. Budget about 50G of disk
+   at stage 3 (`rfc/check`) while the two AH rows stand. Budget about 50G of disk  <!-- doc-links: ignore (`rfc/check` here names the verify stage, which runs `./le rfc check`, not a path in the tree) -->
    and run `./le scratch cache-clean` first; the run was killed once by the disk
    filling and once by a terminal that consumed 70G of memory rendering its output,
    so redirect it to a file and do not stream it.
@@ -193,7 +193,7 @@ second is a finding rather than an inconvenience:
    `ipsec_install_test.go` with "not enough arguments in call to buildIPsecSA", and
    `ipsec_rfc4302_test.go` has the same. Both call sites sit inside RFC-tagged
    tests, so fixing them trips the weakening gate and needs an owner row in
-   `test/rfc-changed/` that an author may not write. That is why this was left
+   `test/rfc-changed/` that an author may not write. That is why this was left  <!-- doc-links: ignore (test/rfc-changed/ is the route owner approval took when this was written; ./le rfc approve replaced it, writing tmp/commit-rfc-approved-<session>.md that the commit carries as RFC-approved: trailers. Repointing a handover would rewrite the record of what the session met) -->
    rather than finished.
 2. **`onNeighborSeen` and `onNeighborLost` exist and nothing calls them.** Both are
    methods on `ipsecInstaller` in that file, complete with the neighbour-moved-
@@ -279,7 +279,7 @@ writing any of the five is his call.
 
 ## Work this session opened and did not close
 
-- **`plan/immediate/spec-gtsm-related-icmp-ttl.md`** is written and its code is
+- **`plan/immediate/spec-gtsm-related-icmp-ttl.md`** is written and its code is  <!-- doc-links: ignore (the spec closed after this handover was written, and closing a spec removes it from plan/) -->
   committed, but the spec names three items as outstanding rather than as
   limitations: the `.ci` functional test, the FRR interop scenario (the behaviour is
   wire-visible, so one is owed), and a doctor check reporting a GTSM peer whose
@@ -298,7 +298,7 @@ writing any of the five is his call.
   `internal/component/cli/model_keys.go` and
   `internal/component/config/system/system.go` were mid-edit elsewhere and broke
   lint typecheck repeatedly. They are not yours.
-- A `test/rfc-changed/` row records the OWNER's decision and an author may not
+- A `test/rfc-changed/` row records the OWNER's decision and an author may not  <!-- doc-links: ignore (test/rfc-changed/ is the route owner approval took when this was written; ./le rfc approve replaced it, writing tmp/commit-rfc-approved-<session>.md that the commit carries as RFC-approved: trailers. Repointing a handover would rewrite the record of what the session met) -->
   write one. A `test/weakened/` row is the author's own. `./le commit create`
   prunes the rfc shard to the rows of the commit it is preparing, so a row written
   ahead of time disappears when an earlier commit runs.
