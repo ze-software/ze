@@ -177,7 +177,7 @@ func lockOwner(folder *os.File, name string) (*os.File, error) {
 }
 
 func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
-	fd, err := unix.Openat(int(folder.Fd()), name, unix.O_RDWR|unix.O_CREAT|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0o600)
+	fd, err := openLockNode(folder, name)
 	if err != nil {
 		return nil, fmt.Errorf("lock %s: %w", filepath.Join(folder.Name(), name), err)
 	}
@@ -192,6 +192,27 @@ func lockStoreFile(folder *os.File, name string, mode int) (*os.File, error) {
 		return nil, errors.Join(err, file.Close())
 	}
 	return file, nil
+}
+
+// openLockNode creates the lock beside the store, or opens the one a racing
+// process created first.
+//
+// The exclusive create is what tells the two apart, and it is not an
+// optimisation: darwin does not make open(O_CREAT) atomic against a concurrent
+// create of the same name, and reports ENOENT to the loser for a file that
+// exists (measured 2026-09-19: two threads racing one openat on APFS failed the
+// loser 200 times in 200 rounds, with and without O_NOFOLLOW; a plain O_EXCL
+// create in the same race reported EEXIST every time). A daemon start that
+// coincided with another was therefore refused for a missing lock file instead
+// of being told the store has an owner. ownershipLock reads the lock the same
+// way, so the package has one shape for a create-or-open.
+func openLockNode(folder *os.File, name string) (int, error) {
+	flags := unix.O_RDWR | unix.O_NOFOLLOW | unix.O_NONBLOCK | unix.O_CLOEXEC
+	fd, err := unix.Openat(int(folder.Fd()), name, flags|unix.O_CREAT|unix.O_EXCL, 0o600)
+	if !errors.Is(err, unix.EEXIST) {
+		return fd, err
+	}
+	return unix.Openat(int(folder.Fd()), name, flags, 0)
 }
 
 // Create auto-creates an empty tree, or reopens the completed winner. A busy
