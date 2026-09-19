@@ -2,14 +2,48 @@ package rr
 
 import (
 	"fmt"
+	"net/netip"
 	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// appendOriginatorIDJSON renders ORIGINATOR_ID as the address it is.
+//
+// Without a formatter the generic arm names an attribute `attr-<code>` and
+// prints its hex (appendAttributeJSON, component/bgp/format/text_json.go), so
+// RFC 4456's ORIGINATOR_ID reached every JSON reader as `"attr-9": "0a000001"`.
+// That is a value nothing can act on without knowing the wire format, and it is
+// this plugin's own attribute: RFC 4456 Section 8 defines it, and bgp-rr is the
+// plugin that sets it.
+//
+// ExaBGP names it `originator-id` and prints the address, which is what the
+// bridge translates ze's name to; that translation has nothing to work with
+// while the value is hex.
+func appendOriginatorIDJSON(buf []byte, attr attribute.Attribute) []byte {
+	// The VALUE type, not a pointer: knownAttrParsers stores what
+	// ParseOriginatorID returns (attribute/wire.go, simple.go), and that is an
+	// OriginatorID. Asserting the pointer failed silently and the generic arm
+	// printed attr-9 hex, which is the shape this formatter exists to replace.
+	id, ok := attr.(attribute.OriginatorID)
+	if !ok {
+		return nil
+	}
+	addr := netip.Addr(id)
+	if !addr.IsValid() {
+		return nil
+	}
+	buf = append(buf, '"')
+	buf = addr.AppendTo(buf)
+	return append(buf, '"')
+}
+
 func init() {
+	attribute.RegisterJSONFormatter(attribute.AttrOriginatorID, "originator-id", appendOriginatorIDJSON)
+
 	reg := registry.Registration{
 		Name:         "bgp-rr",
 		Description:  "Route Reflector",

@@ -6,9 +6,9 @@
 package bridge
 
 import (
-	"strconv"
 	"maps"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -497,10 +497,11 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 // nothing did until the fixtures' own json expectations were turned on
 // (readExaBGPCase, internal/le/interoplab/bgp).
 var exabgpAttributeNames = map[string]string{
-	"communities":          "community",
+	"communities":          bridgeAttrCommunity,
 	"extended-communities": "extended-community",
-	"large-communities":    "large-community",
-	"attr-9":               "originator-id",
+	"large-communities":    bridgeAttrLargeCommunity,
+	// attr-9 is gone: bgp-rr now registers a real originator-id formatter, so
+	// ze names it the same as ExaBGP does and there is nothing to translate.
 }
 
 func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
@@ -557,11 +558,11 @@ func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
 	// `[[30740, 0]]` where ze writes `["30740:0"]`, and `[[1, 2, 3]]` for a
 	// large community where ze writes `["1:2:3"]`. A script indexes those
 	// numbers, so the colon form is unreadable to it.
-	if split := splitColonCommunities(cloned["community"], 2); split != nil {
-		cloned["community"] = split
+	if split := splitColonCommunities(cloned[bridgeAttrCommunity], 2); split != nil {
+		cloned[bridgeAttrCommunity] = split
 	}
-	if split := splitColonCommunities(cloned["large-community"], 3); split != nil {
-		cloned["large-community"] = split
+	if split := splitColonCommunities(cloned[bridgeAttrLargeCommunity], 3); split != nil {
+		cloned[bridgeAttrLargeCommunity] = split
 	}
 	return cloned
 }
