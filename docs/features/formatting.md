@@ -36,7 +36,7 @@ set cli format          # shows the current default
 The choice persists for the session via the `ze.cli.format` setting; it can
 also be set permanently through YANG config.
 
-<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, validCLIFormats -->
+<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, cliFormatLeafPath -->
 <!-- source: internal/component/command/pipe.go -- ze.cli.format env registration, configuredDefault -->
 
 ### Piping inline

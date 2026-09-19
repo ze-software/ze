@@ -96,7 +96,7 @@ modification time and modifier identity on both encodings; it is not a durable
 audit log. Observers receive resolved keys after successful publication and lock
 release, so a callback may read the store again.
 <!-- source: internal/component/config/storage/tree.go -- treeEncoding.ReadFile, treeEncoding.list -->
-<!-- source: internal/component/config/storage/store.go -- checkName, ListKeys, List, guard.Release -->
+<!-- source: internal/component/config/storage/store.go -- CheckName, ListKeys, List, guard.Release -->
 
 ## Durable publication
 

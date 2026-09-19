@@ -1,5 +1,5 @@
-// Design: one declaration of how a client's argument values become the text
-// command the dispatcher reads. The web admin form and the MCP tool call both
+// Design: docs/architecture/api/commands.md -- one declaration of how a client's
+// argument values become the text command the dispatcher reads. The web admin form and the MCP tool call both
 // hold a name-to-value map and the command's ArgDefs, and both used to spell
 // the placement themselves; the MCP copy put an anchored value in keyword form
 // and every command that requires a selector refused the one value the client

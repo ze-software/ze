@@ -1,4 +1,4 @@
-// Design: docs/architecture/ospf/ospf-4-config.md -- OSPF config resolution
+// Design: docs/architecture/ospf/ospf-4-component-config.md -- OSPF config resolution
 // Related: types/vocabulary.go -- the network types and the area types every OSPF package reads
 // Related: config.go -- the OSPFv3 IPsec words this resolver reads
 // Related: packet/auth_verify.go -- the OSPFv2 authentication algorithm words
