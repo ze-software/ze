@@ -1,35 +1,32 @@
-# Test: the initial-sync End-of-RIB waits for a route pushed through the RAW rail
+# Test: the initial-sync End-of-RIB does NOT wait for a route pushed through the
+#       RAW rail, and that route still reaches the wire
 #
 # VALIDATES: RFC 4724 Section 4 -- "The End-of-RIB marker MUST be sent by a BGP
 #            speaker to its peer once it completes the initial routing update
 #            (including the case when there is no update to send) for an address
-#            family after the BGP session is established". A route a plugin
-#            injects belongs to that initial routing update (owner ruling,
-#            2026-08-30), so the marker is owed AFTER it, never before it.
+#            family after the BGP session is established". That update is ZE'S
+#            OWN TABLE: a process which creates routes stands where a peer
+#            stands, and ze never holds its own marker for a peer's (owner
+#            ruling, 2026-09-18, superseding 2026-08-30). The marker therefore
+#            comes FIRST here, and the injected route is an ordinary update
+#            after it, exactly as a peer's route would be.
 #
-# PREVENTS: the undercount that let a hand-built UPDATE sit outside the barrier.
-#           `ze-bgp:peer-raw` used to be gated on ATTACHMENT alone, so a
-#           raw-capable binding was invisible to a count keyed on
-#           `send [ update ]` (peer_run.go, ProcessBinding.MayPushRoutes). The
-#           marker then went out at establishment and the injected route arrived
-#           after a marker that had already claimed the update was complete.
+# PREVENTS: the marker waiting on a process again. It used to, and the wait was
+#           a window rather than a barrier: the queue gate closed and the
+#           forwarding rail reopened before it while the marker was still owed,
+#           so a route forwarded from another peer could already precede the
+#           marker that claims to end the initial table. Which side a process's
+#           own routes landed on then depended on a two-second timer, and four
+#           functional tests asserting the old order lost that race under load.
 #
 # WHY RAW IS THE RAIL HERE. The attach block below grants `send [ raw ]` and no
-# other send word, so the raw arm of MayPushRoutes is what puts this process in
-# the barrier. Remove that arm and the barrier is empty, it never runs, and seq=1
-# below is diffed against the marker instead of the route. The block also grants
-# `receive [ state ]` and the fixture declares SignalsSessionReady at Stage 1,
-# which are the other two facts the barrier needs (Peer.initialUpdateReporters);
-# deleting either one empties the barrier the same way, so all three are load-
-# bearing and each is a separate red.
+# other send word, so this exercises the raw arm of the injection path. The
+# assertion is that the route ARRIVES, after the marker, however it was injected.
 #
-# NON-VACUITY. The observer waits for ESTABLISHMENT, not for eor-sent, which is
-# the opposite of what mup-ipv4-announce.ci and plugin-nexthop.ci do: those take
-# the marker as their go-ahead, so they cannot observe a marker that failed to
-# wait. This one races the marker deliberately and the barrier decides the race.
-# It then dispatches `plugin session ready`, so the marker is released by the
-# SIGNAL rather than by the sync timeout, and a daemon that never waited cannot
-# reach this order by luck.
+# NON-VACUITY. The observer waits for ESTABLISHMENT rather than for eor-sent, so
+# it does not take the marker as its go-ahead. Delete the raw arm of
+# MayPushRoutes, or the `send [ raw ]` grant below, and the injected route never
+# reaches the wire at all, which is the red this file exists to produce.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -37,10 +34,15 @@ option=tcp_connections:value=1
 option=timeout:value=20s
 # seq=1 -- the injected route. ORIGIN=IGP, AS_PATH empty (iBGP, both sides
 # 65000), NEXT_HOP=10.0.1.254, LOCAL_PREF=200, NLRI 10.0.1.0/24.
+#
+# ze's own initial-sync marker is NOT asserted, because it no longer has a
+# defined position against this route: it follows ze's own table and waits for
+# no process, so it lands before or after the injection depending on whether
+# that injection beat the queue gate closing. The checker only NOTES an early
+# marker (checker.go, noteMisordered) rather than satisfying a later
+# expectation with it, so neither order can be written here truthfully. What
+# this file proves is that the RAW rail delivers the route at all.
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
-# seq=2 -- ze's own initial-sync End-of-RIB for ipv4/unicast, the legacy
-# encoding RFC 7606 Section 5.2 names: a completely empty UPDATE.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # ze bgp configuration

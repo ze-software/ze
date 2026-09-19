@@ -1240,15 +1240,18 @@ An external plugin has the same declaration under a different name. It is regist
 
 The name you are waited for under is the one the operator wrote in `attach process <name>`, whatever your plugin is called. `plugin { internal rs { use bgp-rs } }` runs the process as `rs`, and the engine resolves that alias back to the `bgp-rs` registration before it asks whether you declared. Your report carries the process name, so it is credited to `rs` as well. The spelling of the implementation does not change the answer: `use bgp-rs`, `use ze.bgp-rs`, `run ze.bgp-rs` and `run ze plugin bgp-rs` all reach the same registration, because one function (`plugin.RegistryNames`) answers which registry row a process configuration names and every caller derives from it.
 
-Three facts have to hold before a peer waits for your process, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is not waited for. A binding with `send [ update ]` and no `receive [ state ]` is therefore free of the wait rather than stalled by it.
+Three facts have to hold before a peer names your process in its barrier, and each one is something you can check in your own config. The peer grants the route-push rail, with `send [ update ]` or `send [ raw ]`. The plugin declares the field. The peer grants `receive [ state ]`, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is never named.
 
-Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working". A process that never reports only delays that peer's End-of-RIB to `apiSyncTimeout` (2s), which logs a WARN naming the peer and the silent processes.
+Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working".
+
+**Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).** A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker goes out as soon as the peer has written the routes it owns itself. What your report buys is ORDER during the initial sync: routes you push before it are part of that update, and routes you push after the marker are delivered as ordinary updates, which is what RFC 4724 Section 2 describes. A process that never reports costs its peer nothing.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitForAPISync -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 
 ## Startup Timing
 

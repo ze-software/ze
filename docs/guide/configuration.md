@@ -915,7 +915,11 @@ message carries no Multiprotocol capability in that case. That OPEN is correct,
 and a peer daemon that follows RFC 4271 reads it as IPv4 unicast.
 
 Ze sends the End-of-RIB marker for ipv4/unicast once it completes the initial
-routing update, as RFC 4724 Section 4 requires.
+routing update, as RFC 4724 Section 4 requires. The initial routing update is
+the one Ze itself owns: static routes, `default-originate` and the peer's
+`update {}` block. A process attached to the peer does not hold the marker back
+(owner ruling, 2026-09-18), and routes it pushes after the marker are delivered
+as ordinary updates.
 
 A loaded plugin changes what Ze advertises. When the config declares no family,
 Ze advertises every family the loaded plugins can decode, and the session

@@ -3,7 +3,6 @@ package reactor
 import (
 	"bufio"
 	"bytes"
-	"log/slog"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -336,73 +335,40 @@ func TestInitialSyncEORWaitsForPeerUpBarrier(t *testing.T) {
 	assert.Equal(t, uint32(1), peer.Stats().EORSent)
 }
 
-// TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins pins the
-// SPLIT of the two facts sendingInitialRoutes used to carry at once.
+// TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker pins the SPLIT
+// of the two facts sendingInitialRoutes used to carry at once.
 //
 // RFC requirement: RFC4724-4-1 positive -- "The End-of-RIB marker MUST be sent by
 // a BGP speaker to its peer once it completes the initial routing update ... for
-// an address family" (RFC 4724 Section 4). The owner ruled on 2026-08-30 that a
-// plugin-injected route belongs to that update, so the marker waits for every
-// route-pushing binding. This test is the wait, observed from inside.
+// an address family" (RFC 4724 Section 4). That update is ze's own table: a
+// process which creates routes stands where a peer stands (owner ruling,
+// 2026-09-18, recorded by `./le rfc approve`), so the marker follows the table
+// and the split is what keeps the queueing gate from outliving it.
 //
-// VALIDATES: while sendInitialRoutes waits for `plugin session ready`, the
-// End-of-RIB is still owed (pendingSync true, nothing on the wire) but the
-// QUEUEING gate is already shut (shouldQueue false, forwardOrderHold false), and
-// the marker goes out when the signal arrives.
-// PREVENTS: the reason the barrier could not be widened before. One flag meant
-// any hold taken before the marker also parked the forwarding rails and queued
-// every route op behind the wait; a 500ms hold measured on 2026-08-08 made
-// test/plugin/role-otc-rs-withdraw-eor.ci deliver the same relayed route twice.
-//
-// The oracle is triggerClock.waiting, which receives when waitForAPISync
-// evaluates its select operands, so the assertions below run with the goroutine
-// provably inside the wait rather than racing it. That clock's After() fires only
-// when the test says so, so the timeout cannot stand in for the signal.
-func TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins(t *testing.T) {
+// VALIDATES: when sendInitialRoutes returns, the marker is on the wire, the
+// QUEUEING gate is shut, the forwarding rails are free, and the peer is settled.
+// PREVENTS: the gate or the rails outliving the marker. One flag used to carry
+// both facts, so any hold taken before the marker also parked the forwarding
+// rails and queued every route op behind it; a 500ms hold measured on
+// 2026-08-08 made test/plugin/role-otc-rs-withdraw-eor.ci deliver the same
+// relayed route twice.
+func TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	tc := newTriggerClock()
-	peer.SetClock(tc)
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
-	peer.resetAPISync([]string{"pusher"}) // one route-pushing binding; it has not reported ready
+	peer.resetAPISync([]string{"pusher"}) // named, and it never reports
 
-	done := make(chan struct{})
-	go func() {
-		peer.sendInitialRoutes()
-		close(done)
-	}()
+	peer.sendInitialRoutes()
 
-	select {
-	case <-tc.waiting:
-	case <-time.After(5 * time.Second):
-		t.Fatal("sendInitialRoutes never entered the api-sync wait: the end-of-rib does not wait " +
-			"for the plugins whose routes belong to this speaker's initial routing update")
-	}
-
-	assert.Empty(t, conn.written(),
-		"the end-of-rib must not reach the wire while a route-pushing process still owes its routes")
-	assert.True(t, peer.pendingSync(),
-		"the peer is not settled while its marker is owed, or `request quiesce` returns early")
-	assert.False(t, peer.shouldQueue(),
-		"the queueing gate must already be shut inside the wait, or widening the barrier widens "+
-			"the window in which every route op is queued")
-	assert.False(t, peer.forwardOrderHold(),
-		"the forwarding rails must not be parked by this wait, or a relayed route is held behind a "+
-			"barrier that has nothing to do with it")
-
-	peer.SignalAPIReady(plugin.ProcessSender("pusher"))
-
-	require.Eventually(t, func() bool {
-		select {
-		case <-done:
-			return true
-		default:
-			return false
-		}
-	}, 2*time.Second, time.Millisecond, "sendInitialRoutes must resume once every process reports ready")
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
-		"the end-of-rib must reach the wire once every route-pushing process has reported ready")
-	assert.False(t, peer.pendingSync(), "the peer is settled once its marker is on the wire")
-	assert.False(t, peer.initialSyncEOROwed.Load(), "the marker is no longer owed")
+		"the marker follows ze's own table and waits for no process")
+	assert.False(t, peer.shouldQueue(),
+		"the queueing gate must be shut once the marker is out, or route ops queue behind nothing")
+	assert.False(t, peer.forwardOrderHold(),
+		"the forwarding rails must be free, or a relayed route is held behind a barrier that has "+
+			"nothing to do with it")
+	assert.False(t, peer.pendingSync(),
+		"the marker is written, so the peer is settled and `request quiesce` may return")
+	assert.Equal(t, uint32(1), peer.Stats().EORSent, "exactly one marker per family per session")
 }
 
 // TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed covers the one
@@ -422,21 +388,14 @@ func TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins(t *tes
 func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("caller")}
-	tc := newTriggerClock()
-	peer.SetClock(tc)
 	peer.resetAPISync([]string{"caller"})
 
-	done := make(chan struct{})
-	go func() {
-		peer.sendInitialRoutes()
-		close(done)
-	}()
-
-	select {
-	case <-tc.waiting:
-	case <-time.After(5 * time.Second):
-		t.Fatal("sendInitialRoutes never entered the api-sync wait")
-	}
+	// The owed marker is the whole condition, so it is set directly. It used to
+	// be held open by the api-sync wait, and that wait is gone: ze no longer
+	// holds its own End-of-RIB for a process that creates routes (owner ruling,
+	// 2026-09-18). Reading the flag rather than a window also stops this test
+	// depending on how long anything takes.
+	peer.initialSyncEOROwed.Store(true)
 
 	api := newSendPermissionReactor(peer)
 	require.NoError(t,
@@ -446,15 +405,8 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 	assert.Empty(t, conn.written(),
 		"another producer's end-of-rib must not overtake the one this initial sync still owes")
 
-	peer.SignalAPIReady(plugin.ProcessSender("caller"))
-	require.Eventually(t, func() bool {
-		select {
-		case <-done:
-			return true
-		default:
-			return false
-		}
-	}, 2*time.Second, time.Millisecond, "sendInitialRoutes must resume once every process reports ready")
+	peer.initialSyncEOROwed.Store(false)
+	peer.sendInitialRoutes()
 	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
 		"the marker the initial sync owed is the one that reaches the wire")
 	assert.Equal(t, uint32(1), peer.Stats().EORSent, "exactly one marker per family per session")
@@ -754,31 +706,30 @@ func TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily(t *testing.T) {
 	assert.Equal(t, uint32(1), peer.Stats().EORSent, "the marker is counted once")
 }
 
-// TestInitialSyncBarrierCreditsOnlyTheProcessesItNames pins WHO can release the
-// End-of-RIB barrier.
+// TestInitialSyncMarkerWaitsForNoProcess pins WHEN the End-of-RIB goes out.
 //
 // RFC requirement: RFC4724-4-1 positive -- "The End-of-RIB marker MUST be sent by
 // a BGP speaker to its peer once it completes the initial routing update ... for
-// an address family" (RFC 4724 Section 4). A marker released by a process that
-// pushes no route into that update claims a completion that has not happened.
+// an address family" (RFC 4724 Section 4). That update is ze's OWN table: a
+// process which creates routes stands where a peer stands, and ze never holds
+// its own marker for a peer's (owner ruling, 2026-09-18, recorded by
+// `./le rfc approve`). So the marker is owed the moment ze's table is on the
+// wire, and a process that has not reported cannot postpone it.
 //
-// VALIDATES: a `plugin session ready` from a process the peer does not name
-// leaves the barrier shut, a second report from a named process does not count
-// twice, and the marker goes out when the LAST named process reports.
-// PREVENTS: a fungible barrier. The population used to be a count, so it was
-// anonymous and any plugin's report satisfied one unit of it. bgp-adj-rib-in
-// reports on EVERY peer-up, including for a peer that attaches it for events
-// alone, so a peer attaching it beside two route-pushing processes released its
-// marker on the wrong process's word while the second was still writing routes.
-func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
+// VALIDATES: the marker reaches the wire with a route-pushing process named and
+// SILENT, and it is the initial-sync marker rather than a second one.
+// PREVENTS: the marker waiting on a report again. It used to, and the wait was
+// a window rather than a barrier: the queue gate closed and the forwarding rail
+// reopened before it, so a route forwarded from another peer could already
+// precede the marker that claims to end the initial table, while which side a
+// process's own routes landed on depended on a two-second timer.
+func TestInitialSyncMarkerWaitsForNoProcess(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	peer.settings.ProcessBindings = []ProcessBinding{
 		sendUpdateOnly("pusher-one"),
 		sendRawOnly("pusher-two"),
 		{PluginName: "listener"}, // attached for events; pushes no route
 	}
-	tc := newTriggerClock()
-	peer.SetClock(tc)
 	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
 
 	done := make(chan struct{})
@@ -787,11 +738,45 @@ func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 		close(done)
 	}()
 
-	select {
-	case <-tc.waiting:
-	case <-time.After(5 * time.Second):
-		t.Fatal("sendInitialRoutes never entered the api-sync wait")
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond,
+		"the marker must not wait for a process that creates routes")
+
+	assert.False(t, apiSyncReleased(peer),
+		"neither named process reported, so the barrier they would have released is still shut: "+
+			"the marker went out without it, which is the ruling")
+	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"the marker follows ze's own table and waits for nobody")
+}
+
+// TestInitialSyncBarrierCreditsOnlyTheProcessesItNames pins who may close the
+// barrier. The marker no longer waits for it (owner ruling, 2026-09-18), but the
+// barrier still decides which reports ORDER a route inside the initial routing
+// update, so crediting the wrong process still puts a route on the wrong side of
+// the marker.
+//
+// It reads the barrier directly rather than the wire. The old test observed the
+// marker appearing, which only worked because a wait held the marker back; with
+// that wait gone, the wire says nothing about who was credited.
+//
+// VALIDATES: a report from a process the barrier does not name is refused, and a
+// repeat report from one it does name is not credited twice.
+// PREVENTS: a plugin attached for events alone answering for one that still owes
+// routes, and one talkative process closing a barrier that names two.
+func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
+	peer, _ := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.ProcessBindings = []ProcessBinding{
+		sendUpdateOnly("pusher-one"),
+		sendRawOnly("pusher-two"),
+		{PluginName: "listener"}, // attached for events; pushes no route
 	}
+	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
 
 	peer.SignalAPIReady(plugin.ProcessSender("listener"))
 	assert.False(t, apiSyncReleased(peer),
@@ -802,72 +787,10 @@ func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
 	peer.SignalAPIReady(plugin.ProcessSender("pusher-one"))
 	assert.False(t, apiSyncReleased(peer),
 		"a second report from the same process must not stand in for the process that still owes routes")
-	assert.Empty(t, conn.written(),
-		"nothing reaches the wire while a named process has not reported")
 
 	peer.SignalAPIReady(plugin.ProcessSender("pusher-two"))
 	assert.True(t, apiSyncReleased(peer),
 		"the last named process's report releases the barrier")
-
-	require.Eventually(t, func() bool {
-		select {
-		case <-done:
-			return true
-		default:
-			return false
-		}
-	}, 2*time.Second, time.Millisecond, "the last named process's report must release the barrier")
-	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
-		"the marker reaches the wire once every named process has reported")
-}
-
-// TestAPISyncTimeoutNamesTheProcessThatNeverReported pins the diagnostic the
-// operator gets when the barrier gives up.
-//
-// The End-of-RIB that follows the timeout says the initial routing update is
-// complete when it is not (RFC 4724 Section 4), so the log line is the only
-// place the operator learns which program to go and look at. A count could not
-// carry that name, and the timeout said "API sync timeout" and nothing else.
-//
-// VALIDATES: the timeout logs at WARN, names the process that stayed silent, and
-// omits the process that reported.
-// PREVENTS: a nameless timeout. With several route-pushing processes attached,
-// an operator reading "API sync timeout" has to guess which of them is stuck.
-func TestAPISyncTimeoutNamesTheProcessThatNeverReported(t *testing.T) {
-	sink := &syncBuffer{}
-	defer swapRoutesLogger(slog.New(slog.NewTextHandler(sink, &slog.HandlerOptions{Level: slog.LevelWarn})))()
-
-	peer := newBarrierPeer(t)
-	tc := newTriggerClock()
-	peer.SetClock(tc)
-	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("talker"), sendRawOnly("mute")}
-	peer.resetAPISync([]string{"talker", "mute"})
-	peer.SignalAPIReady(plugin.ProcessSender("talker"))
-
-	done := make(chan struct{})
-	go func() {
-		peer.waitForAPISync()
-		close(done)
-	}()
-
-	select {
-	case <-tc.waiting:
-	case <-time.After(5 * time.Second):
-		t.Fatal("waitForAPISync never entered its wait")
-	}
-	tc.expire()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("waitForAPISync did not return after its timeout fired")
-	}
-
-	logged := sink.String()
-	assert.Contains(t, logged, "silent=mute",
-		"the timeout must name the process that never reported, or the operator has nothing to look at")
-	assert.NotContains(t, logged, "talker",
-		"a process that reported must not be named as silent")
 }
 
 // apiSyncReleased reports whether the initial-sync barrier has opened. The read

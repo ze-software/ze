@@ -10,8 +10,21 @@ cmd=api:conn=1:seq=3:text=send bgp * update text origin igp as-path [1 2 3 4] lo
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002740010100400212020400000001000000020000000300000004400304CA02CA02400504000000C82002000001
 cmd=api:conn=1:seq=4:text=send bgp * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002740010100400212020400000001000000020000000300000004400304CA02CA02400504000000C82002000002
+# The plugin's own `eor` still runs and deliberately produces NO frame: ze has
+# already sent this session's one marker for ipv4/unicast and RFC 4724 Section 2
+# allows exactly one per address family, so AnnounceEOR suppresses this one and
+# reports it handled (reactor, initialSyncEOROwed and the per-family claim).
+#
+# NO EXPECTATION NAMES THAT MARKER, and that is deliberate. Since 2026-09-18 ze
+# does not hold its own End-of-RIB for a process that creates routes, so the
+# marker follows ze's own table and races the routes this plugin pushes: one
+# that arrives before the queue gate closes drains ahead of it, one that arrives
+# after goes straight to the wire behind it. A peer's routes have no defined
+# order against our marker either, which is the whole point of the ruling. The
+# checker accepts the marker wherever it lands (internal/test/peer/checker.go,
+# noteMisordered); what this test is about is the ATTRIBUTES of the four routes
+# below, and every one of them is still asserted in order.
 cmd=api:conn=1:seq=5:text=send bgp * update text nlri ipv4/unicast eor
-expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Native plugin route driver.

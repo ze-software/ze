@@ -197,11 +197,9 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	peer.SignalAPIReady(plugin.ProcessSender("pusher"))
 	barrierShut(t, peer)
 
-	apiDone := make(chan struct{})
-	go func() {
-		peer.waitForAPISync()
-		close(apiDone)
-	}()
+	peer.mu.RLock()
+	apiDone := peer.apiSyncReady
+	peer.mu.RUnlock()
 	require.Eventually(t, chanClosed(apiDone), 2*time.Second, time.Millisecond,
 		"SignalAPIReady must release the API sync it belongs to")
 
@@ -212,15 +210,12 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	peer2.resetAPISync([]string{"pusher"})
 	peer2.SetPeerUpBarrier(1)
 
-	api2 := make(chan struct{})
-	go func() {
-		peer2.waitForAPISync()
-		close(api2)
-	}()
-	t.Cleanup(func() { peer2.SignalAPIReady(plugin.ProcessSender("pusher")) })
+	peer2.mu.RLock()
+	api2 := peer2.apiSyncReady
+	peer2.mu.RUnlock()
 
 	peer2.SignalPeerUpBarrier()
-	require.False(t, chanClosed(api2)(), "SignalPeerUpBarrier released waitForAPISync: shared counters")
+	require.False(t, chanClosed(api2)(), "SignalPeerUpBarrier released the API sync: shared counters")
 
 	barrierDone, _ := waitBarrier(t, peer2)
 	require.Eventually(t, chanClosed(barrierDone), 2*time.Second, time.Millisecond,

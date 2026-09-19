@@ -1539,12 +1539,14 @@ plugin-injected route belongs to that update.
 8. **drainAndCloseQueueGate:** the opQueue is drained and the queueing gate
    CLOSES here, before the wait. The forwarding rails parked behind the sync are
    released with it.
-9. **waitForAPISync:** bounded by `apiSyncTimeout`, which is 2s. A route a
-   plugin pushes during this wait goes straight to the wire, in front of the
-   marker, where a route belonging to the initial update belongs.
-10. **End-of-RIB, then the marker fact clears:** one marker per negotiated
-    family, then `initialSyncEOROwed` goes false.
-11. **AnnounceEOR guard:** a marker from another producer (a plugin, the route
+9. **End-of-RIB, then the marker fact clears:** one marker per negotiated
+   family, then `initialSyncEOROwed` goes false. The peer does NOT wait for the
+   processes in step 5 first. A process that creates routes is treated like a
+   peer when the marker is decided, and Ze does not hold its own marker for a
+   peer's (owner ruling, 2026-09-18). The barrier the earlier steps build is
+   still what orders a route against the marker while the sync runs; it no
+   longer delays the marker once the sync has written what it owns.
+10. **AnnounceEOR guard:** a marker from another producer (a plugin, the route
     server) is suppressed while `shouldQueue()` OR `initialSyncEOROwed` is true.
     The caller is told the marker was handled, the suppression is logged, and
     the peer's own `sendInitialRoutes` marker covers the family.
@@ -1560,8 +1562,11 @@ Declaring is not enough on its own, which is why the peer-state grant is the
 third fact. A process reports FROM the peer-up event, the only moment it can
 know an initial routing update started, so a binding with no state grant leaves
 its plugin unable to push into that update and unable to report it. Naming such
-a binding held the peer's End-of-RIB to the full `apiSyncTimeout` on every
-establishment.
+a binding used to hold the peer's End-of-RIB for a fixed 2s on every
+establishment, which is one of the two reasons the wait was removed: a barrier
+whose only failure mode is a timeout teaches nothing when it fires, and every
+report it was still waiting for is a route that arrives after the marker
+instead of before it.
 
 **The declaration is looked up under the PROCESS name, and a process name is a
 registry key only when the operator did not rename the implementation.** A peer
@@ -1595,8 +1600,8 @@ about the `ze.` prefix: the barrier alone dropped it, so a peer attaching
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames, RegistryName -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, drainAndCloseQueueGate -->
-<!-- source: internal/component/bgp/reactor/api_sync.go -- apiSyncTimeout -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.waitForAPISync, Peer.initialSyncEOROwed -->
+<!-- source: internal/component/bgp/reactor/api_sync.go -- peerUpBarrierTimeout -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady, Peer.initialSyncEOROwed -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- AnnounceEOR -->
 
 **The queueing gate and the owed marker are two facts, and steps 8 to 10 are
@@ -1615,13 +1620,8 @@ barrier cover every route-pushing binding without widening that window.
 p.drainAndCloseQueueGate(addr, opMaxMsgSize) // Queueing gate closes HERE.
 p.wakeForwardOverflow()                      // Parked forwarded UPDATEs go out.
 
-p.mu.RLock()
-needsAPIWait := p.apiSyncExpected > 0
-p.mu.RUnlock()
-if needsAPIWait {
-    p.waitForAPISync() // Bounded by apiSyncTimeout (2s). The marker stays owed.
-}
-
+// No wait for the reports of step 5. A route-creating process is a peer for
+// this decision, and Ze does not hold its own marker for a peer's.
 // Then one End-of-RIB per negotiated family, and finally:
 p.initialSyncEOROwed.Store(false)
 ```

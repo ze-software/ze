@@ -331,34 +331,31 @@ func (p *Peer) sendInitialRoutes() {
 	// parked behind it may go out.
 	p.wakeForwardOverflow()
 
-	// Now wait for the processes that push routes into this peer's initial
-	// routing update, so their routes precede the End-of-RIB. RFC 4724 Section
-	// 4 owes the marker "once it completes the initial routing update", and the
-	// owner ruled on 2026-08-30 that a plugin-injected route belongs to that
-	// update, so every binding MayPushRoutes reports true for is counted
-	// (peer_run.go). ONE bounded wait: it returns the moment every expected
-	// `plugin session ready` has arrived, and gives up at apiSyncTimeout for a
-	// process that never sends one.
+	// The marker follows ze's OWN table and waits for nobody, because a process
+	// that creates routes stands where a peer stands (owner ruling,
+	// 2026-09-18). Ze never holds its own End-of-RIB for a peer's, so it does
+	// not hold it for a process's either, and the routes such a process pushes
+	// are ordinary updates when they arrive, exactly as a peer's are.
 	//
-	// It runs with sendingInitialRoutes ALREADY CLEAR, and that is the whole
-	// reason the barrier can cover every route-pushing binding. A hold taken
-	// while that flag was set also held shouldQueue and forwardOrderHold, so
-	// widening the barrier widened the queueing window and the forward-rail
-	// parking with it: measured on 2026-08-08, a 500ms hold made
-	// test/plugin/role-otc-rs-withdraw-eor.ci deliver the same relayed route to
-	// the destination peer TWICE. A route a plugin pushes during this wait now
-	// goes straight to the wire, ahead of the marker, which is where a route
-	// belonging to the initial update belongs.
+	// This SUPERSEDES the 2026-08-30 ruling for the marker's TIMING. That one
+	// placed a plugin-injected route inside the initial update, and this
+	// function waited up to two seconds for every binding MayPushRoutes
+	// reported true for. The wait was a window rather than a barrier: the queue
+	// gate closes and the forwarding rail reopens ABOVE it, while the marker is
+	// still owed, so a route forwarded from another peer could already reach
+	// the wire ahead of the marker that claims to end the initial table. Which
+	// side of the marker a process's routes landed on then depended on whether
+	// that process answered inside the timeout.
 	//
-	// The marker stays owed across the wait through initialSyncEOROwed, so
-	// AnnounceEOR does not slip another producer's marker in front of it and
-	// `request quiesce` does not report the peer settled (peer.go).
-	p.mu.RLock()
-	needsAPIWait := len(p.apiSyncExpected) > 0
-	p.mu.RUnlock()
-	if needsAPIWait {
-		p.waitForAPISync()
-	}
+	// RFC 4724 Section 4.1 owes the marker "once it completes the initial
+	// routing update", and under this ruling that update is ze's own table.
+	// Only the SENT marker moves: a peer's marker still purges stale routes on
+	// receipt (plugins/gr/gr.go, handleEOREvent), which this does not touch.
+	//
+	// initialSyncEOROwed still keeps AnnounceEOR from slipping another
+	// producer's marker in front of this one, and still keeps `request quiesce`
+	// from reporting the peer settled while the marker is owed (peer.go,
+	// pendingSync).
 
 	sendFn = p.sendUpdateDirect
 	if session != nil {

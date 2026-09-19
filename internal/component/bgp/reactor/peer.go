@@ -18,7 +18,6 @@ import (
 	"net"
 	"net/netip"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -769,8 +768,15 @@ func (p *Peer) resetAPISync(expected []string) {
 }
 
 // SignalAPIReady is called when "plugin session ready" is received for this
-// peer. It credits the report to the process that SENT it, and releases
-// waitForAPISync once every process this peer waits for has reported.
+// peer. It credits the report to the process that SENT it, and closes
+// apiSyncReady once every process this peer waits for has reported.
+//
+// NOTHING WAITS ON THAT CHANNEL any more: ze stopped holding its own
+// End-of-RIB for a route-creating process (owner ruling, 2026-09-18,
+// peer_initial_sync.go). The recording stays because removing it reaches the
+// plugin coordinator, the plugin server, the plugin Reactor interface and
+// several BGP plugins, which is its own change
+// (plan/pre-release/spec-eor-treats-route-processes-as-peers.md).
 //
 // A report from a process the barrier does not name is not credited, and the
 // line says only that: the barrier holds the names it holds, and the sender is
@@ -802,7 +808,7 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender) {
 	process, named := sender.Process()
 	if !named {
 		if !sender.IsOperator() {
-			routesLogger().Warn("plugin session ready names no process, so this peer cannot tell which of its route-pushing processes reported; its end-of-rib waits out the api sync timeout",
+			routesLogger().Warn("plugin session ready names no process, so this peer cannot tell which of its route-pushing processes reported",
 				"peer", p.settings.Address.String())
 		}
 		return
@@ -821,68 +827,23 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender) {
 	}
 	p.apiSyncSignalled[process] = struct{}{}
 
+	// The credit is what an operator can see, and it is the only voice this
+	// path has for the POSITIVE case: the not-named branch above says when a
+	// report is dropped, and nothing said when one landed. A dropped process
+	// declaration is silent on the wire, so a test proving the report reached
+	// the barrier that names it had to read an outcome of the old wait; that
+	// wait is gone (owner ruling, 2026-09-18) and this line replaces it.
+	routesLogger().Debug("plugin session ready credited to this peer's barrier",
+		"peer", p.settings.Address.String(), "process", process,
+		"reported", len(p.apiSyncSignalled), "expected", len(p.apiSyncExpected))
+
 	if len(p.apiSyncSignalled) >= len(p.apiSyncExpected) && p.apiSyncReady != nil {
 		p.apiSyncReadyOnce.Do(func() {
 			close(p.apiSyncReady)
 		})
+		routesLogger().Debug("every route-pushing process has reported",
+			"peer", p.settings.Address.String(), "processes", p.apiSyncExpected)
 	}
-}
-
-// waitForAPISync blocks until every route-pushing process reports ready, or
-// until apiSyncTimeout.
-// Returns immediately if no API sync is expected.
-//
-// The timeout NAMES the processes that stayed silent. It is the one moment the
-// operator can act on: the End-of-RIB that follows says the initial routing
-// update is complete when a named process never said its routes were out, and
-// without the name there is nothing to go and look at.
-func (p *Peer) waitForAPISync() {
-	p.mu.RLock()
-	expected := len(p.apiSyncExpected)
-	ready := p.apiSyncReady
-	p.mu.RUnlock()
-
-	addr := p.settings.Address.String()
-	routesLogger().Debug("waiting for API sync", "peer", addr, "expected", expected)
-
-	if expected == 0 || ready == nil {
-		routesLogger().Debug("no API sync needed", "peer", addr)
-		return
-	}
-
-	select {
-	case <-ready:
-		routesLogger().Debug("API sync complete", "peer", addr)
-		return
-	case <-p.clock.After(apiSyncTimeout):
-		// Proceed anyway rather than hold the session open forever, and say who
-		// was waited for. RFC 4724 Section 4 asks the marker to mean the initial
-		// routing update completed, and after this line it does not.
-		routesLogger().Warn("api sync timed out; these processes never reported their routes were out, so this end-of-rib claims an initial routing update they have not finished",
-			"peer", addr, "silent", strings.Join(p.apiSyncSilent(), " "))
-		return
-	}
-}
-
-// apiSyncSilent names the route-pushing processes that have not reported since
-// the session was established, sorted so two runs read the same.
-//
-// The order is imposed here rather than at reset: the expected names arrive from
-// a Go map walk, so their slice order is already arbitrary, and sorting the
-// caller's slice in place would leave two names for one fact.
-func (p *Peer) apiSyncSilent() []string {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	silent := make([]string, 0, len(p.apiSyncExpected))
-	for _, process := range p.apiSyncExpected {
-		if _, reported := p.apiSyncSignalled[process]; reported {
-			continue
-		}
-		silent = append(silent, process)
-	}
-	slices.Sort(silent)
-	return silent
 }
 
 // ResetPeerUpBarrier clears the peer-up barrier for a new session.

@@ -18,17 +18,13 @@ const DefaultAPITimeout = 5 * time.Second
 // peerUpBarrierTimeout bounds how long a peer's initial-sync End-of-RIB waits
 // for the plugins that register it as a forward target (Peer.waitPeerUpBarrier).
 //
-// Matched to the API-sync wait rather than tuned separately: both bound the same
-// kind of event, one plugin taking delivery of one peer-up event, and a barrier
-// plugin that has not answered in two seconds is wedged, not slow. Reaching the
-// bound never fails establishment -- it releases the marker and logs a WARN.
+// Two seconds because a barrier plugin that has not answered in that time is
+// wedged, not slow. It once matched an API-sync wait of the same length; that
+// wait is gone, because ze no longer holds its own End-of-RIB for a process
+// that creates routes (owner ruling, 2026-09-18, peer_initial_sync.go).
+// Reaching the bound never fails establishment -- it releases the marker and
+// logs a WARN.
 const peerUpBarrierTimeout = 2 * time.Second
-
-// apiSyncTimeout bounds how long a peer's initial-sync End-of-RIB waits for the
-// plugins that SEND it routes (Peer.waitForAPISync). Named rather than passed:
-// the value was never per-call, and a parameter only one literal ever reaches
-// invites the belief that it is tunable.
-const apiSyncTimeout = 2 * time.Second
 
 // aPISyncState tracks API process synchronization state.
 type aPISyncState struct {

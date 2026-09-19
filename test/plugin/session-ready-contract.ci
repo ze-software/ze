@@ -20,26 +20,27 @@
 #           the barrier was empty on nearly every peer that had one.
 #
 # HOW THE ASSERTIONS DISCRIMINATE. An EMPTY barrier says nothing at all:
-# sendInitialRoutes calls Peer.waitForAPISync only when the barrier names a
-# process (the needsAPIWait branch, peer_initial_sync.go), so a dropped
-# declaration is silent on this rail and only the marker goes out. The two
-# assertions therefore read the wait's own two outcomes
-# (internal/component/bgp/reactor/peer.go):
-#   "API sync complete"   -- the barrier was armed AND every named process
-#                            reported. bgp-rib is the only process attached
-#                            here, so this line names it by construction, and
-#                            it cannot be reached with an empty barrier.
-#   "api sync timed out"  -- armed, and somebody never reported. Rejected: a
-#                            barrier that only times out is the stall this
-#                            contract exists to remove, and it would otherwise
-#                            satisfy nothing above while looking like progress.
+# a dropped declaration is silent on this rail: nothing refuses it, nothing
+# waits for it, and the marker goes out either way, because ze stopped holding
+# its own End-of-RIB for a process that creates routes (owner ruling,
+# 2026-09-18). The two assertions therefore read SignalAPIReady's own two
+# outcomes (internal/component/bgp/reactor/peer.go):
+#   "credited to this peer's barrier"
+#                         -- the barrier was armed AND it NAMES the reporting
+#                            process. bgp-rib is the only process attached here,
+#                            so this line names it by construction, and it
+#                            cannot be reached with an empty barrier.
+#   "barrier does not name"
+#                         -- armed, and the report was dropped. Rejected: that
+#                            is the silent drop this contract exists to remove,
+#                            and it would otherwise satisfy nothing above while
+#                            looking like progress.
 # Measured on 2026-09-02 with the alias resolution removed from
 # (*Server).declaresSessionReady: this file FAILS with `stderr does not contain
-# "API sync complete"`, and the daemon logs bgp-rib's report arriving against an
-# EMPTY barrier -- `plugin session ready from a process this peer's barrier does
-# not name ... process=ribout barrier=[]` -- immediately before it sends the
-# marker. With the resolution in place the same run logs `waiting for API sync
-# expected=1`, then `API sync complete`, then `sent EOR`, in that order.
+# "credited to this peer's barrier"`, and the daemon logs bgp-rib's report
+# arriving against an EMPTY barrier -- `plugin session ready from a process this
+# peer's barrier does not name ... process=ribout barrier=[]`. With the
+# resolution in place the same run credits the report and names the process.
 #
 # WHY THE ASSERTIONS ARE LOG LINES AND NOT AN ORDERED PAIR OF WIRE MESSAGES.
 # The stronger form of this test would hold a route in the RIB before the
@@ -145,7 +146,7 @@ EOF_CONF
 # stderr lines over what it collected.
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
-expect=stderr:contains=API sync complete
-reject=stderr:pattern=api sync timed out
+expect=stderr:contains=credited to this peer's barrier
+reject=stderr:pattern=barrier does not name
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=ZE-OBSERVER-FAIL

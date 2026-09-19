@@ -490,7 +490,7 @@ reads. `ze bgp decode capability 75 <hex>` is the operator path into it.
 6. **Refused:** Session fails if refused capability is present in peer's OPEN
 
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, the per-side implicit ipv4/unicast default before the family intersection -->
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family, sent without waiting for an attached process -->
 
 ### Negotiated State
 

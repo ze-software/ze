@@ -327,13 +327,15 @@ func (h *warnRecorder) messages() []string {
 }
 
 // armAPISyncPeer adds a peer on the given port, arms its per-session API sync for
-// one ready signal, and starts waitForAPISync in the background. The returned
-// channel closes ONLY when the ready signal actually reaches this peer.
+// one ready signal, and answers the channel SignalAPIReady closes once every
+// expected process has reported. It closes ONLY when the ready signal actually
+// reaches this peer.
 //
-// The peer runs on a sim.FakeClock, whose After() never fires (sim.go:102). That
-// removes the 2s timeout escape hatch from waitForAPISync: the wait can end for
-// exactly one reason, the signal arriving. Without this the test would pass on a
-// timeout and assert nothing.
+// It observes that channel rather than a wait on it: ze no longer holds its own
+// End-of-RIB for a route-creating process (owner ruling, 2026-09-18), so there
+// is no waiter left to start. The three tests below are about WHICH peer a
+// ready signal is credited to, which the channel answers exactly as the wait
+// did, and there is now no timeout that could close it for any other reason.
 func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-chan struct{} {
 	t.Helper()
 
@@ -350,14 +352,10 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
 	peer.resetAPISync([]string{"pusher"})
 
-	synced := make(chan struct{})
-	go func() {
-		peer.waitForAPISync()
-		close(synced)
-	}()
-	// Release the waiter so the goroutine never outlives the test when the
-	// signal legitimately does not arrive (unknown-peer case).
-	t.Cleanup(func() { peer.SignalAPIReady(plugin.ProcessSender("pusher")) })
+	peer.mu.RLock()
+	synced := peer.apiSyncReady
+	peer.mu.RUnlock()
+	require.NotNil(t, synced, "resetAPISync must arm the readiness channel")
 
 	return synced
 }
@@ -383,8 +381,8 @@ func chanClosed(ch <-chan struct{}) func() bool {
 // peer. Emitters do send a bare IP: bgp-rib dispatches "request peer <addr> plugin
 // session ready" with StructuredEvent.PeerAddress (rib.go:1079), which is
 // peer.AddrStr() (bgp/server/events.go:83) = settings.Address.String() (peer.go:303).
-// PREVENTS: a non-default-port peer never being signaled, burning the full 2s
-// waitForAPISync timeout (peer_initial_sync.go:177) and emitting its EOR ~2.5s late.
+// PREVENTS: a non-default-port peer never being signaled, so every consumer of
+// its readiness waits on a channel that never closes.
 func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 	r := New(&Config{})
 	addr := netip.MustParseAddr("192.0.2.10")

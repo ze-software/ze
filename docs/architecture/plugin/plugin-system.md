@@ -331,16 +331,24 @@ replay, so its withdrawals never reach the peer.
 
 A plugin whose routes belong to a peer's INITIAL routing update declares
 `SignalsSessionReady: true` and dispatches
-`request peer <addr> plugin session ready` when those routes are out. The engine
-holds that peer's End-of-RIB until the report arrives, so the marker means what
-RFC 4724 Section 4 says it means.
+`request peer <addr> plugin session ready` when those routes are out. The report
+says WHEN this plugin's routes belong, and the engine uses it to order a route
+against the marker while the initial sync runs.
+
+**The engine does NOT hold the peer's End-of-RIB for that report (owner ruling,
+2026-09-18).** A process that creates routes is treated like a peer when the
+marker is decided, and Ze does not wait for a peer to send its marker before
+sending its own. The marker goes out as soon as `sendInitialRoutes` has written
+the routes the peer itself owns. A plugin that reports later has its routes
+delivered as ordinary updates after the marker, which is what RFC 4724 Section 2
+describes for anything outside the initial update.
 
 | Step | What |
 |------|------|
 | The plugin declares | `SignalsSessionReady: true` in its `registry.Registration` |
 | The engine names | `Peer.initialUpdateReporters` keeps a binding when the peer grants the route-push rail, the plugin declares, and the peer grants `receive [ state ]` |
 | The plugin reports | One `plugin session ready` per establishment, from its peer-up handler, sent even when it had nothing to replay |
-| The peer waits | `Peer.waitForAPISync` runs after `sendInitialRoutes` writes what it owns, and before the End-of-RIB |
+| The peer does not wait | The End-of-RIB follows `sendInitialRoutes` directly. The report orders routes DURING the sync; it never delays the marker after it |
 
 The declaration is VOLUNTARY (owner directive, 2026-09-02). Declaring says WHEN
 this plugin's routes belong, not what it may send: a plugin that pushes on its
@@ -359,8 +367,9 @@ event, so there is no moment at which it can say its routes are out.
 The peer-state grant is the third fact for the same reason the peer-up barrier
 counts over the delivery set. A process reports FROM the peer-up event, so a
 binding the peer never tells about the session can neither push into that
-session's initial update nor report it, and naming it would cost that peer the
-full `apiSyncTimeout` on every establishment.
+session's initial update nor report it. Naming one used to cost that peer a
+fixed 2s on every establishment, which is one of the two reasons the wait was
+removed.
 
 The report is credited to the process that SENT it, and a second report from the
 same process is not credited twice. A process the barrier does not name is
@@ -385,7 +394,8 @@ which empties the barrier for that peer.
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady, Peer.waitForAPISync -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.resetAPISync, Peer.SignalAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 
 ## Cross-boundary value types
 

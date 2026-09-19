@@ -141,8 +141,9 @@ a prefix into BGP:
   the same way -- this is how interface and interior-gateway routes reach your peers.
   <!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
 - **Direct announcement** (`192.168.1.0/24`): a prefix declared inline on the peer in its
-  `update {}` block, sent as soon as the session establishes.
-  <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+  `update {}` block, sent as soon as the session establishes, followed by the End-of-RIB
+  marker. Neither waits for a plugin attached to that peer (owner ruling, 2026-09-18).
+  <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, the marker follows the routes the peer owns -->
 
 > Advanced: a `process` binding attaches a plugin or your own external program to a peer (the
 > ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises
