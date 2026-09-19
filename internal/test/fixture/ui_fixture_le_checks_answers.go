@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -640,23 +639,7 @@ func leChecksRun(ctx context.Context, dir string, overrides map[string]string, p
 }
 
 func leChecksEnvironment(overrides map[string]string) []string {
-	values := make(map[string]string)
-	for _, item := range os.Environ() {
-		if key, value, found := strings.Cut(item, "="); found {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, overrides)
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	env := make([]string, 0, len(keys))
-	for _, key := range keys {
-		env = append(env, key+"="+values[key])
-	}
-	return env
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func leChecksJSON(text string) (any, error) {

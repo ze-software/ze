@@ -16,7 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,17 +66,7 @@ func fixture10Run(ctx context.Context, env map[string]string, stdin string, argv
 }
 
 func fixture10Environment(overrides map[string]string) []string {
-	env := append([]string(nil), os.Environ()...)
-	for key, value := range overrides {
-		prefix := key + "="
-		for index := range slices.Backward(env) {
-			if strings.HasPrefix(env[index], prefix) {
-				env = append(env[:index], env[index+1:]...)
-			}
-		}
-		env = append(env, prefix+value)
-	}
-	return env
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func fixture10FreePort() (string, error) {

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -337,23 +336,7 @@ func uiLeDocvalidAnswersRunCommand(ctx context.Context, dir string, overrides ma
 }
 
 func uiLeDocvalidAnswersEnvironment(overrides map[string]string) []string {
-	values := make(map[string]string)
-	for _, entry := range os.Environ() {
-		if key, value, ok := strings.Cut(entry, "="); ok {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, overrides)
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	answer := make([]string, 0, len(keys))
-	for _, key := range keys {
-		answer = append(answer, key+"="+values[key])
-	}
-	return answer
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func joined(result uiLeDocvalidAnswersCommandResult) string {

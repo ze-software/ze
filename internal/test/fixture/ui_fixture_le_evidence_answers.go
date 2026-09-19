@@ -77,19 +77,7 @@ func uiLeEvidenceAnswersRunCommand(ctx context.Context, dir, program string, arg
 }
 
 func uiLeEvidenceAnswersEnvironment(overrides map[string]string) []string {
-	values := make(map[string]string, len(os.Environ())+len(overrides))
-	for _, entry := range os.Environ() {
-		key, value, found := strings.Cut(entry, "=")
-		if found {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, overrides)
-	result := make([]string, 0, len(values))
-	for key, value := range values {
-		result = append(result, key+"="+value)
-	}
-	return result
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func uiLeEvidenceAnswersTail(value string, limit int) string {

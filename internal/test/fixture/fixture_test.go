@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -187,5 +188,37 @@ func TestRunDispatchesADriverStartedOutsideTheCheckoutRoot(t *testing.T) {
 func TestRunRefusesUnknownFixture(t *testing.T) {
 	if code := Run([]string{"not-registered"}); code != 2 {
 		t.Fatalf("Run exited %d", code)
+	}
+}
+
+// VALIDATES: an override replaces every SPELLING of its key, so a child is
+// handed one value for it however the caller's environment spelled it.
+// PREVENTS: the shape that made five `le-*` ui fixtures pass standalone and
+// fail inside the sweep. internal/core/env reads a ze variable
+// case-insensitively and treats a dot and an underscore as one separator, and
+// env.Set writes the dot spelling, so a fixture that replaced `ZE_REPO_ROOT`
+// alone left the inherited `ze.repo.root` beside it and the child read whichever
+// of the two ensureCache met last.
+func TestChildEnvironmentReplacesEverySpellingOfAKey(t *testing.T) {
+	base := []string{
+		"ze.repo.root=/inherited",
+		"ZE_REPO_ROOT=/also-inherited",
+		"Ze_Repo_Root=/third",
+		"PATH=/bin",
+	}
+	answer := childEnvironment(base, map[string]string{"ZE_REPO_ROOT": "/stand-in"})
+
+	var roots []string
+	for _, entry := range answer {
+		key, value, _ := strings.Cut(entry, "=")
+		if environmentKeyReading(key) == "ze_repo_root" {
+			roots = append(roots, key+"="+value)
+		}
+	}
+	if len(roots) != 1 || roots[0] != "ZE_REPO_ROOT=/stand-in" {
+		t.Fatalf("the root survives as %q, want exactly ZE_REPO_ROOT=/stand-in", roots)
+	}
+	if !slices.Contains(answer, "PATH=/bin") {
+		t.Fatalf("an unrelated variable was dropped: %q", answer)
 	}
 }

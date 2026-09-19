@@ -364,28 +364,7 @@ func uiLeDiscoveryAnswersRunCommand(ctx context.Context, cwd string, overrides m
 }
 
 func uiLeDiscoveryAnswersMergedEnvironment(overrides map[string]string) []string {
-	if len(overrides) == 0 {
-		return os.Environ()
-	}
-	env := make([]string, 0, len(os.Environ())+len(overrides))
-	for _, item := range os.Environ() {
-		key := item
-		if before, _, found := strings.Cut(item, "="); found {
-			key = before
-		}
-		if _, replaced := overrides[key]; !replaced {
-			env = append(env, item)
-		}
-	}
-	keys := make([]string, 0, len(overrides))
-	for key := range overrides {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	for _, key := range keys {
-		env = append(env, key+"="+overrides[key])
-	}
-	return env
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func exportHEAD(ctx context.Context, repo, dest string) error {

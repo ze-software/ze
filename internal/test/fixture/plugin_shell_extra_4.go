@@ -61,17 +61,7 @@ func pluginShellExtra4RequireCommand(port, user, password, command, label string
 }
 
 func pluginShellExtra4Environment(overrides map[string]string) []string {
-	environment := make([]string, 0, len(os.Environ())+len(overrides))
-	for _, entry := range os.Environ() {
-		key, _, _ := strings.Cut(entry, "=")
-		if _, replaced := overrides[key]; !replaced {
-			environment = append(environment, entry)
-		}
-	}
-	for key, value := range overrides {
-		environment = append(environment, key+"="+value)
-	}
-	return environment
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func pluginShellExtra4InitCLI(ctx context.Context, port, username, password string) (string, error) {

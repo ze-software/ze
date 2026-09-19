@@ -10,13 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
-	"strings"
 )
 
 // uiLeQemuRunAnswersGoRelease is the Go release the stand-in checkout declares.
@@ -313,23 +311,7 @@ func uiLeQemuRunAnswersRunCommand(ctx context.Context, dir string, env []string,
 }
 
 func uiLeQemuRunAnswersEnvironment(base []string, replacements map[string]string) []string {
-	values := make(map[string]string, len(base)+len(replacements))
-	for _, entry := range base {
-		if key, value, found := strings.Cut(entry, "="); found {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, replacements)
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	result := make([]string, 0, len(keys))
-	for _, key := range keys {
-		result = append(result, key+"="+values[key])
-	}
-	return result
+	return childEnvironment(base, replacements)
 }
 
 func readCalls(path string) ([]recordedCall, error) {

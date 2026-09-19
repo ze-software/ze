@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -598,18 +597,5 @@ func uiShowBgpPeerRowsPathExists(path string) bool {
 }
 
 func uiShowBgpPeerRowsEnvironment(overrides map[string]string) []string {
-	values := make(map[string]string)
-	for _, entry := range os.Environ() {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, overrides)
-
-	env := make([]string, 0, len(values))
-	for key, value := range values {
-		env = append(env, key+"="+value)
-	}
-	return env
+	return childEnvironment(os.Environ(), overrides)
 }

@@ -258,9 +258,12 @@ func commandExitCode(err error) int {
 }
 
 func withoutEnv(environment []string, names ...string) []string {
+	// The names are compared the way internal/core/env reads them, so a
+	// variable this fixture drops leaves under every spelling it arrived in
+	// (childEnvironment, fixture.go).
 	removed := make(map[string]struct{}, len(names))
 	for _, name := range names {
-		removed[name] = struct{}{}
+		removed[environmentKeyReading(name)] = struct{}{}
 	}
 	answer := make([]string, 0, len(environment))
 	for _, entry := range environment {
@@ -268,7 +271,7 @@ func withoutEnv(environment []string, names ...string) []string {
 		if before, _, found := strings.Cut(entry, "="); found {
 			name = before
 		}
-		if _, found := removed[name]; !found {
+		if _, found := removed[environmentKeyReading(name)]; !found {
 			answer = append(answer, entry)
 		}
 	}
@@ -276,6 +279,5 @@ func withoutEnv(environment []string, names ...string) []string {
 }
 
 func uiLeJobAdmitsWithEnv(environment []string, name, value string) []string {
-	answer := withoutEnv(environment, name)
-	return append(answer, name+"="+value)
+	return childEnvironment(environment, map[string]string{name: value})
 }

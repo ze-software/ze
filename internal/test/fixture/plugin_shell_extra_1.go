@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -63,17 +62,7 @@ func extra1Wait(ctx context.Context, delay time.Duration) error {
 }
 
 func extra1Environment(overrides map[string]string) []string {
-	environment := append([]string(nil), os.Environ()...)
-	for key, value := range overrides {
-		prefix := key + "="
-		for index := range slices.Backward(environment) {
-			if strings.HasPrefix(environment[index], prefix) {
-				environment = append(environment[:index], environment[index+1:]...)
-			}
-		}
-		environment = append(environment, prefix+value)
-	}
-	return environment
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func extra1StartDaemon(ctx context.Context, configPath, logPath string, environment map[string]string) (*extra1Daemon, error) {

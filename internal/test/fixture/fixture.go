@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -331,4 +332,52 @@ func Poll(ctx context.Context, attempts int, delay time.Duration, predicate func
 		}
 	}
 	return false
+}
+
+// childEnvironment builds the environment for a child process, replacing every
+// SPELLING of each overridden key rather than one of them.
+//
+// internal/core/env reads a ze variable case-insensitively and treats a dot and
+// an underscore as one separator, so `ZE_REPO_ROOT` and `ze.repo.root` are one
+// key to the reader and two entries in the environment. env.Set writes the
+// canonical DOT spelling, which is deliberate and documented there, so a fixture
+// that inherits a root from a caller and sets `ZE_REPO_ROOT` beside it hands the
+// child both. Which one wins is the order env.ensureCache happens to meet them
+// in, and the fixture's own value is not the one that has to survive it.
+//
+// The verify engine is exactly that caller: dispatch.go sets `ze.repo.root` to
+// the worktree before every action. Measured 2026-09-19 -- five `le-*` ui
+// fixtures passed standalone and failed inside the sweep, each because `le`
+// answered about the real checkout instead of the stand-in tree the fixture had
+// built for it.
+func childEnvironment(base []string, overrides map[string]string) []string {
+	shadowed := make(map[string]bool, len(overrides))
+	for key := range overrides {
+		shadowed[environmentKeyReading(key)] = true
+	}
+	values := make(map[string]string, len(base)+len(overrides))
+	for _, entry := range base {
+		key, value, found := strings.Cut(entry, "=")
+		if !found || shadowed[environmentKeyReading(key)] {
+			continue
+		}
+		values[key] = value
+	}
+	maps.Copy(values, overrides)
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	result := make([]string, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, key+"="+values[key])
+	}
+	return result
+}
+
+// environmentKeyReading renders a variable name the way internal/core/env reads
+// it, so two spellings of one key compare equal here as they do there.
+func environmentKeyReading(key string) string {
+	return strings.ToLower(strings.ReplaceAll(key, ".", "_"))
 }

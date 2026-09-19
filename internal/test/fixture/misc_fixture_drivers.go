@@ -43,17 +43,7 @@ func commandOutput(ctx context.Context, dir string, env []string, stdin, name st
 }
 
 func miscEnvironment(overrides map[string]string) []string {
-	environment := make([]string, 0, len(os.Environ())+len(overrides))
-	for _, entry := range os.Environ() {
-		key, _, _ := strings.Cut(entry, "=")
-		if _, overridden := overrides[key]; !overridden {
-			environment = append(environment, entry)
-		}
-	}
-	for key, value := range overrides {
-		environment = append(environment, key+"="+value)
-	}
-	return environment
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func waitForFile(ctx context.Context, path string, attempts int, delay time.Duration) bool {

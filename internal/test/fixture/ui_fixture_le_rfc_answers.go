@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -674,23 +673,7 @@ func leRFCAnswersRun(
 }
 
 func leRFCAnswersEnvironment(overrides map[string]string) []string {
-	values := make(map[string]string, len(os.Environ())+len(overrides))
-	for _, entry := range os.Environ() {
-		if key, value, found := strings.Cut(entry, "="); found {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, overrides)
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	environment := make([]string, 0, len(keys))
-	for _, key := range keys {
-		environment = append(environment, key+"="+values[key])
-	}
-	return environment
+	return childEnvironment(os.Environ(), overrides)
 }
 
 func leRFCAnswersJSON(text, description string) any {
