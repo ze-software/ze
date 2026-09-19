@@ -17,7 +17,7 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 5081,
+      "value": 5120,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
