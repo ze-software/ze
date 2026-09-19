@@ -78,16 +78,33 @@ func trackedFiles(root string) ([]string, error) {
 	return files, nil
 }
 
+// checkIgnored answers which of the paths .gitignore covers, so a reference to
+// a generated artifact is not read as a dead one.
+//
+// Every path is asked about TWICE, bare and with a trailing slash, because a
+// gitignore pattern that ends in one matches only a DIRECTORY and git decides
+// that from the filesystem. `/rfc/requirements/` therefore answers "ignored"
+// for `rfc/requirements` on a machine where the generator has run and "not
+// ignored" in a fresh checkout, which is the one case this whole function
+// exists to cover: a fresh checkout is where none of the generated artifacts
+// are present. Measured 2026-09-19 -- `doc check links` was green on main and
+// red in every verify worktree over docs/architecture/core-design.md's two
+// citations of that directory.
 func checkIgnored(root string, paths []string) (map[string]bool, error) {
 	ignored := make(map[string]bool)
 	if len(paths) == 0 {
 		return ignored, nil
 	}
+	asked := make([]string, 0, len(paths)*2)
+	for _, path := range paths {
+		bare := strings.TrimSuffix(path, "/")
+		asked = append(asked, bare, bare+"/")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", "-C", root, "check-ignore", "-z", "--stdin") //nolint:gosec // fixed Git query
 	var input textbuf.Buffer
-	input.Join(paths, "\x00").Byte(0)
+	input.Join(asked, "\x00").Byte(0)
 	cmd.Stdin = strings.NewReader(input.Slice())
 	out, err := cmd.Output()
 	if err != nil {
@@ -103,9 +120,12 @@ func checkIgnored(root string, paths []string) (map[string]bool, error) {
 		}
 	}
 	for token := range bytes.SplitSeq(out, []byte{0}) {
-		if len(token) > 0 {
-			ignored[filepath.ToSlash(string(token))] = true
+		if len(token) == 0 {
+			continue
 		}
+		answer := filepath.ToSlash(string(token))
+		ignored[answer] = true
+		ignored[strings.TrimSuffix(answer, "/")] = true
 	}
 	return ignored, nil
 }

@@ -91,6 +91,30 @@ func TestInstructionCorpusGeneratedAndMissingTargets(t *testing.T) {
 		t.Fatalf("generated target reported: %s", report.Text())
 	}
 }
+
+func TestInstructionCorpusGeneratedDirectoryTarget(t *testing.T) {
+	// VALIDATES: a generated DIRECTORY the gitignore names with a trailing slash
+	// is accepted while it is absent, which is the state of every fresh checkout.
+	// PREVENTS: the shape that made this check green on a machine where the
+	// generator had run and red in every verify worktree. A gitignore pattern
+	// ending in a slash matches only a directory and git decides that from the
+	// filesystem, so the bare path answers "not ignored" exactly when the
+	// artifact is missing (measured 2026-09-19 over rfc/requirements).
+	root := fixtureRepository(t, map[string]string{
+		".gitignore":         "/rfc/requirements/\n",
+		"ai/rules/sample.md": "`rfc/requirements` is generated; `rfc/absent` is not.\n",
+	})
+	report, err := checkLinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Errors) != 1 || !strings.Contains(report.Errors[0], "rfc/absent") {
+		t.Fatalf("errors=%q", report.Errors)
+	}
+	if strings.Contains(report.Text(), "rfc/requirements") {
+		t.Fatalf("generated directory reported: %s", report.Text())
+	}
+}
 func TestDeclaredAbsentPopulationsStayFailOpen(t *testing.T) {
 	// VALIDATES: no baseline yet, upstream citations, and historical handovers are deliberate opens.
 	// PREVENTS: turning the producer's explicit exclusions into fixture-only hard failures.
