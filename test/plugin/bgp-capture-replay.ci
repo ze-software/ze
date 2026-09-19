@@ -35,6 +35,12 @@ EOF_WORKDIR
 #   NEXT_HOP: 40030401010101
 #   NLRI: 180A0000 (10.0.0.0/24)
 stdin=peer:terminator=EOF_PEER
+# The peer holds the session open to teardown, so the capture is closed by ze's
+# OWN shutdown rather than by the peer disconnecting. That is the path AC-3
+# names and the one this file never exercised: with the peer closing first,
+# the session-end defer ran for the wrong reason and the shutdown close was
+# never proven.
+option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=55s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FE4C40030401010101180A0000
