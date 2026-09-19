@@ -71,10 +71,17 @@ func TestPayloadNotifyWithSPI(t *testing.T) {
 // reference; this judges all of them, including one registered today and first
 // transmitted next month.
 //
-// RFC requirement: RFC7296-2.21.2-3 positive -- RFC 7296 Section 2.21.2:
-// "Extension documents may define new error notifications with these semantics,
-// but MUST NOT use them unless the peer has been shown to understand them, such
-// as by using the Vendor ID payload." Ze sends no Vendor ID, so it may register a
+// It carries no conformance tag, deliberately. RFC7296-2.21.2-3 already
+// has a positive and a negative carrier in
+// internal/component/ike/engine/notify_error_test.go, so a third would add a
+// claim to the public ledger without adding a proven requirement to it, and a
+// tag owes a recorded discrimination break of its own. This guard earns its
+// place by being STRICTER than the ledger asks, not by appearing on it.
+//
+// The obligation it enforces is still RFC 7296 Section 2.21.2: "Extension
+// documents may define new error notifications with these semantics, but MUST
+// NOT use them unless the peer has been shown to understand them, such as by
+// using the Vendor ID payload." Ze sends no Vendor ID, so it may register a
 // private-use notify type only as a STATUS type, which Section 3.10.1 has an
 // unrecognized peer ignore instead.
 //
