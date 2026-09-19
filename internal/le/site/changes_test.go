@@ -220,11 +220,11 @@ func TestAListWrittenUnderItsParagraphGetsItsBlankLine(t *testing.T) {
 // VALIDATES: the index reads as the published index, and its mirror matches the
 // published mirror byte for byte.
 //
-// Refreshed 2026-09-13 from gh-pages HEAD 7a71f67208 (2026-09-12). The two
-// fixtures were frozen at gh-pages 2fa8fa2ad. 0a4f5df85c and 7b5532f685 then
-// added the 2026-08-24 and 2026-08-31 weekly updates.
+// Refreshed 2026-09-19 from gh-pages HEAD c98d5b5ef2. The two fixtures were
+// last refreshed at gh-pages 7a71f67208; c98d5b5ef2 then republished the site
+// with the 2026-09-07 weekly update.
 //
-// The refresh is purely additive. 153 words arrived and none left, and the
+// The refresh is purely additive. 66 words arrived and none left, and the
 // refreshed mirror is byte-identical to what gh-pages publishes.
 func TestTheChangesIndexReadsAsThePublishedIndex(t *testing.T) {
 	paths := changesPaths(t)
@@ -280,12 +280,12 @@ func TestTheCategoryLegendKeepsItsDeclaredOrder(t *testing.T) {
 		}
 		previous = at
 	}
-	// The week named here is the newest one. Refreshed 2026-09-13 against
-	// gh-pages HEAD 7a71f67208. It said 2026-08-17, and the site had moved on to
-	// 2026-08-31. So this read a week in the middle of the list, and still
+	// The week named here is the newest one. Refreshed 2026-09-19 against
+	// gh-pages HEAD c98d5b5ef2. It said 2026-08-31, and the site had moved on to
+	// 2026-09-07. So this read a week in the middle of the list, and still
 	// called it the newest.
 	if !strings.Contains(page,
-		`<a class="ch-week" data-cats="operate routing services automate secure platform meta" href="2026-08-31/"`) {
+		`<a class="ch-week" data-cats="operate routing services secure platform meta" href="2026-09-07/"`) {
 		t.Errorf("the newest week's category list is not in the legend's order")
 	}
 }
@@ -296,8 +296,8 @@ func TestTheCategoryLegendKeepsItsDeclaredOrder(t *testing.T) {
 // The file is a contract another producer reads, so the two newest weeks are
 // compared against the published file field for field.
 //
-// Refreshed 2026-09-13 from data/changes.json at gh-pages HEAD 7a71f67208
-// (2026-09-12), where the two newest weeks are 2026-08-31 and 2026-08-24.
+// Refreshed 2026-09-19 from data/changes.json at gh-pages HEAD c98d5b5ef2,
+// where the two newest weeks are 2026-09-07 and 2026-08-31.
 func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -338,11 +338,10 @@ func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 // follow, so the address the changelog had before it moved out of blog/ is
 // still served.
 //
-// Refreshed 2026-09-13 against gh-pages HEAD 7a71f67208 (2026-09-12). The newest
-// week moved from 2026-08-17 to 2026-08-31, because 0a4f5df85c and 7b5532f685
-// added two weekly updates after the fixtures were frozen at gh-pages 2fa8fa2ad.
-// Nothing was removed from the feed: the oldest-first guard below still names
-// 2025-12-15.
+// Refreshed 2026-09-19 against gh-pages HEAD c98d5b5ef2. The newest week moved
+// from 2026-08-31 to 2026-09-07, because that week's update was written after
+// the fixtures were last refreshed at gh-pages 7a71f67208. Nothing was removed
+// from the feed: the oldest-first guard below still names 2025-12-15.
 func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 	paths := changesPaths(t)
 	if _, err := renderChanges(paths); err != nil {
@@ -357,16 +356,16 @@ func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 		`<rss version="2.0">`,
 		"<title>Ze weekly updates</title>",
 		"<link>https://ze-software.net/project/changes/</link>",
-		"<lastBuildDate>Mon, 31 Aug 2026 00:00:00 +0000</lastBuildDate>",
-		"<title>Week of 2026-08-31</title>",
-		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-08-31/</guid>`,
-		"<pubDate>Mon, 31 Aug 2026 00:00:00 +0000</pubDate>",
+		"<lastBuildDate>Mon, 07 Sep 2026 00:00:00 +0000</lastBuildDate>",
+		"<title>Week of 2026-09-07</title>",
+		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-07/</guid>`,
+		"<pubDate>Mon, 07 Sep 2026 00:00:00 +0000</pubDate>",
 	} {
 		if !strings.Contains(feed, want) {
 			t.Errorf("the feed is missing %q", want)
 		}
 	}
-	if first, second := strings.Index(feed, "2026-08-31/"), strings.Index(feed, "2025-12-15/"); first > second {
+	if first, second := strings.Index(feed, "2026-09-07/"), strings.Index(feed, "2025-12-15/"); first > second {
 		t.Errorf("the feed is oldest first")
 	}
 }
