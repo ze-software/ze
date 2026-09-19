@@ -797,3 +797,12 @@ authorize weakening an RFC-tagged test. The owner's approval is recorded by
 `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"` and
 carried by the commit as an `RFC-approved:` trailer;
 `docs/contributing/rfc-implementation-guide.md` says what the reason names.
+
+RECORDING is the command's job, so run it whenever the owner has ruled and
+quote him. It is not a second permission to go and ask for: a ruling he has
+already given IS the approval, and leaving it unrecorded blocks work he has
+authorized. What the command must never carry is an approval nobody gave, so
+the reason is his words and never the author's own argument for why the change
+is acceptable. Measured 2026-09-19: a session read "an author cannot approve
+their own change" as "an author may not run this at all", and stopped on a
+ruling the owner had given the day before and had to repeat.

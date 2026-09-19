@@ -91,8 +91,10 @@ var actions = leaction.New(area,
 			"this commit session's tmp/commit-rfc-approved-<session>.md. The edit hook and " +
 			"`./le commit create` read that file; the commit carries each row it used as an " +
 			"`RFC-approved:` trailer line and drops it from the file once the commit lands. A " +
-			"second call for the same unit replaces the reason. The reason is the owner's words, " +
-			"and an author cannot approve their own change by running this",
+			"second call for the same unit replaces the reason. RUN IT whenever the owner has " +
+			"ruled, quoting his words as the reason: recording a decision he has already given " +
+			"is the whole job. What it MUST NOT do is manufacture one, so the reason is never " +
+			"the author's own reasoning about why the change is fine",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyUnit, Value: "<package>.<TestName>", Requirement: leaction.Required},
