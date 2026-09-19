@@ -157,13 +157,34 @@ func passiveObserve09(ctx context.Context, name string, registration sdk.Registr
 func announceWithdraw09(family, add, del string) Driver {
 	return func(ctx context.Context, _ []string) error {
 		return passiveObserve09(ctx, "announce-routes", sdk.Registration{}, func(ctx context.Context, p *sdk.Plugin) error {
-			for _, command := range []string{add, del} {
+			for index, command := range []string{add, del} {
 				announced, withdrawn, err := p.UpdateRoute(ctx, "*", "update text "+command)
 				if err != nil {
 					return fmt.Errorf("%s update %q: %w", family, command, err)
 				}
 				if announced+withdrawn == 0 {
 					return fmt.Errorf("%s update %q acknowledged no routes", family, command)
+				}
+				// The peer's End-of-RIB waits for THIS process by name, because
+				// its `attach process announce-routes { send [ update ] }` block
+				// makes MayPushRoutes true for it (peer_run.go,
+				// initialUpdateReporters). The barrier ends either way: on this
+				// signal, or on a two-second timeout. Without the signal the
+				// .ci's ordering -- the announce, THEN the marker -- holds only
+				// while this driver beats that timer, and under load it does
+				// not: the marker goes out first and the peer reads it where it
+				// was waiting for the route (2026-09-19, functional/gating).
+				//
+				// The signal is the fence the product already defines for this:
+				// "Each reports `plugin session ready` once its routes are out"
+				// (peer_run.go). Only the announce belongs to the initial
+				// routing update, so only it is reported.
+				if index == 0 {
+					ready := dispatch09(ctx, p, "request peer 127.0.0.1 plugin session ready")
+					if !done09(ready) {
+						return fmt.Errorf("%s update %q plugin session ready: status=%s data=%s",
+							family, command, ready.status, ready.text)
+					}
 				}
 				if quiesced := dispatch09(ctx, p, "request quiesce"); !done09(quiesced) {
 					return fmt.Errorf("%s update %q quiesce: status=%s data=%s", family, command, quiesced.status, quiesced.text)
