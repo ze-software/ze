@@ -3,14 +3,13 @@
 | Field | Value |
 |-------|-------|
 | Status | blocked |
-| Depends | `spec-improve-3-event-replay` (capture/replay must land first) |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-08-05 |
 
-**Status set to `blocked` on 2026-08-05**, from `skeleton`. The `Depends` row above
-already named the blocker, but `Status` is what `/ze-status` reads, so the spec
-still presented as startable. Its own Task says it cannot begin before capture and
-replay exist. A triage of every `*-deferred-*` spec found it.
+The capture/replay prerequisite was fulfilled when the parent closed on
+2026-09-05 (`d74f428b47`, `99bbe13ab7`). Status remains `blocked` for the owner
+decision on determinism scope below; the parent is no longer a live dependency.
 
 ## Post-Compaction Recovery
 
@@ -37,12 +36,16 @@ captured run, not merely the same end state. Without it, a bug that only manifes
 under a specific interleaving (a race between the read path, timer expiry, and a
 config commit) can be captured but not reliably re-triggered.
 
-**Status of the premise (verified 2026-07-16).** The source spec is Status `ready`,
-not implemented. The claim that "replay asserts outcomes, not interleavings" is a
-design decision recorded in that spec, not yet a property of shipped code: there is
-no capture writer and no replay harness in `internal/component/bgp/reactor/` today.
-This spec is therefore blocked on improve-3 landing. The seams improve-3 relies on
-DO exist and were re-verified:
+**Current prerequisite state (source read 2026-09-19).** Capture and replay exist:
+`sessionCapture.writeItem` writes message, config and session events, and
+`runReplay` in `internal/test/cli/cmd_replay.go` feeds messages through
+`Session.ReadAndProcess` with a fixed fake clock. The parent's final A-2 was
+confirmed for message-driven replay only; timer expiry was explicitly left
+undone because replay never advances that clock. Its Work Not Done table
+assigned timer-driven and multi-peer replay to this spec. Neither that closure
+nor this source reading proves exact interleaving reproduction.
+
+The following seam inventory is the historical 2026-07-16 research:
 
 | Fact | Producer | Verified |
 |------|----------|----------|
@@ -62,12 +65,11 @@ unchanged; only the line numbers moved.
    layer it proposes. improve-3 adopted only the Option-D clock-injection slice
    (Phase 1 of that doc's roadmap) and left the FSM event queue, fault injection,
    and scheduler layers behind. This spec picks up the scheduler layer.
-2. Resolve improve-3's assumption A-2, which that spec left `unvalidated`: "the
-   injected clock seam is sufficient for deterministic replay of timer-driven
-   behavior". A-2's stated "if wrong" outcome is precisely this spec: replay
-   diverges on hold/keepalive timing and needs the event-queue layer. If improve-3
-   validates A-2 as confirmed, the scope here shrinks; if it breaks, this spec is
-   the remedy. Do not start until A-2 has a final status.
+2. Preserve the parent's final A-2 disposition: message-driven replay is covered,
+   timer expiry is outstanding. Design the event ordering needed for hold and
+   keepalive expiry; do not repeat the old check for an unvalidated parent A-2.
+   The owner must decide whether the exact-interleaving scheduler is the chosen
+   mechanism and how the inherited multi-peer requirement fits its scope.
 3. Decide the scope of determinism: one session, one peer with concurrent timers,
    or the whole reactor including the forward pool (`forward_pool.go` has its
    own `SetClock`) and the listener (`listener.go`).
@@ -98,8 +100,8 @@ improve-3 specified capture costs one nil check when disabled.
 - No new wire behavior. RFC 4271 message handling is exercised, not changed.
 
 **Key insights:**
-- This spec is blocked on improve-3 landing and on A-2 reaching a final status.
-- The clock seam exists and is already fanned out from the reactor; the event queue does not exist.
+- Capture/replay and the parent's A-2 disposition are available; the remaining blocker is the owner decision on exact-interleaving scope.
+- Timer-driven and multi-peer replay remain owned here, as assigned by the parent's closure. Choosing a narrower first implementation cannot discard either obligation.
 
 ## Current Behavior (MANDATORY)
 
@@ -129,7 +131,7 @@ improve-3 specified capture costs one nil check when disabled.
 - The session inbound read paths in `internal/component/bgp/reactor/`, where captured wire bytes are fed back.
 
 ### Transformation Path
-1. Replay reads the capture file and reconstructs the ordered event stream (wire messages, timer expiries, config transaction events).
+1. Replay reads the versioned capture stream. Current v1 records messages, config operations and session events, but no timer-expiry event; the design must establish the additional ordering data needed before claiming a captured timer interleaving can be reproduced.
 2. A scheduler owns the event queue and decides which runnable goroutine or timer advances next, instead of the Go runtime deciding.
 3. The injected clock advances only when the scheduler says so, so a timer fires at a queue position rather than at a wall-clock moment.
 4. Events feed the same session processing path as production, through both read paths.
@@ -163,7 +165,7 @@ improve-3 specified capture costs one nil check when disabled.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Exact interleaving reproduction is worth its cost | improve-3 R-3 deferred it rather than cancelling it | The spec should be cancelled instead of built | User decision at pickup, plus a real bug that outcome-replay could not reproduce | unvalidated |
 | A-2 | The reactor's concurrency sources can all be driven from one scheduler | Every one has a `SetClock` seam (reactor.go, peer.go, session.go, forward_pool.go, listener.go) | Partial determinism only; scope narrows to a single session | Enumerate goroutine spawns in the reactor at design time | unvalidated |
-| A-3 | improve-3's capture format carries enough ordering information | improve-3 Capture Format v1 has a per-file monotonic `seq` | Format v2 needed; improve-3's version field absorbs it | Read the format section once improve-3 lands | unvalidated |
+| A-3 | The capture format can represent the ordering the scheduler needs | v1 carries per-file `seq` for message/config/session events, but no timer-expiry event | A format extension is required before captured timer ordering can be asserted | Compare `internal/core/capture` and `sessionCapture.writeItem` with the chosen scheduler event model | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -186,7 +188,8 @@ improve-3 specified capture costs one nil check when disabled.
 | AC-1 | A capture containing an interleaving-sensitive sequence is replayed twice | Both runs produce the identical event ordering, not merely the same final state |
 | AC-2 | A capture is replayed after the ordering is perturbed | The comparison FAILS, proving the assertion has teeth |
 | AC-3 | Replay is disabled | Session read paths are unchanged and the hot path cost is a nil check |
-| AC-4 | A timer-driven transition (hold/keepalive) is replayed | It fires at the captured queue position, resolving improve-3's A-2 |
+| AC-4 | A timer-driven transition (hold/keepalive) is replayed | It fires at the captured queue position, completing the timer-expiry remainder explicitly excluded from the parent's final A-2 |
+| AC-5 | The multi-peer replay remainder inherited at parent closure | The owner-approved design names and proves its replay boundary; it stays owned here until implemented or transferred to an existing spec with explicit scope approval |
 
 ## 🧪 TDD Test Plan
 
@@ -214,7 +217,7 @@ improve-3 specified capture costs one nil check when disabled.
 
 ### Implementation Phases
 
-1. **Phase: Blocked check (MANDATORY FIRST)** - confirm `spec-improve-3-event-replay` has landed and that its A-2 has a final status. If A-2 confirmed, re-scope this spec with the user before writing code.
+1. **Phase: Owner scope decision (MANDATORY FIRST)** - use the parent's final A-2 and a concrete interleaving-sensitive case to choose the scheduler boundary. Account for timer-driven and multi-peer replay before implementation; capture/replay availability is no longer the gate.
 2. **Phase: Wiring** - register the replay scheduler seam; write the failing determinism test.
 3. **Phase: Event queue** - (fill during design)
 4. **Phase: Scheduler ordering** - (fill during design)
@@ -231,14 +234,14 @@ improve-3 specified capture costs one nil check when disabled.
 | Scope | Fault injection and full simulation stay out (improve-3 R-3) |
 
 ## Known Limitations
-- Blocked on `spec-improve-3-event-replay`. This spec cannot start before capture and replay exist.
-- (fill during design)
+- Exact interleaving scope remains an owner decision. No scheduler implementation is authorised by the prerequisite's completion.
+- The current replay reports config operations without re-applying them and does not advance the fake clock; the design must distinguish those limits from missing capture infrastructure.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] improve-3 landed and its A-2 has a final status
-- [ ] AC-1..AC-4 all demonstrated
+- [ ] Owner decision recorded for exact ordering, timer expiry and inherited multi-peer replay; capture/replay prerequisite recorded as fulfilled
+- [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete, every row has a concrete test name
 - [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)

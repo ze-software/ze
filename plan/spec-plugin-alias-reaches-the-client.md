@@ -14,9 +14,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 A pipe alias a plugin declares lives in the DAEMON's alias registry. Two client
-surfaces resolve a pipe chain in the CLIENT process instead, so on both of them
-a declared name is neither offered by Tab nor resolvable, and the operator reads
-`pipe error: unknown pipe operator: <name>`.
+surfaces resolve a pipe chain in the CLIENT process instead, so the interactive
+client cannot complete or resolve the name, and a streaming client cannot
+resolve it. The interactive path reports a pipe error; `StreamMonitor` reports
+the parser's error on stderr and exits nonzero.
 
 | Surface | Parses the chain | A plugin's alias works |
 |---------|------------------|------------------------|
@@ -32,6 +33,11 @@ same client that cannot offer a plugin's name.
 `spec-plugin-registers-pipe-operations` built the declaration channel and closed
 on 2026-09-05 with both client rows outstanding. It named this spec as their
 owner. Nothing here changes the daemon side.
+
+This is a defect in the supported plugin-alias surface, with the daemon-side
+paths already working. Its placement in the optional bucket needs an explicit
+first-release disposition; it must not be counted as an elective new alias
+capability. The owner decides the bucket, and both client paths remain in scope.
 
 The repair is a wire surface that carries the daemon's alias table to the client
 at session start, beside the runtime command list `buildRuntimeTree` already
@@ -97,6 +103,7 @@ alias registry in `internal/component/command`.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | An operator types `show <plugin command> \| <alias>` in `ze cli` with no command argument | → | the client resolves the name from the table the daemon sent | a `.ci` under `test/ui/`, driving `ze cli` over a pty as `ui/display-fill-completion` does |
+| A plugin alias is used in a streaming monitor chain through `cliClient.StreamMonitor` | → | the client resolves the daemon-declared expansion before starting the stream | a functional streaming case that observes the expanded output and a nonmatching control |
 
 ## Acceptance Criteria
 
@@ -105,6 +112,7 @@ alias registry in `internal/component/command`.
 | AC-1 | An operator types a plugin's declared alias in `ze cli` with no command argument | The chain resolves and the answer is the expansion's |
 | AC-2 | An operator presses Tab after the pipe character on a plugin command in the same client | The declared name is offered beside the built-in operators |
 | AC-3 | A plugin stops while the session is open | The client stops offering the name, by whatever mechanism the third decision picks |
+| AC-4 | A streaming monitor command uses a plugin's declared alias through `cliClient.StreamMonitor` | The chain resolves and each emitted answer has the expansion's result; a stopped plugin's name is handled consistently with AC-3 |
 
 ## Risks & Assumptions
 
@@ -133,10 +141,11 @@ alias registry in `internal/component/command`.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | a declared alias resolves in `ze cli` | `test/ui/` | AC-1 and AC-2 | to write |
+| a declared alias resolves in a streaming monitor chain | functional client/streaming harness selected during design | AC-4, including a nonmatching control and stopped-plugin behaviour | to write |
 
 ## Files to Modify
 
-- `internal/component/cli/client/main.go` - fetch the table at session start
+- `internal/component/cli/client/main.go` - fetch the table for interactive sessions and before `StreamMonitor` parses a chain
 - `internal/component/command/alias.go` - the client-side registration entry point
 
 ### Integration Checklist
@@ -163,7 +172,7 @@ alias registry in `internal/component/command`.
 
 ### Goal Gates (MUST pass)
 
-- [ ] AC-1..AC-3 all demonstrated
+- [ ] AC-1..AC-4 all demonstrated
 - [ ] `./le verify worktree` passes
 
 ### TDD

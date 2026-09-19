@@ -54,6 +54,11 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 - `lifetimeState` already carries `softBytes`/`byteCount` and checks them in `softExpired`; the gap is that `newLifetimeState` never sets `softBytes` from config, and no byte counter is fed from the dataplane.
 - Byte volumes reach ~10^13, which overflows uint32; the leaf and field must be uint64 from the outset.
 
+The accepted byte-limit maximum is `18446744073709551615` (`uint64` max), as
+AC-4 requires. The ~10^13 volume above motivates the storage width; it is not a
+configuration ceiling. Design must still choose the minimum and the packet-limit
+range, and carry those bounds into the schema and boundary tests.
+
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
@@ -154,8 +159,8 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| life-bytes | design min .. ~2.7e13 (uint64) | range max | below min | above declared max |
-| life-packets | design min .. large (uint64) | range max | below min | above declared max |
+| life-bytes | design minimum .. 18446744073709551615 (uint64) | 18446744073709551615 | below minimum | 18446744073709551616 is rejected without wrapping |
+| life-packets | minimum and operational maximum to be fixed during design, stored as uint64 | declared maximum | below minimum | above declared maximum, including uint64 overflow |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |

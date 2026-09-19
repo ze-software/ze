@@ -1,4 +1,4 @@
-# Spec: the version string cannot identify a build
+# Spec: container build provenance
 
 | Field | Value |
 |-------|-------|
@@ -11,29 +11,38 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Moved to `plan/future/` on 2026-08-19. It is an improvement, not a release
-defect: it matches none of the five defect kinds in `plan/future/README.md`.
-The spec's premise also needs correcting before implementation. A make-built
-host binary already resolves to a commit, because `readInfo` and `Extended`
-(`internal/core/version/version.go`) read `vcs.revision` and `vcs.modified`
-from the build info. The two real gaps are narrower: the Docker image tag is
-date-only (`ZE_DOCKER_TAG` in the `internal/le/` native action tables), and `.dockerignore` excludes
-`.git/`, so the image's binary carries no `vcs.*` stamp at all.
+The 2026-08-19 amendment classified this as optional work and narrowed its
+scope to containers. That disposition is preserved pending owner triage of
+the current pre-release placement. `spec-release-distribution.md` explicitly
+excludes containers, so this file is not evidence of an approved first-release
+container channel.
 
 ## Task
 
-`ZE_VERSION := $(shell date +%y.%m.%d)` (`internal/le/` native action tables) is a build stamp, not a
-release identity, and it reaches both `-X main.version` (through `ZE_LDFLAGS`)
-and `ZE_DOCKER_TAG`. Two unrelated commits built on one day produce one version
-and one image tag. One commit built on two days produces two versions. The
-repository carries zero git tags, so nothing else recovers the identity.
+Give the deployment and lab container builds a source identity that a bug report
+can resolve to the commit built, and define how their image tags identify that
+build. Host builds with Go VCS metadata already report the commit and modified
+state through `readInfo` and `Extended` in `internal/core/version/version.go`.
+The date-only release string alone is not the whole host identity.
 
-Symptom for an operator: a bug report names a version that cannot be resolved to
-a commit, and two images sharing a tag hold different code.
+`docs/guide/docker.md` now uses direct `docker build -t ...` commands.
+`docker/Dockerfile` and `docker/Dockerfile.lab` build inside the context, pass
+only release/build-date ldflags, and default them to `dev` and `unknown`.
+`.dockerignore` excludes `.git/`, so those builds have no checkout metadata
+from which Go can stamp `vcs.revision`. The retired `ZE_DOCKER_TAG` action-table
+claim no longer describes the producer: image tags are supplied to Docker.
 
-Goal: a version that identifies the commit it was built from. `git describe`
-over an annotated tag is the smallest answer and it needs the first tag to
-exist. Decide what an untagged tree reports and whether a dirty tree is marked.
+An operator using these container recipes can therefore report an image tag
+that is reused for different code without the binary exposing the source
+commit. Design must settle container commit stamping, tag identity and dirty
+or untagged source handling while preserving the host version contract.
+`git describe` is an option to evaluate, not a requirement to replace Ze's
+existing `YY.MM.DD` release format.
+
+Owner decision before scheduling: retain this as optional container provenance
+work outside the first-release gate, or explicitly make these container recipes
+a first-release support obligation. No relocation or scope expansion is made
+by this reconciliation.
 
 Generating a changelog is a separate feature and belongs in its own spec. The
 repository already writes conventional commits, but it also uses types a
@@ -53,7 +62,10 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/le/` native action tables - defines `ZE_VERSION`, `ZE_BUILD_DATE`, `ZE_LDFLAGS`, `ZE_DOCKER_TAG`
+- [ ] `internal/core/version/version.go` (`readInfo`, `Extended`) - reads and reports host VCS metadata
+- [ ] `docker/Dockerfile`, `docker/Dockerfile.lab` - container compilation and release/build-date arguments
+- [ ] `.dockerignore` - excludes Git metadata from those build contexts
+- [ ] `docs/guide/docker.md` - direct Docker tagging and build commands
 
 **Behavior to preserve:**
 - <to be filled>
@@ -97,7 +109,7 @@ generator would silently drop (`spec`, `plan`, `rules`, `journal`, `close`,
 
 ## Files to Modify
 
-- `internal/le/` native action tables - <what changes>
+- `docker/Dockerfile`, `docker/Dockerfile.lab`, `.dockerignore` and `docs/guide/docker.md` - exact changes to be settled during design
 
 ## Implementation Steps
 

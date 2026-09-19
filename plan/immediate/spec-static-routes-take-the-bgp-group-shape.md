@@ -114,20 +114,20 @@ Spelling the new leaf `preference` would put two names and two directions on one
 concept, so the leaf is `distance`, `uint8`, range 1 to 255, lower wins, and it
 overrides `rib/distance/static` for the group or the route that carries it.
 
-**The comparison point does not exist yet, and this spec does not build it.**
-Three producers were read.
+**Main-table arbitration now exists; the group and per-route override remain
+this spec's enhancement.** The current producer path is:
 
 | Producer | What it does | What it means |
 |----------|-------------|---------------|
-| `docs/architecture/static-routes.md`, "Direct FIB programming, not Loc-RIB injection" | Static routes are programmed straight into the FIB and never enter the Loc-RIB or sysrib | No Ze code ranks a static route against another protocol |
-| `buildRichRoute` (`internal/plugins/fib/kernel/nexthop_linux.go`) and the static netlink backend (`internal/plugins/static/backend_linux.go`) | Both set `netlink.Route.Priority` from the route's metric, and both program protocol `RTPROT_ZE` | Today the kernel resolves a static route against an IS-IS route on METRIC, and no distance takes part |
-| `effectivePriority` (`internal/component/sysrib/sysrib.go`) | Returns the declared distance whenever the schema names the protocol, and falls back to the stamped value only for a protocol the schema does not name | A per-route value carried in `Priority` would be discarded for `static`. It has to travel as its own field, and `effectivePriority` has to prefer it |
+| `applyProgrammed` and `insertPathLocked` (`internal/plugins/static/locrib.go`) | Insert main-table routes into the local Loc-RIB or forward them through the route-install channel; named-table routes retain the direct backend write | Main-table routes already enter shared arbitration. The named-table dimension remains owned by `plan/immediate/spec-fib-depth.md` |
+| `staticPath` in the same file | Stamps `AdminDistance` from `ribdistance.OrDefault("static", DefaultAdminDistance)` | The current path carries the protocol-wide configured distance; this spec must carry the member or group override into the selection path |
+| `effectivePriority` and `processEvent` (`internal/component/sysrib/sysrib.go`) | Resolve the protocol-wide distance and consume Loc-RIB-selected changes | Design must trace the per-route override through selection and downstream consumers rather than assume an event's `Priority` overrides the configured protocol value |
 
-`plan/immediate/spec-connected-static-reach-the-locrib.md`, at Status `design`,
-moves the static install into the Loc-RIB so that the declared distance
-arbitrates. This spec depends on it. Landing the leaf first produces a setting
-that parses, commits and decides nothing, which is the class
-`plan/immediate/spec-config-leaf-consumption-gate.md` exists to prevent.
+`plan/immediate/spec-connected-static-reach-the-locrib.md` owns the arbitration
+prerequisite and its verification. Its implementation is present in the current
+tree; this spec must use that result without claiming the prerequisite closed
+or counting its original defect as a second release justification. The new
+`distance` leaf must affect route selection before it can ship.
 
 The owner's case reads as follows once both land: `rib { distance { static 120 } }`
 demotes every static route below IS-IS at 115, and one group carrying
@@ -179,14 +179,12 @@ per-source tag would win instead.
 
 ### Boundary with the route source attribute
 
-The spec `spec-route-source-attribute`, written in parallel and not yet on
-disk, owns the enumeration that names WHICH protocol produced a route. This
-spec adds no member of that enumeration, renames none, and reads none. This spec owns the group level and the `distance`
-leaf, which rank a route once its source is already known. Where the two meet is
-the Loc-RIB path a static route becomes under
-`plan/immediate/spec-connected-static-reach-the-locrib.md`: that path carries a
-source from the other spec and a distance from this one, and neither spec
-defines the other's field.
+`plan/immediate/spec-route-source-attribute.md` owns the enumeration that names
+which protocol produced a route. This spec adds no member of that enumeration,
+renames none, and reads none. It owns the group level and the `distance` leaf,
+which rank a route once its source is known. The two meet on the Loc-RIB path
+created by `staticPath`: source identity and the proposed per-route distance
+remain separate responsibilities.
 
 ## Required Reading
 

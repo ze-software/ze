@@ -4,11 +4,17 @@
 |-------|-------|
 | Status | design |
 | Scope | config |
-| Depends | fixit-vpp-ipsec-inoperable |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-08-10 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+`spec-fixit-vpp-ipsec-inoperable` closed on 2026-08-10 with real-VPP SA
+install/read-back evidence. That prerequisite is fulfilled. This spec still
+owns interface selection and policy/rekey correctness; operator activation
+through `plan/spec-ipsec-dataplane-selector.md` also requires the ESP-on-wire
+proof in `plan/spec-ipsec-esp-dual-form-receive.md`.
 
 ## Task
 
@@ -134,6 +140,7 @@ installs SAs, and every policy IKE produces for them is refused. This is recorde
 as the headline Known Limitation of `spec-fixit-vpp-ipsec-inoperable`.
 
 **This spec is one of two preconditions on the dataplane selector.**
-`plan/spec-ipsec-dataplane-selector.md` must not land until this spec AND an
-ESP-on-the-wire harness exist. See "Release judgment" in
-`spec-fixit-vpp-ipsec-inoperable`.
+`plan/spec-ipsec-dataplane-selector.md` must not land until this spec's AC-1..AC-5
+and the real-VPP ESP proof owned by `plan/spec-ipsec-esp-dual-form-receive.md`
+are demonstrated. The closed predecessor's SA read-back is insufficient for
+either the policy path or packet decryption.

@@ -11,7 +11,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | tooling |
-| Depends | - |
+| Depends | spec-config-fmt-preserves-operator-information.md |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-08-15 |
@@ -29,47 +29,50 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Ze needs one canonical text form for its configuration, and a gate that holds
-every config in this repository to it. Today the repository publishes config
-that ze refuses, and nothing catches it.
+every config in this repository to it. The original examples below record the
+August 2026 motivation; they require current reproduction before being counted
+as defects.
 
 **A formatter already exists. This spec does not create one.** `ze config fmt`
 is implemented in `internal/component/config/cli/cmd_fmt.go` (`cmdFmt`,
 `configFmtBytes`), with `-w`, `--check`, `--diff`, and stdin support. It parses
-with `config.NewParser` and prints with `config.Serialize`. The work here is to
-decide what canonical means, close the gaps that make the existing command
-unsafe to run on an operator's file, and put the result behind a gate.
+with `config.NewParser` and prints with `config.Serialize`. This parent owns
+canonical-form and repository-gate policy. Operator information preservation
+is owned by `plan/immediate/spec-config-fmt-preserves-operator-information.md`.
 `ai/rules/no-layering.md` applies: a second formatter must not be added beside
 this one.
+
+G-2 and AC-4 remain required outcomes for this parent, discharged through that
+immediate owner. The corpus gate must require its preservation evidence before
+recommending writeback. The split changes ownership, not the no-information-loss
+requirement, and Q-5 still needs a preservation design.
 
 ### Why this spec exists
 
 `spec-fixit-peer-process-event-filter` renamed a config keyword across about
 500 files. Its review surfaced two facts.
 
-**1. Operator guides show config ze refuses.** The main thread verified with a
-freshly built binary that a one-line attach block is invalid, both without and
-with an explicit semicolon:
+**1. Historical parser failures (2026-08-15).** The session recorded both forms
+below as invalid. These observations predate the current tokenizer and keyword
+spelling and do not establish that inline blocks are invalid today:
 
     attach process bgp-rr { receive [ update ] }      -> configuration invalid
     attach process bgp-rr { receive [ update ]; }     -> configuration invalid
 
-`docs/guide/bgp-resilience.md`, `docs/guide/plugins.md`,
-`docs/guide/flowspec-route-reflector.md` and
-`docs/guide/flowspec-protected-router.md` each show that form in examples an
-operator would copy. A review lens then cited those lines as evidence that a
-config shape was live in the tree, so invalid config was read as proof about the
-language.
+Those forms appeared in `docs/guide/bgp-resilience.md`,
+`docs/guide/plugins.md`, `docs/guide/flowspec-route-reflector.md` and
+`docs/guide/flowspec-protected-router.md`. The review used them as evidence of
+accepted syntax before checking the parser.
 
-`plan/journal/documentation-shows-config-the-parser-refuses.md` records four
-rows, all dated 2026-08-15. Two of them say "recorded, not fixed", so the class
-is live and already recurring: `docs/guide/ospf.md`,
-`docs/architecture/api/process-protocol.md`, `docs/guide/rpki.md`,
-`docs/guide/route-reflection.md` and `docs/guide/graceful-restart.md` each carry
-an example the parser refuses.
+`docs/contributing/writing-style.md` now records both inline forms with
+`update-received` as accepted. `tokenizer.scan` inserts a terminator before `}`,
+as well as at newline and EOF. The earlier journal rows remain historical
+evidence; each cited example must be rechecked before this spec claims it is
+still refused.
 
-**2. Nothing checks that a config example parses.** No make target, CI job, or
-script runs `ze config fmt --check` or `ze config validate` over the repository.
-That is why the examples survived. And one config concept has many spellings:
+**2. The corpus gate remains a design obligation.** The original review found no
+repository-wide parser/formatter check over every carrier. The gate inventory
+must be checked again during design. One config concept has many spellings:
 flat and nested, quoted and unquoted keys and values, bracket list and bare
 value, the `set` command form, and the inline single-leaf form. A guard that
 tried to read them all by pattern was patched in four consecutive review rounds
@@ -88,7 +91,8 @@ formatter rather than through a text matcher.
 
 ## Open Questions (decide at DESIGN)
 
-Each row is a decision for Thomas. None is settled here.
+The open choices remain for Thomas. G-2 already requires information preservation;
+Q-5 chooses how to meet it and cannot make comments optional.
 
 | # | Question | What is already known |
 |---|----------|-----------------------|
@@ -96,7 +100,7 @@ Each row is a decision for Thomas. None is settled here.
 | Q-2 | **Which spelling is canonical.** The parser accepts several spellings of one tree. Does the formatter normalize the others to the canonical one, or refuse them? | `config.Serialize` already picks one for every construct. Normalizing is the `gofmt` answer and it makes the gate a formatter run. Refusing is a stricter language and it turns every non-canonical file into an error rather than a rewrite |
 | Q-3 | **Agreement with the serializer.** `internal/component/config/flatten.go` and the `ze:flatten` extension already decide what ze prints for one construct. Does the formatter reuse `config.Serialize`, or replace it? | Reusing it is the only answer that keeps one canonical form. Replacing it means every other printer (`ze config show`, the editor, the `zefs` diff path) moves at the same time |
 | Q-4 | **A second serializer already disagrees.** `internal/exabgp/migration/migrate_serialize.go` (`SerializeTree`, `serializeTreeIndent`) prints ze config text with its own rules: alphabetical key order, and quoting only when the value holds a space. `config.Serialize` uses YANG schema order and `quoteIfNeeded` quotes on space, tab, quote, apostrophe, brace, `;`, and `#`. Which one survives? | Two producers of one language is the layering this spec exists to remove. `ai/rules/no-layering.md`: delete the loser, do not wrap it |
-| Q-5 | **Comment preservation.** The tokenizer discards comments, so the tree carries none and the formatter deletes every comment in the file. Is comment preservation in scope? | This is where most formatters get hard. It decides whether `ze config fmt -w` is a tool an operator may run on a live file. Measured, see Current Behavior |
+| Q-5 | **Comment preservation mechanism.** How will the existing parser/formatter preserve comments and their association with configuration statements? | The immediate preservation spec owns this design and implementation. G-2/AC-4 remain required here; corpus policy may not waive them |
 | Q-6 | **Idempotence and round-trip.** Format twice equals format once. Parse, format, parse again yields the same tree. Are these the acceptance properties? | They are the two properties that make a formatter testable without a golden file per construct. Neither is asserted anywhere today |
 | Q-7 | **The surface.** `ze config fmt` and its `--check` mode exist. Does the gate run them, over which population, and does it live in `./le doc check verify`, in `./le doc wiring`, or in a new target? | `ai/rules/repo-maintenance.md` owns whether a docs gate is worth building, and its Current Discovery Surfaces table lists the changed-file-aware gates that already exist. `ai/rules/cli.md` owns the grammar, and `config fmt` already satisfies action before identifier |
 | Q-8 | **Elided and partial examples.** `docs/guide/plugins.md` shows `attach process rib { ... }` with a literal ellipsis, and `docs/guide/flowspec-route-reflector.md` shows a full block inside a markdown table cell rather than a fenced block. How does the gate see a fragment that was never meant to be a whole config? | A gate that reads only fenced blocks misses both. A gate that reads everything must be told how an intentional fragment declares itself. **Two constraints are already decided. They were retired into this cell from `ai/rules/points/writing/documentation/` on 2026-08-16.** First, the gate MUST read what ze's own parser recognizes as a config attempt, and it MUST carry an opt-OUT that states its reason on the block. A gate over every fenced block in `docs/` fires mostly on deliberate excerpts, an estimated four in five, because they start mid-tree or carry a placeholder. An opt-IN marker inverts the failure: every example that is already refused stays unmarked and uncaught, which is the `rpki.md` case exactly. Second, whoever proposes the gate MUST state that annotation cost, and MUST NOT sell the gate. Somebody annotates the excerpts one time, and each new excerpt pays one line |
@@ -126,14 +130,14 @@ Each row is a decision for Thomas. None is settled here.
 
 **Key insights:** (minimal context to resume after compaction)
 - `ze config fmt` exists and is parse-then-`config.Serialize`. This spec decides its contract, it does not build it.
-- The tokenizer discards comments, so today `ze config fmt -w` deletes every comment in the file. Measured, not inferred.
-- Automatic semicolon insertion fires only at a newline or at end of input, so a block written on one line carries no statement terminator.
+- The August measurement lost comments; current tokenizer and `cmdFmt` source still discard them before writeback. The immediate preservation spec owns that defect.
+- `tokenizer.scan` now inserts a semicolon at newline, EOF and before `}` after a value-ending token. The earlier inline-block diagnosis is obsolete.
 - Two independent serializers print ze config text, and they disagree on ordering and on quoting.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/config/tokenizer.go` - the lexer. `tokenizer.Next` sets `insertSemi` after a WORD, STRING, `]`, or `)`. `tokenizer.scan` emits the synthetic semicolon only when `skipWhitespaceAndComments` crossed a newline or the input ended. `skipWhitespaceAndComments` consumes a `#` comment to end of line and produces no token, so no comment reaches the parser
+- [ ] `internal/component/config/tokenizer.go` - `tokenizer.next` sets `insertSemi` after a WORD, STRING, `]`, or `)`. `tokenizer.scan` emits the synthetic semicolon at newline, EOF or before `}`. `skipWhitespaceAndComments` consumes a `#` comment to end of line and produces no token, so no comment reaches the parser
 - [ ] `internal/component/config/parser.go` - `Parser.Parse`, `Parser.parseRoot`, `Parser.parseLeaf`. `Parser.parseContainer` implements automatic brace insertion: when the token after a container name is a word naming a child of that container, the child parses with no braces, so the flat spelling and the nested spelling both parse
 - [ ] `internal/component/config/serialize.go` - `Serialize` walks `serializeTree` in YANG schema child order, indents with tabs, writes no explicit semicolons, and appends unknown keys sorted alphabetically through `serializeExtraValues`. `quoteIfNeeded` quotes an empty string and any value holding a space, tab, quote, apostrophe, brace, `;`, or `#`. `normalizeBool` prints `enable` and `disable`. `canInlineContainer` with `serializeContainerInline` collapses a container holding exactly one leaf onto one line, bounded by `maxInlineDepth`
 - [ ] `internal/component/config/flatten.go` - `hasFlattenExtension`, `canFlattenContainer`, `serializeFlattenedContainer`. The `ze:flatten` extension chooses the flat spelling at print time. Exactly one YANG node carries it: `container attach` in `internal/component/bgp/yang/ze-bgp-conf.yang`
@@ -152,7 +156,7 @@ Each row is a decision for Thomas. None is settled here.
 | That output fed back through `ze config fmt` | Byte identical to the first pass, on this one sample |
 
 **Not established:**
-- Why the one-line attach block is refused when it carries an explicit semicolon. Reading `tokenizer.scan` explains the semicolon-free form: after `]` the next scan crosses no newline, so no synthetic semicolon is produced and the parser meets `}` where it expects a terminator. That trace does not explain the explicit-semicolon form, where `scan` returns the real semicolon token. The `bin/ze` in this checkout predates the uncommitted edit to `internal/component/bgp/yang/ze-bgp-conf.yang`, so it answered `unknown field in peer: attach` and could not reach the question. Resolve this at DESIGN with a freshly built binary before any gate message quotes a cause.
+- The current result of each original attach example. The old `receive [ update ]` spelling and the old binary cannot establish a present grammar defect. Design must reproduce examples against current YANG and the current tokenizer before naming a cause.
 - Whether `config.Serialize` is idempotent and round-trip stable over the whole corpus. One sample held. Nothing measures the rest.
 - Whether every `.conf` file in the tree parses today.
 
@@ -162,7 +166,7 @@ Each row is a decision for Thomas. None is settled here.
 - The parser keeps accepting both the flat and the nested spelling. `Parser.parseContainer` automatic brace insertion is what lets a config that reads one way print another way without a diff on every commit.
 
 **Behavior to change:** (only what the user asked for)
-- (fill during design, gated on Q-2, Q-4, and Q-5)
+- Canonical spelling, serializer consolidation and corpus policy remain this parent's design choices under Q-2/Q-4. G-2/AC-4 preservation and the Q-5 mechanism are implemented and proven by the immediate preservation dependency before this gate recommends writeback.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -214,14 +218,14 @@ Each row is a decision for Thomas. None is settled here.
 | A-1 | `config.Serialize` is idempotent over every construct the parser accepts | One sample held, measured by running `ze config fmt` twice | The formatter cannot be a gate, because a green run today goes red tomorrow with no edit | A property test over every `.conf` file in the tree | unvalidated |
 | A-2 | Parse, format, parse yields a tree equal to the first | Not measured | `-w` silently changes the running config | A round-trip property test comparing trees, not text | unvalidated |
 | A-3 | Comment loss is the only information the tree drops | Measured for comments. Blank lines and statement order are also unmodeled | An operator loses more than comments on `-w` | Diff a formatted corpus against its source and classify every removal | unvalidated |
-| A-4 | The whole `.conf` corpus parses today | Not measured. The docs corpus demonstrably does not | The gate lands red and cannot be armed in one pass | Run `ze config validate` over every `.conf` in the tree and count | unvalidated |
+| A-4 | The whole `.conf` corpus parses today | Not measured against the current tree | The gate lands red and cannot be armed in one pass | Run `ze config validate` over every `.conf` in the tree and count | unvalidated |
 | A-5 | One canonical form serves `.conf` files, `.ci` fixtures, and doc examples alike | The assumption behind Q-1 | The gate needs a per-carrier mode, and each mode is a second canonical form | Design decision, recorded against Q-1 | unvalidated |
-| A-6 | The explicit-semicolon one-line form is refused by the parser, not by the schema | The main thread's run with a freshly built binary | The Task's stated cause is wrong, and a gate message would teach the wrong rule | Re-run with a binary built from the current tree, and read the producing function | unvalidated |
+| A-6 | The August inline attach failures still reproduce with current keywords and schema | Historical binary output only; current `tokenizer.scan` terminates before `}` and writing-style documents accepted inline forms | The motivating examples are historical and cannot be used as a live defect count | Re-run the examples with the current built binary and schema during design | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | `ze config fmt -w` deletes an operator's comments today, and the command is already shipped and documented | `docs/guide/command-reference.md` teaches `-w` | Decide Q-5 before arming any gate that tells a reader to run `-w`. A gate that recommends a lossy command is worse than no gate |
+| R-1 | `ze config fmt -w` deletes an operator's comments today | `cmdFmt` writes `config.Serialize` output after the tokenizer has discarded comments | `plan/immediate/spec-config-fmt-preserves-operator-information.md` owns the G-2/AC-4 repair and proof. This parent's corpus gate remains blocked on that evidence |
 | R-2 | Formatting the whole `.conf` corpus is a very large diff that collides with every session working this checkout | The completed `spec-fixit-peer-process-event-filter` rename touched about 500 files | Sequence the sweep, and never run it while another config-touching spec is open |
 | R-3 | Changing the canonical form moves `ze config show`, the editor, and the `zefs` diff path at once | Golden files and `.ci` expectations across `test/` | Treat the printed form as a published interface. Any change to it is its own phase with its own evidence |
 | R-4 | A gate over doc examples fires on intentional fragments and gets weakened until it proves nothing | Q-8. The first exclusion added for an ellipsis is the signal | Decide up front how a fragment declares itself, and never let the gate learn shapes by pattern. The four-round patching described in the Task is what that failure looks like |
@@ -257,7 +261,7 @@ Each row is a decision for Thomas. None is settled here.
 | AC-1 | Any config in the repository the formatter accepts | Formatting it twice gives the same bytes as formatting it once |
 | AC-2 | Any config in the repository the formatter accepts | Parsing the formatted text gives a tree equal to the tree parsed from the source |
 | AC-3 | A config example published under `docs/` | The gate reads it and fails when the parser refuses it |
-| AC-4 | (fill during design, gated on Q-5) A config carrying comments, formatted with `-w` | (fill during design) |
+| AC-4 | A config carrying comments, formatted with `-w` | All comments and their association with configuration statements survive, configuration meaning is unchanged, and a second format changes no bytes |
 | AC-5 | (fill during design, gated on Q-4) One tree, printed by every producer of ze config text | Every producer gives the same bytes |
 
 ## End-to-End User Stories
@@ -269,7 +273,7 @@ Each row is a decision for Thomas. None is settled here.
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Copies a config example from a guide and runs `ze config validate` | docs example -> parser -> validator | `TestDocConfigExamplesParse` |
-| 2 | Runs `ze config fmt -w` on a config carrying comments | file -> parser -> serializer -> file | (fill during design, gated on Q-5) |
+| 2 | Runs `ze config fmt -w` on a config carrying comments | file -> parser -> serializer -> file, preserving comments and configuration meaning | `test-config-fmt-comments` |
 
 ## 🧪 TDD Test Plan
 
@@ -278,7 +282,7 @@ Each row is a decision for Thomas. None is settled here.
 |------|------|-----------|--------|
 | `TestSerializeIsIdempotent` | `internal/component/config/serialize_test.go` | AC-1, over a construct table covering every node type the schema defines | |
 | `TestFormatRoundTripsTree` | `internal/component/config/serialize_test.go` | AC-2, comparing trees rather than text | |
-| `TestFormatPreservesComments` | `internal/component/config/serialize_test.go` | AC-4, gated on Q-5 | |
+| `TestFormatPreservesComments` | Immediate preservation owner's chosen test placement | AC-4 evidence inherited by this parent, not a second implementation | Required from dependency |
 | (fill during design) | | | |
 
 ### Boundary Tests (numeric inputs)
@@ -294,7 +298,7 @@ Each row is a decision for Thomas. None is settled here.
 |------|----------|-------------------|--------|
 | `test-config-fmt-check-exit-one` | `test/parse/*.ci` | An operator runs `--check` on an unformatted file and gets exit 1 with the file named | |
 | `test-config-fmt-idempotent` | `test/parse/*.ci` | An operator formats a file twice and the second run reports no change | |
-| `test-config-fmt-comments` | `test/parse/*.ci` | (fill during design, gated on Q-5) | |
+| `test-config-fmt-comments` | Immediate preservation owner's functional test | Operator writeback retains comments and their statement association without changing configuration meaning | Required from dependency |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -308,9 +312,9 @@ Each row is a decision for Thomas. None is settled here.
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
-- `internal/component/config/cli/cmd_fmt.go` - the command whose contract this spec fixes
-- `internal/component/config/serialize.go` - the canonical printer, if Q-2 or Q-5 changes the output
-- `internal/component/config/tokenizer.go` - only if Q-5 requires comments to reach the parser
+- `internal/component/config/cli/cmd_fmt.go` - only corpus/canonical-policy changes beyond the immediate preservation repair
+- `internal/component/config/serialize.go` - canonical-printer choices under Q-2/Q-4, preserving the immediate owner's G-2 contract
+- `internal/component/config/tokenizer.go` - preservation changes belong to the immediate dependency, not this parent's gate work
 - `internal/exabgp/migration/migrate_serialize.go` - the competing printer named in Q-4
 - `docs/architecture/config/syntax.md` - the published grammar, and the `// Design:` anchor of the files above
 - `test/parse/cli-config-fmt.ci` - the current functional test, which asserts too little
@@ -359,7 +363,7 @@ Each row is a decision for Thomas. None is settled here.
 | 14 | Prometheus counters added/changed? | No | No counter |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | (fill during design) | `docs/features/cli-commands.md` already lists `config fmt`. Confirm the row still matches |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | Every file in `internal/component/config/` carries a `// Design: docs/architecture/config/syntax.md` annotation. Grep `docs/` for anchors on each changed file |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | This is the motivation. The guides listed in the Task each carry an example the parser refuses |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | The Task names the historical examples. Establish their current parser/schema outcome before using them as failing fixtures |
 
 ## Implementation Steps
 
@@ -372,12 +376,12 @@ Each row is a decision for Thomas. None is settled here.
 1. **Phase: Wiring (MANDATORY FIRST)** -- make the gate reachable and red
    - Tests: `TestConfigCorpusIsCanonical`, `TestDocConfigExamplesParse`
    - Files: the gate target chosen at Q-7
-   - Verify: the gate runs, reads the population Q-1 named, and fails on the known-bad guides
+   - Verify: the gate reads the population Q-1 names and rejects a deliberately invalid example; historical guide failures must first reproduce against the current parser/schema
 2. **Phase: Measure the corpus** -- answer A-1 through A-4 with numbers before changing any printer
    - Tests: `TestSerializeIsIdempotent`, `TestFormatRoundTripsTree`
    - Files: `internal/component/config/serialize_test.go`
    - Verify: idempotence, round-trip, and information loss each carry a count over the real corpus
-3. **Phase: (fill during design)** -- resolve Q-2, Q-4, and Q-5
+3. **Phase: (fill during design)** -- resolve Q-2/Q-4 and integrate the immediate owner's Q-5 preservation evidence without changing its contract
 4. **Phase: (fill during design)** -- sweep the corpus and arm the gate
 
 ### Critical Review Checklist
@@ -389,7 +393,7 @@ Each row is a decision for Thomas. None is settled here.
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at a named file and symbol |
 | Feature completeness | Every carrier class in Q-1 is either in the gate or excluded with a stated reason |
-| Correctness | The formatter loses nothing the source carried, or the loss is stated and accepted at Q-5 |
+| Correctness | The formatter loses nothing the source carried. The immediate dependency proves G-2/AC-4, and no Q-5 choice or corpus exclusion waives preservation |
 | Naming | One name for the canonical form, used in the command help, the guide, and the gate message |
 | Data flow | One printer. A second producer of ze config text is a defect, not a variant |
 | Rule: `ai/rules/no-layering.md` | The losing serializer is deleted, not wrapped |

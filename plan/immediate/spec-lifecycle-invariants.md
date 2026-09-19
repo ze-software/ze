@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/10 (D-1 only) |
-| Updated | 2026-08-29 |
+| Phase | 1/10 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -123,6 +123,17 @@ AC-1 is met for the address pool. The rest of AC-1..AC-19 are untouched, and no
 functional `.ci` or interop test from the TDD plan has been written: D-1's proof
 is at Go-test level, driven from `pppoe.Subsystem.handlePPPEvent` and from the
 plugin's own bus subscription rather than from a release helper.
+
+The phase records D-1 only. `poolPlugin.setEventBus` still subscribes to
+`subevents.SessionDown` and `onSessionDown` releases by `Session.PPPKey`; this
+does not establish any of the other progress rows.
+
+The CoA boundary is shared with
+`plan/immediate/spec-rfc5176-remaining-defect-classes.md`: this spec owns the
+PPPoE delivery and applied-result path in AC-3/AC-4. The RFC 5176 residual spec
+owns atomic rollback of a multi-change request and conjunctive subscriber
+matching with Error-Cause 508. Neither spec's completion proves the other's
+criteria.
 
 ## Improvements in scope (operator-selected 2026-08-02)
 

@@ -12,21 +12,37 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Make `plan/learned/` a **staging queue** rather than an archive. A summary is
-written at closure, routed to the permanent home its content belongs in, and
-removed. Steady state is near zero, not 889.
+Find durable knowledge that still lacks a governing home, route it there, and
+measure the documentation gaps that prevent routing. New lessons follow the
+direct-routing rule in `ai/rules/planning.md`: update the governing surface and
+use a journal row only when no surface governs the lesson. This spec must not
+make closure write a summary before routing it.
 
-### Why the previous pass was not enough
+The 889-summary population below is an August measurement. The current
+`plan/learned/` directory contains numbered records 001 through 026 and the
+learned indexes; it is not that backlog. Before a pilot, inventory the current
+eligible records, check whether their lessons already reached their homes, and
+record the population and the instrument used. The original 30-to-50-record
+pilot, five routed examples and agreement threshold remain requirements.
+If the eligible population cannot meet them, obtain an owner decision on the
+pilot scope; do not manufacture records or lower the thresholds.
 
-The closed knowledge-0 umbrella retired summaries 1-400 on an AGE
-band, because decay correlated with age: band 1-200 was 78% dead paths. That
-worked and 889 remain. But age was a PROXY. The real question for every summary
-is whether its content belongs somewhere else, and for most of them it does.
+The residual proposal is a documentation-gap audit and, if an unrouted
+population exists, an age report and guard for it. The routing taxonomy and
+AC-1 through AC-10 remain below. Their implementation starts only after the
+population and the meaning of "unrouted" are defined under direct routing.
+
+### Historical population, August 2026
+
+The closed knowledge-0 umbrella retired summaries 1-400 on an age band.
+The previous pass measured 78% dead paths in band 1-200 and recorded 889
+remaining summaries. Those figures motivated this proposal; they do not
+describe the current corpus or authorize another retirement pass.
 
 ### The routing taxonomy
 
-Ze already has a canonical home for every kind of durable knowledge. The
-corpus exists because closure wrote to a queue and nobody drained it.
+The following taxonomy identifies candidate homes. A routing verdict must
+follow the current governing rule and be verified at its destination.
 
 | Content | Canonical home |
 |---------|----------------|
@@ -41,10 +57,9 @@ corpus exists because closure wrote to a queue and nobody drained it.
 
 ### The finding that matters more than the pruning
 
-**A summary that cannot be routed reveals a MISSING DOCUMENT.** The size of the
-un-routable set is a measure of documentation debt, and nobody has ever read the
-corpus that way. Producing that list is a deliverable in its own right, and it
-is worth more than the disk space.
+A record whose durable content has no suitable destination identifies a
+documentation gap. The pilot must report each such item and the document
+needed to hold it, rather than force it into a nearby page.
 
 ### Evidence that routing beats storing
 
@@ -73,8 +88,8 @@ These are not anecdotes. Each one changes a design decision in this spec.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] The closed knowledge-0 umbrella (record retired with the learned corpus) - the previous pass and its measurements
-  → Constraint: dead-path rate is now about 5% and `./le journal validate` holds it with a zero-slack ceiling. Routing must not raise it.
-  → Decision: age-band retirement is DONE and is not repeated. This spec routes by content.
+  → Constraint: the August dead-path measurements and zero-slack guard describe that pass. Current `journal.ValidateFile` validates row structure, dates and spec cells; it does not enforce that old citation ceiling.
+  → Decision: age-band retirement is historical completed work and is not repeated here.
 - [ ] `ai/rules/writing.md` - governs anything written into `docs/`
   → Constraint: every factual claim carries a source anchor and is verified against code BEFORE it is written. A routed line is a factual claim.
 - [ ] `ai/rules/writing.md` - governs the size of a routed line
@@ -91,45 +106,52 @@ These are not anecdotes. Each one changes a design decision in this spec.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `internal/component/bgp/reactor/session_connection.go` - the `INVARIANT` comment at line 330 is the exemplar of a routed invariant: it names the rule, the dependent readers, and the failure mode
-- [ ] `internal/le/journal/validate.go` - `check`, `enforce`, `write_baseline`; the zero-slack ceiling routing must not disturb
-- [ ] `ai/skills/ze-close.md` - step 6a writes a summary only when the work produced a lesson; this spec adds the routing step after it
-- [ ] `internal/le/doc/check/links.go` - `check_index_budget`, `check_hook_names`; the closest sibling for a new markdown-corpus gate
-- [ ] `plan/learned/DESIGN-HISTORY.md` - one of the routing destinations, rebuilt and now gated
+**Current surfaces:**
+- `ai/rules/planning.md`, "Spec Lifecycle", governs direct lesson routing.
+- `plan/learned/` contains the current records to inventory; their existence
+  alone says nothing about whether each lesson is already routed.
+- `internal/le/journal/journal.go` `Check` reads problem-class rows at HEAD.
+  `Report.Text` in `internal/le/journal/report.go` reports recurring classes.
+- `internal/le/journal/validate.go` `ValidateFile` validates one journal file.
+- `internal/le/doc/check/actions.go` owns the documentation-check command
+  surface; integration of an age guard remains design work.
 
 **Behavior to preserve:**
-- `./le journal validate` and its zero-slack ceiling.
-- The conditional-creation rule: a summary is written only when there is a lesson.
-- Every existing gate that blocks a commit.
+- Direct routing, conditional journal creation and every existing gate.
+- The current journal recurrence report and its committed-tree population.
+- Historical records stay intact during the pilot; later deletion requires
+  explicit permission.
 
 **Behavior to change:**
-- A summary acquires a lifecycle: written, routed, removed.
-- `plan/learned/` acquires a target size and a gate that notices when it grows.
+- Audit the current eligible records for missing homes and already-routed
+  content. Add an unrouted-age report and guard only against a defined residual
+  population, without requiring closure summaries or a target archive size.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A spec closes and `/ze-close` writes a summary, when there is a lesson.
-- A routing pass runs over the existing 889.
+- A closure routes a lesson directly to its governing surface.
+- A pilot reads the current inventory of eligible records.
 
 ### Transformation Path
-1. The summary is written as today.
-2. Its content is classified against the taxonomy: one destination per item.
-3. Each item is merged into its destination, one to three lines, with a source anchor where `docs/` receives it.
-4. The summary is removed once every item has a home.
+1. Classify each durable item against the taxonomy and the current routing rule.
+2. Verify an `ALREADY-THERE` verdict by reading and quoting the destination.
+3. Merge unrouted content into its destination, within the original prose budget
+   and with source anchors where `docs/` receives it.
+4. Keep pilot records intact. Later removal requires proof that every item has
+   a home and the owner's explicit permission.
 5. An item with no home is recorded in the documentation-gap list rather than forced.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Closure ↔ routing | `/ze-close` gains a routing step after the summary is written | No |
-| Summary ↔ `docs/` | routed lines carry source anchors, gated by `check_doc_links.py` | Yes, the anchor format is enforced today |
-| Summary ↔ code comment | an invariant lands at its function | No |
-| Queue depth ↔ gate | a new check counts unrouted summaries | No |
+| Closure ↔ routing | Preserve direct routing under `ai/rules/planning.md`; no write-summary prerequisite | Rule read; closure integration remains to check |
+| Record ↔ `docs/` | routed factual text carries source anchors checked by `./le doc check verify` | Existing documentation contract; pilot proof owed |
+| Record ↔ code comment | an invariant belongs at its producing function | Pilot proof owed |
+| Unrouted age ↔ gate | proposed check uses the current inventory and a defined routing state | Not designed |
 
 ### Integration Points
-- `ai/skills/ze-close.md` step 6, where the summary is written.
+- `ai/skills/ze-close.md`, lesson routing: preserve the governing rule rather than adding a summary-writing stage.
 - `internal/le/doc/check/actions.go` `./le doc check verify`, where a queue-depth gate would join.
 - `ai/INDEX.md` Dev Tools, where any new tool must appear in the same phase.
 
@@ -138,7 +160,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | No | |
 | No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | A routing gate joins `check_doc_links.py` rather than becoming a new target |
+| No duplicated functionality (extends existing, does not recreate) | Not yet established | Reuse the native journal and documentation-check surfaces; preserve their existing answers |
 | Zero-copy preserved where applicable (refs, not copies) | No | N-A, no wire path |
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | N-A, no daemon registration |
 
@@ -158,8 +180,8 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | R-1 | Routed prose is appended rather than merged, moving the pile into `docs/` | `docs/architecture/` grows by roughly the size of what left `plan/learned/` | Measure both sides. The budget is one to three lines per item |
 | R-2 | "Already documented" is asserted without opening the target | A routed summary is deleted and its knowledge is in neither place | The verdict requires a quoted line from the target. Spot-audit a sample |
 | R-3 | The un-routable set is quietly forced into the nearest file rather than recorded | The gap list comes back suspiciously short | The gap list is a deliverable with its own AC. A short list is a finding to challenge, not a success |
-| R-4 | Routing raises the dead-path count, because `docs/` anchors rot too | the retired `ze-learned-staleness` (current: `./le journal validate`) or `check_doc_links.py` reddens | Both gates run before and after each wave |
-| R-5 | The queue-depth gate becomes a reason to skip writing a summary at all | Closures stop producing summaries entirely | The gate counts UNROUTED age, never total count. A summary routed the same week never trips it |
+| R-4 | Routing introduces dead live references | `./le doc check links` or `./le doc check verify` reports a new finding | Run the current checks before and after each batch; historical record citations retain their policy |
+| R-5 | An age gate suppresses lesson recording or makes every closure create a record | Closures omit needed governing updates or create empty journal rows | Count age only for a defined unrouted population; preserve direct routing and conditional journal creation |
 
 ## Blast Radius
 
@@ -167,27 +189,27 @@ These are not anecdotes. Each one changes a design decision in this spec.
 |----------|--------|
 | What breaks if this is wrong? | Nothing user-visible and no daemon behavior. The failure is lost design rationale, or bloated architecture docs |
 | How is it reverted? | Per wave. Each wave is one commit, and git history holds every deleted summary |
-| Who else touches this path? | Every concurrent session writes `plan/learned/` at closure. Waves must be short and land promptly |
+| Who else touches this path? | Concurrent sessions update governing surfaces and problem-class journals; coordinate ownership before routing into a shared destination |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le journal report` | → | the queue-depth reporter | `test_queue_reports_unrouted_age` in `internal/le/` |
-| `./le doc check verify` | → | the gate declared in `internal/le/doc/check/actions.go` | `test_target_declared_in_doc_test` in `internal/le/` |
-| `/ze-close` on a spec that produced a lesson | → | the routing step in `ai/skills/ze-close.md` | `test_close_skill_names_the_routing_step` in `internal/le/` |
+| `./le journal report` | → | proposed unrouted-age reporting alongside the existing recurrence answer | functional report test over a fixture with both populations; concrete test location is a design prerequisite |
+| `./le doc check verify` | → | proposed age guard registered in the native action surface | refusal test for an over-age unrouted item and admission for an already-routed item |
+| A closure that produced a lesson | → | direct routing under `ai/rules/planning.md` | inspect the governing update and absence of a mandatory intermediate summary |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | The pilot runs over one subsystem of 30 to 50 summaries | A ratio table reports every summary as exactly one destination, with `ALREADY-THERE` proven by a quoted line from the target |
+| AC-1 | The pilot runs over one subsystem of 30 to 50 eligible records from the current inventory | A ratio table reports every record as exactly one destination, with `ALREADY-THERE` proven by a quoted line from the target. An insufficient population requires an owner scope decision before the pilot |
 | AC-2 | The pilot completes | A documentation-gap list names every un-routable item and the document that should exist to hold it |
-| AC-3 | Five summaries are routed for real, spanning at least three destinations | Each target file carries the merged content with a source anchor where `docs/` received it, and `check_doc_links.py` stays green |
+| AC-3 | Five records are routed for real, spanning at least three destinations | Each target carries merged content with a source anchor where `docs/` received it, the pilot deletes nothing, and `./le doc check verify` and `./le doc check links` stay green |
 | AC-4 | `docs/architecture/` is measured before and after the pilot | Growth is under 3 lines per routed item, proving merge rather than append (A-3, R-1) |
 | AC-5 | Two independent agents route the same 5 summaries | Their destinations agree on at least 4 of 5, or the disagreement is reported as a taxonomy defect (A-4) |
-| AC-6 | `./le journal report` runs | It reports how many summaries are unrouted and how old the oldest is, and names the destination taxonomy in its help |
-| AC-7 | A summary sits unrouted past the agreed age | `./le doc check verify` reports it. The gate counts unrouted AGE, never total count (R-5) |
+| AC-6 | `./le journal report` runs | It retains its existing recurrence report, adds the count and oldest age of the defined unrouted population, and names the destination taxonomy in its help |
+| AC-7 | A record in the defined residual population sits unrouted past the agreed age | `./le doc check verify` reports it. The gate counts unrouted age, preserves direct routing and never requires a closure summary (R-5) |
 | AC-8 | The pilot's numbers do not justify the full pass | The spec records that plainly and the full pass is not done. A pilot that says no is a successful pilot |
 | AC-9 | Any tool this spec adds | Appears in `ai/INDEX.md` Dev Tools in the same phase that creates it |
 | AC-10 | Any tool this spec adds that rewrites a file | Preserves the file's mode, with a test that fails when the restoration is removed |
@@ -200,7 +222,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | `test_queue_reports_unrouted_age` | `internal/le/` | AC-6 | |
 | `test_gate_counts_age_not_total` | `internal/le/` | AC-7, R-5 | |
 | `test_target_declared_in_doc_test` | `internal/le/` | wiring | |
-| `test_close_skill_names_the_routing_step` | `internal/le/` | wiring | |
+| Direct-routing closure check | current closure skill and governing destination | a needed lesson reaches its home without a mandatory summary | |
 | `test_rewrite_preserves_mode` | `internal/le/` | AC-10 | |
 
 ### Boundary Tests (numeric inputs)
@@ -212,24 +234,24 @@ These are not anecdotes. Each one changes a design decision in this spec.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `learned_queue_test.py` | `internal/le/` | An agent runs `./le journal report` and sees what is unrouted and how stale | |
+| Unrouted-age report fixture | native journal test surface, exact location to be designed | An agent sees both recurrence data and the unrouted population without confusing the two | |
 
 ### Interop Tests (Scope: protocol)
 N-A. Scope is tooling. No wire-visible behavior changes.
 
 ## Files to Modify
 
-- `ai/skills/ze-close.md` - a routing step after the summary is written
-- `ai/rules/planning.md` - "Writing Learned Summaries" states the lifecycle: written, routed, removed
-- `internal/le/doc/check/actions.go` - declare `ze-learned-queue`, add it to `./le doc check verify`
+- `ai/skills/ze-close.md` - reconcile lesson routing with the governing direct-routing rule if drift remains; do not add an intermediate summary
+- `ai/rules/planning.md` - preserve direct routing and conditional journal creation; only add an approved residual-age contract
+- `internal/le/doc/check/actions.go` - register the residual-age guard after its population is defined
 - `ai/INDEX.md` - Dev Tools row, in the same phase (AC-9)
+- `internal/le/journal/report.go` and its owning producer - extend the existing answer without replacing recurrence reporting (AC-6)
 - `ai/rules/repo-maintenance.md` - discovery-surface row
 
 ## Files to Create
 
-- `internal/le/journal/report.go` - the queue-depth reporter and gate
-- `internal/le/` - its tests
-- the retired deferral shard "knowledge-routing" - deferral shard
+- native journal and documentation-check tests for the new behavior, at locations chosen during design
+- no replacement deferral shard; any residual implementation scope needs its own spec under the current lifecycle
 - a documentation-gap list, location decided at the pilot (AC-2)
 
 ### Integration Checklist
@@ -238,8 +260,8 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | YANG schema (new RPCs/config) | N-A | No config surface; agent tooling only |
 | YANG validation constraints | N-A | No YANG leaf |
 | YANG custom validators | N-A | No YANG leaf |
-| CLI commands/flags | N-A | Make targets only, no `ze` subcommand |
-| CLI grammar (keyword before value) | N-A | No CLI command |
+| CLI commands/flags | Yes | Proposed extension to `./le journal report` and a native documentation check |
+| CLI grammar (keyword before value) | Yes | Preserve the native action grammar |
 | Editor autocomplete | N-A | No YANG leaf |
 | Functional test for new RPC/API | N-A | No RPC; covered by `internal/le/` |
 | Pipe completeness | N-A | No `ze` command output |
@@ -253,7 +275,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | No | Agent tooling |
 | 2 | Config syntax changed? | No | No config surface |
-| 3 | CLI command added/changed? | No | Make targets only |
+| 3 | CLI command added/changed? | Yes | Document the native journal report extension and age-check contract in `docs/contributing/documentation-testing.md` |
 | 4 | API/RPC added/changed? | No | No RPC |
 | 5 | Plugin added/changed? | No | No plugin |
 | 6 | Has a user guide page? | No | Contributor tooling |
@@ -271,30 +293,33 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 ## Implementation Steps
 
-1. **Phase: The pilot (MANDATORY FIRST, and it may end the spec)** -- one
-   subsystem of 30 to 50 summaries. Classify every one against the taxonomy,
-   proving `ALREADY-THERE` by quoting the target. Route 5 for real across at
-   least three destinations. Measure `docs/architecture/` before and after.
-   - Tests: none yet; this phase produces numbers
-   - Verify: the ratio table, the gap list, the growth measurement. **If the
-     ratio does not justify the full pass, record that and STOP (AC-8)**
-2. **Phase: Wiring** -- declare `ze-learned-queue` and its `ai/INDEX.md` row
-   before the checker works, with failing tests
-   - Tests: `test_target_declared_in_doc_test`, `test_close_skill_names_the_routing_step`
-3. **Phase: The queue gate** -- implement the reporter, counting unrouted AGE
-   rather than total count
-   - Tests: `test_queue_reports_unrouted_age`, `test_gate_counts_age_not_total`, `test_rewrite_preserves_mode`
-4. **Phase: The lifecycle** -- `ze-close.md` gains the routing step,
-   `planning.md` records written-routed-removed
-5. **Phase: Waves** -- route the remaining subsystems, one commit per wave,
-   re-running both gates before and after each
+1. **Phase: Current population and pilot design**: inventory eligible records
+   and define evidence for routed versus unrouted state. Preserve the original
+   30-to-50 pilot scope; an insufficient current population goes to the owner
+   before execution. Decide the residual age threshold and exact native test
+   surfaces without changing the direct-routing lifecycle.
+2. **Phase: Pilot**: classify every selected record, prove `ALREADY-THERE` at
+   the target, route five across at least three destinations, and measure
+   architecture-document growth. Produce the ratio table and documentation-gap
+   list. Delete nothing. If the ratio does not justify a full pass, record that
+   result and stop the full pass under AC-8.
+3. **Phase: Wiring and report**: extend the native journal report without
+   replacing recurrence data, register the documentation-check entry point,
+   and add discovery documentation in the same phase. Prove both entry points
+   against the defined population.
+4. **Phase: Age guard**: prove over-age refusal, already-routed admission and
+   file-mode preservation where a tool rewrites content. The guard must not
+   make a new summary a closure prerequisite.
+5. **Phase: Remaining batches**: route only the justified current population,
+   with destination proof and current gates before and after each batch.
+   Later deletions require explicit permission; the pilot grants none.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation |
 | Correctness | Every test for a guard asserts the REFUSAL, never the fallback. This is the defect the previous pass shipped and the reviewer caught |
-| Correctness | The queue gate counts unrouted AGE, so it can never become a reason to skip writing a summary |
+| Correctness | The age gate cannot suppress a governing update, require a closure summary or turn a historical record's existence into proof that it is unrouted |
 | Correctness | Any ceiling asserts EQUALITY with the measured count, never merely bounds it |
 | Data flow | Routed content is merged into an existing section, never appended as a new one |
 | Evidence | Every `ALREADY-THERE` verdict quotes a line from the target file |
@@ -307,9 +332,9 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 |-------------|---------------------|
 | The pilot ratio table | present in this spec, one row per destination with counts |
 | The documentation-gap list | a file, with one row per un-routable item and the document that should hold it |
-| Five routed summaries | `git diff` over the five target files, plus `check_doc_links.py` green |
+| Five routed records | inspect the target edits and both native documentation checks; pilot records remain intact |
 | `docs/architecture/` growth measured | line counts before and after, under 3 per routed item |
-| `./le journal report` | runs and reports |
+| `./le journal report` | reports the residual population while preserving recurrence output |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -328,10 +353,10 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 ## Design Insights
 
-- The un-routable set measures documentation debt. That reading is available
-  today and has never been taken.
-- `plan/learned/` being large is a symptom of a queue nobody drains, not of
-  people over-recording.
+- The un-routable set measures missing documentation; its current size is
+  unknown until the inventory and destination checks run.
+- A historical record can remain after its lesson is routed. Record count
+  alone cannot establish a queue or justify deletion.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -345,8 +370,8 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 - Routing is a judgement call and is not reproducible in the way a gate is.
   AC-5 measures the disagreement rate rather than assuming it is zero.
-- The queue gate can prove a summary is unrouted. It cannot prove a routed one
-  landed in the RIGHT home.
+- The proposed age guard needs an explicit routed-state contract before it can
+  classify records. It cannot prove that the chosen destination is correct.
 - `docs/architecture/` has no size gate today, so R-1 is measured rather than
   enforced.
 
@@ -372,6 +397,6 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] Route any lesson directly to its governing surface; write a journal row only when no surface governs it
+- [ ] Commit A preserves the code, evidence, documentation and edited spec under the current closure workflow
+- [ ] Commit B removes only the reviewed spec through the same generated commit script

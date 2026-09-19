@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Scope | cli -- the DISPLAY half only. The action move (AC-5, Phase 5, and the rows moving `raw`, `update`, `announce` and `withdraw` to `request peer`) is superseded by `spec-fixit-send-names-its-destination`, which respells them `request send bgp <selector> <form>` |
+| Scope | cli: display selectors only. The action-path move was superseded by `spec-fixit-send-names-its-destination`; current send forms are documented in `docs/architecture/api/commands.md` |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
@@ -52,18 +52,10 @@ selector: `request peer <sel> teardown <n>`, `delete bgp peer <sel>`,
 action in the inventory. No action is converted by this spec, and none is
 recorded as future conversion work.
 
-He then set WHERE an action's selector sits, verbatim and in order:
-
-> it should be request peer raw ...
-
-> request peer <sel> raw ...
-
-So an action's selector does not merely stay, it MOVES to the front. The target
-form is `request peer <sel> raw [<type>] <encoding> <data>`, which is the shape
-`request peer <sel> teardown <subcode>` already publishes. Two peer action roots
-exist today, the top-level `peer` and `request peer`, and this consolidates on
-the second. That is a path change, not a pipe conversion: the selector stays
-positional and stays mandatory throughout.
+The earlier action-placement ruling is retained in Q1a as history. Its proposed
+move to `request peer` was superseded by `spec-fixit-send-names-its-destination`.
+This spec changes no action path; the current `send bgp` contract is documented
+in `docs/architecture/api/commands.md`.
 
 The symptom that opened this is `show bgp peer list`. `container peer` declares
 `leaf selector { mandatory true; }`, so the token after `peer` is a peer name.
@@ -135,7 +127,6 @@ whole, and then left alone.
 - The eight DISPLAY command nodes in classes S-inherited and S-own lose their positional selector and gain `| limit <selector>`: the six under `show bgp peer`, plus `show policy chain peer` and `show policy test peer`.
 - `show bgp peer list` loses the `ze:inherit "none"` shape, because the ancestor it declines no longer declares a selector. `request interface migrate` KEEPS it: `container interface` keeps `leaf name`, since every command under it is an action. The extension therefore keeps one user and is not deleted.
 - `show bgp rib`'s `| peer <sel>` filter is respelled `| limit <sel>`: it is the same concept under a second name, which habit 1 of `ai/rules/writing.md` bans.
-- Four action subtrees move from the top-level `peer` root to `request peer`, so their selector is typed before the verb: `raw`, `update`, `announce` and `withdraw`. The selector stays positional and mandatory, and no wire method changes.
 - Class K: pending Thomas's answer to Q3, and only its 21 display nodes are candidates. Class A is untouched.
 
 **Behavior to preserve, added by the narrowing:**
@@ -155,7 +146,7 @@ whole, and then left alone.
 6. The handler receives `ctx.Peer` (the extracted selector) and `args` (the trailing tokens, which now include any folded filter). `filterPeersByArgs` prefers `args[0]` over `ctx.PeerSelector()`.
 7. Whatever the handler answers is rendered through `ApplyPipes` with the local chain.
 
-Under this spec, step 5's positional extraction is deleted for the eight display commands alone, and for those eight step 4 becomes the only route by which a selector reaches step 6. Every action command keeps step 5 unchanged, and the four moved subtrees keep it too: they change which container declares the selector, not how it is extracted.
+Under this spec, step 5's positional extraction is deleted for the eight display commands alone, and for those eight step 4 becomes the only route by which a selector reaches step 6. Every action command keeps its existing selector handling and command path.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -169,7 +160,7 @@ Under this spec, step 5's positional extraction is deleted for the eight display
 - `command.RegisterPipeFilters` - the registration each converted command's owner package calls to declare `limit`.
 - `command.RegisterAliases` - where `extensive` would live if Q2 answers that it is a fixed expansion rather than a distinct server call.
 - `grammar.CheckNode` - where the new rule is enforced over the YANG tree.
-- `pluginserver.RPCRegistration.RequiresSelector` - untouched. It guards action commands, and no action command is converted. The four moved subtrees keep their registrations byte for byte, because a move changes the command path and not the wire method.
+- `pluginserver.RPCRegistration.RequiresSelector` - untouched. It guards action commands; this spec changes neither their registration nor their wire method.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -227,29 +218,9 @@ decides them with the rest of class K rather than this spec converting them.
 `show bgp rib`'s existing `| peer <sel>` filter is a ninth surface, a rename
 rather than a conversion, and Q4 decides whether it lands here.
 
-**Also in scope, and not a pipe conversion: the four action subtrees that move.**
-The top-level `peer` root is contributed by three modules, and the merged tree
-gives it four children carrying eight command nodes. Each moves under
-`request peer`, which already declares the mandatory selector the moved commands
-then inherit.
-
-| Child of top-level `peer` | Command nodes | Module | Form today | Form after |
-|---|---|---|---|---|
-| `raw` | 1 | `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` | `peer raw <sel> [<type>] <encoding> <data>` | `request peer <sel> raw [<type>] <encoding> <data>` |
-| `update` | 1 | `internal/component/bgp/plugins/cmd/update/yang/ze-update-cmd.yang` | `peer update <sel> <payload>` | `request peer <sel> update <payload>` |
-| `announce` | 3 (`unicast`, `blackhole`, `flowspec`) | `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` | `peer <sel> announce <form> ...` | `request peer <sel> announce <form> ...` |
-| `withdraw` | 3 (`tag`, `id`, `all`) | same | `peer <sel> withdraw <form> ...` | `request peer <sel> withdraw <form> ...` |
-
-The move also closes an inconsistency that needed no separate fix. `raw` and
-`update` redeclare `selector` ON the command node, so the model publishes
-`peer raw <sel>` while `announce` and `withdraw` publish `peer <sel> announce`.
-Under `request peer <sel> <verb>` all four read alike, and the asymmetry has
-nothing left to sit in.
-
-The bare announce and withdraw paths (`announce unicast <prefix>`, reaching every
-peer) are a second instantiation of the same groupings and are NOT moved. They
-are the deliberate every-peer form, and Thomas named neither them nor a change
-to them.
+The earlier action-move inventory is superseded. `raw`, `update`, `announce`
+and `withdraw` paths are outside this display conversion; their migration and
+sender audit must not be repeated here. Q1a preserves the earlier ruling.
 
 Four rows below (`id`, `tag`, `blackhole`, `unicast`) are grouping bodies in
 `ze-cli-announce-cmd.yang`, instantiated at two paths each: bare, and under
@@ -294,10 +265,8 @@ keep their positional selector.
 
 #### Class S-own (6 nodes)
 
-The two `show policy` rows are the display half and convert. `delete bgp peer`
-and `request cache forward` are actions and are unchanged. `peer raw` and
-`peer update` are actions that MOVE under `request peer`, keeping a positional
-selector.
+The two `show policy` rows are the display half and convert. The action rows
+below are a historical census and authorise no path changes in this spec.
 
 | Command path | Value slot | Module |
 |---|---|---|
@@ -406,33 +375,10 @@ The display commands, which are the whole of the pipe conversion.
 | `show policy chain peer <sel>` | `show policy chain \| limit <sel>` |
 | `show policy test peer <sel> direction <d> update hex <x>` | `show policy test direction <d> update hex <x> \| limit <sel>` |
 
-The action commands, which keep a positional mandatory selector. Four of them
-move so the selector is typed before the verb.
-
-| Before | After |
-|--------|-------|
-| `request peer <sel> teardown <subcode>` | unchanged; it is already the target shape |
-| `request peer <sel> pause` | unchanged |
-| `request interface <name> up` | unchanged |
-| `request interface migrate from <a> to <b> address <p>` | unchanged, `ze:inherit "none"` included: `container interface` keeps `leaf name` |
-| `delete bgp peer <sel>` | unchanged (Q7 asks whether it moves under `request`) |
-| `update bgp peer <sel> prefix` | unchanged (Q7) |
-| `peer raw <sel> [<type>] <encoding> <data>` | `request peer <sel> raw [<type>] <encoding> <data>` |
-| `peer update <sel> <payload>` | `request peer <sel> update <payload>` |
-| `peer <sel> announce unicast <prefix>` | `request peer <sel> announce unicast <prefix>` |
-| `peer <sel> withdraw all` | `request peer <sel> withdraw all` |
-| `announce unicast <prefix>` (the bare every-peer path) | unchanged |
-
-**`peer raw` is the clearest illustration of the rule Thomas drew, because
-converting it would have been wrong twice over.** `peer raw` injects
-unvalidated, unframed bytes into ONE peer's TCP stream for conformance testing
-and fuzzing, so `handleRaw` registers `RequiresSelector: true` and calls
-`pluginserver.ResolveSinglePeer`, which REFUSES the wildcard. A pipe segment
-carries neither property: an absent filter means "no filter", so the conversion
-would have turned "cannot omit the target, cannot say all" into "omitting the
-filter means every peer". The shorthand was wrong too. The real form is
-`bgp peer <addr> raw [<type>] <encoding> <data>`, documented on `handleRaw`
-itself, so `<bytes>` hid three operator-typed arguments.
+Action commands retain their current paths and mandatory selectors. No action
+gains a `limit` filter, and the existing single-peer and selector-presence
+guards remain intact. The earlier before/after action table was superseded
+with the action-move scope.
 
 ## Open Questions (BLOCKING -- Thomas decides)
 
@@ -441,7 +387,7 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | ID | Question | Thomas's answer, verbatim | What it settled |
 |----|----------|---------------------------|-----------------|
 | Q1 | Does the rule reach ACTION commands, or DISPLAY commands only? | "no request is not a display limit it is a command limit so request is not changed" | Display only. The pipe narrows an answer; an action has no answer to narrow. Every action keeps its positional selector. Not to be re-opened. |
-| Q1a | Where does an action's selector sit? | "it should be request peer raw ..." then "request peer <sel> raw ..." | Positional and before the verb. The four children of the top-level `peer` root move under `request peer`. |
+| Q1a | Where does an action's selector sit? | "it should be request peer raw ..." then "request peer <sel> raw ..." | Historical ruling. The proposed `request peer` move was superseded by `spec-fixit-send-names-its-destination`; it is no longer an instruction or a readiness gate here. |
 | Q7 | Do `delete bgp peer <sel>` and `update bgp peer prefix` move under `request` as well? | "request lead to a change in the system, like create, delete or update but it is when the action is neither of the three" | No. `request` is the residual of the other three, so a command that deletes or updates never reaches it. `delete bgp peer <sel>` removes the peer from the running config, and `update bgp peer prefix` refetches the max-prefix limits and rewrites them. Both stay where they are. `docs/architecture/cli/command-verbs.md` carries the family test. |
 
 ### Open
@@ -452,7 +398,7 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | Q3 | Does the rule reach class K, whose value is typed by a `name`/`id`/`type`/`key` keyword? | The narrowing leaves 21 display nodes in scope for this question: the 18 display members of class K, plus the three `show pki certificate name` export forms re-classified into it. `show interface name <n> detail` already satisfies the ambiguity test, because `name` is a keyword and no slot accepts both a keyword and a name, so the rule's ambiguity clause does not bind them. Its uniformity clause arguably does: `show interface \| limit <n> \| extensive` is the same sentence as the peer one. Converting them is 21 more nodes across 15 YANG modules, against 8 nodes in 2 modules in the spec as it stands. |
 | Q4 | `show bgp rib` today has `\| peer <sel>`, which is `\| limit <sel>` under a second name. Rename it? | Recommended yes, on habit 1 of `ai/rules/writing.md`. It is listed as in-scope above; the question is whether Thomas wants it in this spec or separately. |
 | Q5 | What does an operator who types the old form see? | Ze is unreleased, so `ai/rules/cli.md` says an unreleased grammar is replaced outright, not deprecated. `internal/component/config/retired.go` is CONFIG-only and offers no mechanism here. The old form therefore fails as an unknown command with the existing `suggest.Command` hint. A message naming the replacement would be new machinery. |
-| Q6 | What becomes of the top-level `peer` root once its four children move under `request peer`? | Nothing is left under it, and it carries a description, `ze:help` text and a `leaf selector` that three modules share. `ze-cli-announce-cmd.yang` records that `ze-raw-cmd.yang` owns the description because `mergeYANGEntry` warns when two modules describe one node differently. Deleting it and keeping it for something else are both coherent, and neither is implied by what Thomas said. |
+| Q6 | What becomes of the former top-level `peer` action root? | Superseded with the action move. This spec neither decides nor implements its removal; it preserves the current action grammar. |
 
 ## Risks & Assumptions
 
@@ -464,19 +410,17 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | A-3 | `limit` collides with no registered alias or filter | `RegisterAliases` and `RegisterPipeFilters` each panic on an overlapping-path name collision; no catalog operator is named `limit` and no alias is | the daemon panics at init | `./le verify current mode full` starting the daemon in the functional suite; a unit test asserting the registration does not panic | unvalidated |
 | A-4 | Removing `container list` changes the field set the bare command answers, not the peer population | `handleBgpPeerList` and `handleBgpPeerDetail` both call `filterPeersByArgs` over `ctx.Reactor().Peers()` | the bare form would silently answer a different peer set, which is a correctness change nobody asked for | `TestBarePeerAnswersEveryPeer` comparing the bare answer's row count to the reactor peer count | unvalidated |
 | A-5 | The selector slot has no value completion today, so the conversion loses none | no `ValueHints` is wired for any peer or interface node; `pipeSubArgs` holds `json` and `fill` alone | the change would remove working peer-name completion, which is a regression | a `.ci` under `test/ui/` asserting what `show bgp peer <TAB>` offers before and after | unvalidated |
-| A-6 | Two components own the eight converted commands, and four modules own the moved subtrees; each owns its own registration | the Module column of the inventory: `cmd/peer` and `cmd/policy` convert, `cmd/raw`, `cmd/update`, `cmd/announce` and `cmd/peer` carry the move | a central edit would be needed, which `ai/rules/principles.md` forbids | the implementation touches only owner packages; `./le tier check` | unvalidated |
+| A-6 | Two components own the eight converted commands; each owns its registration | `cmd/peer` and `cmd/policy` in the display inventory | a central edit would be needed, which `ai/rules/principles.md` forbids | the implementation touches owner packages; `./le tier check` | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | The move re-paths four commands, and a programmatic sender still spells the old path | a `.ci`, a web route, a plugin or an SDK example sends `peer raw ...` and gets an unknown command | `ai/rules/cli.md`: "a rename of a programmatic command path breaks the wire, so every programmatic sender MUST be found first". The move phase starts by finding every sender of the eight moved wire methods' paths, and it lands with them |
 | R-8 | The collision DERIVER outlives the grammar it was written for, and reserves five more names nobody can collide with | `PeerSubcommandKeywords` (`internal/component/plugin/server/rpc_register.go`) marks a verb Colliding when no mandatory `ArgDef` anchored to `peer` sits between the keyword and the verb, and config validation then refuses a peer carrying that word as its name. Today `list` alone collides under `show bgp peer`. Deleting the `show bgp peer` selector makes all six collide, so `capabilities`, `detail`, `history`, `rib` and `statistics` become unusable peer names | the derivation reads the merged tree, so it follows the change with no edit, and that is the problem rather than the reassurance. Its rule encodes an assumption the conversion removes: that a peer NAME can be typed immediately after `peer`. On a converted `show` path no name is ever typed there, because narrowing moved into the pipe, so a verb sitting next to `peer` is not a collision and refusing it costs an operator five ordinary words for nothing. The deriver was already wrong once this way, in `759246cb1`, where it read adjacency in a path string and ignored the mandatory selector between; this is the same mistake arriving from the other direction, as the selector is taken away rather than overlooked. So the conversion phase owes the deriver an edit: it asks whether a name can reach that position AT ALL for the path's class, display or action, and reports Colliding only where one can. The phase asserts the Colliding set before and after, and the expected answer for a converted `show` node is EMPTY |
-| R-7 | The move puts four action commands inside `request peer`'s web surface | `container request/peer` carries `ze:ui-resource "bgp-peer/index.html"` and `ze:ui-permissions "network"`, which the moved children inherit | the move phase asserts the permission each moved command answers under, before and after. A command that gains or loses a permission by moving is a defect, not a side effect to accept |
 | R-2 | `limit` registered on `show bgp` shadows the RIB plugin's own filter set, or the reverse | `RegisterPipeFilters` panics at init, or `show bgp rib \| limit` reports an unknown filter | lookup is longest-prefix, so `show bgp rib` needs its own `limit` entry rather than inheriting one; Q4 settles the rename in the same edit |
 | R-3 | The grammar gate cannot express the new rule, so it is enforced by review alone | the checker has no rule id for it and `./le cli-grammar` stays green over an unconverted node | the rule lands as a new rule id in `grammar.CheckNode` with the population count printed, before the first conversion |
 | R-4 | Completion offers `limit` but cannot complete its argument, so the operator gets less help than the positional form gave | `pipeSubArgs` is a hand-written map with two entries | A-5 says the positional form offers nothing either; if it turns out to, the spec gains a value-hint route for filter arguments |
 | R-5 | Documentation and demos carry the old forms in prose and in recorded terminal sessions | `./le cli-grammar` reads `demos/terminal/` sources and refuses a non-verb position-1 token; the doc pages carry the six-row incorrect/correct table verbatim | the doc and demo edits land in the same phase as the YANG edit, never in a closing pass (`ai/rules/documentation.md`) |
-| R-6 | The package grows past one spec's worth of work | the phase list stops converging | the narrowing already cut it from 89 nodes to 8 conversions plus 8 moved nodes. Class K adds 21 only if Q3 says yes, and it is a phase the main thread can re-cut out |
+| R-6 | The package grows beyond its display-conversion scope | the phase list adds action-path work | Keep the eight display conversions separate from the superseded action move; class K adds 21 display nodes only if Q3 says yes |
 
 ## Blast Radius
 
@@ -495,8 +439,6 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | operator types `show bgp peer` with no pipe | → | `handleBgpPeerList` over every peer | `test/ui/limit-bare-peer-answers-all.ci` |
 | operator types `\|` and presses Tab after `show bgp peer` | → | `pipeExtras` returns the owned `limit` filter | `TestCompletionOffersLimitUnderShowBgpPeer` |
 | a YANG node declares a mandatory selector in a path slot | → | `grammar.CheckNode` new rule | `TestCheckerRefusesAPositionalSelector` |
-| operator types `request peer edge1 raw update hex 0102` | → | the moved node under `request peer`, `handleRaw` reading `[<type>] <encoding> <data>` | `test/ui/raw-moves-under-request-peer.ci` |
-| operator types `peer raw edge1 hex 0102`, the old path | → | no node matches; the dispatcher refuses | `test/ui/raw-old-path-is-refused.ci` |
 
 ## Acceptance Criteria
 
@@ -506,12 +448,12 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | AC-2 | `show bgp peer` typed with nothing after it, against a daemon with three configured peers | Answers a row for each of the three, in the one-line field set `list` answered before: name, address, ASN, state, uptime. |
 | AC-3 | `show bgp peer \| limit <sel>` for each selector kind: an address, a peer name, `as65001`, a glob, a comma list, `*` | Answers exactly the peers `peersel.ParseDefault` matches, and the narrowing happens in the daemon: the answer sent over the wire carries the matched peers alone. |
 | AC-4 | `show bgp peer \| limit <sel> \| <shape>` | Both operators take effect: the answer is narrowed to the selector AND shaped by the second operator. The chain order is honored. |
-| AC-5 | `raw`, `update`, the three `announce` forms and the three `withdraw` forms | All eight are reached at `request peer <sel> <verb> ...`, and each still refuses an invocation with no selector. The old top-level `peer ...` paths match nothing. `handleRaw` still reads `[<type>] <encoding> <data>` and `ResolveSinglePeer` still refuses the wildcard. |
+| AC-5 | Superseded action-move criterion | No action migration is owed by this spec. The current action paths and selector guards are preserved under AC-9 |
 | AC-6 | `show bgp rib \| limit <sel>` | Narrows by peer, and `\| peer <sel>` is no longer a spelling of it. |
 | AC-7 | Tab pressed after `\|` on any converted command | `limit` is offered, with its description. |
 | AC-8 | `./le cli-grammar` over the real checkout | Passes, and prints the size of the population it read for the new rule. A YANG node reintroducing a positional selector makes it fail, naming the node. |
 | AC-9 | Every action command in the inventory | Keeps a mandatory positional selector, gains no `limit` filter, and refuses a selector-less invocation exactly as it does today. No action command is reachable through a pipe. |
-| AC-10 | Every documentation page, rule file and terminal demo that showed a converted or moved command | Shows the new form. `docs/architecture/cli/root-namespace-grammar.md`, `ai/rules/cli.md` and `ai/patterns/cli-command.md` state the new grammar and no longer state the old one. |
+| AC-10 | Every documentation page, rule file and terminal demo that showed a converted display command | Shows the new display form. `docs/architecture/cli/root-namespace-grammar.md`, `ai/rules/cli.md` and `ai/patterns/cli-command.md` state the display grammar while preserving the current action grammar |
 
 ## End-to-End User Stories
 
@@ -521,7 +463,6 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | 2 | types `show bgp peer \| limit edge1` to see one peer | CLI → `foldFilters` → command string → dispatcher → `filterPeersByArgs` | `test/ui/limit-narrows-to-one-peer.ci` |
 | 3 | types `show bgp peer \| limit edge1 \| extensive` for one peer in full | CLI → `expandAliases` → `foldFilters` → daemon → `ApplyPipes` with the shaping operator | `test/ui/limit-then-shape-chains.ci` |
 | 4 | presses Tab after `show bgp peer \|` | `completePipeForCommand` → `pipeExtras` → `filterSuggestions` | `test/ui/limit-completes-after-pipe.ci` |
-| 5 | injects a raw message into one peer for a conformance test | CLI → `request peer <sel> raw` → `ResolveSinglePeer` → `SendRawMessage` | `test/ui/raw-moves-under-request-peer.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -537,7 +478,6 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | `TestBarePeerAnswersEveryPeer` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | the bare command's row count equals the reactor's peer count | |
 | `TestLimitSelectsEachSelectorKind` | `internal/component/bgp/plugins/cmd/peer/peer_test.go` | address, name, `as65001`, glob, comma list and `*` each match the same peers they matched positionally | |
 | `TestNoActionCommandOwnsALimitFilter` | `internal/component/command/pipe_filter_test.go` | every registered `limit` filter sits on a `show` path; an action path owns none | |
-| `TestMovedPeerActionsResolveUnderRequest` | `internal/component/bgp/plugins/cmd/raw/raw_test.go` | the eight moved wire methods are reached at `request peer <sel> <verb>`, and the old top-level path matches nothing | |
 | `TestInheritExtensionHasOneUser` | `internal/component/config/yang/...` | `request interface migrate` is the only `ze:inherit "none"` node left, so the extension stays | |
 
 ### Boundary Tests (numeric inputs)
@@ -553,8 +493,6 @@ itself, so `<bytes>` hid three operator-typed arguments.
 | `limit-then-shape-chains` | `test/ui/limit-then-shape-chains.ci` | narrowing and shaping compose in one chain | |
 | `limit-completes-after-pipe` | `test/ui/limit-completes-after-pipe.ci` | Tab after `\|` offers `limit`; Tab in the old selector position offers no peer value, because the slot is gone | |
 | `limit-old-form-is-refused` | `test/ui/limit-old-form-is-refused.ci` | `show bgp peer list` and `show bgp peer edge1 detail` are both refused, and the refusal names the command | |
-| `raw-moves-under-request-peer` | `test/ui/raw-moves-under-request-peer.ci` | the operator injects raw bytes at `request peer <sel> raw hex <octets>`, and the wildcard is still refused | |
-| `raw-old-path-is-refused` | `test/ui/raw-old-path-is-refused.ci` | `peer raw <sel> ...` and `peer <sel> announce unicast ...` match nothing, and the refusal names the command | |
 
 ### Interop Tests (Scope: protocol)
 Not applicable. This is a CLI grammar change with no wire-visible effect on any
@@ -565,9 +503,6 @@ sessions the converted commands act on are unchanged in every byte they send.
 ## Files to Modify
 - `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` - remove the `leaf selector` of `show bgp peer` and the `ze:inherit "none"` on `list`; rewrite the `ze:help` text that describes the positional selector. The `request peer`, `update bgp peer` and `delete bgp peer` selectors STAY: those are actions
 - `internal/component/bgp/plugins/cmd/policy/yang/ze-policy-cmd.yang` - remove the two `leaf selector` declarations
-- `internal/component/bgp/plugins/cmd/raw/yang/ze-raw-cmd.yang` - move `container raw` under `request/peer`; its `leaf selector` is deleted because `request peer` already declares one. The top-level `container peer` and the description three modules share go with Q6
-- `internal/component/bgp/plugins/cmd/update/yang/ze-update-cmd.yang` - the same move for `container update`
-- `internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang` - move the `peer` instantiation of both groupings under `request/peer`; the bare instantiation stays
 - `internal/plugins/pki-cmd/yang/ze-pki-cmd.yang` - only if Q3 says yes
 - `internal/component/bgp/plugins/cmd/peer/peer.go` - register the `limit` filter for the six converted `show bgp peer` paths. No `RequiresSelector` registration changes
 - `internal/component/bgp/plugins/cmd/rib/rib.go` - rename the `peer` filter to `limit` (Q4)
@@ -578,8 +513,8 @@ sessions the converted commands act on are unchanged in every byte they send.
 - `docs/architecture/cli/root-namespace-grammar.md` - rewrite the command shape block and the incorrect/correct table (Design doc of `grammar/checker.go`)
 - `docs/architecture/cli/command-namespacing.md` - the Design doc `grammar/checker.go` declares
 - `docs/architecture/api/commands.md` - the Design doc of `pipe.go`, `pipe_filter.go`, `pipe_catalog.go`, `alias.go`, `completer.go`, `peer.go` and `rib.go`; it carries the pipe operator language and the command-owned filter section
-- `docs/guide/command-reference.md` - every converted and moved command's published form
-- `demos/terminal/` - any recorded session typing a converted or moved command
+- `docs/guide/command-reference.md` - every converted display command's published form
+- `demos/terminal/` - any recorded session typing a converted display command
 - `plan/journal/command-takes-an-untyped-positional-value.md` - the row this spec answers (see Known Limitations)
 
 ## Files to Create
@@ -588,13 +523,11 @@ sessions the converted commands act on are unchanged in every byte they send.
 - `test/ui/limit-then-shape-chains.ci` - two operators compose
 - `test/ui/limit-completes-after-pipe.ci` - the completion surface follows the tree
 - `test/ui/limit-old-form-is-refused.ci` - the old display grammar is gone rather than aliased
-- `test/ui/raw-moves-under-request-peer.ci` - the moved action is reached at its new path and still refuses a wildcard
-- `test/ui/raw-old-path-is-refused.ci` - the top-level `peer ...` paths match nothing
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | the six modules named in Files to Modify; no RPC is added or removed. Two display modules lose a value slot, and four action subtrees change the container they hang under |
+| YANG schema (new RPCs/config) | Yes | The display modules named in Files to Modify lose a positional value slot; no action subtree moves |
 | YANG validation constraints | Yes | the deleted leaves carried `type string` with no constraint; the `limit` argument is validated by `validateFilter` and `maxArgLength` instead |
 | YANG custom validators | N-A | the selector vocabulary is parsed by `peersel.ParseDefault` at the handler, which is unchanged |
 | CLI commands/flags | Yes | `internal/component/bgp/plugins/cmd/peer/peer.go` and every other owner package registering `limit` |
@@ -624,7 +557,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 | 12 | Internal architecture changed? | Yes | `docs/architecture/cli/root-namespace-grammar.md`, `docs/architecture/cli/command-namespacing.md` |
 | 13 | Route metadata keys added/changed? | No | no metadata key |
 | 14 | Prometheus counters added/changed? | No | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/guide/status.md` -- 8 display commands change their published form and 8 action commands change their path |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/guide/status.md`: eight display commands change their published form; action paths are unchanged |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: `./le spec citation anchors spec plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md`. The `// Design:` headers of the changed Go files declare `docs/architecture/api/commands.md` and `docs/architecture/cli/command-namespacing.md`, and both are named above |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | every example typing a converted command, in `docs/`, in `ai/`, and in `demos/terminal/` |
 
@@ -646,10 +579,8 @@ sessions the converted commands act on are unchanged in every byte they send.
    - Tests: one `.ci` for each, asserting `direction`, `filter`, `update` and `source-asn4` still sit in the path
    - Files: `ze-policy-cmd.yang`, the policy handler's registration
    - Verify: the gate reaches zero for the display half
-5. **Phase: the action move** -- `raw`, `update`, `announce` and `withdraw` from the top-level `peer` root to `request peer`
-   - Tests: `TestMovedPeerActionsResolveUnderRequest`, `test/ui/raw-moves-under-request-peer.ci`, `test/ui/raw-old-path-is-refused.ci`
-   - Files: `ze-raw-cmd.yang`, `ze-update-cmd.yang`, `ze-cli-announce-cmd.yang`, plus every programmatic sender of the eight moved paths, found FIRST (`ai/rules/cli.md`, R-1)
-   - Verify: each moved command answers at `request peer <sel> <verb>`; `RequiresSelector` and `ResolveSinglePeer` still refuse what they refused; the permission each command answers under is unchanged (R-7); Q6 answered before the top-level `peer` container is touched
+5. **Superseded phase: action move.** No implementation in this spec. AC-9
+   preserves action selector guards while the display paths change.
 6. **Phase: class K** -- only if Q3 answers yes, over its 21 display nodes
    - Tests: per-component, same shape as phase 4
    - Files: the components in the class K table that own a display node
@@ -677,7 +608,6 @@ sessions the converted commands act on are unchanged in every byte they send.
 |-------------|---------------------|
 | No DISPLAY command declares a mandatory positional selector | `./le cli-grammar` prints zero findings for the new rule and a non-zero population |
 | `ze:inherit` has exactly one user | `grep -rn 'ze:inherit' internal --include='*.yang'` names `request interface migrate` and nothing else |
-| The moved actions answer at their new path | `test/ui/raw-moves-under-request-peer.ci` and `test/ui/raw-old-path-is-refused.ci` |
 | `limit` is registered for every converted command | a unit test walking the converted command paths and asserting `PipeFiltersForCommand` names `limit` |
 | The bare form answers for all | `test/ui/limit-bare-peer-answers-all.ci` |
 | Narrowing is server-side | `test/ui/limit-narrows-to-one-peer.ci` asserting the wire answer, not the rendered text |
@@ -689,7 +619,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 |-------|-----------------|
 | Blast radius of an absent selector | No action command is converted, so no side effect becomes reachable without a selector. The check is that this stayed true: an action owning a `limit` filter, or an action whose mandatory selector was deleted, is the failure to look for |
 | Input validation | The `limit` argument reaches `peersel.ParseDefault` exactly as the positional value did. `validateFilter` refuses an empty argument and `maxArgLength` bounds it at 1024 bytes |
-| Authorization | `container request/peer` carries `ze:ui-permissions "network"` and `ze:ui-resource "bgp-peer/index.html"`, which the four moved subtrees inherit on arrival. Assert the permission each moved command answers under, before and after the move |
+| Authorization | Display narrowing must preserve command authorisation; no action path or inherited action permission changes |
 | Error leakage | A refusal names the filter and the command, never the peer list the operator was not allowed to see |
 
 ### Failure Routing
@@ -720,7 +650,7 @@ sessions the converted commands act on are unchanged in every byte they send.
 | The old spellings are removed, not aliased | keep the positional form as a second spelling | `ai/rules/cli.md`: Ze is unreleased, so an unreleased grammar is replaced outright. `ai/rules/no-layering.md`: delete X, then write Y |
 | The rule is enforced by a checker rule before any conversion | convert first, gate afterwards | a gate written after the conversions cannot be seen to go red, so it proves nothing (`ai/rules/interop-and-goal-validation.md`, the vacuity traps) |
 | The checker rule is scoped to display commands | one rule over every command node | Thomas, 2026-09-04: the pipe is a display limit. A rule that fired on an action would report every action in the tree as a finding, and the fix it asks for is the one he ruled out |
-| The four peer actions move rather than being re-spelled in place | leave them at the top-level `peer` root and reorder their own tokens | `request peer` already declares the mandatory selector and already publishes `request peer <sel> teardown`. Moving reuses that declaration; reordering in place would leave two peer action roots and a second copy of the selector leaf (`ai/rules/principles.md`, one declaration) |
+| The earlier action move is superseded | Implement the historical `request peer` proposal here | The narrowed header delegates it to `spec-fixit-send-names-its-destination`. This spec preserves the current action paths and their guards |
 
 ## Known Limitations
 - Class A is untouched by design: those 26 values are the command's subject or an argument to it, not a narrowing of a set. `show bgp irr check peer <p> prefix <x>` is the closest call and Q3 covers it.

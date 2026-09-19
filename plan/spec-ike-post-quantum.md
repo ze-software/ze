@@ -19,11 +19,15 @@
 
 Ze's native IKEv2 implementation has a closed DH group registry with only 3 groups
 (MODP-2048/group 14, ECP-256/group 19, ECP-384/group 20). There is no post-quantum
-key exchange support (ML-KEM/Kyber, hybrid key exchange per RFC 9370). ESN constants
-are defined on the wire but hardcoded off in negotiation.
+key exchange support (ML-KEM/Kyber, hybrid key exchange per RFC 9370).
 
 This is a tracking spec for future PQ readiness. Ze's native IKEv2 requires its own
 implementation.
+
+`plan/spec-ipsec-12-esn.md` is the implementation owner for ESN configuration,
+ESP Child SA negotiation, extended counters and both dataplanes. The ESN work
+previously listed here is accounted for there; it is not a second PQ deliverable.
+No dependency between ESN and ML-KEM/hybrid exchange has been established.
 
 ## Required Reading
 
@@ -34,13 +38,12 @@ implementation.
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc7296.md` - IKEv2
 - [ ] `rfc/short/rfc9370.md` - Multiple Key Exchanges in IKEv2
-- [ ] `rfc/short/rfc4304.md` - Extended Sequence Numbers (ESN) for IPsec
 
 **Key insights:**
 - `crypto/transform.go`: DH registry has 3 entries (groups 14, 19, 20)
 - `crypto/dh.go`: `NewDHExchange()` returns `ErrUnsupportedGroup` for unknown groups
-- `engine/initiator.go`: explicitly comments "ESN not used for IKE proposals", hardcodes ID 0
-- `TransformTypeESN` constant exists in `transform.go` and `wire/payload_sa.go`
+- ESN belongs to ESP Child SA negotiation and the dedicated ESN spec; it does
+  not belong in an IKE SA proposal.
 
 ## Current Behavior (MANDATORY)
 
@@ -51,14 +54,13 @@ implementation.
 
 **Behavior to preserve:**
 - Existing DH groups (14, 19, 20) continue to work
-- ESN wire parsing/round-tripping
+- Existing ESP proposal behavior, including ESN wire parsing/round-tripping
 - All existing IKE negotiation
 
 **Behavior to change:**
 - Add ML-KEM key exchange to DH registry
 - Add hybrid key exchange support (RFC 9370)
-- Enable ESN negotiation when peer supports it
-- Expose PQ and ESN options in YANG config
+- Expose PQ options in YANG config
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -108,7 +110,6 @@ implementation.
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
 | IKE SA negotiation with PQ group | -> | ML-KEM key exchange completes | (fill during design) |
-| ESN enabled in config | -> | ESN transform negotiated | (fill during design) |
 
 ## Acceptance Criteria
 
@@ -116,14 +117,14 @@ implementation.
 |-------|-------------------|-------------------|
 | AC-1 | ML-KEM group configured | IKE SA uses ML-KEM key exchange |
 | AC-2 | Hybrid PQ configured (RFC 9370) | IKE SA uses hybrid classical+PQ exchange |
-| AC-3 | ESN enabled | IKE SA negotiates ESN with capable peers |
+| AC-3 | Ownership reference, retained ID | ESN configuration, ESP negotiation and dataplane acceptance are owned by `plan/spec-ipsec-12-esn.md`; no independent implementation or closure claim is made here |
 | AC-4 | PQ not configured | Existing classical DH groups used (backward compatible) |
 
 ## End-to-End User Stories (MANDATORY for new features)
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | Enables PQ key exchange in IKE config | YANG -> engine -> ML-KEM exchange -> SA established | (fill during design) |
-| 2 | Enables ESN for IPsec SA | YANG -> engine -> ESN negotiated -> extended counters used | (fill during design) |
+| 2 | Enables hybrid classical and PQ exchange | YANG -> engine -> multiple key exchanges -> SA established | (fill during design) |
 
 ## 🧪 TDD Test Plan
 
@@ -133,13 +134,11 @@ implementation.
 | `TestDHRegistryMLKEM` | `internal/component/ike/crypto/dh_test.go` | ML-KEM group registered; `NewDHExchange()` returns a working exchange for it | |
 | `TestHybridKeyExchange` | `internal/component/ike/crypto/dh_test.go` | RFC 9370 hybrid exchange combines classical and PQ shared secrets | |
 | `TestClassicalGroupsUnchanged` | `internal/component/ike/crypto/dh_test.go` | Groups 14, 19, 20 continue to work when PQ is not configured (AC-4) | |
-| `TestProposalIncludesESN` | `internal/component/ike/engine/initiator_test.go` | ESN transform included in the SA proposal when enabled in config | |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `ike-pq-mlkem` | `test/ipsec/ike-pq-mlkem.ci` | ML-KEM group configured; IKE SA established using PQ key exchange (AC-1, AC-2) | |
-| `ike-esn` | `test/ipsec/ike-esn.ci` | ESN enabled; SA negotiates ESN with a capable peer (AC-3) | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -149,12 +148,11 @@ implementation.
 ## Files to Modify
 - `internal/component/ike/crypto/transform.go` - add ML-KEM / hybrid entries to the DH group registry
 - `internal/component/ike/crypto/dh.go` - ML-KEM and hybrid key exchange implementations behind `NewDHExchange()`
-- `internal/component/ike/engine/initiator.go` - include configured PQ groups and ESN transform in SA proposals
-- `internal/component/ike/yang/` - expose PQ algorithm and ESN selection in config
+- `internal/component/ike/engine/initiator.go` - include configured PQ groups in SA proposals
+- `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` - expose PQ algorithm selection in config
 
 ## Files to Create
 - `test/ipsec/ike-pq-mlkem.ci` - functional test for PQ key exchange
-- `test/ipsec/ike-esn.ci` - functional test for ESN negotiation
 
 ## Implementation Steps
 
@@ -172,17 +170,13 @@ implementation.
    - Tests: `TestHybridKeyExchange`
    - Files: `dh.go`, `initiator.go`
    - Verify: hybrid SA established in unit tests
-4. **Phase: ESN negotiation** - enable the existing ESN transform in proposals when configured
-   - Tests: `TestProposalIncludesESN`, `ike-esn.ci`
-   - Files: `initiator.go`, YANG schema
-   - Verify: ESN negotiated with capable peers
-5. **Functional + interop tests** - `ike-pq-mlkem.ci`, `ike-esn.ci`, strongSwan interop scenario
-6. **Full verification** - `./le verify current mode full`
+4. **Functional + interop tests** - `ike-pq-mlkem.ci`, strongSwan interop scenario
+5. **Full verification** - `./le verify current mode full`
 
 ## Known Limitations
 - Large scope: requires cryptographic implementation work
 - PQ algorithm landscape still evolving (NIST ML-KEM finalized, but IKEv2 integration drafts in progress)
-- ESN is simpler and could be split into a separate spec
+- ESN remains a separate deliverable under `plan/spec-ipsec-12-esn.md`.
 
 ## Review Gate
 
@@ -212,7 +206,7 @@ implementation.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-4 all demonstrated
+- [ ] AC-1, AC-2 and AC-4 demonstrated; AC-3 ownership reference checked without counting ESN as PQ delivery
 - [ ] Wiring Test table complete -- every row has a concrete test name
 - [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)

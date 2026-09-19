@@ -60,12 +60,23 @@ YANG rather than inferred:
   26, give it the full 16-bit range and not a 9000 cap. Ze's interface `mtu` leaf
   is already `range "68..16000"` (`ze-iface-conf.yang`), so the two would then
   agree.
-- **`lease-time` is capped below the protocol, and this is in scope here.** The
-  YANG declares `range "60..604800"` (7 days) and `parseSubnet` re-checks the
-  same bound in Go. RFC 2132 section 9.2 makes option 51 a full `uint32`, and
-  `0xFFFFFFFF` means an infinite lease. Ze can express neither a lease longer
-  than 7 days nor an infinite one. This is the same defect class T9093 fixed: a
-  validator narrower than the protocol it validates.
+- **Long and infinite leases remain in scope here, separately from arbitrary
+  options.** `parseSubnet` and the YANG leaf still restrict `lease-time` to
+  `60..604800`; `buildReply` emits option 51 from that value. RFC 2132 section
+  9.2 specifies an unsigned 32-bit duration, and RFC 2131 section 3.3 reserves
+  `0xffffffff` for infinity. The August finding called the cap a defect, but
+  wire width alone does not establish that a server must offer every duration.
+  Its first-release disposition needs an explicit decision: repair the cap as
+  a supported-config defect, or retain it as a documented product limit while
+  scheduling long/infinite leases as capability work. This file continues to
+  own the full requirement until a named spec takes it.
+
+Extending the validator alone is insufficient. `buildReply` computes T2 as
+`LeaseTimeSec * 7 / 8` in `uint32`, and `leaseTable.add` schedules an expiry for
+every value. The lease work must preserve finite-duration arithmetic across
+the widened range and represent infinity without expiry. Prove the current
+rejection and the intended wire/lifetime behaviour before changing the range;
+no runtime reproduction was performed for this planning correction.
 
 ## Required Reading
 
@@ -152,8 +163,10 @@ YANG rather than inferred:
 | AC-2 | subnet option with `hex` encoding (with `:`/`-`/space separators) | separators stripped, bytes decoded; odd nibble count rejected at verify |
 | AC-3 | option code already auto-emitted (e.g. 3, 6, 53, 54) | config verify rejects with a clear message |
 | AC-4 | payload longer than 255 bytes | config verify rejects |
-| AC-5 | no options configured | replies byte-identical to today |
+| AC-5 | No arbitrary options configured and a finite lease within today's supported range | Replies and lease behaviour remain unchanged |
 | AC-6 | option 43 configured while `pxe` enabled | config verify rejects (PXE owns 43) |
+| AC-7 | A configured finite lease longer than 604800 seconds, including values near the uint32 finite limit | Config accepts the duration, OFFER/ACK option 51 carries it exactly, T1/T2 do not overflow and remain consistent with the lease, and the binding expires at the configured finite duration |
+| AC-8 | A configured lease of `0xffffffff` | Config accepts infinity, OFFER/ACK represents the infinite lease, and the server does not expire the binding on a finite timer; explicit release and replacement still work |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -161,6 +174,7 @@ YANG rather than inferred:
 |---|-----------|--------------------|-----------------------|
 | 1 | configures NTP option 42 for a subnet; client requests a lease | config → subnet options → reply builder → client sees option 42 | `test/plugin/dhcp-pool-options.ci` |
 | 2 | mis-configures a denylisted or oversized option | config verify rejects before commit | `test/plugin/dhcp-pool-options-reject.ci` |
+| 3 | Configures a long or infinite lease | config → option 51 and renewal/rebinding values → client receives duration → server retains or expires the binding correctly | `dhcp-long-and-infinite-leases` plus controlled-clock lease tests |
 
 ## 🧪 TDD Test Plan
 
@@ -176,12 +190,14 @@ YANG rather than inferred:
 |-------|-------|------------|---------------|---------------|
 | option code | design (candidate 1-254 minus denylist) | 254 | 0 | 255 |
 | payload length | 0-255 bytes | 255 | N/A | 256 |
+| lease duration | preserve today's valid finite range, extend through 4294967294, reserve 4294967295 for infinity | 4294967295 | preserve the existing lower-bound decision until design | 4294967296; test 604801 as the first newly accepted value above the old cap |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `dhcp-pool-options` | `test/plugin/dhcp-pool-options.ci` | client receives configured options | |
 | `dhcp-pool-options-reject` | `test/plugin/dhcp-pool-options-reject.ci` | invalid option config rejected at verify | |
+| `dhcp-long-and-infinite-leases` | `test/plugin/dhcp-long-and-infinite-leases.ci` plus controlled-clock lease tests | AC-7/AC-8: committed duration reaches wire option 51 and lease lifetime; includes old-cap rejection reproduction and wide T2 arithmetic | planned; release classification unresolved |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -195,10 +211,12 @@ YANG rather than inferred:
 - `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` - per-subnet option list
 - `internal/plugins/dhcpserver/config.go` - parse + validate options
 - `internal/plugins/dhcpserver/handler.go` - append configured options to replies
+- `internal/plugins/dhcpserver/lease.go` - explicit infinite-lease lifetime with finite expiry preserved
 
 ## Files to Create
 - `test/plugin/dhcp-pool-options.ci` - functional test
 - `test/plugin/dhcp-pool-options-reject.ci` - verify-rejection test
+- `test/plugin/dhcp-long-and-infinite-leases.ci` - long/infinite lease config and wire evidence
 
 ## Implementation Steps
 
@@ -208,7 +226,7 @@ YANG rather than inferred:
 | 1. Read spec | This file (skeleton - run `/ze-spec` RESEARCH/DESIGN first) |
 
 ### Implementation Phases
-1. **RESEARCH/DESIGN (not started)** - run the `/ze-spec` workflow: confirm the config shape (list name, encoding enum, granularity), enumerate the exact denylist from the reply builder, then fill ACs/tests above.
+1. **RESEARCH/DESIGN (not started)** - run the `/ze-spec` workflow: confirm the option config shape and denylist, then design the separately owned long/infinite lease requirement and its release disposition. AC-7/AC-8 require wire and lifetime proof, not only wider validators.
 
 ## Mistake Log
 ### Wrong Assumptions

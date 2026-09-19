@@ -41,14 +41,14 @@ when this ruling was written. They were gaps, never exclusions, and phases 4 and
 
 ## Task
 
-**Ze implements RFC 9190 (EAP-TLS 1.3) without admitting to it, and no gate
-watches the part it does implement.**
+Ze's EAP-TLS 1.3 implementation still lacks the complete evidence required for
+RFC 9190 enrolment.
 
-`exportEAPTLSMSK` (`internal/core/eap/eap_tls.go`) already selects the
-RFC 9190 label, the Type-Code context and the 128-octet export length when the
-negotiated version is TLS 1.3. Interop scenario `eap-tls13` exercises exactly
-that path against strongSwan and passes. But `rfc/enrolled.txt` has no row,
-`docs/features/rfc-status.md` has no row, and nothing gates it.
+The original task began with `exportEAPTLSMSK` selecting the RFC 9190 export
+parameters and `eap-tls13` exercising that path against strongSwan. The
+implementation and tagged evidence have since expanded through phase 8, but
+`rfc/not-enrolled.txt` still records RFC 9190 as backlog. Individual tests and
+dated interop results do not clear the complete-RFC publication barrier.
 
 `rfc/short/rfc9190.md` was written on 2026-08-01 (94 rows, 51 MUST-level) and
 recorded `backlog` in `rfc/not-enrolled.txt`, because enrolment demands every
@@ -62,15 +62,23 @@ enrolling now on owner-authorised annotations, was offered and declined.
 The goal is that RFC 9190 is enrolled with no `{gap}` and no
 `{not-applicable}` covering a feature Ze could have built.
 
+The remaining evidence is a pre-release obligation for the existing EAP-TLS
+surface. The `plan/` location must not be read as permission to publish RFC 9190
+support before the goal gates pass. This spec remains the owner of that proof;
+bucket reconciliation does not change the owner's implement-and-prove ruling.
+`plan/immediate/spec-eap-tls-certificate-revocation.md` retains the earlier
+deferral history and consumes this spec's Section 5.4 evidence, rather than
+owning another implementation.
+
 ### What is missing, grouped
 
 | Group | Sections | State |
 |-------|----------|-------|
-| Protected success indication | 2.5 | SERVER side implemented 2026-08-12 (phase 1). The peer side ANSWERS it but does not consume it, which the published RFC does not require |
+| Protected success indication | 2.5 | SERVER side implemented 2026-08-12 (phase 1); peer-side consumption implemented 2026-09-08 (phase 7), stricter than the published server-side obligation. See step 1 |
 | Session resumption and NewSessionTicket | 2.1.2, 2.1.3, 5.7 | IMPLEMENTED 2026-09-08 (phase 5), both roles, with the §5.4 revocation check carried across a resumed handshake. No interop counterpart exists; see the Interop Tests table |
 | OCSP stapling and revocation | 5.4 (five MUSTs) | IMPLEMENTED. 5.4-1 landed 2026-09-05 (phase 4), and 5.4-2 through 5.4-5 landed 2026-09-08 (phase 6): the authenticator staples the operator's `ocsp-response`, the peer enforces the stapled status under `certificate-status-request`, and it re-checks the chain over https once the Child SA is up. That last one also closed RFC5216-5.4-2, which was a published gap on an enrolled RFC |
-| Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | IMPLEMENTED 2026-09-08 (phase 5b), peer and server. The peer derives an anonymous NAI in `NewPeerSessionTLS` rather than at the send site, so no caller reaches the Identity Response with the configured `local-id` in it. Section 5.8's three MUSTs open "If anonymous NAIs are not used", and ze now uses one on every EAP-TLS exchange, so their antecedent is false: they are exclusions for the extraction, never gaps |
-| Key derivation and the export | 2.3 | IMPLEMENTED, untagged |
+| Anonymous and privacy-friendly NAIs | 2.1.8, 5.8 | IMPLEMENTED 2026-09-08 (phase 5b), peer and server. The peer derives an anonymous NAI in `NewPeerSessionTLS`. Section 5.8's three MUSTs begin "If anonymous NAIs are not used", whose antecedent is false on that path; the declared rows remain mapped in the extraction, as step 6 explains, and no owner annotation is inferred |
+| Key derivation and the export | 2.3 | Implemented; `rfc/not-enrolled.txt` records both-polarity proof in its 2026-09-08 evidence inventory |
 | Known attack mitigation | 5.10-1 ("MUST mitigate known attacks") | IMPLEMENTED and PROVEN 2026-09-08. The requirement points at RFC 7457 and BCP 195, so the list is the test: `internal/core/eap/rfc9190_attack_mitigation_test.go` carries sixteen tagged units over the nine RFC 7457 Section 2 attacks an EAP-TLS implementation can hold a property against, both polarities, each with a discrimination record. Owner ruling, Thomas, 2026-09-08: "in that case we need to ensure we run these nine test in our suite (positive and negative)" |
 
 ## Required Reading
@@ -114,8 +122,12 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 - [ ] `rfc/not-enrolled.txt` - carries the `backlog` row and its evidence.
 
 **Behavior to preserve:**
-- A TLS 1.2 peer keeps deriving the RFC 5216 MSK. Scenario `eap-tls` proves it
-  against a stock strongSwan and must stay green.
+- Preserve successful TLS 1.2 RFC 5216 MSK derivation and compatibility (AC-3).
+  The current `eap-tls` checker requires Ze's MSK-export refusal and zero XFRM
+  states on both peers (`checkEAPTLS`, `internal/le/interoplab/ipsec/checkers.go`).
+  Keep that refusal regression, but do not count it as positive compatibility
+  evidence. Identify and demonstrate a current positive TLS 1.2 carrier before
+  closure; the dated successful runs below remain historical evidence.
 - Scenario `eap-tls13` must stay green throughout.
 
 **Behavior to change:**
@@ -138,8 +150,8 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| EAP ↔ TLS engine | `eapTLSTransport`, a `net.Conn` over EAP payloads | Yes, scenarios eap-tls and eap-tls13 |
-| EAP ↔ IKEv2 AUTH | the 64-octet MSK | Yes, both scenarios |
+| EAP ↔ TLS engine | `eapTLSTransport`, a `net.Conn` over EAP payloads | Dated successful scenarios below; current positive TLS 1.2 evidence remains owed |
+| EAP ↔ IKEv2 AUTH | the 64-octet MSK | TLS 1.3 has the dated `eap-tls13` evidence; current `eap-tls` refusal proves no successful Ze MSK or AUTH path |
 | Ze ↔ strongSwan | EAP-TLS on the wire | Yes, scenario eap-tls13 on TLS 1.3 |
 
 ### Integration Points
@@ -161,7 +173,7 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | strongSwan 5.9.14 implements the Section 2.5 protected success indication, so it can validate ours | its `eap_tls.c` `get_msk` checks for it | the interop proof needs a different peer, or a raw-socket harness | read `eap_tls.c`, then run scenario eap-tls13 with 2.5 on | confirmed 2026-08-12. `get_msk` returns FAILED and logs `missing protected success indication for EAP-TLS with TLS 1.3` when `get_version_max() >= TLS_1_3 && !indication_sent_received`; `client_process` requires exactly one octet equal to 0. MEASURED both ways in scenario responder-eap-tls13 |
-| A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | scenario eap-tls reddens | scenario eap-tls stays green at every step | confirmed 2026-08-12. Scenarios eap-tls and eap-tls13 both green after the change, and `TestEAPTLS12SendsNoProtectedSuccessIndication` pins it in unit form |
+| A-2 | Adding 2.5 does not break the TLS 1.2 path | 2.5 is TLS 1.3 only | a positive TLS 1.2 exchange fails | positive TLS 1.2 interop and no-indication proof, separately from the current refusal regression | Historical confirmation, 2026-08-12: both scenarios passed after the change, with `TestEAPTLS12SendsNoProtectedSuccessIndication` in unit form. A current positive carrier remains owed |
 | A-3 | Resumption, OCSP and privacy NAIs are each independently landable | they touch different sections | the spec cannot be phased and must land at once | map each to its files during design | confirmed for revocation 2026-09-05. RFC9190-5.4-1 landed on its own, with resumption untouched: `checkChainRevocation` (`internal/core/eap/revocation.go`) is reached from each role's `tls.Config.VerifyConnection` and shares no code with the ticket path. Not yet shown for resumption or for privacy NAIs |
 
 ### Risks
@@ -430,9 +442,9 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    carries no version condition, unlike RFC 9190 Section 5.4, so it is proven on
    TLS 1.2: `TestEAPTLS12RefusesARevokedClientCertificate` and
    `TestEAPTLS12CompletesWithAnUnrevokedChain`, each with a discrimination record in
-   `rfc/discrimination/rfc5216.json`. RFC5216-5.4-2, post-authentication revocation
-   checking, is still a gap and is the same obligation as RFC9190-5.4-4 and 5.4-5, so
-   one piece of work closes all three.
+   `rfc/discrimination/rfc5216.json`. At the 2026-09-07 checkpoint,
+   RFC5216-5.4-2 was still a gap. The 2026-09-08 post-authentication work above
+   subsequently covered it alongside RFC9190-5.4-4 and 5.4-5.
 5. Anonymous and privacy-friendly NAIs.
    DONE 2026-09-08 (phase 5b), both roles. `anonymousNAI` and `validNAI`
    (`internal/core/eap/nai.go`) derive and check the NAI, and `NewPeerSessionTLS`
@@ -479,10 +491,11 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    THE WALK FOUND AN OBLIGATION THE SUMMARY HAD MISSED, which is the forward arithmetic
    doing the job it exists for. RFC 9190 Section 1: *"Therefore, implementations MUST limit
    the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by
-   the administrator."* It is now declared as RFC9190-1-1 and site `1:1` maps it. Ze does not
-   meet it: `newTLSMethod` (`internal/core/eap/eap_tls.go`) and `startTLSClient`
-   (`internal/core/eap/peer.go`) are the two `tls.Config` builders, both set `MinVersion`, and
-   neither sets `MaxVersion`.
+   the administrator."* It is declared as RFC9190-1-1 and site `1:1` maps it.
+   The extraction initially found both TLS builders without a ceiling. Phase 8
+   corrected that: `newTLSMethod` (`internal/core/eap/eap_tls.go`) and
+   `PeerSession.tlsClientConfig` (`internal/core/eap/peer.go`) now set
+   `MaxVersion: tls.VersionTLS13`.
 
    THE SECTION 5.8 CLASSIFICATION IS A MAPPING, NOT AN EXCLUSION, and the reason is
    mechanical rather than a change of mind. The antecedent is false, verified at the producer:
@@ -497,24 +510,29 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
    declared, is excluded `feature-out-of-scope`. The scope decision is recorded in the reason
    at site `5.8:1`, and the annotation that would retire the three rows is the owner's to
    authorise.
-7. Move the row from `rfc/not-enrolled.txt` to `rfc/enrolled.txt`, add the status row.
-   NOT DONE, and it must not be done yet. Measured 2026-09-08 by counting
-   `RFC requirement: RFC9190-<id> <polarity>` tags under `internal/`, `test/`, `cmd/` and
-   `pkg/` against this summary's gated rows: of 52 gated MUST-level requirements, 16 carry
-   both polarities, 7 carry a positive only, and 29 carry no tagged test at all. Enrolling
-   over 36 unproven MUSTs would publish a `Supported` row `ai/rules/rfc-compliance.md` names
-   as the exact failure it forbids, and the remedy that rule allows is to write the tests, not
-   to lower the row.
+7. Complete the remaining evidence before moving the row from
+   `rfc/not-enrolled.txt` to `rfc/enrolled.txt` or publishing the support row.
+   ENROLMENT IS NOT DONE. The latest recorded inventory in
+   `rfc/not-enrolled.txt`, dated 2026-09-08 after phase 8, has 52 gated MUST-level
+   requirements: 19 with both polarities, 7 with a positive only, and 26 with no
+   tagged test. Its 33 remaining requirements supersede the earlier count of 36.
+   These are the ledger's dated counts, not a new measurement from this planning
+   reconciliation. Before implementation resumes, derive the requirement-ID and
+   missing-polarity list again from the gated summary rows, tagged tests and
+   discrimination records; do not use a copied count as the work list.
 
-   TWO OF THE 36 ARE UNMET IN CODE rather than merely unproven, so a test written today would
-   be RED. RFC9190-2.1.9-1: *"Implementations MUST NOT set the L bit in unfragmented
-   messages"* (Section 2.1.9). `tlsFragmenter.nextFragment` (`internal/core/eap/eap_tls.go`)
-   is the one producer of outbound EAP-TLS TypeData on BOTH roles, and it sets `eapTLSFlagL`
-   and the four-octet length whenever `isFirst` holds, with no test of `isLast`, so every
-   unfragmented message ze sends carries the L bit. The fix is to gate both writes on
-   `isFirst && !isLast`; it is wire-visible on every EAP-TLS message, so it owes
-   `./le functional ipsec` and the `eap-tls`, `eap-tls13` and `responder-eap-tls13` scenarios.
-   RFC9190-1-1 is the second, described in step 6.
+   The two former code defects are corrected. `tlsFragmenter.nextFragment`
+   (`internal/core/eap/eap_tls.go`) gates the L bit and length field on
+   `isFirst && !isLast`, and both TLS config builders set the TLS 1.3 ceiling.
+   `internal/core/eap/rfc9190_fragmentation_test.go` carries tagged pairs for
+   RFC9190-2.1.9-1 and the receive-side RFC9190-2.1.9-2;
+   `internal/core/eap/rfc9190_version_cap_test.go` carries the RFC9190-1-1 pair.
+   The ledger records them as proven after phase 8. They remain regression and
+   interop obligations, not missing implementations: retain functional IPsec
+   coverage and the `eap-tls`, `eap-tls13` and `responder-eap-tls13` scenarios,
+   subject to the evidence boundary in Current Behavior. AC-3 also requires a
+   current positive TLS 1.2 carrier; the refusal scenario does not supply it.
+   No current pass or full RFC conformance is claimed by this source read.
 8. 5.10-1 needs no classification: it is proven in both polarities by
    `internal/core/eap/rfc9190_attack_mitigation_test.go` and needs no annotation.
 
@@ -526,10 +544,11 @@ The goal is that RFC 9190 is enrolled with no `{gap}` and no
 | Resumption and NewSessionTicket work on both roles across an SA teardown | functional | `test/ipsec/ipsec-eap-tls13-resumption.ci`, two ze daemons across `clear vpn ipsec sa`. Red phase measured 2026-09-08: with `resumptionFor` building a fresh store per lookup it fails at 8.1s (`resumed=true` never logged); restored, green at 6.1s |
 | OCSP stapling is honoured in both directions, and a chain with no valid status is refused | functional | `test/ipsec/ipsec-eap-tls13-ocsp-stapling.ci` and `test/ipsec/ipsec-eap-tls13-ocsp-required.ci`. Red phases measured 2026-09-08: `cert.OCSPStaple = nil` reddens the first with `stapled no OCSP response`; `checkStapledChainStatus` returning nil reddens the second at 90.1s because the SA establishes instead |
 | Section 5.4 revocation is enforced against a real third-party peer | interop | `test/interop-ipsec/scenarios/responder-eap-tls13-revoked-client`, green. Red phase measured 2026-09-05: with `checkChainRevocation` returning nil charon reaches `CHILD_SA ze-child{1} established`; restored, charon logs `received fatal TLS alert 'bad certificate'` and neither end installs an XFRM state |
+| Successful TLS 1.2 compatibility is preserved (AC-3) | interop | Current positive carrier and result still owed. The dated successful runs do not change the current `eap-tls` checker's refusal-only contract |
 | Ze emits an anonymous NAI on every EAP-TLS exchange, so no permanent identifier reaches the wire | functional | `TestEAPTLSPeerAnonymizesEveryConfiguredIdentity` over 12 identity shapes, with `TestNAIGrammarMatchesRFC7542Section22` refusing 19 strings as its negative, and `TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity` showing a password method is unchanged. Producer verified: `anonymousNAI` (`internal/core/eap/nai.go`) has two return values and `NewPeerSessionTLS` (`peer.go`) is its only caller |
 | Section 5.10-1, "MUST mitigate known attacks", is proven rather than declared untestable | functional | 16 tagged units in `internal/core/eap/rfc9190_attack_mitigation_test.go` over the nine RFC 7457 Section 2 attacks an EAP-TLS implementation can hold a property against, both polarities, each with a record in `rfc/discrimination/rfc9190.json` |
 | Every normative sentence of RFC 9190 is accounted for, so nothing the summary missed can hide | extraction sign-off | `rfc/extraction/rfc9190.json`, signed 2026-09-08: 52 sites in 36 sections, 48 mapped and 4 excluded, `./le rfc check` reporting no finding against it. It FOUND a miss: RFC9190-1-1, the Section 1 MUST on the maximum TLS version, was undeclared until this walk |
-| RFC 9190 is enrolled with no `{gap}` and no `{not-applicable}` covering a feature ze could have built | `./le rfc check` | NOT ACHIEVED. Of 52 gated MUST-level requirements, 16 carry both polarities, 7 a positive only, and 29 no tagged test; two of the 36 (RFC9190-2.1.9-1 and RFC9190-1-1) are unmet in code. Measured 2026-09-08 by counting `RFC requirement:` tags under `internal/`, `test/`, `cmd/` and `pkg/`. `rfc/not-enrolled.txt` still carries the row, and its reason states the same three numbers |
+| RFC 9190 is enrolled with no `{gap}` and no `{not-applicable}` covering a feature ze could have built | `./le rfc check` | NOT ACHIEVED. The latest dated inventory in `rfc/not-enrolled.txt` (2026-09-08, after phase 8) records 33 of 52 gated MUSTs lacking both polarities: 7 positive-only and 26 untagged. The former L-bit and TLS-ceiling code defects are fixed and have tagged pairs. Re-derive the remaining ID/polarity list and obtain fresh gate evidence before enrolment |
 
 ## Critical Review Checklist
 
@@ -540,20 +559,22 @@ carried no such table, which `/ze-implement` needs before it may run.
 |-------|----------------|
 | The indication is sent only after the client Finished is processed | The write happens on a round where `tlsMethod.handshaked` is already set. RFC9190-2.5-2 is a MUST NOT, so a write on any earlier round is a violation, not an optimisation |
 | The indication is sent exactly once | A second EAP-Request carrying application data 0x00 breaks step 3 of the procedure ("send no more EAP-Requests"). A one-shot flag, checked before the write |
-| TLS 1.2 sends nothing | The write is gated on the NEGOTIATED version read from the completed connection, never on `MinVersion` or on config. Scenario eap-tls is the proof |
+| TLS 1.2 sends no protected success indication | Check the negotiated version after a successful exchange, never only `MinVersion` or config. The current `eap-tls` refusal is not proof of successful compatibility |
 | The record is encrypted application data, not a handshake message | It goes through `tls.Conn.Write`, so the record layer applies the traffic keys. A raw transport write would emit plaintext |
 | Ze in the SERVER role is exercised by an interop test | Scenarios eap-tls and eap-tls13 both put strongSwan in the server role, which is why this defect survived. A scenario with Ze as the EAP-TLS server is the only thing that reads this code against another implementation |
 | The interop scenario discriminates | Revert the indication, run the scenario, and record what strongSwan did. A scenario that passes either way proves nothing (`ai/rules/interop-and-goal-validation.md`) |
-| Session tickets are not issued unredeemably | `newTLSMethod` builds a fresh `tls.Config` per EAP session and Go mints ticket keys per Config instance, so a ticket issued in one session cannot be read in any other. Six §5.6/§5.7 MUSTs are conditional on resumption and are dead while that holds |
+| Session tickets remain redeemable across sessions | The peering's resumption store supplies ticket keys and the client cache across SA teardown; retain the phase-5 functional evidence. The old per-session-key limitation no longer makes the Section 5.6/5.7 obligations inactive |
 
 ## Goal Gates
 
 - `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`)
 - `./le rfc check` shows RFC 9190 enrolled, with no annotation covering a
   feature this spec built.
-- Scenarios eap-tls, eap-tls13 and responder-eap-tls13 green. They are the evidence that
-  issuing a ticket is INVISIBLE to a peer that does not resume; there is no
-  resumption scenario and the Interop Tests table records why.
+- Keep `eap-tls`, `eap-tls13` and `responder-eap-tls13` green, with the first
+  counted as refusal evidence only. Demonstrate positive TLS 1.2 compatibility
+  for AC-3 and ticket-issuance compatibility with a non-resuming peer through
+  successful exchanges. The refusal scenario cannot satisfy either obligation.
+  The Interop Tests table retains the owner's ze-to-ze resumption ruling.
 - `test/ipsec/ipsec-eap-tls13-resumption.ci` green, with its red phase measured.
 
 ## Quality Gates
@@ -563,14 +584,15 @@ carried no such table, which `/ze-implement` needs before it may run.
 
 ## RFC Documentation (Scope: protocol)
 
-`rfc/short/rfc9190.md` exists (94 rows, 51 MUST-level, protocol-only). This spec
-does not rewrite it. It builds what the rows describe, then enrols.
+`rfc/short/rfc9190.md` holds the obligations, including RFC9190-1-1 added by
+the 2026-09-08 extraction walk. This spec implements and proves them before
+enrolment; the latest dated ledger inventory contains 52 gated MUSTs.
 
 ## Known Limitations
 
-Ze takes the RFC 9190 export path today and is not enrolled, so nothing gates it
-until this spec closes. That is the state Thomas accepted when he chose to build
-before claiming.
+Ze uses the RFC 9190 export path and has tagged tests, but RFC 9190 is not
+enrolled. Individual tests do not establish complete RFC support. The remaining
+evidence and enrolment gate stay open under the owner's implement-and-prove ruling.
 
 ## Checklist
 
@@ -581,5 +603,6 @@ before claiming.
 - [ ] Scenarios eap-tls and eap-tls13 green at every phase boundary
 - [ ] `rfc/extraction/rfc9190.json` hand-classified -- DONE 2026-09-08, 52 sites in 36
   sections, 48 mapped and 4 excluded, and `./le rfc check` reports no finding against it
-- [ ] `./le rfc check` green with RFC 9190 enrolled -- NOT DONE. 36 of 52 gated MUSTs
-  lack a second polarity and two of them are unmet in code, so enrolment is refused
+- [ ] `./le rfc check` green with RFC 9190 enrolled: NOT DONE. Re-derive and prove
+  every missing polarity from the current ledger population; the latest dated
+  inventory records 33 outstanding requirements after the phase-8 code fixes.

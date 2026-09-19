@@ -14,21 +14,21 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 `docs/guide/configuration.md` tells an operator that `count installed` costs
-memory, and never tells them how much. Its own worked example commits a router to
-tens of megabytes per family per peer, and the page does not say so.
+memory, and never tells them how much. Its worked example sets a million-prefix
+maximum without a measured memory-sizing answer.
 
 Found by an independent review of commit `2eb6a3dda` (the prefix-set counter),
-carried into the follow-up fix session, on 2026-08-08. In the reviewer's words:
+carried into the follow-up fix session, on 2026-08-08. The review identified the gap:
 
 `docs/guide/configuration.md` says `installed` "keeps one entry per prefix for
 that family, so it costs memory in proportion to what the peer sends, bounded by
 `maximum`", and its own worked example is `maximum 1000000` with `count
 installed`. The set is `prefixCounts.sets`
 (`internal/component/bgp/reactor/session_prefix.go`), a `map[string]struct{}`
-keyed on each NLRI's wire encoding, so that example is roughly 60 to 80 MB per
-family per peer at steady state. An operator who copies the example onto four
-peers with two families each is committing to a number the page never names. The
-bound is disclosed; the magnitude is not.
+keyed on each NLRI's wire encoding. The review estimated roughly 60 to 80 MB per
+family per peer at steady state, but that estimate was not measured and must
+not be published as a sizing result. An operator who copies the example onto
+four peers with two families each still needs a measured cost for those sets.
 
 The example and the sentence are both in the same section of the page, "What the
 count holds: `offered` or `installed`". The example configures `maximum 1000000`
@@ -55,7 +55,7 @@ take.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/bgp/reactor/session_prefix.go` - `prefixCounts.sets` is `map[uint32]map[string]struct{}`, one inner set per family that asked for `PrefixCountInstalled`. The inner key is the wire identity of every NLRI the family holds in the session's Adj-RIB-In, and `counts[fk]` is `len(sets[fk])` always. The map is nil unless a family asked for the mode, so a peer that states nothing carries no set and pays nothing
+- [ ] `internal/component/bgp/reactor/session_prefix.go` - `prefixCounts.sets` is `map[uint32]map[string]struct{}`, one inner set per family that asked for `PrefixCountInstalled`, allocated by `setFor` on first use. `prefixSetWalk.visit` stores each NLRI's wire encoding as a string. The set counts advertised prefixes before import policy, so it need not equal the post-policy Adj-RIB-In. The map is nil unless a family asked for the mode.
 - [ ] `docs/guide/configuration.md` - the section carries the worked example with `maximum 1000000` and `count installed`, the sentence "keeps one entry per prefix for that family, so it costs memory in proportion to what the peer sends, bounded by `maximum` when one is configured", and a block quote about `offered` being drivable below the routes Ze holds
 
 **Behavior to preserve:**
@@ -73,8 +73,8 @@ take.
 
 ### Transformation Path
 1. The operator's config sets `count installed` for a family
-2. `prefixCounts` resolves the family key once and allocates the inner set
-3. Every accepted NLRI inserts its wire encoding into that set
+2. `prefixCounts` resolves the family key once; `setFor` allocates the inner set on first use.
+3. The receive-side prefix check inserts each NLRI's wire identity before import policy; a refused UPDATE rolls its changes back.
 4. `len(sets[fk])` is the count enforcement reads
 
 ### Boundaries Crossed
@@ -112,7 +112,7 @@ take.
 |----------|--------|
 | What breaks if this is wrong? | An operator sizes an appliance from a wrong published number |
 | How is it reverted? | Single commit revert; documentation only |
-| Who else touches this path? | `plan/deferrals/fixit-bgp-per-family-prefix-enforcement.md` is cited in the same section |
+| Who else touches this path? | BGP prefix enforcement in `internal/component/bgp/reactor/session_prefix.go`; the retired `fixit-bgp-per-family-prefix-enforcement` deferral was historical provenance |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

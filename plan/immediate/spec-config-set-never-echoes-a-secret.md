@@ -2,16 +2,16 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
-| Phase | implemented in the working tree, UNCOMMITTED |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
-<!-- Backfilled. The work was commissioned straight from a journal row and
-     skipped the spec step. Status is in-progress: the product code exists in
-     the working tree and closure has not run. -->
+<!-- Backfilled after implementation began. The acknowledgement mask landed in
+     ef20b9d56e on 2026-09-06; the functional and fail-closed proof below remains
+     required before closure. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -148,7 +148,7 @@ that value is a secret, and one predicate answers for every such command.
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | an operator's credential reaches a terminal, a scrollback, a web response body, or another operator's conflict report |
-| How is it reverted? | not yet landed. Once landed, a single commit revert |
+| How is it reverted? | A scoped revert of the acknowledgement-mask change, with explicit review of the secret-output exposure it restores |
 | Who else touches this path? | the web mask family, and any future command that acknowledges a typed value |
 
 ## Wiring Test (MANDATORY)
@@ -176,12 +176,12 @@ that value is a secret, and one predicate answers for every such command.
 
 ## 🧪 TDD Test Plan
 
-### Unit Tests
+### Unit Tests (implementation-session record, 2026-09-06)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestConfigSetNeverEchoesASecret`, `TestConfigSetRefusalNeverEchoesASecret`, `TestConfigSetStillEchoesAValueTheSchemaDoesNotMark` | `internal/component/config/cli/cmd_set_secret_test.go` | AC-1, AC-2, AC-3 | written, uncommitted, each observed red against the unfixed producer |
-| `TestSSHCLISetNeverEchoesASecret`, `TestSSHCLISetStillEchoesAValueTheSchemaDoesNotMark`, `TestCommitConflictNeverEchoesASecret`, `TestPendingChangeSummaryNeverEchoesASecret` | `internal/component/cli/model_commands_edit_secret_test.go` | AC-4, AC-6, AC-7 | written, uncommitted, each observed red |
-| `TestWebTerminalSetNeverEchoesASecret`, `TestWebTerminalSetStillEchoesAValueTheSchemaDoesNotMark` | `internal/component/web/cli_terminal_secret_test.go` | AC-5 | written, uncommitted, observed red |
+| `TestConfigSetNeverEchoesASecret`, `TestConfigSetRefusalNeverEchoesASecret`, `TestConfigSetStillEchoesAValueTheSchemaDoesNotMark` | `internal/component/config/cli/cmd_set_secret_test.go` | AC-1, AC-2, AC-3 | recorded red against the unfixed producer before commit `ef20b9d56e` |
+| `TestSSHCLISetNeverEchoesASecret`, `TestSSHCLISetStillEchoesAValueTheSchemaDoesNotMark`, `TestCommitConflictNeverEchoesASecret`, `TestPendingChangeSummaryNeverEchoesASecret` | `internal/component/cli/model_commands_edit_secret_test.go` | AC-4, AC-6, AC-7 | recorded red during implementation |
+| `TestWebTerminalSetNeverEchoesASecret`, `TestWebTerminalSetStillEchoesAValueTheSchemaDoesNotMark` | `internal/component/web/cli_terminal_secret_test.go` | AC-5 | recorded red during implementation |
 | `TestAWriteOnlyPasswordLeafIsMarkedSensitive` | existing | AC-9, A-1 | passes |
 
 ### Boundary Tests (numeric inputs)
@@ -333,8 +333,8 @@ that value is a secret, and one predicate answers for every such command.
 
 | Item | State |
 |------|-------|
-| Product code | UNCOMMITTED in the working tree at the time of writing: `cmd_set.go`, `cmd_edit.go`, `mask.go`, `schema.go`, `model_commands_edit.go`, `editor_commit.go`, `editor_draft.go`, `cli_terminal.go`, `secret.go`, plus the two YANG modules. No SHA can be cited |
-| Journal row | written, `plan/journal/secret-echoed-to-the-client.md`, marked FIXED 2026-09-06 against work that has not landed |
+| Product code | The acknowledgement mask landed in `ef20b9d56e` on 2026-09-06. `cmdSetImpl` still routes the refusal through `DisplayMessageAtPath` and both acknowledgements through `DisplayValueAtPath` |
+| Journal row | Written in `plan/journal/secret-echoed-to-the-client.md`; its 2026-09-06 FIXED entry records the implementation, not completion of this spec's proof |
 | PROVEN | AC-1 through AC-7 for every producer except `cmdInsert`. Each fix was observed RED against the unfixed producer, and each carries the opposite polarity, so a fail-closed mask cannot satisfy it alone. AC-9 by the YANG walk |
 | ASSERTED, not proven | AC-8 in the nil-schema arm. `TestDisplayTreeAtPathFailsClosed` covers the sibling function; no test named here drives `DisplayValueAtPath` with a nil schema. A-3 is unvalidated. `cmdInsert`'s polarity is unreachable by construction, stated in Known Limitations |
-| Remains | (1) LAND IT; (2) the missing `.ci` over `ze config set`, since no functional test reaches the echo path; (3) a nil-schema test for `DisplayValueAtPath`; (4) the documentation anchors; (5) the transcript sink, which is its own journal row; (6) closure sections |
+| Remains | The functional `.ci` over `ze config set`; a nil-schema proof for `DisplayValueAtPath` (AC-8); documentation and closure review. The transcript sink remains separately recorded in `plan/journal/secret-echoed-to-the-client.md`; this acknowledgement fix does not establish that every secret-output path is closed |

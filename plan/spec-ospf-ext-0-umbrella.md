@@ -3,16 +3,16 @@
 | Field | Value |
 |-------|-------|
 | Status | ready |
-| Depends | spec-ospf-0-umbrella.md (closed, learned 1114), spec-ospfv3-0-umbrella.md (retired, unified into the ospf namespace, commit ee1f6ddbe, no own learned summary) |
+| Depends | spec-ospf-ext-13-l3vpn-dn-bit.md |
 | Phase | - |
 | Updated | 2026-06-24 |
 
-Roadmap status (2026-07-22 plan review): this authoring umbrella is 15/16
-delivered -- children ext-1..ext-16 all have learned summaries EXCEPT ext-13
-(`spec-ospf-ext-13-l3vpn-dn-bit.md`, the only child spec still on disk,
-correctly recorded as VRF-blocked for its AC-7..AC-12 half). Candidate for
-closure once ext-13's ownership is settled (close the umbrella and let ext-13
-stand alone, or keep the umbrella open for it).
+The 2026-07-22 review records 15 of 16 children delivered, with ext-13 as
+the remaining live child. That is historical delivery evidence, not a fresh
+closure audit. This umbrella stays open until ext-13 closes or the owner
+explicitly assigns it independent ownership and authorises umbrella closure.
+The original build order below records dependencies of the delivered set;
+it is not a schedule to implement those fifteen children again.
 
 > Umbrellas are living tracking documents, not implementable specs. This file
 > coordinates the OSPF extension follow-ups for the SINGLE unified `ospf` engine
@@ -87,19 +87,19 @@ they are done or quietly re-add them.
 | Graceful Restart (IPv4 RFC 3623 + IPv6 RFC 5187) | this umbrella (ext-9) | Tracked here; IPv4 Grace-LSA is a Type 9 opaque LSA (needs ext-1), IPv6 Grace-LSA is a native link-scope v3 LSA (no opaque carrier) |
 | IPv6-only items the v3 base rested (RFC 5838 multi-AF, RFC 4552 IPsec) | this umbrella (ext-15, ext-16) | Promoted in scope here; both consume IPv6 base seams |
 | IPv4 Multi-Instance (RFC 6549) | this umbrella (ext-12) | Tracked here; the OSPFv2 Instance ID field, distinct from the IPv6 Instance-ID demux the v3 base already reserved |
-| IPv4 L3VPN PE-CE DN bit (RFC 4576/4577) | this umbrella (ext-13) | Tracked here; GATED on future MPLS-L3VPN/VRF infrastructure (blocking dependency, recorded below) |
+| IPv4 L3VPN PE-CE DN bit (RFC 4576/4577) | `plan/spec-ospf-ext-13-l3vpn-dn-bit.md` | Remaining live child. Full delivery needs per-VRF integration and VPN/MPLS forwarding; its OSPF-local slice is separable but remains subject to the owner's scheduling pause |
 
 ### Target scope / decisions
 
 | Lever | Decision | Effect on the child set |
 |-------|----------|-------------------------|
 | One engine, two address families | **No child forks a second engine; IPv4 and IPv6 are address families of the one `ospf`** | Per `docs/architecture/ospf/ospf-af-unify.md`, the FSM, flooding, DR election, SPF, and LSDB sequencing are AF-neutral and shared. AF-specific wire/LSA/prefix code lives in the IPv4 `packet/` codec, the `_v6` strategies, and the `internal/plugins/ospf/v3/{types,packet,transport}` leaves. There is no separate `ospfv3` plugin directory |
-| IPv4 opaque carrier first | **ext-1 (RFC 5250) is the IPv4 opaque foundation** | IPv4 TE (ext-2), IPv4 Router Information (ext-3), IPv4 Extended Link/Prefix (ext-4), the IPv4 Grace-LSA half of GR (ext-9), and the IPv4 opaque-decode half of debug (ext-14) all depend on the IPv4 opaque carrier. It is written first (Status:ready) and unblocks the IPv4 opaque chain |
+| IPv4 opaque carrier first | **ext-1 (RFC 5250) is the IPv4 opaque foundation** | Historical dependency: ext-2/ext-3/ext-4 and the IPv4 ext-9/ext-14 paths built on it. The July delivery record includes these children |
 | SR builds on the IGP advertisement layer | **ext-5 (IPv4) depends on ext-3 + ext-4; ext-5 (IPv6) adds the v3 RI + RFC 8362 extended LSAs itself** | RFC 8665 (IPv4) reuses the Router Information (RFC 7770) and Extended (RFC 7684) LSAs carried over the opaque framework. RFC 8666/8362 (IPv6) has no opaque carrier: SR adds the v3 Router Information LSA and the OSPFv3 Extended-LSA TLV containers (RFC 8362) as native scope-aware LSAs in the `v3/packet` leaf before it can compute labels |
 | TI-LFA needs SR + SPF reachable | **ext-6 depends on ext-5 + the shared SPF** | TI-LFA / LFA (RFC 5286 + the TI-LFA draft) computes repair paths over the SR label stack and the shared SPF; once the shared SPF is wired, the repair logic serves both AFs |
 | Both-AF features parallelise on the shared engine | **ext-6, ext-7, ext-8, ext-10, ext-11, ext-14 attach to shared, AF-neutral seams** | TI-LFA, virtual links, NBMA/P2MP, BFD, LDP-IGP sync, and debug touch the shared ISM/NSM/SPF/interface model; one implementation serves both families (with AF-specific record/transport differences where RFC 2328 and RFC 5340 diverge) |
 | IPv4 Multi-Instance vs IPv6 Instance-ID | **ext-12 adds the OSPFv2 Instance ID field (IPv4); it is distinct from the v3 Instance-ID demux** | RFC 6549 adds an Instance ID to the OSPFv2 common header for per-instance demux on a shared interface. The IPv6 base already reserved its own Instance-ID field (consumed by ext-15 for multi-AF); ext-12 is the IPv4 analogue, not a re-use |
-| L3VPN DN bit is VRF-gated | **ext-13 last, blocked on VRF infra (IPv4)** | The PE-CE DN-bit loop prevention (RFC 4576/4577) requires MPLS-L3VPN / VRF infrastructure Ze does not yet have; ext-13 is recorded as BLOCKED until that lands, not merely "later" |
+| L3VPN DN bit is dependency-gated | **ext-13 remains open** | `plan/spec-vrf-0-umbrella.md` owns per-VRF stacks/RIB/FIB; VPN import/export attachment and MPLS/sham-link forwarding still need an owner. The owner must choose whether to authorise the separable OSPF-local slice or keep all ext-13 implementation paused |
 | Multi-AF uses the reserved IPv6 Instance-ID | **ext-15 (RFC 5838) consumes the v3 base's Instance-ID plumbing** | The IPv6 base reserved an explicit, validated Instance-ID field precisely so multi-AF could attach later. ext-15 maps AF to the Instance-ID ranges (RFC 5838 §2.4) and spawns one engine instance per AF without re-opening the RFC 5340 codec |
 | IPsec auth is independent of the trailer | **ext-16 (RFC 4552) is a separate auth path from the delivered RFC 7166 trailer (IPv6)** | RFC 4552 IPsec AH/ESP is a kernel SA/SP mechanism, structurally distinct from the in-packet RFC 7166 Authentication Trailer (`auth_keystore.go` / `auth_wiring.go`); it is its own child, not an extension of the trailer code |
 | Debug folds in ospfclient | **ext-14 replaces the standalone ospfclient daemon (both AFs)** | The genuinely useful capability of FRR's `ospfclient` (inject/observe LSAs for testing) is delivered as introspection tooling inside ext-14, decoding IPv4 opaque/TE/RI/Extended LSAs and IPv6 RI/extended/SR/Grace LSAs; no separate Unix-socket external-injection daemon ships |
@@ -139,11 +139,10 @@ they are done or quietly re-add them.
 
 ## Child Decomposition
 
-Each child is an independent, implementable spec. ext-1 is already written
-(Status:ready); ext-2..ext-16 are written as Status:ready specs in this same
-batch. The umbrella owns the coordination, not the implementation. Every feature
-is a feature of the one OSPF; the "Address family" column records which families
-it covers.
+The table records the original child decomposition and its dependency contracts.
+The July review records ext-1..ext-12 and ext-14..ext-16 delivered; ext-13
+remains the live implementation unit. Completion evidence for delivered
+children must be recovered at closure rather than recreated as new specs.
 
 | Child | Title | Address family | RFC(s) | Depends on | One-line scope |
 |-------|-------|----------------|--------|------------|----------------|
@@ -159,16 +158,15 @@ it covers.
 | ext-10 | BFD for OSPF | both | RFC 5880, RFC 5881 | base (both) | Integrate Ze's existing BFD engine: register OSPF adjacencies (IPv4 and IPv6 single-hop) as BFD clients, drive the shared NSM down on a BFD session failure for sub-second failure detection |
 | ext-11 | LDP-IGP synchronisation | both | RFC 5443, RFC 6138 | base (both) | Hold an OSPF link at max-metric until LDP signalling is up (plus the RFC 6138 unnumbered/LFA refinement) so traffic does not use a link whose LSP is not ready; serves both AFs through the shared interface model |
 | ext-12 | Multi-Instance OSPF | IPv4 | RFC 6549 | base (IPv4) | The Instance ID field in the OSPFv2 common header so multiple OSPF instances share an interface; per-instance packet demultiplexing. Distinct from the IPv6 Instance-ID demux the v3 base reserved (consumed by ext-15) |
-| ext-13 | L3VPN PE-CE DN bit | IPv4 | RFC 4576, RFC 4577 | base (IPv4), **future VRF/MPLS-L3VPN infra (BLOCKING)** | The Down (DN) bit + VPN Route Tag loop prevention for OSPF as a PE-CE protocol; requires per-VRF OSPF instances that Ze's routing infrastructure does not yet support |
+| ext-13 | L3VPN PE-CE DN bit | IPv4 | RFC 4576, RFC 4577 | `plan/spec-vrf-0-umbrella.md`; VPN/MPLS integration ownership unresolved | DN-bit and VPN Route Tag loop prevention, OSPF metadata and sham links. The child distinguishes local mechanics from backbone-dependent ACs and preserves the scheduling pause |
 | ext-14 | Debug & introspection tooling | both | (no new RFC; tooling over the LSDB / codecs) | ext-1 (IPv4 opaque decode); base (IPv6 decode) | Extension-wide debug/introspection for both AFs: decode + inspect IPv4 opaque/TE/RI/Extended LSAs and IPv6 RI/extended/SR/Grace LSAs, inject test LSAs (IPv4 via the ext-1 registry, IPv6 via the v3 LSDB), and the show/diagnostic surface for every extension above. Folds in the useful `ospfclient` inject/observe capability |
 | ext-15 | Multiple address families | IPv6 | RFC 5838 | base (IPv6) | Map address families to OSPFv3 Instance-ID ranges (§2.4) using the v3 base's reserved Instance-ID plumbing; spawn one unified-engine instance per AF; per-AF topologies and route install; AF-aware prefix strategy without re-opening the RFC 5340 codec |
 | ext-16 | IPsec AH/ESP authentication | IPv6 | RFC 4552 | base (IPv6) | OSPFv3 manual-keyed IPsec AH/ESP as a distinct auth path from the delivered RFC 7166 trailer; kernel IPsec SA/SP policy wiring for the OSPFv3 IPv6 transport leaf, per-interface SPI/key config |
 
-## Dependency / Build Order
+## Historical Dependency / Build Order
 
-The children split into one IPv4-specific dependency chain rooted at the opaque
-carrier, a set of both-AF features that attach to the shared engine, and a small
-IPv6-only set on the reserved Instance-ID / IPv6 transport seams.
+This is the original dependency order of the child set. The July delivery
+record supersedes it as a work queue. Only ext-13 remains open.
 
 | Child | Address family | Depends on |
 |-------|----------------|-----------|
@@ -184,7 +182,7 @@ IPv6-only set on the reserved Instance-ID / IPv6 transport seams.
 | ext-10 (BFD) | both | base (both) only |
 | ext-11 (LDP-IGP sync) | both | base (both) only |
 | ext-12 (Multi-Instance) | IPv4 | base (IPv4) only |
-| ext-13 (L3VPN DN bit) | IPv4 | base (IPv4) + future VRF/MPLS-L3VPN infra (BLOCKING) |
+| ext-13 (L3VPN DN bit) | IPv4 | per-VRF stack owner: `plan/spec-vrf-0-umbrella.md`; remaining VPN/MPLS integration needs an explicit owner |
 | ext-14 (Debug & introspection) | both | ext-1 (IPv4 opaque decode); base (IPv6 decode) |
 | ext-15 (Multiple address families) | IPv6 | base (IPv6); consumes the reserved Instance-ID plumbing |
 | ext-16 (IPsec AH/ESP auth) | IPv6 | base (IPv6) only |
@@ -214,11 +212,15 @@ ext-6 waits on ext-5; ext-14's IPv4 half waits on ext-1.
 one engine instance per AF; ext-16 (IPsec) is a separate auth path on the IPv6
 transport leaf. Both are base-only and parallelise.
 
-**Gated:** ext-13 (IPv4) additionally depends on MPLS-L3VPN / VRF infrastructure
-that does not yet exist in Ze; it is BLOCKED until that lands and must not be
-scheduled before it.
+**Remaining dependency boundary:** ext-13 needs per-VRF OSPF/RIB/FIB
+integration, owned by `plan/spec-vrf-0-umbrella.md`. That umbrella excludes
+route-target assignment and MPLS/VPNv4 label distribution; it cannot be named
+as the owner of those excluded prerequisites. Existing VPN NLRI registration
+(`internal/component/bgp/plugins/nlri/vpn/register.go`) also means absence of
+all VPNv4 machinery is the wrong premise. The owner must assign the remaining
+VPN import/export and MPLS/sham-link forwarding scope before full scheduling.
 
-**Recommended build order:**
+**Original build order, retained as history:**
 
 1. **ext-1** (IPv4 opaque carrier) -- unblocks the IPv4 opaque chain.
 2. In parallel after ext-1, and independently the base-only set: **ext-2, ext-3,
@@ -312,7 +314,7 @@ likely a new spec) to revive.
 6. **IPv4-only:** ext-12 (Multi-Instance) adds the OSPFv2 Instance ID demux.
 7. **IPv6-only:** ext-15 (multi-AF) maps AF to the reserved Instance-ID and spawns one engine instance per AF; ext-16 (IPsec) adds a kernel SA/SP path on the IPv6 transport leaf.
 8. **Debug:** ext-14 decodes/injects IPv4 opaque and IPv6 native extension LSAs.
-9. **VRF-gated:** ext-13 (IPv4 L3VPN DN bit) lands LAST, once MPLS-L3VPN/VRF infrastructure exists.
+9. **Remaining child:** ext-13's full PE-CE path waits for its named infrastructure and unresolved integration owners; local-only implementation still needs the owner's scheduling decision.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -373,7 +375,7 @@ likely a new spec) to revive.
 | AC-2 | The build order is followed | No IPv4 opaque consumer (ext-2/3/4, IPv4 ext-9, IPv4 ext-14) is scheduled before ext-1; IPv4 SR (ext-5) not before ext-3 + ext-4; IPv6 SR adds its v3 RI + RFC 8362 LSAs first; TI-LFA (ext-6) not before ext-5 |
 | AC-3 | A both-AF feature is implemented | ext-6/7/8/10/11/14 attach to shared, AF-neutral seams and serve both families; ext-7/8/10/11 build on the bases without depending on the opaque chain |
 | AC-4 | An IPv6-only item is considered | RFC 5838 / RFC 4552 are scheduled as ext-15 / ext-16 (in scope), NOT left in the rested table |
-| AC-5 | ext-13 is considered | It is recorded as BLOCKED on VRF/MPLS-L3VPN infra (IPv4) and is not implemented before that infra lands |
+| AC-5 | ext-13 is considered | Its full PE-CE outcome stays blocked on per-VRF and VPN/MPLS integration. Its technically separable OSPF-local slice does not override the scheduling pause; the owner must authorise that slice or keep all implementation paused |
 | AC-6 | A rested item is encountered | It is found in the "Out of scope (rested)" table with a rationale (SNMP MIB v2 RFC 4750 + v3 RFC 5643, TOS/QoS/multi-area-adjacency, Flood-Reduction/DoNotAge, ospfclient, a second separate OSPF engine); reviving it requires a fresh decision and a new spec, not a quiet add to a child |
 | AC-7 | Any child is implemented | Its code lives within the unified `ospf` engine (`internal/plugins/ospf/...` plus the `internal/plugins/ospf/v3/{types,packet,transport}` leaves for IPv6); it does not fork a second engine and never references a separate `ospfv3` plugin directory |
 
@@ -453,7 +455,7 @@ likely a new spec) to revive.
 | -- | Umbrella-level | This file | keep the Child Decomposition, Dependency / Build Order, and RFC Coverage tables current as children land or rest |
 
 ## Files to Create
-- `plan/spec-ospf-ext-2-*.md` .. `plan/spec-ospf-ext-16-*.md` -- the child specs (ext-1 already written)
+- No new child spec is required by the delivered decomposition. Retain ext-13 as its existing live owner; recover closed-child evidence for an eventual closure audit.
 - (no feature files at the umbrella level) -- each child creates its own `internal/plugins/ospf/...` / `internal/plugins/ospf/v3/...` files and `test/ospf/*.ci` / `test/ospfv3/*.ci` / `test/interop/scenarios/ospf-*-frr/` / `test/interop/scenarios/ospfv3-*-frr/`
 
 ## Implementation Steps
@@ -468,26 +470,25 @@ likely a new spec) to revive.
 | 5. /ze-review gate | Per-child Review Gate |
 | 6-14. | Standard flow per child |
 
-### Implementation Phases
+### Remaining implementation and closure work
 
-This umbrella is implemented by selecting and completing child specs in the
-dependency order above. Per the spec-set rule, select children individually when
-implementing; keep the umbrella pointed-to but do not implement the umbrella
-directly.
+The July review records the opaque carrier and consumers, SR/TI-LFA, both-AF
+features, and IPv6-only children as delivered. Do not run their original
+implementation phases again.
 
-1. **Phase: IPv4 opaque carrier** -- ext-1 (RFC 5250); the foundation that unblocks the IPv4 opaque chain.
-2. **Phase: IPv4 opaque consumers (parallel after ext-1)** -- ext-2 (TE), ext-3 (RI), ext-4 (Extended Link/Prefix); plus the IPv4 halves of ext-9 (Grace-LSA) and ext-14 (debug).
-3. **Phase: Both-AF + base-only features (parallel)** -- ext-7 (virtual links), ext-8 (NBMA/P2MP), ext-10 (BFD), ext-11 (LDP-IGP sync) on the shared engine; ext-12 (IPv4 Multi-Instance); ext-9 IPv6 half (native Grace-LSA); the IPv6 halves of ext-14 (debug).
-4. **Phase: IPv6-only features (parallel)** -- ext-15 (multi-AF, on the reserved Instance-ID), ext-16 (IPsec).
-5. **Phase: Segment Routing** -- ext-5; IPv4 half once ext-3 + ext-4 are done, IPv6 half adding its own v3 RI + RFC 8362 LSAs first.
-6. **Phase: TI-LFA / LFA** -- ext-6 (both AFs), once ext-5 is done.
-7. **Phase: L3VPN DN bit (gated)** -- ext-13 (IPv4), LAST, only once MPLS-L3VPN/VRF infrastructure exists.
-8. **Per-child verification + interop** -- `./le verify current mode full` + FRR `ospfd` / `ospf6d` scenarios, owned by each child.
+1. Resolve ext-13's prerequisite ownership and scheduling pause. Its child
+   spec owns all remaining feature ACs; the umbrella supplies no feature code.
+2. Recover each delivered child's completion evidence and reconcile the
+   original authoring audit below against it. The July 15/16 count alone
+   cannot close the umbrella.
+3. Obtain the owner's choice between keeping this umbrella until ext-13
+   closes and explicitly releasing ext-13 as an independent remaining spec.
+   Neither path is authorised by this reconciliation.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this umbrella |
 |-------|----------------------------------|
-| Completeness | Every child ext-1..ext-16 exists, cross-references its dependencies, records its address-family coverage, and matches the unified-engine layout and the two bases' Shared Contracts |
+| Completeness | Every child ext-1..ext-16 has recoverable scope, dependency and address-family records; closed children have completion evidence and ext-13 remains tracked until closed or explicitly released |
 | Correctness | The dependency / build order is honoured (IPv4 opaque carrier first; IPv4 SR after RI + Extended; IPv6 SR adds its v3 RI + RFC 8362 LSAs first; TI-LFA after SR; ext-13 VRF-gated) |
 | Naming | Each extension uses `ze_ospf_<ext>_*` (IPv4) / `ze_ospfv3_<ext>_*` (IPv6) metrics and `show ospf <noun>` / `show ospf ipv6 <noun>` subcommands; no existing series/command renamed |
 | Data flow | Extensions attach at delivered seams; SR/TI-LFA install through the existing Loc-RIB path (both AFs); opaque LSAs never enter SPF; no second engine |
@@ -496,10 +497,9 @@ directly.
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Umbrella + 16 child specs | `ls plan/spec-ospf-ext-*.md` |
-| ext-1 written (Status:ready) | `grep -m1 '| Status |' plan/spec-ospf-ext-1-opaque-framework.md` |
-| Each child cross-references its dependency | grep each child for its "Depends" row |
-| Each child records its address family | grep each child for its "Address family" coverage |
+| Complete child inventory | Reconcile the original sixteen-child table against closed-child evidence and the live ext-13 spec |
+| Delivered opaque foundation | Recover ext-1's completion evidence rather than requiring its deleted spec to be ready |
+| Each child's dependency and address family | Read the live spec or its preserved closure record |
 | Rested set recorded | `grep -A20 'Out of scope (rested' plan/spec-ospf-ext-0-umbrella.md` |
 | No second engine; IPv6 wire code in the v3 leaves | each child's files are under `internal/plugins/ospf/...` (no separate `ospfv3` plugin directory) |
 
@@ -560,7 +560,7 @@ resting decisions are re-litigated by accident.
 | IPv4 opaque carrier (ext-1) is the single IPv4 foundation | Per-extension opaque handling | One generic RFC 5250 carrier keeps flooding/scope/O-bit logic in one place; IPv4 consumers stay self-contained |
 | IPv6 SR (ext-5) adds the v3 RI + RFC 8362 LSAs itself | A separate opaque carrier for v3, or separate RI/extended children | OSPFv3 has no opaque carrier; the v3 RI and Extended LSAs (RFC 8362) exist only to carry SR state, so they are scoped inside ext-5 as native `v3/packet` bodies |
 | SR depends on RI + Extended Prefix/Link (IPv4) | SR carries its own advertisements | RFC 8665 explicitly reuses the RI (RFC 7770) and Extended (RFC 7684) LSAs; duplicating them would diverge from FRR/interop |
-| ext-13 recorded as VRF-gated/BLOCKED (IPv4) | Schedule it "later" with the rest | It has a hard external dependency (MPLS-L3VPN/VRF) absent from Ze; marking it merely "later" risks premature, unwireable work |
+| ext-13 remains dependency-gated | Treat the existing VPN codec as a complete PE-CE stack | Full delivery still needs per-VRF integration and VPN/MPLS forwarding. The separable OSPF-local slice remains paused until the owner authorises it |
 | ext-15 (multi-AF) on the reserved IPv6 Instance-ID | Re-open the RFC 5340 codec to add AF awareness | The IPv6 base reserved a validated Instance-ID field precisely for this; ext-15 maps AF to Instance-ID ranges (RFC 5838 §2.4) and spawns one engine instance per AF without a codec change |
 | ext-16 (IPsec) is a separate auth path | Extend the delivered RFC 7166 trailer code | RFC 4552 IPsec AH/ESP is a kernel SA/SP mechanism, structurally distinct from the in-packet trailer; folding it in would conflate two auth models |
 | Debug folds in ospfclient (ext-14, both AFs) | Standalone ospfclient Unix-socket daemon | The useful inject/observe capability fits in-process (IPv4 via the ext-1 registry, IPv6 via the v3 LSDB); a separate daemon adds a socket and trust boundary for no benefit |
@@ -569,9 +569,9 @@ resting decisions are re-litigated by accident.
 ## Known Limitations
 - This umbrella tracks OSPF extensions for BOTH address families of the one engine. It SUPERSEDES the retired `spec-ospfv3-ext-0-umbrella.md`. There is no separate OSPFv3 product or plugin; IPv4 and IPv6 are address families, exactly as BGP has no `bgpv4`.
 - The umbrella is a coordination document: it has no feature code, no tests, and no acceptance criteria that it implements itself. Completion is defined by its children, not by this file. It is never marked "done" while a tracked child is open.
-- The IPv4 opaque chain (ext-2, ext-3, ext-4, the IPv4 half of ext-5/ext-6, the IPv4 Grace-LSA of ext-9, the IPv4 decode half of ext-14) is hard-blocked on ext-1. Build-order violations (e.g. starting IPv4 SR before RI + Extended Prefix/Link) produce specs that cannot be wired and must be rejected at planning time.
+- The IPv4 opaque chain's dependency on ext-1 is historical build order, discharged in the July delivery record. It is no longer an outstanding blocker; closure still owes the corresponding per-child evidence.
 - OSPFv3 has no opaque-LSA carrier (RFC 5340 carries extensions as native LSAs); the IPv4 ext-1 opaque framework has no v3 analogue, and the IPv6 half of ext-5 (SR) must add the v3 Router Information + Extended LSAs (RFC 8362) itself before it can compute SR labels.
-- ext-13 (IPv4 L3VPN PE-CE DN bit) cannot be implemented until Ze gains MPLS-L3VPN / VRF infrastructure; it is BLOCKED, not merely sequenced last. Implementing it before VRF lands is a scope error.
+- ext-13's full PE-CE outcome remains blocked. Its child distinguishes OSPF-local mechanics from backbone-dependent eligibility and AC-7..AC-12, but the owner must authorise local-only scheduling before that slice starts.
 - The "rested" items (SNMP MIB v2 RFC 4750 + v3 RFC 5643, TOS, QoS, multi-area adjacencies, Flood Reduction / DoNotAge, the standalone ospfclient daemon, and a second separate OSPF engine) are deliberately absent. Reviving any of them requires a fresh design decision and a new spec, not a quiet add to an existing child. RFC 5838 multi-AF and RFC 4552 IPsec are explicitly NOT rested -- they are ext-15 and ext-16. Forking a second OSPF engine is forbidden; a child that introduces one (or references a separate `ospfv3` plugin directory) must be rejected at planning time.
 
 ## RFC Documentation
@@ -629,7 +629,7 @@ and `rfc/short/rfc5838.md` / `rfc/short/rfc4552.md` (consumed by ext-15 / ext-16
 | Supersede the retired ospfv3-ext umbrella | Done | header note + Known Limitations + Key Design Decisions | SUPERSEDES `spec-ospfv3-ext-0-umbrella.md` |
 | Fix the dependency / build order | Done | Dependency / Build Order | IPv4 opaque chain + IPv6 self-contained SR + both-AF set + VRF-gated ext-13 |
 | Record the rested set with rationale (merged from both umbrellas) | Done | Out of scope (rested) table | SNMP MIB v2+v3, TOS/QoS/multi-area-adjacency, Flood-Reduction/DoNotAge, ospfclient, a second separate OSPF engine |
-| Per-child implementation | (pending) | each `plan/spec-ospf-ext-N-*.md` | downstream |
+| Per-child implementation | July record: 15/16 delivered | ext-13 remains live | Recover per-child completion evidence at closure; the count is not a fresh verification |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -644,9 +644,9 @@ and `rfc/short/rfc5838.md` / `rfc/short/rfc4552.md` (consumed by ext-15 / ext-16
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `plan/spec-ospf-ext-1-opaque-framework.md` | Written | Status:ready |
-| `plan/spec-ospf-ext-2-*.md` .. `plan/spec-ospf-ext-16-*.md` | (this batch) | Status:ready |
-| `internal/plugins/ospf/` + `internal/plugins/ospf/v3/` (extensions) | (pending) | per child |
+| ext-1..ext-12 and ext-14..ext-16 | Delivered in the July review record | Recover closed-child evidence; do not recreate their specs |
+| `plan/spec-ospf-ext-13-l3vpn-dn-bit.md` | Remaining live child | Full dependency and scheduling decisions remain open |
+| `internal/plugins/ospf/` + `internal/plugins/ospf/v3/` (extensions) | Per-child delivery evidence | No current runtime verification recorded by this reconciliation |
 
 ### Audit Summary
 - **Total items:** umbrella coordination (this deliverable) + downstream per-child implementation
@@ -716,7 +716,7 @@ and `rfc/short/rfc5838.md` / `rfc/short/rfc4552.md` (consumed by ext-15 / ext-16
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] All 16 child specs written and cross-referenced (ext-1 written; ext-2..ext-16 this batch), each with its address-family coverage
+- [ ] All sixteen children accounted for by live ownership or preserved closure evidence, with their dependency and address-family contracts
 - [ ] Dependency / build order captured and consistent (IPv4 opaque chain; IPv6 self-contained SR; both-AF shared-engine set; VRF-gated ext-13)
 - [ ] Out-of-scope (rested) set recorded with rationale, merged from both umbrellas
 - [ ] RFC 5838 + RFC 4552 promoted in scope (ext-15 / ext-16), not rested

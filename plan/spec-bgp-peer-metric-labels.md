@@ -19,8 +19,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 Ze's per-peer BGP metrics (`initReactorMetrics`,
-`internal/component/bgp/reactor/reactor_metrics.go`) carry the peer address and
-nothing else. A scrape cannot group peers by anything but IP address.
+`internal/component/bgp/reactor/reactor_metrics.go`) identify peers by address,
+with metric-specific dimensions such as family. They do not carry the
+descriptive peer labels proposed here.
 
 The identifying data exists and telemetry does not consume it: the configured
 peer description (`leaf description` in
@@ -38,6 +39,11 @@ and peer group, each behind an explicit opt-in leaf, because every added label
 multiplies series cardinality and that cost must be the operator's choice. Add
 per-collector selection for native metric groups so an operator can scrape BGP
 without the OS and pool metrics, or the reverse.
+
+The inherited prefix-count mode ambiguity is a correctness obligation owned by
+`plan/immediate/spec-bgp-per-peer-received-counter.md`. It is independent of
+these optional descriptive labels and native-collector controls. Per-family
+staleness visibility remains owned here.
 
 Already covered, and not in scope:
 
@@ -364,6 +370,14 @@ Expose per-family prefix staleness dates on an operator surface. The spec stores
 
 ### From `fixit-prefix-count-metric-does-not-say-its-mode.md`, 2026-08-08
 
-Deferred by spec-bgp-per-peer-received-counter, after the `installed` mode was rewritten to count a set.
+Deferred by `spec-bgp-per-peer-received-counter` after the `installed` mode was
+rewritten to count a set. Reconciled on 2026-09-19: the obligation returns to
+`plan/immediate/spec-bgp-per-peer-received-counter.md`, whose Task and ACs now
+own it separately from received-count redesign.
 
-`ze_bgp_prefix_count` carries `{peer, family}` only (`reactor_metrics.go`), and `ze_bgp_prefix_ratio`, `ze_bgp_prefix_warning_exceeded` and the two `_total` counters derive from the same number with the same labels. Since the per-family `count` leaf landed, two peers scraped into one dashboard can report numbers of different KINDS: `offered` is a tally of announcements and `installed` is the size of a set. An operator cannot tell a peer that overshot from a peer sitting at its limit, and a sum across peers adds two units. The enforcement LOG line now names the mode (`reportPrefixExceeded`, `session_prefix.go`), so the gap is on the metric surface alone
+`setPrefixCountMetric` in `session_prefix.go` publishes the selected enforcement
+count with peer and family labels. `offered` counts events and `installed`
+counts an identity set, so a scrape cannot identify the mode from those labels.
+The required correction covers the count, ratio, warning gauge and exceeded
+counters that derive from it; optional description/hostname labels do not
+discharge it.

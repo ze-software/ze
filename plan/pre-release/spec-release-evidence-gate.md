@@ -2,15 +2,18 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | 5/6 |
-| Updated | 2026-07-22 |
+| Phase | - |
+| Updated | 2026-09-19 |
 
-Phase note (was in the Phase cell; moved 2026-07-22): implementation landed --
-`ze-evidence-release-verify` is defined at `internal/le/evidence/evidence.go` and wired in the
-the native action tables under `internal/le/` (commit `d0e9d388c` "test: add release evidence gate runner"). The
-outstanding step is the full evidence-matrix verification re-run.
+The historical Make matrix implementation landed at `d0e9d388c`, but the native
+cutover retired its composite runner (`internal/le/completeness_record_test.go`,
+`retiredProducers`). `./le evidence release-candidate` now runs only clean-clone
+Docker verification: `Runner.Run` executes `ContainerScript`, whose final command
+is `./le verify current mode full`. It does not run the category matrix below.
+Native matrix composition, its execution evidence, independent review and closure
+remain outstanding. The existing clean-clone action must retain its contract.
 
 ## Post-Compaction Recovery
 
@@ -25,17 +28,19 @@ outstanding step is the full evidence-matrix verification re-run.
 
 Turn release evidence into a product gate. The default `./le verify current mode full` gate excludes
 integration, interop, stress, live, deployment, and QEMU tests because they need
-external infrastructure. Some shipped functional suites are also non-gated (static,
-traffic, vpp, l2tp-wire). Add a `ze-evidence-release-verify` target that runs the full
-evidence matrix while keeping `./le verify current mode full` fast.
+external infrastructure. Some functional suites also remain outside that default
+gate. Restore the complete release-evidence composition through native actions,
+with one discoverable matrix entry point and the outcomes specified below.
+The original Make target was `ze-evidence-release-verify`; its removal did not
+discharge this spec's matrix requirement.
 
-### Inherited item: the `static` suite currently runs NOWHERE (2026-07-27)
+### Inherited item: static-suite scheduling and capabilities
 
 Rehomed here from the `fixit-sleeps-cli-harness` spec at its closure (the spec is gone;
 its rows live in the retired deferral shard "ad-hoc-2026-07-27-2c83641a"). It was that spec's A-4
 obligation ("wire the linux-gated static suite into an actually-run linux path, do NOT
-drop the gate") and was the one live item left in it. Verified unmet by an independent
-check, with the tree having moved AGAINST it since:
+drop the gate") and was the one live item left in it. The following table records
+the unmet state observed on 2026-07-27, before the current native QEMU runner:
 
 | Producer | Fact |
 |----------|------|
@@ -45,15 +50,16 @@ check, with the tree having moved AGAINST it since:
 | `internal/le/qemu/alltests.go` (`fsuite` lines) | no `static`, so `./le qemu run command "./le qemu all-tests"` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
 | `internal/le/functional/suites.go`, `internal/le/evidence/evidence.go` | the suite's only two invocation sites tree-wide, and `ze-evidence-release-verify` is invoked by no workflow |
 
-So a rewrite fixed a real defect in those tests and left them behind a gate no runner
-honors. They are not skipped honestly; they are simply never reached. Either add `static`
-to the QEMU functional list, or make `ze-evidence-release-verify` an invoked path -- this spec's
-own subject.
+The inherited requirement was to put `static` on an automated Linux execution path
+and declare `caps=net-admin` for the two tests that create interfaces.
 
-Carry with it: both tests run `ip link add` in `setup.py` (`004:26-30`, `005:28-35`) while
-declaring `option=needs-linux` with no `caps=net-admin`. `record_parse.go`
-documents that exact shape as fail-open: on an unprivileged Linux host they hang or fail
-rather than skipping honestly.
+Source reconciliation on 2026-09-19: `vmSuites` in
+`internal/le/qemu/alltests.go` now includes `static`, serially in the guest-root
+namespace. `.github/workflows/qemu-nightly.yml` schedules `le qemu all-tests`
+with the Linux-only selection and skips only `web`. Both named `.ci` files now
+declare `option=needs-linux:caps=net-admin`. Those changes satisfy the missing
+caller and declaration portions of the inherited item. Execution evidence still
+belongs in the capable-host rerun; source membership is no claim that it passed.
 
 ## Required Reading
 
@@ -85,93 +91,90 @@ rather than skipping honestly.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [x] `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - BGP interop test runner, Docker-based, runs scenarios against FRR/BIRD/GoBGP
-- [x] `test/perf/run.py` (retired; now `internal/test/perfrunner`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - perf benchmark runner, Docker-based, runs all DUTs with results to JSON
-- [x] `internal/le/deployment/` - clean-clone Docker verify, ZE_SKIP_SUITES, 1200s timeout
-- [x] `internal/le/qemu/run.go` - QEMU VM runner for integration tests on macOS
+**Current producing-source evidence (2026-09-19):**
+- `internal/le/evidence/evidence.go`, `Runner.Run` and `ContainerScript`: clean-clone Docker verification only.
+- `internal/le/completeness_record_test.go`, `retiredProducers`: explicitly retires `ze-evidence-release-verify` as a Make loop.
+- `internal/le/perfbench/bench.go`, `EvidenceRecord`: native benchmark, history append and regression-check composition.
+- `internal/le/qemu/alltests.go`, `vmSuites`: automated Linux static-suite membership, as recorded above.
 
 **Behavior to preserve:**
-- `./le verify current mode full` stays fast (~2 min), unchanged: lint + vet + unit(2-pass) + functional(12) + exabgp
-- `ze-verify-all` stays as ./le verify current mode full + chaos-verify
-- `ze-test-all` stays as ze-test + chaos-verify
-- All existing individual targets keep working independently
-- `./le evidence release-candidate` (Docker clean-clone) stays as-is
-- `ze-deployment-preflight` stays as-is (deployment-specific checks)
+- `./le verify current mode full` retains its current producer-defined population.
+- Existing category actions remain independently runnable.
+- `./le evidence release-candidate` retains clean-clone Docker verification.
+- The native setup probes and perf evidence action retain their existing contracts.
 
-**Behavior to change:**
-- Add `ze-evidence-release-verify` composite target in new `internal/le/evidence/evidence.go`
-- Add `ze-evidence-perf-record` target (bench + regression check)
-- Add `ze-evidence-release-preflight` target (broader than deployment-preflight)
+**Behaviour to change:**
+- Restore the complete category composition, continue-after-failure behaviour,
+  explicit skip accounting and final nonzero failure result through a native
+  registered action. Its final command spelling must be settled during design
+  and carried consistently into help, the tests and release-distribution.
+- Keep Docker mandatory and QEMU absence explicitly reported under AC-1/AC-6.
 
 ## Data Flow (MANDATORY)
 
-N/A: This spec adds the native action tables under `internal/le/` targets only. No data enters, transforms, or crosses
-component boundaries. The targets compose existing test runners.
+The native matrix composes existing test runners and produces release evidence.
+The following path is required behaviour, not a claim about the clean-clone action.
 
 ### Entry Point
-- `./le evidence release-candidate` invoked by operator from command line
+- The registered release-matrix action, whose final command spelling remains a design decision.
 - No runtime data flow; this is build/test infrastructure
 
 ### Transformation Path
-1. Preflight check: verify Docker available (mandatory), QEMU available (advisory)
-2. Shell runner iterates categories, calling existing Make targets in sequence
-3. Each category returns exit code; runner tracks pass/fail/skip per category
-4. Summary printed at end with colored output matching ./le functional style
+1. Preflight checks Docker (mandatory) and QEMU (advisory).
+2. The native runner invokes every category's existing registered action in order.
+3. It records each category's pass/fail/skip result and continues after failures.
+4. It reports the complete population and exits nonzero if any executed category failed.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Make → shell | Inline shell in recipe, same as ./le functional | [x] |
-| Shell → Make sub-targets | `$(MAKE) ./le integration interop` etc. | [x] |
+| Native matrix -> category actions | Existing registered runners | Not yet demonstrated for the restored composition |
 
 ### Integration Points
-- Calls existing targets: ./le verify current mode full, ze-chaos-test, ze-fuzz-test, ./le integration interop, ./le integration interop-ipsec, ./le deployment docker-l2tp-ppp-test, ze-functional-static-test, ze-functional-traffic-test, ze-functional-vpp-test, ze-functional-l2tp-wire-test, ze-evidence-perf-record (new), ze-qemu-integration-test, ./le deployment vpp-test, ze-live-test
+- The category table records required populations and historical Make locators. Resolve each to its current native action during matrix design; retired targets are not runnable integration points.
 
 ### Architectural Verification
-- [x] No bypassed layers (calls existing targets, does not duplicate their logic)
-- [x] No unintended coupling (new file included from the native action tables under `internal/le/`, no cross-dependencies)
-- [x] No duplicated functionality (composes, does not reimplement)
-- [x] Zero-copy preserved where applicable (N/A, no data buffers)
+- Architectural proof of the restored native composition remains outstanding.
+- Category implementations must be reused, with no second protocol or test runner.
 
 ## Wiring Test (MANDATORY)
 
-N/A: No Go code, no runtime entry points. Verification is via `make -n` dry-run
-and `make help-test` output checks.
+The native matrix requires invocation evidence through its registered command.
+The historical Make dry-runs below remain dated evidence of the retired runner.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le evidence release-candidate` | → | `internal/le/evidence/evidence.go` recipe | `make -n ze-evidence-release-verify` dry-run shows all sub-targets |
-| `./le perf-bench record` | → | `internal/le/evidence/evidence.go` recipe | `make -n ze-evidence-perf-record` dry-run shows bench + track |
-| `./le evidence release-candidate` | → | `internal/le/evidence/evidence.go` recipe | `./le evidence release-candidate` prints ok/missing |
+| Registered release-matrix action | → | Native composition over existing category actions | A command-level run records every category, continues after an injected category failure and exits nonzero |
+| `./le perf-bench evidence-record` | → | `Bench.EvidenceRecord` | Existing perf evidence tests plus a capable-host regression-check run |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le evidence release-candidate` | Checks Docker, QEMU, prints ok/missing per tool, exits non-zero if Docker missing |
-| AC-2 | `./le evidence release-candidate` on a machine with Docker | Runs all categories in sequence, prints per-category PASS/FAIL/SKIP, summary at end |
+| AC-1 | Registered release-matrix action preflight | Checks Docker and QEMU, prints ok/missing per tool, exits nonzero if Docker is missing |
+| AC-2 | Registered release-matrix action on a machine with Docker | Runs all categories in sequence, prints per-category PASS/FAIL/SKIP and a summary |
 | AC-3 | One category fails | Remaining categories still run, summary shows which failed, exit code non-zero |
-| AC-4 | `ZE_RELEASE_SKIP=interop,perf ./le evidence release-candidate` | Named categories are skipped, shown as SKIPPED in summary |
-| AC-5 | `./le perf-bench record` | Runs ze-perf-bench then ze-perf track --check on ze results, exits non-zero on regression |
-| AC-6 | the retired `ze-evidence-release-verify` (current: `./le evidence release-candidate`) with no QEMU | QEMU category skipped (not failed), others still run |
-| AC-7 | `make help-test` | Shows ze-evidence-release-verify and ze-evidence-perf-record in help output |
+| AC-4 | `ZE_RELEASE_SKIP=interop,perf` on the matrix action | Named categories are skipped and shown as SKIPPED in the summary |
+| AC-5 | `./le perf-bench evidence-record` | Runs the Ze benchmark, appends history and runs `ze-perf track --check`, exiting nonzero on regression |
+| AC-6 | Matrix action with no QEMU | QEMU category is skipped explicitly, others still run |
+| AC-7 | Native action help | Shows the matrix entry point, preflight and perf evidence actions with their exact invocation syntax |
 | AC-8 | All categories pass | Summary shows all green, exit code 0 |
+| AC-9 | Scheduled `.github/workflows/qemu-nightly.yml` Linux run | `le qemu all-tests` reaches the `static` suite, including `static-show.ci` and `static-table-interface.ci`, and records executed outcomes rather than silently omitting them |
+| AC-10 | Static fixtures that create interfaces run on Linux without CAP_NET_ADMIN | Their `needs-linux:caps=net-admin` declarations produce an explicit capability skip; the privileged QEMU run executes them |
 
 ## 🧪 TDD Test Plan
 
-No Go code; no unit tests. Verification via Make dry-run and manual inspection.
+The native composition needs command-level failure/skip accounting proof. Existing category tests remain with their producers.
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| N/A | N/A | No Go code in this spec | N/A |
+| Matrix result accounting | Native matrix owner, resolved during design | AC-2/AC-3/AC-4/AC-6/AC-8: omitted categories, stop-on-first-failure and hidden skips must fail the test | Outstanding |
 
 ### Functional Tests
 
-N/A: This is build infrastructure (the native action tables under `internal/le/` targets). No new user-facing features,
-no .ci tests needed. The targets call existing test suites that already have their
-own .ci coverage.
+No new `.ci` format is needed. The matrix's command-level tests must prove
+category accounting; existing category suites keep their own behaviour tests.
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -180,20 +183,21 @@ own .ci coverage.
 
 ## Files to Modify
 
-- `internal/le/evidence/evidence.go` - new file with release evidence targets
-- `internal/le/` native action tables - include test-release.mk, add help-test entries
+- `internal/le/evidence/` - native matrix composition beside the preserved clean-clone action, with registered help and command tests
+- `docs/functional-tests.md` - exact matrix invocation and its evidence population
+- `plan/pre-release/spec-release-distribution.md` - consume the same registered matrix action without treating clean-clone verification as equivalent
 
 ## Files to Create
 
-- `internal/le/evidence/evidence.go` - release evidence gate targets
+- Exact native source/test filenames remain to be settled during design; no new category runner is authorised.
 
 ## Implementation Steps
 
-### Categories in ze-evidence-release-verify
+### Required release-matrix categories
 
 Run in this order (fast/no-infra first, slow/heavy last):
 
-| # | Category name | Make target | Infra |
+| # | Category name | Action or historical locator | Infra |
 |---|--------------|-------------|-------|
 | 1 | verify | `./le verify current mode full` | None |
 | 2 | chaos | `ze-chaos-test` | None |
@@ -207,18 +211,17 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | 10 | vpp-deployment | `./le deployment vpp-test` | Docker+privileged |
 | 11 | live | `ze-live-test` | Docker+internet |
 
-### Phase 1: Create internal/le/evidence/evidence.go
+### Phase 1: Native matrix wiring
 
-1. Header comment with quick reference
-2. `.PHONY` declarations for all new targets
-3. `ze-evidence-release-preflight`: check Docker (mandatory), QEMU (optional), print status
-4. `ze-evidence-perf-record`: depends on `ze-perf-build`, runs the benchmark for the Ze DUT, then runs `ze-perf track --check`
-5. `ze-evidence-release-verify`: shell runner with run_category() function, ZE_RELEASE_SKIP support, summary
+1. Resolve the exact registered matrix command and the current action for each category above.
+2. Implement preflight, continue-after-failure, `ZE_RELEASE_SKIP` accounting and summary through existing native runners.
+3. Preserve the independent clean-clone action and use `./le perf-bench evidence-record` for the perf chain.
+4. Prove the matrix through its command, including failure and skip cases, and keep AC-9/AC-10's scheduled Linux evidence.
 
-### Phase 2: Wire into the native action tables under `internal/le/`
+### Phase 2: Documentation and capable-host evidence
 
-1. Add `include internal/le/evidence/evidence.go` to the include block
-2. Add help-test entries for ze-evidence-release-verify, ze-evidence-perf-record, ze-evidence-release-preflight
+1. Publish the exact entry point in native help and `docs/functional-tests.md`, then update release-distribution's caller.
+2. Run every category on a capable host, retain the per-category output and finish the independent review.
 
 ### Critical Review Checklist
 
@@ -235,12 +238,11 @@ Run in this order (fast/no-infra first, slow/heavy last):
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `internal/le/evidence/evidence.go` exists | `ls internal/le/evidence/evidence.go` |
-| Preflight target works | `./le evidence release-candidate` |
-| Perf gate target works | `make -n ze-evidence-perf-record` |
-| Evidence target works | `make -n ze-evidence-release-verify` |
-| the native action tables under `internal/le/` includes test-release.mk | `grep 'test-release.mk' the native action tables under `internal/le/`` |
-| Help entries present | `make help-test` shows new targets |
+| Native release matrix | Command-level output accounts for every required category |
+| Preflight | Docker absence fails, QEMU absence is an explicit skip |
+| Perf evidence | `./le perf-bench evidence-record` runs the benchmark/history/check chain |
+| Failure accounting | A failed category does not prevent later categories and makes the final result fail |
+| Help and distribution caller | Both name the same registered matrix action |
 
 ## Review Gate
 
@@ -270,28 +272,27 @@ Run in this order (fast/no-infra first, slow/heavy last):
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated
-- [x] `make -n ze-evidence-release-verify` shows correct target expansion
-- [x] Feature code integrated (`internal/le/evidence/evidence.go`, `internal/le/` native action tables)
+- [ ] AC-1..AC-10 all demonstrated against the current native producers
+- [ ] Native matrix invocation and failure/skip accounting demonstrated
+- [ ] Native entry point, help and release-distribution caller integrated
 - [ ] `./le verify worktree` passes (lint + all ze tests)
 
-### Design
-- [x] No premature abstraction
-- [x] Follows ./le functional shell runner pattern
-- [x] Minimal coupling (calls existing targets, no new Go code)
+### Historical Make design evidence
+- The original design reused the functional shell-runner pattern and composed existing targets.
+- Its passing dry-runs do not prove the native matrix exists or executes.
 
 ### TDD
 - [ ] Tests written
 - [ ] Tests FAIL
 - [ ] Tests PASS
-- [x] N/A: no Go code, verification via Make dry-run
+- [ ] Native matrix command-level failure and skip proof recorded; the historical no-Go/Make-only exemption no longer applies
 
 ## Verification Evidence (2026-05-24)
 
 | Check | Result | Evidence |
 |-------|--------|----------|
-| AC-1 preflight success | PASS | `./le evidence release-candidate` found Docker and `qemu-system-x86_64`, exited 0 |
-| AC-1 Docker missing | PASS | `PATH="/usr/bin:/bin" the retired make ze-evidence-release-preflight (current: ./le evidence release-candidate)` reported Docker missing and exited 1 |
+| AC-1 preflight success | PASS (historical) | The 2026-05-24 preflight found Docker and `qemu-system-x86_64`, exited 0. This is not evidence for the current clean-clone command |
+| AC-1 Docker missing | PASS (historical) | The retired `make ze-evidence-release-preflight` under `PATH="/usr/bin:/bin"` reported Docker missing and exited 1 |
 | AC-2 category runner | PARTIAL | `make ZE_RELEASE_SKIP=verify ze-evidence-release-verify` ran the non-skipped matrix and printed per-category PASS/FAIL/SKIP plus summary |
 | AC-3 continue after failure | PASS | `make MAKE=false ZE_RELEASE_SKIP=fuzz,interop,ipsec-interop,l2tp-interop,functional-extra,perf,qemu,vpp-deployment,live ze-evidence-release-verify` reported verify and chaos failures, then skipped remaining named categories and exited 1 |
 | AC-4 explicit skip | PASS | `make MAKE=true ZE_RELEASE_SKIP=interop,perf ze-evidence-release-verify` reported `SKIPPED: interop perf` and exited 0 |
@@ -322,8 +323,10 @@ Additional post-wave corrections:
   functional `.ci` (as112-dot/doh, exabgp-bridge-internal, mcp-get-sse,
   test/traffic 020-026) via their existing category targets.
 
-Remaining work: re-run `./le evidence release-candidate` on a capable host (Docker +
-QEMU + privileged), record fresh per-category results, fill the Review Gate, close.
+Remaining work: restore the native matrix composition without changing the
+clean-clone contract, then run it on a capable host (Docker, QEMU and required
+privileges). Record fresh category results and AC-9/AC-10 evidence, complete
+independent review, and only then proceed to closure.
 
 Blocked failures from the (superseded) 2026-05-24 release evidence run:
 

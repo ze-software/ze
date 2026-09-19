@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | config |
-| Depends | `spec-ssh-optional-composition` (closed) |
+| Depends | - |
 | Phase | - |
 | Handoff | verify |
 | Updated | 2026-08-11 |
@@ -37,6 +37,19 @@ SSH, web, REST and gRPC each carry a username into `(*Store).Authorize` today.
 The looking glass and gNMI authenticate with a shared token and learn no
 username at all, so they cannot answer the question yet; giving them identity is
 `plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md`.
+
+The SSH composition prerequisite closed in `6bbdb9c037` on 2026-08-17.
+It remains historical context and no longer blocks this spec.
+
+This spec supplies the login-service gate required by
+`plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md`. Its current
+optional placement conflicts with that dependent spec's first-release bucket.
+The owner must include the required gate in first-release scope, move the
+combined identity work to optional scope, or approve an explicit prerequisite
+subset. Until that choice is recorded, the prerequisite is mandatory for the
+identity work and cannot be scheduled as independently optional. The four
+existing username surfaces stay owned here; the dependent spec still owns
+looking-glass and gNMI identity and their integration with this gate.
 
 ## Assumptions the owner has not ruled on
 

@@ -17,34 +17,50 @@
 
 ## Task
 
-Deferred out of `spec-gokrazy-builddir-tmp` on 2026-07-23. That spec unified how
-the two build paths PREPARE a gokrazy instance (both now go through
-`internal/appliance/instance`). It deliberately did not touch how they SEED the
-appliance database, which remains genuinely divergent:
+Deferred out of `spec-gokrazy-builddir-tmp` on 2026-07-23, when the make recipe
+and the named-appliance builder shared instance preparation but seeded their
+databases separately.
 
-| Concern | make path | Go path |
-|---------|-----------|---------|
-| database seeding | shell: `ze init --force --yes --seed`, per-`CERTNAME` TLS cert cache, `ze data write file/template/ze.conf` (`internal/appliance/cmd_build.go`) | `assembleZeFS` from an appliance directory (`internal/appliance/cmd_assemble.go`) |
-| external database | `ZEFS=/path` copies one in | no equivalent |
+The current tree has retired that make recipe. `buildOne` in
+`internal/appliance/cmd_build.go` calls `assembleZeFS`, `runGokBuild` and
+`injectZeFS`; injection discovers the partition through `findLastPartition`.
+The retirement record in `internal/le/completeness_record_test.go` names
+`ze-gokrazy-build` as absorbed by `ze appliance build`.
+
+The surviving decision is whether that retirement preserves the developer
+conveniences this spec required. The old `ZEFS=/path` input copied an external
+database, and `CERTNAME` selected a shared certificate cache. `buildOne` now
+always assembles a seed from the named appliance. `assembleZeFS` reuses that
+appliance's stored `cert.pem` and `key.pem`, but per-appliance reuse alone does
+not establish equivalence to the old `CERTNAME` cache.
+
+Before this spec can close, account for both requirements: identify equivalent
+supported workflows and prove them, or obtain an explicit owner decision on
+any difference. The requirement to preserve them remains open; the absence of
+two build paths is neither a reason to recreate the make recipe nor proof that
+the original scope is complete. Whether a remaining difference blocks release
+is also an owner decision.
+
+### Historical comparison, 2026-07-23
+
+| Concern | Former make path | Named-appliance Go path at that review |
+|---------|------------------|---------------------------------------|
+| database seeding | shell `ze init --force --yes --seed`, per-`CERTNAME` TLS cert cache, `ze data write file/template/ze.conf` | `assembleZeFS` from an appliance directory |
+| external database | `ZEFS=/path` copied one in | no equivalent recorded |
 | output | fixed `tmp/gokrazy/ze.img` | timestamped under `AppliancePath` |
 | encryption, manifest, checksum, GPT-discovered mkfs offsets | absent | present |
 
-The D-1 audit in the source spec found the Go path is a strict superset on every
-step the two share, and that the make path hardcodes `/perm` offsets which will
-rot silently if the partition layout changes.
-
-Decide whether `ze appliance build` should become a thin wrapper over
-`ze appliance build` (retiring the shell seeding, the hardcoded offsets, and the
-duplicated mkfs/debugfs work) or whether the two are deliberately different
-products. If they converge, `ZEFS=` and the `CERTNAME` cert cache must survive in
-some form: they are developer conveniences with no Go equivalent today.
+The source spec's D-1 audit recorded the Go path as a strict superset of the
+shared steps and identified hardcoded `/perm` offsets in the former make path.
+Its convergence question was whether `ze-gokrazy-build` should delegate to
+`ze appliance build` or remain a separate product.
 
 ### Added 2026-08-03: the make path injects credentials fail-open
 
-Found while closing `spec-gokrazy-init-bump`. Its deferral shard
-the retired deferral shard "gokrazy-init-bump" carries the row that homes this work here.
+Found while closing `spec-gokrazy-init-bump`; its retired deferral shard
+assigned the issue here.
 
-The credential injection at `internal/appliance/cmd_build.go` runs `debugfs -w -R "mkdir ze"` and
+The former recipe ran `debugfs -w -R "mkdir ze"` and
 `debugfs -w -R "write ... ze/database.zefs"`, each with `2>/dev/null`. Measured
 on e2fsprogs 1.47.0: `debugfs` exits **0 even when the command fails**, and it
 reports the failure only on stderr, which those two redirections discard. An
@@ -88,18 +104,21 @@ $ cmp -s src.bin readback.bin
 OK                        <- the assertion does not false-positive
 ```
 
-The convergence question this spec exists for is untouched. Whether
-`ze appliance build` becomes a thin wrapper over `ze appliance build` is still open,
-and if it does, this assertion goes with the shell seeding it guards.
+At the 2026-08-05 fix, the convergence question remained open. The assertion
+guarded the shell seeding while that path survived. The current single-builder
+path calls `verifyInject`; `verifyInjectedDB` in
+`internal/appliance/diskverify.go` checks that the source bytes occur in the
+partition image. This is the current implementation, separate from the dated
+debugfs readback experiment above.
 
-Two further items deferred out of the same source spec (recorded in its
-the retired deferral shard "gokrazy-builddir-tmp" shard, which the closure commit
-removes; this spec is their home):
+Two further items came from `spec-gokrazy-builddir-tmp` through its retired
+deferral shard:
 
 - ~~**Gate the tracked builddir `go.sum` files against the root module.**~~
-  **DONE 2026-08-05.** `internal/le/`, run by
-  `./le gokrazy-gosum` and a prerequisite of `ze appliance build`, so the
-  image cannot be built over a drift.
+  **DONE 2026-08-05.** The recorded fix added `./le gokrazy-gosum` and made it
+  a prerequisite of the former make build. The command remains in
+  `internal/le/gokrazygosum`; that historical prerequisite is not evidence that
+  the current `buildOne` invokes it.
 
   It fires on ONE condition, the only one that cannot be legitimate: the same
   `(module, version)` hashing two ways between the root `go.sum` and a builddir
@@ -170,16 +189,18 @@ removes; this spec is their home):
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- The gokrazy make target (`internal/appliance/cmd_build.go`, `ze-gokrazy-build` recipe): operator supplies USER/PASS, or ZEFS, or neither.
-- `ze appliance build <name>` (`internal/appliance/cmd_build.go`, `buildOne`): operator builds a named appliance created by `ze appliance init`.
-- Both converge on the shared preparer and gok. Only the seeding above them differs.
+- `ze appliance build <name>` (`internal/appliance/cmd_build.go`, `buildOne`):
+  builds a named appliance created by `ze appliance init`.
+- The former `ze-gokrazy-build` make entry point has been retired. Its
+  external-seed and certificate-cache requirements remain under the Task decision.
 
 ### Transformation Path
-1. Seed the database: shell `ze init` plus `ze data write` on the make path; `assembleZeFS` on the Go path.
-2. Prepare the instance: `instance.Prepare` under project `tmp/` (already unified by `spec-gokrazy-builddir-tmp`).
-3. Build the image: `gok overwrite`.
-4. Format `/perm` and inject the database: hardcoded offsets plus shell `debugfs` on the make path; `findLastPartition` plus `injectZeFS` on the Go path.
-5. Post-process: checksum and build manifest on the Go path only.
+1. Seed the database through `assembleZeFS` from the named appliance.
+2. Prepare an isolated instance through `resolveBuildParentDir` and `instance.Prepare`.
+3. Build the image through `runGokBuild`.
+4. Discover the `/perm` partition with `findLastPartition`, then format, inject
+   and verify it through `injectZeFS`.
+5. Write the image checksum and build manifest.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -225,7 +246,7 @@ removes; this spec is their home):
 <!-- Every row MUST have a test name. "Deferred" / "TODO" / empty = spec cannot be marked done. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| The gokrazy make target with USER/PASS | → | whichever seeding path survives the decision | `./le deployment gokrazy-l2tp-ppp-test` |
+| The former make path's external-seed and certificate-cache use cases | → | supported equivalents to be identified at design, or an explicit owner decision | Preservation evidence required before closure |
 | `ze appliance build <name>` | → | `assembleZeFS` | `TestAssembleProducesZeFS` |
 
 ## Acceptance Criteria

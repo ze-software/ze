@@ -30,11 +30,13 @@ a fragment flood reaches the detector already reassembled, and the flow records
 `classifyFlows` reads carry no fragment counter. It falls to
 `FamilyGenericFlood`.
 
-**Why it matters.** The constant is a promise the code does not keep. Anything
-reading the family set, an operator, a dashboard, or a responder policy keyed on
-family, is told ze classifies fragment floods, and it does not. It is not a
-silent-wrong-answer defect, because generic-flood is an honest classification of
-what conntrack sees. It is a declared capability with no producer.
+The declaration has no producer, but it does not establish an operator-facing
+promise by itself. `docs/guide/ddos-mitigation.md` explicitly includes fragment
+floods under `generic-flood`, and `classifyFlows` has no fragment counter to
+distinguish them. This record identifies unused vocabulary and a possible new
+input source; it does not demonstrate a wrong runtime classification. Keeping
+it as a first-release requirement needs an operator consequence or an explicit
+owner decision.
 
 **The decision, which is the owner's.** Two directions, both defensible:
 

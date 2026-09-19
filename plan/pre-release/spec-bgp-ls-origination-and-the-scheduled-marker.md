@@ -45,6 +45,12 @@ Phase 1 lands on its own and Phase 2 waits. That is deliberate: the marker point
 at THIS spec, this spec stays open while origination is unbuilt, and the marker
 stays valid for exactly that long and not one commit longer.
 
+Phase 2 also owns the producer controls inherited from the receiver spec:
+the operator-set maximum advertisement/withdrawal rate, per-neighbour
+abstracted topologies, and a configurable 4096-byte UPDATE limit with the
+larger-message option constrained by RFC 8654 support. These remain unfinished
+with origination. Their inheritance does not schedule Phase 2 or expand Phase 1.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -219,6 +225,9 @@ Two, one per phase.
 | AC-10 | ze configured with a BGP-LS Instance-ID and an IGP topology | it originates node, link and prefix NLRI carrying that Instance-ID in the 8-octet Identifier field |
 | AC-11 | ze configured to originate BGP-LS with NO Instance-ID | it refuses to originate and says which leaf is missing |
 | AC-12 | two nodes in one IGP domain | each is originated under exactly one key, and no two under the same key |
+| AC-13 | An operator sets a maximum Link-State NLRI advertisement/withdrawal rate and topology changes exceed it | Captured output to each affected neighbour stays within the configured rate; pending changes remain accounted for and are eventually advertised or withdrawn |
+| AC-14 | An operator configures different topology abstractions for two neighbours | Each peer observes its configured abstraction, including the configured aggregation, without receiving objects excluded from that view |
+| AC-15 | An operator selects the 4096-byte BGP-LS UPDATE limit | Every originated UPDATE stays within 4096 bytes; the larger-message option is available only with the RFC 8654 conditions satisfied, and oversized information is handled according to RFC 9552 Section 5.3 without malformed output |
 
 ## End-to-End User Stories
 
@@ -245,6 +254,7 @@ Two, one per phase.
 | `TestBGPLSInstanceIDReachesTheOriginator` | `internal/component/bgp/plugins/nlri/ls/config_test.go` | AC-10 wiring | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | `TestBGPLSOriginationRefusesWithoutAnInstanceID` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-11 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | `TestBGPLSNodeKeyIsUniquePerNode` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-12 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| Producer rate-limit, topology-view and UPDATE-size tests | Phase 2's `internal/component/bgp/plugins/nlri/ls/` tests | AC-13 through AC-15; concrete config and scheduling choices remain design work | Owed in Phase 2 |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -348,6 +358,13 @@ Two, one per phase.
    - Files: `internal/component/bgp/plugins/nlri/ls/originate.go`, `types_descriptor.go`, `plugin.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: GoBGP accepts the NLRI and reports one node per key
 
+7. **Phase: Producer controls** (Phase 2, still unscheduled)
+   - Design the config and observable semantics for AC-13 through AC-15 before
+     implementation, including rate accounting for advertisements and withdrawals.
+   - Files: the producer, its config/YANG surface, functional and interop proofs.
+   - Verify: peer-observed output respects the rate, per-neighbour abstraction
+     and selected UPDATE-size limit. None may disappear at origination closure.
+
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
@@ -373,7 +390,7 @@ Two, one per phase.
 |-------|-----------------|
 | Input validation | the spec path in a marker is read from a tracked summary and used only for an existence test; it must never be opened, executed, or joined outside the repository root |
 | Authorization failing open | the precondition must fail CLOSED: an unreadable `plan/` directory reds the gate rather than accepting every marker |
-| Resource exhaustion | Phase 2 originates one NLRI per IGP object; the advertisement rate is what §8.2.3 SHOULDs a limit on, and it is out of this spec's scope |
+| Resource exhaustion | Phase 2's operator-set advertisement/withdrawal rate and UPDATE-size limit are required by AC-13 and AC-15; the inherited producer controls stay in scope |
 
 ### Failure Routing
 | Failure | Route To |
@@ -423,7 +440,7 @@ the Instance-ID's use in the Identifier field (§5.2).
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-12 all demonstrated
+- [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)

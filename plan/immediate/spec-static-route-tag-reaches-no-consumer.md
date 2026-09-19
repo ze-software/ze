@@ -2,16 +2,24 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | 1/3 |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+Tag emission and precedence are implemented in `routeManager.emitRouteChangeID`
+and `externalRouteTag`; the test tables below record the implementation
+session's evidence. D-2 still asks for owner confirmation and the closure
+sections remain unfinished. This spec is not an unstarted implementation or
+a closure verdict.
+
+### Original defect (2026-09-06)
 
 **What the operator is promised.**
 `internal/plugins/static/yang/ze-static-conf.yang` declares `leaf tag` under

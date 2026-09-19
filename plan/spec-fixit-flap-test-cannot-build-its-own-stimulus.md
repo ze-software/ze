@@ -2,19 +2,34 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | iface |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-03 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Current remaining work
+
+The instrument and stimulus repair exist in the current tree. Source read on
+2026-09-19: `flapCommit08` and the round loop in
+`internal/test/fixture/plugin_fixture_08_flap.go` poll the apply-start counter,
+and `flapBlocked08` reads queued-while-blocked events. The netlink monitor's
+`start` sets `monitorReceiveBufferBytes` on link, address and neighbour
+subscriptions. The five-of-five and twelve-run results below remain dated
+2026-09-04 evidence, not current measurements.
+
+Remaining work is to reconcile that evidence with the current tree, retain
+discrimination of the overlap guard and zero-drop assertion, obtain the clean
+independent review the latest update says is missing, and complete the normal
+verification and closure gates. This is no longer unstarted stimulus design.
+
 ## The instrument landed and the test PASSES (2026-09-04 evening, session 2d2bc99a)
 
-This is EVIDENCE, not a closure. The status stays `skeleton` and the checklist
-stays unticked, for the reasons at the end of this section.
+This section records the first instrument run on 2026-09-04. Its one-run
+limitations were superseded by the later five-of-five update below.
 
 `d0affb5e4b` built `ze_iface_link_events_queued_while_blocked_total`, which is
 exactly the instrument the section below says does not exist, and wired it into
@@ -55,9 +70,9 @@ all-tests` is a GUEST action, the Alpine guest needs `packages "coreutils
 iproute2"` or BusyBox `timeout` and `ip` defeat it, the binaries need canonical
 names, and a single test is `ze-test bgp plugin iface-link-flap-during-commit`.
 
-Read the section below knowing the counter it calls missing now exists.
+The following account preserves the retraction and later repair sequence.
 
-## NOT RESOLVED. This section claimed it was, on 2026-09-04, and that was wrong.
+## Historical retraction and subsequent repair (2026-09-04)
 
 **Retracted the same day.** The claim was "the test could always build its
 stimulus, the counter reading it was blind", on the evidence of four green runs
@@ -92,11 +107,11 @@ needed and none of them was the lead:
    before ze ever saw it. Fixed at `monitorReceiveBufferBytes`, and zero drops
    in twelve runs since.
 
-What remains is procedural, not technical: this file is not closed because
-`./le commit create` refuses to remove a spec with no independent-review
-artifact. One independent review DID run, returned ISSUES with two blockers,
-and every finding it raised is fixed; a second review confirming that is what
-closure now waits on.
+The latest 2026-09-04 update recorded a remaining independent-review obligation:
+`./le commit create` refused removal without the artifact. One independent
+review had returned issues including two blockers, and the author reported each
+finding fixed. A second clean review was still owed; no such review or new run
+is claimed by this reconciliation.
 
 **What IS established**, and it is worth keeping:
 
@@ -113,34 +128,27 @@ closure now waits on.
   wide window over-reports, a narrow one under-reports. No reading of
   `ze_iface_link_worker_blocked_total` establishes "the burst met a held lock".
 
-So the work this file names is REAL and is not the work it originally described.
-It is not "restore a lost stimulus by tuning a lead". It is "give this test an
-instrument that can see events queued while the worker is blocked", because the
-one it has cannot. An event-queued-while-blocked counter is the shape that
-answers it; `ze_iface_config_apply_started_total` (added in this work) answers
-the weaker question of whether the apply began at all.
-
-A second, independent failure showed up in the same re-runs and is not
-diagnosed: two of three runs died on `kernel dropped 1054` and `207 netlink
-notifications`. The zero-drops assertion is load-dependent and the round loop
-now completes more rounds than it used to, which is the obvious suspect and is
-NOT established.
+Before that final repair, the investigation had established that the block
+counter could not answer whether events arrived during the hold, and had not
+yet diagnosed the netlink drops. Those were the open questions the
+queued-while-blocked instrument, apply-start synchronisation and receive buffer
+subsequently addressed. They are retained as history rather than new tasks.
 
 The full account is in `plan/journal/gate-fires-outside-its-population.md`.
 
-Read the rest of this file knowing the section above supersedes it. The Task
-section still carries the reasoning as it stood at two earlier moments, each
-marked where it was wrong, because the sequence is the useful part: a true
-premise, a real defect found underneath it, and a green that was neither.
+The next section retains the earlier reasoning where useful, with the current
+remaining goal stated first.
 
 ## Task
 
-`test/plugin/iface-link-flap-during-commit.ci` measures one thing: a link that
-flaps while a config commit holds `dhcpMu` must reach the metric live carrier
-calls for, without the carrier self-heal repairing it. It builds that scenario
-by timing. It sends SIGHUP, waits a fixed lead, then drives 101 carrier
-transitions, and it needs the burst to land while the reload still holds the
-lock.
+Complete evidence and review for `test/plugin/iface-link-flap-during-commit.ci`.
+The test must prove that a link which flaps while a config commit holds
+`dhcpMu` reaches the metric live carrier calls for, without carrier self-heal.
+The current fixture observes apply-start before bursting and counts events
+queued while the worker is blocked; it no longer schedules the burst by a
+fixed lead. Preserve all per-round assertions, zero drops and the 101-transition
+bound. No new stimulus mechanism is planned unless current evidence shows a
+surviving defect.
 
 **The paragraph that stood here was wrong, and the wrongness is the point of
 this file.** It read: "That no longer happens. Measured four times on the arm64
@@ -175,13 +183,10 @@ keeping because each was a candidate cause that turned out to be innocent:
    (`internal/plugins/iface/dhcp/dhcp_linux.go`) closes the stop channel and
    then waits on done, forty times in sequence, and nothing has moved that work
    out from under the lock since the 1.1 to 3.3 s figure was taken.
-3. **Which design restores the stimulus?** Still open, and now the whole
-   question. Two were surveyed
-   and are recorded in the journal row for whoever meets this class again: a
-   `zetest` rendezvous inside the apply removes the timing race but costs a
-   production call site with an empty body, and a participant fixture holding
-   the reload is a trap, because participant order comes from ranging a Go map
-   and is randomized per reload.
+3. **Which design restored the stimulus?** The final 2026-09-04 update records
+   apply-start synchronisation and the queued-while-blocked instrument. The
+   earlier `zetest` rendezvous and participant-order approaches remain rejected
+   alternatives in the journal; neither is current implementation work.
 
 The advice the file opened with still stands and is the one thing to carry
 forward: prefer the answer that removes a timing race over one that widens a
@@ -194,19 +199,17 @@ was questioned.
 ### Architecture Docs
 - [ ] `ai/rules/platform-linux.md` - why this test is QEMU-gated and what that
   costs per iteration
-  → Decision: <to be filled>
-  → Constraint: <to be filled>
+  → Constraint: runtime proof needs a Linux guest with the test's network capabilities and current daemon and fixture binaries.
 - [ ] `docs/architecture/testing/interop.md` - the four vacuity traps; assertion
   (2) of this test exists to defeat one of them
-  → Decision: <to be filled>
-  → Constraint: <to be filled>
+  → Constraint: the overlap guard must fail when no burst overlaps; a normal green alone is insufficient.
 
 **Key insights:** (minimal context to resume after compaction)
 - The three assertions and why the test needs all three are written in the
   `.ci` header. Read it before changing any of them.
-- There is no config-apply counter to poll: `internal/component/iface` publishes
-  owned devices, coalescing, worker blocks and resyncs, and nothing about
-  applies. That gap is real and is the follow-on work this file names.
+- `ze_iface_config_apply_started_total` and
+  `ze_iface_link_events_queued_while_blocked_total` now exist in `rate.go`.
+  The current fixture reads both; the absent-instrument premise is historical.
 - **CORRECTED 2026-09-04.** This bullet claimed per-round stderr from the
   fixture does not reach the run output, and that is FALSE. The relay carries
   every line: `attachStderrRelay` has no cap and does not stop at ready. What
@@ -228,8 +231,8 @@ was questioned.
   around `reconcileDHCP` and `suppressRAForConfig`
 - [ ] `internal/component/iface/link_queue.go` - the worker that takes the same
   lock per apply, and `resyncCarrierState`
-- [ ] `internal/component/iface/rate.go` - the four `ze_iface_*` metrics that
-  exist, which is the evidence for "no apply counter"
+- [ ] `internal/component/iface/rate.go` - apply-start and queued-while-blocked metrics
+- [ ] `internal/plugins/iface/netlink/monitor_linux.go` - receive-buffer binding for all three subscriptions
 
 **Behavior to preserve:**
 - All three per-round assertions in the `.ci` header, and the reasons given
@@ -242,51 +245,54 @@ was questioned.
   misses into a red.
 
 **Behavior to change:**
-- <to be filled>
+- No additional behaviour change is planned. Re-open a producing defect only if the remaining proof identifies one.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- <to be filled>
+- `ze-test bgp plugin iface-link-flap-during-commit` inside the supported Linux/QEMU environment.
 
 ### Transformation Path
-1. <to be filled>
+1. The fixture sends SIGHUP and observes the apply-start counter.
+2. The fixture bursts carrier transitions and reads events queued during the worker's lock wait.
+3. The test checks overlap, resulting live-carrier metric, lack of self-heal and lack of netlink drops.
 
 ### Boundaries Crossed
 | Boundary | From | To |
 |----------|------|-----|
-| <to be filled> | <to be filled> | <to be filled> |
+| Fixture to daemon | SIGHUP and metrics | apply-start and queued-event observations |
 
 ### Integration Points
-- <to be filled>
+- Native flap fixture, iface queue/metrics and netlink subscriptions.
 
 ## Wiring Test
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| <to be filled> | → | <to be filled> | <to be filled> |
+| Linux plugin suite runs the flap scenario | → | apply-start, queued-event and netlink paths | `test/plugin/iface-link-flap-during-commit.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| <to be filled> | <to be filled> | <to be filled> |
+| Existing queue and subscription tests | `internal/component/iface/queued_while_blocked_test.go` and `internal/plugins/iface/netlink/monitor_subscribe_test.go` | Inspect their behavioural coverage during independent review; file existence is not a pass |
 
 ### Functional Tests
 | Test | File | Validates |
 |------|------|-----------|
-| <to be filled> | `test/plugin/iface-link-flap-during-commit.ci` | the burst lands while the worker is held, on a host where the reload is faster than the lead that used to cover it |
+| `iface-link-flap-during-commit` | `test/plugin/iface-link-flap-during-commit.ci` | the burst genuinely overlaps the hold, carrier state converges without self-heal, and no notification drops are hidden |
 
 ## Files to Modify
 
-- `internal/test/fixture/plugin_fixture_08_flap.go` - <what changes>
-- `test/plugin/iface-link-flap-during-commit.ci` - <what changes, if the
-  stimulus is config rather than fixture>
+- This spec for current evidence and review disposition.
+- The native fixture, iface queue/metrics or netlink monitor only if the remaining proof identifies a surviving defect.
 
 ## Implementation Steps
 
-1. <to be filled>
+1. Compare the current producers with the final repair and review findings recorded above.
+2. Record current Linux/QEMU results, including overlap-guard discrimination and the load-dependent zero-drop concern; do not reuse the historical run counts as fresh evidence.
+3. Obtain a clean independent review and `./le verify worktree` before normal closure.
 
 ## Checklist
 

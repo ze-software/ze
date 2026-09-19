@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
 | Phase | 5/6 |
 | Handoff | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -39,6 +39,18 @@ Nothing here was verified against source by the supervising session. Every claim
 in this block came from the implementing agent or from `git status`, so treat it
 as a starting point and read the producer before relying on it
 (`ai/rules/evidence.md`).
+
+Current source check (2026-09-19): `usageOneOfToken` in
+`internal/component/command/usage.go` builds the required group alternation,
+and `handleAnnounceFlowspec` in
+`internal/component/bgp/plugins/cmd/announce/announce.go` rejects unused action
+tokens. The recorded forced-red and before/after corpus evidence remain owed;
+this source check records no new test result. Resume the proof against the
+current `send bgp <selector> flowspec ...` entry point documented in
+`docs/architecture/bgp/on-demand-origination.md`, while preserving the dated
+August command spellings as history. This spec owns the announce grammar and
+its functional proof; `plan/immediate/spec-generated-command-usage.md` retains
+the usage gate integration and proof.
 
 ## Task
 

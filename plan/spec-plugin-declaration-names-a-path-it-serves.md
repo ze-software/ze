@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | plugin |
-| Depends | spec-plugin-declares-answer-shape |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -14,8 +14,9 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 A plugin can declare an answer shape, or an alias, on a command path it does not
-serve. Nothing checks ownership. Both channels take a path from the same Stage 1
-message, and both accept it.
+serve. Stage 1 checks declaration shape and whether an alias names a command
+in that message, but it does not establish that the dispatcher serves the path
+through that plugin.
 
 Found in Phase 2 of `spec-plugin-declares-answer-shape` on 2026-08-24. The work,
 in the row's own words: an ownership check on a declaration, so a plugin declares
@@ -47,6 +48,14 @@ value over a floor, accepts a restatement, and refuses a value that disagrees wi
 a non-empty held value. Ownership is recorded, in `r.byOwner`, so a declaration
 can be removed when its owner leaves. It is never CHECKED against what the owner
 serves.
+
+The declaration prerequisite closed in `2fab385cdb` on 2026-09-08. The live
+gap is still at registration: `onRegistration` writes shapes and aliases before
+the dispatcher registers commands, and that later registration logs a builtin
+conflict without undoing the declarations. This is a defect in the existing
+declaration boundary, limited to rendering and pipe refusal. The owner must
+give it a first-release disposition rather than count it as an elective
+capability because of this file's bucket.
 
 ## Required Reading
 
@@ -126,7 +135,7 @@ serves.
 |----------|--------|
 | What breaks if this is wrong? | A plugin that declares legitimately is refused, and its command renders with the wrong operators |
 | How is it reverted? | Single commit revert |
-| Who else touches this path? | `plan/spec-plugin-declares-answer-shape.md`, `spec-cli-show-bgp-answer-shapes` |
+| Who else touches this path? | The closed `spec-plugin-declares-answer-shape` and `spec-cli-show-bgp-answer-shapes` are historical predecessors; this spec owns the remaining serving-path ownership check |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

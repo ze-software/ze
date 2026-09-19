@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | cli |
-| Depends | `spec-cli-show-bgp-answer-shapes` |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -39,6 +39,9 @@ what the text renderer prints from it so the human-readable output survives.
 The row was raised on 2026-08-24 by `spec-cli-show-bgp-answer-shapes`, which
 declared what each command answers and could not take these two, because the
 change is to two handlers' output contract rather than to what they declare.
+
+The predecessor closed in `d34c07634a` on 2026-09-08. It is provenance rather
+than a live prerequisite; this spec owns the remaining handler-output change.
 
 ## Required Reading
 

@@ -28,12 +28,32 @@ The work is to split each runner into a declaration part that is a pure value
 and a start part that does everything else, so a runner that aborts at Stage 1
 leaves the host, the process and every process global as it found them.
 
-**Provenance:** `spec-plugin-query-mode`, closed 2026-09-09. Query mode does not
+**Provenance:** the delivery recorded under `spec-plugin-query-mode` on 2026-09-09. Query mode does not
 depend on this: it never enters a runner body, which is what makes its inertness
 a property rather than a promise (`plan/learned/013-inertness-is-unreachability.md`).
 `plan/learned/007-declaration-on-the-registration.md` carries the same audit and
-is the answer to any proposal to run engines for introspection. Both closed specs
-named this item and neither did it.
+is the answer to any proposal to run engines for introspection. Those source
+records named this item and neither implemented it. The query-mode spec remains
+open pending its own closure review.
+
+### First-release disposition, 2026-09-19
+
+This is startup-failure safety work, independent of optional declaration-query
+capability. Source inspection still finds reachable abort-path defects:
+`iface.runEngine` starts its reconcile worker and rate tracker before `p.Run`,
+then returns 1 on error before their straight-line cleanup and
+`globalTracker.Store(nil)`. `Plugin.Run` returns a Stage-1 declaration error to
+that branch. `flowspec-firewall.runEngine` can call `firewall.ApplyAll` for the
+legacy sweep before the same declaration, and `trafficusage.runEngine` calls
+the Linux attacher's memlock-changing `Available` before its internal-mode
+refusal.
+
+These existing-startup defects are candidates for `plan/immediate/`; the
+query-mode provenance does not make them optional. No relocation is performed
+here. The 19-runner table remains the dated September 8 audit, not a claim that
+every entry was remeasured in this reconciliation. Design still owes its
+per-runner abort reproduction and complete remeasurement before selecting a
+repair.
 
 ## Required Reading
 
@@ -50,7 +70,7 @@ named this item and neither did it.
 N-A. No wire protocol and no RFC obligation.
 
 **Key insights:** (minimal context to resume after compaction)
-- The abort path is the one nobody tests: `p.Run` returning an error runs the code AFTER it, and `iface`'s six stops are all after it.
+- `p.Run` returns an error to the runner; `iface` immediately returns 1, so the straight-line stops below that branch do not run.
 - Seven runners never reach Stage 1 at all, so "declared nothing" and "sent nothing" are different states and stay so.
 - One defer exists across nine process-global writers, so unwinding is the exception rather than the rule.
 
@@ -115,8 +135,8 @@ N-A. No wire protocol and no RFC obligation.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Each of the 19 runners is started with a Stage 1 that fails | The host, the calling process and every process global are as they were before the start |
-| AC-2 | Each of the 19 runners is started normally | Behavior is unchanged from today |
+| AC-1 | Each audited runner is driven to a failed Stage 1 in every mode that reaches it; early mode refusals are exercised separately where the runner mutates state before refusing | The host, the calling process and every process global are as they were before the start; no worker or handle survives the abort |
+| AC-2 | Each audited runner is started normally in its supported modes | Behaviour is unchanged; existing unsupported-mode refusals remain refusals |
 | AC-3 | (fill during design: whether a check refuses a new runner that reaches outside its locals before `p.Run`) | (fill during design) |
 
 ## 🧪 TDD Test Plan

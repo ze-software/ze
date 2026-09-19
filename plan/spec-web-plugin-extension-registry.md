@@ -4,9 +4,9 @@
 |-------|-------|
 | Status | design |
 | Scope | web, operator-workbench, plugin |
-| Depends | existing workbench shell, `ze:related` tools, `WebRoute` registry |
-| Phase | design |
-| Handoff | define the three web modes, implement typed workbench contribution registry, then migrate BGP first |
+| Depends | - |
+| Phase | - |
+| Handoff | - |
 | Updated | 2026-09-11 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
@@ -292,10 +292,19 @@ three risks:
 
 ### Spec decomposition
 
-The registry spec is the foundation spec. It does not authorize implementing
-every workbench page in one pass. Each substantial feature or objective gets its
-own implementation-ready spec before code changes start. That spec may depend on
-underlying module work, but it must name the dependency and its readiness.
+The registry spec is the foundation spec. Each substantial feature or objective
+needs its own implementation-ready spec before code changes start, with named
+module dependencies and their readiness.
+
+The existing workbench shell, `ze:related` tools and `WebRoute` registry are
+inputs to this design, rather than unfinished blocking specs. Before readiness,
+the owner must allocate AC-11..AC-16 and implementation steps 7..9 between
+this foundation and the proposed job-dock, palette and table-state slices.
+Until that allocation is recorded, those obligations remain here and cannot
+be omitted from completion evidence. The proposed paths below are decomposition
+candidates, not existing specs or scheduled commitments. The three web modes
+and the existing authentication and authorisation paths remain required.
+
 
 Minimum spec slices expected after the registry foundation:
 

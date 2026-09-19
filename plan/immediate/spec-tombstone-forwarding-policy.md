@@ -19,9 +19,13 @@ The configurable forwarding policy that `draft-mangin-idr-attr-tombstone-00`
 Section 5.3 says implementations SHOULD provide: **inherit / strip / propagate**,
 configurable per neighbor or peer-group.
 
-Ze implements only the default, **"inherit"**, as of commit `706b77b7d` (which added
-the Section 5.3 eBGP Transitive-clear at the egress funnel). There is no config
-surface: no YANG leaf selects a policy today.
+Ze has no policy-selection surface and no live Section 5.3 eBGP Transitive-clear.
+Commit `706b77b7d` implemented the old prepend-funnel clear; that whole-payload
+rail has since been removed. The current forward and route-server rails use
+`ASPathEdit.Record` plus `buildModifiedPayload`, and neither applies the clear.
+This spec owns restoring the default on ordinary and RS-client eBGP egress
+alongside the configurable policies. It must not preserve the missing clear as
+the default's byte-level contract.
 
 Quoting the draft (Section 5.3): "Implementations SHOULD provide a configurable policy
 to override this default, with at least the following options", listing "inherit"
@@ -35,9 +39,9 @@ Points to complete:
 | 1 | A YANG config surface selecting the policy, per neighbor and per peer-group |
 | 2 | "strip" — needs a **rebuild**, not an in-place mask (see the constraint below) |
 | 3 | "propagate" — set the Transitive bit if clear, and clear the Partial bit |
-| 4 | "inherit" — already the shipped behavior; it becomes the explicit default of the new leaf |
-| 5 | (re-homed 2026-07-22 from `spec-fixit-tombstone-ebgp-transitive`, closed as learned 1239) **eBGP RS-clients bypass the prepend funnel**, so Section 5.3's Transitive-clear does not reach them: `forward_rs.go` and `reactor_api_forward.go` hand out `update.WireUpdate` (the received wire) with no per-destination buffer; clearing the bit there would corrupt the shared wire for every other peer. Honoring 5.3 for RS-clients needs a third pooled slot mirroring `ebgpSlotASN4` plus release plumbing at `recent_cache.go,527` — a performance-versus-conformance decision for Thomas |
-| 6 | (re-homed 2026-07-22 from the same source; RULED by Thomas 2026-07-16, edit not yet applied) **Apply the input-side LOCAL_PREF precedent to `test/plugin/remove-private-as-export.ci`**: remove the RFC-invalid LOCAL_PREF from the source frame instead of blessing the tombstone marker in the expectation (`:51` still carries `C0FC0405010000`). Byte-mechanical; the target frame shape is proven at `remove-private-as-replace-peer.ci`. The full ruling and before/after hex table are in git history of the closed spec and in the retired deferral shard "fixit-tombstone-ebgp-transitive" |
+| 4 | `inherit` becomes the explicit default and implements the 2026-08-07 ruling: clear Transitive at eBGP egress and leave received Partial unchanged |
+| 5 | Restore that eBGP clear on both `forwardUpdateCore` and `reactorForwardRS`, for ordinary peers and RS clients, without mutating the shared received wire. The original RS-only diagnosis understated the defect. The recorded RS performance-versus-conformance decision remains for Thomas before this design becomes ready; neither peer class is exempt from the acceptance contract |
+| 6 | The inherited 2026-07-16 input-side LOCAL_PREF correction is present in `test/plugin/remove-private-as-export.ci`: the source frame omits LOCAL_PREF and the comments record the owner ruling. Preserve that corrected AS_PATH-policy fixture; it supplies no tombstone-forwarding proof |
 
 → Constraint: **"strip" needs a rebuild rather than an in-place mask.** The draft
 allows either a real removal or a Transitive-clear, but is explicit that they are not
@@ -46,21 +50,17 @@ forwarded path attributes (requires rebuild), or by clearing the Transitive bit
 (converting to non-transitive so that non-recognizing speakers silently ignore it per
 RFC 4271 Section 5). Note that clearing the Transitive bit does not remove the marker
 from the wire; a recognizing peer will still see it. If complete removal is required,
-the implementation MUST rebuild the path attributes." Ze's egress path masks bits in a
-pooled per-destination buffer (`clearTombstoneTransitive`, `wireu/tombstone.go`,
-reached from `rewriteASPathPrepend`); it does not rebuild there. So "strip" as an
-operator would read the word (the marker is gone) is a new capability at that seam, not
-a flag on the existing one.
+the implementation MUST rebuild the path attributes." The current egress rails
+already have a one-pass rebuild mechanism, `buildModifiedPayload`. The design
+must express marker removal through that mechanism and preserve the no-marker
+fast path, rather than reviving the retired prepend funnel.
 
-## BLOCKING: Draft Ambiguities (Thomas's to resolve as the draft's author)
+## Historical draft ambiguities, resolved 2026-08-07
 
-**These two questions are NOT implementer's judgement calls and MUST NOT be resolved by
-an implementation session.** They are ambiguities in the draft text itself. Thomas is
-the author of `draft-mangin-idr-attr-tombstone-00`; resolving them means deciding what
-the draft should say, and the answer belongs in the draft first, then in ze. An agent
-that "picks the sensible reading" and implements it is inventing protocol.
-
-**This spec cannot leave `skeleton` until both are answered.**
+D-1 and D-2 below preserve the questions put to Thomas and the draft text that
+prompted them. The Rulings subsection governs the design; these questions no
+longer block it. Draft revisions remain Thomas's to make, and agents must not
+invent a different interpretation while implementing the recorded answers.
 
 ### D-1: "not forwarded" under inherit, which ze cannot do without a rebuild
 
@@ -187,21 +187,21 @@ and is meant as a description of how the bit came to be set by an upstream
 non-recognizing speaker. That is what made it look like it contradicted the
 propagate bullet.
 
-### What remains, and it is narrower than this spec assumed
+### Remaining egress repair
 
-The mechanism is already implemented for every destination that passes through
-the prepend funnel. **One path does not**, and it is the live gap:
+The 2026-08-07 source snapshot above described a clear on the old prepend rail
+and an RS-client bypass. The 2026-08-30 correction in the inherited work showed
+that the old rail had no production callers. In the current tree the old
+`rewriteASPathPrepend` and clear helpers are gone altogether. Ordinary eBGP and
+RS-client eBGP destinations both need the ruled clear on the live rails.
 
-eBGP RS-clients bypass the funnel entirely. `forward_rs.go` and
-`reactor_api_forward.go` hand out `update.WireUpdate`, the received wire, with
-no per-destination buffer, so `clearTombstoneTransitive` never runs for them and
-the marker reaches an RS-client with Transitive intact. Under this ruling that
-is now unambiguously wrong rather than a policy question: the mechanism is
-defined and one path skips it.
-
-That gap is the subject of the retired deferral shard "fixit-tombstone-ebgp-transitive"
-and is recorded in `skip-blocked.md` as B-4, where a further ruling of Thomas's
-is still being confirmed.
+The received payload remains shared. A per-destination change must be recorded
+and materialised through the existing egress machinery, with unchanged peers
+still able to use the original bytes. The earlier record explicitly left the RS
+performance-versus-conformance ruling with Thomas. That pause is retained:
+present the current live-rail buffer design for his decision before readiness,
+without reviving a deleted prerequisite spec or treating the default repair as
+optional.
 
 ## Post-Compaction Recovery
 
@@ -227,26 +227,27 @@ is still being confirmed.
   → Constraint: marker generation is Section 4.2/5.1; forwarding is Section 5.3. Do not conflate them, which is exactly how D-2 arose.
 
 **Key insights:** (summary of all checkpoint lines — minimal context to resume after compaction)
-- Two draft ambiguities block this spec. They are the author's to settle, not an implementer's.
-- Ze's Partial behavior is accidentally compliant with one reading of D-2; that is luck, not design.
-- "strip" and "inherit"-for-non-transitive both need a rebuild ze does not have on the egress path.
+- D-1 and D-2 were resolved on 2026-08-07: inherit clears Transitive at eBGP egress and leaves received Partial unchanged.
+- Marker generation clears Partial separately; that rule does not implement forwarding policy.
+- `strip` removes the marker physically. The live one-pass rebuild is the implementation seam; every eBGP peer class needs the default repair.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` masks the Transitive bit in a pooled per-destination buffer; ~~`isTombstoneCode` recognises 252 and 253~~ (superseded 2026-07-22: learned 1237 deleted `isTombstoneCode` and the dual-recognition shim; the single code point is `attribute.AttrTombstone = 252` and the egress funnel gates on it directly, `aspath_rewrite.go`); `WriteTombstone` writes the marker. This is the whole of ze's Section 5.3 implementation: mask-only, no rebuild, no policy selection
-- [ ] `internal/component/bgp/message/attr_discard.go` - `attrDiscardFlags` is `0x80 | (originalFlags & 0x50)`, clearing Partial; comment at `:53` states it. Comment at `:55-59` records the architectural reason the egress rule lives in `wireu` and not here: "The marker is stamped at receive time, where the destination is not yet known ... Section 5.3's egress rule ... is enforced per destination on the EBGP wire path, in wireu.rewriteASPathPrepend, not here"
-- [ ] `internal/core/bgp/attribute/attribute.go` - `FlagPartial = 0x20`, `IsPartial`; `AttrTombstone = 252`
-- [ ] `internal/component/bgp/wireu/aspath_rewrite.go` - `rewriteASPathPrepend`, the single eBGP egress funnel where the mask is applied per destination
+- [ ] `internal/component/bgp/wireu/tombstone.go` - `WriteTombstone` generates code 252 with `0x80 | (origFlags & 0x50)`. It has no forwarding-policy or eBGP-clear helper.
+- [ ] `internal/component/bgp/message/attr_discard.go` - receive-side marker generation; preserve its Section 4.2 flag rule.
+- [ ] `internal/core/bgp/attribute/attribute.go` - `FlagPartial = 0x20`, `FlagTransitive = 0x40`, `AttrTombstone = 252`.
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go`, `forward_rs.go` - both record per-destination edits and call `buildModifiedPayload`; AS_PATH intent is separate from tombstone policy and does not supply the clear.
+- [ ] `internal/component/bgp/wireu/aspath_slot.go` - the live AS_PATH writer can generate an AGGREGATOR-discard marker but does not enforce tombstone propagation.
 
 **Behavior to preserve:** (unless user explicitly said to change)
-- The Section 5.3 eBGP Transitive-clear from `706b77b7d`. Whatever policy surface is added, today's behavior must remain reachable and remain the default (it is "inherit").
+- Preserve the ruled meaning of inherit, rather than the current defect: the default clears Transitive on ordinary and RS-client eBGP egress while leaving received Partial untouched.
 - Zero-copy forwarding for UPDATEs that carry no marker. A policy leaf must not put a rebuild on the general path.
 - `attrDiscardFlags`'s Section 4.2 generation rule (`0x80 | (originalFlags & 0x50)`).
 - The per-destination pooled-buffer model: one received wire is shared by many peers, so per-peer policy MUST NOT mutate the shared wire.
 
 **Behavior to change:** (only if user explicitly requested)
-- None until D-1 and D-2 are answered. Under D-1 reading (a), the default path gains a rebuild for non-transitive markers, which is a behavior change to the shipped default.
+- Add per-peer/group policy selection, implement strip and propagate, and restore inherit's eBGP clear through both live forward rails. No-marker output and unrelated attributes remain unchanged.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -257,22 +258,22 @@ is still being confirmed.
 ### Transformation Path
 1. Config: a new YANG leaf under the neighbor / peer-group container resolves into the peer's runtime config
 2. Receive: the marker is stamped in place (`message/attr_discard.go`) or arrives from upstream, in the shared received wire
-3. Forward decision: per destination, the eBGP funnel `rewriteASPathPrepend` (`wireu/aspath_rewrite.go`) copies attributes into a pooled per-destination buffer
-4. Policy application: `isTombstoneCode` (`tombstone.go`) identifies the marker; today `clearTombstoneTransitive` unconditionally masks Transitive (the "inherit" eBGP rule)
-5. Policy branch to build: inherit → mask (today); strip → **omit the attribute entirely, requiring a rebuild of the attributes section**; propagate → set Transitive, clear Partial
+3. Forward decision: `forwardUpdateCore` and `reactorForwardRS` resolve the destination policy against the payload that destination will receive, including any export replacement and generated marker.
+4. Identify the marker by the single `attribute.AttrTombstone` code 252. Record the destination's edit through the existing egress machinery; no shared received byte may be changed.
+5. Apply inherit's ruled eBGP Transitive-clear with received Partial unchanged; strip omits every marker from the rebuilt attribute section; propagate sets Transitive and clears Partial.
 6. The pooled buffer goes on the wire; the shared received wire is untouched
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Config ↔ reactor | YANG tree → resolved peer config → per-destination forwarding decision | [ ] |
-| Shared wire ↔ per-destination buffer | pooled buffer at `rewriteASPathPrepend`; the only place a per-peer decision may write | [ ] |
-| Mask ↔ rebuild | today's egress can mask but not resize; strip needs resize (new capability at this seam) | [ ] |
+| Shared wire ↔ per-destination buffer | Existing `buildModifiedPayload` materialisation on both forward rails; original bytes remain available to other peers | [ ] |
+| Marker policy ↔ attribute writer | Flag changes and full suppression use the current one-pass writer; no retired whole-payload rail is restored | [ ] |
 
 ### Integration Points
-- `rewriteASPathPrepend` (`wireu/aspath_rewrite.go`) - the single eBGP egress funnel; the natural policy application point.
-- `clearTombstoneTransitive` (`wireu/tombstone.go`) - today's inherit implementation; becomes one branch of three.
-- `rebuildWithAttrDiscard` (`message/attr_discard.go`) - an EXISTING rebuild, but on the receive path, not the per-destination egress path. Study it before writing a second rebuild; do not duplicate it.
+- `forwardUpdateCore` (`reactor_api_forward.go`) and `reactorForwardRS` (`forward_rs.go`) are both required policy callers, for ordinary and RS-client destinations.
+- `buildModifiedPayload` (`forward_build.go`) owns destination materialisation. The design must handle existing markers and markers generated by another edit, including repeated markers.
+- `WriteTombstone` (`wireu/tombstone.go`) and receive-side discard generation retain their generation rules; forwarding policy must not be hidden in the receive writer.
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -287,16 +288,16 @@ is still being confirmed.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | Ze sets the Partial bit nowhere | `attrDiscardFlags` masks `0x50`, excluding `0x20` (`attr_discard.go`); no other 0x20 writer found in `wireu/`, `message/`, `attribute/` | D-2 already has a de-facto answer in code and the question changes shape | `grep -rn "0x20\|FlagPartial" internal/component/bgp/ internal/core/bgp/` | unvalidated |
-| A-2 | `rewriteASPathPrepend` is the only eBGP egress funnel where policy can apply | `706b77b7d` states it, gated on `facts.isEBGP && !facts.rsClient` | Policy is unenforceable on some paths | Read `received_update.go`, `forward_rs.go`, `reactor_api_forward.go` | unvalidated |
-| A-3 | eBGP RS-clients bypass this funnel entirely | Recorded in `plan/spec-fixit-tombstone-ebgp-transitive.md` Known Limitations and its deferrals row: `forward_rs.go` and `reactor_api_forward.go` hand out `update.WireUpdate` with no per-destination buffer | Policy silently does not apply to RS-clients, an operator-visible hole | Read those two call sites | unvalidated |
-| A-4 | "inherit" as shipped is conformant for transitive markers | `706b77b7d` implemented the Section 5.3 MUST | The default is wrong, raising priority | Re-read Section 5.3 against `clearTombstoneTransitive` | unvalidated |
+| A-2 | The old prepend funnel supplies an implementation seam | Earlier design cited `rewriteASPathPrepend` | The design must use the live per-destination edit and materialisation paths | Source inspection of both forward rails | broken: old rail removed; current seam is `buildModifiedPayload` |
+| A-3 | Only RS clients miss the clear | Original inherited RS-only diagnosis | Every ordinary eBGP destination also needs regression coverage | Source inspection of both forward rails and `tombstone.go` | broken: no live eBGP clear for either class |
+| A-4 | Current unconfigured bytes already implement inherit | The old `706b77b7d` implementation was treated as still reachable | Preserving current bytes would preserve the defect | Compare the ruled flag matrix with peer-wire tests on both rails | broken at source; runtime proof remains owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | An implementer resolves D-1/D-2 by picking the reading that is easiest to code, and ze ships an interpretation the draft never made | A design doc explains what the draft "clearly means" | This spec's BLOCKING section. Do not start until Thomas answers |
-| R-2 | Adding a rebuild to the egress funnel costs the zero-copy fast path for all marker-bearing UPDATEs | Benchmark regression on marker-bearing traffic | Rebuild only under strip (and under D-1 reading (a)); never on the no-marker path |
-| R-3 | The policy does not reach RS-clients (A-3), so an operator sets `strip` and markers still leave the box | Config accepted, markers still on the wire to RS-clients | Either reject the config for RS-clients or resolve the RS zero-copy trade-off first. That trade-off is already deferred to `plan/spec-fixit-tombstone-ebgp-transitive.md` as Thomas's call, so the two are coupled |
+| R-1 | An implementer substitutes a new reading for D-1/D-2 | Default requires physical removal or changes received Partial | Use the recorded 2026-08-07 rulings and AC-6/AC-7 |
+| R-2 | Marker policy adds allocations to traffic that carries no marker | No-marker benchmark regression | Record no marker operation when no marker exists or will be generated; retain AC-8 |
+| R-3 | The performance concern becomes an undocumented RS-client exemption | Ordinary eBGP tests pass while RS clients retain Transitive | Resolve destination-buffer costs during design and prove both peer classes on both live rails; any proposed scope reduction requires Thomas |
 | R-4 | The draft's own Section 5.3 wording is what generated the two ambiguities, so a code-only fix leaves the next implementer to rediscover them | — | Deliverable 1 may be a draft revision |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
@@ -305,19 +306,19 @@ is still being confirmed.
 |-------------|---|--------------|------|
 | Neighbor config sets the tombstone forwarding policy to strip | → | the strip branch at the eBGP egress funnel rebuilds without the marker | `test/plugin/tombstone-policy-strip.ci` |
 | Neighbor config sets the policy to propagate | → | the propagate branch sets Transitive, clears Partial | `test/plugin/tombstone-policy-propagate.ci` |
-| No policy configured | → | `clearTombstoneTransitive` (today's inherit behavior) | `test/plugin/remove-private-as-export.ci` (existing) |
+| No policy configured, ordinary or RS-client eBGP destination | → | live per-destination inherit clear on both forward rails | `test/plugin/tombstone-policy-inherit-default.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | No policy configured | Inherit. Byte-for-byte identical to today's shipped behavior |
+| AC-1 | No policy configured, on ordinary and RS-client eBGP destinations through both live forward rails | Same result as explicit inherit: clear Transitive on markers, preserve received Partial and unrelated bytes. Marker-bearing output changes where the inherited defect omitted the clear |
 | AC-2 | Policy `strip`, marker-bearing UPDATE forwarded | No marker in the forwarded UPDATE at all — rebuilt, not masked (draft Section 5.3: "If complete removal is required, the implementation MUST rebuild the path attributes") |
 | AC-3 | Policy `propagate`, non-transitive marker | Transitive bit SET before forwarding ("the implementation MUST set the Transitive bit before forwarding") |
 | AC-4 | Policy `propagate`, marker with Partial set by an upstream non-recognizing speaker | Partial CLEARED ("MUST clear the Partial bit (setting it to 0), even if it was set by an intermediate non-recognizing speaker") |
 | AC-5 | Policy configured per peer-group; a neighbor overrides it | The neighbor value wins ("The policy SHOULD be configurable per peer-group or per neighbor") |
-| AC-6 | Transitive marker under inherit, Partial bit | **Blocked on D-2.** No AC can be written until Thomas rules |
-| AC-7 | Non-transitive marker under inherit | **Blocked on D-1.** Either removed (rebuild) or forwarded non-transitive; the draft supports both readings |
+| AC-6 | Received transitive marker under inherit, with Partial set and clear controls, to iBGP and both eBGP peer classes | Received Partial stays unchanged. Transitive clears on eBGP egress and stays unchanged on iBGP egress, per the 2026-08-07 ruling; locally generated markers retain their separate Partial-clear rule |
+| AC-7 | Received non-transitive marker under inherit | It remains non-transitive without requiring physical removal or changing received Partial. Physical removal is the explicit strip policy, per D-1's resolved reading (b) |
 | AC-8 | UPDATE carrying no marker, any policy | Zero-copy fast path unchanged; no rebuild, no added allocation |
 
 ## End-to-End User Stories (MANDATORY for new features)
@@ -332,11 +333,12 @@ is still being confirmed.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestForwardPolicyInheritIsDefault` | `internal/component/bgp/wireu/tombstone_forward_test.go` | AC-1: unconfigured is byte-identical to today | |
-| `TestForwardPolicyStripRebuilds` | `internal/component/bgp/wireu/tombstone_forward_test.go` | AC-2: marker absent, attributes section resized | |
+| `TestForwardPolicyStripRebuilds` | `internal/component/bgp/reactor/tombstone_forward_test.go` | AC-2: every marker absent and attributes section resized on both live rails | |
+| `TestForwardPolicyInheritIsDefault` | `internal/component/bgp/reactor/tombstone_forward_test.go` | AC-1: omitted policy equals explicit inherit, including the repaired ordinary and RS-client eBGP clear on both rails | |
 | `TestForwardPolicyPropagateSetsTransitive` | `internal/component/bgp/wireu/tombstone_forward_test.go` | AC-3 | |
 | `TestForwardPolicyPropagateClearsPartial` | `internal/component/bgp/wireu/tombstone_forward_test.go` | AC-4 | |
 | `TestForwardPolicyNoMarkerNoRebuild` | `internal/component/bgp/wireu/tombstone_forward_test.go` | AC-8: the fast path is untouched | |
+| `TestForwardPolicyInheritPreservesPartial` | `internal/component/bgp/reactor/tombstone_forward_test.go` | AC-6/AC-7: both received Partial values and both Transitive values across iBGP, ordinary eBGP and RS-client eBGP, without shared-wire mutation | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -349,19 +351,19 @@ is still being confirmed.
 |------|----------|-------------------|--------|
 | `tombstone-policy-strip` | `test/plugin/tombstone-policy-strip.ci` | Operator strips markers toward a customer peer | |
 | `tombstone-policy-propagate` | `test/plugin/tombstone-policy-propagate.ci` | Operator propagates markers toward a measurement peer | |
-| `tombstone-policy-inherit-default` | `test/plugin/tombstone-policy-inherit-default.ci` | Unconfigured neighbor behaves as today | |
+| `tombstone-policy-inherit-default` | `test/plugin/tombstone-policy-inherit-default.ci` | Omitted policy equals explicit inherit; ordinary and RS-client eBGP clear Transitive, while iBGP and received Partial controls stay unchanged | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `NN-tombstone-policy-strip` | `test/interop/scenarios/` | FRR or BIRD | A non-recognizing peer sees no marker under strip, and is undisturbed by one under propagate. The code point is provisional and unallocated (draft Section 8), so no third-party daemon recognises the attribute; that is exactly what makes the non-recognizing-peer test meaningful | |
 
-### Future (if deferring any tests)
-- AC-6 and AC-7 have no tests until D-2 and D-1 are answered. This is a blocker, not a deferral.
+### Required direction coverage
+- AC-6 and AC-7 follow the recorded rulings and require the same live-rail proof as AC-1. All policies must cover ordinary and RS-client eBGP destinations; no retired-helper test substitutes for peer-wire assertions.
 
 ## Files to Modify
-- `internal/component/bgp/wireu/tombstone.go` - `clearTombstoneTransitive` becomes one branch of a three-way policy
-- `internal/component/bgp/wireu/aspath_rewrite.go` - `rewriteASPathPrepend`, the funnel that must consult per-destination policy
+- `internal/component/bgp/reactor/reactor_api_forward.go`, `forward_rs.go` - record policy on the live destination paths, including RS clients
+- `internal/component/bgp/reactor/forward_build.go` and its registered attribute handlers - apply marker flag edits and suppression through the existing one-pass rebuild
 - BGP peer config resolution - carry the policy into the per-destination forwarding facts (alongside `isEBGP` / `rsClient`)
 - The BGP neighbor / peer-group YANG - the new policy leaf
 
@@ -393,7 +395,7 @@ is still being confirmed.
 ### /implement Stage Mapping
 | /implement Stage | Spec Section |
 |------------------|--------------|
-| 1. Read spec | This file — start at the BLOCKING Draft Ambiguities section |
+| 1. Read spec | This file, starting with the 2026-08-07 rulings and the current egress repair scope |
 | 2. Audit | Files to Modify; validate A-1..A-4 |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
@@ -404,26 +406,11 @@ is still being confirmed.
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Resolve the draft ambiguities (BLOCKING, Thomas only)** — answer D-1 and D-2; revise the draft if the answer is that the text is unclear
-   - Tests: none
-   - Files: `rfc/drafts/` (Thomas edits; agents never do)
-   - Verify: D-1 and D-2 have recorded answers, and AC-6/AC-7 can be written. **No code before this.**
-2. **Phase: Wiring (MANDATORY FIRST)** — YANG policy leaf + resolve it into per-destination forwarding facts + failing wiring test
-   - Tests: `TestForwardPolicyInheritIsDefault`
-   - Files: neighbor/peer-group YANG, BGP config resolve, `aspath_rewrite.go`
-   - Verify: the leaf is settable and reaches the funnel; unconfigured is byte-identical to today
-3. **Phase: propagate** — the flag-only branch, no resize, so it lands first
-   - Tests: `TestForwardPolicyPropagateSetsTransitive`, `TestForwardPolicyPropagateClearsPartial`
-   - Files: `tombstone.go`
-   - Verify: red → implement → green
-4. **Phase: strip** — the rebuild branch; study `rebuildWithAttrDiscard` (`message/attr_discard.go`) first and do not duplicate it
-   - Tests: `TestForwardPolicyStripRebuilds`, `TestForwardPolicyNoMarkerNoRebuild`
-   - Files: `tombstone.go`, `aspath_rewrite.go`, pooled buffer plumbing
-   - Verify: the no-marker fast path allocates nothing new (AC-8)
-5. **Phase: inherit under the resolved D-1** — only if reading (a) forces a rebuild for non-transitive markers
-   - Tests: (fill after D-1)
-   - Files: (fill after D-1)
-   - Verify: (fill after D-1)
+1. **Phase: Design against the recorded rulings.** D-1 and D-2 are answered. Present the live-rail destination-buffer design and recorded RS performance concern to Thomas before readiness; do not drop the ordinary or RS-client default repair. Draft wording revisions remain Thomas's.
+2. **Phase: Wiring (MANDATORY FIRST).** Add the per-neighbour/group policy and drive it into both live forward rails. `TestForwardPolicyInheritIsDefault` must fail against the current missing clear.
+3. **Phase: Inherit repair.** Implement the default clear for ordinary and RS-client eBGP on both rails, preserve received Partial and iBGP controls, and prove AC-1, AC-6 and AC-7 without shared-wire mutation.
+4. **Phase: Propagate.** Set Transitive and clear Partial in the destination's emitted marker, including markers generated during egress edits.
+5. **Phase: Strip.** Omit every marker through the existing one-pass rebuild. Prove AC-2 and the no-marker no-allocation contract AC-8; do not restore `aspath_rewrite.go`.
 6. **Functional tests** → the three `.ci`
 7. **RFC refs** → `// draft-mangin-idr-attr-tombstone-00 Section 5.3: "<quoted requirement>"` above each branch
 8. **Full verification** → `./le verify current mode full`
@@ -444,9 +431,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| D-1 and D-2 answered and recorded | This spec's BLOCKING section names the ruling |
+| D-1 and D-2 honoured | The recorded rulings match AC-6/AC-7 and their live-rail assertions |
 | strip really removes | `test/plugin/tombstone-policy-strip.ci` asserts the marker's bytes are absent from the wire |
-| Default unchanged | `test/plugin/remove-private-as-export.ci` still green, unmodified |
+| Default repaired without unrelated byte changes | `tombstone-policy-inherit-default.ci` proves the eBGP clear and iBGP/Partial controls; preserve the already-corrected `remove-private-as-export.ci` input fixture |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -477,7 +464,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Design Insights
 
-- Ze's Partial-bit behavior is accidentally compliant with one reading of D-2: `attrDiscardFlags` clears Partial as a Section 4.2 *generation* rule, which happens to match what the propagate bullet demands of a *forwarding* recognizing speaker. Accidental compliance is not compliance; it will drift the moment someone edits the generation mask for a generation reason.
+- Marker generation and forwarding have separate flag contracts. The 2026-08-07 ruling preserves received Partial under inherit; propagate explicitly clears it. A generation mask cannot prove either forwarding outcome.
 - The draft is ze's own. That makes ambiguity cheaper to fix than usual (revise the text) and more dangerous to paper over (an implementer's guess becomes, silently, the normative reading).
 
 ## Core Insight
@@ -488,8 +475,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |----------|------------------------|-----------|
 
 ## Known Limitations
-- Related, and coupled: `plan/spec-fixit-tombstone-ebgp-transitive.md` records that eBGP RS-clients bypass the prepend funnel entirely, so Section 5.3 does not reach them (A-3, R-3). That spec holds the performance-versus-conformance ruling for RS zero-copy, which is also Thomas's. Any policy built here inherits that hole until it is resolved.
-- The code point remains provisional and split across two values; `plan/spec-fixit-tombstone-code-point-split.md` owns that. `isTombstoneCode` recognising both is the current shim any policy branch must go through.
+- The inherited eBGP-clear repair belongs here for ordinary and RS-client destinations. The retired `spec-fixit-tombstone-ebgp-transitive` is provenance, not a live dependency or an exemption.
+- The code point remains provisional, but the split is resolved: current code uses `attribute.AttrTombstone = 252`, with no dual-recognition shim.
 
 ## RFC Documentation
 
@@ -585,7 +572,7 @@ MUST document: the inherit MUST-clear-Transitive rule, the strip MUST-rebuild-fo
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] D-1 and D-2 answered by Thomas before any code
+- [ ] The 2026-08-07 D-1/D-2 rulings are reflected in the implementation and proof
 - [ ] AC-1..AC-8 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
@@ -633,11 +620,18 @@ MUST document: the inherit MUST-clear-Transitive rule, the strip MUST-rebuild-fo
 
 ### From `fixit-tombstone-ebgp-transitive.md`, 2026-07-16
 
+Historical diagnosis, superseded by the current Task and producer notes above.
+The eBGP repair remains owned here; the input-fixture correction is present.
+The old helper names describe the 2026-08-30 snapshot rather than current entry points.
+
 Deferred by spec-fixit-tombstone-ebgp-transitive (Known Limitations).
 
 eBGP RS-clients bypass the prepend funnel, so draft Section 5.3's Transitive-clear does not reach them: `forward_rs.go` and `reactor_api_forward.go` hand out `update.WireUpdate`, the received wire, with no per-destination buffer. Clearing the bit there would corrupt the shared wire for every other peer. **CORRECTED 2026-08-30 at the producer: this row UNDERSTATES it. No eBGP peer gets the clear today, RS-client or not.** `clearTombstoneTransitiveInBody` (`internal/component/bgp/wireu/tombstone.go`) is called only from inside `rewriteASPathPrepend` (`aspath_rewrite.go`), and that rail is dead: its entry points `RewriteASPath` and `RewriteASPathDual` have no non-test callers left, because the egress rails moved to the one-pass writer in `internal/component/bgp/wireu/aspath_slot.go`, which carries no tombstone handling. `TestTombstoneCodePointIsUnified` stays green by calling the dead rail directly. The comment in `test/plugin/prefixsid-ebgp-discard-single-walk.ci` that says Section 5.3's clear "is applied per destination on the EBGP egress path (wireu.rewriteASPathPrepend)" is therefore false and needs correcting when this row is taken
 
 ### From `fixit-tombstone-ebgp-transitive.md`, 2026-07-16
+
+Historical policy-scope record. D-1 and D-2 were resolved on 2026-08-07; the
+current tree no longer implements the old default clear.
 
 Deferred by spec-fixit-tombstone-ebgp-transitive (draft Section 5.3 SHOULD).
 

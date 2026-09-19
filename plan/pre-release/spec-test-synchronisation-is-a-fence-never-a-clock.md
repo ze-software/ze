@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | skeleton |
 | Scope | testing |
 | Depends | - |
 | Phase | - |
@@ -17,6 +17,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 on a duration. A check peer behaves like a peer: it holds its session open, and
 a test that needs a close asks the DAEMON to close (owner rulings, 2026-09-18
 and 2026-09-19).**
+
+The default-held behaviour is approved intent. This remains a skeleton until
+the opt-out grammar and hold-budget boundary cases below are designed; the
+existing `completed`/`holdSession` implementation proves the opt-in baseline,
+not readiness to implement the default change.
 
 Three rulings, one behaviour:
 
@@ -59,14 +64,13 @@ ordering puts the route on the wire before the Cease on the same socket,
 `holdSession` sees the remote close and returns, and the close that ends the
 test is the daemon's, deliberate and observable.
 
-**What the hold already exposed.** `bgp-capture-replay` asserts that ze closes
-its capture file cleanly on shutdown. With the peer closing first, the
-session-end defer ran for the wrong reason, so that AC had never been proven.
-Holding the peer exercised the shutdown path for the first time and it produced
-no terminator: **stop ze while a session is up and the operator's capture file
-is handed over unterminated.** That is one product defect this change found by
-refusing to let a test lie about why it passed, and it is the argument for the
-default in one sentence.
+**Historical finding from the 2026-09-18 hold experiment.** `bgp-capture-replay`
+asserts that ze closes its capture file cleanly on shutdown. With the peer
+closing first, the session-end defer ran before daemon shutdown. Holding the
+peer exercised shutdown with a live session and the recorded run produced no
+terminator. That finding must be checked against the current capture producer
+when this spec resumes; it is not a current reproduction or proof that the
+capture obligation has been met.
 
 ## Required Reading
 
@@ -132,7 +136,7 @@ default in one sentence.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A test elsewhere ends only because its peer closes | it times out | the failure is LOUD, never silent: the test hangs to its budget and names itself. Each one gets the daemon-close ending |
+| R-1 | A test elsewhere ends only because its peer closes | it times out | account for its intended behaviour first: preserve genuine peer-close tests through the opt-out, and give tests using close only as teardown the daemon-close ending |
 | R-2 | The hold masks a product defect the close was hiding | a test failing for a NEW reason | that is the point. `bgp-capture-replay` did exactly this and exposed the unterminated capture file |
 
 ## Blast Radius
@@ -213,7 +217,7 @@ default in one sentence.
    - Files: `internal/test/peer/reject.go`, `expect.go`, `reject_test.go`
 2. **Phase: The three that need a close** -- fence, then daemon close
    - Verify: AC-3
-3. **Phase: Every suite** -- run them all, name every test that ends only on a peer close, give each the same ending
+3. **Phase: Every suite** -- run them all, name every test that ends only on a peer close, preserve genuine peer-close assertions through the opt-out, and give the others the daemon-close ending
    - Verify: AC-4
 4. **Phase: Remove the now-redundant options** -- the 34 files
    - Verify: AC-5
@@ -222,7 +226,7 @@ default in one sentence.
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Correctness | no assertion is weakened; every test that needed a close asks the daemon for one |
+| Correctness | no assertion is weakened; genuine peer-close tests retain that stimulus through the opt-out, and tests using close only as teardown ask the daemon to close |
 | Rule: `ai/rules/no-layering.md` | the explicit options are removed once the default provides them, never left beside it |
 
 ### Deliverables Checklist
@@ -242,7 +246,7 @@ default in one sentence.
 
 | Failure | Route To |
 |---------|----------|
-| A suite times out | that test ends on a peer close; give it the daemon-close ending, and do NOT lengthen a budget |
+| A suite times out | establish the cause at its producer; if it depends on peer close, preserve a genuine peer-close assertion through the opt-out or replace incidental teardown with a daemon-close ending. Do not lengthen a budget to hide the race |
 
 ## Checklist
 

@@ -95,23 +95,23 @@ fixed at source by `withParallelHeadroom`
 the daemon exits rc=1 in under a second as an unprivileged user. The real defect
 there was an error that dropped its cause, now fixed.
 
-Two remain open, for different reasons:
+These two names have later evidence that qualifies the July 25 summary:
 
-- `bgp-plugin-rs-forward-duplicate-and-order` -- the startup-ordering race it
-  described IS fixed (the ownership decision is now declarative, delivered on
-  Stage-2 configure; the margin went from 1-2 ms to 430-849 ms, mutation-verified).
-  **Both symptoms nevertheless still reproduce**, and the capture disproves the
-  entry's own causal claim for test 254: self-replay was off 849 ms before the
-  first session existed and the duplicate still occurred. The work that was owned
-  by `spec-fixit-stored-route-relay-hardening` landed with that spec, which closed
-  2026-08-24; the shard carries what it changed. A separate defect surfaced
-  in the same capture -- a receiver session established and closed 1 ms apart under
-  load -- and is recorded in the shard.
-- `reload-config-apply-ordering-rotation` -- still never reproduced. Two fail-open
-  defects in the mapped-batch path it exercises were fixed (a stuck OPEN handshake
-  wedged the whole batch until the outer timeout with no diagnosis; a batch
-  handshake failure did not name which connection failed), but neither explains
-  the recorded `mismatch` symptom and the shard says so.
+- `bgp-plugin-rs-forward-duplicate-and-order`: the shard records the startup
+  ownership repair and subsequent failures on July 25, including the capture
+  that disproved self-replay as the cause of test 254's duplicate. Its last
+  reproduction batches, on July 29, passed: test 380 in 10 isolated runs and
+  60 stress runs, and test 254 in 60 stress runs. Those results identify no fix.
+  The catch-up-budget path remains an investigation lead. The later August 24
+  owner closure does not establish that both original symptoms were repaired.
+- `reload-config-apply-ordering-rotation`: `RESOLVED.md` records the July 26
+  identifier-claim repair in `834f92629` and `62dcfcacd`, after reproduction
+  at invocation 15 of 60. The live shard records a separate September 8 timeout:
+  all expected messages arrived, but the test did not complete. Four completed
+  attempts subsequently passed, including the September 12 closure run.
+  Peer-action completion remains a lead, with no established cause. The
+  September timeout neither reopens the July OPEN-rejection incident nor
+  inherits its diagnosis.
 
 The sweep also found bugs that were NOT tracked here, which is the other reason
 to run the suite rather than read about it: the retired `ze-unit-test` (current: `./le test-unit`) was red on every

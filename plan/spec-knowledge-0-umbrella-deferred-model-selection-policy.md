@@ -18,39 +18,31 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 therefore homeless: a deferral whose destination is gone is a deletion with a
 polite name (`ai/rules/planning.md`). This file is their home.
 
-**The open question, which is the OWNER'S and not an implementer's.**
-`ai/rules/planning.md` puts planning and review on Opus 5 and
-implementation on Opus 4.8. Is that split still deliberate? It was written when
-those were the current models. Nothing in the rule records a review date, and
-three gates are keyed on it.
+The owner answered the model-choice question on 2026-08-03.
+`ai/rules/planning.md`, "Work Phases, Models and the Review Loop", permits
+implementation on any model. Review remains independent and runs on Opus 5.
+The former choice between confirming an Opus 4.8 implementation restriction
+and removing it is no longer open.
 
-**What follows from the answer.**
+The current gate path agrees with that distinction. `reviewModelRefusal` in
+`internal/le/hookruntime/agent.go` applies to review work, and `recordReview`
+in `internal/le/spec/session/review.go` checks the review artifact's model.
+Both use the native model reader in `internal/le/spec/session/model.go`.
+When the model cannot be read they emit an unchecked-boundary warning.
+The retired Python `c_model_phase` edit gate is historical context, not a
+third current implementation-model gate. This spec authorizes no change to
+review-tier policy, independence, or the existing override rules.
 
-1. If the split is still wanted, the rule needs a dated confirmation so the next
-   reader stops re-asking, and nothing else changes.
-2. If it is not, three gates keyed on `REVIEW_TIER` in
-   `internal/le/` need fixing, together with their callers: the
-   spawn gate in `.claude/hooks/pretool-agent-skill.py` (retired; now `internal/le/hookruntime/agent.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, the edit gate
-   `c_model_phase` in `.claude/hooks/pretool-writeedit.py` (retired; now `internal/le/hookruntime/writeedit.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, and the record gate
-   in `internal/le/spec/session/review.go`. All three currently refuse work on a model
-   they classify as review-tier.
-3. Either way, the model-era JUSTIFICATION sentences come out of
-   `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" and
-   `ai/rules/planning.md` Enforcement. Those paragraphs argue from a
-   harness guard that existed in the Opus 4.6 and 4.7 era. **Keep the delegation
-   counter-measures themselves** -- the standing request, the reminder hook, and
-   the subagent-context hook are all still load-bearing. Only the reasoning that
-   dates them is removed.
+The remaining inherited item is prose cleanup. `ai/INSTRUCTIONS.md`,
+"STANDING REQUEST: delegate to subagents", still carries the Opus 4.6/4.7-era
+justification. Remove that dated reasoning while retaining the standing
+delegation request and its operational safeguards, including the reminder
+and subagent-context hooks. The named "Enforcement" passage is absent from
+current `ai/rules/planning.md`; do not recreate it to perform a deletion.
+Before closure, compare the resulting instructions and hook descriptions
+with the current producers and record the evidence. This reconciliation
+neither performs that cleanup nor closes the holder.
 
-**Why this is not an implementation task.** Step 1 and step 2 are opposite
-answers to a question only the owner can settle, and `ai/rules/rfc-compliance.md`
-is not the governing rule here -- there is no external obligation, just a policy
-that may have outlived its inputs. Do not pick an answer to make the rows close.
-
-**Measured, so the size is known rather than guessed.** `running_model.py` is the
-single shared reader for all three gates; each caller stands down and says so when
-it cannot resolve a model. That design means answer 2 is a change in one place
-plus three call sites, not a sweep.
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress.

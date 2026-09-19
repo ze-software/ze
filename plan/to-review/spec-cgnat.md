@@ -22,6 +22,18 @@
 
 ## Task
 
+This is an unapproved proposal in `plan/to-review/`, outside the canonical
+release inventory. Adoption requires an owner decision and a canonical bucket;
+the requirements below describe the proposed scope and do not commission it.
+
+Before adoption, resolve the allocation contract. AC-10 promises a
+user-to-port-block mapping, while the Key Design Decisions choose `nat44_ed`
+and Known Limitations offer after-the-fact session visibility. A session dump
+alone does not establish the promised allocation log. Design must either show
+how the selected backend satisfies the port-block and logging requirements, or
+put a change of backend or scope to the owner. AC-10 remains a requirement until
+that decision is made.
+
 Add Carrier-Grade NAT (CGNAT) support to Ze. CGNAT maps many inside (subscriber) addresses
 onto a small pool of outside (public) addresses using deterministic or dynamic port-block
 allocation. This is ISP infrastructure for IPv4 address conservation (RFC 6888, RFC 7857).

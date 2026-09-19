@@ -2,18 +2,34 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
 | Phase | 6/6 |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Remaining evidence
+
+Implementation was committed in `4e25253540` on 2026-09-06. Phase `6/6`
+records that progress; it does not establish release proof or closure. The
+five `test/plugin/kernel-capability-*.ci` files remain recorded as written
+and unexecuted, A-4 and A-5 still require guest evidence, and AC-15 still
+requires an appliance image boot with MPLS configured. The owner deferred
+guest runs for that implementation session; this reconciliation runs none.
+
+The design and pre-implementation observations below explain the change.
+`internal/component/kernelcap` now owns the enrolment, as the Implementation
+Notes record. Remaining work is to obtain the functional and image-boot
+evidence, resolve A-4/A-5 without weakening their checks, and complete the
+review and closure gates. There is no `Handoff: verify` declaration, so
+`verification` would misstate the lifecycle.
+
 ## Amendment, 2026-08-31: the plugin setup registry now exists
 
-`spec-plugin-registration-result` adds a second startup refusal, and this spec
-must be read against it before its first phase runs.
+`spec-plugin-registration-result` added a separate startup refusal. The
+implementation kept the boundary below between setup records and kernel probes.
 
 | Fact | Where it lives now |
 |------|--------------------|
@@ -44,25 +60,24 @@ What this spec MUST do instead, and what its review MUST check:
 
 ## Task
 
-**Symptom.** Ze starts on a host whose kernel lacks a feature the running
+**Original symptom, before implementation.** Ze starts on a host whose kernel lacks a feature the running
 configuration needs, and the failure surfaces later as a raw error from a layer
 that cannot explain it. An operator who configures IPsec on a kernel with no
 XFRM gets a daemon that comes up and does not encrypt. An operator who
 configures VPP LCP against a build with no `linux_cp_plugin.so` gets the whole
 config apply failing at the binapi layer.
 
-**What exists.** `checkMPLSSupport` (`internal/component/doctor/checks_linux.go`)
+**Pre-implementation baseline.** `checkMPLSSupport` (`internal/component/doctor/checks_linux.go`)
 already implements the correct rule for ONE subsystem. It reads
 `/proc/modules` through `loadedKernelModules`, and it returns nil unless
 `mplsInUse(tree)` reports that the config actually uses MPLS forwarding: a
 labeled BGP family, LDP, RSVP-TE, or a per-interface MPLS enable. A plain
 BGP-over-kernel config is not warned about modules it does not need.
 
-**Three gaps.** The diagnostic is `SeverityWarning`, so nothing acts on it.
-Nothing gates startup on diagnostics at all: `diagnostic.Severity`
-(`internal/core/diagnostic/types.go`) has exactly two values, `error` and
-`warning`, and no caller refuses to run on either. And the pattern is written
-once, for MPLS, rather than being a thing a subsystem can join.
+**Gaps addressed by the implementation.** The diagnostic was `SeverityWarning`, so nothing acted on it.
+No startup caller gated on these capability diagnostics. `diagnostic.Severity`
+(`internal/core/diagnostic/types.go`) already had the `error` and `warning`
+values the callers needed. The subsystem pattern was written for MPLS alone.
 
 **Goal.** A subsystem declares the kernel capability it needs and a predicate
 that reports whether the configuration uses it. When the configuration uses the
@@ -125,7 +140,7 @@ capability that the product should report.
 **Key insights:** (minimal context to resume after compaction)
 - [insight from docs]
 
-## Current Behavior (MANDATORY)
+## Current Behavior (pre-implementation design baseline)
 
 **Source files read:**
 - [ ] `internal/component/doctor/checks_linux.go` - `checkMPLSSupport` returns nil

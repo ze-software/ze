@@ -15,21 +15,22 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Delivery is gated. Consumption is not.** The blocking claims gate
 (`internal/component/plugin/all/config_claims_test.go`) proves every config
-subtree is DELIVERED to a plugin. Its own package header states the limit:
+subtree is delivered to a consumer. The complementary scanner's package header
+(`internal/le/yang/leafmentions/yangleafmentions.go`) states the limit:
 "It cannot prove the plugin READS what it receives: plugins hand-parse
 map[string]any with string-literal keys, so delivery and consumption are
 separate facts. A leaf added to a YANG module without the matching parse line is
 accepted, delivered, and ignored."
 
-So an operator writes a value, the commit succeeds, and nothing happens. That is
-the defect `plan/immediate/README.md` names as "Ze accepts an operator's
-configuration and then does something else", and the tree carries at least
-thirty instances of it, recorded across `plan/journal/unwired-feature.md`.
+An unconsumed leaf can therefore accept an operator's value without changing
+behaviour. `plan/journal/unwired-feature.md` records occurrences of that class;
+its historical rows and the scanner's candidate rows are not a count of current
+operator defects.
 
 **The detector exists and was deliberately disarmed.**
-`./le yang leaf-mentions report` (`internal/le/yang/leafmentions`) scans 70
-config modules and 1131 leaves and reports the ones the owning package never
-names: 80 findings on 2026-09-06. It answers 0 whatever it finds, sits in no
+`./le yang leaf-mentions report` (`internal/le/yang/leafmentions`) reported
+70 config modules, 1131 leaves and 80 findings on 2026-09-06.
+Those are the recorded scan's counts. It answers 0 whatever it finds, sits in no
 verify stage, and says why in its own header: "A key built at run time, a name
 shared with an unrelated string, or a leaf read through a shared helper all
 break it."
@@ -72,13 +73,13 @@ augments, and MUST NOT label a node by the nearest enclosing brace. A gate armed
 over today's labels would accuse nodes that do not exist, and the author it
 accuses cannot tell that from a real finding.
 
-**The same run surfaced real gaps no earlier pass had found.**
-`peer-fields/behavior/auto-flush` and `manual-eor` are named nowhere under
-`internal/component/bgp/`; their only hits in the tree are a field list in the
-ExaBGP migrator (`internal/exabgp/migration/migrate.go:394`). The same holds for
-`peer-fields/attach/process/processes-match`, read only by
-`internal/component/config/migration/api.go:362`. An operator sets any of the
-three on a peer and the reactor never sees it.
+The 2026-09-06 run also identified `peer-fields/behavior/auto-flush`,
+`manual-eor` and `peer-fields/attach/process/processes-match` as gaps.
+`manual-eor` now has a parser consumer: `parsePeerSettings` in
+`internal/component/bgp/reactor/config.go` writes `PeerSettings.ManualEOR`.
+The remaining peer-leaf disposition belongs to
+`plan/immediate/spec-peer-leaves-the-peer-parser-never-reads.md`; this tooling
+spec must use that spec's current result rather than count its defects again.
 
 **Why the gate can be exact rather than better-guessed.** Every consumption path
 in the table above is DECLARED somewhere a tool can read: a Go table, a
@@ -105,10 +106,10 @@ line is owed in improve-6 as well, and this spec MUST NOT be closed until it is
 there.
 
 **What this spec owes.** The gate, the consumption-path model behind it, and the
-triage of all 80 current findings into those three outcomes. Every finding that
-lands in the third outcome needs its own spec in `plan/immediate/`, because a
-gate armed over unexplained findings is a red nobody can close, which
-`ai/rules/pre-release.md` says every session then learns to ignore.
+triage of the recorded 80 findings and any changes in a fresh scan into those
+three outcomes. A confirmed unconsumed leaf must be assigned to its existing
+`plan/immediate/` owner, or a new spec there when no owner exists. The scanner's
+false positives must be resolved in its model before the gate is armed.
 
 ## Required Reading
 

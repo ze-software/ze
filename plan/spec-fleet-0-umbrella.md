@@ -93,9 +93,11 @@ spec building on the previous.
 
 ### Child Specs
 
-All seven children moved to `plan/future/` on 2026-08-29: the fleet set is new
-capability, not a defect in the shipped product, so it does not hold the first
-release. This umbrella stays in `plan/`.
+The 2026-08-29 move treated the fleet set as optional capability. The current
+child table separates that capability from child 6, which is in
+`plan/immediate/` and owns configuration freeze and reconnect safety.
+Children 1 to 5 and 7 remain optional; child 6's first-release safety work must
+remain visible in the release rollup. This umbrella stays in `plan/`.
 
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|

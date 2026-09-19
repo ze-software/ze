@@ -8,8 +8,8 @@ before implementation.
 |-------|-------|
 | Status | blocked |
 | Scope | protocol |
-| Depends | normal BGP RIB-selected route-to-peer egress producer |
-| Phase | 5/5 blocked |
+| Depends | - |
+| Phase | 5/5 |
 | Handoff | verify |
 | Updated | 2026-08-17 |
 
@@ -22,6 +22,21 @@ Record and resolve one RFC 4271 Section 9.1.2.2 finding for the common IBGP egre
 This work is separate from the website deployment failure. The linked deployment failed on stale RFC 7606 audit and generated-ledger data. MED behavior did not cause that deployment failure.
 
 Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer producer was found. The implemented guard covers the common egress boundary used by route-server and route-reflector forwarding. The unit tests drive `forwardUpdateCore` with a selected source payload. The functional and interop tests drive the same boundary through the route-server rail, so they are proof for that rail, not proof for normal BGP selected-route readvertisement.
+
+### Owned prerequisite: normal selected-route egress
+
+This spec owns the missing normal BGP selected-route-to-peer work package.
+There is no external spec dependency to schedule: `Depends` is `-`, while
+`Status` remains `blocked` on this internal prerequisite. The package must
+connect the selected post-ingress route and its MED provenance to a normal
+peer egress producer, through the existing post-policy guard, and prove the
+route-selection-to-wire path. Route-server replay, route-reflector forwarding
+and a unit test handed a selected payload do not discharge it.
+
+Design and implementation of that producer must precede the normal-path
+functional and interop proof. AC-1 through AC-9 and the RFC gap remain in
+force. This ownership correction authorises no product implementation during
+the planning reconciliation.
 
 ## Required Reading
 
@@ -289,6 +304,7 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
    - Extend the existing post-policy MED enforcement point only.
    - Preserve a later MED Set, pre-selection absence, EBGP suppression, route-server transparency, and the no-op path.
 4. **Phase: Functional and interop proof**
+   - First complete this spec's owned normal selected-route egress prerequisite above. Keep the existing route-server evidence, and add a distinct normal-path scenario rather than relabelling it.
    - Exercise a reachable raw post-selection removal producer.
    - Observe the final MED state from a foreign IBGP peer.
 5. **Phase: RFC disposition and documentation**
@@ -331,7 +347,7 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
 | Failure | Route To |
 |---------|----------|
 | A claimed producer is unreachable | Research; remove that branch from the design |
-| A normal BGP selected-route peer egress producer is missing | Block closure; keep RFC4271-9.1.2.2-2 disclosed as a gap |
+| A normal BGP selected-route peer egress producer is missing | Keep this spec blocked on its owned prerequisite; keep RFC4271-9.1.2.2-2 disclosed as a gap |
 | A valid MED Set is overwritten | Design; narrow enforcement to absence only |
 | Pre-selection absence gains MED | Implementation; require source presence |
 | EBGP or route-server tests change | Implementation; restore existing branch behavior |

@@ -23,7 +23,7 @@
 
 Deliver a production release-distribution system for Ze's normal Linux daemon binary. A maintainer-created signed CalVer tag must produce immutable GitHub Release downloads, cryptographically authenticated DEB artifacts, signed RPM packages, signed APT and DNF/YUM repositories at `packages.ze-software.net`, and machine-verifiable provenance. A daily schedule must produce one immutable nightly per UTC day when `main` changed, with a separate prerelease channel and 30-day retention.
 
-The system must preserve Codeberg as the canonical source repository and GitHub as the official release/download mirror. It must fail closed on mirror divergence, unsigned or unauthorized tags, incomplete release evidence, unverified build bundles, package test failures, or publication errors. The publishing worker must be isolated from the build worker and must never compile or execute code from the candidate checkout.
+GitHub (`github.com/ze-software/ze`) is the sole source repository and release/download forge, as required by `ai/rules/git-safety.md`. The system must fail closed on candidate ref/object mismatch, unsigned or unauthorised tags, incomplete release evidence, unverified build bundles, package test failures, or publication errors. The publishing worker must be isolated from the build worker and must never compile or execute code from the candidate checkout.
 
 The package must install only the normal `ze` Linux daemon and its operational support files. It must make a fresh package installation usable without exposing a plaintext bootstrap secret, while preserving existing state during upgrades and ordinary removal. Package-managed binaries must never be replaced behind APT/RPM ownership by Ze's in-place self-update backend.
 
@@ -34,7 +34,7 @@ Included:
 - Direct tarball downloads, DEB, RPM, checksums, SPDX SBOMs, input/final release manifests, GitHub attestations, and signed repository metadata.
 - Stable and nightly channels.
 - Package-first bootstrap, systemd lifecycle, repository installation, upgrade, removal, purge behavior, package-managed update protection, and release operations.
-- Codeberg to GitHub fast-forward mirroring and exact signed tag propagation.
+- Signed GitHub tag verification, protected-main reachability, and exact candidate identity through trusted release dispatch.
 
 Excluded:
 - `ze-setup`, `ze-appliance`, `ze-stripped`, `ze-test`, `ze-chaos`, `ze-perf`, `ze-analyze`, standalone installer binaries, appliance images, installer kernels/initrds, ISOs, and containers.
@@ -160,12 +160,12 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 - [ ] `docs/guide/self-update.md` - standalone update-server and manifest contract.
 
 **Current outputs:**
-- No repository-defined release tag trigger, nightly build schedule, GitHub Release creation, native package definition, APT/RPM repository, artifact signing, SBOM publication, release retention, or automated Codeberg/GitHub mirroring exists.
+- The 2026-07-10 inventory found no repository-defined release tag trigger, nightly build schedule, GitHub Release creation, native package definition, APT/RPM repository, artifact signing, SBOM publication, or release retention. Recheck that dated inventory before implementation.
 - The current GitHub repository has no published releases or tags as observed on 2026-07-10.
 - Local `make build` produces multiple binaries; only `bin/ze` is the normal distro daemon (`internal/le/` native action tables).
 
 **Behavior to preserve:**
-- Codeberg remains the canonical development source and GitHub remains the official public repository/download surface (`README.md`).
+- GitHub is the sole development and release forge (`ai/rules/git-safety.md`).
 - The normal release binary uses `ze_core`, `ze_distro`, and every gate derived from `feature-gates.txt` (`internal/le/` native action tables).
 - Runtime embedded release remains exactly `YY.MM.DD`; no `v` prefix or nightly suffix reaches `main.version`.
 - The package service remains `ze.service`, runs as `ze:ze`, starts `/usr/bin/ze start`, uses `/etc/ze`, sets `/run/ze`, and retains the existing capability and hardening contract from `buildUnitFile`.
@@ -186,12 +186,12 @@ The channel-specific paths below carry the full detail; this overview maps the
 canonical stages first.
 
 ### Entry Point
-- Stable: a maintainer-created annotated, signed `YY.MM.DD` tag on canonical Codeberg, verified and propagated by the mirror (see Stable Entry Point below).
+- Stable: a maintainer-created annotated, signed `YY.MM.DD` tag on GitHub, verified by the release dispatcher (see Stable Entry Point below).
 - Nightly: the protected default-branch schedule `17 2 * * *` (see Nightly Entry Point below).
 - Format at entry: a signed git tag object, or a scheduled protected workflow run.
 
 ### Transformation Path
-1. The mirror verifies the signed tag (or the schedule fires), records its journal entry, and dispatches the protected build workflow.
+1. The release dispatcher verifies the signed tag, records its journal entry, and dispatches the protected build workflow. Nightlies enter through the protected schedule.
 2. The unprivileged build produces deterministic binaries, tarballs, DEB/RPM inputs, SBOMs, and the closed `input-manifest.json` bundle.
 3. The protected attestation workflow binds provenance/SPDX statements to the verified candidate identity.
 4. The evidence workflow runs the channel's mandatory category set; a protected recorder emits the recorder-bound result and commit check.
@@ -203,7 +203,7 @@ Boundaries Crossed section further below.)
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Codeberg -> GitHub | fast-forward mirror + exact signed tag propagation | [ ] |
+| GitHub signed tag -> protected workflow | Signature, protected-main ancestry and exact tag/candidate object verification | [ ] |
 | Build -> attestation | closed `release-input.tar` artifact fetched by API ID | [ ] |
 | Attestation/evidence -> publisher | recorder-bound commit check + artifact IDs | [ ] |
 | Publisher -> public surfaces | immutable GitHub release; APT/RPM snapshot activation | [ ] |
@@ -217,24 +217,24 @@ Boundaries Crossed section further below.)
 
 ### Stable Entry Point
 
-1. A maintainer creates an annotated, signed `YY.MM.DD` tag in canonical Codeberg. Exactly one stable source release is permitted per UTC date; a packaging correction uses a corrected commit and new date, never a suffix or moved identity.
-2. The mirror uses its NTP-synchronized trusted UTC clock and durable stable high-water mark. The tag date must equal the current UTC date, except the immediately previous date is accepted only through `06:00:00Z` for midnight-boundary retries; future dates, older dates, duplicate dates, and identities not strictly newer than the high-water mark reject before dispatch.
-3. It verifies the tag signature against an out-of-band maintainer fingerprint allowlist, verifies the target is reachable from protected Codeberg `main`, fast-forwards GitHub `main`, and pushes the exact annotated tag object to GitHub.
-4. Before API dispatch it atomically records a mirror journal entry containing tag/ref object IDs, peeled candidate SHA, protected workflow path/digest, a random dispatch request ID, attempt number, and stage `prepared`; the protected workflow's exact `run-name` includes that request ID. A successful response advances to `submitted`. A timeout or lost response advances to `response-ambiguous`, polls the workflow-runs API for the exact event/run-name/head SHA within a bounded eventual-consistency window, and never advances the stable high-water mark until one run ID is selected. If no run appears it may retry the identical request after the window; if one or more delayed duplicate runs appear, an atomic first-created-run-ID selection is durable and every other run is rejected by recorder/publisher policy. Crash/retry tests cover failure before request, accepted response lost, request not accepted, one delayed run, and duplicate delayed runs without two publishable candidates.
-5. The build workflow re-resolves both IDs from both forges and rejects any mismatch before checkout.
+1. A maintainer creates an annotated, signed `YY.MM.DD` tag on GitHub. Exactly one stable source release is permitted per UTC date; a packaging correction uses a corrected commit and new date, never a suffix or moved identity. This source tag nominates a candidate; it does not authorise a GitHub release, package publication or install-ready claim.
+2. The release dispatcher uses its NTP-synchronised trusted UTC clock and durable stable high-water mark. The tag date must equal the current UTC date, except the immediately previous date is accepted only through `06:00:00Z` for midnight-boundary retries; future dates, older dates, duplicate dates, and identities not strictly newer than the high-water mark reject before dispatch.
+3. It verifies the tag signature against an out-of-band maintainer fingerprint allowlist and verifies the target is reachable from protected GitHub `main`. It records the exact annotated tag object and peeled candidate SHA without writing either source ref.
+4. Before API dispatch it atomically records a dispatch journal entry containing tag/ref object IDs, peeled candidate SHA, protected workflow path/digest, a random dispatch request ID, attempt number, and stage `prepared`; the protected workflow's exact `run-name` includes that request ID. A successful response advances to `submitted`. A timeout or lost response advances to `response-ambiguous`, polls the workflow-runs API for the exact event/run-name/head SHA within a bounded eventual-consistency window, and never advances the stable high-water mark until one run ID is selected. If no run appears it may retry the identical request after the window; if one or more delayed duplicate runs appear, an atomic first-created-run-ID selection is durable and every other run is rejected by recorder/publisher policy. Crash/retry tests cover failure before request, accepted response lost, request not accepted, one delayed run, and duplicate delayed runs without two publishable candidates.
+5. The build workflow re-resolves the tag object and peeled candidate SHA from GitHub and rejects any mismatch with the dispatch record before checkout.
 
 ### Nightly Entry Point
 
-1. Protected default-branch schedule `17 2 * * *` runs once daily after the five-minute VPS mirror timer. Nightly `workflow_dispatch` is rejected; a failed scheduled run resumes only through GitHub's native re-run of the same run ID, original `created_at` date, original `head_sha`, and incremented attempt.
-2. Scheduled workflows intentionally have no GitHub concurrency group, because GitHub retains only one pending member per group and a third arrival can cancel an older pending date. Every scheduled run remains independently queued, verifies GitHub `main` equals canonical Codeberg `main`, derives its UTC identity date from the API-verified original run `created_at`, and carries that date/source digest through a durable publisher compare-and-swap. Forge refs/releases, protected workflow runs/artifacts, and publisher state reject a successful or different in-progress public identity for the date; duplicate same-identity runs may build but only the first durably selected run ID can record evidence or publish. The concurrency test overlaps at least three dates, proves none is cancelled/replaced, and proves serialized, one-per-date FIFO publication despite out-of-order job completion.
+1. Protected default-branch schedule `17 2 * * *` runs once daily. Nightly `workflow_dispatch` is rejected; a failed scheduled run resumes only through GitHub's native re-run of the same run ID, original `created_at` date, original `head_sha`, and incremented attempt.
+2. Scheduled workflows intentionally have no GitHub concurrency group, because GitHub retains only one pending member per group and a third arrival can cancel an older pending date. Every scheduled run remains independently queued, verifies its API-recorded source commit belongs to protected GitHub `main`, derives its UTC identity date from the API-verified original run `created_at`, and carries that date/source digest through a durable publisher compare-and-swap. Forge refs/releases, protected workflow runs/artifacts, and publisher state reject a successful or different in-progress public identity for the date; duplicate same-identity runs may build but only the first durably selected run ID can record evidence or publish. The concurrency test overlaps at least three dates, proves none is cancelled/replaced, and proves serialised, one-per-date FIFO publication despite out-of-order job completion.
 3. If no source commit changed since the previous successful nightly, it records a successful date/source digest-bound skip and publishes nothing; a re-run reproduces the same skip.
 4. Otherwise identity is `nightly-YY.MM.DD-g<12-hex-sha>` and embedded release is `YY.MM.DD`.
-5. After bundle verification, publisher signs the annotated nightly tag with the nightly-tag subkey and pushes the identical object to both forges before the GitHub prerelease.
+5. After bundle and dependency-closure verification, publisher signs the annotated nightly tag with the nightly-tag subkey and pushes that exact object to GitHub before the prerelease.
 
 ### Build and Attestation Path
 
 1. Resolve channel, full candidate commit SHA, source commit timestamp, embedded release, architecture map, complete feature-gate set, and deterministic environment.
-2. Reject dirty/generated drift, unauthorized refs, invalid/out-of-policy calendar dates, mismatched main branches, a stable target not reachable from protected main, or a release tool/workflow digest not allowed by publisher policy.
+2. Reject dirty/generated drift, unauthorised refs, invalid/out-of-policy calendar dates, tag/candidate object mismatch, a candidate not reachable from protected main, or a release tool/workflow digest not allowed by publisher policy.
 3. Build `cmd/ze` for `linux/amd64` and `linux/arm64` with `CGO_ENABLED=0`, `ze_core`, `ze_distro`, every gate derived from `feature-gates.txt`, `-trimpath`, VCS metadata, empty Go build ID, explicit embedded release, and commit timestamp build date.
 4. Run `ze --extended-version`, exact-tag build tests, and compiled-inventory checks. Assert release, commit, clean state, Go version, OS, architecture, and the complete expected feature set.
 5. Generate deterministic completion files, tarballs, DEB/RPM inputs through pinned nFPM, and per-architecture SPDX 2.3 SBOMs through pinned Syft.
@@ -248,24 +248,24 @@ Boundaries Crossed section further below.)
 
 ### Evidence Path
 
-1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs the retired `ze-evidence-release-verify` (current: `./le evidence release-candidate`) on the dedicated reset runner.
+1. Protected default-branch `release-build.yml` calls `release-evidence.yml` only through local reusable `workflow_call`, passing required channel, release identity, candidate ref/SHA, caller workflow path/digest/run ID/attempt, and required-set version. `release-evidence.yml` has no PR, push, schedule, or manual trigger; it rejects a non-protected caller/ref or candidate-controlled workflow revision, checks out only the passed candidate as test input, and runs the native release matrix required by `spec-release-evidence-gate.md`, extended by this spec's exact channel category sets on the dedicated reset runner.
 2. Stable mandatory category IDs are exactly: `verify`, `chaos`, `fuzz`, `interop`, `ipsec-interop`, `l2tp-interop`, `pppoe-interop`, `functional-extra`, `perf`, `qemu`, `vpp-deployment`, `live`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`. None may be skipped.
 3. Stable evidence also includes `mutation` as its only advisory category. It must execute and record either pass or advisory-fail; it may not be skipped and cannot substitute for a mandatory category.
 4. Nightly mandatory and allowed IDs are exactly: `verify`, `release-policy`, `release-repro`, `package-deb-amd64`, `package-deb-arm64`, `package-rpm-amd64`, `package-rpm-arm64`, `package-vm-deb`, `package-vm-rpm`, and `repository-tamper`; mutation is not a nightly category. VM categories use the nightly smoke profile, while stable uses full lifecycle.
 5. The versioned evidence manifest binds repository/ref/SHA, release identity/channel, trusted caller and reusable-workflow paths/digests, caller run ID/attempt, the protected-policy-derived evidence name `ze-release-evidence-v1-run-<run-id>-attempt-<attempt>`, required-set version, and exactly one record per channel-allowed category with classification, status, command, log digest/path, start/end timestamps, runner image, and tool lock digest.
 6. Stable publication accepts only the exact stable set with every mandatory status `pass`; nightly accepts only the exact nightly set. Missing, duplicate, unknown, skipped, advisory-only, stale, wrong-caller/SHA/run/attempt/required-set, or digest-mismatched entries reject.
-7. The candidate-running reusable job packs only the canonical manifest and declared logs into one evidence artifact under the exact protected-policy-derived name. A fresh protected recorder job executes only trusted default-branch verifier code, lists and downloads that artifact by the API-returned ID, verifies the closed transport set and every log digest, and emits a closed `evidence-recorder-result.json` binding schema version, repository, candidate ref/SHA, caller and reusable workflow paths/digests, run ID/attempt, required-set version, evidence logical name/API ID/manifest and transport digests, and, for stable, the dependency-closure record/digest. It uploads the result alone as `ze-release-evidence-record-v1-run-<run-id>-attempt-<attempt>`, captures that API ID, and writes exactly one successful `ze/release-evidence-v1` candidate commit check from the GitHub Actions App; the check external ID binds repository, run, attempt, result-artifact ID, and result digest. Publisher and workflow-policy negatives cover missing/duplicate/stale/wrong-app checks, candidate-authored checks, wrong run/attempt/name/API ID/digest/required-set/SHA, swapped names, cross-run and cross-attempt artifacts, and every evidence rejection class.
+7. The candidate-running reusable job packs only the canonical manifest and declared logs into one evidence artifact under the exact protected-policy-derived name. A fresh protected recorder job executes only trusted default-branch verifier code, lists and downloads that artifact by the API-returned ID, verifies the closed transport set and every log digest, and emits a closed `evidence-recorder-result.json` binding schema version, repository, candidate ref/SHA, caller and reusable workflow paths/digests, run ID/attempt, required-set version, evidence logical name/API ID/manifest and transport digests, and the channel-bound dependency-closure record/digest for both stable and nightly. It uploads the result alone as `ze-release-evidence-record-v1-run-<run-id>-attempt-<attempt>`, captures that API ID, and writes exactly one successful `ze/release-evidence-v1` candidate commit check from the GitHub Actions App; the check external ID binds repository, run, attempt, result-artifact ID, and result digest. Publisher and workflow-policy negatives cover missing/duplicate/stale/wrong-app checks, candidate-authored checks, wrong run/attempt/name/API ID/digest/required-set/SHA, swapped names, cross-run and cross-attempt artifacts, and every evidence rejection class.
 
 ### Dependency Closure Gate
 
 `packaging/publisher/release-dependency-policy.json` is a closed, versioned protected-policy input whose digest is pinned by publisher/workflow policy. Its spec IDs are exactly `spec-release-evidence-gate`, `spec-release-audit-0-umbrella`, `spec-release-audit-1-surface-inventory`, `spec-release-audit-2-bgp-protocol`, `spec-release-audit-3-config-cli`, `spec-release-audit-4-web-lg-api`, `spec-release-audit-5-plugins-rib`, `spec-release-audit-6-system-linux`, `spec-release-audit-7-resilience-security`, and `spec-release-audit-8-docs-onboarding`. Before first activation the finalized policy also enumerates every exact blocking finding ID from the closed child indexes, each required evidence category, and the allowed closure-record schema; placeholders, ranges, category-only summaries, and unknown IDs reject. The current `spec-release-distribution` is intentionally not its own prerequisite. Changes require protected review and a policy-version/digest update; candidate manifests cannot add, remove, or rename dependencies.
 
-For a stable candidate, the protected recorder parses repository files as data without executing candidate code and creates `dependency-closure.json`. The closed record binds schema/policy version and digest, repository and exact candidate SHA, then for every policy entry records the closure commit (which must be an ancestor of the candidate), preserved learned/audit record path and digest, exact zero-open-finding result, and required release-evidence record digests. It rejects any still-present open dependency spec, missing/partial/skipped finding, stale or wrong-SHA record, non-ancestor closure, unknown dependency/finding discovered in the umbrella's closed index, duplicate entry, or evidence mismatch. The publisher and infrastructure preflight require this recorder-bound record before stable signing and again before first public completion; `DependencyClosurePolicyTest.test_exact_candidate_closure` covers success plus every rejection class.
+For each stable or nightly candidate, the protected recorder parses repository files as data without executing candidate code and creates `dependency-closure.json`. The closed record binds schema/policy version and digest, repository, channel and exact candidate SHA, then for every policy entry records the closure commit (which must be an ancestor of the candidate), preserved learned/audit record path and digest, exact zero-open-finding result, and required release-evidence record digests. It rejects any still-present open dependency spec, missing/partial/skipped finding, stale or wrong-SHA record, non-ancestor closure, unknown dependency/finding discovered in the umbrella's closed index, duplicate entry, or evidence mismatch. The publisher and infrastructure preflight require this recorder-bound record before the publisher signs or creates a nightly tag, release asset or repository object, and recheck it before activation and first public completion. A nightly may be the first public channel only after this same barrier passes. A prior stable release never substitutes for exact-candidate closure. `DependencyClosurePolicyTest.test_exact_candidate_closure` covers both channels, including a first-ever nightly with no prior stable activation, and every rejection class.
 
 ### Signing and Publication Path
 
-1. The VPS publisher polls GitHub Actions with a release-publisher GitHub App installation token and considers only completed, mirror-journal-selected stable runs or publisher-state-selected nightly runs.
-2. It queries candidate checks and requires exactly one successful `ze/release-evidence-v1` check from the expected GitHub Actions App whose external ID matches repository/candidate/run/attempt. It downloads `evidence-recorder-result.json` by the check-bound result-artifact API ID, verifies its closed schema/name/digest and all identity fields, then downloads the evidence artifact only by the recorder-bound API ID. It verifies the evidence set plus every provenance/SBOM statement, trusted workflow digest, repository/ref/SHA, run attempt, input bundle digest, input-manifest schema, tool lock, closed file/subject sets, and stable dependency-closure record. It never independently chooses an evidence artifact by candidate-supplied name.
+1. The VPS publisher polls GitHub Actions with a release-publisher GitHub App installation token and considers only completed, dispatch-journal-selected stable runs or publisher-state-selected nightly runs.
+2. It queries candidate checks and requires exactly one successful `ze/release-evidence-v1` check from the expected GitHub Actions App whose external ID matches repository/candidate/run/attempt. It downloads `evidence-recorder-result.json` by the check-bound result-artifact API ID, verifies its closed schema/name/digest and all identity fields, then downloads the evidence artifact only by the recorder-bound API ID. It verifies the evidence set plus every provenance/SBOM statement, trusted workflow digest, repository/ref/SHA, run attempt, input bundle digest, input-manifest schema, tool lock, closed file/subject sets, and the channel-bound dependency-closure record. It never independently chooses an evidence artifact by candidate-supplied name.
 3. It never checks out, compiles, imports, sources, or executes candidate-controlled files. Maintainer scripts are data and were already exercised in disposable package-test environments.
 4. Before signing, it archives the verified input bundle, attestation bundles, evidence record/result, dependency-closure record, and tool lock under a unique private immutable input prefix. Stable input archives are indefinite; nightly input archives cannot be pruned until both their object lock expires and at least 37 full days have elapsed since trusted public activation. Archive/retention verification failure blocks signing.
 5. It signs each RPM exactly once, confirms the signed RPM still contains the attested architecture binary and expected payload, and generates all final package/repository bytes.
@@ -275,7 +275,7 @@ For a stable candidate, the protected recorder parses repository files as data w
 9. Before any public activation, it writes a second unique retention-locked private archive containing every exact final GitHub outer-set byte, complete APT/RPM snapshot bytes, candidate pointer payloads/signatures, release record, and digest inventory. Clean-room restore must reproduce every final digest without publisher disk or secret key access.
 10. It creates a GitHub draft release, uploads the exact outer set, downloads every asset back, and verifies the payload manifest, envelope rules, signatures, and digests.
 11. It uploads immutable object-store snapshot objects, verifies them over public HTTPS/CDN, and leaves current channel metadata unchanged.
-12. It publishes the GitHub draft once as immutable: stable request and API-observed state must be `prerelease=false` and `make_latest=true`; nightly must be `prerelease=true` and `make_latest=false`, and publishing nightly must leave `/releases/latest` resolving to the last stable release. It runs `gh release verify` for the release and `gh release verify-asset` for every downloaded outer-set asset. Because GitHub does not expose a separate attestation-export command in this contract, `release-attestation-record.json` closes the exact verifier version, command/exit status/transcript digests, repository/release/tag/commit IDs, API-observed immutable/prerelease/latest fields, and every asset name/ID/size/digest/path verified. It writes the record and raw transcripts under a new `final-attestation` retention-locked archive key and restores and replays verification against freshly downloaded assets before repository activation. Missing, tampered, unlocked, or unrestorable final-attestation state leaves both repository pointers unchanged; retry resumes from the immutable GitHub release without editing it.
+12. It publishes the GitHub draft once as immutable: stable request and API-observed state must be `prerelease=false` and `make_latest=true`; nightly must be `prerelease=true` and `make_latest=false`, and publishing nightly must leave `/releases/latest` resolving to the last stable release, or absent if no stable release exists yet; a first-ever nightly must never become latest. It runs `gh release verify` for the release and `gh release verify-asset` for every downloaded outer-set asset. Because GitHub does not expose a separate attestation-export command in this contract, `release-attestation-record.json` closes the exact verifier version, command/exit status/transcript digests, repository/release/tag/commit IDs, API-observed immutable/prerelease/latest fields, and every asset name/ID/size/digest/path verified. It writes the record and raw transcripts under a new `final-attestation` retention-locked archive key and restores and replays verification against freshly downloaded assets before repository activation. Missing, tampered, unlocked, or unrestorable final-attestation state leaves both repository pointers unchanged; retry resumes from the immutable GitHub release without editing it.
 13. It activates APT by replacing `InRelease` last. Only after the same release's APT state is durably active may it activate RPM by replacing the single mirrorlist pointer to the combined snapshot. Each format is independently atomic, but order is strictly APT then RPM; RPM-before-APT is rejected.
 14. If APT activation fails, both repositories remain on their previous valid snapshots. If later RPM activation fails, APT remains on the new valid snapshot and RPM remains on its previous valid snapshot. No automatic downgrade occurs; retry continues from durable state without rebuild or resigning.
 15. After both formats and both public-network canaries verify, it updates the signed channel/latest manifest and marks the release complete with the trusted `public_activated_at` timestamp used by retention.
@@ -284,8 +284,8 @@ For a stable candidate, the protected recorder parses repository files as data w
 
 | Trust domain | Private-key location | Objects signed | Consumer trust |
 |--------------|----------------------|----------------|----------------|
-| Maintainer identity | Maintainer hardware/offline key only | Stable Codeberg annotated tags | Mirror fingerprint allowlist published out of band |
-| Nightly tag | Dedicated offline primary plus short-lived online subkey in nightly-tag GPG home | Nightly annotated tags on both forges only | Publisher/mirror nightly-key allowlist; not package clients |
+| Maintainer identity | Maintainer hardware/offline key only | Stable GitHub annotated tags | Dispatcher fingerprint allowlist published out of band |
+| Nightly tag | Dedicated offline primary plus short-lived online subkey in nightly-tag GPG home | Nightly annotated tags on GitHub only | Publisher/dispatcher nightly-key allowlist; not package clients |
 | Direct release | Dedicated offline primary plus short-lived online subkey in manifest GPG home | Final checksums, `release-manifest.json`, channel/latest manifest | Public direct-download keyring and fingerprints on GitHub plus `ze-software.net` |
 | APT archive | Dedicated offline primary plus short-lived online subkey in APT GPG home | APT `Release`/`InRelease` only | `/usr/share/keyrings/ze-archive-keyring.gpg`, containing current and next APT public primaries |
 | RPM archive | Dedicated offline primary plus separate short-lived online subkeys in RPM package/metadata GPG homes | RPM package signatures and detached `repomd.xml` signatures only | `/etc/pki/rpm-gpg/RPM-GPG-KEY-ze`, containing current and next RPM public primaries |
@@ -304,20 +304,20 @@ Separate primary keys provide enforceable trust-domain separation that subkey na
 | Attestation | Protected default-branch GitHub runner | `actions: read`, `contents: read`, `id-token: write`, `attestations: write`, `artifact-metadata: write`; no repository contents/release write | None | GitHub OIDC only |
 | Evidence execution | Reset isolated runner | `contents: read` only for the trusted checkout step with `persist-credentials: false`; candidate commands receive no token, secret, OIDC, or write authority | None; evidence is an immutable run artifact verified by a separate job | None |
 | Evidence recorder | Fresh protected-workflow GitHub runner; never checks out or executes candidate files | `actions: read`, `contents: read`, `checks: write`; binds caller/run/attempt/artifact ID/manifest digest; no release/tag/attestation write | None | None |
-| Mirror/dispatch | Locked `ze-mirror` VPS account | Codeberg read-only deploy credential; GitHub mirror App with metadata read, contents read/write, Actions write, no Checks/Attestations administration; protected-main allowlist permits this App only for verified fast-forward | None | None |
-| Publisher | Locked `ze-publisher` VPS account | GitHub publisher App with Actions/Checks/Attestations read and Contents read/write for nightly tags/releases, no Actions dispatch; Codeberg credential creates nightly tags while protected main/stable-tag rules reject it | Separate bucket-scoped Object Read & Write tokens for stable public, nightly public, and stable/nightly archive buckets; prefix locks deny immutable overwrite/delete; no bootstrap, retention-parent, or lock-admin token | May invoke only allowlisted no-network signer units; cannot read secret key files |
-| Retention | Locked `ze-retention` VPS account | Run-scoped retention App token; policy accepts only expired `nightly-*` release/tag deletion; Codeberg nightly-delete credential; protected main/stable rules reject both | Receives only five-minute locally signed R2 credentials for `DeleteObject`/`DeleteObjects` and the broker-approved exact nightly-public or nightly-archive object keys; no read/list/put/copy/stable/bootstrap/current authority | May request a retention-plan signature but cannot read key files |
+| Release dispatch | Locked `ze-release-dispatch` VPS account | GitHub dispatcher App with metadata/contents read and Actions write; no source-ref, release, Checks, Attestations or administration write authority | None | None |
+| Publisher | Locked `ze-publisher` VPS account | GitHub publisher App with Actions/Checks/Attestations read and Contents read/write for nightly tags/releases, no Actions dispatch; protected main/stable-tag rules reject its source writes | Separate bucket-scoped Object Read & Write tokens for stable public, nightly public, and stable/nightly archive buckets; prefix locks deny immutable overwrite/delete; no bootstrap, retention-parent, or lock-admin token | May invoke only allowlisted no-network signer units; cannot read secret key files |
+| Retention | Locked `ze-retention` VPS account | Run-scoped retention App token; policy accepts only expired `nightly-*` release/tag deletion; protected main/stable rules reject source writes | Receives only five-minute locally signed R2 credentials for `DeleteObject`/`DeleteObjects` and the broker-approved exact nightly-public or nightly-archive object keys; no read/list/put/copy/stable/bootstrap/current authority | May request a retention-plan signature but cannot read key files |
 | Credential broker | Root-only locked no-network signer plus one networked deletion child | No forge permission | Parent Object Read & Write secrets for only `ze-nightly-public` and `ze-archive-nightly`; validates signed plan against root-readable append-only publisher activation state and monitor records, exact object keys/age/expired lock, then mints exact-object delete-only sessions | Retention public-key verification only |
 | Monitor | Locked `ze-monitor` VPS account | Read-only forge/App metadata, Actions, Checks, Attestations, release, and ref access | Read-only public/private inventory and CDN probes | Public-key verification only |
 | APT/RPM/direct/nightly/retention signers | One locked OS account and GPG home per online subkey | No network and no forge credential | Read one normalized staging input, write one signature/signed-RPM output, no bucket credential | Own exported secret subkey only through a distinct systemd credential |
 
-Checked-in API-operation allowlists and protected branch/tag policies narrow platform permissions that GitHub/Codeberg cannot express as separate create/delete/tag/release scopes. Preflight probes every intended and denied operation. App/private-key tokens are minted only for one timer run, held in memory/systemd credentials, and revoked/rotated independently.
+Checked-in API-operation allowlists and protected branch/tag policies narrow platform permissions that GitHub cannot express as separate create/delete/tag/release scopes. Preflight probes every intended and denied operation. App/private-key tokens are minted only for one timer run, held in memory/systemd credentials, and revoked/rotated independently.
 
 Candidate code runs only in Build and Evidence execution after authenticated checkout credentials have been removed. The evidence recorder downloads the evidence artifact by API ID, verifies its closed manifest/digests and trusted caller identity with protected workflow code, then writes the commit check; candidate code cannot access or influence its token.
 
 For pruning, `ze-retention` creates a closed exact-key plan only after signed current metadata excludes the expired nightly. The retention signer records it, but the root broker independently re-verifies the signature against root-readable append-only publisher state containing the exact activated metadata bytes/digests and trusted `public_activated_at`, two-network monitor records newer than activation, both object age/lock expiry and at least 37 full days since public activation, nightly-only path grammar, high-water/predecessor state, and complete object inventory. Immediately before every credential-batch mint and again before launching its deletion child, the broker invokes the shared strict `chronyc tracking` parser; stale, malformed, unsynchronized, or threshold-failing time creates no session and performs no forge or object deletion. The broker partitions each bucket's approved keys into deterministic batches of 1-100, locally HS256-signs one R2 session per batch with TTL exactly 300 seconds, actions exactly `DeleteObject`/`DeleteObjects`, and `paths.objectPaths` exactly equal to that batch, then starts one sandboxed networked child with only one session at a time. Parent credentials never enter the retention account/child; raw tests prove sessions cannot read, list, put, copy, target unlisted objects, exceed TTL/batch limits, or access stable/bootstrap buckets.
 
-GitHub rulesets make `main` fast-forward-only and nondeletable, allow only the mirror App to update it, deny publisher/retention Apps, and protect `.github/workflows/**` through the same branch rule. Stable tag pattern `[0-9][0-9].[0-9][0-9].[0-9][0-9]` permits mirror creation only and denies publisher/retention update/delete; nightly pattern `nightly-*` permits publisher creation and retention deletion only. Codeberg protected `main` and stable-tag policy give equivalent denials. Raw preflight proves source-ref create/update/delete, stable-tag update/delete, workflow mutation, administration, and attestation deletion fail for publisher/retention credentials; application-policy tests separately cover the forge API operations whose coarse Contents permission cannot deny, including stable release deletion.
+GitHub rulesets make `main` fast-forward-only and nondeletable, preserve reviewed maintainer development access, deny dispatcher/publisher/retention source writes, and protect `.github/workflows/**` through the same branch rule. Stable tag pattern `[0-9][0-9].[0-9][0-9].[0-9][0-9]` permits authorised maintainer creation only and denies update/delete; nightly pattern `nightly-*` permits publisher creation and retention deletion only. Raw preflight proves source-ref create/update/delete, stable-tag mutation, workflow mutation, administration, and attestation deletion fail for automation credentials. Application-policy tests separately cover the forge API operations whose coarse Contents permission cannot deny, including stable release deletion. The exact maintainer actor allowlist and App provisioning require owner approval before activation.
 
 ### Publisher State and Replay Protection
 
@@ -538,7 +538,7 @@ The parser requires one `KEY=value` record per requested property, rejects dupli
 
 | Signal/process | Cadence and timeout | Warning | Critical/freeze |
 |----------------|---------------------|---------|-----------------|
-| Mirror poll | Every 5 minutes; 60-second run timeout | Canonical-to-GitHub lag over 10 minutes | Divergence immediately or lag over 30 minutes; freeze dispatch/publication |
+| Release dispatch poll | Every 5 minutes; 60-second run timeout | Authorised undispatched tag pending over 10 minutes | Candidate object mismatch immediately or pending over 30 minutes; freeze dispatch/publication |
 | Trusted VPS clock | `chrony` required; `chronyc tracking` before every identity/sign/activation/prune-plan decision, every deletion-credential mint and child launch, and every 5 minutes | absolute system offset over 250 ms or last update over 5 minutes | Leap status not `Normal`, absolute offset over 1 second, last update over 10 minutes, invalid stratum, or command failure; freeze dispatch/sign/activation/prune and mint no delete session |
 | Publisher poll/state | Every 2 minutes; 30-second API calls | One transition pending over 30 minutes | Pending over 60 minutes or unexpected state/predecessor; freeze new publication |
 | VPS public/CDN probe | Every 5 minutes; 30 seconds per endpoint | First origin/public digest or generation mismatch | Three consecutive failures or generation over 10 minutes behind origin; freeze new publication |
@@ -553,18 +553,18 @@ The parser requires one `KEY=value` record per requested property, rejects dupli
 
 VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to one HTTPS webhook URL loaded as `ZE_RELEASE_ALERT_WEBHOOK` through a systemd credential. It deduplicates the same code/resource for 30 minutes, increments occurrence count, and emits one recovery after two consecutive healthy probes. Critical signals block new dispatch/sign/activation but never roll back a valid active repository. Unit tests use an injected clock and fake HTTP/forge/storage clients for every threshold, deduplication, freeze, and recovery transition.
 
-`install_publisher.py` requires but does not rewrite operator NTP sources: it installs/enables `chrony`, orders release units after `chrony.service`/`time-sync.target`, and fails preflight until `chronyc tracking` meets the critical thresholds. `preflight.py`, mirror, publisher, monitor, retention, and the root credential broker share one strict parser and injected-clock seam. Staging feeds normal/stale/unsynchronized/malformed tracking records and proves a healthy signed plan followed by a stale broker clock cannot authorize a CalVer tag, freshness signature, prune plan, delete session/child, forge deletion, object deletion, or activation.
+`install_publisher.py` requires but does not rewrite operator NTP sources: it installs/enables `chrony`, orders release units after `chrony.service`/`time-sync.target`, and fails preflight until `chronyc tracking` meets the critical thresholds. `preflight.py`, dispatcher, publisher, monitor, retention, and the root credential broker share one strict parser and injected-clock seam. Staging feeds normal/stale/unsynchronized/malformed tracking records and proves a healthy signed plan followed by a stale broker clock cannot authorize a CalVer tag, freshness signature, prune plan, delete session/child, forge deletion, object deletion, or activation.
 
 ### Boundaries Crossed
 
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Codeberg source -> GitHub mirror/dispatch | Fast-forward branch, exact tag object, protected default-branch workflow dispatch | Mirror/dispatch integration test |
+| GitHub signed source -> protected workflow dispatch | Exact signed tag object, protected-main ancestry, durable dispatch journal | Dispatcher integration test |
 | Git ref -> release identity | Strict calendar parser | Python unit and boundary tests |
 | Source -> binaries | Deterministic Make/Go invocation with exact feature set | Double-build, build-tag, inventory, extended-version tests |
 | Binary -> native package | nFPM closed content manifest | Extracted binary digest, path/owner/mode tests |
 | Build -> trusted attestation | Artifact IDs consumed by protected `workflow_run` | Workflow-policy and attestation-negative tests |
-| GitHub/Codeberg -> VPS automation | Separate mirror, publisher, and nightly-retention App/deploy identities plus protected refs | App-scope, API-allowlist, denied-operation, and token-rotation tests |
+| GitHub -> VPS automation | Separate dispatcher, publisher, and nightly-retention App/deploy identities plus protected refs | App-scope, API-allowlist, denied-operation, and token-rotation tests |
 | Publisher -> signing keys | Dedicated GPG homes/systemd credentials by signature class | Clean-keyring and key-rotation tests |
 | Publisher -> GitHub release | Draft upload, final-manifest download verification, immutable publish | Staging stable/nightly scenarios |
 | Publisher -> public/private object storage | Immutable snapshots/audit archive plus monotonic pointer state | Fake-S3, staging, restore, replay tests |
@@ -583,7 +583,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 - `internal/component/doctor/checks_platform.go` discovers the effective systemd unit with a bounded call and preserves test overrides.
 - `internal/component/config/system` detects package ownership, prevents in-place mutation, and exposes a doctor diagnostic for incompatible `auto-apply`.
 - `internal/le/evidence/evidence.go` adds package/repository evidence to the existing release matrix.
-- GitHub Actions builds and attests; separate VPS mirror/publisher identities own forge dispatch, final signing, repository activation, and retention.
+- GitHub Actions builds and attests; separate VPS dispatcher/publisher identities own forge dispatch, final signing, repository activation, and retention.
 
 ### Architectural Verification
 
@@ -603,7 +603,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
 | A-1 | GitHub immutable releases and release attestations are enabled for `ze-software/ze` | GitHub supports repository/org immutable-release policy and final-release attestation | Published assets could change or final bytes would lack trusted provenance | Preflight API/config check and throwaway draft/publish rehearsal | unvalidated |
-| A-2 | Codeberg supports protected `main`, restricted stable tag creation, and deploy-key/App automation needed by the mirror | Canonical forge requirement | Unauthorized source/tag identity could enter the queue | Provisioning checklist plus unauthorized-tag and divergence exercises | unvalidated |
+| A-2 | GitHub rulesets and the approved maintainer actor allowlist enforce protected `main`, restricted stable tag creation, and read-only source access for the dispatcher | GitHub-only forge policy in `ai/rules/git-safety.md` | Unauthorised source/tag identity could enter the queue | Provisioning checklist plus unauthorised-tag, source-write denial and object-mismatch exercises | unvalidated |
 | A-3 | `ubuntu-24.04-arm` remains available for this public GitHub repository | GitHub-hosted runner reference, checked 2026-07-10 | Native arm64 package smoke cannot run there | Workflow dry run; fall back to an isolated self-hosted arm64 runner only with explicit user approval | unvalidated |
 | A-4 | The selected R2 deployment supports three one-bucket custom domains, conditional writes, five bucket-scoped credentials, prefix bucket locks, and locally signed temporary credentials with explicit actions/object paths | R2 custom-domain, bucket-lock, API-token, and temporary-credential documentation | Atomic activation, routing, immutable retention, or delete authority would be unsafe | Five-bucket/three-domain staging, prefix-lock, broker-mint, credential-denial, CDN, and restore tests | unvalidated |
 | A-5 | nFPM 2.47.0, Syft 1.46.0, Aptly 1.6.3, and createrepo_c 1.2.4 satisfy deterministic and target-format contracts | Latest upstream releases observed 2026-07-10 | Tool lock or repository design changes | Pinned prototype, double-build, native package-manager, and clean-keyring tests | unvalidated |
@@ -611,7 +611,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | A-7 | Existing zefs hash-as-token login makes discarded automatic plaintext usable for local administration | `internal/component/cli/sshclient/client.go` | Fresh package install would be inaccessible | VM install then root `ze status` and `ze cli` test | confirmed |
 | A-8 | Vendor-unit, sysusers, tmpfiles, and preset paths work on the declared Debian/RPM families | systemd/FHS conventions | Package scripts fail on a supported distribution | Container matrix and booted QEMU VM tests | unvalidated |
 | A-9 | Exact release-evidence check runs can be bound to a source SHA through GitHub checks/artifacts | GitHub Actions model | Publisher cannot machine-verify stable readiness | Evidence workflow prototype and negative SHA/run-attempt mismatch tests | unvalidated |
-| A-10 | Separate mirror, publisher, and nightly-retention identities plus protected refs can contain forge authority despite coarse Contents write permission | GitHub App/Codeberg protection model | Credentials would exceed the documented trust boundary | Preflight intended/denied API probes, protected-main push denial, stable-release/tag deletion denial-by-policy, audit-log, and token-rotation exercises | unvalidated |
+| A-10 | Separate dispatcher, publisher, and nightly-retention identities plus protected refs can contain forge authority despite coarse Contents write permission | GitHub App protection model | Credentials would exceed the documented trust boundary | Preflight intended/denied API probes, protected-main push denial, stable-release/tag deletion denial-by-policy, audit-log, and token-rotation exercises | unvalidated |
 | A-11 | Package-manager helpers can express the service policy without assuming systemd is PID 1 | Debian and RPM native lifecycle conventions | Offline/chroot install or policy-denied starts fail | Disposable chroot/container and booted VM lifecycle matrix | unvalidated |
 
 ### Risks
@@ -619,7 +619,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|-----------------------|
 | R-1 | Online signing subkey compromise | Unexpected signature, publisher-host alert, unrecognized release record | Offline primary revokes subkey; freeze activation; publish revocation/replacement; rebuild from archived attested inputs |
-| R-2 | Canonical and mirror branches diverge | Mirror cannot fast-forward or commit/tag object IDs differ | Fail closed, alert, require human reconciliation; never force-push |
+| R-2 | A tag or candidate identity changes between authorisation and checkout | GitHub ref/object IDs disagree with the durable dispatch record | Fail closed, alert, require human reconciliation; never force-push |
 | R-3 | Candidate code exfiltrates credentials | Workflow review or unexpected network/process behavior | Build has no secrets/write scope; attestation is separate; publisher never executes candidate files |
 | R-4 | Automatic package start changes host networking | VM sees non-loopback listeners or interface changes | Loopback-only generated config, no interface discovery, negative network-state assertions |
 | R-5 | Package scripts destroy state or shadow administrator policy | `/etc/ze` digest changes, unit mask/override changes, unexpected start | Exact state/policy matrix, pre-unpack conflict check, idempotent retry, fail closed |
@@ -630,13 +630,13 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | R-10 | CDN serves stale mutable pointers | Public endpoint differs from origin generation/ETag | 60-second pointer TTL, revalidation, conditional writes, monitoring from two networks |
 | R-11 | Reproducibility breaks in Go, gzip, tar, nFPM, or SBOM output | Double-build digest mismatch | Fixed epoch/canonical metadata, tool lock, deterministic writer, block publication |
 | R-12 | Cleanup deletes referenced nightly objects | Install 404 after cleanup | Remove from metadata, activate replacement, wait maximum client/CDN TTL plus grace, then delete |
-| R-13 | Current release evidence remains failing | Exact evidence check never succeeds | Keep stable publication disabled; finish dependency specs; never weaken evidence |
+| R-13 | Current release evidence remains failing | Exact evidence check never succeeds | Keep stable and nightly publication disabled; finish dependency specs; never weaken evidence |
 | R-14 | Forge Contents write permission is broader than tag/release operation intent | Permission audit shows an App can call an unrelated Contents verb | Three Apps/OS accounts, protected-main actor policy, checked-in API allowlists, run-scoped tokens, audit monitoring, immutable/private recovery records, quarterly rotation |
 | R-15 | Packaging defect is found after immutable publication | Install or policy test fails after release | Freeze affected channel, diagnose, publish corrected source under a new date tag, retain original forensic evidence |
 | R-16 | Container tests pass while booted systemd fails | QEMU lifecycle differs from container result | Require one Debian-family and one RPM-family booted VM for stable publication |
 | R-17 | Direct DEB user assumes embedded package signature | Verification instructions or support report skips manifest verification | State the real trust path, require signed manifest/checksum plus immutable-release attestation, test tamper rejection |
 | R-18 | Private archive is incomplete or unrestorable | Backup inventory mismatch or restore rehearsal fails | Archive-before-signing gate, unique immutable keys, provider-native retention lock, quarterly clean-room restore and attestation verification |
-| R-19 | Future/stale CalVer blocks ordinary upgrades | Mirror observes date outside trusted window or high-water order | Trusted UTC/current-or-six-hour-boundary policy and future/stale tests before dispatch |
+| R-19 | Future/stale CalVer blocks ordinary upgrades | Dispatcher observes date outside trusted window or high-water order | Trusted UTC/current-or-six-hour-boundary policy and future/stale tests before dispatch |
 | R-20 | Native DNF cannot cryptographically detect a malicious replay of old signed metadata | Public generation differs selectively while signatures remain valid | Honest-cache bound, TLS, two-network monitoring, short metadata expiry, explicit limitation; do not claim client rollback protection |
 | R-21 | Explicit nightly downgrade finds state incompatible with older stable | Target-binary read-only validation fails before restart | Keep old process when possible, preserve state, retain transaction, document exact nightly reinstall recovery |
 | R-22 | Root broker parent R2 credential is compromised | Parent token appears outside credential broker or unexpected nightly write/list | Separate parent per nightly bucket, no-network mint boundary, systemd credential, five-minute exact delete sessions, audit every mint, rotate/freeze immediately |
@@ -651,36 +651,36 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `ze init --automatic` | -> | init automatic bootstrap/state validator | `test/install/package-bootstrap.ci`; six named `TestRunAutomatic*` symbols |
 | `ze doctor --json` and `ze explain` | -> | bounded systemctl query plus registered update diagnostic | `test/install/package-doctor-unit.ci`; `TestDoctorSystemctlShow`; `TestDoctorPackageManagedUpdate` |
 | `show system update` and every firmware check/download/apply/restart/rollback command | -> | `ActiveBackend` package-managed dispatcher plus package-aware YANG help | guard `.ci`; `TestPackageManagedShowSystemUpdate`; `TestFirmwareHandlersPackageManaged`; `TestFirmwareCommandHelpPackageManaged`; both booted VM full profiles |
-| Downloaded `install-ze-repository.sh install|remove` | -> | fingerprint/checksum verification and atomic external source/key pair lifecycle | `./le evidence release-candidate`; all six package full profiles |
-| `./le evidence release-candidate` | -> | deterministic builder/input manifest/packages | `./le evidence release-candidate` |
-| Signed Codeberg stable tag | -> | mirror journal, ambiguous-dispatch reconciliation, trusted build/attest/archive/publish | `MirrorPolicyTest.test_ambiguous_dispatch_reconciliation`; staging `stable` and `stable-dispatch-ambiguity` |
-| Protected daily schedule, changed source | -> | nightly build/tag/repositories | `./le evidence release-candidate` |
-| Protected daily schedule, unchanged source | -> | exact skip path | `./le evidence release-candidate` |
-| Failed scheduled nightly native re-run or three overlapping dates | -> | independent queued runs, original date/SHA/attempt lineage, durable one-per-date selection | the retired `ze-release-staging-test SCENARIO=nightly-concurrency-rerun` (current: `./le evidence release-candidate`) |
-| Protected `workflow_call` evidence | -> | tokenless candidate runner, canonical artifact names, isolated recorder result/check | `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation`; `EvidenceRecorderPolicyTest.test_check_result_routing`; `./le evidence release-candidate` |
+| Downloaded `install-ze-repository.sh install|remove` | -> | fingerprint/checksum verification and atomic external source/key pair lifecycle | Planned repository-bootstrap test action; all six package full profiles |
+| Protected release-build workflow | -> | deterministic builder/input manifest/packages | Planned release build/reproducibility test action |
+| Signed GitHub stable tag | -> | dispatch journal, ambiguous-dispatch reconciliation, trusted build/attest/archive/publish | `DispatchPolicyTest.test_ambiguous_dispatch_reconciliation`; staging `stable` and `stable-dispatch-ambiguity` |
+| Protected daily schedule, changed source | -> | nightly build/tag/repositories | Staging `nightly` scenario and nightly policy tests |
+| Protected daily schedule, unchanged source | -> | exact skip path | Staging unchanged-source scenario and nightly policy tests |
+| Failed scheduled nightly native re-run or three overlapping dates | -> | independent queued runs, original date/SHA/attempt lineage, durable one-per-date selection | Planned staging action, `nightly-concurrency-rerun` scenario |
+| Protected `workflow_call` evidence | -> | tokenless candidate runner, canonical artifact names, isolated recorder result/check | `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation`; `EvidenceRecorderPolicyTest.test_check_result_routing`; Native release matrix |
 | GitHub `workflow_run` | -> | exact canonical current-attempt triplet, API IDs, protected-workflow/candidate identities, custom provenance/SPDX | `ArtifactTransportPolicyTest.test_current_attempt_name_id_matrix`; staging `attestation-main-advance`; three `AttestationPolicyTest` symbols |
 | Stable APT install | -> | Signed-By/InRelease/by-hash/DEB/bootstrap/service | `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` |
 | Stable DNF install | -> | mirrorlist/combined repodata/signed RPM/bootstrap/service | `effective-package-install.py --family rpm --distro rocky-9 --arch amd64 --profile full` |
 | Nightly opt-in and immediate stable return | -> | native EVR plus explicit downgrade | all six package commands; `ReleaseModelTest.test_native_version_order_and_downgrade` |
 | Booted Debian VM | -> | full service/lifecycle/failure/update-guard path | `effective-package-vm.py --family deb --distro debian-12 --arch amd64 --profile full` |
 | Booted RPM VM | -> | full service/lifecycle/failure/update-guard path | `effective-package-vm.py --family rpm --distro rocky-9 --arch amd64 --profile full` |
-| Direct GitHub verification | -> | outer set, signatures, release-specific verification, final-attestation archive | `./le evidence release-candidate`; independent monitor variant; `PublisherStateTest.test_final_attestation_archive_barrier` |
-| Publisher retry/activation/replay | -> | durable strict APT-then-RPM state | the retired `ze-release-staging-test SCENARIO=failures` (current: `./le evidence release-candidate`); `SCENARIO=freshness-replay`; negative RPM-before-APT unit |
+| Direct GitHub verification | -> | outer set, signatures, release-specific verification, final-attestation archive | Planned direct-download verification action; independent monitor variant; `PublisherStateTest.test_final_attestation_archive_barrier` |
+| Publisher retry/activation/replay | -> | durable strict APT-then-RPM state | Planned staging action, `failures` and `freshness-replay` scenarios; negative RPM-before-APT unit |
 | Nightly retention timer/broker | -> | activation-epoch-plus-lock plan, fresh clock, exact delete sessions, nightly-only deletion | both `RetentionPolicyTest` symbols; both `CredentialPolicyTest` symbols; staging `retention` and `storage-isolation` |
 | Trusted VPS clock | -> | chrony-gated tag/sign/prune/mint/child/activation | `MonitorPolicyTest.test_trusted_clock_freezes_authorization`; `CredentialPolicyTest.test_stale_clock_before_each_mint`; staging `monitoring` |
 | Monitor and restore | -> | thresholds/alerts/freeze plus input/final/final-attestation/refresh recovery | staging `monitoring`, `backup-restore`, and `archive-failures` |
-| `./le evidence release-candidate` | -> | clean-keyring APT/RPM/package/metadata/key/fingerprint rejection | `RepositoryTamperTest.test_clean_keyring_matrix`; mandatory `repository-tamper` evidence |
-| Stable dependency and first-canary gate | -> | exact candidate closure plus six public GitHub/APT/RPM network legs | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public `canary-failures` scenario |
+| Planned repository-tamper test action | -> | clean-keyring APT/RPM/package/metadata/key/fingerprint rejection | `RepositoryTamperTest.test_clean_keyring_matrix`; mandatory `repository-tamper` evidence |
+| Stable/nightly dependency and first-canary gate | -> | exact candidate closure plus six public GitHub/APT/RPM network legs | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public `canary-failures` scenario |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Stable tag `YY.MM.DD` | Strict calendar parser plus trusted UTC policy accepts current date or previous date only through `06:00:00Z`, requires identity above stable high-water, annotated allowlisted signature, immutable tag, and protected-main reachability; future/stale/duplicate/moved/invalid tags reject before dispatch |
-| AC-2 | Canonical and mirror `main` or stable tag objects differ | Mirror fast-forwards GitHub only when possible; divergence/object mismatch fails closed with alert and no force update |
-| AC-3 | Authorized stable tag passes mirror verification | Only mirror App dispatches protected default-branch workflow with exact tag/commit IDs; its durable request-ID journal reconciles lost responses and selects one run ID from delayed duplicates without advancing high-water early; tag-push and publisher/retention source-ref attempts cannot enter or alter release workflow |
+| AC-2 | GitHub tag object or peeled candidate differs from the authorised dispatch record, or the candidate lacks protected-main ancestry | Dispatch/build reject with an alert and no source-ref write or force update |
+| AC-3 | Authorized stable tag passes dispatcher verification | Only dispatcher App dispatches protected default-branch workflow with exact tag/commit IDs; its durable request-ID journal reconciles lost responses and selects one run ID from delayed duplicates without advancing high-water early; tag-push and publisher/retention source-ref attempts cannot enter or alter release workflow |
 | AC-4 | Daily nightly schedule with unchanged source | No tag/release/snapshot/pointer is created; exact date/source digest-bound skip is retained and retry cannot create a second identity |
-| AC-5 | Daily nightly schedule with changed source | Exactly one immutable nightly per actual UTC run date is signed identically on both forges, `prerelease=true`/`make_latest=false` on GitHub, nightly-only in repositories, and cannot replace `/releases/latest`; three overlapping scheduled dates remain queued and each records its exact result |
+| AC-5 | Daily nightly schedule with changed source | Exactly one immutable nightly per actual UTC run date has a signed GitHub tag, `prerelease=true`/`make_latest=false`, is nightly-only in repositories, and cannot replace `/releases/latest`; if no stable exists, latest stays absent. Three overlapping scheduled dates remain queued and each records its exact result |
 | AC-6 | Release build for amd64 and arm64 | Each output is full default static distro binary with exact release, commit, source-timestamp build date, OS, architecture, complete feature inventory, no dirty marker |
 | AC-7 | Same inputs/locked tools built twice | Every unsigned binary/archive/package input/manifest/checksum/completion/SPDX output is byte-identical |
 | AC-8 | Packaging input bundle | Manifest closes files and binds candidate, protected workflow/run/attempt, protected-policy-derived logical name, tools, modes/sizes/digests while excluding future API IDs; current attempt has the exact canonical input/evidence/recorder triplet and API ID associations; missing/extra/unsafe/final-byte/self-reference/swapped-name/duplicate/cross-run/cross-attempt claims reject |
@@ -709,9 +709,9 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | AC-31 | Storage/CDN/archive isolation | Exactly five buckets and three one-bucket public domains enforce routing/lifecycle; prefix locks, admin-key absence, conditional pointers, public-origin match, private non-routing, clean restore of every archive class, and denied cross-bucket operations pass |
 | AC-32 | Nightly retention | At least 30 full days plus 7-day grace from trusted `public_activated_at` and expired object locks are both required; delayed staging cannot shorten availability; broker rechecks chrony before each mint/child, validates the signed exact plan, and mints five-minute exact-object delete-only sessions; retention Apps delete only nightly releases/tags; read/list/put/copy/unlisted/stable/bootstrap/current access denies |
 | AC-33 | Stable retention | Stable public immutable objects, releases, snapshots, signed envelopes/attestations/records, and input/final/final-attestation/refresh private archives remain indefinitely unless security/legal runbook acts |
-| AC-34 | Operations | Every clock/cadence/timeout/threshold/dedup/recovery/freeze rule, mirror/App/key/activation/replay/CDN/APT expiry/DNF staleness/archive/credential/restore/retention scenario produces deterministic alerts and append-only evidence |
-| AC-35 | Documentation | Users download and verify the repository installer before execution, bootstrap and separately remove source/key trust in fail-closed order, install/verify/switch/downgrade/upgrade/remove/purge/reinstall, understand service/update/replay limits and recover; maintainers have source-anchored mirror/sign/publish/freeze/rollback/rotation/restore runbooks |
-| AC-36 | First public activation | A protected, exact-candidate dependency-closure record proves every dependency/finding/evidence item complete; infrastructure is live; staging promotion and every archive clean restore succeed; each primary and independent GitHub/APT/RPM canary failure freezes completion, documentation mutation, and subsequent publication until all six legs pass, after which README/status/spec closure may proceed |
+| AC-34 | Operations | Every clock/cadence/timeout/threshold/dedup/recovery/freeze rule, dispatch/App/key/activation/replay/CDN/APT expiry/DNF staleness/archive/credential/restore/retention scenario produces deterministic alerts and append-only evidence |
+| AC-35 | Documentation | Users download and verify the repository installer before execution, bootstrap and separately remove source/key trust in fail-closed order, install/verify/switch/downgrade/upgrade/remove/purge/reinstall, understand service/update/replay limits and recover; maintainers have source-anchored dispatch/sign/publish/freeze/rollback/rotation/restore runbooks |
+| AC-36 | First public activation, stable or nightly | A protected, exact-candidate dependency-closure record proves every dependency/finding/evidence item complete; infrastructure is live; staging promotion and every archive clean restore succeed; each primary and independent GitHub/APT/RPM canary failure freezes completion, documentation mutation, and subsequent publication until all six legs pass, after which README/status/spec closure may proceed |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -727,8 +727,8 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | 8 | Removes/purges/erases and reinstalls Ze | final native removal -> package files/transaction removed -> external source/key pair preserved -> repository refresh/reinstall -> documented config/identity result | six full profiles and both VMs |
 | 9 | Runs update commands on packaged Ze | marker -> `BackendPackageManaged` -> status/guidance, no download/stage/rename | guard `.ci`; handler/backend tests; both VMs |
 | 10 | Verifies a direct DEB without APT | final attestation + signed payload/checksum envelope -> exact DEB digest | envelope unit; both public probes/tamper cases |
-| 11 | Maintainer tags stable on Codeberg | trusted date/signature -> mirror dispatch -> tokenless evidence/attest -> input/final/final-attestation archives -> sign/publish/activate | staging `stable` |
-| 12 | Maintainer waits for nightly | mirror -> 02:17 schedule -> changed/unchanged -> signed nightly/prerelease/repos | staging `nightly-changed` and `nightly-unchanged` |
+| 11 | Maintainer tags stable on GitHub | trusted date/signature -> release dispatch -> tokenless evidence/attest -> input/final/final-attestation archives -> sign/publish/activate | staging `stable` |
+| 12 | Maintainer waits for nightly | protected main -> 02:17 schedule -> changed/unchanged -> signed nightly/prerelease/repos | staging `nightly-changed` and `nightly-unchanged` |
 | 13 | Operator recovers after one repository fails | durable per-format state -> valid old/new generations -> failed-format retry -> latest | staging `failures` |
 | 14 | Operator rotates/revokes a key or restores publisher | domain key overlap/freeze plus locked input/final/final-attestation/refresh archives -> clean verification | staging `key-rotation` and `backup-restore` |
 | 15 | Operator re-runs a failed scheduled nightly | GitHub native same-run retry -> original date/SHA -> incremented attempt -> concurrency/obsolete checks | staging `nightly-concurrency-rerun` |
@@ -770,9 +770,9 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `EvidencePolicyTest.test_rejects_missing_duplicate_skip_stale` | `internal/le/evidence/` | Every publisher evidence rejection class | |
 | `WorkflowPolicyTest.test_evidence_reusable_caller_and_token_isolation` | `internal/le/evidence/` | workflow_call-only trusted revision, candidate SHA, API artifact ID, recorder split, no persisted token | |
 | `EvidenceRecorderPolicyTest.test_check_result_routing` | `internal/le/evidence/` | Exact check name/App/external ID, recorder-result schema, evidence API ID routing, and all stale/wrong/duplicate negatives | |
-| `DependencyClosurePolicyTest.test_exact_candidate_closure` | `internal/le/evidence/` | Exact policy set, candidate SHA, ancestor commits, zero findings, evidence digests, and missing/partial/stale/unknown negatives | |
-| `MirrorPolicyTest.test_trusted_dispatch_and_ref_denials` | `internal/le/evidence/` | Fast-forward, tag/date/allowlist, rulesets, exact dispatch, denied refs | |
-| `MirrorPolicyTest.test_ambiguous_dispatch_reconciliation` | `internal/le/evidence/` | Prepared/submitted/ambiguous journal, lost response, delayed/duplicate run selection, no premature high-water advance | |
+| `DependencyClosurePolicyTest.test_exact_candidate_closure` | `internal/le/evidence/` | Both channels, including first-ever nightly before any stable release: exact policy set, channel/candidate SHA, ancestor commits, zero findings, evidence digests, and missing/partial/stale/wrong-channel/unknown negatives | |
+| `DispatchPolicyTest.test_trusted_dispatch_and_ref_denials` | `internal/le/evidence/` | Protected-main ancestry, tag/date/allowlist, rulesets, exact dispatch, denied refs | |
+| `DispatchPolicyTest.test_ambiguous_dispatch_reconciliation` | `internal/le/evidence/` | Prepared/submitted/ambiguous journal, lost response, delayed/duplicate run selection, no premature high-water advance | |
 | `AttestationPolicyTest.test_workflow_candidate_identity_races` | `internal/le/evidence/` | Stable tag ancestor, dispatch `head_sha`, later main advance, API artifact ID outside manifest | |
 | `AttestationPolicyTest.test_subject_predicate_pairing` | `internal/le/evidence/` | Per-binary custom provenance/SPDX pairs and aggregate closed subject | |
 | `AttestationPolicyTest.test_rejects_forged_statement_matrix` | `internal/le/evidence/` | Wrong/missing/duplicate subject, predicate, attester, run/attempt, ref/SHA, artifact, architecture | |
@@ -806,7 +806,7 @@ VPS monitor writes structured JSON to journald and POSTs fixed-schema alerts to 
 | `MonitorPolicyTest.test_thresholds_dedup_freeze_recovery` | `internal/le/evidence/` | Every cadence/threshold/webhook/dedup/recovery/freeze transition | |
 | `MonitorPolicyTest.test_trusted_clock_freezes_authorization` | `internal/le/evidence/` | chrony normal/offset/stale/leap/stratum/malformed/command-failure thresholds | |
 
-All Python unit symbols run through `./le evidence release-candidate`, defined as `python3 -m unittest discover -s internal/le/ -p 'test_*.py'`; Go symbols run through focused package targets in `internal/le/evidence/evidence.go`. `./le evidence release-candidate` runs both plus actionlint, manifest/schema validation, GitHub permission policy, package shell lint, and generated-file drift checks.
+The test symbols above describe required release-policy behaviour, not existing commands. Wire them, actionlint, manifest/schema validation, GitHub permission policy, package shell lint and generated-file drift checks into discoverable native test actions during implementation. Record exact invocation syntax here and in workflow callers before claiming wiring complete. `./le evidence release-candidate` is the existing clean-clone Docker verify action (`Runner.Run` and `ContainerScript`); it neither implements these release tests nor substitutes for the full matrix required by `spec-release-evidence-gate.md`.
 
 ### Boundary Tests
 
@@ -840,11 +840,11 @@ All Python unit symbols run through `./le evidence release-candidate`, defined a
 
 | Exact command/test | Location | End-user/operator scenario | Status |
 |--------------------|----------|----------------------------|--------|
-| `./le evidence release-candidate` (`bin/ze-test install --all`) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
+| Install-suite action invoking `bin/ze-test install --all` (wiring required) | `test/install/package-bootstrap.ci` | Safe automatic bootstrap, existing/unsafe state, no plaintext | |
 | same exact install-suite command | `test/install/package-doctor-unit.ci` | Effective unit/drop-in/query diagnostics and `ze explain` | |
 | same exact install-suite command | `test/install/package-self-update-guard.ci` | Real update handlers cannot stage/mutate packaged binary | |
 | `./le functional ui` (`bin/ze-test ui --all`) | `test/ui/init-automatic-help.ci` | Automatic flag and package purpose visible | |
-| `./le evidence release-candidate` | `packaging/repository/install-ze-repository.sh`; `internal/le/evidence/` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
+| Planned repository-bootstrap test action | `packaging/repository/install-ze-repository.sh`; `internal/le/evidence/` | Same production install/remove script, local signed fixtures, tool/conflict/fingerprint/failure matrix | |
 | `effective-package-install.py --family deb --distro debian-12 --arch amd64 --profile full` | `internal/le/` | Full DEB container/native-manager lifecycle | |
 | `effective-package-install.py --family deb --distro ubuntu-24.04 --arch amd64 --profile full` | same | Ubuntu DEB policy/lifecycle | |
 | `effective-package-install.py --family deb --distro debian-12 --arch arm64 --profile full` | same | Native arm64 DEB payload/repository/lifecycle | |
@@ -856,9 +856,9 @@ All Python unit symbols run through `./le evidence release-candidate`, defined a
 | `effective-release-repro.py --channel stable --architectures amd64,arm64` | `internal/le/` | Two isolated builds and exact binary/package/archive parity | |
 | `effective-release-staging.py --scenario stable` | `internal/le/` | Stable journal-selected dispatch through dependency closure, all archives, immutable release, strict repository activation | |
 | `effective-release-staging.py --scenario stable-dispatch-ambiguity` | same | Before-send, accepted-response-lost, rejected, delayed, duplicate-run journal reconciliation | |
-| `effective-release-staging.py --scenario dependency-closure` | same | Exact candidate closure success and missing/partial/stale/wrong-SHA/skipped/unknown rejection | |
+| `effective-release-staging.py --scenario dependency-closure` | same | Stable and first-ever nightly closure success and missing/partial/stale/wrong-SHA/wrong-channel/skipped/unknown rejection before any public tag or artifact | |
 | `effective-release-staging.py --scenario stable-policy-negatives` | same | Future/stale/duplicate/moved/invalid stable tags all reject before dispatch | |
-| `effective-release-staging.py --scenario mirror-divergence` | same | Branch/tag object divergence and non-fast-forward mirror reject without force | |
+| `effective-release-staging.py --scenario candidate-ref-mismatch` | same | Changed tag/peeled candidate, missing protected-main ancestry and unauthorised source writes reject without force |
 | `effective-release-staging.py --scenario nightly-changed` | same | One immutable nightly with exact prerelease/latest API state and prior stable latest preserved | |
 | `effective-release-staging.py --scenario nightly-unchanged` | same | Exact skip and no mutation | |
 | `effective-release-staging.py --scenario nightly-concurrency-rerun` | same | Native rerun preserves lineage; at least three overlapping dates remain queued, select one run/date, and publish FIFO despite out-of-order completion | |
@@ -866,7 +866,7 @@ All Python unit symbols run through `./le evidence release-candidate`, defined a
 | `effective-release-staging.py --scenario manifest-architecture-negatives` | same | Forged closed manifest/artifact identity and cross-architecture substitutions reject | |
 | `effective-release-staging.py --scenario failures` | same | Every durable/final-action/activation transition and retry | |
 | `effective-release-staging.py --scenario freshness-replay` | same | APT expiry/future rejection, DNF cache bound, publisher replay rejection | |
-| `./le evidence release-candidate` (`python3 -m unittest scripts.release.test_repository.RepositoryTamperTest.test_clean_keyring_matrix`) | `internal/le/` | Exact clean-keyring APT/RPM metadata/package/date/architecture/key/fingerprint mutations | |
+| Planned repository-tamper action exercising `RepositoryTamperTest.test_clean_keyring_matrix` | `internal/le/` | Exact clean-keyring APT/RPM metadata/package/date/architecture/key/fingerprint mutations | |
 | `effective-release-staging.py --scenario key-rotation` | same | Every trust-domain overlap/revocation/freeze | |
 | `effective-release-staging.py --scenario storage-isolation` | same | Bucket locks and denied stable/bootstrap/cross-bucket operations | |
 | `effective-release-staging.py --scenario retention` | same | Both lock and activation-epoch 30+7-day pruning, delayed staging, unfinished exclusion, stale-broker denial, stable denial | |
@@ -882,8 +882,8 @@ All Python unit symbols run through `./le evidence release-candidate`, defined a
 | AC | Exact mandatory evidence |
 |----|--------------------------|
 | AC-1 | `ReleaseModelTest.test_stable_date_policy`; `effective-release-staging.py --scenario stable-policy-negatives` |
-| AC-2 | `MirrorPolicyTest.test_trusted_dispatch_and_ref_denials`; `effective-release-staging.py --scenario mirror-divergence` |
-| AC-3 | Both `MirrorPolicyTest` symbols; staging `stable-dispatch-ambiguity`; raw publisher/retention ref-denial cases |
+| AC-2 | `DispatchPolicyTest.test_trusted_dispatch_and_ref_denials`; `effective-release-staging.py --scenario candidate-ref-mismatch` |
+| AC-3 | Both `DispatchPolicyTest` symbols; staging `stable-dispatch-ambiguity`; raw publisher/retention ref-denial cases |
 | AC-4 | `ReleaseModelTest.test_nightly_identity`; staging `nightly-unchanged` |
 | AC-5 | `ReleaseModelTest.test_nightly_identity`; `PublisherStateTest.test_release_visibility_flags`; staging `nightly-changed` and `nightly-concurrency-rerun`; both successful public probes |
 | AC-6 | `ReleaseBuildTest.test_smoke`; exact reproducibility command |
@@ -1008,16 +1008,16 @@ None. Every named release, package, repository, trust, bootstrap, recovery, moni
 - `packaging/keys/ze-apt-archive.gpg`, `ze-apt-archive.asc`, `RPM-GPG-KEY-ze`, `ze-release-manifest.asc`, `ze-nightly-tag.asc`, `ze-retention.asc`, `ze-release-operations.asc` - public current/next trust-domain material only.
 - `packaging/schemas/input-manifest.schema.json`, `release-manifest.schema.json`, `evidence-manifest.schema.json`, `evidence-recorder-result.schema.json`, `dependency-closure.schema.json`, `release-record.schema.json`, `release-attestation-record.schema.json`, `release-provenance-predicate.schema.json`, `package-transaction.schema.json`, `retention-plan.schema.json` - versioned closed contracts.
 - `packaging/publisher/github-app-policy.json`, `storage-policy.json`, `monitor-policy.json`, `release-dependency-policy.json` - exact permissions/API allowlists, five buckets/prefix locks/temporary credentials, clock/alert policy, and pinned dependency/finding set.
-- `packaging/publisher/ze-release-mirror.service`, `.timer` - five-minute mirror/dispatch.
+- `packaging/publisher/ze-release-dispatch.service`, `.timer` - five-minute release dispatch.
 - `packaging/publisher/ze-release-publisher.service`, `.timer` - two-minute archive/sign/publish/state driver.
 - `packaging/publisher/ze-release-sign@.service` - no-network per-trust-domain signer account/credential.
 - `packaging/publisher/ze-release-prune.service`, `.timer`, `ze-release-credential-broker@.service` - daily metadata-first orchestration plus root-only local exact-object delete-credential mint and sandboxed child.
 - `packaging/publisher/ze-release-monitor.service`, `.timer` - five-minute clock/readiness/freshness/archive monitor.
 - `packaging/publisher/ze-release.conf.example` - non-secret endpoints/paths plus credential names.
 - `internal/le/evidence/`, `manifest.py`, `build.py`, `attestation.py`, `evidence.py`, `dependencies.py` - identity/build, protected artifact/check routing, dependency closure, and versioned input/evidence/attestation contracts.
-- `internal/le/evidence/`, `storage.py`, `credentials.py`, `mirror.py`, `publish.py`, `retention.py`, `monitor.py` - repositories/tamper validation, five-bucket/prefix-lock policy, brokered credentials, forge dispatch journal/publisher state, pruning/alerts.
+- `internal/le/evidence/`, `storage.py`, `credentials.py`, `dispatch.py`, `publish.py`, `retention.py`, `monitor.py` - repositories/tamper validation, five-bucket/prefix-lock policy, brokered credentials, forge dispatch journal/publisher state, pruning/alerts.
 - `internal/le/evidence/`, `install_publisher.py` - infrastructure/API/clock/dependency/canary denied probes and idempotent VPS deployment without private material.
-- `internal/le/evidence/`, `test_build.py`, `test_manifest.py`, `test_evidence.py`, `test_mirror.py`, `test_attestation.py`, `test_repository.py`, `test_storage.py`, `test_credentials.py`, `test_publish.py`, `test_retention.py`, `test_package_policy.py`, `test_keys.py`, `test_monitor.py`, `test_docs.py` - exact Python unit suites.
+- `internal/le/evidence/`, `test_build.py`, `test_manifest.py`, `test_evidence.py`, `test_dispatch.py`, `test_attestation.py`, `test_repository.py`, `test_storage.py`, `test_credentials.py`, `test_publish.py`, `test_retention.py`, `test_package_policy.py`, `test_keys.py`, `test_monitor.py`, `test_docs.py` - exact Python unit suites.
 - `internal/le/deployment/`, `effective-package-vm.py` - six native-manager cells and two full booted-systemd lifecycles.
 - `internal/le/deployment/`, `effective-release-staging.py`, `effective-release-public.py` - reproducibility, all staged scenarios, public dual-network canary.
 - `test/install/package-bootstrap.ci`, `package-doctor-unit.ci`, `package-self-update-guard.ci`, `test/ui/init-automatic-help.ci` - end-user command wiring.
@@ -1065,17 +1065,17 @@ Each phase uses test-first development and ends with a self-critical review.
 5. **Unprivileged build/evidence and non-executing attestation** - protected default-branch dispatch/schedule, SHA-pinned workflows, no-persist candidate checkouts, isolated evidence recorder, permissions/concurrency, closed artifacts, per-binary and aggregate statements.
    - Tests: actionlint/security policy, unauthorized reusable caller/ref/SHA, token isolation, forged run/attempt/artifact/subject/predicate cases, staging workflow.
    - Verify: candidate build/evidence has no write token, recorder executes only protected code, and attestation executes no candidate code.
-6. **Mirror, private archive, and isolated publisher** - out-of-band tag authorization, three forge automation identities, protected refs/API allowlists, attestation/evidence/tool policy, archive-before-sign, trust-domain GPG homes, draft/final verification, durable state.
+6. **Dispatcher, private archive, and isolated publisher** - out-of-band tag authorization, three forge automation identities, protected refs/API allowlists, attestation/evidence/tool policy, archive-before-sign, trust-domain GPG homes, draft/final verification, durable state.
    - Tests: unit transition matrix, intended/denied App operations, protected-main denial, staging forge/bucket, backup failure and clean restore.
    - Verify: candidate files never execute, credentials are scoped, retries never rebuild or resign.
 7. **Independent atomic activation, retention, and monitoring** - APT/RPM commit points, monotonic predecessor state, emergency rollback, three-domain CDN policy, brokered exact-object nightly deletion, trusted clock, key overlap/revocation, monitors/alerts.
    - Tests: strict activation ordering, every fault point, replay/downgrade, cache staleness, activation-epoch-plus-lock 30+7-day boundary, temporary-credential denials, clock thresholds, expiry/rotation.
    - Verify: each format remains valid independently, deletion authority is exact and short-lived, and degraded/unsynchronized state is observable/frozen/retryable.
-8. **Infrastructure pre-publication** - provision three DNS domains, five buckets/prefix locks, CDN, forge protections, mirror/publisher/retention Apps, Codeberg credentials, evidence runner/recorder, credential broker, chrony, VPS OS accounts, trust-domain primaries/subkeys/GPG homes, systemd credentials/timers, monitoring, backups.
-   - Tests: preflight, least-privilege/anonymous-write and broker denials, custom-domain isolation, public HTTPS/signatures, mirror divergence, clock/key rotation/revocation, restore.
+8. **Infrastructure pre-publication** - provision three DNS domains, five buckets/prefix locks, CDN, forge protections, dispatcher/publisher/retention Apps, evidence runner/recorder, credential broker, chrony, VPS OS accounts, trust-domain primaries/subkeys/GPG homes, systemd credentials/timers, monitoring, backups.
+   - Tests: preflight, least-privilege/anonymous-write and broker denials, custom-domain isolation, public HTTPS/signatures, candidate ref mismatch, clock/key rotation/revocation, restore.
    - Verify: assumptions A-1 through A-11 are confirmed, or return this spec to design before publication.
 9. **Documentation and first activation** - source-anchored user/operator docs, exact-candidate dependency closure, one immutable release, release-specific GitHub verification, and primary/independent APT/RPM installs before README status change.
-   - Tests: documentation policy/doc tests, six isolated canary-failure freezes, all-six-leg recovery, command copy/paste canary, exact stable release evidence.
+   - Tests: documentation policy/doc tests, six isolated canary-failure freezes, all-six-leg recovery, command copy/paste canary, exact stable release evidence. Include a first-ever-nightly activation before any stable release, with channel-bound closure and no latest-stable claim.
    - Verify: dependency record, all ACs/user stories, every archive restore, and both networks' GitHub/APT/RPM legs have fresh durable evidence.
 10. **Full verification and closure** - touched tests, lint, docs, matrices, QEMU, release evidence, staging replay/recovery, security/review passes, and fully expanded audit tables.
 
@@ -1087,7 +1087,7 @@ Each phase uses test-first development and ends with a self-critical review.
 | Artifact parity | Tarball, DEB, signed RPM, GitHub, and repository packages contain exact per-architecture attested bytes |
 | Identity | Tag, embedded release, EVR, commit, source timestamp, channel, generation, manifest, and predecessor cannot disagree |
 | Reproducibility | Two isolated builds cover every unsigned output and locked tool/workflow/image identity |
-| Trust separation | Candidate build/evidence, recorder, attestation, mirror, archive, signing, broker, publication, and monitoring credentials are isolated |
+| Trust separation | Candidate build/evidence, recorder, attestation, dispatcher, archive, signing, broker, publication, and monitoring credentials are isolated |
 | Attestation | Protected workflow revision, resolved candidate, API artifact ID, per-binary provenance/SPDX, and aggregate input provenance have exact subjects/predicates/run identity; final release attests final assets |
 | Publisher behavior | No candidate execution, archive before signing, one signing pass, durable idempotent retries, conditional writes |
 | Package payload | Exact allowlist, modes, ownership, dependencies, external key/source exclusion, preset/marker/transaction declarations, no state/secret/helper, architecture match |
@@ -1098,7 +1098,7 @@ Each phase uses test-first development and ends with a self-critical review.
 | Repository atomicity | APT `InRelease` and one combined-RPM mirrorlist are final per-format commit points; generations are monotonic |
 | Native trust | External fail-closed source/key bootstrap order, direct manifest/attestation, APT `Signed-By`, RPM/repodata signatures, clean-keyring and tamper tests work |
 | Nightly isolation | One/day changed-source/native-rerun rule, prerelease, separate domain/repo, native EVR, 30-day retention, no stable contamination |
-| Stable gate | Exact-SHA mandatory release evidence, release audit closure, archive restore, clock and infrastructure preflight are machine checked |
+| Publication gate | Channel-specific exact-SHA mandatory release evidence and stable/nightly release audit closure, archive restore, clock and infrastructure preflight are machine checked |
 | Failure recovery | Every partial package/publisher state remains valid/observable; retry reconciles exact continuation; replay/downgrade/unsigned rollback reject |
 | Operations | Clock, App/key rotation, broker credentials, expiry, divergence, stalled state, CDN freshness, archive/restore, retention are monitored |
 | Scope | Only the normal distro binary and declared support files ship; no appliance/host/test artifacts leak |
@@ -1116,7 +1116,7 @@ Each phase uses test-first development and ends with a self-critical review.
 | Package-managed service and update ownership | Unit parity, bounded doctor, service policy matrix, immutable `/usr/bin/ze` test |
 | Stable/nightly protected workflows | Trusted dispatch/schedule, unchanged skip, action policy, forged-context negatives |
 | Per-binary SPDX/provenance plus aggregate provenance | Offline/GitHub verification for exact subject/predicate/run set |
-| Exact Codeberg/GitHub mirror | Branch/tag object identity, unauthorized/divergence negatives |
+| Exact GitHub source identity | Signed tag/candidate object identity, protected-main ancestry, unauthorised-ref and mutation negatives |
 | Private immutable recovery archive | Archive-before-sign failure gate and clean-room restore |
 | Isolated VPS publisher | Sandbox, credential/App scope, candidate no-exec, durable-state/retry tests |
 | Signed APT stable/nightly | Fresh installs, by-hash, direct-byte equality, tamper negatives |
@@ -1132,13 +1132,13 @@ Each phase uses test-first development and ends with a self-critical review.
 
 | Check | What to look for |
 |-------|-----------------|
-| Stable authorization | Annotated allowlisted signature, protected-main reachability, exact object mirroring, trusted dispatch only |
-| Nightly authorization | Protected schedule and native same-run re-run only; source-change/one-day/concurrency rule; publisher-created exact tag on both forges |
+| Stable authorization | Annotated allowlisted signature, protected-main reachability, exact object verification, trusted dispatch only |
+| Nightly authorization | Protected schedule and native same-run re-run only; source-change/one-day/concurrency rule; publisher-created exact tag on GitHub |
 | Workflow permissions | Explicit minimum per job; candidate build/evidence checkout credentials do not persist and candidate commands have no write/OIDC token; recorder/attester are separate protected jobs |
 | Action/tool pinning | Full action SHA; version plus upstream checksum/digest for tools, containers, VM images |
 | Artifact substitution | Closed manifest, API transport ID outside deterministic input, exact architecture, separate input/final schemas, subject/predicate verification |
 | Candidate execution | Recorder/attestation/publisher/monitor/broker never import, source, execute, or run bundle scripts |
-| App/forge/storage credentials | Separate mirror-dispatch, publisher, retention identities and root broker, no PAT, protected refs, checked-in allowlists, run-scoped tokens, exact-object temporary sessions, denial/rotation tests |
+| App/forge/storage credentials | Separate release-dispatch, publisher, retention identities and root broker, no PAT, protected refs, checked-in allowlists, run-scoped tokens, exact-object temporary sessions, denial/rotation tests |
 | Signing ownership | Separate offline primaries for nightly tag, direct manifest, APT, RPM, retention authorization, and emergency operations; maintainer identity keys remain separate |
 | Online signing keys | Primary secrets absent from VPS; purpose-specific expiring subkeys use distinct locked OS accounts/GPG homes/systemd credentials |
 | Key lifecycle | Current/next public primaries only in each applicable consumer keyring, overlap, expiry alert, per-domain freeze/revocation/rebuild, out-of-band fingerprints |
@@ -1161,8 +1161,8 @@ Each phase uses test-first development and ends with a self-critical review.
 
 | Failure | Route To |
 |---------|----------|
-| Invalid/unauthorized/duplicate-date tag | Mirror rejects; maintainer creates a valid new date only after fixing source; never moves published identity |
-| Mirror divergence or tag-object mismatch | Stop dispatch/publication, alert, human reconciliation; no force push |
+| Invalid/unauthorized/duplicate-date tag | Dispatcher rejects; maintainer creates a valid new date only after fixing source; never moves published identity |
+| Candidate ref mismatch or tag-object mismatch | Stop dispatch/publication, alert, human reconciliation; no force push |
 | Reproducibility/manifest/architecture mismatch | Discard bundle; deterministic build/tool-lock phase |
 | Package payload/bootstrap/service policy failure | Package lifecycle owner; affected format/source support remains blocked |
 | RPM `%post` failure | Preserve installed-but-inactive state, cleanup temp, report exact DNF retry; never claim payload rollback |
@@ -1212,7 +1212,7 @@ Each phase uses test-first development and ends with a self-critical review.
 
 ## Design Insights
 
-- Repository distribution is static content; operational complexity belongs in short-lived, idempotent mirror/publisher/monitor processes, not an online package application.
+- Repository distribution is static content; operational complexity belongs in short-lived, idempotent dispatcher/publisher/monitor processes, not an online package application.
 - The most important supply-chain boundary is candidate-code execution versus credentials capable of attesting, signing, archiving, or publishing.
 - Native package lifecycle is product behavior because it creates identity, state, listeners, service policy, and a privileged daemon. Archive generation alone is insufficient.
 - Ze's eight-character runtime CalVer is a schema identity. Nightly channel and package EVR data remain outside it.
@@ -1232,7 +1232,7 @@ One attested architecture binary is the immutable root of each architecture's ta
 | Strict stable `YY.MM.DD`, nightly date plus SHA, no correction suffix | SemVer, mutable nightly, `-rN` source-identical corrections | Matches runtime parser and immutable identity; packaging fixes use a new reviewed date release |
 | nFPM only for native package assembly | GoReleaser end to end, hand-built ar/cpio | Mature formats without duplicating Ze identity/build/publication policy |
 | Protected default-branch dispatch/schedule, tokenless candidate evidence, isolated recorder, and separate `workflow_run` attestation | Tag-push privileged workflow, candidate checks-write, build-job attestation | Candidate content cannot choose privileged workflow or access write tokens; protected jobs bind transport/candidate identity |
-| Three forge automation identities plus root R2 credential broker | PAT, shared App, ordinary delete-capable bucket token, account-wide keys | Mirror, publish, and retention differ; local exact-object delete sessions contain destructive authority while parent keys remain isolated |
+| Three forge automation identities plus root R2 credential broker | PAT, shared App, ordinary delete-capable bucket token, account-wide keys | Dispatcher, publish, and retention differ; local exact-object delete sessions contain destructive authority while parent keys remain isolated |
 | Separate offline primary per signing trust domain, with purpose-specific online subkeys and pre-enrolled replacements | One primary with named subkeys, one online key, keyless-only | Separate primaries give APT, RPM, direct manifests, nightly tags, retention plans, and emergency operations enforceable trust boundaries |
 | Automatic package bootstrap with loopback-only config | Disabled package, interactive postinst, shell-generated password | Requested usable install; Go CSPRNG path avoids plaintext leakage/public exposure |
 | Package-managed update backend guard | Publish unsigned self-update manifest, allow in-place replacement | Keeps dpkg/RPM database, signatures, and rollback ownership truthful while retaining check/report |
@@ -1248,7 +1248,7 @@ One attested architecture binary is the immutable root of each architecture's ta
 
 - Initial distribution supports only the normal Linux daemon on `amd64` and `arm64`.
 - Package installation requires systemd and does not claim OpenRC, runit, s6, containers without systemd, or non-Linux support.
-- GitHub and Codeberg do not expose credentials scoped only to a tag prefix or to release create versus delete. Protected refs, separate Apps/accounts, checked-in API allowlists, run-scoped tokens, audit alerts, and private recovery reduce but do not eliminate a compromised forge-App credential's repository-level blast radius.
+- GitHub does not expose credentials scoped only to a tag prefix or to release create versus delete. Protected refs, separate Apps/accounts, checked-in API allowlists, run-scoped tokens, audit alerts, and private recovery reduce but do not eliminate a compromised forge-App credential's repository-level blast radius.
 - RPM erase preserves `/etc/ze`; RPM has no automatic purge counterpart. Package-created user/group are preserved until an operator proves they are unused.
 - Direct DEB verification uses the signed final manifest/checksum plus GitHub immutable-release attestation; no nonstandard embedded DEB signature is provided.
 - There is no project-operated self-update feed in this spec. Package-managed installations update through APT/DNF, and in-place mutation is blocked.
@@ -1290,7 +1290,7 @@ Not applicable. This spec does not add or change a network protocol.
 | DEB packages | planned | AC-9 through AC-18, AC-28 | Exact payload, lifecycle, policy, trust |
 | RPM packages | planned | AC-9 through AC-18, AC-29 | Signed package, combined multi-arch repository, native failure model |
 | GitHub release downloads | planned | AC-22 through AC-27 | Immutable, final-attested, signed manifest/checksum |
-| Tagged stable automation | planned | AC-1 through AC-3, AC-22 through AC-26 | Protected mirror dispatch, exact identity |
+| Tagged stable automation | planned | AC-1 through AC-3, AC-22 through AC-26 | Protected release dispatch, exact identity |
 | Automated nightly downloads | planned | AC-4 through AC-5, AC-20, AC-32 | Changed-source one/day, separate channel |
 | Maintained APT/RPM sources | planned | AC-20, AC-28 through AC-30 | Signed independent atomic snapshots |
 | Package-first usability | planned | AC-10 through AC-19 | Safe bootstrap, service policy, update ownership |
@@ -1328,7 +1328,7 @@ Not applicable. This spec does not add or change a network protocol.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Codeberg remains canonical and mirror failures fail closed | Mirror/security negative E2E | Fast-forward-only exact branch/tag tests; unauthorized/future/stale/divergent/object-mismatch and denied source-ref scenarios |
+| GitHub remains the sole forge and candidate identity failures fail closed | Dispatcher/security negative E2E | Exact signed tag/candidate tests; unauthorised/future/stale/moved/object-mismatch and denied source-ref scenarios |
 | Signed stable tag produces immutable direct downloads | Protected-dispatch/public E2E | staging `stable`, exact outer-set final attestation/signatures, both public probes |
 | Users install trusted DEB from maintained source | Native integration | Three DEB cells plus Debian VM prove freshness/InRelease/by-hash/exact bytes |
 | Users install trusted RPM from maintained source | Native integration | Three RPM cells plus Rocky VM prove combined repodata/signatures/architecture and stated freshness boundary |
@@ -1340,7 +1340,7 @@ Not applicable. This spec does not add or change a network protocol.
 | Upgrade, downgrade, and ordinary removal preserve operator state | Lifecycle digests | both VM full profiles compare zefs/config/credential/admin-unit bytes across every transition and failure |
 | Package manager retains binary/update ownership | Mutation negatives | check/download/background/apply/restart/rollback leave binary/temp/stage unchanged and give APT/DNF guidance |
 | Publication mismatches/failures/replay fail closed | State-machine faults | exact evidence/attestation/envelope/archive rejects; every transition, predecessor, rollback-auth, bucket denial |
-| Operators can maintain and recover distribution | Operations rehearsal | deterministic alerts/freezes, key/App rotation/revocation, mirror divergence, retention, exact final-byte restore |
+| Operators can maintain and recover distribution | Operations rehearsal | deterministic alerts/freezes, key/App rotation/revocation, candidate ref mismatch, retention, exact final-byte restore |
 
 ## Review Gate
 
@@ -1407,7 +1407,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] `spec-release-audit-0-umbrella.md` and blocking child findings are complete.
 - [ ] `/ze-review-spec` and final `/ze-review` are clean.
 - [ ] `./le verify current mode full` and `./le changed scope` pass.
-- [ ] `./le evidence release-candidate` passes with no mandatory skip on the exact stable SHA.
+- [ ] The native release matrix passes with no mandatory skip on the exact stable SHA; nightly satisfies its own exact mandatory set and the same channel-bound dependency-closure barrier.
 - [ ] Package container and booted QEMU VM matrices pass for required distro/architecture/policy cases.
 - [ ] Staging stable/nightly/attestation-race/failure/freshness/storage/key-rotation/retention/monitoring/restore exercises pass.
 - [ ] Infrastructure preflight, dependency closure, raw/API-policy denials, five-bucket/three-domain prefix locks and brokered credentials, clock/monitor thresholds, input/final/final-attestation/refresh archive inventory, and clean-room restore pass.

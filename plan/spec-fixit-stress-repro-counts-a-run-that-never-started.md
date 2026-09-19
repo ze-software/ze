@@ -10,231 +10,202 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Moved to `plan/future/` on 2026-08-19. It is process tooling, not a release
-defect: it matches none of the five defect kinds in `plan/future/README.md`.
-
-The Task section below states a mechanism that does not occur, so it must be
-rewritten before anyone implements it. The captured never-dispatched output
-carries NO usage banner, so `usage_error_signature`
-(`internal/le/stressrepro/run.go`) returns `None` because neither half matches,
-not because only the signature half misses. Keying the guard on the banner is
-therefore not the fix, and a `.ci` fixture already asserts that same banner
-over a real command, so keying on it would discard a genuine failure. The
-guard needs a positive "a suite dispatched" marker instead, and an absent
-marker must read as never-dispatched.
-
 ## Task
 
-`internal/le/stressrepro/run.go` reports `*** REPRODUCED on invocation 1` for a run
-that started no test. The tool exists to answer "is this failure real or
-load-dependent", and a false REPRODUCED is the one answer that ends the
-investigation with the wrong verdict.
+Make the stress reproducer distinguish a dispatched suite from an invocation
+that never reached one. A never-dispatched invocation must report a setup
+failure and must never produce a REPRODUCED verdict, whatever its diagnostic
+text says. Require positive evidence of suite dispatch before applying the
+existing crash and `any-failure` classification.
 
-`usage_error_signature` guards against this and its guard is too narrow. It
-returns a signature only when BOTH hold:
+The current Go producer is `run` in `internal/le/stressrepro/run.go`.
+`usageErrorSignature` recognises only the conjunction of `usageBanner`
+(`"\nCommands:\n"`) and one of `unknown command:`, `unknown suite:` or
+`flag provided but not defined`. If neither matches, classification continues
+to `crashSignature` and the `AnyFailure` nonzero-exit check. No positive
+suite-dispatch condition gates that verdict.
 
-- the output contains `USAGE_BANNER`, which is `"\nCommands:\n"`, and
-- the output contains one of three literal strings in `USAGE_SIGNATURES`:
-  `unknown command:`, `unknown suite:`, `flag provided but not defined`.
+A usage banner is not a dispatch marker. A real functional test can assert
+help output: `test/ui/help-parent-node.ci` asserts `Commands:` in the help
+page of `ze show bgp help`. A failure report quoting that expected output
+must remain eligible as a genuine reproduction once the suite dispatched.
 
-A never-dispatched run whose message is none of those three passes the guard and
-is counted as a reproduction.
+This is development tooling. The 2026-08-19 disposition placed it in the
+optional backlog; this correction does not turn it into a release defect.
 
-**The code's own comment establishes the banner is the discriminating half.** It
-reads: "ze-test prints the signature followed by 'Commands:' and the full command
-list only when it never dispatched a suite; a run that reached a test never
-prints it. That is a property of 'no test ran', not of ordering." That is the
-sufficient condition, stated by the author.
+## Historical evidence and corrected diagnosis
 
-The signature requirement was added for the opposite reason, also documented: the
-three strings are NOT unique to a usage error, because `test/ui/root-namespace.ci`
-and `test/ui/pipe-operators.ci` both assert them as expected output, and the
-runner echoes the needle into a failure report. So the pairing exists to stop a
-real failure being discarded as a typo.
+The original observation was that the retired `stress-repro.py plugin`
+reported `*** REPRODUCED on invocation 1` although no test started. The
+occurrence is recorded in `plan/journal/gate-excludes-part-of-its-population.md`.
+The subsequent correction recorded that the captured output contained no
+usage banner at all. The original proposal to drop only the signature half
+of the guard could therefore not fix that observation.
 
-**Both concerns are real and the current pairing serves only one.** Requiring the
-non-unique half as well as the discriminating half converts a false positive into
-a false negative, and the false negative is the more expensive direction here: a
-discarded reproduction costs a rerun, a fabricated reproduction costs a wrong
-conclusion about the product.
-
-**Observed.** `stress-repro.py plugin` reported REPRODUCED on invocation 1 for a
-run that started no test. Recorded in
-`plan/journal/gate-excludes-part-of-its-population.md`. The exact message ze-test
-emitted in that case is not yet captured and is the first deliverable.
+The earlier assumption that no real test could print the banner was also
+false. Both negative-text heuristics are superseded by the positive-dispatch
+contract above. The historical invocation is not a claim about the current
+Go command's result, and no fresh run was made for this reconciliation.
 
 ## Required Reading
 
-### Architecture Docs
-- [ ] `ai/rules/evidence.md` -- a guard that fails open in the permissive
-      direction; here the permissive answer is "reproduced"
-- [ ] `ai/rules/testing.md` -- the flaky-versus-deterministic distinction this
-      tool exists to make
-- [ ] `ai/INDEX.md` -- the dev-tools row naming this script, which must stay true
+- [ ] `docs/functional-tests.md`: current suite invocation and draft workflow.
+- [ ] `docs/architecture/testing/runner-architecture.md`: suite dispatch,
+      discovery and reporting boundaries.
+- [ ] `ai/rules/evidence.md`: a verdict requires evidence for its population.
+- [ ] `ai/rules/testing.md`: genuine failures must remain visible.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `internal/le/stressrepro/run.go` -- `usage_error_signature`,
-      `USAGE_SIGNATURES`, `USAGE_BANNER`, `run_once`, and the reporting site that
-      prints `*** REPRODUCED on invocation`
-  → Constraint: the banner test is documented as a property of "no test ran".
-    Any fix keeps that reasoning and does not weaken it.
-  → Constraint: the three signatures are asserted as EXPECTED output by at least
-    two `.ci` tests. A fix must not discard a genuine failure that quotes them.
-- [ ] `internal/test/cli/` -- what ze-test actually prints when a suite token
-      names something it cannot dispatch
-  → Decision: whether the banner is emitted in every never-dispatched path is
-    the fact the fix turns on. If it is, the banner alone is the guard.
+- [ ] `internal/le/stressrepro/run.go`: `run`, `usageErrorSignature`,
+      `crashSignature` and `Report.Text`.
+- [ ] `internal/le/stressrepro/process.go`: `realProcessRunner.Invoke` and
+      `runCommand`, the argv and combined-output producer.
+- [ ] `internal/test/cli/dispatch.go` and the suite entry points it registers:
+      select the producer of trustworthy dispatch evidence during design.
 
-**Behavior to preserve:**
-- A real failure whose output happens to contain one of the three phrases is
-  still counted as a reproduction.
-- The parallel-completion property: the guard must not key on invocation
-  ordinal, which the comment already rules out.
+Preserve crash-signature classification, the explicit `any-failure` mode,
+parallel completion independent of invocation ordinal, and captured child
+output. A failure from a dispatched suite stays eligible even when its output
+contains a usage banner or any of the old usage signatures.
 
-**Behavior to change:**
-- A run that never dispatched a suite is never counted as a reproduction, whatever
-  its message says.
+Change the prerequisite for classification: absent positive dispatch evidence
+means the invocation cannot establish a reproduction. A zero exit without that
+evidence must not be reported as a successful test run either.
 
-## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le stress-repro run suite <suite> [test <selector>]`, run by an agent
-  chasing a suspected flake.
+
+`./le stress-repro run suite <suite> [test <selector>]`.
 
 ### Transformation Path
-1. `run_once` invokes `ze-test <suite> <sel> -v` with prebuilt binaries.
-2. The combined output is passed to `usage_error_signature`.
-3. If it returns a signature, the invocation is discarded as a usage mistake.
-4. Otherwise a non-zero exit is counted as a reproduction and reported.
-5. Step 3 is the defect: a never-dispatched run with an unlisted message reaches
-   step 4.
+
+1. `realProcessRunner.Invoke` starts the selected ze-test command.
+2. The suite execution boundary produces positive dispatch evidence through
+   a channel the parent can distinguish from fixture output. Design must
+   establish whether a suitable existing marker can be reused.
+3. The reproducer checks that evidence for each completed invocation.
+4. Without it, report a never-dispatched/setup outcome and retain the capture.
+5. With it, apply the existing crash and `any-failure` verdict rules.
 
 ### Boundaries Crossed
-| Boundary | How | Verified |
-|----------|-----|----------|
-| script <-> ze-test | the child's combined stdout and stderr | Yes, read in `run_once` |
-| guard <-> reporting | the return of `usage_error_signature` | Yes |
-| ze-test <-> its dispatch table | which messages accompany the banner | Not yet: this is deliverable 1 |
+
+| Boundary | Contract | Evidence owed |
+|----------|----------|---------------|
+| ze-test dispatch -> reproducer | Positive evidence comes from dispatch, not a quoted fixture assertion | Producer and non-spoofing argument at design time |
+| Child output -> diagnostic report | Preserve the output even when no suite dispatched | Captured invalid invocation |
+| Parallel invocation -> verdict | Each invocation carries its own dispatch state | Later invocation completes first |
 
 ### Integration Points
-- `ai/INDEX.md` names the tool for agents chasing flakes.
-- `plan/known-failures/` shards cite its verdicts.
+
+The existing stress-repro process runner and ze-test suite entry points own
+this flow. No daemon behaviour or new test-file directive is required.
 
 ### Architectural Verification
-| Check | Holds? | Evidence |
-|-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | one guard, one reporting site |
-| No unintended coupling (components stay isolated) | Yes | stays inside `internal/le/` |
-| No duplicated functionality (extends existing, does not recreate) | Yes | the guard is extended, not replaced |
-| Zero-copy preserved where applicable (refs, not copies) | N-A | Python tooling |
-| Registration over hardcoding | No | `USAGE_SIGNATURES` is a hardcoded list of three messages. Whether ze-test can be asked instead is worth one question during design |
+
+Reuse an existing dispatch signal only if its producer and all supported
+suite paths satisfy the contract. A help banner, exit status or invocation
+ordinal alone cannot answer whether a suite dispatched.
 
 ## Risks & Assumptions
 
 ### Assumptions
+
 | ID | Assumption | Basis | If wrong | Validation | Status |
-|----|-----------|-------|----------|------------|--------|
-| A-1 | ze-test prints the banner on EVERY never-dispatched path | the comment says so | the banner is not sufficient and the fix needs a different signal, such as the child's exit code or a machine-readable marker | drive ze-test with each bad-token shape and capture the output | unvalidated |
-| A-2 | `stress-repro.py plugin` reproduced this | one observation, recorded in the journal | the symptom is something else and the guard is fine | rerun it and capture the exact output | unvalidated |
-| A-3 | No `.ci` asserts the banner text `"\nCommands:\n"` as expected output | the comment's argument only names the three signatures | keying on the banner alone reintroduces the false negative the pairing prevents | grep the `.ci` corpus for the banner | unvalidated |
+|----|------------|-------|----------|------------|--------|
+| A-1 | An existing positive suite-dispatch signal can be reused | The runner already reports suite execution, but suitability has not been established | Add evidence at the owning dispatch boundary | Trace each supported suite path and capture its result | unvalidated |
+| A-2 | The historical never-dispatched output can be recovered or reconstructed against the current CLI | The August correction records the absence of a banner | Use a current invalid invocation that demonstrates the same verdict error, without claiming the old spelling still reproduces | Recover the capture, then compare with current argv and dispatch | unvalidated |
+| A-3 | Fixture output cannot impersonate the selected dispatch evidence | The producer/channel is not yet designed | A quoted marker could reintroduce the false reproduction | Exercise a fixture whose output quotes the marker | unvalidated |
 
 ### Risks
+
 | ID | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-1 | Widening the guard discards a real reproduction | a known-real failure stops reproducing under the tool | A-3 is the gate: prove no fixture asserts the banner before keying on it alone |
-| R-2 | Adding a machine-readable marker to ze-test is a bigger change than the defect warrants | the diff grows past the script | `ai/rules/simplicity.md`: prefer the smallest fully correct answer, and A-1 decides whether one exists |
+| R-1 | The guard rejects a genuine test failure quoting help text | A dispatched failure is classified as setup failure | Classify by dispatch evidence; keep the banner-and-signature failure case |
+| R-2 | A supported suite never emits the marker | Valid invocations report never-dispatched | Identify every supported dispatch path before implementation |
 
 ## Blast Radius
 
-`internal/le/stressrepro/run.go` and, if A-1 is broken, whatever ze-test prints on a
-bad suite token. No daemon code, no wire behavior, no test corpus change.
+`internal/le/stressrepro/` and, if needed, the existing ze-test dispatch or
+execution reporting boundary. No product or wire behaviour change.
 
-## Wiring Test (MANDATORY -- NOT deferrable)
+## Wiring Test (MANDATORY)
 
-| Entry Point | -> | Feature Code | Test |
-|-------------|---|--------------|------|
-| `stress-repro.py` over an output that carries the banner and no listed signature | -> | `usage_error_signature` | a case in `internal/le/` |
-| the same over a real failure quoting `unknown command:` with no banner | -> | the same | a second case, counted as a reproduction |
+| Entry Point | Feature Code | Required proof |
+|-------------|--------------|----------------|
+| Invalid current ze-test invocation through stress-repro | Dispatch check before reproduction verdict | No dispatch marker, nonzero exit, no REPRODUCED |
+| Dispatched failing fixture that quotes help text | Existing crash/any-failure verdict after dispatch check | Genuine failure remains eligible |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Output carrying the usage banner and a message not in `USAGE_SIGNATURES` | Discarded as never-dispatched. Not counted as a reproduction |
-| AC-2 | Output from a genuine test failure that quotes `unknown command:` and carries no banner | Counted as a reproduction, unchanged |
-| AC-3 | Output carrying the banner and a listed signature | Discarded, unchanged |
-| AC-4 | A run where a later parallel invocation completes first | Verdict unchanged: the guard keys on no ordinal |
-| AC-5 | `stress-repro.py plugin` | Reports that no test ran, not a reproduction |
+| AC-1 | A failed invocation without positive dispatch evidence, with or without a banner or listed signature | Report never-dispatched/setup failure; never count it as a reproduction |
+| AC-2 | A dispatched genuine failure quoting a listed usage signature | Apply the existing reproduction rules |
+| AC-3 | A dispatched genuine failure quoting the usage banner, including one that also quotes a listed signature | Apply the existing reproduction rules; do not discard it as a usage error |
+| AC-4 | A later parallel invocation completes first | Verdict follows that invocation's dispatch evidence and result, independent of ordinal |
+| AC-5 | The historical never-dispatched scenario reconstructed for the current CLI | Retain the capture and report that no suite dispatched, without a REPRODUCED verdict |
 
 ## End-to-End User Stories
 
-- An agent suspects a flake, runs the tool with a suite token the runner cannot
-  dispatch, and is told no test ran rather than being told the failure
-  reproduced.
+An agent chasing a flake with an invalid suite invocation gets a setup error.
+A genuine failure of a help-output fixture can still reproduce under stress.
 
-## 🧪 TDD Test Plan
+## TDD Test Plan
 
 ### Unit Tests
-| Test | File | Validates | Status |
-|------|------|-----------|--------|
-| banner without a listed signature is a usage error | `internal/le/` | AC-1 | |
-| a listed signature without the banner is a reproduction | `internal/le/` | AC-2 | |
-| banner with a listed signature stays a usage error | `internal/le/` | AC-3 | |
+
+| Case | Location | Validates |
+|------|----------|-----------|
+| No marker, failed exit, both banner-present and banner-absent captures | `internal/le/stressrepro/stressrepro_test.go` | AC-1 |
+| Marker present, failure quotes banner and signatures | `internal/le/stressrepro/stressrepro_test.go` | AC-2, AC-3 |
+| Parallel completion order differs from launch order | `internal/le/stressrepro/stressrepro_test.go` | AC-4 |
 
 ### Functional Tests
-| Test | Location | End-User Scenario | Status |
-|------|----------|-------------------|--------|
-| N-A | - | The tool is a dev script with no daemon surface. Its own Python suite driven against real captured ze-test output is the end-to-end test, and capturing that output is deliverable 1 | |
+
+Exercise the actual current stress-repro command over the invalid invocation
+and a discriminating failing fixture. This proves the dispatch marker reaches
+the classifier; a fabricated unit result alone does not.
 
 ## Files to Modify
 
-- `internal/le/stressrepro/run.go` -- `usage_error_signature`, and
-  `USAGE_SIGNATURES` if the list stops being the discriminator
-- `internal/le/` -- the failing case first
-- `internal/test/cli/` -- only if A-1 is broken and ze-test must say so plainly
+- `internal/le/stressrepro/run.go` and its existing tests.
+- `internal/le/stressrepro/process.go` if the evidence channel requires it.
+- The existing ze-test dispatch/reporting producer selected during design.
+- `docs/functional-tests.md` if the tool's documented result contract changes.
 
 ## Files to Create
 
-- `internal/le/`, if no sibling suite exists yet
+None selected before design; prefer the existing producer and test files.
 
 ## Implementation Steps
 
-1. **Phase: Capture** -- run ze-test with each bad-token shape and record what it
-   prints, including the `plugin` case
-   - Verify: A-1 and A-2 confirmed or broken, with real output pasted
-2. **Phase: Reproduce** -- the failing unit case
-   - Verify: AC-1 is RED
-3. **Phase: Fix** -- at whichever layer step 1 selects: the guard alone if the
-   banner is sufficient, otherwise ze-test says so plainly
-   - Verify: AC-1, AC-2, AC-3, AC-4
-4. **Phase: Confirm the original**
-   - Verify: AC-5
-5. **Phase: `go test -race ./scripts/dev`**
-   - Verify: no sibling regressed
+1. Recover the historical capture and identify a current never-dispatched input.
+2. Identify the positive dispatch producer and resolve A-1/A-3 for every supported suite path.
+3. Prove the current classifier misreports the input, then change the dispatch prerequisite and exercise AC-1 through AC-4.
+4. Confirm AC-5 through the actual command and retain the output.
+5. Complete review and the worktree verification gate.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
-- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] AC-1 through AC-5 demonstrated.
+- [ ] Wiring table names the concrete tests and executed command evidence.
+- [ ] Every assumption resolved.
+- [ ] `./le verify worktree` passes.
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
+- [ ] Regression fails before the change and passes afterwards.
+- [ ] Genuine dispatched failures remain reproducible.
 
 ### Closure
-- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] **Commit A:** code + tests + spec
-- [ ] **Commit B:** `git rm plan/<spec>` only
+- [ ] Append and complete `plan/TEMPLATE-CLOSURE.md`.
+- [ ] Independent review recorded through `./le spec session review record`.
+- [ ] Commit A preserves code, tests and this spec; commit B removes the spec.
 
 ## Known Limitations
 
-- The tool still cannot distinguish a run that dispatched a suite and then
-  crashed before any test from one that ran tests and failed. That is a
-  different question and needs a different signal.
+Suite dispatch alone does not prove that an individual test started before a
+crash. This spec preserves that distinction; it does not infer test execution
+from a dispatch marker.

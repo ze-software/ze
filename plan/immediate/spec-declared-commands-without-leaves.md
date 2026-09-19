@@ -1,4 +1,4 @@
-# Spec: 30 declared commands take a value no leaf declares
+# Spec: declared commands take values their command nodes do not declare
 
 | Field | Value |
 |-------|-------|
@@ -13,12 +13,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-30 unique declared command paths carry a `<value>` placeholder in their YANG
-description and no leaf behind it. Counted on 2026-08-08, while trailing-value
-resolution in `ze <verb>` was being repaired. An operator typing one of those
-commands gets no completion for the value and no daemon-side argument
-validation, because a placeholder written in a description reaches neither
-surface.
+The 2026-08-08 inventory found 30 declared command paths with a `<value>`
+placeholder and no command leaf behind it. That count is historical. The
+generated-usage migration has since added argument declarations and inheritance,
+so this spec owns the residual per-command modelling work, not a second copy
+of those completed migrations.
 
 `extractArgDefs` (`internal/component/config/yang/command.go`) is the producer.
 It walks the entry's directory and builds a `command.ArgDef` from a leaf, and
@@ -30,13 +29,15 @@ both read.
 
 Two corrections the shard recorded, and both matter to whoever picks this up:
 
-**Resolution is FIXED for all 30, so nothing is broken on the wire.**
-`endsDeclaredCommand` (`cmd/ze/internal/cmdutil/cmdutil.go`) keys the trailing
-boundary on `cli.AbsoluteVerbPath`, which reads the same two registrations the
-daemon's dispatcher is keyed on, so no leaf is needed for a typed value to reach
-the daemon. The row was triaged on 2026-08-30 as an improvement rather than a
-release defect: what is missing is the operator's completion and the argument
-type-check.
+**Trailing-value resolution was fixed; the missing model still has consumers.**
+The August 30 triage called this an improvement because typed values could
+reach the daemon through `endsDeclaredCommand` and `cli.AbsoluteVerbPath`.
+That observation concerns direct CLI dispatch. It does not establish that
+completion, argument validation or a generated web form can supply the value.
+`buildAdminFragmentData` and `commandArguments`
+(`internal/component/web/handler_admin.go`) both read `node.ArgDefs`, so a
+command with no effective argument definitions offers no field and submits no
+argument.
 
 **Positional order CAN be expressed, so the stated reason nobody picked this up
 was false.** The shard originally said `extractArgDefs` sorts by name and cannot
@@ -46,10 +47,30 @@ the leaves in module declaration order, and `extractArgDefs` consumes that order
 first, falling back to a sorted name order only for a leaf that reaches the
 entry from a grouping or an augment.
 
-Declaring the leaves is per-command DESIGN work rather than a sweep. Each of the
-30 needs a name, a type from `ze-types.yang`, and whatever native validation the
-value admits. The first step this spec owes is a fresh count and the list, since
-the 30 was measured on 2026-08-08 and the command tree has moved since.
+Declaring the residual leaves is per-command design work. Each needs a name,
+a type and native validation that agrees with the handler. The current source
+still gives `show command help` and `show command complete` no leaves in
+`internal/plugins/meta/yang/ze-command-meta-cmd.yang`, while
+`handleBgpCommandHelp` and `handleBgpCommandComplete` refuse an empty argument
+list. These are first-release missing answers on the web admin surface, which
+justifies retaining the repair in `immediate/`.
+
+The September 15 journal row in
+`plan/journal/command-takes-an-untyped-positional-value.md` supplies a residual
+candidate list: `request commit`, `request peer borr`, `request peer eorr`,
+`request peer clear soft`, `request subscribe`, `system dispatch`,
+`show command help`, `show command complete`, `plugin ack`, `plugin encoding`,
+`plugin format`, `resolve irr expand` and `resolve irr prefix`. It is a dated
+list to reconcile against the merged tree, not a claim that all thirteen still
+lack every argument. In particular, the refresh module says its selector is
+inherited from `request peer`; a missing local leaf alone proves no defect.
+
+Before implementation, derive the effective definitions after inheritance and
+subtract paths already repaired by
+`plan/immediate/spec-generated-command-usage.md`. Keep completion and
+type-check improvements for otherwise reachable commands in this spec, but
+separate their release cost from confirmed missing-input defects. No current
+total is asserted until that merged-tree inventory is recorded.
 
 ## Required Reading
 
@@ -69,7 +90,7 @@ the 30 was measured on 2026-08-08 and the command tree has moved since.
 - [ ] `cmd/ze/internal/cmdutil/cmdutil.go` - `endsDeclaredCommand` asks `cli.AbsoluteVerbPath`, so a trailing value reaches the daemon whether or not a leaf declares it
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
-- trailing-value resolution for all 30 paths, which works today
+- trailing-value resolution for accepted direct CLI invocations, including the original inventory
 
 **Behavior to change:** (only what the user asked for)
 - <to be filled>
@@ -105,7 +126,7 @@ the 30 was measured on 2026-08-08 and the command tree has moved since.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the count is still 30 | measured 2026-08-08 | the list changes | re-measure over the current tree | unvalidated |
+| A-1 | the residual population is captured by the historical inventories | counts from 2026-08-08 and 2026-09-15 precede later model changes | paths already repaired or still missing are miscounted | derive effective arguments from the current merged command tree and compare each residual handler's grammar | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -125,6 +146,7 @@ the 30 was measured on 2026-08-08 and the command tree has moved since.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | tab completion on a declared command's value | → | <to be filled> | <to be filled> |
+| an operator fills and submits a residual command's web admin form | → | `buildAdminFragmentData`, `commandArguments`, then the existing handler | a functional web case covering a value the bare command cannot supply |
 
 ## Acceptance Criteria
 
@@ -133,6 +155,7 @@ the 30 was measured on 2026-08-08 and the command tree has moved since.
 | AC-1 | an operator asks for completion at a declared command's value position | the completion offers the leaf's type or its enumeration |
 | AC-2 | an operator types a value the leaf's type refuses | the daemon answers a validation error naming the offending value |
 | AC-3 | a two-value command | the values are read in module declaration order |
+| AC-4 | an operator opens and submits the web admin form for an affected command | The form supplies every required argument and the handler receives an accepted invocation; a missing or invalid required value is refused rather than silently omitted |
 
 ## End-to-End User Stories
 
@@ -154,7 +177,7 @@ the 30 was measured on 2026-08-08 and the command tree has moved since.
 
 ## Files to Modify
 - `internal/component/config/yang/command.go` - <to be filled>
-- the 30 YANG modules declaring the commands - add the missing leaves
+- the residual command modules identified from the merged-tree inventory, with missing leaves added without duplicating inherited arguments
 
 ## Files to Create
 - <to be filled>

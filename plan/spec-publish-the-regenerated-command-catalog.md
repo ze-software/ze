@@ -13,11 +13,12 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**The problem.** Two published artifacts live in SIBLING checkouts and are
-regenerated from this repository's live command registries. Neither can ride in
-a commit made here, so a change to the command surface leaves both stale and
-leaves `./le doc check verify` red until somebody runs the two generators in
-those checkouts.
+Two published artifacts live in sibling checkouts and are regenerated from this
+repository's live command registries. They cannot ride in a commit made here.
+The 2026-09-08 review recorded the drift below; these counts are historical,
+and the current sibling artifacts have not been compared in this reconciliation.
+`checkPublishedCommandSurfaces` compares sibling publications when present, so
+a command-surface change can leave those checks red until publication catches up.
 
 | Artifact | Generator | What is stale on 2026-09-08 |
 |----------|-----------|------------------------------|
@@ -33,8 +34,10 @@ derive from `registry.Registration`, so 52 plugin-declared commands and one new
 key became publishable. It recorded the staleness under Known Limitations and
 did not regenerate, because both writes land outside this repository's commit.
 
-**What the work is.** Regenerate both artifacts and commit them in their own
-checkouts, then confirm `./le doc check verify` no longer names either file.
+Re-establish the current drift, then regenerate both artifacts and commit them
+in their own checkouts with the required permissions. Confirm both present
+artifacts agree with the live catalog and `./le doc check verify` reports no
+drift for either file; an absent sibling checkout is not publication evidence.
 
 **The question this spec must answer, and the reason it is a spec rather than a
 chore.** The condition RECURS on every command-surface change, and nothing here
@@ -89,6 +92,7 @@ generators is the smaller half.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `./le doc check verify` runs over a checkout whose command surface just changed | it names neither `../gh-pages/data/cli-commands.json` nor `../wiki/command-catalog.md` |
+| AC-2 | Design is approved | Record the recurring publication responsibility: either publication belongs to command-surface closure, or the checks explicitly identify sibling-checkout drift and a separate publication owner and trigger are named. The decision preserves AC-1 and the requirement that both published artifacts match the live catalog |
 
 ## 🧪 TDD Test Plan
 
@@ -121,7 +125,7 @@ generators is the smaller half.
 - [ ] Current Behavior and Data Flow sections completed
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1 demonstrated
+- [ ] AC-1 and AC-2 demonstrated
 - [ ] `./le verify worktree` passes
 
 ### TDD

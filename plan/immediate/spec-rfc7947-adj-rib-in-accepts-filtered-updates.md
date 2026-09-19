@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | design |
 | Scope | protocol |
-| Depends | `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` (owns the rfc7947 extraction sign-off this spec unblocks) |
+| Depends | - |
 | Phase | - |
 | Handoff | verify |
 | Updated | 2026-08-30 |
@@ -42,6 +42,11 @@ only the route server's own per-client policy.
 The spec carries a second, smaller deliverable: two declared LEVELS in
 `rfc/short/rfc7947.md` are wrong about their own source, and Thomas ruled they are
 corrected under their existing ids.
+
+The downstream extraction programme is
+`plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md`. This spec
+supplies its RFC 7947 implementation and sign-off; that programme's completion
+is not a prerequisite for this change.
 
 ### Goals
 

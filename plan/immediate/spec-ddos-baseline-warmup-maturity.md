@@ -50,11 +50,13 @@ p99. Concretely, three things this spec should decide and then build:
    Nothing reads it for maturity today, so the field is present and unused. That
    is the cheap half of this work.
 
-**Not in scope, but adjacent.** A restored snapshot of any age currently counts
-as mature. That is a defect and is tracked separately in
-the retired deferral shard "fixit-ddos-baseline-lifecycle". It needs the same persisted
-blob change (a timestamp, behind a `baselineStateVersion` bump), so the two
-should probably land together even though only one of them is a defect.
+**Not in scope, but adjacent.** Restore-staleness is a separate defect owned by
+`plan/immediate/spec-fixit-ddos-baseline-restore-staleness.md`. Both changes may
+touch the persisted baseline, so their formats need coordination, but the
+restore-staleness repair does not depend on graduated thresholds or a maturity
+signal. This spec remains in its current bucket pending a separate release
+disposition for the enhancement; the sibling's defect priority does not decide
+that disposition.
 
 **Constraint carried from the audit that produced this spec.** The poisoning
 guard must not be weakened to make room for this. `(*baseline).Add` refuses any

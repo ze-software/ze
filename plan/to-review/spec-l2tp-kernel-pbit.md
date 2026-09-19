@@ -16,6 +16,12 @@
 
 ## Task
 
+This design remains an untriaged proposal in `plan/to-review/`, outside the
+canonical release inventory. Its `design` status does not adopt the kernel
+patch into a release. Adoption requires an owner decision, a canonical bucket,
+and an explicit disposition of the kernel/upstream dependency and the
+validation prerequisites in Risks & Assumptions.
+
 Add kernel-level support for setting the L2TP P (Priority) bit on data
 messages carrying PPP LCP Echo-Request/Echo-Reply frames. These packets are
 used for CQM (Connection Quality Monitoring) and are time-sensitive:

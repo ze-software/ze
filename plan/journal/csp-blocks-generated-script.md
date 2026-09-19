@@ -16,8 +16,10 @@ asked for. Read a page feature against this header before you write it.
 
 ## Earlier casualties of the same header
 
-Three, all found in the same week. A list, not a table. The row register above
-is this page's only table, because the gate reads every table line as a row.
+These three earlier incidents were described together in the same week. They
+remain narrative history: this page's recurrence count covers only its recorded
+table rows. The error-drawer incident also has a record in
+`rendered-markup-invalid.md`; this list adds no occurrence rows.
 
 - IS-IS and OSPF live views. The header refused an inline `<script>` that
   opened the EventSource, so the view never updated in any browser. See

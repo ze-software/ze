@@ -3,15 +3,19 @@
 | Field | Value |
 |-------|-------|
 | Status | ready |
-| Depends | spec-improve-3-event-replay |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-07-10 |
 
-Update (2026-07-22 plan review): still hard-blocked -- the Depends
-(`spec-improve-3-event-replay`) is `ready`, not started (no capture writer or
-replay harness in the reactor), and this spec consumes its JSONL schema and
-stub-`net.Conn` harness. Anchor drift fixed in-body: `stagesForMode`
-`verify_run.go`, `LoadExpectFile` `expect.go`.
+The capture/replay prerequisite closed on 2026-09-05 (`d74f428b47`,
+`99bbe13ab7`). Source read on 2026-09-19: `internal/core/capture` supplies the
+versioned format and `internal/test/cli/cmd_replay.go` supplies message-driven
+replay with a stub connection. The first fixture remains a single-session,
+message-driven outcome comparison, so it does not require the deterministic
+scheduler follow-on. Timer expiry and exact interleaving remain outside this
+fixture's scope. The runner still owes config/state/diagnostic integration:
+`runReplay` reports captured config operations without applying them, and reports
+UPDATE prefixes rather than running a full RIB/dispatch harness.
 
 ## Post-Compaction Recovery
 
@@ -19,7 +23,7 @@ stub-`net.Conn` harness. Anchor drift fixed in-body: `stagesForMode`
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. `plan/spec-improve-0-umbrella.md` -- set context
-4. `spec-improve-3-event-replay` -- capture format this consumes
+4. `docs/architecture/bgp/protocol-event-capture.md` -- shipped capture format and replay boundary
 5. `docs/functional-tests.md` -- existing .ci harness
 
 ## Task
@@ -44,8 +48,8 @@ explicitly follow-up work, not this spec.
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - the certificate and per-path manifest one verification run records
 - [ ] `docs/functional-tests.md` - .ci harness capabilities and conventions
   → Decision: dedicated fixture runner hosted as a ze-test subcommand (`registerRoot` pattern, `internal/test/cli/register.go`) + make target; the .ci dialect stays untouched -- fixtures are data directories, not a second script dialect (satisfies the no-layering row below). Directives/parser surveyed 2026-07-10 (parser `internal/test/runner/record_parse.go` parseAndAdd; executor `runner_exec.go,:557`; directives `docs/functional-tests.md`)
-- [ ] `spec-improve-3-event-replay` - capture/replay machinery this reuses
-  → Constraint: fixture event streams use the versioned capture schema, no second format -- schema now ENUMERATED (improve-3 "Capture Format (v1)", 2026-07-10): header line + seq/ts/type events, message bytes base64, config ops with tx-id
+- [ ] `docs/architecture/bgp/protocol-event-capture.md` and `internal/core/capture` - capture/replay machinery this reuses
+  → Constraint: fixture event streams use the shipped versioned schema; no second format. The parent's closure is historical context (`d74f428b47`).
 - [ ] `ai/rules/testing.md` - where fixture tests sit relative to .ci gate
   → Constraint: read 2026-07-10: the rule's directory table must gain a `test/protocol/` row when this lands (discovery-updates); and a test that EXISTS is not one that GATES -- the runner itself must be mutation-verified, which AC-3 (mutated expected file fails with a diff) provides
 - [ ] `plan/deterministic-simulation-analysis.md` - determinism requirements for stable expected-output diffs
@@ -120,7 +124,7 @@ explicitly follow-up work, not this spec.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | State/output dumps are deterministic enough to diff byte-stably (ordering, timestamps) | JSON format rules exist (`ai/rules/cli.md`) | Expected files flake; need canonicalization pass | Run the first fixture 100x during implementation | unvalidated |
-| A-2 | The spec-improve-3 replay harness can expose outbound wire events for assertion | RESOLVED at design (2026-07-10): the harness drives the session over a STUB net.Conn (improve-3 Files to Create) -- everything the session sends is written to that stub; the runner captures writes, re-frames by BGP header length, and matches with the existing rule semantics (`matchRule`, `internal/test/peer/checker.go`: exact/prefix:/contains: on hex). No new reactor surface needed. See "Expected-Wire Observation" below | - | TestFixtureWireCapture unit test in phase 2 | confirmed (mechanism specified) |
+| A-2 | The replay connection can expose outbound wire events for assertion | `replayConn.Write` in `internal/test/cli/cmd_replay.go` stores each write in `sent`; `runReplay` currently reduces them to `sentSummary`. The fixture runner must reuse or expose the stored frames and compare them with the existing matcher semantics | Integration is required; the current CLI summary alone does not satisfy expected-wire assertions | TestFixtureWireCapture in phase 2 | confirmed by source for capture; fixture integration unvalidated |
 | A-3 | One directory format fits future protocols (OSPF/IS-IS) without redesign | the review reports another daemon running 10+ protocols on one such format (unverified) | Format revision needed when a second protocol lands | Sketch an OSPF scenario on paper during design (no implementation) | unvalidated |
 
 ### Risks

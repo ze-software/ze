@@ -1,10 +1,10 @@
-# Spec: nothing binds a changed directory to the suites that cover it
+# Spec: changed-source functional-suite coverage and CI consumption
 
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
 | Scope | tooling |
-| Depends | - |
+| Depends | plan/spec-verify-scope-5-suite-coverage-map.md |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-08-18 |
@@ -13,23 +13,32 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`ai/rules/testing.md` states that the affected population is not the edited
-population. For GO PACKAGES that is already handled: `changed-pkgs.sh`
-(`internal/le/`) unions uncommitted changes, commits made since
-the last green verify, and the reverse dependencies that import them.
+The original proposal sought a source-path-to-functional-suite binding shared
+by local verification and CI. The recorded-map implementation in
+`plan/spec-verify-scope-5-suite-coverage-map.md` now supplies the Go-package
+selection provider, and its measurements rejected the static-map approaches
+this skeleton originally proposed.
 
-The gap is functional suites. That script emits Go package directories, and
-nothing maps a changed directory to the `.ci`, `.et` or `.wb` suites written to
-prove that component works. So an edit under a component with a dedicated suite
-runs `./le changed scope` and the package unit tests, goes green, and never
-runs the suite that exists for it.
+This skeleton owns the remaining assessment of that original scope: establish
+which changed inputs outside the Go-package answer, including `.ci`, `.et` and
+`.wb` test inputs, are covered by the existing selector, and whether CI consumes
+the same decision as local verification. Any demonstrated gap is repaired
+through the existing provider. If no gap remains, record the evidence for an
+owner-reviewed disposition rather than inventing a second implementation.
 
-Goal: a declarative map from source path glob to the functional suites covering
-it, read by CI and by a local target, so the binding is data rather than memory.
+The ownership boundary is explicit:
 
-The map is the easy half. Keeping it honest is the hard half: decide what
-happens when a component has no entry, because a map that silently covers
-nothing repeats the problem it exists to fix.
+| Behaviour | Owner |
+|-----------|-------|
+| Suite inventory | `Gating` and the catalog in `internal/le/functional/suites.go`, retained by verify-scope-5 |
+| Coverage recording, map format/freshness, fail-open selection and local/gating run plan | `plan/spec-verify-scope-5-suite-coverage-map.md` |
+| Residual changed-input coverage and CI consumption of that same provider | this spec |
+| Aggregate verification cost and freshness ACs | `plan/spec-verify-scope-0-umbrella.md` |
+
+`planRun` and `selectSuites` in `internal/le/functional/suitemap.go` are the
+provider. An unanswerable input must remain visible and widen the run; it must
+never silently select no coverage. A declarative source-glob map beside the
+recorded artifact is no longer an implementation task.
 
 ## Required Reading
 
@@ -44,8 +53,8 @@ nothing repeats the problem it exists to fix.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/le/changed/selector.go` - `Selector` unions working tree, since-green commits, and reverse deps, and emits Go package directories only
-  → Constraint: the bullet named the bare directory `internal/le/` until 2026-08-28, which identifies no file. The producer is `Selector` in this file, and `internal/le/changed/scope.go` carries the scope parsing beside it.
+- [ ] `internal/le/changed/selector.go` and `scope.go` - the changed-package answer consumed by functional selection; research must trace the non-Go input cases before claiming a residual gap
+- [ ] `internal/le/functional/suitemap.go` - `selectSuites` consumes `changed.Packages`, widens on unknown packages or an unusable map, and `planRun` supplies the local report and gating decision
 
 **Behavior to preserve:**
 - <to be filled>
@@ -85,9 +94,10 @@ nothing repeats the problem it exists to fix.
 ### Functional Tests
 
 Tooling only, no daemon code. The driving surface is
-`internal/le/` and its Go-hosted test, which must prove that an
-edit under a mapped directory selects its suite and that an unmapped directory
-is reported rather than passed over.
+`internal/le/functional` and its consumers. Evidence must show that a mapped
+change selects the suites recorded as reaching it, that unknown inputs widen
+visibly, and that local and CI consumers use the same provider. Reuse the
+verify-scope child's proof for behaviours it owns; add no duplicate selector.
 
 ## Files to Modify
 

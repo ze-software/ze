@@ -1,4 +1,4 @@
-# Spec: interop-suite-red -- five interop scenarios are red at HEAD, and one harness helper hides why
+# Spec: interop-suite-red -- resolve the recorded interop failures and their evidence gaps
 
 | Field | Value |
 |-------|-------|
@@ -12,11 +12,30 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Five scenarios in `test/interop/scenarios/` fail at HEAD, and nothing in `plan/`
-records them. `.github/workflows/evidence-nightly.yml` is the ONLY automated
-caller of the interop suite, and it is the prerequisite that lets an interop
-scenario carry an `RFC requirement:` tag at all (`ai/rules/rfc-compliance.md`).
-A suite with five unexplained reds trains its readers to discard it.
+Resolve the failures recorded on 2026-08-05 and the additional obligations from
+the 2026-08-07 investigation. The original five-red count is a dated baseline,
+not the current suite result. The runner is now native Go under
+`internal/le/interoplab/bgp`; the retired Python runner is historical evidence.
+Every surviving failure requires a repair and passing evidence. A root-cause
+row records diagnosis and cannot satisfy this repair milestone.
+
+### Current obligation set (reconciled 2026-09-19)
+
+| Scenario or surface | Latest evidence available here | Remaining obligation |
+|---------------------|--------------------------------|----------------------|
+| `bgp-routes-from-frr`, `bgp-routes-from-bird` | Recorded PASS on 2026-08-07 after CLI/listener/helper repairs; native `checkers.go` now requires three received routes through JSON fields | Current regression evidence; do not repeat the disproved missing-plugin diagnosis |
+| `bgp-route-withdrawal-frr`, `bgp-ipv6-ebgp-frr`, `bgp-addpath-frr` | Original failure record; native checker/process producers now own these scenarios | Establish present verdict, repair any survivor and retain the withdrawal, IPv6 and ADD-PATH assertions |
+| `bgp-srv6-frr` | Added Active/config failure on 2026-08-07; native checker exists | Establish present verdict and resolve any surviving session or config defect |
+| `bgp-routes-gobgp` | Added retired-helper failure; native `opGoBGPRoute` now queries GoBGP directly and the checker requires Ze's received routes | Current route-exchange proof; a changed helper is not a passing scenario |
+| `ospf-gr-frr`, `ospf-gr-fib-retention`, `ospfv3-gr-frr`, `ospfv3-gr-fib-retention` | Shared config failure recorded on 2026-08-07. Current `ospf-gr-frr` checks FRR adjacency/database and restart recovery, not a BGP count | Prove the configs start and the required OSPF route-retention behaviour; adjacency alone cannot discharge the retained route-retention obligation |
+| `bgp-graceful-restart-frr` | Recorded PASS on 2026-08-07 after adding the missing advertised prefix | Preserve that repair with current regression evidence |
+| Fail-closed route-count reader | `runOperation` propagates query errors; `requireJSONFields` rejects non-JSON, absent or nonnumeric fields | Prove those failures remain failures through the native runner and name the command/scenario |
+
+No current scenario run was made in this reconciliation. All rows remain owned
+here until their required evidence is recorded; no failure has been transferred
+or waived.
+
+### Historical baseline
 
 **Measured 2026-08-05**, each run twice, once with the working tree's
 `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and once with HEAD's, with identical results:
@@ -69,7 +88,7 @@ replacement is an OSPF route-retention assertion, not a deleted line: the
 scenario's own comment already points at `ospf-gr-fib-retention` for the real
 property.
 
-## The reporting defect is separable from the reds, and it is the reason they are hard to read
+## Historical reporting defect (2026-08-05, repaired in the August 7 account)
 
 `Ze.rib_count` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) ends `return 0` when its command
 produces no parseable output. So "the daemon does not answer this verb" and "the
@@ -88,12 +107,11 @@ That shape is the same one that produced a BLOCKER in
 read 0 as permission to proceed. `ai/rules/evidence.md`: a zero value must never
 be a valid-looking answer.
 
-**`05` and `06` declare the plugin.** Both carry `plugin { internal rib { use
-bgp-rib; } }`, so a missing declaration is not the explanation. Whether the
-plugin fails to load, or the command fails to register, is UNVERIFIED: nobody has
-read the producer that resolves `use bgp-rib`. Do that first.
+The initial investigation suspected plugin loading or command registration.
+The 2026-08-07 producing-function account above disproved the missing-plugin
+explanation. It is not a current first step.
 
-## `bgp-addpath-frr`: root cause, verified at the producer 2026-08-05
+## Historical ADD-PATH diagnosis (2026-08-05)
 
 The scenario sends `path-information` as a TOP-LEVEL token
 (`test/interop/scenarios/bgp-addpath-frr/announce-addpath.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->). `ParseUpdateText`
@@ -114,27 +132,27 @@ So there are two defects, and they need separating before either is fixed:
 | The top-level error lists a keyword that is not valid at top level, pointing the reader at the mistake that produced it | the message in `ParseUpdateText` (`ai/rules/cli.md` governs error text) |
 | The scenario places the token at top level | `bgp-addpath-frr/announce-addpath.py` |
 
-**Fix the message first, then the scenario.** Correcting only the scenario leaves
-the message misleading for every future caller, and the message is what taught the
-mistake. Decide deliberately whether `path-information` SHOULD be accepted at top
-level (ADD-PATH ids are per-NLRI, so probably not) rather than inferring the
-answer from whichever fix is smaller.
+The original repair obligation covered both the misleading error message and
+the invalid scenario token placement. At pickup, trace the current native
+process in `internal/le/interoplab/bgp/helper.go` and `ParseUpdateText` before
+claiming either defect survives. Both observable obligations remain: valid
+per-NLRI ADD-PATH input and truthful guidance for invalid input.
 
 ## Required Reading
 
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 - [ ] `ai/rules/evidence.md` - a guard or reader that fails open must say something
-- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `Ze.rib_count`, `docker_exec_quiet`
+- [ ] `docs/architecture/testing/interop.md` and `internal/le/interoplab/bgp/check_engine.go` - native runner and fail-closed assertions
 - [ ] `ai/rules/completion.md` - a red is fixed, not recorded; this spec is the home, not the resolution
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (re-read at design time; verify before trusting)
 
-- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (`Ze.rib_count` returns 0 on failure; `docker_exec_quiet` returns "" on non-zero exit)
-- [ ] `test/interop/scenarios/bgp-routes-from-bird/ze.conf` (declares `internal rib { use bgp-rib; }`)
-- [ ] the producer that resolves `use bgp-rib` into a loaded plugin -- NOT YET READ, and it is the first thing this spec owes
+- [ ] `internal/le/interoplab/bgp/check_engine.go` - `runOperation` returns query errors; `requireJSONFields` rejects malformed or missing data
+- [ ] `internal/le/interoplab/bgp/checkers.go`, `check_extras.go`, `helper.go` - current scenario assertions and compiled processes
+- [ ] The scenario configs in the Current obligation set - compare with their producing parsers before changing syntax
 
 **Behavior to preserve:** every scenario that passes today keeps passing. This
 spec makes failures legible and fixes the reds; it does not relax an assertion to
@@ -143,7 +161,7 @@ reach green (`ai/rules/completion.md`).
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-`python3 test/interop/run.py <scenario>`, or the nightly workflow.
+`INTEROP_SCENARIO=<name> ./le integration interop`, or the nightly workflow.
 
 ### Transformation Path
 (fill during design)
@@ -163,9 +181,9 @@ reach green (`ai/rules/completion.md`).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The five reds are product or config faults, not harness faults. | Each fails identically with HEAD's `interop.py` and with the working tree's. | The harness is implicated and the blast radius grows. | The both-harness runs above. | **confirmed** |
-| A-2 | `05` and `06` share one cause. | Identical symptom, identical helper, both declare the rib plugin. | Two fixes needed, not one. | Read the `use bgp-rib` producer. | unvalidated |
-| A-3 | The reds are not caused by another session's uncommitted work in this shared checkout. | Unverified. The tree carried 18 modified files on 2026-08-05, four on the BGP path including `received_update.go`. | The reds may vanish on a clean tree, and this spec is chasing a ghost. | Re-run all five from a clean `git archive HEAD` export. | unvalidated -- DO THIS FIRST |
+| A-1 | The original failures were independent of the Python runner revision | Both Python versions failed alike on 2026-08-05 | That comparison cannot exclude a shared harness defect | The August 7 investigation found a shared fail-open reader and CLI setup defects | broken as a claim that harness faults were excluded |
+| A-2 | The FRR and BIRD received-route failures shared one cause | August 7 producing-function account above | Separate defects would require separate repair | Recorded CLI/listener/reader repair and dated passes | confirmed in the 2026-08-07 record |
+| A-3 | The current clean tree satisfies the full recorded obligation set | No current run recorded here | Repairs or evidence remain owed | Run the named population from an isolated clean revision, then the full suite | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -177,16 +195,16 @@ reach green (`ai/rules/completion.md`).
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| A scenario asks ze for its received-route count and the verb does not resolve | -> | `Ze.rib_count` | a test asserting the helper RAISES rather than returning 0, named at design time |
+| A route-count query fails or returns malformed/missing data | -> | native `runOperation` / `requireJSONFields` | Native helper refusal test and runner-level failure evidence, named at design |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `ze show bgp rib status` fails or answers unparseably | `Ze.rib_count` raises and names the failure. It never returns 0 (`ai/rules/evidence.md`) |
-| AC-2 | The five scenarios above | Each passes, or has a row here naming its root cause in a producing function |
-| AC-3 | The helper is made to fail closed | Any scenario newly revealed as red gets a row, and none is silenced by relaxing an assertion |
-| AC-4 | The full suite runs from a clean HEAD export | The red set is exactly the set this spec names, so the working tree is excluded as a cause (A-3) |
+| AC-1 | A route-count command fails or answers unparseably | The native runner fails and names the query/scenario; no synthetic zero is returned |
+| AC-2 | Every scenario and behavioural obligation in Current obligation set | Each has passing evidence against the current revision after any required repair. A diagnosis row alone never satisfies this AC |
+| AC-3 | Fail-closed checking reveals another red within this repair population | Diagnose and repair it without relaxing assertions; record its producing cause and passing evidence |
+| AC-4 | The named population and full suite run from an isolated clean revision | Results distinguish historical failures from current survivors and rule out shared working-tree changes; no unresolved failure is presented as completed repair |
 
 ## 🧪 TDD Test Plan
 
@@ -201,10 +219,10 @@ reach green (`ai/rules/completion.md`).
      .ci and this row is revisited. -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> over the five named scenarios | `test/interop/` | the interop suite reports zero unexplained reds | |
+| Native runner over Current obligation set, then the full suite | `test/interop/` via `./le integration interop` | the recorded failures are repaired and all required scenario assertions pass | |
 
 ## Files to Modify
-- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `Ze.rib_count` fail-closed
+- `internal/le/interoplab/bgp/` and affected scenario configs - only current surviving defects identified at their producers; keep fail-closed helper behaviour
 - `docs/architecture/testing/interop.md` - the harness contract, if helper behaviour changes
 
 ## Files to Create
@@ -219,13 +237,15 @@ reach green (`ai/rules/completion.md`).
 
 ## Implementation Steps
 
-1. (fill during design -- but A-3 first: re-run all five from a clean HEAD export)
+1. Establish the current clean-revision results for the full Current obligation set.
+2. Inspect and repair each surviving producing defect, preserving every assertion.
+3. Record passing evidence for every row, including OSPF route retention and invalid ADD-PATH guidance, then run the full suite and normal verification/review.
 
 ## Known Limitations
 
-- Scope is the five named reds and the one helper that hides them. Other
-  fail-open readers in the harness are likely (`ai/rules/evidence.md`), and a
-  sweep for them is separate work.
+- Scope includes the original five scenarios, the August 7 additions and shared
+  OSPF config/retention obligations, plus the route-count helper contract.
+  A general sweep of unrelated fail-open readers remains outside this spec.
 
 ## Checklist
 

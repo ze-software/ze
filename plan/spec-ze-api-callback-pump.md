@@ -12,201 +12,155 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> is the helper every plugin fixture drives ze through,
-and it has no callback pump. A fixture whose plugin must answer ze's filter
-verdict has to write the pump itself, so the same loop is open-coded in every
-such fixture.
+Reconcile the callback-pump improvement against the native fixture framework
+before proposing any implementation or closure. The original Python helper was
+retired on 2026-08-28 in `eae282592`. Its thirteen open-coded loops were the
+2026-08-16 migration population, not a current list of files to change. Restoring
+that helper or adding a second pump beside the SDK is outside this task.
 
-This is an improvement, not a defect: the open-coded copies work. It is filed
-because the copy count is growing. Six fixtures carried it before 2026-08-16 and
-seven more gained it that day, when the `redistribution-*.ci` set was repaired to
-actually launch its peers. Thirteen copies of one loop is the point at which the
-next author copies a copy.
-
-**Why the pump is needed at all.** ze asks for the filter verdict on the plugin's
-callback fd, and only `API.read_line` answers it. A plugin parked in a dispatch
-RPC leaves the question unanswered until the reactor's IPC deadline expires, and
-then `on-error=reject` decides the route. So a fixture that polls for a result
-without pumping the callback fd does not merely run slowly: it gets the
-`on-error` verdict instead of its filter's, which is a silently wrong answer
-rather than a timeout.
-
-**That is what makes it worth centralising rather than leaving to each author.**
-The consequence of forgetting the pump is not a red test. It is a green test
-measuring the wrong thing, which `ai/rules/testing.md` calls a vacuous pass. A
-helper that pumps by construction removes the whole class.
-
-**Related, already recorded.** `plan/journal/helper-bypassed-by-an-open-coded-copy.md`
-holds this class. This spec is one member of it, and the class file is what earns
-a deliberate pass over the journal rather than a fix by whoever tripped over it.
+The requirement remains that a fixture waiting for a route or an RPC result
+continues answering filter callbacks, so the daemon observes the fixture's
+verdict rather than its `on-error` fallback. Existing fixture behaviour and
+mutation discrimination must survive any change. The original scope required
+one proven helper user; it did not authorise a wholesale fixture rewrite.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/api/process-protocol.md` -- the plugin process protocol,
-      including which fd carries the callback and what ze does on no answer
-- [ ] `docs/plugin-development/README.md` -- what a plugin author is told the
-      helper does for them
-- [ ] `ai/patterns/functional-test.md` -- the fixture patterns this changes
+- [ ] `docs/architecture/api/process-protocol.md` - multiplexed RPC and callback delivery
+- [ ] `docs/plugin-development/README.md` - the supported SDK surface
+- [ ] `docs/functional-tests.md` - compiled fixture registration and execution
+- [ ] `ai/patterns/functional-test.md` - fixture conventions
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> -- `API.read_line`, `wait_for_config`,
-      `wait_for_registry`, `ready`, `_call_engine`, and every polling helper
-  → Constraint: `read_line` is the only thing that answers the callback. A pump
-    is a loop around it, so the helper already owns the primitive.
-- [ ] the six pre-existing fixtures that open-code `serve_until`, and the seven
-      `test/plugin/redistribution-*.ci` that gained one on 2026-08-16
-  → Decision: the copies are the specification. Read them all before designing
-    the signature; the differences between them are the requirements.
-- [ ] `internal/component/plugin/` -- the reactor side, to name the IPC deadline
-      and the `on-error` fallback
-  → Constraint: the timeout the pump must beat is a property of the daemon, not
-    of the fixture. Name it rather than guessing a poll interval.
+Source read on 2026-09-19:
 
-**Behavior to preserve:**
-- Every existing fixture keeps working. A helper that requires rewriting thirteen
-  fixtures to land is a worse trade than the copies.
-- The helper stays a thin, readable script: it is read by plugin authors as
-  documentation of the protocol.
+- `internal/test/fixture/fixture.go`, `observeConfigured`: callbacks are installed
+  before startup; `OnAllPluginsReady` starts the scenario in a goroutine and
+  returns, while `plugin.Run` continues serving callbacks.
+- `internal/test/fixture/plugin_fixture_12_filters.go`, `p12FilterDriver`:
+  the redistribution filter fixtures share one driver. It installs
+  `OnFilterUpdate`, runs the scenario in a goroutine after readiness, and calls
+  `plugin.Run` on the serving path.
+- `pkg/plugin/sdk/sdk_dispatch.go`, `eventLoop`: reads inbound callbacks,
+  selects their registered handler and writes its result or error.
+- `pkg/plugin/rpc/mux.go`, `NewMuxConn`: starts the background RPC reader;
+  responses and inbound requests have separate destinations.
 
-**Behavior to change:**
-- A fixture can wait for a condition without open-coding the callback loop.
+This source reading establishes that the old single-threaded Python polling
+recipe is no longer the implementation target. It does not establish a current
+functional pass or prove that breaking callback service makes the chosen fixture
+fail. Those are the remaining evidence obligations.
 
-## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+**Behaviour to preserve:** all existing native fixture outcomes, callback error
+handling and the option for a deliberately negative fixture to exercise an
+unanswered callback. No daemon or wire change is planned.
+
+**Behaviour to change:** none identified from the retired-helper finding. If the
+native evidence exposes a surviving callback starvation defect, identify its
+producing function before designing a repair within this goal.
+
+## Data Flow (MANDATORY)
 
 ### Entry Point
-- A `.ci` fixture's `tmpfs=*.run` plugin script imports `ze_api` and waits for
-  something.
+A `.ci` invokes a registered `ze-test fixture` driver.
 
 ### Transformation Path
-1. The plugin declares itself and reaches `ready()`.
-2. ze asks for a filter verdict on the callback fd.
-3. The fixture polls for its own condition.
-4. If that poll does not call `read_line`, the question is unanswered.
-5. The reactor's IPC deadline expires and `on-error` decides the route.
+1. The driver creates an SDK plugin and registers its filter callback.
+2. `Plugin.Run` completes startup and serves incoming callbacks.
+3. The readiness callback launches the scenario separately, so condition polling
+   and dispatch RPCs do not occupy the callback-serving loop.
+4. The registered filter handler returns the route verdict while the scenario
+   observes the result.
 
 ### Boundaries Crossed
-| Boundary | How | Verified |
-|----------|-----|----------|
-| plugin <-> ze | the callback fd, answered only by `API.read_line` | Yes, established while repairing the redistribution fixtures |
-| fixture <-> helper | the open-coded loop each fixture writes | Yes, thirteen copies |
-| helper <-> reactor deadline | the timeout the pump must beat | Not read yet |
+| Boundary | Current producer | Proof still owed |
+|----------|------------------|------------------|
+| Fixture wait and callback service | `observeConfigured`, `p12FilterDriver` | Functional verdict during an overlapping wait |
+| SDK callback and daemon filter verdict | `eventLoop`, `OnFilterUpdate` | Mechanism-broken run fails rather than accepting fallback |
 
 ### Integration Points
-- Every `test/plugin/` fixture whose plugin answers a filter.
-- `docs/plugin-development/README.md`, which describes the helper.
-
-### Architectural Verification
-| Check | Holds? | Evidence |
-|-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | each fixture reaches around the helper for a primitive the helper owns |
-| No unintended coupling (components stay isolated) | Yes | stays inside `test/scripts/` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> |
-| No duplicated functionality (extends existing, does not recreate) | No, today | thirteen copies is the defect; the fix restores this property |
-| Zero-copy preserved where applicable (refs, not copies) | N-A | Python test helper |
-| Registration over hardcoding | N-A | no registration surface |
+`internal/test/fixture`, `pkg/plugin/sdk`, and the native `test/plugin` fixtures.
+The retired Python helper and its unit-test file are historical provenance only.
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validation | Status |
-|----|-----------|-------|----------|------------|--------|
-| A-1 | The thirteen copies are close enough that one signature covers them | they solve one problem | the helper needs two entry points, or the copies differ for real reasons worth keeping | diff all thirteen | unvalidated |
-| A-2 | Migrating a fixture to the helper is behavior-preserving | the loop is the same loop | a fixture depended on a detail of its own copy | migrate one, prove it still discriminates, then the rest | unvalidated |
-| A-3 | The reactor's IPC deadline is knowable from the daemon side | it produces the failure | the pump interval is a guess, which is how this class of helper rots | read the plugin component | unvalidated |
+|----|------------|-------|----------|------------|--------|
+| A-1 | The native drivers satisfy the original callback-during-wait requirement | Scenario goroutines are separate from `Plugin.Run` | A current defect remains despite the Python retirement | Exercise a filter fixture through a wait and break callback service | source-supported; runtime unvalidated |
+| A-2 | The original thirteen-copy migration is obsolete | Python retirement and the shared native redistribution driver | A surviving equivalent needs a named owner | Trace the original fixture obligations to current native users before closure | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
-| R-1 | Migrating thirteen fixtures at once turns a helper addition into a corpus rewrite | the diff is thirteen files before the helper has one user | land the helper with ONE migrated fixture; the rest is separable and stays separable |
-| R-2 | The helper hides the protocol from plugin authors who read it to learn | an author cannot see why the pump exists | the helper's docstring names the callback fd and the `on-error` consequence |
+| R-1 | Helper retirement is mistaken for proof that callbacks are serviced correctly | Closure cites source shape alone | Require the positive and mechanism-broken functional outcomes |
+| R-2 | A replacement pump duplicates SDK service | Proposed helper reads the same callback stream as `Plugin.Run` | Repair the existing serving path if a defect is demonstrated |
 
 ## Blast Radius
 
-`test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> and whichever fixtures migrate. No daemon code, no wire
-behavior.
+Planning and closure evidence for native plugin fixtures. No product change is
+authorised by this reconciliation.
 
-## Wiring Test (MANDATORY -- NOT deferrable)
+## Wiring Test
 
-| Entry Point | -> | Feature Code | Test |
-|-------------|---|--------------|------|
-| a `.ci` plugin script calling the new helper instead of its own loop | -> | the pump in `ze_api.py` | one migrated fixture under `test/plugin/`, proven to still discriminate |
+| Entry Point | Feature path | Evidence |
+|-------------|--------------|----------|
+| A native filter fixture waits while Ze requests a verdict | Scenario goroutine plus SDK callback loop | Select a current `test/plugin/redistribute-*.ci` and record both normal and mechanism-broken results before closure |
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | A plugin script waits for a condition using the helper | ze's filter verdict is answered throughout the wait |
-| AC-2 | The migrated fixture, with its filter mechanism broken | RED, so the migration did not cost the fixture its discrimination |
-| AC-3 | The twelve unmigrated fixtures | Pass unchanged |
-| AC-4 | A plugin script that waits WITHOUT pumping | Still possible: the helper adds a facility and forbids nothing |
-| AC-5 | The helper's docstring | Names the callback fd and what happens when it goes unanswered |
+| AC ID | Input / Condition | Expected Behaviour |
+|-------|-------------------|--------------------|
+| AC-1 | A native fixture waits for its condition | Filter callbacks are answered throughout the wait |
+| AC-2 | Callback service or the filter mechanism is broken | The selected fixture fails; its pass cannot come from `on-error` fallback |
+| AC-3 | Existing fixture population corresponding to the historical thirteen users | Behaviour is preserved; no compulsory corpus migration is introduced |
+| AC-4 | A fixture intentionally exercises an unanswered callback | The negative scenario remains possible; no helper hides or forbids it |
+| AC-5 | Current fixture/SDK documentation | Explains which path serves callbacks and what an unanswered callback means |
 
 ## End-to-End User Stories
 
-- A plugin author writes a fixture that waits for a route to arrive, uses the
-  helper, and gets their filter's verdict rather than the `on-error` fallback.
+A fixture author can wait for a route while the registered filter determines its
+verdict, without copying a manual callback loop.
 
-## 🧪 TDD Test Plan
+## Test Plan
 
-### Unit Tests
-| Test | File | Validates | Status |
-|------|------|-----------|--------|
-| the pump answers a callback while waiting | `test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> | AC-1 | |
-| the pump returns when its condition is met | `test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> | AC-1 | |
-
-### Functional Tests
-| Test | Location | End-User Scenario | Status |
-|------|----------|-------------------|--------|
-| the one migrated fixture | `test/plugin/` | a plugin waits through the helper and its filter decides the route | |
+The original `ze_api_test.py` pump and completion tests are superseded by the
+native path. At pickup, inspect existing SDK and fixture tests for the same
+observable obligations before adding any test. The functional proof must use an
+existing native filter fixture and show that its assertion fails when the
+relevant callback mechanism is broken. Run the affected plugin population after
+any repair; source inspection alone cannot close AC-1 through AC-4.
 
 ## Files to Modify
 
-- `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> -- the pump, beside `read_line`
-- one `test/plugin/` fixture, migrated as the helper's first user
-- `docs/plugin-development/README.md` -- if the helper is documented there
+- This spec: record the native evidence and the disposition of each original AC.
+- `internal/test/fixture/fixture.go`, `plugin_fixture_12_filters.go` or the SDK
+  callback producer only if evidence finds a surviving defect in this scope.
+- Existing native fixture documentation if AC-5 has no current explanation.
 
 ## Files to Create
 
-- `test/scripts/ze_api_test.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->, if no sibling suite exists
+None currently required. No retired Python helper is to be recreated.
 
 ## Implementation Steps
 
-1. **Phase: Read the thirteen** -- diff the copies; the differences are the
-   requirements
-   - Verify: A-1 confirmed or broken
-2. **Phase: Name the deadline** -- read the reactor side rather than guessing an
-   interval
-   - Verify: A-3
-3. **Phase: Add the pump**
-   - Verify: AC-1, AC-4, AC-5
-4. **Phase: Migrate exactly one fixture, and prove it still discriminates**
-   - Verify: AC-2, and A-2
-5. **Phase: `./le functional plugin`, entire**
-   - Verify: AC-3
+1. Map the historical fixture obligations to their current native drivers.
+2. Prove callback service during a wait and the selected fixture's discrimination.
+3. If a defect survives, repair its producer without changing filter semantics;
+   otherwise record that the native framework satisfies the improvement.
+4. Complete normal review and closure only after every original AC is accounted for.
 
 ## Checklist
 
-### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-
-### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-
-### Closure
-- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] **Commit A:** code + tests + spec
-- [ ] **Commit B:** `git rm plan/<spec>` only
+- [ ] AC-1 through AC-5 have current evidence or an explicit owner-approved disposition
+- [ ] No retired helper is restored and no duplicate callback consumer is added
+- [ ] `./le verify worktree` passes after any implementation change
+- [ ] Independent review and normal closure requirements are met
 
 ## Known Limitations
 
-- Migrating the other twelve fixtures is deliberately NOT in this spec. The
-  helper with one proven user is the deliverable; a corpus rewrite is separable
-  work and each migration owes its own discrimination proof.
+This reconciliation ran no tests and does not close the spec. The original
+thirteen-copy count is dated evidence, and the current source reading does not
+assert that every historical user has been exercised.

@@ -2,10 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Depends | - |
-| Phase | 1/3 |
-| Updated | 2026-09-05 |
+| Phase | - |
+| Updated | 2026-09-19 |
+| Blocker | Owner choice for the AC-4 in-daemon client-config writer |
 
 ## Post-Compaction Recovery
 
@@ -17,16 +18,16 @@
 
 ## Task
 
-Follow-up hardening for the managed-config hub server (landed by `spec-managed-hub-server`),
-capturing three gaps surfaced by that spec's `/ze-review`:
+This spec owns secure trust for the managed-config hub, a port-collision doctor
+check, and a two-daemon proof of both config fetch and change notification.
+The trust path, doctor check and fetch proof are implemented, as recorded in
+Remaining Work. AC-4's change-notification half remains blocked on the
+operator-reachable writer described below.
 
-1. **Secure server-cert verification.** `ManagedServer` presents a self-signed cert
-   (`managed_serve.go` `GenerateSelfSignedCert`). A remote managed client
-   (`internal/component/managed/client.go`) verifies against the system CA via `ServerName`
-   unless `TLSInsecure`, so today it can only connect with `tls-insecure`. Add a verifiable
-   path: either serve the hub's PKI/CA cert, or carry the hub cert fingerprint in the client
-   config block and pin it (mirror the plugin SDK's `ze.plugin.cert.fp` pinning). This restores
-   the "server certificate verification is the default" posture documented in `fleet-config.md`.
+1. **Secure server-cert verification.** Keep the implemented PKI certificate
+   path and client CA verification. The original self-signed-only listener
+   required `tls-insecure`; `startManagedServer` now supplies the named
+   certificate resolver and local authority to the listener.
 2. **Port-collision doctor check.** When a `server` block with `client` entries shares an address
    with the plugin acceptor's bound block, the managed listener cannot bind (handled gracefully:
    it is skipped with an Error log), but managed clients on that block are then dropped by the
@@ -46,13 +47,12 @@ certificate (shape a).**
 | (a) The hub serves a certificate from the pki component, and the client verifies it | **Picked.** `pki.ServerTLSMaterial` already resolves a certificate NAME into serving PEM, and the web, DoT and DoH listeners already take it that way. The managed listener was the only TLS server in ze that could not be given a certificate. The hub gains a `certificate` leaf and nothing else |
 | (b) The hub keeps a generated self-signed certificate and persists it, and the client pins its fingerprint | **Rejected.** Persisting the generated pair means a second certificate store beside pki: key material, permissions, regeneration when it expires, and a command to read the fingerprint back. It also leaves the operator with a certificate no CA issued and no way to rotate it through config |
 
-The fingerprint pin stays, on the CLIENT side, as the trust anchor for a hub
-certificate no CA in the client's trust store issued. That is what a private
-fleet CA produces, and it is the case a system CA pool cannot serve. Pinning is
-only meaningful because shape (a) makes the served certificate stable: an
-ephemeral certificate changes on every restart, so a pin on it would break at
-the first restart. The mechanism is `pluginipc.TLSConfigWithFingerprint`, which
-the plugin process rail already uses through `ZE_PLUGIN_CERT_FP`.
+The August 29 design also proposed a client fingerprint pin. The implementation
+recorded on September 5 instead uses `plugin/hub/client/ca` and
+`ClientConfig.CA`. `clientTLSConfig` resolves that named PKI CA and refuses an
+unresolved name; with no named CA it uses the system trust pool unless the
+operator explicitly selects `TLSInsecure`. The current contract and remaining
+proof use that CA path.
 
 The defect this closes: `NewManagedServer` always minted a 24-hour self-signed
 certificate whose only SAN was 127.0.0.1, and `runConnection` verified against
@@ -96,14 +96,14 @@ an indefinite block.
 - [ ] N/A - TLS/cert handling, not an IETF wire protocol.
 
 **Key insights:**
-- The plugin SDK already pins the acceptor cert via `ze.plugin.cert.fp`; remote managed clients need an analogous config-carried fingerprint or a CA-signed cert.
+- The managed client verifies against a named PKI CA or the system trust pool; the plugin SDK's fingerprint mechanism is a separate surface.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/plugin/server/managed_serve.go` - `NewManagedServer` generates a self-signed cert; no fingerprint is surfaced to clients (CertFP was removed as dead code).
-- [ ] `internal/component/managed/client.go` - `runConnection` builds `tls.Config{ServerName, InsecureSkipVerify: cfg.TLSInsecure}`; no cert pinning path.
-- [ ] `internal/component/plugin/ipc/tls.go` - `CertFingerprint`, `GenerateSelfSignedCert`; the plugin-side pinning pattern to mirror.
+- [ ] `internal/component/plugin/server/managed_serve.go` - `managedCertificate` serves a named certificate through the injected resolver, or a leaf issued by the injected authority; it refuses missing material.
+- [ ] `internal/component/managed/tls.go` - `clientTLSConfig` verifies against a named PKI CA, otherwise uses explicit insecure mode or the system trust pool.
+- [ ] `cmd/ze/hub/managed_server.go` - `startManagedServer` supplies the certificate resolver and authority and installs the client-config write observer.
 
 **Behavior to preserve:**
 - The dedicated managed listener, per-client secret auth, config-fetch/ack/ping, and config-changed push all continue to work unchanged.
@@ -118,18 +118,18 @@ an indefinite block.
 - Managed client TLS dial to the hub's managed listener (`client.go` `runConnection`).
 
 ### Transformation Path
-1. Hub loads/serves a verifiable cert (PKI/CA cert, or self-signed with a published fingerprint).
-2. Client obtains the trust anchor (CA in trust store, or `cert-fp` in its config block).
-3. Client TLS verifies the server cert (CA chain or pinned fingerprint) before auth.
+1. The hub serves the named PKI certificate or a leaf issued by its authority.
+2. The client resolves its configured PKI CA, or uses the system trust pool.
+3. TLS verifies the chain and server name before the client sends its token, unless insecure mode was explicitly selected.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Hub cert material ↔ managed listener | PKI/cert-store load or config-provided cert | [ ] |
-| Hub cert identity ↔ client trust | CA chain or `cert-fp` carried in client config | [ ] |
+| Hub cert identity ↔ client trust | CA chain through the client's named PKI CA or system trust pool | [ ] |
 
 ### Integration Points
-- `ManagedServerConfig` (add an optional cert), `internal/component/managed/client.go` (pinning), the hub PKI/cert store, and the `plugin/hub/client` YANG block (a `cert-fp` leaf).
+- `ManagedServerConfig`, `managed.clientTLSConfig`, the hub PKI store, and the `plugin/hub/client/ca` leaf are implemented. The remaining integration is an operator-reachable write through the running hub's store.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -142,7 +142,7 @@ an indefinite block.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Managed client with the hub cert-fp/CA and `tls-insecure` off | Connects and fetches config; TLS verification passes |
+| AC-1 | Managed client with the hub's CA trusted through the named PKI CA or system pool and `tls-insecure` off | Connects and fetches config; TLS verification passes |
 | AC-2 | Managed client with a wrong/absent trust anchor and `tls-insecure` off | Connection refused (verification fails), not silently accepted |
 | AC-3 | A `server` block declares both a shared secret (plugins) and `client` entries | `ze doctor` reports a collision/misconfiguration code |
 | AC-4 | Real `ze` hub + real `ze` client | End-to-end `config-fetch` + `config-changed` through both daemons |
@@ -192,23 +192,21 @@ mutation turned exactly the covering test red.
 | AC-3 port-collision doctor check | DONE. `internal/component/plugin/doctor/check_managed_listener.go`, code `doctor-hub-managed-collision`, `test/ui/doctor-hub-managed-collision.ci` and `test/ui/doctor-hub-managed-separate.ci` |
 | AC-4 two-instance daemon `.ci` | HALF DONE, and the other half is BLOCKED. `test/managed/managed-hub-ca-trust.ci` runs a real `ze` hub and a real `ze` client and proves `config-fetch` end to end, with a foreign-root control. `config-changed` cannot be reached from two daemons: the push fires only on a write through the RUNNING hub's own store, and no operator command performs one. See "AC-4 config-changed: no producer" below |
 
-## AC-4 config-changed: no producer (2026-09-05)
+## AC-4 config-changed: no operator-reachable writer
 
-The hub pushes `config-changed` from a storage write observer, and the observer
-fires only inside `blobStorage.WriteFile`
-(`internal/component/config/storage/blob.go`), which means only for a write
-through the running hub's OWN store. No non-test caller writes
-`ClientConfigKey(name)`: `ze data`, `ze config import` and `ze config edit` each
-open the blob file in a separate process, and a running hub answers every read
-from the tree `zefs.BlobStore` loaded when it opened the store
-(`BlobStore.readFile`, `pkg/zefs/store.go`). Every in-daemon editor takes one
-config path, the daemon's own (`cli.NewEditorWithStorage` callers:
-`cmd/ze/hub/session_editor.go`, `cmd/ze/hub/editor_adapter.go`,
-`cmd/ze/hub/api.go`, `cmd/ze/hub/service_gnmi.go`).
+The 2026-09-05 investigation found that notifications fired only for writes
+through the running hub's own blob store. The storage representation has since
+changed: `storage.store.WriteFile` writes through the owned tree, and
+`guard.Release` invokes the observer after durability and unlock
+(`internal/component/config/storage/store.go`). The old claim that the running
+store is a `zefs.BlobStore` snapshot no longer describes this path.
 
-So `ze_managed_config_changed_pushed_total` can only ever count pushes an
-in-process test produced, and an operator changing a client's config has to stop
-the hub, write the blob, and start it again.
+The missing producer remains. `startManagedServer`
+(`cmd/ze/hub/managed_server.go`) installs the write observer and reads
+`ClientConfigKey(name)`, but the callers that write that key are still tests.
+The running hub needs an operator entry point that writes a managed client's
+configuration through this store. The recorded fetch proof does not prove
+that notification path or AC-4 as a whole.
 
 The question for the owner is which way to fix it, not whether:
 
@@ -222,10 +220,10 @@ workflow: `docs/architecture/fleet-config.md` "Config Storage (Hub Side)" and
 `docs/guide/fleet-config.md` "Config Management" now say the hub must be stopped.
 
 ## Files to Modify
-- `internal/component/plugin/server/managed_serve.go` - serves the named pki certificate, fails closed, reports its fingerprint (DONE)
+- `internal/component/plugin/server/managed_serve.go` - serves the named PKI certificate or authority-issued leaf and fails closed (DONE)
 - `internal/component/managed/tls.go` - the client trust decision (DONE)
-- `internal/component/managed/client.go` - `CertificateFingerprint` on ClientConfig (DONE)
-- `internal/component/plugin/yang/ze-plugin-conf.yang` - `certificate` and `certificate-fingerprint` leaves (DONE)
+- `internal/component/managed/client.go` - `CA` on `ClientConfig` (DONE)
+- `internal/component/plugin/yang/ze-plugin-conf.yang` - the server `certificate` and client `ca` leaves (DONE)
 - `internal/component/plugin/types.go`, `internal/component/config/loader_extract.go` - extraction (DONE)
 - `docs/architecture/fleet-config.md` - hub certificate and client trust (DONE)
 - `internal/component/plugin/doctor/check_managed_listener.go` and `register.go` + `internal/core/diagnostic/codes.go` (AC-3, DONE)
@@ -233,7 +231,7 @@ workflow: `docs/architecture/fleet-config.md` "Config Storage (Hub Side)" and
 - `docs/guide/health-checks.md`, `docs/architecture/fleet-config.md`, `docs/guide/fleet-config.md` (DONE)
 
 ## Implementation Steps
-1. Decide the cert approach (PKI/CA cert vs pinned fingerprint) - present to user.
+1. Keep the implemented PKI/CA trust path; the remaining owner decision is the client-config writer.
 2. Serve a verifiable cert from the managed listener.
 3. Wire client-side verification.
 4. Add the port-collision doctor check + diagnostic code.

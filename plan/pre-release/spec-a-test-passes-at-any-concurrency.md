@@ -65,30 +65,31 @@ finding. These are different repairs and must not be merged.
 - Widening fixture wait bounds is measured HARMFUL, not neutral.
 - Two members were fixed at their producers and stayed fixed, so the population is not unfixable: `path-asn-show` (the daemon tore down with the End-of-RIB owed) and `ipv4-announce-withdraw` (the driver never sent the `plugin session ready` its peer's barrier waits for, so the asserted order held only while it beat a 2s timer).
 
-**The mechanism, read at the producer on 2026-09-19.** An observer fixture runs
-its scenario from `OnAllPluginsReady`, which reports that every PLUGIN is ready
-and says nothing about any BGP session. It then fences with `request quiesce`
-and asks the daemon to stop. That fence is `DrainPeerSync`, and `pendingSync`
-is what it waits on: routes queued, an initial sync in flight, or the
-End-of-RIB owed. A configured peer that has not yet established has none of the
-three, so it is skipped and the quiesce answers `done`. The observer then tears
-the daemon down while the peer is still in its OPEN exchange, and the marker
-the `.ci` asserts is never sent. `show-bgp-bare-runs-summary` failed exactly
-this way: its peer received OPEN, then NOTIFICATION (Cease), and no marker.
+**Historical mechanism, diagnosed on 2026-09-19 before the handshake repair.**
+An observer fixture runs its scenario from `OnAllPluginsReady`, which reports
+plugin readiness rather than BGP session establishment. It then fences with
+`request quiesce` and asks the daemon to stop. At that point `pendingSync`
+checked queued routes, an initial sync in flight and the End-of-RIB owed, so a
+peer still in its OPEN exchange could read as settled. In the recorded
+`show-bgp-bare-runs-summary` failure, the peer received OPEN, then Cease, and no
+marker.
 
-This is a zero-as-a-valid-answer guard (`ai/rules/principles.md`): "no work
-pending" and "work not started" are the same reading. The exclusion is
-DELIBERATE and correct for the quiescer's own job, because a peer that will
-never come up must not hang a quiesce, and `setState` already names this hazard
-where it closes the matching window on the other side of establishment. So the
-defect is not in `pendingSync`. It is that the observer's shutdown turns on the
-quiescer's answer, which was never a statement about session establishment.
+The current producer also calls `handshakeInFlight(p.session)`, which returns
+true in `OpenSent` and `OpenConfirm`. `DrainPeerSync` therefore waits through
+that OPEN-exchange window. This is a partial repair: a peer still connecting,
+or with no session, can still read as settled when its queue is empty. Counting
+every Connect or Active peer as pending would instead wait indefinitely for
+configured peers that never come up.
 
-**The population is 346 of 731.** That many `test/plugin/*.ci` cases assert the
-End-of-RIB marker and drive a fixture, which is why 15-plus distinct cases
-failed with almost no repeats: one hole, entered by whichever case lost the
-race that run. Any repair measured on a handful of named cases is measuring
-noise.
+Remaining research must distinguish that pre-connect window from a settled
+refusal or other terminal outcome. The observer still needs a completion fact
+appropriate to its declared sessions; the handshake repair alone proves
+neither that fact nor the load-independence acceptance criteria.
+
+**The population measured on 2026-09-19 was 346 of 731.** Those cases asserted
+the End-of-RIB marker and drove a fixture. That historical population explains
+the breadth of the original race; the remaining failures must be re-derived
+against the handshake-aware producer before attributing them to one cause.
 
 **The fact the fence needs is already declared, in the `.ci` itself.**
 `option=tcp_connections:value=N` is the case stating how many BGP sessions it
@@ -105,9 +106,9 @@ hangs those instead of failing them.
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `internal/test/runner/parallel.go` - `DefaultParallelConcurrent` is a fixed 20 whatever the machine has; `ParallelTimeoutHeadroom` widens each TEST's budget by 3 under concurrency; `ParallelFactorEnv` publishes that factor to children
 - [ ] `internal/test/fixture/fixture.go` - `Poll` bounds a wait by an attempt count and a delay, and reads the contention factor NOWHERE
-- [x] `internal/component/bgp/reactor/peer.go` - `pendingSync` is the fact `request quiesce` waits on. It reads three facts, and a peer that has not established yet has none of them, so it is reported settled
-- [x] `internal/component/bgp/reactor/reactor_api.go` - `DrainPeerSync` and `peersSynced` are the quiescer behind `request quiesce`, and their own comments state the state-gating exclusion as deliberate
-- [x] `internal/test/fixture/fixture.go` - `observeConfigured` runs the scenario from `OnAllPluginsReady`, quiesces, then asks the daemon to stop. This is the shared path all 346 marker-asserting cases take
+- [x] `internal/component/bgp/reactor/peer.go` - `pendingSync` checks queued routes, initial sync, EOR owed and `handshakeInFlight`; `OpenSent` and `OpenConfirm` are pending, while a pre-connect peer with none of those facts still reads as settled
+- [x] `internal/component/bgp/reactor/reactor_api.go` - `DrainPeerSync` reaches `peersSynced`, which asks each peer's `pendingSync`; it does not establish the terminal-outcome contract for every declared connection
+- [x] `internal/test/fixture/fixture.go` - `observeConfigured` runs the scenario from `OnAllPluginsReady`, quiesces, then asks the daemon to stop; the September 19 investigation counted 346 marker-asserting consumers of this shared path
 - [x] `internal/test/cli/cmd_exabgp.go` - `exaBGPClientEnv` already publishes `exabgp_tcp_connections` into the daemon's environment
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
@@ -143,7 +144,7 @@ hangs those instead of failing them.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | One mechanism explains most of the population | read at the producer 2026-09-19: the quiesce fence skips a not-yet-established peer, and 346 of 731 cases take that path | the repair is per-case after all, and the spec becomes a survey | the fix removing the loss at 20, not at 6 | mechanism confirmed, repair unvalidated |
+| A-1 | One remaining mechanism explains most of the population | the historical OPEN-exchange hole is partly repaired by `handshakeInFlight`; the current producer still excludes the pre-connect window | the remaining repair is per-case, and the spec becomes a survey | re-derive failures against the current producer and prove the repair at 20, not at 6 | partial repair observed in source; remaining mechanism and load-independence unvalidated |
 | A-2 | Every failing case CAN be made load-independent | two were, at their producers | the residue is a capacity finding about the box, which is a different answer and must be stated as one | each case's own repair | unvalidated |
 
 ### Risks

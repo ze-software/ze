@@ -12,28 +12,46 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Drive the 171 test-harness call sites that read a fail-open return value without
-testing it down to zero.
+Prevent a failed test-harness command from becoming a passing assertion over
+missing output. Before scheduling a drain, determine which instances of the
+original defect survive in the native harness and assign each one to its current
+owner. The old count of 171 sites across 67 files is not a current worklist.
 
-`docker_exec_quiet` (`test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) answers `""` on ANY non-zero
-exit. A caller that reads that answer and never tests it for emptiness turns a
-FAILED command into a passing assertion over nothing. `"DIS" in ""` is False, so
-the scenario reports a green it never measured.
+`docs/architecture/testing/interop.md` places assertions in native checkers
+under `internal/le/interoplab/`. At the command boundary, `Docker.Exec` and
+`Docker.command` in `internal/le/interoplab/docker.go` return an error for a
+nonzero exit and retain output in `CommandResult`. This removes the old
+empty-string-only return contract; it does not prove that every caller checks
+the error.
 
-**The risk is already capped, which is why this is separable.**
-`internal/le/doc/wiring/delegate.go` derives the fail-open set to a fixpoint and
-refuses the next new call site. The floor in `test/health/docker-exec-baseline.json` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->
-goes DOWN only, so the count cannot grow. `./le functional docker-exec-check` is the
-gate, and `TestRepoRatchet` re-runs it under `./le test-unit`.
+The resumed inventory must read the current callers and distinguish propagated
+errors, deliberately accepted failures with a reason, and errors discarded
+before an assertion. Each surviving instance must either test the failure or
+carry a justified opt-out that the current test surface can verify. Each batch
+owes failure-path evidence from the scenario it changes. A deleted Python call
+site is retired population, not proof that its replacement is correct.
 
-What remains is mechanical: 171 sites across 67 files. Each one either gets its
-return value tested, or an opt-out `# fail-open-ok: <reason>` naming why the
-empty answer is correct there. A bare marker with no reason does not count.
+The original shrink-only guard and
+`test/health/docker-exec-baseline.json` were retired with the Python harness.
+`internal/le/doc/wiring/delegate.go` now dispatches native documentation
+checks and does not derive a fail-open call graph. There is no current ratchet
+established by this record, so the earlier claim that growth is capped is
+withdrawn. Any surviving drain must identify its current guard and regression
+surface before relying on one; do not restore the old baseline or Python helper.
 
-**Why it is not one change with the guard.** Most of these sites sit in interop
-scenarios that cannot run without Docker, so a batch edit cannot be proven by
-running it. The work wants its own passes, each lowering the floor by what that
-pass actually verified.
+Compare the inventory with `plan/spec-harness-fail-open-guard-backlog.md`
+before assigning repairs. Its August survey excludes `docker_rm` teardown
+contracts from this drain and holds separate guard and assertion questions.
+That boundary remains unless the owner changes it. No native call-site sweep
+or implementation is claimed by this reconciliation.
+
+## Historical Population
+
+On 2026-08-14, `docker_exec_quiet` in `test/interop/interop.py` returned `""`
+on a nonzero exit. The original drain covered 171 unchecked reads across 67
+files, with `# fail-open-ok: <reason>` as the justified exception form.
+The Python helper, baseline and `./le functional docker-exec-check` recipe
+are retained here as provenance for that population, not current commands.
 
 ## Provenance
 

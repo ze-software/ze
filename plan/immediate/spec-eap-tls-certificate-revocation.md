@@ -2,84 +2,72 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
-| Depends | - |
+| Depends | spec-ipsec-rfc9190 |
 | Phase | - |
-| Updated | 2026-08-12 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**Ze does not check whether a certificate has been revoked, in either direction.**
-A certificate that an authority has cancelled continues to authenticate until it
-expires on its own.
+This spec captured the missing RFC 9190 Section 5.4 revocation checks and the
+owner's 2026-08-12 deferral. The current implementation is owned by
+`plan/spec-ipsec-rfc9190.md`: its phases 4 and 6 record the five MUST-level
+requirements as implemented on 2026-09-05 and 2026-09-08. This file remains open
+for reconciliation with that owner's evidence and closure; it does not schedule
+a second implementation.
 
-This covers five RFC 9190 Section 5.4 requirements: `RFC9190-5.4-1` through
-`RFC9190-5.4-5`.
+### Historical owner ruling
 
-### Why this spec is in `plan/future/`
+On 2026-08-12, Thomas answered the question about absent revocation information:
 
-`plan/future/README.md` refuses defects, and it names "omits bytes an RFC
-requires" as one. **These five are unmet MUST-level requirements. This spec is
-here by an owner ruling, not because the requirements were reclassified.**
+> Certificate revocation: nice to have write a spec for later.
 
-Owner ruling, 2026-08-12, in answer to a direct question about what Ze should do
-when no revocation information is available: **"Certificate revocation: nice to
-have write a spec for later."**
+The file was then described as belonging in `plan/future/` by that ruling,
+although the five MUST-level requirements remained unmet and were never
+reclassified. That directory description is historical. The current
+`plan/immediate/` location does not itself revoke the ruling or establish a new
+release decision. The later implementation record means release planning must
+assess the remaining proof, rather than schedule the original missing checks.
 
-No annotation was written into `rfc/requirements/rfc9190.md`. The rows stay
-unproven and honest. **RFC 9190 is not enrolled** (`rfc/not-enrolled.txt`, marked
-`backlog`, 49 of 51 gated MUSTs unproven), so no ratchet fires and no gate turns
-red because of this deferral. Enrolling RFC 9190 later requires these five to be
-proven or to carry an owner-authorised annotation, so this spec is a
-precondition of that enrolment.
+### Current ownership and implementation
 
-### Current behavior
+`docs/guide/ipsec.md` and `docs/architecture/ike/ipsec-11-interop-eap.md` describe
+the current behavior. Each original requirement remains assigned to the RFC 9190
+spec:
 
-`verifyServerChain` (`internal/core/eap/peer.go`) calls
-`certs[0].Verify(opts)`. It passes no certificate revocation list and consults no
-OCSP responder. `startTLSClient` in the same file sets no `VerifyConnection`
-callback, so nothing later inspects the chain either.
+| Requirement | Producer and implemented behavior |
+|-------------|-----------------------------------|
+| `RFC9190-5.4-1` | `checkChainRevocation` and `crlSet.checkChain` in `internal/core/eap/revocation.go` check every certificate except the trust anchor on both roles. `newTLSMethod` and `serverChainCheck.verifyConnection` install the callbacks. TLS 1.3 refuses when no CRL source is configured; TLS 1.2 can proceed without one |
+| `RFC9190-5.4-2` | `newTLSMethod` in `internal/core/eap/eap_tls.go` supplies the operator's OCSP response as `tls.Certificate.OCSPStaple` |
+| `RFC9190-5.4-3` | `serverChainCheck.verifyConnection` in `internal/core/eap/peer_chain.go` calls `checkStapledChainStatus` when `certificate-status-request` is enabled. Missing or invalid status refuses the handshake; intermediate CertificateEntry status that Go cannot expose also refuses |
+| `RFC9190-5.4-4`, `RFC9190-5.4-5` | `startServerCertRecheck` in `internal/component/ike/engine/postauth_revocation.go` starts the post-authentication check after connectivity exists. It checks over HTTPS and reports a revocation verdict to the SA owner |
 
-The server side does not check revocation either: `newTLSMethod`
-(`internal/core/eap/eap_tls.go`) sets
-`ClientAuth: tls.RequireAndVerifyClientCert`, and Go's verification of a client
-chain performs no revocation check.
+The earlier parser and staple-source proposals are covered by the implemented
+`CheckCertificateStatus` in `internal/core/eap/ocsp.go` and the operator-supplied
+staple. They do not authorize a second OCSP parser or a fetch-and-refresh service.
+The original post-connectivity check is part of the implemented scope, not an
+optional removal from this spec.
 
-**Ze already requests the evidence and discards it.** Go's TLS client sets
-`ocspStapling: true` unconditionally (`crypto/tls`), so every handshake asks the
-peer for a stapled OCSP response, and the response is stored and never read.
+The old fail-open/fail-closed menu is no longer an undecided description of the
+handshake. The current code refuses TLS 1.3 without revocation material and
+refuses a missing staple when status checking is enabled. The later online check
+has a separate result: an unreachable responder leaves the SA up with a warning
+(`serverCertRecheck.run`). RFC 9190 Section 5.4's SHOULD NOTs about trusting the
+network remain separate obligations; the RFC 9190 owner must retain them in its
+evidence assessment.
 
-### The decision this spec must put to the owner before implementation
+### Evidence and release boundary
 
-**What does Ze do when no revocation information is available at all?** The peer
-staples nothing, or the responder cannot be reached.
+Implementation is not an enrolment or release verdict. `rfc/not-enrolled.txt`
+still lists RFC 9190 as backlog, and `plan/spec-ipsec-rfc9190.md` owns the
+remaining proof and the publication barrier. Its dated evidence and current
+producers replace this file's obsolete claim that neither role checks
+revocation. Reconcile this retained capture with that spec before closure,
+without changing buckets or declaring a current test pass from a source read.
 
-| Option | Consequence |
-|--------|-------------|
-| Refuse the connection | Conformant with Section 5.4-3 read literally. Breaks against every peer that publishes no revocation information, which today includes strongSwan in `test/interop-ipsec/scenarios/eap-tls13` AND Ze's own server |
-| Allow the connection | Works against every peer. A revoked certificate authenticates whenever the check cannot run |
-| Operator-settable, with one of the above as the default | The default is still a decision, and it is the one an operator inherits on upgrade |
-
-**Section 5.4-3 is fail-closed as written**, and that is why the question is
-sharp. Because Go always requests status, Ze *is* "using Certificate Status
-Requests" in the RFC's sense, so the literal reading tells Ze to treat a
-certificate with no valid status as invalid and abort.
-
-### What the work covers
-
-| Part | Note |
-|------|------|
-| Consume the stapled response Ze already receives | The cheapest increment. Still needs an OCSP response parser |
-| Intermediate certificates | Section 5.4-1 binds every certificate except the trust anchor. Go's `unmarshalCertificate` skips extensions on every entry after the leaf ("This library only supports OCSP and SCT for leaf certificates"), so a staple can never satisfy 5.4-1. Intermediates need a CRL or an OCSP client |
-| A revocation parser | `golang.org/x/crypto/ocsp` is NOT vendored, and nothing in `internal/` or `pkg/` calls `ParseRevocationList`. Vendoring it is a `ai/rules/repo-maintenance.md` decision |
-| A staple source for Ze's own server | `newTLSMethod` builds its certificate with `tls.X509KeyPair`, leaving `OCSPStaple` nil, and Go gates stapling on that field. So Section 5.4-2 needs the operator to supply a staple, or Ze to fetch and refresh one |
-| Section 5.4-4, re-check after the tunnel is up | Its own subsystem: a connectivity hook, a timer, and a teardown path. Decide whether it is in scope |
-
-### What must not happen
-
-**Do not classify any of the five `{gap}` or `{not-applicable}` to make a gate
-pass.** `ai/rules/rfc-compliance.md` reserves that to the owner, and the ruling
-above defers the WORK, not the honesty of the ledger.
+No `{gap}` or `{not-applicable}` annotation may be added to bypass proof of
+these five requirements. The historical deferral never authorized that, and
+the recorded RFC 9190 goal remains implementation followed by full proof.

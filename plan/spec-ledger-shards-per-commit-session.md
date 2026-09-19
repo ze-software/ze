@@ -2,17 +2,18 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | product code landed `27a41cb32`; AC-3 proof and closure outstanding |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
-<!-- Backfilled. The work was commissioned straight from a journal row and
-     skipped the spec step. Status is in-progress: the product code exists in
-     the working tree, nothing has closed, and the landing is what it owes
-     first. -->
+The original migration landed in `27a41cb32`.
+
+<!-- Backfilled after work commissioned from a journal row. The original
+     two-ledger migration landed in the commit above; the current contract
+     and the evidence still owed are recorded below. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -33,6 +34,14 @@ impossible. The rows are not restated here.
 
 Goal: two writers cannot reach one path, and an author can see whose rows are in
 the ledger WITHOUT preparing a commit.
+
+The original migration covered both ledgers. The current RFC approval contract
+has since moved to session-local approval files and `RFC-approved:` commit
+trailers, as documented in `docs/architecture/testing/test-health.md`.
+`rfcChangeProblems` in `internal/le/commit/rfcchange.go` reads only the current
+session's approval file; `renderApprovalPrune` in `script.go` removes used rows
+after the commit. Preserve that ownership and approval obligation. This spec
+must not recreate `test/rfc-changed/` to match its original design.
 
 ## Required Reading
 
@@ -68,13 +77,14 @@ the ledger WITHOUT preparing a commit.
   used, so no author relearns it.
 - The gate still refuses a commit that weakens a test without a row.
 
-**Behavior to change:**
-- `test/weakened.md` and `test/rfc-changed.md` become DIRECTORIES,
-  `test/weakened/<session>.md` and `test/rfc-changed/<session>.md`, named by
-  `lepath.CommitSession`: the same eight hex characters that already name the
-  session's commit script, message and verification-debt shard.
-- `./le commit create` refuses a commit that names a FOREIGN shard, which closes
-  the silent case where a commit publishes another session's justification.
+**Current contract to preserve and prove:**
+- Test weakenings use `test/weakened/<session>.md`, named by
+  `lepath.CommitSession`. `ForeignShardProblems` in
+  `internal/le/testweakened/shard.go` refuses a commit naming a foreign
+  weakened-test shard.
+- RFC-tagged changes require the current session's owner approval through
+  `rfcChangeProblems`; the commit carries its `RFC-approved:` trailer.
+  The original `test/rfc-changed/<session>.md` layout is historical.
 - A row whose text git already holds at HEAD no longer refuses anything: the gate
   proves it landed and drops it from the shard the commit carries. That retires
   the delete-the-last-commit's-rows chore three sessions performed by hand.
@@ -99,8 +109,8 @@ the ledger WITHOUT preparing a commit.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | session ↔ session | one shard per session; no path is reachable by two writers | Yes, by construction |
-| author ↔ gate | `./le test-weakened check` prints the population | Yes, the verb exists |
-| working tree ↔ HEAD | `LandedRows` asks git what already landed | asserted; see What Remains |
+| author ↔ gate | `./le test-weakened check` prints the weakened-test population | command exists; functional proof remains |
+| working tree ↔ HEAD | `LandedRows` asks git what already landed | regression test exists; current execution remains owed |
 
 ### Integration Points
 - `internal/le/lepath` - the identity, shared with the commit script and message.
@@ -109,9 +119,9 @@ the ledger WITHOUT preparing a commit.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers | Yes | both gates read shards through `ReadShards` |
-| No unintended coupling | Yes | `lepath` holds the identity so neither gate imports the other |
-| No duplicated functionality | Yes | the flat files are REPLACED, not kept beside the directories (`ai/rules/no-layering.md`) |
+| No bypassed layers | Yes | the weakening gate reads its session shard; the RFC gate reads `rfc.ApprovalPath(session)` |
+| No unintended coupling | Yes | `lepath` holds the shared session identity |
+| No duplicated functionality | Yes | weakened-test shards replace the flat ledger; RFC approval files and commit trailers supersede the second ledger |
 | Zero-copy preserved where applicable | N-A | tooling path |
 | Registration over hardcoding | Yes | a shard is discovered by reading the directory, never listed |
 
@@ -122,7 +132,7 @@ the ledger WITHOUT preparing a commit.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The eight-hex commit session is stable for the life of a session | `lepath.CommitSession` stores it under `tmp/` and reuses it | a session writes two shards | `commitsession.go`, read at the producer | confirmed |
 | A-2 | Every existing row in the two flat files has an owning session that can claim it | the flat files held rows from landed commits and from pending ones | a row is orphaned at migration | the migration itself | UNVALIDATED |
-| A-3 | `LandedRows` correctly proves a row's text is at HEAD | asserted from the function name and its use | a landed row keeps refusing, or an unlanded one is dropped | no test named here | UNVALIDATED |
+| A-3 | `LandedRows` correctly proves a row's text is at HEAD | current regression covers landed pruning and unlanded refusal | a landed row keeps refusing, or an unlanded one is dropped | `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` in `internal/le/commit/ledger_test.go`; current run still owed | UNVALIDATED |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -135,7 +145,7 @@ the ledger WITHOUT preparing a commit.
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | commits are refused, or an owner-decision record is published under the wrong subject |
-| How is it reverted? | not yet landed. Once landed, a revert restores the two flat files and their contract |
+| How is it reverted? | The migration is recorded landed. Any reversal must preserve pending weakened rows and the current RFC approval trail; restoring the old shared ledgers would restore the collision |
 | Who else touches this path? | every session that weakens a test or changes an RFC-tagged one, and the private-index spec, which edits `prepare.go` too |
 
 ## Wiring Test (MANDATORY)
@@ -164,6 +174,7 @@ the ledger WITHOUT preparing a commit.
 | shard reading and foreign-shard refusal | `internal/le/commit/ledger_test.go` | AC-2, AC-4 | landed `27a41cb32` |
 | ledger audit over shards | `internal/le/testweakened/audit_test.go` | AC-1, AC-5, AC-6 | landed `27a41cb32` |
 | parity between the ledger reader and the gate | `internal/le/testweakened/parity_test.go` | AC-5, AC-6 | landed `27a41cb32` |
+| landed row pruning with an unlanded-row refusal control | `internal/le/commit/ledger_test.go`, `TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` | AC-3 | source inspected September 20; not run in this reconciliation |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -206,10 +217,10 @@ the ledger WITHOUT preparing a commit.
 |---|----------|----------|---------------|
 | 3 | CLI command added/changed? | Yes | `docs/architecture/testing/test-health.md` and `docs/features/test-health.md` |
 | 10 | Test infrastructure changed? | Yes | same two pages, plus `docs/contributing/testing.md` |
-| 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/test-health.md` is the `// Design:` anchor of `shard.go`. `docs/features/ai-first.md` is the anchor of `commitsession.go` and of `internal/le/commit/prepare.go`, and it MUST name the shard as a fifth artifact of the commit namespace. `docs/contributing/rfc-implementation-guide.md` is the anchor of `internal/le/commit/rfcchange.go`, and it MUST name the shard path where it names `test/rfc-changed.md` |
+| 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/test-health.md` covers weakened shards and RFC approval trailers. `docs/features/ai-first.md` covers the commit namespace. `docs/contributing/rfc-implementation-guide.md` must retain the current approval-file and trailer contract; no RFC ledger is restored |
 | 1, 2, 4-9, 11-15, 17 | - | No | no operator-facing surface changed |
 
-## Implementation Steps
+## Original Implementation Steps (landed migration record)
 
 1. **Phase: Wiring (MANDATORY FIRST)** - `lepath.CommitSession` and `ShardPath`,
    with a failing test that two sessions resolve two paths.
@@ -225,7 +236,7 @@ the ledger WITHOUT preparing a commit.
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | both ledgers moved, not one |
+| Completeness | account for both original ledgers: prove weakened-shard isolation and preserve the superseding RFC approval-file/trailer contract |
 | Correctness | `LandedRows` proves the row is at HEAD, and does not merely find similar text |
 | Naming | the shard's eight hex characters ARE the commit session's, not a second identity |
 | Rule: `ai/rules/never-destroy-work.md` | nothing in the migration drops a row an author has not landed |
@@ -296,10 +307,13 @@ the ledger WITHOUT preparing a commit.
 
 ## Current Condition and What Remains
 
-**The change is complete and LANDED.** The product code, the three unit tests
-and the documentation edits went in as `27a41cb32` on 2026-09-06. A fresh clone
-and this tree now agree about where a weakened row goes. What this spec still
-owes is the AC-3 proof, not the landing.
+The September 6 record says the original product code, three unit-test files
+and documentation edits landed as `27a41cb32`. The current weakening path still
+uses shards; the RFC path now uses approval files and commit trailers.
+`TestALandedRowIsDroppedRatherThanBlockingTheNextCommit` in
+`internal/le/commit/ledger_test.go` now covers the formerly missing AC-3 case,
+including refusal of an unlanded stale row. Source inspection establishes that
+the test exists, but no current run is claimed here.
 
 | Item | State |
 |------|-------|
@@ -307,6 +321,6 @@ owes is the AC-3 proof, not the landing.
 | Prior art in the tree | `test/weakened/c7ef7dc3.md` was committed by `8c7f0a5bf2` (reachable from HEAD, count 1) by a session that invented this layout BY HAND, and a second session had already overwritten its rows there. That is the sixth occurrence, found while implementing the fix |
 | Documentation | the three pages and `ai/rules/testing.md` landed in `27a41cb32` |
 | Journal row | written, `plan/journal/concurrent-session-corruption.md`, fifth occurrence, marked FIXED 2026-09-06; the work it names landed the same day as `27a41cb32` |
-| PROVEN | AC-1, AC-2, AC-4, AC-5 and AC-6, by the unit tests in `ledger_test.go`, `audit_test.go` and `parity_test.go` |
-| ASSERTED, not proven | AC-3. `LandedRows` and `PruneLanded` are read off the code; no test named here forces a row to land and then proves the gate drops it. A-2 and A-3 are unvalidated |
-| Remains | (1) a test for AC-3; (2) validate A-2 by walking the migration for an orphaned row; (3) the `check` functional test; (4) closure sections |
+| Historical proof record | September 6 recorded AC-1, AC-2, AC-4, AC-5 and AC-6 through `ledger_test.go`, `audit_test.go` and `parity_test.go`; this is not a new pass |
+| Current evidence to collect | Run the existing AC-3 regression, validate A-2 by auditing the original migration for orphaned rows, and exercise the populated `check` command. A-2 and A-3 remain unvalidated here |
+| Remains | Current AC evidence, the migration audit, functional command proof, confirmation that RFC approval ownership survives the superseding contract, and closure sections |

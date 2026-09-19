@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | - (was spec-bgp-peer-settings-reload-ignored for AC-3; that spec closed 2026-08-13 and a policy change now reaches a running peer) |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-07-16 |
 
@@ -25,11 +25,10 @@ rest held.)
 3. `docs/research/bird-bgp-reference.md` lines 1276-1281 (`rte_update` / `REF_FILTERED`) - the design this spec copies
 4. `docs/architecture/core-design.md` lines 629-665 ("Ingress Filter Pipeline")
 5. `internal/component/bgp/reactor/reactor_notify.go` (the reject gate, line 468), `internal/component/bgp/plugins/rib/rib_structured.go`
-6. `spec-bgp-peer-settings-reload-ignored` - the sibling this depended on for AC-3.
-   CLOSED 2026-08-13, so the dependency is discharged: a policy edit now reaches
-   the running peer through `peerSettingsSwapPlan`
-   (`internal/component/bgp/reactor/peer_settings_apply.go`), which is what AC-3
-   needed. It built no pre-policy store, so nothing here is superseded.
+6. `internal/component/bgp/reactor/peer_settings_apply.go` - the closed
+   `spec-bgp-peer-settings-reload-ignored` delivered live policy swaps on
+   2026-08-13. It supplied the policy-application prerequisite, but this spec
+   still owns AC-3's re-import of retained rejected routes.
 
 ## Task
 
@@ -49,6 +48,15 @@ A second, independent capability is also in scope:
 the gate, exposed under a distinct `*-total` key. It is a CUMULATIVE diagnostic, NOT the
 current-state semantics `routes_filtered` carries, so it never substitutes for retention. It has
 no storage, config, or reload surface and can land independently of everything else here.
+
+This spec owns the re-import needed by AC-3 as well as the retained state.
+`applyHotSwappableSettings` updates the live settings and forwarding facts;
+it does not walk a filtered-route store. Before readiness, the design must
+specify how retained routes are re-evaluated and moved into accepted state
+without inventing a store of all pre-policy routes. Whether this opt-in
+capability is a first-release requirement remains an owner decision. It is
+separate from the misleading received counter owned by
+`plan/immediate/spec-bgp-per-peer-received-counter.md`.
 
 ### ⚠ Terminology hazard (this spec exists because two sessions fell into it)
 
@@ -117,7 +125,7 @@ are not verifiable locally.** Cite this section, not that doc.
 - [ ] `docs/architecture/web-interface.md` - the HTTPS server rendering YANG-driven config views with HTMX components
 <!-- NEVER tick [ ] to [x]. Capture insights as → Decision: / → Constraint: annotations. -->
 - [ ] `docs/research/bird-bgp-reference.md` lines 1276-1281 - a SECOND-HAND description of BIRD 3.x's `rte_update`. Consistent with v2.19.0's semantics, but superseded for this spec by the primary-source table above.
-  → Constraint: this file also contains a FALSE claim about Ze at `:1614` ("ze's filter reload path already handles the common case without bouncing sessions"). It does not - see `spec-bgp-peer-settings-reload-ignored`. Do not trust this file's Ze claims.
+  → Constraint: the 2026-07-16 objection to its Ze reload claim is historical. The sibling reload spec closed on 2026-08-13; current policy application is in `peer_settings_apply.go`, while retained-route re-import remains here.
 - [ ] `docs/architecture/core-design.md` lines 629-665 - "Ingress Filter Pipeline" (the doc the original skeleton should have cited)
   → Constraint: "inbound filtering runs in the reactor on every received UPDATE, **before** the bytes are cached and **before** the StructuredEvent is dispatched"; "`accept=false` drops the route (no caching, no dispatch)". Retention therefore cannot be added in the RIB plugin alone - the RIB never sees a rejected route.
   → Constraint: "After the pass, the cached `WireUpdate` is the **canonical post-filter representation** that every downstream consumer sees." Stored routes are POST-modification.
@@ -134,7 +142,7 @@ are not verifiable locally.** Cite this section, not that doc.
 - [ ] `rfc/short/rfc4271.md` Section 3.2 (Adj-RIB-In) - cited in prose only
   → Constraint: filtered routes are conceptually pre-Adj-RIB-In; retaining them is an implementation choice, not a protocol requirement. No wire behavior changes in this spec.
 - [ ] `rfc/short/rfc2918.md` line 164 - only if AC-3 is in scope
-  → Constraint: route refresh re-advertises the **Adj-RIB-Out** ("outbound"). It cannot re-apply a LOCAL INBOUND policy by itself; the peer must re-send. AC-3 therefore depends on the sibling spec's apply mechanism, not on anything here.
+  → Constraint: route refresh asks the peer to re-advertise its Adj-RIB-Out. AC-3's design must state whether re-evaluation uses retained rejected routes or a peer re-send and must preserve the accepted-state outcome; the closed reload sibling owns no remaining re-import work.
 
 **Key insights:**
 - The birdwatcher semantics come from BIRD: `routes_filtered` counts currently-held routes that import policy rejected but which were retained. Without retention there is no honest non-zero value, which is why it is 0 today rather than faked.
@@ -232,7 +240,7 @@ are not verifiable locally.** Cite this section, not that doc.
 | A-2 | A filtered route can be isolated from best-path selection | `rib_commands.go` | Filtered routes leak into selection | RIB unit test | **confirmed** 2026-07-16: `gatherCandidatesLocked` iterates `r.bgpPeers` alone; two precedented isolation strategies exist (D-9) |
 | A-3 | Operators accept the memory cost only when they opt in | config-surface convention; BIRD makes `import keep filtered` opt-in (UNVERIFIED - see A-6) | Always-on retention bloats memory | benchmark retention on vs off | unvalidated |
 | A-4 | R-1's cap can reuse existing admission control | assumed by R-1 | The cap must be built from scratch | audit the RIB for limits | **broken** 2026-07-16: there is NO admission control. `PeerRIB.Insert`/`InsertEntry` (`storage/peerrib.go`, `:61`) return nothing and cannot refuse a route. Only display truncation (`rib_pipeline.go`, `:742`) and `graph.MaxNodes` (`rib_topology.go`) exist |
-| A-5 | A new per-peer leaf takes effect on reload | config-surface convention | The knob silently no-ops | read `peerSettingsEqual` | **broken** 2026-07-16: `peerSettingsEqual` (`reactor_api.go`) compared ~15 of ~50 fields. This is the sibling spec's subject; a new `KeepFiltered` field must be covered by whatever guard that spec lands |
+| A-5 | A new per-peer leaf takes effect on reload | config-surface convention | The knob silently no-ops | inspect the settings swap/restart decision and prove the new leaf's transition | The 2026-07-16 reload defect was fixed by the sibling's 2026-08-13 closure. This spec must integrate its new `KeepFiltered` field into the current settings comparison/apply path; that new behaviour is unvalidated |
 | A-6 | BIRD's `import keep filtered` is opt-in and retains ONLY rejected routes | BIRD v2.19.0 source + its own manual | The default-off argument loses its BIRD-parity justification | read BIRD source directly | **CONFIRMED 2026-07-16 against BIRD v2.19.0** (`~/Code/gitlab.nic.cz/labs/bird`, `v2.19.0-4-g02d082a7`). See "BIRD ground truth" below. Retains only the REJECTED copy; **Default: off** (`doc/bird.sgml:1150`); `import table` is a SEPARATE knob (`nest/config.Y:718-720`, distinct `->in_table`) |
 | A-7 | Only import-POLICY rejects are counted as filtered | assumed by AC-7 | AC-7 is wrong for BIRD parity | read BIRD source | **BROKEN 2026-07-16.** BIRD ALSO flags routes ignored by an import LIMIT as `REF_FILTERED` when keep-filtered is on (`nest/rt-table.c:1418-1421`), so they land in `filt_routes` too. BIRD separates them only in the CUMULATIVE stats (`imp_updates_filtered` vs `imp_updates_ignored`, `nest/proto.c:2078-2080`), not in the gauge. AC-7 is corrected accordingly |
 
@@ -260,7 +268,7 @@ are not verifiable locally.** Cite this section, not that doc.
 |-------|-------------------|-------------------|
 | AC-1 | keep-filtered enabled; peer sends N routes, M rejected by import policy | `show bgp` reports routes_filtered = M (current-state). M counts NLRI, not rejected UPDATE messages (D-8) |
 | AC-2 | keep-filtered disabled (default); peer sends rejected routes | routes_filtered stays 0; `routes-filtered` key absent; reject fast path unchanged (no added allocation) |
-| AC-3 | Policy loosened so a filtered route is now accepted | routes_filtered drops; the route appears in accepted. **Depends on the sibling spec** - see Known Limitations |
+| AC-3 | Policy loosened so a filtered route is now accepted | routes_filtered drops; the route appears in accepted. This spec owns retained-route re-import; the live policy-swap prerequisite is delivered |
 | AC-4 | Option B enabled | a per-peer cumulative reject counter increments and is exposed under a distinct `*-total` key/metric, never as routes_filtered |
 | AC-5 | Filtered routes present | best-path selection never selects a filtered route |
 | AC-6 | keep-filtered enabled; `/routes/filtered/{name}` queried | returns the real filtered routes, not an empty list |
@@ -288,6 +296,7 @@ are not verifiable locally.** Cite this section, not that doc.
 | `TestRejectCounterMonotonic` | `internal/component/bgp/reactor/reactor_notify_test.go` | AC-4: cumulative, never decrements | |
 | `TestRetentionOffDoesNotAllocate` | `internal/component/bgp/reactor/reactor_notify_test.go` | AC-2/R-3: default path unchanged (`testing.AllocsPerRun`) | |
 | `TestMergeRibRouteCountsFilteredConditional` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | D-5: key absent when off, present when on | |
+| `TestFilteredRouteReimportAfterPolicyChange` | `internal/component/bgp/plugins/rib/rib_commands_test.go` | AC-3: a retained rejected route becomes accepted and leaves the filtered count after policy changes | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -301,6 +310,7 @@ are not verifiable locally.** Cite this section, not that doc.
 | `bgp-filtered-route-storage` | `test/plugin/bgp-filtered-route-storage.ci` | keep-filtered on: routes_filtered = M; `/routes/filtered/` lists them | |
 | `bgp-filtered-route-default-zero` | `test/plugin/bgp-filtered-route-default-zero.ci` | default off: 0, key absent, no retention | |
 | `bgp-reject-counter-total` | `test/plugin/bgp-reject-counter-total.ci` | Option B `*-total` increments, distinct from routes_filtered | |
+| `bgp-filtered-route-reimport` | `test/plugin/bgp-filtered-route-reimport.ci` | AC-3: loosen policy on a running peer and observe the route move from filtered to accepted | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -315,7 +325,7 @@ are not verifiable locally.** Cite this section, not that doc.
 
 ## Files to Modify
 - `internal/component/bgp/reactor/reactor_notify.go` - the gate: Option B counter; mark-and-dispatch when retention is on.
-- `internal/component/bgp/reactor/peer_settings.go` - a `KeepFiltered` field (+ the sibling spec's reload guard must cover it, A-5).
+- `internal/component/bgp/reactor/peer_settings.go` and `peer_settings_apply.go` - integrate `KeepFiltered` into the existing reload comparison/apply path; connect the AC-3 re-import trigger designed here
 - `internal/component/bgp/reactor/config.go` - parse the leaf (hand-written `mapBool`, `:879-885`; the resolved tree is stringly-typed).
 - `internal/component/bgp/plugins/rib/rib_structured.go` - store the marked route in the filtered state.
 - `internal/component/bgp/plugins/rib/rib_commands.go` - count the filtered state in `status()`; isolate from `gatherCandidatesLocked` if D-9 picks the flag model.
@@ -352,6 +362,7 @@ are not verifiable locally.** Cite this section, not that doc.
 - `test/plugin/bgp-filtered-route-storage.ci`
 - `test/plugin/bgp-filtered-route-default-zero.ci`
 - `test/plugin/bgp-reject-counter-total.ci`
+- `test/plugin/bgp-filtered-route-reimport.ci` - AC-3's running-peer policy-change transition
 - `test/interop/scenarios/NN-keep-filtered-bird/`
 - `plan/learned/NNN-bgp-filtered-route-storage.md` - learned summary at closure.
 
@@ -388,6 +399,12 @@ are not verifiable locally.** Cite this section, not that doc.
    - Tests: `bgp-filtered-route-storage.ci` (AC-6)
    - Files: `lg/handler_api.go`
    - Verify: AC-6. `transformProtocols` untouched (D-4).
+5a. **Phase: Re-import retained routes**: connect policy apply to the retained
+   state and move newly accepted routes out of the filtered count.
+   - Tests: `TestFilteredRouteReimportAfterPolicyChange`,
+     `test/plugin/bgp-filtered-route-reimport.ci`.
+   - Design the trigger and byte semantics at Phase 1; AC-3 remains required
+     before full verification.
 6. **Phase: Interop** - `NN-keep-filtered-bird`; the only way to validate A-6.
 7. **Full verification** -> `./le verify current mode changed` when other sessions hold uncommitted work.
 8. **Complete spec** -> audit tables, docs, learned summary, two-commit closure.
@@ -430,7 +447,7 @@ are not verifiable locally.** Cite this section, not that doc.
 | a filtered route selected as best | isolation broken; fix per D-9's model |
 | count drifts under churn | implicit-withdraw handling; a re-announced prefix must replace, not add |
 | garbage routes / race under load | R-4: a pooled buffer was retained without an ownership contract |
-| count does not drop on reload | expected until the sibling spec lands; see Known Limitations, not a bug here |
+| count does not drop on policy reload | AC-3 failure in this spec: trace policy apply, re-import and the filtered-to-accepted transition |
 | 3 fix attempts fail | STOP, report, ask user |
 
 ## Mistake Log
@@ -492,13 +509,13 @@ the table, gets this feature almost for free.
 | D-11 | The config leaf is owned by the RIB plugin via `augment` | put it in core `ze-bgp-conf.yang` | `ai/rules/plugins.md`; precedent `plugins/rs/yang/ze-rs-conf.yang` ("removing this plugin removes the leaves from the schema"). Plugin owns the schema; the reactor owns the parse and the `PeerSettings` field (`ze-rs-conf.yang`) |
 
 ## Known Limitations
-- **AC-3 depends on `spec-bgp-peer-settings-reload-ignored`.** A policy change does not reach a running peer at all today: `peerSettingsEqual` (`reactor_api.go`) ignored `ImportFilters`, and `peer.settings` is assigned once in `NewPeer` (`peer.go`) with no setter, so `runIngressPolicyChain` (`filter_ordered.go`) reads a stale chain forever. Until that spec lands, "loosen policy" does nothing, so routes_filtered cannot drop. AC-1/2/4/5/6/7/8 do NOT depend on it and can land first.
+- **AC-3's prerequisite is delivered; re-import remains here.** The closed reload spec supplies the live policy swap through `peerSettingsSwapPlan` and `applyHotSwappableSettings`. This spec must design and implement re-evaluation of the retained rejected routes and their transition into accepted state. AC-3 cannot be waived or left waiting for the closed sibling.
 - **Route refresh cannot substitute.** RFC 2918 re-advertises the **Adj-RIB-Out** (`rfc/short/rfc2918.md`); it cannot re-apply a local inbound policy without the peer re-sending.
 - Option B is a CUMULATIVE diagnostic with different semantics from `routes_filtered`; it never substitutes for retention and must stay under a distinct `*-total` key.
 - Retention has a real memory cost and MUST be capped; A-4 proves the cap is new code, since the Adj-RIB-In has no admission control at all.
 - `/routes/noexport/{name}` (`handler_api.go`) stays an empty stub. Export-filtered tracking is a different feature.
 - BMP-monitored peers keep an honest hardcoded 0 permanently (D-6).
-- **AC-3 is not free even at full BIRD parity.** BIRD itself does not re-run policy when the knob or the filters change: `nest/proto.c:843` carries an open `/* FIXME: better handle these changes, also handle in_keep_filtered */`. So "BIRD parity" delivers AC-1/2/4/5/6 but NOT AC-3; AC-3 needs Ze's sibling spec (apply the changed policy) plus a re-import. Do not expect parity to supply it.
+- **AC-3 is not supplied by BIRD parity.** The cited BIRD v2.19.0 `nest/proto.c:843` FIXME is historical evidence of that limit. This spec owns Ze's additional re-import outcome alongside the already-delivered live policy swap.
 - A-6 is **CONFIRMED** against BIRD v2.19.0 source (see "BIRD ground truth"). The interop scenario now validates the IMPLEMENTATION against a running BIRD rather than validating the assumption itself.
 - AC-7b (do prefix-limit drops count as filtered?) is deliberately left OPEN for the design gate. BIRD says yes (`nest/rt-table.c:1418-1421`); Ze rejects limits earlier (`session_read.go`), so parity costs real work.
 - Line numbers in `docs/research/bird-bgp-reference.md` refer to BIRD 3.x and do not resolve against the local v2.19.0 or v1.3.8 checkouts. If BIRD 3 changed this mechanism (it moved to `ea_stored`/`EALS_FILTERED` per that doc's `:1059`), re-verify before claiming parity with BIRD 3.
@@ -507,7 +524,7 @@ the table, gets this feature almost for free.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated (AC-3 only after the sibling spec lands)
+- [ ] AC-1..AC-8 all demonstrated, including this spec's AC-3 re-import
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)

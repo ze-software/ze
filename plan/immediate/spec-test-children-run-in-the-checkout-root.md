@@ -11,14 +11,16 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Bucket: `plan/immediate/`. No operator meets this, so the bucket test in
-`plan/README.md` reads against it on its face. It is filed here because of what
-the class already produced: on 2026-09-05 a run left two ed25519 PRIVATE KEYS and
-five config files at the repository root, none of them ignored, so any
-`git add -A` from any session would have committed a private key
-(`plan/journal/test-artifacts-land-in-the-repository-root.md`). A published key
-is a defect the first release cannot carry, and the producer of that class is
-still open at fifteen spawn sites.
+This is urgent release hygiene: test runs have written private keys and config
+files into the checkout, where a later broad add could publish them. The
+2026-09-05 incident left two ed25519 private keys and five config files
+(`plan/journal/test-artifacts-land-in-the-repository-root.md`).
+
+No shipped daemon behaviour is being repaired by this spec, so it must not be
+counted as an immediate operator defect or a new daemon capability. Its current
+`plan/immediate/` location is retained pending the owner's bucket decision under
+`plan/README.md`; urgency does not resolve that classification. The fifteen-site
+inventory below is the September 7 design baseline.
 
 ## Task
 

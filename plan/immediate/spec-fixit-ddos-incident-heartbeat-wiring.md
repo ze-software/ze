@@ -51,8 +51,9 @@ questions the code does not answer today:
 4. **Ownership of the state it reads.** The reporting state now lives behind one
    mutex in `reporter` (`internal/plugins/ddos/flowtriq/reporter.go`), taken for
    the whole of each writer after a live data race was fixed on 2026-09-02. A
-   heartbeat that reads the client or the incident state is a fifth writer and
-   must take the same lock, for the whole of its own work.
+   heartbeat that reads the client or the incident state adds a sixth writer
+   alongside the four event handlers and configuration apply. It must take the
+   same lock for the whole of its own work.
 
 **Naming note.** The plugin directory carries a product name the owner asked to
 keep out of these records. The symbols named here are unique in the tree, so
@@ -69,7 +70,7 @@ validation hook requires a source path in Current Behavior.
   → Constraint: [fill during research]
 
 **Key insights:** (minimal context to resume after compaction)
-- The reporting state has one owner and one mutex since 2026-09-02; the heartbeat is a fifth writer, not a reader outside the lock.
+- The reporting state has one owner and one mutex since 2026-09-02; the heartbeat adds a sixth writer alongside four event handlers and configuration apply.
 
 ## Current Behavior (MANDATORY)
 

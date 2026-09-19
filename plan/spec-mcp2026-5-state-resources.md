@@ -4,14 +4,16 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | spec-mcp2026-1-stateless-core |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-07-28 |
 
-Deferral holder. Source: `plan/spec-mcp2026-0-umbrella.md` (owner question,
-2026-07-28: "should `subscriptions/listen` be used to inform the client of event
-bus messages?"). Not part of the MCP `2026-07-28` conformance cutover, which is
-why it holds no phase number.
+Deferred state-resource capability, inherited from `spec-mcp2026-0-umbrella`
+(owner question, 2026-07-28: "should `subscriptions/listen` be used to inform the
+client of event bus messages?"). The stateless-core prerequisite closed with
+the MCP series in `b0e46ac169` on 2026-07-30. This capability remains outside
+that conformance cutover and holds no phase number. The delivered core is
+documented in `docs/architecture/mcp/overview.md`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -239,7 +241,7 @@ becomes revisitable, though polling remains the spec default and is not wrong.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Resources plus `resourceSubscriptions`, not a Ze notification type | A `io.ze-software/events` extension; no push at all | Inherited from `plan/spec-mcp2026-0-umbrella.md`; see the Task section for the three reasons |
+| Resources plus `resourceSubscriptions`, not a Ze notification type | A `io.ze-software/events` extension; no push at all | Inherited from the closed `spec-mcp2026-0-umbrella` (series closure `b0e46ac169`); see the Task section for the reasons |
 
 ## Known Limitations
 - (fill during design)

@@ -172,6 +172,18 @@ outbound half the peer never allocated, and the traffic on that tunnel is lost.
 **This is a static reading of the producers, and not a measurement.** Reproduce it before
 the design phase closes.
 
+The initiator claim has a separate first-release disposition from the optional
+responder extension. A-3 remains a reproduction prerequisite: drive a valid
+authenticated response with a piggybacked Child SA error through the installed
+dataplane path and observe whether an unaccepted Child SA is installed. If that
+reproduces, the initiator correction is a first-release defect and must be
+tracked in `plan/immediate/` before this optional feature is scheduled. Until
+that triage, this spec retains the correction and its evidence obligations;
+its directory cannot be used to declare the base initiator path release-proven.
+If the claim does not reproduce, record the observed guard and evidence before
+changing A-3 or removing the planned correction. No reproduction was run for
+this planning reconciliation.
+
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - Every `test/ipsec/*.ci` stays green. The suite is listed in `internal/le/functional/suites.go`.
 - Every scenario under `test/interop-ipsec/scenarios/` stays green.

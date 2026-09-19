@@ -52,8 +52,8 @@ injects 2, 3 and 5 before the caller's 8 and 32. That is why
 
 | Answer | Consequence |
 |--------|-------------|
-| Accepted | Nothing to build. Record the acceptance in the deferral row so the next reader is not left to re-derive it, close that row, and delete this spec. |
-| Rejected | Child 2 closed with an unmet wiring row, which `ai/rules/completion.md` says is never deferrable. The three planned `.ci` files must be written, and the closure record corrected to say the spec closed early. |
+| Accepted | Record Thomas's answer and the planned-to-substitute mapping with its evidence in this spec's Owner Decision section. Complete normal review and closure; commit A preserves the decision before removal. |
+| Rejected | Record the answer in Owner Decision. The three planned `.ci` obligations remain required, and the closure correction must state that child 2 closed before its wiring table was met. Complete that work and normal review before closing this spec. |
 
 Two of child 2's five wiring rows named EXISTING tests
 (`bgp-rs-community-strip-multi.ci`, `bgp-rs-fastpath-ebgp-shared.ci`) and are not
@@ -104,8 +104,8 @@ A reader looking for what proved child 2's acceptance criteria.
 | Wiring claim ↔ test on disk | a named `.ci` path | Yes, all three named files confirmed absent |
 
 ### Integration Points
-- the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" - where the answer must be recorded either way.
-- the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" - the row this spec homes.
+- This spec's Owner Decision section is the live record for either answer and the substitution evidence.
+- Commit A preserves that record in history before the normal closure removal; the retired deferral shard remains provenance only.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -152,9 +152,9 @@ A reader looking for what proved child 2's acceptance criteria.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Thomas is asked the question above with the evidence attached | A recorded answer exists, in his words, not paraphrased |
-| AC-2 | The answer is "accepted" | The deferral row states which planned test each substitute replaced and why, so the next reader does not re-derive it |
-| AC-3 | The answer is "rejected" | The three planned `.ci` files exist and pass, and the closure record says child 2 closed before its wiring table was met |
-| AC-4 | Either answer | The deferral row in the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" is resolved with the evidence |
+| AC-2 | The answer is "accepted" | Owner Decision states which planned test each substitute replaced and why, with evidence for all three substitutions |
+| AC-3 | The answer is "rejected" | The three planned `.ci` files exist and pass, and Owner Decision records the correction that child 2 closed before its wiring table was met |
+| AC-4 | Either answer | Owner Decision contains Thomas's dated answer in his words and the supporting evidence; commit A preserves it before this spec is removed through normal closure |
 
 ## 🧪 TDD Test Plan
 
@@ -173,7 +173,7 @@ A reader looking for what proved child 2's acceptance criteria.
 | `wire-edit-oversize-suppress.ci` (owed if rejected) | `test/plugin/` | the suppression counter increments on an oversize modification | |
 
 ## Files to Modify
-- the retired deferral shard "ad-hoc-2026-08-02-wire-edit-tail" - resolve the row
+- `plan/spec-wire-edit-2-deferred-ci-substitution.md` - record Owner Decision, evidence and any correction to child 2's historical closure claim
 
 ## Files to Create
 - `test/plugin/wire-edit-single-materialise.ci` - only if the substitution is rejected
@@ -184,7 +184,7 @@ A reader looking for what proved child 2's acceptance criteria.
 
 1. Validate A-1, A-2 and A-3 by reading the substitutes against the planned wiring rows. Do not ask before the evidence is assembled.
 2. Put the question to Thomas with the two tables above and the three assumption verdicts. Ask which way he wants it, never whether it may be skipped (`ai/rules/rfc-compliance.md`, `ai/rules/completion.md`).
-3. Record his answer verbatim.
+3. Record his dated answer verbatim in Owner Decision, with the substitution mapping and evidence for each planned row.
 4. Take the branch his answer selects.
 
 ### Critical Review Checklist
@@ -197,6 +197,12 @@ A reader looking for what proved child 2's acceptance criteria.
 
 ## Known Limitations
 - This spec judges child 2 only. The other wire-edit children are not in scope, and their closures are not re-opened by whatever answer lands here.
+
+## Owner Decision
+
+Pending. No answer from Thomas is recorded here. Before closure, this section
+must carry his dated answer, the evidence for each substitution, and the outcome
+of the branch he selected. The retired shard is not a recording destination.
 
 ## Checklist
 

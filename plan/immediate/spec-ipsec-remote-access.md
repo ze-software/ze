@@ -68,6 +68,25 @@ So the missing pieces are admission, per-user credentials, and address assignmen
    resolve `ra.Auth` certificate references against the candidate PKI and require a
    `ca-certificate` for `mode eap-tls` (RFC 5216 Section 5.3), now that the config is live.
 
+### Configuration-payload ownership pause
+
+The 2026-07-31 split below remains the recorded implementation ownership until
+Thomas answers OI-1 in `plan/immediate/spec-ike-virtual-ip-assignment.md`.
+That sibling is the proposed address-assignment slice for configured responder
+peers; it is not a second CP implementation to schedule beside this one.
+Admission from unconfigured sources, per-user credentials, and `remote-access`
+authentication remain here under either option.
+
+CP implementation must wait for that decision. Either the sibling becomes the
+single owner and the overlapping phases here become prerequisites, or its scope
+is folded into this spec. A transfer must account for the complete union:
+codec hardening, pool selection and DNS, identity-bound leases and quotas,
+expiry and teardown release, all CP receive sites and reply ordering, selector
+narrowing, both refusal notifications, optional-attribute decisions, operational
+visibility, and tagged/functional/strongSwan evidence. None of AC-1..AC-28 is
+dropped by consolidation, and address assignment alone does not deliver
+road-warrior admission.
+
 ## RFC 7296 Rows Homed Here (owner split, 2026-07-31)
 
 **Provenance.** These rows arrived from the rfcgate-1b RFC 7296 pilot spec. Item 15
@@ -723,10 +742,9 @@ redden the half named.
    - Tests: the three `eap/eap_user_test.go` tests
    - Files: `eap/eap.go`, `eap/eap_mschapv2.go`, `engine/responder_eap.go`
    - Verify: unknown identity fails closed; scenario `responder-eap-mschapv2` still green
-3. **Phase: Configuration payload + pool** - AC-7..AC-9
-   - Tests: `TestConfigPayloadRoundTrip`, `TestRemoteAccessAssignsVirtualIP`,
-     `TestRemoteAccessNarrowsTrafficSelector`, `TestRemoteAccessPoolExhaustionRefuses`
-   - Files: `engine/responder.go`, `engine/fsm.go`, `engine/remote_access.go`
+3. **Phase: Configuration payload + pool**: AC-7..AC-9. This is one shared
+   implementation package, refined by phases A to G below and paused on the
+   ownership decision above. The virtual-IP sibling must not implement it in parallel.
 4. **Phase: Lifecycle** - AC-10, AC-11, AC-15
    - Tests: `TestRemoteAccessReleasesAddressOnTeardown`, `TestRemoteAccessNoSessionLeak`,
      `TestPoolAllocateConcurrent`
@@ -740,10 +758,13 @@ redden the half named.
 
 ### Configuration Payload Phases (added 2026-07-31, from the WP-9 design pass)
 
-The eight phases above predate the RFC row split and stay valid for admission and per-user
-credentials. Phases A to G below refine phase 3 ("Configuration payload + pool"), which the
-design showed to be a feature build rather than a wiring step. Phase 3 is superseded by
-this table. Phases 1, 2 and 4 to 8 are unchanged.
+The eight phases above predate the RFC row split. Phases A to G refine phase 3
+("Configuration payload + pool") and replace its original wiring-only schedule.
+This table describes the current CP owner's work pending OI-1; it is not
+independent of the virtual-IP sibling. If ownership transfers, these rows become
+explicit prerequisites with their AC/evidence mapping retained. The CP parts of
+phase 4, and the CP config, tests and documentation in C, F and G, are included
+in that decision.
 
 | # | Phase | Work | Rows unblocked | Estimate |
 |---|-------|------|----------------|----------|
@@ -755,11 +776,10 @@ this table. Phases 1, 2 and 4 to 8 are unchanged.
 | F | Tests | The tagged pairs, every mutation run and reverted, the pool tests, a `test/ipsec/` functional test, and the strongSwan road-warrior scenario | all 17 proven | 1.5 days |
 | G | Discovery and closure | `docs/features.md`, the guide, the wire architecture page, `docs/features/rfc-status.md` rows, the summary rows, `./le rfc index-update`, and the Integration Checklist re-answer | - | 0.5 day |
 
-**Total: roughly 6 days.** Phases A, B and C are genuinely parallel.
-
-**Phases A and B are worth landing alone if the rest slips.** Phase A repairs a live
-`RFC7296-2.5-7` violation. Phase B repairs a live out-of-range IPv6 lease and removes the
-exhaustion-by-churn failure. Neither depends on the CP consumer.
+The original estimate was roughly 6 days. It does not authorize concurrent CP
+implementation under both specs. The earlier suggestion to land A and B alone
+is subject to the same ownership pause and to checking which repairs already
+exist; the sibling records later codec and IPv6-pool changes.
 
 **Ordering constraints that are not negotiable:**
 
@@ -889,6 +909,11 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1..AC-6 | owed | phases 1 and 2: admission and per-user authentication tests | remote-access owner under either OI-1 outcome |
+| AC-7..AC-10, AC-15 | owed | CP phases A, B, D, E and F plus lifecycle phase 4 | shared assignment package; one implementation owner after OI-1 |
+| AC-11..AC-14 | owed | phases 4, 5 and 6: session lifecycle, PKI validation and road-warrior interop | remote-access integration remains required |
+| AC-16..AC-25 | owed | CP phases A, C, D, E and F: tagged pairs and discrimination records | AC-25 retains its OI-3 condition; OI-1 must map every row |
+| AC-26..AC-28 | owed | CP phases B and F: expiry, per-identity quota and IPv6 prefix tests | required even if the assignment slice owns the implementation |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -956,7 +981,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-15 all demonstrated
+- [ ] AC-1..AC-28 all demonstrated, including the recorded outcome of conditional AC-25 and a single CP implementation owner under OI-1
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean

@@ -7,37 +7,35 @@
 | Phase | - |
 | Updated | 2026-09-03 |
 
-**Both work items below are resolved elsewhere; nothing here is outstanding
-(2026-09-03).** `spec-pki-full-chain` closed, so its design now lives at
-`docs/architecture/pki/tls-listeners.md`. The looking-glass item is homed at
-`plan/spec-lg-pki-certificate.md`, which was written against the delivered
-`pki.ServerTLSMaterial`. The multi-intermediate item was already true when the
-base landed: `CertificateEntry.Intermediates` is a slice and
-`pki.chainPEM` emits the leaf followed by every stored intermediate. Do not
-start work from this file. It is kept because the deferral shard cites it.
+Both inherited product items are resolved elsewhere. `spec-lg-pki-certificate`
+closed in `7ef6960947` on 2026-09-04; the current listener contract is
+`docs/architecture/pki/tls-listeners.md`. `buildLGService` consumes
+`listenerTLSMaterial`, which resolves a configured name through
+`pki.ServerTLSMaterial`. `pki.chainPEM` emits the leaf followed by every stored
+intermediate.
+
+This file is a candidate for code-free closure, not another implementation.
+The deferral directory was removed on 2026-09-05, so retaining a target for a
+deferral shard is no longer a reason to keep it open. Closure still needs its
+own review and is not performed by this reconciliation.
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
-2. `.claude/rules/planning.md` - workflow rules
-3. `docs/architecture/pki/tls-listeners.md` - the design the closed base spec left behind
-4. `plan/deferrals.md` - the two rows that point here
+2. `docs/contributing/spec-workflow.md` - current closure requirements
+3. `docs/architecture/pki/tls-listeners.md` - the delivered listener and chain contract
 
 ## Task
 
-`spec-pki-full-chain` deliberately bounded itself to two TLS consumers (web/API HTTPS,
-and the dnsserver DoT/DoH listeners used by as112 and geodns) "to keep the spec
-reviewable". Two extensions were deferred out of it on 2026-07-10 and had **prose
-destinations** ("none yet (small follow-up once pki-full-chain lands)"), which
-`commit_helper.py` rejects as "live deferrals without a destination spec". This spec is
-that destination. It exists so the items survive the base spec's closure -- pointing them
-at `spec-pki-full-chain` would orphan them again the moment it is `git rm`-ed, which is
-exactly how the web-cli-ux and appliance-evidence deferrals were lost (see Design Insights).
+There is no outstanding product scope here. Confirm the two recorded dispositions
+for a code-free closure: looking-glass certificate selection was delivered by
+`spec-lg-pki-certificate`, and multiple stored intermediates are emitted by the
+shared PKI chain assembler. Do not duplicate either implementation.
 
-**Blocked on `spec-pki-full-chain`.** Both items extend machinery that spec introduces
-(`pki.ServerTLSMaterial`, chain assembly, per-listener YANG referencing a PKI entry).
-Starting before it lands means designing against an API that does not exist yet.
+The July work items and design scaffolding below are retained as historical
+planning evidence. Their missing-API and single-intermediate premises were
+superseded; they are not instructions to restart implementation.
 
 ### Work items (re-homed 2026-07-16 from `plan/deferrals.md`)
 
@@ -67,8 +65,8 @@ this spec's existence imply the base spec is incomplete without it.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (fill during research -- entry points, not yet read)
-- [ ] `cmd/ze/hub/service_lg.go` - the looking-glass TLS listener still on `LoadOrGenerateCert` (:78)
-- [ ] `internal/component/pki/config.go` - `intermediate` as a single certificate (:147-158)
+- [ ] `cmd/ze/hub/service_lg.go` and `service_tls.go` - the delivered looking-glass certificate selection
+- [ ] `internal/component/pki/tls.go` - `ServerTLSMaterial` and `chainPEM`, including every stored intermediate
 
 **Behavior to preserve:** self-signed fallback semantics for any listener with no PKI entry
 configured; the base spec's chain assembly.
@@ -103,13 +101,13 @@ configured; the base spec's chain assembly.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `spec-pki-full-chain` will land a reusable `pki.ServerTLSMaterial` that a third consumer can adopt without redesign | That spec's Task names it and generalizes across two consumers already | If the base lands a web-specific shape, the looking-glass item becomes a refactor, not an adoption | Read the base spec's delivered API at its closure | unvalidated |
-| A-2 | Extending `intermediate` to a list is backwards-compatible for existing single-intermediate configs | `pki/config.go` currently parses one certificate | If YANG cannot express both forms compatibly, existing configs break on upgrade | Read the YANG leaf and the parser before designing | unvalidated |
+| A-1 | The shared TLS material API is available to the looking glass | `ServerTLSMaterial`, `listenerTLSMaterial`, `buildLGService` | The recorded looking-glass disposition would need reopening | Read the delivered selector and consumer | confirmed by source, 2026-09-19; successor closed in `7ef6960947` |
+| A-2 | Multiple intermediates need a new config representation | Original July single-certificate premise | Duplicate implementation of an existing leaf-list | `parseDeviceCert` iterates `GetSlice("intermediate")`; `chainPEM` emits every stored intermediate | broken; the premise was already superseded by the September 3 amendment |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | This spec is started before the base lands and designs against a hypothetical API | Design references symbols that do not exist yet | `Depends: spec-pki-full-chain` is set; do not move past `skeleton` until the base closes |
+| R-1 | Historical July instructions are mistaken for current implementation scope | Work starts on either resolved item | Use the delivered TLS architecture and successor closure; this holder only awaits closure review |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -171,11 +169,11 @@ configured; the base spec's chain assembly.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | A separate follow-up spec, not extra scope on `spec-pki-full-chain` | Add both items to the base spec | The base spec explicitly bounded itself "to keep the spec reviewable", and it is already `ready` -- expanding a reviewed scope re-opens its design gate. It would also orphan these rows again at its closure. |
-| `Depends: spec-pki-full-chain` | Leave Depends empty | Both items consume machinery the base introduces; starting first means designing against an API that does not exist. |
+| Historical prerequisite: `spec-pki-full-chain` | Leave Depends empty at creation | Both original items consumed that API; the prerequisite is now fulfilled and Depends is clear |
 
 ## Known Limitations
-- Cannot start until `spec-pki-full-chain` lands. Until then this file exists to hold the
-  items, not to be worked.
+- No product work remains assigned here. The historical prerequisite was fulfilled;
+  closure review remains separate from this planning correction.
 
 ## Review Gate
 

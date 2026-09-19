@@ -24,7 +24,7 @@
 
 ## Task
 
-Audit Ze's BGP protocol surface before first user-facing release. The audit covers OPEN parsing, capability negotiation, UPDATE validation, route-refresh behavior, ADD-PATH, AS4 handling, RFC 7606 error handling, plugin/event delivery boundaries, ExaBGP compatibility, and live interop evidence.
+Audit Ze's BGP protocol surface before first user-facing release. The audit covers OPEN parsing, capability negotiation, UPDATE validation, route-refresh behavior, ADD-PATH, AS4 handling, base Graceful Restart roles and helper retention, RFC 7606 error handling, plugin/event delivery boundaries, ExaBGP compatibility, and live interop evidence.
 
 This spec documents findings only. It does not fix product code, tests, schemas, generated files, Makefiles, or documentation. Future fix work must be approved separately and must include the verification requested by each finding.
 
@@ -36,7 +36,7 @@ Every BGP finding must include:
 - The observed protocol, interop, or evidence issue.
 - The user, peer, operator, or release impact.
 - Source, RFC, test, or interop evidence proving the issue exists.
-- The future owner area.
+- The named implementation owner for a surviving repair, or an explicit unassigned ownership decision that blocks release routing.
 - Suggested fix direction, without implementing it here.
 - Verification required from the future fix.
 
@@ -104,14 +104,14 @@ Every BGP finding must include:
 
 **Source files read:**
 - [ ] `internal/component/bgp/message/open.go` - writes extended OPEN marker when `OptionalParams` length exceeds 255 and detects extended format only when `data[9] == 255` and `data[10] == 255`
-- [ ] `internal/component/bgp/message/open_test.go` - tests RFC 9072 raw OPEN body round-trip and truncation, but not capability negotiation through extended optional parameters
-- [ ] `internal/core/bgp/capability/capability.go` - parses capability TLVs, extracts capabilities from OPEN optional parameters, and silently stops on malformed optional parameter boundaries
-- [ ] `internal/core/bgp/capability/capability_test.go` - tests normal, empty, truncated, unknown, and valid ADD-PATH capabilities, but not overlong known capabilities or invalid ADD-PATH modes
+- [ ] `internal/component/bgp/message/open_test.go` - revalidate current RFC 9072 boundary and negotiation evidence; the original missing-test claims below are dated
+- [ ] `internal/core/bgp/capability/capability.go` - current optional-parameter parsing propagates framing and known-capability errors; MP/ASN4 still accept overlong payloads and ADD-PATH still stores arbitrary mode bytes
+- [ ] `internal/core/bgp/capability/capability_test.go` - revalidate current malformed capability evidence rather than assuming the initial gaps remain
 - [ ] `internal/core/bgp/capability/negotiated.go` - tracks peer capability codes and performs directional ADD-PATH negotiation for modes 1, 2, and 3
 - [ ] `internal/component/bgp/message/header.go` - validates ROUTE-REFRESH minimum length but exact body length is enforced later in the session handler
 - [ ] `internal/component/bgp/message/routerefresh.go` - parses ROUTE-REFRESH body after length check, including subtype field
-- [ ] `internal/component/bgp/reactor/session_read.go` - validates UPDATE with RFC 7606 before callback dispatch, then calls message callback for all message types before type-specific handlers
-- [ ] `internal/component/bgp/reactor/session_handlers.go` - handles OPEN, UPDATE, NOTIFICATION, and ROUTE-REFRESH; route-refresh exact length and subtype checks happen after callback dispatch
+- [ ] `internal/component/bgp/reactor/session_read.go` - validates UPDATE and rejectable ROUTE-REFRESH length before callback dispatch; remaining route-refresh handling follows the callback
+- [ ] `internal/component/bgp/reactor/session_handlers.go` - propagates peer capability errors and applies route-refresh negotiation/subtype checks
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - outbound BoRR/EoRR send path checks Enhanced Route Refresh capability before sending markers
 - [ ] `internal/component/bgp/reactor/session_validation.go` - enforces RFC 7606 and rejects non-negotiated MP families with NOTIFICATION in `processMessage()`
 - [ ] `internal/component/bgp/message/rfc7606.go` - validates UPDATE attributes, duplicate MP attributes, next-hop lengths, and NLRI helper syntax
@@ -183,9 +183,9 @@ Every BGP finding must include:
 - [ ] No duplicated functionality: future fixes should centralize optional-parameter parsing rather than adding ad hoc session checks.
 - [ ] Zero-copy preserved where applicable: future UPDATE fixes must preserve `WireUpdate` and buffer ownership semantics.
 
-## Protocol Audit Matrix
+## Historical Protocol Audit Matrix (2026-05-25)
 
-| Surface | Current Evidence | Release Risk | Finding |
+| Surface | Evidence at initial audit | Initial Release Risk | Finding |
 |---------|------------------|--------------|---------|
 | OPEN optional parameters and RFC 9072 | `open.go`, `open_test.go`, RFC 9072 summary | Extended OPEN markers exist but parameter length handling is inconsistent | RA-BGP-001 |
 | OPEN malformed optional parameter handling | `capability.ParseFromOptionalParams()`, `handleOpen()` | Malformed params can be silently ignored and downgrade session capability state | RA-BGP-002 |
@@ -196,7 +196,7 @@ Every BGP finding must include:
 | MP_REACH/MP_UNREACH syntax | `rfc7606.go`, `rfc7606_test.go`, `session_validation.go` | MP next-hop overrun and MP NLRI syntax are not fully enforced in the UPDATE validator | RA-BGP-007 |
 | Live interop inventory | `test/interop/scenarios/*/check.py`, interop docs | Scenario docs stale and negative malformed-wire coverage absent | RA-BGP-008 |
 
-## Initial Findings
+## Initial Findings (2026-05-25, historical)
 
 | ID | Severity | Surface | File/line | User Impact | Reproduction | Expected | Actual | Missing Test | Suggested Direction | Owner | Verification Requested |
 |----|----------|---------|-----------|-------------|--------------|----------|--------|--------------|---------------------|-------|------------------------|
@@ -208,6 +208,60 @@ Every BGP finding must include:
 | RA-BGP-006 | Major | RFC 7606 duplicate attributes | `internal/component/bgp/message/rfc7606.go`; `internal/component/bgp/message/rfc7606_test.go`; `internal/core/bgp/attribute/wire.go`; `internal/component/bgp/reactor/session_read.go`; `rfc/short/rfc7606.md`, `:141-148` | UPDATEs with duplicate non-MP attributes may pass RFC 7606 validation but fail later when RIB or plugin consumers build an attribute index | Send UPDATE with duplicate ORIGIN or MED through session into a consumer that calls `AttributesWire.ensureIndexLocked()` | RFC 7606 duplicate non-MP attributes are discarded after the first occurrence before route selection or consumer parsing | Validator skips duplicate non-MP attributes and returns no error, but raw duplicate bytes remain; lazy attribute index treats any duplicate as an error | Existing tests only assert `ValidateUpdateRFC7606()` returns none for duplicate ORIGIN/MED; no session/RIB consumer test proves first-wins behavior after dispatch | Future fix should either physically remove or mark duplicate non-MP attributes before dispatch, or make all consumers enforce the same first-wins rule | BGP message plus plugin/RIB | Session-level duplicate attribute test proving RIB/plugin receives usable first-wins attributes, plus unit tests for duplicate MP still causing session reset |
 | RA-BGP-007 | Major | MP_REACH/MP_UNREACH RFC 7606 syntax | `internal/component/bgp/message/rfc7606.go`, `:688-721`, `:786-841`; `internal/component/bgp/message/rfc7606_test.go`, `:1045-1083`; `internal/component/bgp/reactor/session_validation.go`; `rfc/short/rfc7606.md`; `rfc/short/rfc4760.md` | Malformed MP attributes can pass validation when next-hop length is valid for the AFI/SAFI but exceeds the actual attribute body, or when MP NLRI syntax is malformed | Inspect `validateMPReachNextHop()` and `validateMPUnreachAttr()` against RFC 7606 and RFC 4760 summary rules | MP_REACH validates that next-hop length fits the attribute body and MP_REACH/MP_UNREACH validate their NLRI syntax, with correct session-reset or AFI/SAFI handling when the field cannot be parsed | `validateMPReachNextHop()` checks allowed length values but not `len(data) >= 5 + nhLen`; `ValidateNLRISyntax()` is used for traditional NLRI/withdrawn routes in session validation but not for MP attribute NLRI bytes | Tests cover next-hop invalid lengths, classic NLRI syntax, and MP_UNREACH minimum length, but not MP next-hop overrun or malformed MP NLRI carried inside MP_REACH/MP_UNREACH | Future fix should validate MP_REACH next-hop bounds, reserved-byte availability, and MP NLRI syntax using family-specific max prefix lengths or registered NLRI validators | BGP message/RFC7606 | Unit tests for valid nhLen with truncated body, MP_REACH malformed NLRI, MP_UNREACH malformed NLRI, and session-level NOTIFICATION or treat-as-withdraw behavior |
 | RA-BGP-008 | Minor | interop evidence/docs | `test/interop/scenarios/*/check.py`; `docs/architecture/testing/interop.md`, `:240-244`; `docs/features/interoperability-testing.md`, `:17-52` | Release engineers and users may underestimate or misread protocol evidence; malformed-wire coverage is absent from live interop inventory | Compare actual scenario tree with docs | Interop docs match current scenario inventory and identify both positive and negative protocol evidence | Actual tree includes scenarios through `bgp-remove-private-as-as4path-frr`; docs list 32 scenarios and one doc still says BFD is not covered while `bfd-frr` exists | No inventory check prevents docs drift; no live interop scenario covers malformed OPEN/capability/RFC 7606 negative paths | Future fix should derive or check interop inventory from the scenario tree and decide which negative protocol tests belong in interop versus packet-level functional tests | Docs/onboarding plus release evidence | Documentation update backed by inventory check, plus negative malformed-wire scenario plan or explicit non-interop justification |
+
+### Current disposition (source reconciliation, 2026-09-19)
+
+These dispositions supersede the initial Actual, Missing Test and Owner cells
+where the tree has changed. They are not a new execution pass or a finding
+closure. Audit children collect and reconcile evidence; they do not own the
+product repair. No surviving repair may be called assigned merely because this
+audit or child 8 is named.
+
+| Finding | Current source evidence | Remaining action and implementation ownership |
+|---------|-------------------------|-----------------------------------------------|
+| RA-BGP-001 | `buildOptionalParams` emits two-octet extended parameter lengths; `ParseFromOptionalParams` reads them using `Open.ExtendedParams`. `UnpackOpen` still requires Non-Ext OP Len 255 in addition to Type 255 | Retain the RX discriminator defect. The source explicitly pauses correction of the tagged contradictory test for RFC owner approval. No live implementation owner is assigned here; obtain that approval and an implementation spec before repair. Revalidate TX boundaries rather than declaring the whole initial TX claim current |
+| RA-BGP-002 | `ParseFromOptionalParams` returns header/length/Parse errors; `handleOpen` routes peer errors to `rejectOpenCapabilityError` | Original silent-error paths no longer describe the source. Audit must attach current command/session rejection evidence; reopen only a reproduced residual and assign its implementation owner |
+| RA-BGP-003 | `parseZeroLengthCapability` rejects nonempty payloads; `parseMultiprotocol` and `parseASN4` still check only `len < 4` | Narrow to overlong MP/ASN4 handling and the RFC-specific outcome. Implementation owner remains unassigned; the fixed zero-length subset needs evidence, not another repair requirement |
+| RA-BGP-004 | `parseAddPath` still stores any mode byte | Retain the invalid-mode parser lead. Reproduce its negotiation/presence effect against current consumers and assign an implementation owner before repair |
+| RA-BGP-005 | `processMessage` calls `validateRouteRefreshLength` before callbacks; `handleRouteRefresh` checks negotiation and subtype later | Initial malformed-length ordering is obsolete. Revalidate remaining capability/subtype delivery and state cases; no current failure is claimed for every case and no implementation owner is assigned for any reproduced residual |
+| RA-BGP-006 | `enforceRFC7606` uses `DuplicateRanges`, `StripAttrRanges` and `RebuildUpdateBody` before callback dispatch | Original raw-duplicate path is repaired in source. Attach current consumer-facing keep-first evidence; no duplicate-removal implementation remains assigned to this audit |
+| RA-BGP-007 | `MPNLRIStart` bounds the next-hop/header offset; `ValidateUpdateRFC7606` invokes `validateMPNLRIField` | Original broad absence of MP syntax checks is obsolete. Revalidate the cited malformed cases and family-specific outcomes; assign an implementation owner only for a reproduced residual |
+| RA-BGP-008 | `docs/features/interoperability-testing.md` now states 100+ and labels its table a subset; `docs/architecture/testing/interop.md` documents native discovery/checker ownership | The old 32-scenario/Python inventory is historical. Child 8 owns audit reconciliation of doc evidence, not repairs. This BGP audit still owes a current positive/negative wire-evidence inventory; no current absence of all malformed-wire scenarios is asserted |
+
+Unassigned repairs block release under the umbrella policy. They require a
+named implementation spec approved for the relevant scope, or an explicit
+release-scope decision. Neither approval nor a waiver is recorded here.
+
+### Base Graceful Restart evidence ownership
+
+This audit owns the baseline role/capability and helper-retention disposition
+from `plan/handoff-graceful-restart-sender-facts.md`. It is independent of the
+optional extensions in `plan/spec-gr-advanced.md`; that optional spec cannot
+supply missing baseline release evidence.
+
+`parseGRCapValue` in `internal/component/bgp/plugins/gr/gr.go` emits the two
+restart octets without family tuples. RFC 4724's Encoding Rules permit that
+form for receiving-only helper support, so zero tuples alone are not a defect.
+The audit must reconcile the advertised role, configuration and public claims
+with whether Ze actually preserves forwarding as a restarting speaker.
+No tuple or F-bit may be required merely to make the old finding disappear.
+
+The handoff's unconditional ordering-race explanation is not current:
+`onPeerStateChange` in `internal/component/bgp/server/events.go` sorts reverse
+dependency tiers and waits for each delivery result; `grPlugin.dispatchCommand`
+calls `DispatchCommandArgs` synchronously. The RIB's peer-down branch checks
+`retainedPeers` before `Release`. Those facts permit retention to be established
+before release, but are not a runtime proof of every delivery path.
+
+Required proof: observe peer-originated routes retained during the restart
+interval without accepting outbound replay or a reconnect reannouncement as
+retention evidence; then distinguish recovery/EOR from expiry or a non-GR
+disconnect. The retained-route assertion must fail with GR retention dispatch
+disabled. Record the delivery path, peer capability and route provenance used
+by each case. The September passing tests under broken dispatch remain dated
+negative evidence until this discrimination is demonstrated. Any reproduced
+product defect needs a separate implementation owner, not an expansion of this
+audit into repair work.
 
 ## Wiring Test (MANDATORY)
 
@@ -225,13 +279,14 @@ This audit spec has no runtime code. Its wiring test is that each protocol surfa
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | BGP protocol audit starts | OPEN, capability, UPDATE, route-refresh, ADD-PATH, AS4, interop, and docs evidence surfaces are mapped |
+| AC-1 | BGP protocol audit starts | OPEN, capability, UPDATE, route-refresh, ADD-PATH, AS4, base GR roles/retention, interop, and docs evidence surfaces are mapped |
 | AC-2 | Confirm a protocol finding | Finding includes RFC/source/test evidence, user or peer impact, suggested future direction, and requested verification |
 | AC-3 | Review OPEN/capabilities | Audit identifies malformed OPEN, RFC 9072, known capability, unknown capability, and ADD-PATH evidence gaps |
 | AC-4 | Review UPDATE validation | Audit identifies RFC 7606 behavior, duplicate attribute handling, MP NLRI syntax, and consumer boundary risks |
 | AC-5 | Review route-refresh | Audit identifies normal route refresh, Enhanced RR marker, capability gating, validation ordering, and interop coverage |
 | AC-6 | Review interop evidence | Audit compares scenario tree with docs and records positive coverage plus negative coverage gaps |
 | AC-7 | Keep audit-only scope | No production source, tests, schemas, docs, generated files, or Makefiles are modified by this spec |
+| AC-8 | Base GR release claim | Audit records the helper/restarting-speaker role, capability semantics and discriminating end-to-end retention/recovery/expiry evidence; optional GR extensions do not discharge it |
 
 ## 🧪 TDD Test Plan
 
@@ -393,12 +448,12 @@ Despite the template heading, these are audit documentation steps only. They do 
 
 | Failure | Route To |
 |---------|----------|
-| OPEN/RFC 9072 bug | Future BGP message/capability fix spec |
-| Capability parser bug | Future BGP capability fix spec |
-| ADD-PATH parser/negotiation bug | Future BGP ADD-PATH fix spec |
-| Route-refresh state or callback bug | Future BGP reactor/route-refresh fix spec |
-| RFC 7606 duplicate/MP bug | Future BGP UPDATE validation fix spec, with plugin/RIB coordination if needed |
-| Interop inventory docs drift | `spec-release-audit-8-docs-onboarding.md` |
+| Retained OPEN/RFC 9072 RX defect | RA-BGP-001 current disposition: RFC owner approval and a named implementation spec remain required |
+| Retained fixed-length capability handling | RA-BGP-003 current disposition: implementation ownership remains unassigned |
+| ADD-PATH invalid-mode effect | RA-BGP-004 current reproduction, then a named implementation owner |
+| Remaining route-refresh callback/state case | RA-BGP-005 current reproduction, then a named implementation owner |
+| RFC 7606 duplicate/MP lead | Revalidate RA-BGP-006/007 against the landed source changes; only a reproduced residual needs a repair owner |
+| Interop inventory docs drift | Child 8 audits the claim; a surviving repair requires a separate implementation owner |
 | Heavy interop gate missing | `spec-release-evidence-gate.md` |
 
 ## Mistake Log
@@ -461,7 +516,7 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Audit BGP protocol release risk | Partial | Protocol Audit Matrix, Initial Findings | Source-backed findings recorded, future fixes not implemented |
+| Audit BGP protocol release risk | Partial | Historical findings and current disposition | Current execution evidence and surviving repair ownership remain outstanding |
 | Cite RFC/source/test evidence | Partial | Required Reading, Initial Findings | RFC summaries and source files cited |
 | Preserve audit-only scope | Met for this spec | Files to Modify | No product files are in scope |
 
@@ -469,24 +524,25 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | Partial | Protocol Audit Matrix | Protocol surfaces mapped, not all future fixes executed |
+| AC-1 | Partial | Protocol Audit Matrix and current disposition | Current evidence and exact ownership remain incomplete; product implementation is outside this audit |
 | AC-2 | Partial | Initial Findings | Findings include evidence and requested verification |
 | AC-3 | Partial | RA-BGP-001 through RA-BGP-004 | OPEN and capability findings recorded |
 | AC-4 | Partial | RA-BGP-006, RA-BGP-007 | UPDATE/RFC 7606 findings recorded |
 | AC-5 | Partial | RA-BGP-005 | Route-refresh finding recorded |
 | AC-6 | Partial | RA-BGP-008 | Interop docs drift and negative coverage gap recorded |
 | AC-7 | Met for this spec | Files to Modify | Audit-only scope documented |
+| AC-8 | Outstanding | Base Graceful Restart evidence ownership | Source ordering and zero-tuple semantics reconciled; discriminating runtime retention/recovery/expiry proof remains owed |
 
 ### Tests from TDD Plan
 
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| Future RFC 9072 tests | Not started | TBD | Suggested verification only |
-| Future malformed OPEN tests | Not started | TBD | Suggested verification only |
-| Future capability length tests | Not started | TBD | Suggested verification only |
-| Future route-refresh callback tests | Not started | TBD | Suggested verification only |
-| Future duplicate consumer tests | Not started | TBD | Suggested verification only |
-| Future MP NLRI syntax tests | Not started | TBD | Suggested verification only |
+| RFC 9072 boundaries and negotiation | Revalidation owed | Current OPEN/capability/session tests | Preserve RFC owner approval for the RX discriminator change |
+| Malformed OPEN rejection | Revalidation owed | Current capability/session tests | Source now propagates parsing errors |
+| Capability lengths and ADD-PATH modes | Revalidation owed | Current capability/session tests | Retained cases require exact RFC outcomes |
+| Route-refresh callback delivery | Revalidation owed | Current reactor tests | Separate landed length enforcement from remaining capability/state evidence |
+| Duplicate consumer handling | Revalidation owed | Current RFC 7606/reactor tests | Source now strips later non-MP duplicates |
+| MP NLRI syntax | Revalidation owed | Current RFC 7606/reactor tests | Source now validates MP framing and NLRI |
 
 ### Files from Plan
 
@@ -496,8 +552,8 @@ For this audit spec, "implementation" means audit documentation only. It does no
 
 ### Audit Summary
 
-- **Total items:** 7 ACs, 8 initial findings
-- **Done:** 0 product fixes
+- **Total items:** 8 ACs, 8 initial findings, plus the base GR evidence disposition.
+- **Product fixes:** Outside this audit's scope; current source dispositions do not close the findings.
 - **Partial:** BGP audit documentation created and source-backed findings recorded
 - **Skipped:** None
 - **Changed:** None

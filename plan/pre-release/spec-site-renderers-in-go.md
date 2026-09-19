@@ -2,31 +2,34 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 10 of 10 |
+| Phase | 10/10 |
 | Handoff | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Commit `eae282592` deleted `website/tools/` (46 files, 17,245 lines of Python)
-and replaced the site build with `internal/le/site`. The replacement stages
-`website/` verbatim and refreshes five surfaces: the command catalog, the
-command-equivalent pages, `llms.txt`, the asset bundles, and the talk decks.
-The retired build had 38 render steps. Thirty-three of them have no Go producer.
+Commit `eae282592` deleted the Python site renderers and initially replaced
+them with a build that refreshed only five surfaces. The following phases
+restored the missing producers in `internal/le/site`; `Build` now invokes
+`renderProducers` rather than relying on those five refreshes alone.
 
-The site does not look broken, and that is the defect. `seedOrCleanArtifact`
-seeds every build from the previous artifact, so each of the roughly 890 pages
-the Python last wrote survives with frozen content and a fresh mtime.
-`./le site check` cannot see it: it reports source-only leaks and missing
-Markdown mirrors, and a seeded page satisfies both. The published site is
-therefore a snapshot of the repository as it stood on 2026-08-27, and no edit to
-`docs/`, `website/blog/posts/`, `website/changes/posts/` or `website/data/*.json`
-can reach a reader.
+The frozen-page defect described by the original August task is the motivation,
+not a claim that the current build still has no producers. The non-redirect
+phase-10 producers have landed. The full real-checkout build, unchanged-input
+second-build proof, published-content review and final review/closure evidence
+remain incomplete. The empty AC-14/full-build evidence rows remain obligations,
+not passes. Status is `in-progress`, not a verification handoff.
+
+The owner paused redirect stubs and legacy-URL rewriting on 2026-08-30.
+`redirect.go` leaves the producer unregistered, and `renderProducers` in
+`producer.go` omits the rewrite. AC-12 remains recorded for an explicit owner
+disposition before closure; do not restore paused behavior or count it as
+delivered. The original phase-10 wiring record below is historical.
 
 The goal is that every published page is generated again from its source in this
 repository, by `./le site build`, with no page surviving on the strength of the
@@ -339,12 +342,12 @@ editing them would have cross-committed that session's work.
 | R-3 | The first full build rewrites all 895 pages at once and the diff is unreviewable | phase 10 lands and `git status` in the artifact shows everything modified | each phase lands its own commit, so the artifact diff is reviewed one population at a time. The build is never run to completion until phase 10 |
 | R-4 | The facts snapshot reaches the network during a build, so a build is not reproducible and can fail closed in CI | a build in a sandbox hangs for five seconds and publishes a stale star count | AC-11 requires the offline path to keep the previous value and say so; the timeout stays and the failure stays non-fatal |
 | R-5 | Restoring `llms.txt` collides with the docvalid producer that owns it today | two writers, last one wins, and the file's content depends on producer order | phase 4 makes the command section one section of the restored file, and the coverage check refuses two claimants |
-| R-12 | `internal/le/site`'s tests are hostage to every component package in the checkout | `go test ./internal/le/site/` fails with `[build failed]` naming a package the site does not use | Consequence of the phase 7 decision to read `registry.All()` through `internal/le/inventory`, which blank-imports the composition root. Observed three times on 2026-08-29 and 2026-08-30, most recently on `internal/component/config/yang/cli`. The decision itself was right, because `ai/rules/evidence.md` prefers the registry over a regex across its source, but the coupling was not priced: in a five-session checkout the site suite cannot run while ANY component is mid-refactor, and the red names a package the reader must then rule out by hand. The fix is the seam this package already uses twice: take the plugin data through an injected reader, as `liveCommandCatalog` and `stubLiveInputs` do for the command catalog, so the import is the build's and not the test's. Not done here; it is a change to phase 7's shape and belongs to closure or a follow-up |
-| R-11 | The coverage check cannot answer about the one tree state where its answer matters most | `./le site check` reports nothing at all, rather than reporting a gap | Found from outside on 2026-08-29 by the session blocked by it. `./le` is an EXISTENCE CACHE that rebuilds on first use, so a working tree that does not compile leaves every session without the tool, not merely without the check. AC-1 assumes the check can always answer; a tree mid-refactor is exactly when a producer might have been dropped, and exactly when the check is unavailable. This also means a broken `internal/le/site` takes out shared tooling for every session in the checkout, which is a cost the phase boundaries did not price. Mitigation while the spec runs: each phase agent closes every unit of work with the tree compiling, checked with `go vet ./internal/le/site/` rather than at the end. The design hole itself is NOT closed here and should not be closed by weakening the check |
-| R-8 | Phase 10 cannot run a full build until the terminal-demo media is rendered | 17 of the 148 docs pages refuse with `errDemoMediaAbsent` | Found in phase 3. Those pages carry a `<!-- terminal-demo: -->` marker and read `website/assets/demos/`, which is generated, gitignored and absent from this checkout. The retired build could not render them here either. `./le terminal-demo render-all` is the producer, and it MUST run before phase 10 attempts a whole-site build |
-| R-9 | The published demo media disagrees with the published demo manifest | 11 of 17 recordings mismatch | Found in phase 3 at `gh-pages` HEAD: `assets/demos/launcher.cast` is 23445 bytes where `assets/demos/manifest.json` states 23416. The published artifact is internally inconsistent, so it CANNOT be used as fixture data for the demo path. Fixtures for that path come from a fresh render, never from the artifact |
-| R-10 | `docs/features.md` publishes about 70 feature rows as paragraph text | the `reference/feature-status` page shows a run of prose where a table belongs | Found in phase 3, and it is a SOURCE defect on both renderers, not a rendering one: four `<!-- source: ... -->` comments sit on lines of their own inside the table, and an HTML block ends a GFM table. The fix is to move each comment into the cell it documents, which is not derivable from the file. Not fixed here: it needs whoever knows which cell each anchor belongs to |
-| R-6 | Running `./le site build` before phase 4 DESTROYS the published artifact | it already has: 826 paths degraded in the `gh-pages` working tree | NO phase may run the `./le site build` action from a shell until phase 4 lands. Commit `9f45348a7` made `refreshNativeSurfaces` call `docvalid.RenderCommandSurfaces` unconditionally, and that renderer emits a contract fixture for the drift checker rather than a publishable page, so a build overwrites 396 pages with fragments. A Go test may call `Build` because it builds into a temporary output. `gh-pages` HEAD is intact and the damage is working-tree only; the restore is the owner's, because `git restore` is forbidden here |
+| R-12 | Site tests compile through the product composition root | The August 29/30 runs failed on unrelated component compile errors | Current `internal/le/inventory/inventory.go` still blank-imports `internal/component/plugin/all`; the coupling survives. An injected runtime reader alone does not remove that import. Decide whether compile-time test isolation belongs in this spec or an explicitly approved follow-up implementation spec. No such owner is assigned here, and no decoupling is claimed |
+| R-11 | A cached launcher can run old producers, while a fresh build can fail on current inputs | The August 29 check could not run; an ordinary invocation does not establish freshness | `le` remains an existence cache. `--update` refreshes it explicitly; the sampled stale warning does not rebuild it. Use a named build, such as `./le --name site-evidence site check`, for current-tree coverage evidence. Launcher isolation is not authorized by this risk row |
+| R-8 | A full build requires terminal-demo media | August phase 3 found 17 docs pages without it | `website/AI.md` now locates media in `../gh-pages/assets/demos`, written by `./le terminal-demo render-all` and read by the build. Prepare the current media before the full real-checkout run; no current missing-file count is claimed |
+| R-9 | Demo media can disagree with its manifest | August phase 3 found 11 of 17 published recordings mismatched | Preserve that dated evidence. Freshly generated media, not the inconsistent August artifact, must supply the final build proof |
+| R-10 | Feature-table source anchors can split a table into prose | The August phase 3 finding described four standalone comments | Current `docs/features.md` puts source comments in table cells in the affected feature table. Do not assign the old four-comment repair blindly; this spec's final rendered-content review must demonstrate the table and route correctly |
+| R-6 | Historical pre-phase-4 build damaged the artifact working tree | August observation: 826 paths changed, including fixture fragments | Phase 4 has landed and the current build renders through registered producers. The old pre-phase-4 prohibition is no longer a live ban on the final build. This records neither restoration of that external working tree nor permission to discard it; preserve owner changes when preparing the final evidence run |
 | R-7 | The retired renderers encode behaviour nobody wants back, and restoring them faithfully restores the mistakes | a restored page carries a fact nobody can trace, or a section referring to a retired tool | `ai/rules/evidence.md`: a claim on a published page traces to a committed file or it is not published. The RFC-compliance page's agent-guard block counts text in files that no longer exist and needs redefinition, not a port |
 
 ## Blast Radius
@@ -426,7 +429,7 @@ and its carry-over are untouched.
 | AC-9 | the plugin catalog | it renders from `inventory.Collect`, extended to carry the optional dependencies, source directory and YANG files the page shows |
 | AC-10 | the test-health and RFC-compliance pages | they render from `internal/le/testhealth` and `internal/le/rfc` rather than from the retired Python inputs |
 | AC-11 | the facts snapshot | every published number is re-derived from the current tree, and a build with no network keeps the previously published star count and says so |
-| AC-12 | the 177 legacy URLs | each resolves to the target the recovered table names, with the replacements applied in the recorded order. AC-1's coverage check CANNOT witness this: `pageRegistry` drops redirect pages through `isRedirectPage`, which is why phase 1 measured 712 unclaimed routes rather than 889. A green coverage is therefore not evidence for this row, and phase 10 owes it a test of its own |
+| AC-12 | the 177 legacy URLs | each resolves to the target the recovered table names, with replacements applied in recorded order. Coverage excludes redirect pages and cannot prove this row. The owner paused both stubs and rewriting on 2026-08-30; retain this obligation for explicit disposition before closure, not automatic restoration or a completed verdict |
 | AC-13 | the search index, sitemap and robots file | each is regenerated from the built artifact rather than carried forward |
 | AC-14 | a second build over an unchanged tree | the artifact is byte-identical to the first, network access aside |
 | AC-15 | the built artifact | `llms-full.txt` is published beside `llms.txt`, carrying the full Markdown mirror of every published page, each preceded by its title and canonical URL. Frozen talk decks are excluded, as they are from every other mirror pass. The ORDER is the reading order stated below, never route order: what the software is and why it is worth evaluating comes first, how to use it comes second |
@@ -434,7 +437,7 @@ and its carry-over are untouched.
 | AC-15b | a page that belongs to no section, or to two | the build refuses it by name. A page is never appended to the end because nothing claimed it, and never emitted twice because two sections did |
 | AC-15c | a section declared in the reading order that no page fills | the build refuses it by name, so a section that silently empties is a red rather than a gap a reader meets |
 | AC-15d | `website/data/nav.json` reordered so a usage section precedes an evaluation section | the build refuses it, naming both sections. The reading order is a CONTRACT stated in the code, and nav.json supplies each section's membership and the order WITHIN a section. A menu is ordered for a menu; slaving the document's argument to it means a menu reshuffle silently rewrites what the file argues, with nothing to notice |
-| AC-17 | the wiki section of `llms-full.txt` | it REFERENCES the Codeberg wiki rather than republishing it: each page's title, its public URL and a one-line summary. The wiki stays its own source of truth, which is what `spec-website-wiki-content-migration` settled on 2026-07-22 |
+| AC-17 | the wiki section of `llms-full.txt` | it REFERENCES the GitHub wiki rather than republishing it: each page's title, its public URL and a one-line summary. `website/data/wiki.json` supplies `https://github.com/ze-software/ze/wiki/`; the wiki stays its own source of truth |
 | AC-17a | the source of that section | `website/data/wiki.json`, committed, refreshed by its own `./le` action. The build reads only the committed file and never `../wiki`, so a machine without the sibling checkout builds the same artifact. A stale index is reported by the refresh action's check, never silently omitted |
 | AC-17b | the ORDER and grouping of the wiki section | it comes from the wiki's `_Sidebar.md`, which is the curation this repository cannot generate. Measured 2026-08-29: 167 sidebar entries against 171 pages, zero sidebar links resolving to no page. Its groups are About, First Steps, Configuration, Operation, Interfaces, Plugins, Plugin Development, Chaos Testing, Blueprints, Development, Reference, which is already evaluation before usage |
 | AC-17c | a wiki page the sidebar does not list | the refresh action refuses it by name, so it cannot become a silent omission in a committed artifact. Four exist today: `CLAUDE` and `command-catalog` are excluded deliberately, as agent instructions and a 302KB generated dump; `community-filters` and `telemetry` are genuine sidebar omissions and are reader content |
@@ -655,7 +658,7 @@ and its carry-over are untouched.
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12, the order decides the answer | pass |
 | `TestTheLegacyTableCarriesTheAddressesTheSourcesStillLink` | `internal/le/site/redirect_test.go` | AC-12, the five absolute URLs `docs/history.md` carries | pass |
 | `TestTheLegacyRewriteReachesEveryPageAndMirror` | `internal/le/site/redirect_test.go` | AC-12, the pass reaches the artifact and skips a frozen deck | pass |
-| `TestTheLegacyRewriteRunsBeforeTheDerivedProducers` | `internal/le/site/redirect_test.go` | AC-12, the rewrite runs between the two producer passes | pass |
+| `TestTheLegacyRewriteRunsBeforeTheDerivedProducers` | `internal/le/site/redirect_test.go` | AC-12, the former rewrite ordering | historical pass; the test and wiring were removed under the 2026-08-30 owner pause, recorded in `c630cf08b6`; not current evidence |
 | `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/llmsfull_test.go` | AC-15 | pass |
 | `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/llmsfull_test.go` | AC-15a, AC-15d | pass |
 | `TestLLMSFullRefusesAnUnsectionedPage` | `internal/le/site/llmsfull_test.go` | AC-15b | pass |
@@ -676,12 +679,12 @@ and its carry-over are untouched.
 | `TestTheCommittedIndexRoundTrips` | `internal/le/site/wiki/index_test.go` | AC-17a | pass |
 | `TestTheCommittedIndexStatesTheLiveWiki` | `internal/le/site/wiki/index_test.go` | AC-17a, the committed file is not stale | pass |
 | `TestCheckRefusesAMissingNamedArtifact` | `internal/le/site/producer_test.go` | AC-16 | pass |
-| `TestASecondBuildChangesNothing` | `internal/le/site/site_test.go` | AC-14 | |
+| `TestASecondBuildChangesNothing` | `internal/le/site/site_test.go` | AC-14 | Evidence outstanding |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `TestBuildRendersEveryPublishedRoute` | `internal/le/site/site_test.go` | a full build over the real checkout leaves no route unclaimed | |
+| `TestBuildRendersEveryPublishedRoute` | `internal/le/site/site_test.go` | a full build over the real checkout leaves no route unclaimed | Evidence outstanding |
 
 ## Files to Modify
 - `internal/le/site/build.go` - iterate the producer registry
@@ -1031,14 +1034,15 @@ and its carry-over are untouched.
      -> Constraint: `llmsdata.go`'s narrow `siteFacts` model is DELETED. One
      model of the file, written here and read by llms.txt, the prose tokens and
      the homepage, as phase 6 settled for features.json and dependencies.json.
-     -> Constraint: the homepage hero replays `cli-dashboard` from
-     `website/assets/demos/`, which is generated, gitignored and absent from
-     this checkout, so a live build refuses at the homepage as it already
-     refuses at 17 docs pages. R-8 already requires `./le terminal-demo
-     render-all` before phase 10.
+     -> Historical phase-9 prerequisite: the homepage and docs needed terminal
+     demo media. The current artifact location and outstanding full-build
+     prerequisite are recorded in R-8; the August source-tree path is retired.
 10. **Phase: Derived** -- the search index, the sitemap, the robots file,
     `llms-full.txt`, and the 177 redirect stubs in their recorded order. The
     coverage check extends from routes to the named non-route artifacts
+    - Redirect stubs and rewriting remain paused by the 2026-08-30 owner decision.
+      Obtain AC-12's disposition before closure; this phase does not authorize
+      restoring either path.
     - Tests: `TestRedirectsApplyInTheRecordedOrder`,
       `TestLLMSFullCarriesEveryPublishedMirror`,
       `TestCheckRefusesAMissingNamedArtifact`
@@ -1063,12 +1067,11 @@ and its carry-over are untouched.
     2026-08-30 over the 712 published routes: Overview 1, Start 13, Evaluate 30,
     Docs 78, Examples 22, Reference 500, Project 60, About this site 6, plus the
     2 frozen decks.
-    -> Decision 2026-08-30: `rewriteLegacyPublicURLs` IS wired. It had no
-    caller, so AC-12's second half was unmet: the retired build ran it over
-    every page and every mirror (`website/tools/build.py`, `step_links`) and the
-    Go port stopped at the stubs. `renderProducers` now runs three passes --
-    page producers, the rewrite, then the derived producers -- so the search
-    index and `llms-full.txt` carry the address a reader reaches.
+    -> Historical implementation checkpoint, 2026-08-30:
+    `rewriteLegacyPublicURLs` gained its caller after the initial Go port omitted
+    the retired build's page-and-mirror rewrite. `renderProducers` then ran page
+    producers, the rewrite, and derived producers in that order. The later owner
+    pause removed that wiring; this checkpoint is not the current build contract.
     -> Decision 2026-08-30: the wiki section reads the committed
     `website/data/wiki.json`, written by the new `./le site wiki` area
     (`internal/le/site/wiki`). The build never opens `../wiki`. A wiki page the
@@ -1081,10 +1084,10 @@ and its carry-over are untouched.
     groups and `vpp` under four, because a menu offers two ways to one page; the
     index is not a menu, and 179 entries would say the wiki is larger than the
     167 pages it holds.
-    -> Constraint: the wiki base URL is `https://codeberg.org/thomas-mangin/ze/wiki/`,
-    stored in the committed file rather than in code, because the wiki is
-    mirrored to Codeberg and to GitHub and the two serve different page URLs.
-    `le site wiki update base-url <url>` changes every link in one command.
+    -> Current source reconciliation (2026-09-19): `website/data/wiki.json`
+    carries `https://github.com/ze-software/ze/wiki/`, not the August Codeberg
+    URL. The build reads that committed index; it does not publish the wiki.
+    `le site wiki update base-url <url>` refreshes the index's page links.
 
 ### Triple Challenge
 

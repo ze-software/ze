@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | cli |
-| Depends | spec-cli-show-bgp-answer-shapes |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -48,6 +48,9 @@ other by the same key.
 would have widened that spec's diff without making a single operator chain work
 that did not work already, because the declaration channel names whatever field
 each handler writes and both spellings declare correctly.
+
+That predecessor closed in `d34c07634a` on 2026-09-08. Its declaration work is
+historical context, with no remaining scheduling dependency for this rename.
 
 **What the work is.** Pick one name for the peer address across the whole
 `show bgp` tree, change the handlers that write the other, and carry the change

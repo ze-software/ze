@@ -78,8 +78,8 @@ change, and the port split does not compile without those files. Rather than
 drop work the agent had finished, the port-split commit CARRIES the hunks below.
 This section is what a resuming agent inherits instead of a surprise.
 
-**What landed.** Two of this spec's ten leaves, plus one defect the agent walked
-into while reading the parser:
+**Adjacent work carried by the commit.** None of the ten Task leaves is in the
+landed table below. These changes remain relevant context for resuming design:
 
 | Landed | Where | Proof it carries |
 |--------|-------|------------------|
@@ -87,8 +87,8 @@ into while reading the parser:
 | `Reactor.AddDynamicPeer` reads the tree it is given | The remote and local addresses are written under `connection`, where `parsePeerFromTree` reads them; they were written at the top of the tree, so every call failed with "missing required connection > remote > ip" | `TestAddDynamicPeerReadsTheTreeItWasGiven` (`internal/component/bgp/reactor/reactor_peers_dynamic_test.go`) |
 | `ze.test.bgp.port` has one declaration | `envKeyTestPort` and `PortOverrideFromEnv` moved from `internal/component/bgp/config/loader_create.go` to `internal/component/bgp/reactor/reactor_peers.go`, so the config loader and the runtime create path read one key (`ai/rules/principles.md`) | Covered by the existing test harness, which sets the key |
 
-**What did NOT land.** Eight of the ten leaves this spec names are untouched and
-still accepted at commit while nothing reads them: `behavior/auto-flush`,
+**What did NOT land.** All ten leaves this spec names remained untouched in the
+recorded 2026-09-06 pass: `behavior/auto-flush`,
 `connection/link-local`, `attach/process/processes`,
 `attach/process/processes-match`, `attach/process/content/attribute`,
 `rib/adj/in`, `rib/adj/out`, `rib/out/group-updates` (the peer-level one),

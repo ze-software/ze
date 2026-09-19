@@ -86,13 +86,21 @@ and default route, while BGP peering and subscriber routing happen in the defaul
 | Phase | Spec | Scope | Depends |
 |-------|------|-------|---------|
 | 1 | `spec-vrf-1-hub-multi.md` | Hub and ProcessManager support multiple instances. Colon-separated naming (`bgp:vrf-red`). Plugin startup per hub | - |
-| 2 | `spec-vrf-2-device.md` | VRF device management in iface component. `ip link add type vrf table N`, interface master binding, per-VRF sysctl | vrf-1 |
-| 3 | `spec-vrf-3-orchestrator.md` | VRF orchestrator: config parsing, implicit default VRF, per-VRF component spawning via existing plugin machinery (inprocess.go), lifecycle management | vrf-2 |
+| 2 | `spec-vrf.md` | Existing device and interface-membership child: VRF master creation, per-unit binding, per-VRF sysctl and end-to-end table-isolation requirements, including WireGuard table selection | vrf-1 |
+| 3 | `spec-vrf-3-orchestrator.md` | VRF orchestrator: config parsing, implicit default VRF, per-VRF component spawning via existing plugin machinery (inprocess.go), lifecycle management | `spec-vrf.md` |
 | 4 | `spec-vrf-4-yang-cli.md` | YANG wrapping (`vrf <name> { ... }`), CLI command routing (`show vrf <name> ...`), VRF-aware dispatch | vrf-3 |
 | 5 | `spec-vrf-5-services.md` | VRF-aware service sockets. SO_BINDTODEVICE helper in internal/core/vrfnet/. SSH, HTTPS, NTP, syslog VRF binding | vrf-3 |
 | 6 | `spec-vrf-6-dynamic.md` | Runtime VRF create/delete. Graceful drain. Hot reconfiguration | vrf-4 |
 | 7 | `spec-vrf-7-redistribution.md` | Route redistribution between VRFs. Import/export policy. Cross-VRF EventBus subscriptions | vrf-3 |
 | 8 | `spec-vrf-8-conntrack-zones.md` | Per-VRF conntrack zone assignment. VRF orchestrator assigns zone IDs, firewall generates `ct zone set` rules in raw/prerouting. Per-VRF `ct timeout` objects for timeout overrides. Depends on global conntrack (spec-cpe-4) for helpers and table-size | vrf-3, cpe-4 |
+
+`plan/spec-vrf.md` is the live owner of phase 2; `spec-vrf-2-device.md` was a
+proposed filename, not a second deliverable. The other child filenames remain
+planned work packages until created. The device child's route-isolation and
+WireGuard criteria require the table and policy-routing integration owned by
+this umbrella. Service binding remains phase 5, and cross-VRF redistribution
+remains phase 7. Those boundaries do not reduce the device child's acceptance
+criteria or authorize a second VRF architecture.
 
 Note: Reactor multi-instance was analyzed and requires no code changes -- all global state is safe to share across VRF instances. The reactor is already instantiable N times.
 
@@ -114,7 +122,7 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 - [ ] `internal/core/events/bus.go` -- EventBus
   --> Constraint: topic-based pub/sub with prefix matching
 - [ ] `internal/plugins/fib/kernel/backend_linux.go` -- route programming
-  --> Constraint: netlink.Route.Table field exists but unused (defaults to main table)
+  --> Constraint: `buildRichRoute` in `nexthop_linux.go` already consumes a supplied TableID; sysrib's `fibChange` does not produce it. Per-VRF route identity and TableID production remain shared with `plan/immediate/spec-fib-depth.md`.
 - [ ] `vendor/github.com/vishvananda/netlink/link.go` -- VRF device creation
   --> Constraint: netlink.Vrf{Table: N} for VRF device type
 - [ ] `vendor/github.com/vishvananda/netlink/rule.go` -- ip rule management
@@ -450,7 +458,7 @@ No Phase 1 work needs to be redone when VRF is implemented.
 |-------|-------|------------|-------------|
 | **Phase 1** (now) | Static routes with table ID, policy routing with fwmark, firewall gaps | Nothing | Yes |
 | **Phase 2** | Hub multi-instance (spec-vrf-1) | Phase 1 | No |
-| **Phase 3** | VRF device support in iface (spec-vrf-2) | Phase 2 | No |
+| **Phase 3** | VRF device support in iface (`spec-vrf.md`) | Phase 2 | No |
 | **Phase 4** | VRF orchestrator (spec-vrf-3) | Phase 3 | No |
 | **Phase 5** | YANG/CLI VRF-aware dispatch (spec-vrf-4) | Phase 4 | No |
 | **Phase 6** | VRF-aware services (spec-vrf-5) | Phase 4 | No |
@@ -486,8 +494,8 @@ Umbrella scope; the detailed per-file lists live in the child specs.
 - `internal/component/plugin/server/hub.go` - hub instantiable as independent instances (vrf-1)
 - `internal/component/plugin/process/manager.go` - derived plugin names (`bgp:vrf-red`) and multiple instances (vrf-1)
 - `internal/component/hub/hub.go` - orchestrator support for per-VRF hubs (vrf-1, vrf-3) <!-- doc-links: ignore (the orchestrator runtime was deleted in 8d92e9fab; the daemon entry point is runYANGConfig in cmd/ze/hub/main.go) -->
-- `internal/component/iface/register.go` - VRF device creation and interface master binding entry (vrf-2)
-- `internal/plugins/fib/kernel/backend_linux.go` - `Route.Table = vrf.table` in netlink calls (vrf-2)
+- `internal/component/iface/register.go` - VRF device creation and interface master binding entry (`spec-vrf.md`)
+- `internal/component/sysrib/fibimport.go` and `internal/plugins/fib/kernel/nexthop_linux.go` - per-VRF TableID production and existing backend consumption (`spec-vrf.md`, coordinated with `plan/immediate/spec-fib-depth.md`)
 - `internal/component/bgp/reactor/reactor.go` - constructor accepts a hub reference (vrf-3; the global-state analysis above shows no other reactor change is needed)
 
 ## Implementation Steps
@@ -508,7 +516,7 @@ standard TDD cycle (write test, fail, implement, pass) inside its own spec.
 
 ### Implementation Phases
 1. **vrf-1 hub multi-instance** - hub/ProcessManager multiple instances, colon naming; failing instantiation test first, then implement
-2. **vrf-2 VRF devices** - `ip link add type vrf table N`, master binding, per-VRF sysctl
+2. **VRF devices (`spec-vrf.md`)** - `ip link add type vrf table N`, master binding, per-VRF sysctl
 3. **vrf-3 orchestrator** - implicit default VRF, per-VRF component spawning, lifecycle
 4. **vrf-4 YANG/CLI** - schema wrapping, `show vrf <name>` dispatch
 5. **vrf-5 services / vrf-7 redistribution** - in parallel after vrf-3

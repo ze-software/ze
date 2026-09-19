@@ -1,4 +1,11 @@
-### `ze-test bgp plugin` route-server forwarding -- intermittent duplicate/ordering, NOT the module rename
+### Route-server forwarding: historical duplicate and ordering failures, residual investigation open
+
+The last reproduction batches recorded here are from 2026-07-29: neither test
+failed. That result does not identify a fix. The July 25 and July 28 sections
+preserve earlier failures and diagnoses; the July 29 update supersedes their
+reproduction status and leaves the catch-up-budget path as an investigation
+lead. Later references to the August 24 owner closure do not establish that the
+two original symptoms were repaired.
 
 Observed 2026-07-25 during the `codeberg.org/thomas-mangin/ze` ->
 `github.com/ze-software/ze` module rename. Two DIFFERENT tests in the `plugin`
@@ -47,12 +54,11 @@ the loaded plugin set from the `.ci` file.**
 
 ## Confirmed mechanism (producers read, margin measured) -- PARTLY SUPERSEDED
 
-> **Read the Status section at the bottom of this file before acting on anything
-> here.** The startup race described below was real and is now fixed, but it is
-> NOT the producer of 254's duplicate: with self-replay provably disabled 849 ms
-> before the first session existed, the duplicate still occurred. The section is
-> kept because its producer citations are accurate and its 380 analysis still
-> stands; its causal conclusion for 254 does not.
+> The July 29 update below records the later reproduction results and the
+> remaining investigation lead. The startup race described here was repaired,
+> but 254 still duplicated an UPDATE with self-replay disabled 849 ms before the
+> first session. Its original causal explanation is retained as a disproven
+> diagnosis. No current reproduction is established by this historical section.
 
 Both symptoms fall out of ONE unordered boundary: `bgp-rs` claims peer-up replay
 ownership from a callback that is not ordered against peer startup.

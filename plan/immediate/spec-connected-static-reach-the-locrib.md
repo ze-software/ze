@@ -2,16 +2,23 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
-| Depends | spec-fib-depth (owns `BestChangeEntry.TableID` and the VRF dimension) |
+| Depends | - |
 | Phase | 6/7 |
 | Handoff | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+The recorded implementation is at phase 6/7. Final surfaces and closure
+evidence remain. Named-table and VRF support stays with
+`plan/immediate/spec-fib-depth.md`; it is outside this spec's main-table scope
+and does not block that scope.
+
+### Original defect
 
 `rib { distance { } }` (`internal/component/sysrib/yang/ze-rib-conf.yang`)
 declares six protocols. Commit `de739c8b2` made four of them decide something,
@@ -745,9 +752,12 @@ requires it to be measured RED.
   THIRD inert consumer of the same idea, recorded in
   `plan/journal/guard-added-to-one-half-of-a-pair.md` (2026-08-10), which names
   a destination spec, `spec-admin-distance-reaches-the-kernel`, that does not
-  exist on disk. That row's destination should be repointed at this spec, and
-  the iface half is not in this spec's scope: `rib { distance { } }` declares no
-  leaf for it, so there is no inert leaf to repair.
+  exist on disk. This spec cannot be that destination: its Task and ACs cover
+  the connected/static main-table paths, and `rib { distance { } }` declares
+  no iface leaf. Current ownership of the interface-layer remainder is
+  unresolved. The owner must authorize either a separate iface-route
+  arbitration spec or an explicit scope addition with its own acceptance
+  criteria; the historical row must not imply this spec owns that work.
 - `BestChangeEntry.TableID` stays unpopulated by sysrib. It belongs to
   `plan/immediate/spec-fib-depth.md` and the VRF umbrella.
 - The BGP RIB's `IsEBGP` remains the way sysrib classifies eBGP from iBGP. This

@@ -2,24 +2,28 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 1/6 |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`test/interop/Dockerfile.ze` compiles `ze` and `ze-test` inside the container.
-It does `COPY . .` from the repository root and runs two `go build` invocations
-with no cache mount, so every change under `internal/` recompiles both binaries
-from scratch. Several sessions edit `internal/` continuously, so the `COPY`
-layer is invalidated between one run and the next and the cache never helps.
+The host-prebuild implementation is present. `StageBinaries` in
+`internal/le/interoplab/zebuild.go` builds the declared Linux binaries at the
+Docker daemon's architecture, and the BGP, L2TP, PPPoE, IPsec and RADIUS suites
+wire it through `Preflight`. Their image definitions copy staged binaries.
+The remaining work is evidence, documentation reconciliation and independent
+review, not recreating this producer.
 
-Two independent costs were measured, and they have one cause.
+The original in-container compilation failure remains the motivation. Before
+the change, copying the repository into a compiler stage invalidated its cache
+on source edits and forced both BGP personalities to rebuild inside Docker.
+The measurements below are the dated pre-change baseline.
 
 | Date | Host | Measurement |
 |------|------|-------------|
@@ -29,22 +33,21 @@ Two independent costs were measured, and they have one cause.
 | 2026-09-06 | same, retried under contention | second kill, same step |
 | 2026-09-06 | same, retried deliberately: load average 0.61, 23G available of 31G, no other heavy work, no peer session building | third kill, same step |
 
-The third run is the one that settles it. The build does not fit this machine
-**on its own**, so waiting for a quiet moment is not a mitigation: there is no
-quiet moment on this machine that fits this build. Three attempts produced three
-OOM kills and zero scenario verdicts.
+The final 2026-09-06 baseline attempt ran without the reported contention and
+still produced an OOM kill, so waiting for a quiet workstation was not a
+demonstrated mitigation. These measurements do not establish the current
+prebuilt image's memory use or scenario outcome.
 
 Rows: `plan/journal/gate-verdict-depends-on-the-machine.md`, 2026-09-04
 (`fixit-filter-subject-drops-five-attributes`, the `./le integration interop`
 row) and 2026-09-06 (the two
 `as-path-prepend-encodes-at-the-negotiated-width` rows).
 
-The goal is that the interop image stops carrying a Go compiler. The daemon and
-the test personality are cross-compiled on the host, once, into the build
-context, and the image copies them in. `test/interop-ipsec/Dockerfile.ze` and
-`test/interop-radius/Dockerfile.ze` already have that shape, so this spec
-extends a shipped pattern to the three labs that still compile inside the image
-and gives all five one producer.
+The implemented shape removes the compiler from the image: host builds stage
+the daemon and, for BGP, the test personality into the Docker context.
+All ten ACs remain required. In particular, source presence does not establish
+the blocked scenario's verdict, wall time, peak RSS, in-container execution,
+discrimination record, IPsec/RADIUS regression results or nightly results.
 
 **Bucket: `plan/` (top level).** The test in `plan/README.md` is what the
 undone work costs the FIRST RELEASE. No operator meets this: it is a
@@ -65,16 +68,10 @@ which is a development cost rather than a release one.
     whole seconds overrides it), and `ImageBuild.Timeout` only ever LENGTHENS a
     bound, so no suite declares one. This spec must not reintroduce a per-image
     cap.
-  → Constraint: the "Running" section states `Dockerfile.ze` "copies the whole
-    tree and compiles ze twice with no cache mount" and quotes 2m48s and
-    40m39s. That paragraph is a factual claim this change falsifies, so it is
-    edited in the same work (`ai/rules/documentation.md`).
+  → Constraint: compare the current Running section with the prebuilt producer and add the measured image time and host peak RSS once obtained. Preserve the dated pre-change baseline as history.
 - [ ] `docs/contributing/rfc-conformance-gates.md` - the discrimination gate,
       which special-cases the interop carrier
-  → Constraint: the interop break travels in the WORKING TREE rather than in a
-    Go overlay, and the page justifies that by "the image build compiles ze
-    INSIDE Docker". The route is still correct after this change and its stated
-    reason is not, so the reason is rewritten rather than the route.
+  → Constraint: the interop break must still travel in the working tree because the preflight build does not consume a Go overlay. Reconcile the current prose with that producer and re-prove the route through AC-7.
 - [ ] `CLAUDE.md`, "Binary naming convention" - host versus target binaries
   → Constraint: a target binary is cross-compiled `GOOS=linux
     GOARCH=<arch> CGO_ENABLED=0`, and a host binary is NEVER cross-compiled. The
@@ -97,60 +94,26 @@ prose, and that is covered above.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `test/interop/Dockerfile.ze` - `FROM golang:1.27-alpine AS builder`,
-      `COPY . .`, then two `go build` calls (`-mod=vendor`, tags `ze_core
-      ze_distro $ZE_FEATURES` to `/ze` and `ze_test $ZE_FEATURES` to
-      `/ze-test`), then an `alpine:3.21` stage that `apk add`s `tini nftables`
-      and copies both binaries out of the builder.
-- [ ] `internal/le/interoplab/bgp/run.go` - `RunAt` reads the environment,
-      discovers scenarios, calls `featuretags.DaemonTags`, and declares the
-      `ze` image with `Dockerfile: <producer>/Dockerfile.ze`, `Context: root`,
-      `BuildArgs: ["ZE_FEATURES=" + the joined tags]`, `Required: true`. It
-      sets no `Preflight`.
-- [ ] `internal/le/interoplab/docker.go` - `Docker.Build` runs `docker build -t
-      <tag> [--build-arg ...] -f <dockerfile> <context> -q` under
-      `build.Timeout` or the machine default (`dockerBuildTimeoutDefault`,
-      overridden by `BUILD_TIMEOUT`). It passes **no** `--platform`, so the
-      image is built for the Docker daemon's own default platform.
-- [ ] `internal/le/interoplab/lab.go` - `Suite` carries a `Preflight` of type
-      `PreflightCheck`, which `Suite.Run` calls before any image is built.
-- [ ] `internal/le/interoplab/radius/radius.go` - `buildZe` cross-compiles the
-      lab daemon: `featuretags.DaemonBuildTags` with base `ze_core ze_distro`,
-      `gotoolchain.New`, output `test/interop-radius/ze-linux`, a 5-minute
-      bound, and the environment from `Toolchain.Environment` with
-      `EnvOptions{GOOS: "linux"}`. It is wired as the suite `Preflight` and
-      returns early under `NO_BUILD`.
-- [ ] `internal/le/interoplab/ipsec/ipsec.go` - a second, near-identical
-      `buildZe` writing `test/interop-ipsec/ze-linux`, wired the same way.
-- [ ] `internal/le/gotoolchain/gotoolchain.go` - `EnvOptions` carries `CGO`,
-      `GOOS` and `GOARCH`. `Toolchain.Overrides` emits `CGO_ENABLED=0` unless
-      `CGO` is set, pins `GOTOOLCHAIN` to the one `go.mod` names, and puts
-      `GOCACHE` inside the checkout.
-- [ ] `test/interop-l2tp/Dockerfile.ze`, `test/interop-pppoe/Dockerfile.ze` -
-      both compile inside the image: `COPY go.mod go.sum ./`, `go mod
-      download`, `COPY . .`, then a `go build` whose tags are derived by an
-      inline `awk` over `feature-gates.txt`.
-- [ ] `.dockerignore` - excludes `test/`, then re-admits
-      `test/interop-ipsec/ze-linux` and `test/interop-radius/ze-linux` by
-      negation. `bin/` and `cache/` are excluded outright.
-- [ ] `.gitignore` - both staged lab binaries, under a comment naming `buildZe`
-      as the producer and saying they are regenerated each run.
-- [ ] `internal/le/goversion/dockerfile.go` - `copiesModule` returns false for
-      a `COPY --from=` and for any COPY whose sources do not include `go.mod`,
-      `.` or `./`. `stagesOf` therefore marks only module-copying stages, and
-      `Result.judgeDockerfile` counts exactly those as carriers.
-- [ ] `internal/le/rfc/discriminate_observe.go` - `requireRed` routes
-      `kindInterop` to `requireRedInTree`, which writes the break into the
-      working tree and restores it byte for byte. Its comment justifies the
-      exception with "The BGP interop lab compiles ze INSIDE Docker".
-- [ ] `.github/workflows/evidence-nightly.yml` - five interop jobs, all
-      `runs-on: ubuntu-latest`, each invoking a `./le integration interop*`
-      action.
+**Source read on 2026-09-19:**
+- `internal/le/interoplab/zebuild.go`: `StageBinaries` returns early for `NO_BUILD`,
+  reads `ServerArchitecture`, and calls `stageBinaries`. That function uses the
+  pinned toolchain with Linux and the daemon architecture; `stageBinary` derives
+  feature tags from the declared base and runs `go build` for each output.
+- `internal/le/interoplab/bgp/run.go`: `LabBinaries` declares `ze` and `ze-test`;
+  `suiteFor` installs `StageBinaries` as `Preflight` and declares the image
+  without a `ZE_FEATURES` build argument.
+- `internal/le/interoplab/lab.go`: `Suite.Run` runs `Preflight` before image preparation.
+- The IPsec, RADIUS, L2TP and PPPoE suite producers also wire `StageBinaries`.
+- `test/interop/Dockerfile.ze`, `test/interop-l2tp/Dockerfile.ze` and
+  `test/interop-pppoe/Dockerfile.ze` use an Alpine stage and copy staged binaries.
+  The BGP image installs `tini`, `nftables` and `iproute2`.
+
+This is source evidence only. No build, scenario, timing, memory measurement,
+discrimination re-recording or validation was run for this reconciliation.
 
 **Behavior to preserve:**
 - The image's contents: `/usr/local/bin/ze` and `/usr/local/bin/ze-test` on an
-  `alpine:3.21` base with `tini` and `nftables`, entrypoint `tini -- ze`.
+  `alpine:3.21` base with `tini`, `nftables` and `iproute2`, entrypoint `tini -- ze`.
 - The feature set. Both binaries carry the tags `feature-gates.txt` declares,
   through `featuretags`, so the lab daemon cannot drift from the shipped one.
 - `NO_BUILD=1` skips every build, preflight included.
@@ -159,16 +122,12 @@ prose, and that is covered above.
   tagged interop unit.
 - Every scenario's observable behavior. No scenario file changes.
 
-**Behavior to change:**
-- The image build no longer runs a Go compiler. The binaries are produced on
-  the host, before the build, and copied in.
-- The bgp lab gains a `Preflight`, and stops passing `ZE_FEATURES` as a build
-  argument.
-- `test/interop-l2tp/Dockerfile.ze` and `test/interop-pppoe/Dockerfile.ze` take
-  the same shape, and their inline `awk` over `feature-gates.txt` is deleted in
-  favour of `featuretags`.
-- `ipsec.buildZe` and `radius.buildZe` are deleted and both labs call the one
-  shared producer.
+**Remaining behaviour and evidence work:**
+- Preserve the implemented host staging and compiler-free images.
+- Demonstrate AC-2 through AC-7, AC-9 and AC-10 with recorded runs; inspect the
+  five-lab declaration and image population for AC-1 and AC-8.
+- Reconcile any remaining build-shape prose and record the measured outcomes.
+  Do not replace the working producer with the former design skeleton.
 
 ## Data Flow (MANDATORY)
 
@@ -260,7 +219,7 @@ in `.github/workflows/evidence-nightly.yml`.
 | AC-5 | a container from the built image | `ze` and `ze-test` both run inside it, and the scenario's ready probe passes, on an `alpine:3.21` (musl) base |
 | AC-6 | a Docker daemon whose architecture the preflight cannot read | the run fails before any image is built, with a message naming what it asked and what it got. It never guesses a `GOARCH` |
 | AC-7 | `./le rfc discriminate-record` re-run for `RFC1997-Well-1` | observes the green, applies the working-tree break, observes a red that names the interop unit, and writes a record `./le rfc check` accepts |
-| AC-8 | `grep -rn 'func buildZe' internal/le/interoplab/` | one producer, in `internal/le/interoplab/`. The ipsec and radius copies are gone and both labs call it |
+| AC-8 | All five lab preflights and the shared producer | `StageBinaries` / `stageBinaries` / `stageBinary` in `internal/le/interoplab/zebuild.go` provide the one build path; no lab-local `buildZe` copy remains, and IPsec and RADIUS both call the shared path |
 | AC-9 | `./le integration interop-ipsec` and `./le integration interop-radius` | still pass, unchanged in behavior, on the shared producer |
 | AC-10 | `./le verify current mode full` | passes, `goversion` included: the Go-version gate still judges at least one carrier |
 
@@ -312,32 +271,14 @@ The rows above are the existing scenarios this change must not break, plus the
 two that measure it.
 
 ## Files to Modify
-- `test/interop/Dockerfile.ze` - delete the `golang` builder stage; copy the two
-  staged binaries; header comment names the producing action
-- `test/interop-l2tp/Dockerfile.ze` - same, one binary; delete the inline `awk`
-  over `feature-gates.txt`
-- `test/interop-pppoe/Dockerfile.ze` - same, one binary; delete the inline `awk`
-- `internal/le/interoplab/bgp/run.go` - wire `Preflight`, declare the two
-  binaries, drop the `ZE_FEATURES` build argument
-- `internal/le/interoplab/l2tp/l2tp.go` - wire `Preflight`, declare one binary
-- `internal/le/interoplab/pppoe/pppoe.go` - wire `Preflight`, declare one
-  binary; the `imageBuilds` comment describing the in-image compile is now
-  wrong and is rewritten (`ai/rules/stale-comments.md`)
-- `internal/le/interoplab/ipsec/ipsec.go` - delete `buildZe`, call the shared
-  producer
-- `internal/le/interoplab/radius/radius.go` - delete `buildZe`, call the shared
-  producer
-- `internal/le/interoplab/docker.go` - the `dockerBuildTimeoutVariable` comment
-  describing `test/interop/Dockerfile.ze` as copying the whole tree and
-  compiling ze twice is now wrong and is rewritten
-- `internal/le/rfc/discriminate_observe.go` - `requireRedInTree`'s comment
-  justifies the working-tree route by "the lab compiles ze INSIDE Docker". The
-  route is unchanged and its reason becomes: the preflight `go build` reads no
-  Go overlay, so a break has nowhere to go but the tree
-- `.dockerignore` - negations for the newly staged binaries
-- `.gitignore` - the staged binaries, with the comment naming the one producer
-- `docs/architecture/testing/interop.md` - the "Running" paragraph quoting
-  "compiles ze twice with no cache mount", 2m48s and 40m39s
+
+The implementation already occupies `internal/le/interoplab/zebuild.go`, the
+five suite producers, their Dockerfiles and staging ignore rules. Change those
+only if the AC evidence exposes a defect. They are no longer a list of
+unimplemented migrations.
+
+The remaining documentation/evidence targets are:
+- `docs/architecture/testing/interop.md` - current build shape plus measured image wall time and host peak RSS, with the old measurements retained as dated baselines
 - `docs/contributing/rfc-conformance-gates.md` - the interop-carrier exception's
   stated reason
 - `ai/skills/ze-rfc.md` - the same sentence, in the skill
@@ -347,21 +288,20 @@ two that measure it.
   three rows this spec answers
 
 ## Files to Create
-- `internal/le/interoplab/zebuild.go` - the one producer, and the declaration a
-  lab makes
+
+No new producer is required. `internal/le/interoplab/zebuild.go` and its tests
+already exist. The implemented `LabBinary` declaration is:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `Name` | string | what the binary is called in a message, for example `ze` or `ze-test` |
-| `Tags` | string | the build tags, from `featuretags.DaemonBuildTags` with the lab's own base |
+| `Base` | string | the personality's base tags; `stageBinary` derives the full tags through `featuretags.DaemonBuildTags` |
 | `Output` | string | the repository-relative staging path, inside the build context and admitted by `.dockerignore` |
 
-The exported function takes a context, the repository root, and the declared
-binaries; it reads the Docker daemon's architecture once, then builds each
-binary with `gotoolchain.Environment` under `GOOS=linux`, that `GOARCH`, and
-the default `CGO_ENABLED=0`.
-
-- `internal/le/interoplab/zebuild_test.go` - the unit tests listed above
+`StageBinaries(root, noBuild, binaries...)` returns a `PreflightCheck`. When
+called, it reads the Docker daemon's architecture and stages each binary through
+the pinned toolchain. The current tests must be assessed and exercised as proof,
+not recreated merely because their names appeared in the original design.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -410,41 +350,17 @@ the default `CGO_ENABLED=0`.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- the producer exists and the bgp lab
-   reaches it
-   - Tests: `TestBGPSuiteDeclaresAPreflightBuild`,
-     `TestPreflightBuildsEveryDeclaredBinary`
-   - Files: `internal/le/interoplab/zebuild.go` (stub returning an error),
-     `internal/le/interoplab/bgp/run.go`
-   - Verify: the wiring tests fail because the producer is a stub
-2. **Phase: the producer** -- cross-compile at the daemon's architecture
-   - Tests: `TestLabCrossBuildIsStaticLinuxAtTheDaemonArch`,
-     `TestPreflightRefusesAnUnreadableDaemonArchitecture`,
-     `TestPreflightSkippedUnderNoBuild`
-   - Files: `internal/le/interoplab/zebuild.go`
-   - Verify: AC-6 holds before any real build is attempted
-3. **Phase: the bgp image** -- the measured one
-   - Tests: `TestBGPPreflightDeclaresBothPersonalities`,
-     `TestZeDockerfilesCarryNoCompiler`,
-     `TestDockerIgnoreAdmitsEveryStagedLabBinary`
-   - Files: `test/interop/Dockerfile.ze`, `.dockerignore`, `.gitignore`
-   - Verify: AC-2, AC-3, AC-4 and AC-5 measured and recorded on this workstation
-4. **Phase: the two remaining compiling labs**
-   - Tests: the same walk tests, now covering three files
-   - Files: `test/interop-l2tp/Dockerfile.ze`,
-     `test/interop-pppoe/Dockerfile.ze`, `l2tp.go`, `pppoe.go`
-   - Verify: one scenario from each suite runs
-5. **Phase: one producer** -- delete the two copies
-   - Tests: AC-8, plus the existing ipsec and radius suite tests
-   - Files: `ipsec.go`, `radius.go`
-   - Verify: AC-9
-6. **Phase: the prose the change falsified**
-   - Files: the `docker.go`, `discriminate_observe.go` and `pppoe.go` comments;
-     `docs/architecture/testing/interop.md`,
-     `docs/contributing/rfc-conformance-gates.md`, `ai/skills/ze-rfc.md`,
-     `docs/labs/l2tp-interop.md`, `docs/labs/pppoe-interop.md`
-   - Verify: AC-7 re-records `RFC1997-Well-1`, proving the route the rewritten
-     prose describes; AC-10 passes
+1. Reconcile existing unit coverage and all five lab declarations with AC-1,
+   AC-6 and AC-8; retain source evidence separately from run results.
+2. Run the originally blocked BGP scenario on the specified workstation and
+   record its verdict, image-build wall time, host-build peak RSS and both
+   personalities executing inside the image (AC-2 through AC-5).
+3. Exercise a scenario in each converted L2TP and PPPoE lab, plus the unchanged
+   IPsec and RADIUS regression obligations (AC-9).
+4. Reconcile the documentation and discrimination rationale, then re-record
+   `RFC1997-Well-1` against the preflight build path (AC-7).
+5. Record the nightly/toolchain assumption and full verification evidence
+   (AC-10), complete independent review, and follow normal closure.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

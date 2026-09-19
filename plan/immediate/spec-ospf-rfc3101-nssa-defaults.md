@@ -2,15 +2,22 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
-| Depends | learned 972 (OSPF AF seam), learned 975 (OSPFv3 NSSA redistribution) |
-| Phase | IMPLEMENTATION partly landed. AC-1 to AC-4 are in `01f8306378`. AC-5 to AC-12 are in the working tree (see the 2026-09-05 note). AC-13 and AC-14, and the three interop scenarios, are outstanding and are their own work packages. Implementation carries no model requirement (`ai/rules/planning.md`) |
-| Updated | 2026-09-05 |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+The remaining implementation is the single ABR producer required by AC-13 and
+the transition behavior required by AC-14. The three new interop scenarios
+remain required evidence. The September 5 amendment records AC-1 through
+AC-12 as implemented; it does not close this spec.
+
+### Original defect (2026-08-02)
 
 RFC 3101 requires an NSSA border router to originate a default destination into
 every directly attached NSSA, and requires an NSSA border router to reject a
@@ -245,7 +252,7 @@ Two entry points, one per direction.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A v6 NSSA default is purged by an unrelated redistribution withdrawal, because `v6ExternalSelfTypes` includes `LSTypeNSSA` and `v6WithdrawExternal` builds its keep-set only from `redistV6` and `translations` | A redistributed external is withdrawn and the NSSA default vanishes with it | Add the default's `SelfLSARef` to that keep-set, and add a unit test that withdraws an unrelated external then asserts the default survives |
-| R-2 | THREE sites compute ABR status independently and on different clocks: `isAreaBorderRouter` inside `lsdb.OriginateFromTopology` (which sets the advertised Router-LSA B-bit), `ospfspf.IsABR` in `applyNSSADefaults` (live interface state, 1 Hz tick), and `IsABR` in `spf/computer.go` (SPF-result presence). A no-summary NSSA can briefly hold neither default across a backbone transition, and Ze can advertise B=1 while originating no default | Transient absence of any default in a backbone flap test; or a Router-LSA with the B-bit set while no default LSA exists | Owner decision 2026-08-02: UNIFY. Make the Router-LSA B-bit determination the single producer and have both default-route consumers read it, so what Ze advertises and what Ze originates cannot disagree |
+| R-2 | Four producers compute ABR state separately: `lsdb.isAreaBorderRouter`, `v6IsAreaBorderRouter`, `ospfspf.IsABR` in `applyNSSADefaults`, and `IsABR` in `Computer.Run`. Their snapshots and update times can disagree across a backbone transition | Transient absence of any default in a backbone flap test; or a Router-LSA with the B-bit set while no default LSA exists | Owner decision 2026-08-02: UNIFY. Make the Router-LSA B-bit determination the single producer and have both default-route consumers read it. AC-13/14 still own the implementation and proof |
 | R-3 | The meaning of `nssa { default-originate }` changed: it is now inert on an ABR. An operator upgrading gets a default they did not configure, and a leaf that silently stops doing what its old description said | An operator reports an unexpected `0.0.0.0/0` in an NSSA | Document in `docs/guide/ospf.md` and the YANG description, and call it out at closure as an operator-visible change |
 | R-4 | `ai/RFC-REQUIREMENTS.md` regeneration is entangled with a concurrent session's uncommitted rfc9190 work, so `./le rfc index-update` would sweep foreign changes into this commit | `./le rfc check` stays red on the staleness violation | Owner action: sequence the regeneration against the other session rather than running it blind |
 | R-5 | The evidence ratchet keys on `kind/tier`, so substituting a verify-tier `.ci` binding for a nightly-tier interop one fires it even at unchanged tag count | `check_evidence_ratchet` fails on a requirement whose evidence kind changed | Every new binding ADDS; no existing tag is moved or retargeted |
@@ -433,6 +440,8 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 - `internal/plugins/ospf/spf/external.go` - RFC citation comments on both gates
 - `internal/plugins/ospf/lsdb/origination.go` - expose the `isAreaBorderRouter` result that
   sets the Router-LSA B-bit, so it becomes the single ABR producer (R-2, AC-13)
+- `internal/plugins/ospf/origination_v6.go` - bring `v6IsAreaBorderRouter` into
+  the same producer contract; AC-13 applies to both address families
 - `internal/plugins/ospf/spf/computer.go` - read ABR status from that producer instead of
   recomputing it from SPF-result presence (R-2, AC-13)
 - `internal/plugins/ospf/instance.go` - remove the `ipv4Address` production test seam in
@@ -493,14 +502,19 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 
 ## Implementation Steps
 
+The September 5 implementation note supersedes the original starting state
+in these steps. AC-5 through AC-12 do not need a second implementation.
+Phase 2's four-producer unification and its transition evidence remain open,
+along with the three interop scenarios and final closure gates.
+
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove an OSPFv3 engine reaches a v6 default originator at all
    - Tests: `TestOSPFv3NSSABorderRouterOriginatesDefault`, `TestOSPFv3NSSADefaultUsesV6Producer`
    - Files: `internal/plugins/ospf/nssa.go` (family branch), `origination_v6_nssa.go` (stub originator)
    - Verify: both tests FAIL first because an OSPFv3 ABR currently installs a 0x0007-keyed LSA. `TestOSPFv3NSSADefaultUsesV6Producer` is the wiring test and must go red before it goes green
 2. **Phase: Unify the ABR producer** -- one source of truth for "am I an ABR"
    - Tests: `TestOSPFNSSADefaultAgreesWithRouterLSABBit`, `TestOSPFNSSANoSummaryDefaultSurvivesBackboneFlap`
-   - Files: `internal/plugins/ospf/lsdb/origination.go` (expose the `isAreaBorderRouter` result that sets the Router-LSA B-bit), `internal/plugins/ospf/nssa.go`, `internal/plugins/ospf/spf/computer.go`
-   - Verify: AC-13 and AC-14. The B-bit determination becomes the producer; `applyNSSADefaults` and the summary path both READ it. Grep proves no third site recomputes ABR status from its own snapshot
+   - Files: `internal/plugins/ospf/lsdb/origination.go`, `internal/plugins/ospf/origination_v6.go`, `internal/plugins/ospf/nssa.go`, `internal/plugins/ospf/spf/computer.go`
+   - Verify: AC-13 and AC-14 in both address families. The B-bit determination becomes the producer; `applyNSSADefaults` and the summary path read it. All four existing producer sites must use that contract rather than recomputing from independent snapshots.
 3. **Phase: Policy extraction** -- lift the address-family-neutral default decision out of `applyNSSADefaults`
    - Tests: the whole existing OSPFv2 suite must stay green, unchanged, including the discriminating FRR interop
    - Files: `internal/plugins/ospf/nssa.go`
@@ -624,10 +638,13 @@ the origination side needed a whole branch.
   there. Making it an error would be a config-breaking change for existing deployments; this
   spec documents the new meaning instead and proposes a validator warning under the
   Integration Checklist.
-- R-2 is CLOSED by unification, not documented: the owner chose on 2026-08-02 to make the
-  Router-LSA B-bit determination the single ABR producer. Any residual delay is that one
-  producer's own update latency, which is the same latency peers already observe in the
-  advertised B-bit, so Ze cannot advertise one thing and originate another.
+- R-2's design choice was settled on 2026-08-02: the Router-LSA B-bit
+  determination must become the single ABR producer. The implementation remains
+  open under AC-13, with AC-14 dependent on it. `applyNSSADefaults`,
+  `Computer.Run`, `lsdb.isAreaBorderRouter` and `v6IsAreaBorderRouter` still
+  compute ABR state separately. The September 5 amendment supersedes the
+  earlier completion claim; the risk cannot close before implementation and
+  the required transition evidence.
 
 ## RFC Documentation (Scope: protocol)
 

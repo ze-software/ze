@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | implemented and landed at `bc987697e1`; closure sections unwritten |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 <!-- Backfilled. The work was commissioned straight from a journal row and
      skipped the spec step, so this records what the work IS, what its evidence
@@ -59,10 +59,10 @@ Goal: a script and its message are ONE artifact. Neither can be taken by a later
 - Automatic tag allocation still walks letters in order.
 
 **Behavior to change:**
-- `allocateMessage` draws a random suffix and creates its file with `O_EXCL`,
-  exactly as `allocateScript` does.
-- The auto-tag walk reserves a letter by globbing the suffixed names rather than
-  by creating an unsuffixed file.
+- `allocateMessage` draws a random suffix and reserves its file with `O_EXCL`.
+  `allocateScript` selects a separate random-suffixed path after an existence
+  check; it does not use the message reservation or `O_EXCL`.
+- The auto-tag walk treats an existing suffixed message as a taken letter.
 - `Create` owns cleanup for every tag rather than for automatic tags alone, so a
   failed or dry-run `create` leaves no empty file holding a name.
 
@@ -74,10 +74,12 @@ Goal: a script and its message are ONE artifact. Neither can be taken by a later
 
 ### Transformation Path
 1. `Create` (`internal/le/commit/prepare.go`) resolves the commit session.
-2. `nextTag` (`script.go`) picks the tag and allocates both artifact paths.
-3. `allocateMessage` and `allocateScript` each draw a random suffix and create
-   their file with `O_EXCL`.
-4. `Create` prints `script=` and `message=`, and removes both on failure.
+2. `nextTag` (`script.go`) picks the tag and reserves the message path.
+3. `Create` resolves the script separately through `targetScript` and places
+   the selected message path in the generated block.
+4. `Create` removes an unused empty message reservation on failure or dry run.
+   Successful preparation prints `script=` and `message=`. AC-2 and AC-4 still
+   require their own evidence; the current allocator description is not proof.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -262,6 +264,12 @@ Goal: a script and its message are ONE artifact. Neither can be taken by a later
 - [ ] `/ze-review` gate clean
 
 ## Current Condition and What Remains
+
+The rows below retain the September 6 evidence record. `allocateMessage` in
+`internal/le/commit/script.go` still reserves a random-suffixed path with
+`O_EXCL`. `allocateScript` draws a separate suffix, so AC-2 remains an explicit
+proof obligation; message isolation alone does not establish it. No new test
+result is recorded here.
 
 | Item | State |
 |------|-------|

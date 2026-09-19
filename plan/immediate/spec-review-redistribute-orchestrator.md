@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-unify-replay (ReplayID leaf concern, adjacent; closed, learned 1081) |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -18,13 +18,16 @@
 
 ## Task
 
-Close the two concrete, uncovered defects in DESIGN-REVIEW finding 5. The redistribute
-orchestrator treats producers and consumers asymmetrically and threads a startup snapshot
-(`skipIDs`) through three function signatures that does no real work.
+Review producer-registration lifetime and remove the redundant `skipIDs`
+snapshot. The current registry documents registration at `init()` time
+(`internal/core/redistevents/registry.go`), while `subscribe` takes one producer
+snapshot and `handleBatch` reads consumers live. A supported runtime trigger
+for a late producer has not been established, so the asymmetry alone does not
+prove an operator-visible route loss.
 
-Two verified defects in scope:
+Two items remain in scope:
 
-1. **Producer/consumer registration asymmetry (latent silent drop).** The orchestrator
+1. **Producer/consumer registration asymmetry (conditional silent drop).** The orchestrator
    enumerates producers exactly once at startup via `redistevents.Producers()`
    (`redistribute.go`, call at `:142`) and then blocks on `<-ctx.Done()`
    (`:136`), so the subscription set is fixed. But consumers are read live on every event
@@ -46,6 +49,13 @@ or loudly surfaced (metric + warn), making producer handling as observable as co
 handling; (2) delete `skipIDs` from the `run` -> `subscribe` -> closure -> `handleBatch`
 chain, deriving the heads-up debug log (if kept) from the live skip, with byte-identical
 dispatch behavior.
+
+Before readiness, establish whether a supported producer can register after
+`run` starts. If registration is init-only, enforce that lifetime with the
+observable refusal required by AC-1; if runtime registration is supported,
+design subscription or explicit detection at the registry seam. This choice
+does not remove AC-1's warn-and-metric minimum or authorise dynamic loading.
+The closed `spec-unify-replay` is adjacent history, not a blocking dependency.
 
 **Explicitly out of scope (referenced, not duplicated):**
 - Removing `ReplayID`/`ReplayRequest` (BGP-peer semantics) from the `redistevents` leaf
@@ -162,7 +172,7 @@ The `skipIDs` snapshot duplicates (staler) information the live path already com
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | A producer registers its ProtocolID after the orchestrator `run` has started, then emits a batch | The batch is either dispatched (producer subscribed) or the missing subscription is surfaced by a warn + a dedicated metric; it is never silently dropped |
+| AC-1 | A producer registration is attempted after orchestrator startup | Under the chosen lifecycle, it is subscribed and dispatched, or explicitly refused/detected with a warn and dedicated metric. A registration must not appear successful while its events disappear silently |
 | AC-2 | Normal run with `skipIDs` removed from `run`/`subscribe`/closure/`handleBatch` | Dispatch outcome byte-identical to before; grep shows no `skipIDs` parameter threaded for logging only |
 | AC-3 | A source protocol that is also a consumer emits a batch | That consumer is skipped, all others still receive it, `filteredProtocolTotal` increments exactly as before |
 | AC-4 | The debug log "source protocol has a consumer" case | If retained, the log is derived from the live skip, not a startup snapshot (no staleness when a consumer registers after startup) |
@@ -238,10 +248,12 @@ Existing OSPF/IS-IS redistribution `.ci` scenarios are the regression gate.
 
 ### Implementation Phases
 
-1. **Phase: Wiring (MANDATORY FIRST)** — add `TestLateProducerNotSilentlyDropped` asserting a
-   late producer is not silently dropped (fails now); add the producer-gap metric skeleton.
-   - Files: `redistribute.go`, `redistribute_test.go`
-   - Verify: test fails because the current snapshot silently drops the late producer.
+1. **Phase: Wiring (MANDATORY FIRST)**: after the design establishes the
+   supported registration lifetime, write `TestLateProducerNotSilentlyDropped`
+   for that lifetime's subscribe-or-refuse outcome and its warn/metric path.
+   - Files: `redistribute.go`, `redistribute_test.go`, registry seam if needed.
+   - Verify: the reproduction exercises the declared lifecycle, rather than
+     assuming an unsupported runtime registration is an operator defect.
 2. **Phase: Producer symmetry** — subscribe late producers or surface the gap (warn + metric);
    pick the mechanism (Key Design Decisions) after validating A-3.
    - Tests: `TestLateProducerNotSilentlyDropped` passes.

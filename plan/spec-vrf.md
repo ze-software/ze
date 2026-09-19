@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | - |
+| Depends | spec-vrf-0-umbrella.md |
 | Phase | - |
 | Updated | 2026-08-29 |
 
@@ -18,7 +18,10 @@
 
 ## Task
 
-**Large feature area — skeleton only. Full design not started.**
+This skeleton is the device and interface-membership child of
+`plan/spec-vrf-0-umbrella.md`, occupying its phase 2. The umbrella already
+records the agreed VRF architecture; this child's detailed design has not
+started. It reuses that architecture rather than defining a second stack.
 
 Ze exposes a per-interface `vrf` config leaf, but it is a **schema-only stub**: no
 Go code reads or applies it, and Ze creates no VRF devices and enslaves no
@@ -43,11 +46,15 @@ Implement real VRF support:
 - Apply the per-unit `vrf` leaf so an interface's traffic uses the VRF's table.
 - Provide the routing/fwmark rules that make VRF-bound interfaces (including tunnels
   such as WireGuard) forward out of the correct table.
-- Tighten the `vrf` leaf validation (it is currently a bare `type string`).
+- Replace the `unimplemented-vrf` refusal with validation of real VRF names
+  and membership when the feature becomes functional.
 
-This is foundational and multi-component (iface, routing/sysrib, policyroute). It
-must go through the full `/ze-spec` RESEARCH/DESIGN workflow before implementation.
-This skeleton tracks the gap; it is NOT ready to implement.
+This child owns the device and membership implementation and retains AC-1
+through AC-6, including route isolation and WireGuard table selection.
+Its routing/sysrib and policyroute integration follows the umbrella's table
+model. VRF-bound services are owned by the umbrella's phase 5; the service
+story below is a cross-child integration obligation. Detailed research and
+design remain required before this skeleton is ready to implement.
 
 ## Required Reading
 
@@ -69,7 +76,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 
 **Source files read:**
 - [ ] `internal/plugins/iface/netlink/bridge_linux.go` - `LinkSetMaster` is used only for bridge ports (bridge_linux.go), never for VRF; there is no `netlink.Vrf` device creation anywhere in the netlink backend.
-- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - per-unit `leaf vrf`, bare string, no completion. It is the only `vrf` reference in the iface component/plugin: `parseUnits` (`internal/component/iface/config.go`) never reads `"vrf"` from the unit map and `unitEntry` carries no VRF field.
+- [ ] `internal/component/iface/yang/ze-iface-conf.yang` - per-unit `leaf vrf` is a string with `ze:validate "unimplemented-vrf"`. The refusal must stay until VRF device and membership behavior is implemented; then replace it with real name and membership validation.
   -> Decision: the leaf is REFUSED rather than deleted. Nothing in the config walk emits `ErrTypeUnknown` (`internal/component/config/validate_sections.go`), so deleting the leaf would leave `vrf red` skipped in silence, which is the defect again with a different spelling.
 - [ ] `internal/plugins/policyroute/rules_linux.go` - the only ip-rule/fwmark machinery, with its own independent mark range; no VRF or table linkage.
 
@@ -175,7 +182,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 | N/A - dataplane feature; validated by QEMU functional tests, not a peer daemon | - | - | table isolation is a kernel behaviour, tested in QEMU | - |
 
 ### Future (if deferring any tests)
-- Phasing: enslavement + table isolation first; VRF-bound services and WireGuard-in-VRF fwmark in follow-up sub-specs.
+- Device and table-isolation evidence, including WireGuard AC-4, is required here. Service-binding evidence belongs to phase 5 of `plan/spec-vrf-0-umbrella.md`; it remains required for the cross-child service story.
 
 ## Files to Modify
 - `internal/component/iface/yang/ze-iface-conf.yang` - top-level VRF defs; tighten the `vrf` leaf and drop its `ze:validate "unimplemented-vrf"` binding
@@ -198,7 +205,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 | 1. Read spec | This file (skeleton — run `/ze-spec` RESEARCH/DESIGN first) |
 
 ### Implementation Phases
-1. **RESEARCH/DESIGN (not started)** — full `/ze-spec` workflow: netlink VRF plumbing, table model in sysrib, policyroute coordination, QEMU test design, phasing. Not implementable as-is.
+1. **Child RESEARCH/DESIGN (not started):** use the umbrella's agreed architecture for netlink VRF plumbing, the sysrib table model, policyroute coordination and QEMU test design. This child is not implementable as-is.
 
 ## Mistake Log
 ### Wrong Assumptions
@@ -207,7 +214,7 @@ This skeleton tracks the gap; it is NOT ready to implement.
 
 ## Known Limitations
 - Skeleton only: acceptance criteria and tests are provisional placeholders for DESIGN.
-- WireGuard-in-VRF fwmark rules depend on this base VRF work; tracked here as AC-4, likely a follow-up sub-spec.
+- WireGuard-in-VRF table selection remains AC-4 of this child; it cannot be omitted from closure without an owner-approved scope change and an existing destination.
 
 ## Implementation Summary
 ### What Was Implemented

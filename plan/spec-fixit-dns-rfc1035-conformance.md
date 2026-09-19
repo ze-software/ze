@@ -5,8 +5,8 @@
 | Status | blocked |
 | Scope | protocol |
 | Depends | - |
-| Phase | WP-1, WP-2, WP-3, WP-5, WP-6, WP-7 landed; WP-4 and one escalation open |
-| Updated | 2026-08-12 |
+| Phase | - |
+| Updated | 2026-08-28 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -14,7 +14,8 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **RFC 1035 is out of scope for now. Do not start WP-4 or the remaining
 escalation.** The owner ruled this while the first-release fixit backlog was
-being drained.
+being drained. The later inherited DNSSEC item below also stays paused under
+the August 28 instruction to skip DNS specs.
 
 **Status is `blocked`, not `in-progress` (2026-08-28).** Nothing here waits on an
 implementer, so `in-progress` was counting this spec as work under way and hiding
@@ -29,11 +30,13 @@ is a classification `ai/rules/rfc-compliance.md` reserves to him:
 question above stays open and unanswered, and this spec stays parked. It is not
 work for anybody until he rules on the reading.
 
-It does NOT move to `plan/future/`. An unmet RFC obligation is a defect by
-`plan/future/README.md`'s own definition, and moving one there to shrink the
-`plan/` count is banned. If the owner rules that Section 4.2 constrains the
-transport of a refresh Ze never performs, `RFC1035-4.2-1` is not owed and this
-spec closes with no code. If he rules the other way, WP-4 runs.
+The old `plan/future/` placement discussion predates the current bucket policy.
+This file's root location does not settle the unresolved RFC classification or
+waive an obligation. Before a roadmap labels this item optional, the owner must
+resolve that classification and its release disposition. If Section 4.2 only
+constrains refresh Ze never performs, WP-4 may need no implementation; if it
+binds Ze to provide transfer, WP-4 remains owed. Either outcome leaves the
+separately inherited DNSSEC item accounted for before closure.
 
 What that leaves in the tree, so the next reader does not re-derive it:
 
@@ -43,6 +46,7 @@ What that leaves in the tree, so the next reader does not re-derive it:
 | `RFC1035-4.2-1` (zone transfer, WP-4) | not implemented, and not to be started |
 | `RFC1035-3.3.13-1` | settled and unrecordable: RFC 2308 Section 4 withdrew it |
 | RFC 1035 enrolment | still `backlog` in `rfc/not-enrolled.txt`, so its MUSTs are not gated |
+| Inherited DNSSEC signature validation | owned here as WP-DNSSEC, paused; outside the 27 RFC 1035 rows |
 
 The question put to the owner was whether `RFC1035-4.2-1` binds at all. RFC 1035
 Section 4.2 states "Zone refresh activities must use virtual circuits because of
@@ -57,6 +61,15 @@ Reopening this spec means re-raising that reading first, per
 owner's to make.
 
 ## Task
+
+The July baseline below records the original conformance scope. The August
+corrections govern implemented behaviour and the owner pause governs all
+remaining work. This spec also owns local DNSSEC signature validation inherited
+from `firewall-domain-group` on 2026-09-02: valid signed answers must be checked
+locally, and a bogus signature must not become accepted firewall membership
+merely because an upstream resolver returned NOERROR. Trust-anchor policy and
+the treatment of unsigned answers need design when the owner reopens DNS work;
+the inheritance is not authority to start that work now.
 
 `plan/spec-rfcgate-4-ledger.md` re-authored the extraction for RFC 1035 on 2026-07-30.
 The new summary declares **27 gated MUST-level obligations**. `docs/features/rfc-status.md`
@@ -232,7 +245,9 @@ repo.
 
 ## Work Package Partition
 
-Seven work packages cover all 27 gated rows. The count check is the final row.
+Seven work packages cover the original 27 RFC 1035 rows. WP-DNSSEC separately
+owns the inherited signature-validation requirement and does not change that
+RFC 1035 count.
 
 | WP | Theme | Requirement IDs | Count |
 |----|-------|-----------------|-------|
@@ -244,6 +259,11 @@ Seven work packages cover all 27 gated rows. The count check is the final row.
 | WP-6 | Header fields and RCODEs | `4.1.1-1`, `4.1.1-2`, `4.1.1-3` | 3 |
 | WP-7 | RR fields, compression, transport framing | `4.1.3-2`, `4.1.4-1`, `4.1.4-2`, `4.1.4-3`, `4.1.4-4`, `4.1.4-5`, `4.2.1-3`, `4.2.2-1` | 8 |
 | **Total** | | | **27** |
+
+WP-DNSSEC must design local validation at the resolver boundary consumed by the
+firewall DNS source, including trust anchors and invalid-signature outcomes.
+AC-27 and the signed-answer functional fixture below are its completion
+condition. It remains paused with the rest of the DNS work.
 
 All ids carry the `RFC1035-` prefix. The table drops it for width.
 
@@ -382,7 +402,7 @@ the repo.
 ### Transformation Path
 1. `miekg/dns` accepts the connection and unpacks the wire bytes into a `dns.Msg`. Malformed input never reaches Ze.
 2. `dnsserver.Authoritative` (`handler.go`) installs the panic guard, allocates the reply, and calls `SetReply`.
-3. `shapeAuthoritative` (`handler.go`) sets the AA bit, clears recursion, and disables compression.
+3. `shapeAuthoritative` (`handler.go`) clears recursion and the reserved Z bit, disables compression, and sets AA according to the reply RCODE (clear for REFUSED). The harness reapplies it after the answer function.
 4. The plugin answer func runs. geodns uses `answerQuery` (`server.go`). as112 uses its own `answerQuery` (`server.go`).
 5. The answer func resolves the client through `dnsserver.ClientIP` (`client.go`), which CAN read an inbound EDNS0 client-subnet option.
 6. The answer func appends records to `Answer`, `Ns`, and `Extra`, or sets an RCODE.
@@ -595,7 +615,7 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-16 | A configured name whose wire form exceeds 255 octets, including a synthesized `ns<N>.<zone>` glue name | The config is rejected at validate time and names the offending value. Positive and negative tags for `RFC1035-3.1-4`. |
 | AC-17 | A configured label exceeding 63 octets | The config is rejected at validate time. Positive and negative tags for `RFC1035-3.1-3`. |
 | AC-18 | A reply that fails to pack for any reason | The failure is logged, counted in a metric, and never a silent drop. `handler.go` no longer discards the error. |
-| AC-19 | Any reply Ze emits | The Z field is zero, the AA bit is set, and a name outside every served zone draws RCODE 3. Positive and negative tags for `RFC1035-4.1.1-1`, `RFC1035-4.1.1-2`, `RFC1035-4.1.1-3`. |
+| AC-19 | Authoritative replies for an existing in-zone name, a missing in-zone name, and a name outside every served zone | The reserved Z bit is zero. An existing name with no requested record gets NOERROR and the zone SOA; a missing in-zone name gets RCODE 3 and the zone SOA. Both are authoritative. An out-of-zone name gets RCODE 5, AA clear and empty Answer, Authority and Additional sections. Preserve positive and negative evidence for `RFC1035-4.1.1-1`, `RFC1035-4.1.1-2`, `RFC1035-4.1.1-3`. |
 | AC-20 | Any reply Ze emits, round-tripped through the packer and unpacker | Every RR survives unchanged, proving label, terminator, RDLENGTH, and pointer handling at Ze's seam. Tags for `RFC1035-3.1-1`, `RFC1035-3.1-2`, `RFC1035-4.1.3-2`, `RFC1035-4.1.4-4`, `RFC1035-4.1.4-5`. |
 | AC-21 | An inbound query containing a compression pointer | The query is understood and answered. Positive and negative tags for `RFC1035-4.1.4-5`. |
 | AC-22 | The configured listener set | UDP and TCP both bind port 53 by default, and the TCP reply carries the two-octet length prefix. Positive and negative tags for `RFC1035-4.2.1-3`, `RFC1035-4.2.2-1`. |
@@ -603,6 +623,7 @@ Record the outcome in the table below. Escalate only what survives.
 | AC-24 | Enrolment | `rfc1035` is removed from `rfc/not-enrolled.txt` and added to `rfc/enrolled.txt` with a reason naming each row's proof. `rfc/extraction/rfc1035.json` stays valid, its `source-sha` still matching `rfc/full/rfc1035.txt`. |
 | AC-25 | `./le rfc check` and `./le verify current mode full` | Both exit 0. `ai/RFC-REQUIREMENTS.md` is regenerated and committed alongside the tag changes. |
 | AC-26 | The published status row | `docs/features/rfc-status.md` no longer claims obligations with no code path, and its coverage text carries source anchors to the producing lines. |
+| AC-27 | Controlled DNSSEC answers consumed by a firewall DNS source: a valid signed answer and an otherwise equivalent answer with an invalid signature, both returned upstream as NOERROR | Ze validates the signature locally using the designed trust-anchor policy. Only the valid answer may replace accepted membership; a bogus answer follows the source-failure path and cannot install its addresses. The proof must distinguish local validation from reliance on upstream SERVFAIL. This criterion stays paused pending the owner reopening DNS work |
 
 ## End-to-End User Stories
 
@@ -610,12 +631,13 @@ Record the outcome in the table below. Escalate only what survives.
 |---|-----------|--------------------|-----------------------|
 | 1 | Sends a UDP query for a name with many records | UDP listener → harness → geodns answer → size bound → TC set → 512-octet reply | `test/plugin/dns-udp-truncation.ci` |
 | 2 | Retries the same query over TCP because the UDP reply carried TC | TCP listener → harness → geodns answer → no bound → complete reply | `test/plugin/dns-tcp-no-truncation.ci` |
-| 3 | Configures a host TTL below the zone SOA MINIMUM and queries it | config → parse → `recordRR` clamp → reply carrying the MINIMUM | `test/plugin/dns-ttl-soa-minimum.ci` |
+| 3 | Configures a host TTL below the zone SOA MINIMUM and queries it | config → parse → `recordRR` → reply carrying the configured TTL unchanged, per the August 12 correction | `test/plugin/dns-ttl-soa-minimum.ci` (corrected unchanged-TTL assertion) |
 | 4 | Sends an inverse query to Ze | UDP listener → harness opcode check → Not Implemented reply | `test/plugin/dns-inverse-query-notimp.ci` |
 | 5 | Runs a zone transfer from an authorised secondary | TCP listener → transfer handler → authoriser → streamed zone | `test/plugin/dns-axfr-authorised.ci` |
 | 6 | Runs a zone transfer from an unlisted host | TCP listener → transfer handler → authoriser → REFUSED | `test/plugin/dns-axfr-refused.ci` |
 | 7 | Configures a zone name so long its glue name cannot pack | config → validate → rejection naming the value | `test/parse/dns-name-too-long.ci` |
 | 8 | Runs `ze doctor` against a transfer-enabled config | doctor registry → transfer check → JSON verdict | `test/ui/doctor-dns-transfer.ci` |
+| 9 | Uses a DNS-sourced firewall set backed by signed DNS data | controlled signed answers → resolver's local validation → accepted membership or failure retaining the last good answer | planned signed-answer functional fixture for WP-DNSSEC, AC-27 |
 
 ## 🧪 TDD Test Plan
 
@@ -630,13 +652,11 @@ Record the outcome in the table below. Escalate only what survives.
 | `TestUnsupportedOpcodeReturnsNotImplemented` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-9 | |
 | `TestQueryOpcodeAnsweredNormally` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-10, the negative polarity | |
 | `TestWriteFailureLoggedAndCounted` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-18. The discarded error at `handler.go` | |
-| `TestReplyZBitZeroAndAASet` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-19 | |
+| Header and response-code tests for all three AC-19 cases | `internal/core/dnsserver/rfc1035_handler_test.go` and responder tests | AC-19; the old `TestReplyZBitZeroAndAASet` plan must not imply AA on REFUSED | preserve August 12 behaviour |
 | `TestReplyRoundTripsThroughPacker` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-20. The route-A library-boundary assertion | |
 | `TestInboundCompressionPointerUnderstood` | `internal/core/dnsserver/rfc1035_handler_test.go` | AC-21 | |
 | `TestListenersBindPort53WithTCPLengthPrefix` | `internal/core/dnsserver/manager_rfc1035_test.go` | AC-22 | |
-| `TestRecordTTLRaisedToSOAMinimum` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-5 | |
-| `TestRecordTTLAboveMinimumUnchanged` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-6, the negative polarity | |
-| `TestGlueAndNSTTLRaisedToSOAMinimum` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-5 for the `appendNS` path | |
+| Configured TTL below and above SOA MINIMUM | `internal/plugins/geodns/rfc1035_server_test.go` | AC-6: preserve TTL unchanged. The original `TestRecordTTLRaisedToSOAMinimum` and `TestGlueAndNSTTLRaisedToSOAMinimum` instructions are superseded by RFC 2308 | |
 | `TestZoneAndHostMatchFoldsCase` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-15 | |
 | `TestNonAlphabeticOctetsMatchExactly` | `internal/plugins/geodns/rfc1035_server_test.go` | AC-15, the exact-match half | |
 | `TestConfigRejectsNameOverWireLimit` | `internal/plugins/geodns/config_rfc1035_test.go` | AC-16. Includes the synthesized glue name | |
@@ -666,12 +686,13 @@ Record the outcome in the table below. Escalate only what survives.
 |------|----------|-------------------|--------|
 | `dns-udp-truncation` | `test/plugin/dns-udp-truncation.ci` | A UDP query with a large reply returns TC and at most 512 octets | |
 | `dns-tcp-no-truncation` | `test/plugin/dns-tcp-no-truncation.ci` | The same query over TCP returns the complete reply | |
-| `dns-ttl-soa-minimum` | `test/plugin/dns-ttl-soa-minimum.ci` | A short record TTL is served at the zone SOA MINIMUM | |
+| `dns-ttl-soa-minimum` | `test/plugin/dns-ttl-soa-minimum.ci` | A record TTL below SOA MINIMUM remains unchanged; the original floor assertion is superseded by the August 12 correction | |
 | `dns-inverse-query-notimp` | `test/plugin/dns-inverse-query-notimp.ci` | An inverse query returns Not Implemented | |
 | `dns-axfr-authorised` | `test/plugin/dns-axfr-authorised.ci` | An authorised secondary transfers the zone | |
 | `dns-axfr-refused` | `test/plugin/dns-axfr-refused.ci` | An unlisted host is refused and receives no zone data | |
 | `dns-name-too-long` | `test/parse/dns-name-too-long.ci` | A zone whose glue name cannot pack is rejected at validate time | |
 | `doctor-dns-transfer` | `test/ui/doctor-dns-transfer.ci` | `ze doctor --json` reports the transfer surface | |
+| `dnssec-local-validation` | planned signed-answer fixture in `test/plugin/` | AC-27: upstream NOERROR for valid and bogus signatures; only locally valid data can replace firewall membership | paused with WP-DNSSEC |
 
 **Mutation-verify each functional test** (`ai/rules/testing.md`).
 Disable the producing function, confirm the test flips red, then revert. A
@@ -695,10 +716,10 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 ## Files to Modify
 - `internal/core/dnsserver/handler.go` - the transport-aware size bound, the opcode check, and write-error handling at the single write
 - `internal/core/dnsserver/manager.go` - surface the transport identity to the handler and route a transfer request from the TCP listener
-- `internal/plugins/geodns/server.go` - clamp `recordRR` and `appendNS` TTLs to the zone SOA MINIMUM
+- `internal/plugins/geodns/server.go` - preserve configured TTLs under the August 12 correction; the original SOA MINIMUM clamp instruction is superseded
 - `internal/plugins/geodns/config.go` - reject a name whose wire form exceeds 255 octets, including a synthesized glue name
 - `internal/plugins/geodns/yang/ze-geodns-conf.yang` - correct the name bound to wire octets and add the transfer access leaves
-- `internal/plugins/as112/zones.go` - assert the SOA MINIMUM relationship rather than relying on a constant coincidence
+- `internal/plugins/as112/zones.go` - preserve existing TTLs; their equality with SOA MINIMUM is not a required floor
 - `internal/core/diagnostic/codes.go` - register the new doctor codes for the transfer surface
 - `rfc/short/rfc1035.md` - record each row's proof, and any annotation Thomas authorises
 - `rfc/not-enrolled.txt` - remove the `rfc1035` row
@@ -713,7 +734,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 - `internal/core/dnsserver/transfer_test.go` - transfer tagged tests
 - `internal/plugins/geodns/rfc1035_server_test.go` - answer-policy tagged tests
 - `internal/plugins/geodns/config_rfc1035_test.go` - config-validation tagged tests
-- `internal/plugins/as112/zones_rfc1035_test.go` - the AS112 SOA MINIMUM regression test
+- `internal/plugins/as112/zones_rfc1035_test.go` - existing TTL and negative-answer evidence; no new SOA MINIMUM floor test
 - `rfc/full/rfc6891.txt` and its `rfc6891.md` summary under `rfc/short/` - EDNS0, needed by WP-1
 - `rfc/full/rfc5936.txt` and its `rfc5936.md` summary under `rfc/short/` - AXFR, needed by WP-4
 - `rfc/full/rfc1995.txt` and its `rfc1995.md` summary under `rfc/short/` - IXFR, needed by WP-4
@@ -725,7 +746,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
 - `test/plugin/dns-axfr-refused.ci`
 - `test/parse/dns-name-too-long.ci`
 - `test/ui/doctor-dns-transfer.ci`
-- the retired deferral shard "fixit-dns-rfc1035-conformance" - only if anything is deferred
+- WP-DNSSEC's signed-answer fixture under `test/plugin/`, designed only after the owner reopens DNS work
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -786,17 +807,17 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
    - Tests: `TestUnsupportedOpcodeReturnsNotImplemented`, `TestQueryOpcodeAnsweredNormally`, `dns-inverse-query-notimp`
    - Files: `internal/core/dnsserver/handler.go`
    - Verify: a standard QUERY is unaffected, closing R-8
-6. **Phase: WP-2 TTL derivation and bounds** -- the SOA MINIMUM clamp and the range checks
-   - Tests: `TestRecordTTLRaisedToSOAMinimum`, `TestRecordTTLAboveMinimumUnchanged`, `TestGlueAndNSTTLRaisedToSOAMinimum`, `TestAS112SOAMinimumEqualsZoneTTL`, `TestConfigRejectsTTLOutOfRange`, `dns-ttl-soa-minimum`
-   - Files: `internal/plugins/geodns/server.go`, `internal/plugins/as112/zones.go`, `internal/plugins/geodns/yang/ze-geodns-conf.yang`
-   - Verify: the clamp only ever raises a TTL, closing R-3
+6. **Phase: WP-2 TTL bounds, historical implementation step** -- the August 12 correction supersedes the planned SOA MINIMUM clamp
+   - Tests: unchanged configured TTL below and above MINIMUM; `TestConfigRejectsTTLOutOfRange`
+   - Files: the existing geodns and as112 TTL producers and geodns schema
+   - Verify: preserve AC-6 and AC-8; do not restore the withdrawn floor
 7. **Phase: WP-5 and WP-7 route-A investigation** -- attempt a reachable negative per positive-only row
    - Tests: `TestReplyRoundTripsThroughPacker`, `TestInboundCompressionPointerUnderstood`, `TestConfigRejectsNameOverWireLimit`, `TestConfigAcceptsNameAtWireLimit`, `TestConfigRejectsLabelOver63`, `TestZoneAndHostMatchFoldsCase`, `TestNonAlphabeticOctetsMatchExactly`, `dns-name-too-long`
    - Files: `internal/plugins/geodns/config.go`, `internal/plugins/geodns/yang/ze-geodns-conf.yang`
    - Verify: fill the route-A table. Escalate the surviving ids to Thomas first, per `ai/rules/rfc-compliance.md`
 8. **Phase: WP-6 and WP-7 remaining tags** -- header, RCODE, and transport framing
-   - Tests: `TestReplyZBitZeroAndAASet`, `TestListenersBindPort53WithTCPLengthPrefix`
-   - Files: test files only. These rows are already conformant
+   - Tests: header and RCODE cases in corrected AC-19, `TestListenersBindPort53WithTCPLengthPrefix`
+   - Files: existing header and responder tests; preserve the August 12 implementation
    - Verify: each tag pair fails when the producing behavior is mutated
 9. **Phase: WP-4a transfer prerequisites** -- YANG access-control leaves and doctor checks
    - Tests: `doctor-dns-transfer`
@@ -818,6 +839,7 @@ transfer Ze believes it served but BIND rejects has failed at its only job.
     - Tests: `./le rfc check`, `./le rfc index-update`, `./le doc check verify`, `./le verify current mode full`
     - Files: `rfc/short/rfc1035.md`, `rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`
     - Verify: the stem is enrolled and every gate exits 0
+14. **Phase: WP-DNSSEC, only after the owner reopens DNS work** -- design trust anchors and unsigned-answer policy, then implement local signature validation and prove AC-27 through the firewall DNS source. This obligation is separate from RFC 1035 enrolment.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -942,7 +964,7 @@ the enforcing test, not on the production code.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-26 all demonstrated
+- [ ] AC-1..AC-27 demonstrated, excluding only the explicitly superseded AC-5 and AC-7; DNSSEC remains owned and paused until the owner reopens it
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] All 27 gated rows carry both polarities, or an annotation Thomas explicitly authorised

@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | cli |
-| Depends | `spec-cli-show-bgp-answer-shapes` |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |

@@ -20,6 +20,12 @@ This document is a proposed implementation plan. It authorizes no publication,
 Discord message, bulk spec reprioritization, or product implementation in this
 planning session.
 
+Before the first public roadmap or release-progress update, resolve the recorded
+bucket and ownership decisions in the planning portfolio. Until then, generated
+output is an inventory preview, not an approved required/optional classification.
+This is a publication prerequisite, not a new automated release gate. The
+collector must not resolve those decisions by moving specs or hiding rows.
+
 ### Owner request, 2026-09-18
 
 > it would be good if for the website we had a list of the spec before release and also the nice to have so we can keep track of our progress toward release.
@@ -224,7 +230,7 @@ of this implementation. Existing `confirm`, channel, and resume rules remain.
 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Existing directories express the desired required/optional split. | `plan/README.md` and owner request | Owner triage is needed, separately from presentation. | Design approval, no automatic moves | Proposed |
+| A-1 | Existing directories express the desired required/optional split. | The portfolio review found unresolved bucket and ownership decisions in the current specs. | Resolve owner triage before public classification; retain an explicitly labeled inventory preview meanwhile. | Owner decisions reflected in the canonical specs and buckets, no automatic moves | Unvalidated |
 | A-2 | Remaining counts plus endpoint changes meet the progress goal. | No requested estimates or percentage | Additional completion evidence would need an explicit contract. | Design approval | Proposed |
 | A-3 | Public reports must describe committed specs. | Source links and reproducible weekly history | Local edits need a separately labeled preview. | Design approval | Proposed |
 

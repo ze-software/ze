@@ -16,7 +16,11 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**Moved to `plan/future/` 2026-08-17.** Triage found no established defect: no promiscuous binapi exists under `internal/plugins/iface/vpp`, and nothing in the tree shows VPP dropping tagged frames without one. The premise is unverified, so this is a proposed improvement rather than a release defect.
+Triage on 2026-08-17 found no established defect and recorded a move to
+`plan/future/`. The file is currently in `plan/immediate/`; no relocation is
+made by this reconciliation. The premise remains unverified, so the next step
+is the investigation below. Its release bucket requires the owner's re-reading
+before this is counted as a confirmed operator defect.
 
 ## Task
 

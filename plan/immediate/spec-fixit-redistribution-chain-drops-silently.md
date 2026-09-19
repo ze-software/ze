@@ -2,19 +2,18 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | plugin |
 | Depends | - |
-| Phase | BLOCKED on a gap outside this spec. Implementation is complete and committed; goal validation is 1 of 3 scenarios green. AC-2 needs a Type-7 NSSA-LSA ze does not originate (`plan/journal/unwired-feature.md`, 2026-09-03), which is separate work. See the dated note under Goal Validation |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-04 |
+| Updated | 2026-09-19 |
 
-<!-- Scope is `plugin`, not `protocol`: no RFC obligation changes here. The
-     OSPFv3 external and NSSA origination code and the IS-IS TLV 135 code are
-     already conformant and were read at the producer. They are never reached,
-     because the route never arrives. The change is wire-VISIBLE (FRR learns a
-     prefix it does not learn today), so the Interop Tests table is filled even
-     though the scope row does not demand it. -->
+<!-- Scope remains plugin for the chain repair. The original investigation
+     assumed all downstream originators were correct; the dated Goal Validation
+     records show why that assumption did not establish AC-2 or AC-3. Any
+     protocol repair identified by the remaining diagnosis must retain its RFC
+     obligations and wire-visible evidence. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -36,7 +35,7 @@ function:
 | 1 | An UPDATE reaches the BGP Loc-RIB | It does not. No peer attaches the `bgp-rib` process, so `onMessageBatchReceived` finds no recipient and returns | `show bgp` reports `updates-received 2`; `show bgp rib status` reports `peers 0 routes-in 0` |
 | 2 | The Loc-RIB publishes a best-path change | Never runs: there is no route to select | orchestrator log holds no `processing batch` line with `source=bgp` |
 | 3 | The orchestrator dispatches to the consumers | Dispatches only to the consumers registered at the instant of the event, with no replay for one that registers later | a `source=static` batch went to `bgp` alone; the later `source=connected` batch went to `bgp` and `isis` |
-| 4 | The IGP consumer originates the LSA or the TLV | Correct, and unreached | read at the producer by the preceding research |
+| 4 | The IGP consumer originates the LSA or the TLV | Assumed correct and unreached in the initial investigation; later goal validation did not establish NSSA or IS-IS delivery | See the dated Goal Validation records and current diagnosis boundary below |
 
 The goal: `redistribute { destination ospf { import bgp } }`, written alone in
 a config with a BGP peer and an OSPF instance, moves the peer's routes into
@@ -77,9 +76,10 @@ Two findings carried into this spec from the investigation that commissioned it:
   → Constraint: a scenario directory is named, never numbered, and a test added to already-working code needs a forced RED before it counts.
 
 ### RFC Summaries (Scope: protocol)
-Not applicable. No RFC obligation changes. The OSPFv3 AS-External and Type-7
-origination path and the IS-IS TLV 135 path are unchanged by this spec, and the
-research that commissioned it read both at the producer and found them correct.
+The chain repair changes no RFC obligation. The initial research treated the
+downstream origination paths as correct, but the later NSSA result did not prove
+that claim. A repair to that path must carry the applicable RFC 3101/RFC 5340
+obligations and evidence; AC-2 remains required.
 
 **Key insights:** (minimal context to resume after compaction)
 - Peer-scoped event delivery has no default. `attach process` is the ONLY thing that grants it, so the built-in Loc-RIB receives no UPDATE unless the operator writes plumbing no page documents.
@@ -486,6 +486,24 @@ three scenarios is green and the spec does NOT close on the other two.
 | `ospfv3-redist-frr` | GREEN. This is the defect's own proof: a BGP prefix reaches FRR as an OSPFv3 AS-External in a normal area, which no run had ever achieved before `1ec5b741f8` |
 | `ospfv3-nssa-redist-frr` | RED at assertion 5, `peer output is missing "NSSA"`. The route now ARRIVES, so the chain this spec repaired is working; what is missing is the Type-7 origination itself, which is the separate product gap recorded in `plan/journal/unwired-feature.md` on 2026-09-03. AC-2 is unmet and this spec cannot close until that gap is closed or AC-2 is rescoped by the owner |
 | `isis-redist-frr` | RED at assertion 3, `wait for frr output timed out before the peer became ready`. It fails BEFORE redistribution is reached, so it says nothing about this spec either way. Not diagnosed: it may be the IS-IS adjacency or it may be load on a saturated host |
+
+### Current diagnosis boundary (2026-09-19, source read only)
+
+The September 4 failure remains the last recorded scenario result here. It
+does not establish that Ze has no Type-7 implementation:
+`engine.v6InjectExternal` in
+`internal/plugins/ospf/origination_v6_external.go` calls `externalScopeV6` and
+`v6OriginateNSSALSA` for each NSSA attachment. The latter, in
+`internal/plugins/ospf/origination_v6_nssa.go`, installs a `0x2007` LSA.
+The missing route in the recorded run therefore needs diagnosis through that
+existing producer before a new implementation prerequisite can be named.
+
+`plan/immediate/spec-ospf-rfc3101-nssa-defaults.md` owns default destinations
+and ABR consistency, not the ordinary redistributed prefix in AC-2. It is
+not a substitute owner for this failure. This spec retains AC-2, including
+any repair its goal requires, and AC-3's separate IS-IS readiness diagnosis.
+`Depends` stays empty because no distinct missing prerequisite has been
+established. No scenario was rerun for this reconciliation.
 
 The `.ci` evidence stands independently and was walked RED-then-GREEN: with the
 retired filter restored, both blast-radius tests fail with `the peer announced

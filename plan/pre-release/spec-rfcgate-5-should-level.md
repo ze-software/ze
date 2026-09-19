@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | tooling |
-| Depends | full MUST-level enrolment (see Task) |
+| Depends | `plan/pre-release/spec-followup-rfc-enrollment.md` (MUST-level enrolment milestone defined below) |
 | Phase | - |
 | Updated | 2026-08-04 |
 
@@ -17,10 +17,19 @@ covers SHOULD, including the lowercase `should` a pre-RFC-2119 document uses.
 Thomas said it can wait, and named the precondition himself: it is done once
 MUST-level enrolment is complete.
 
+The prerequisite belongs to `plan/pre-release/spec-followup-rfc-enrollment.md`.
+It is met when every RFC summary in that programme's reconciled population has
+MUST-level enrolment, its source obligations are captured, and each obligation has
+the proof or owner-authorised disposition the MUST gate requires. The population
+comes from the summaries' `## Meta` tables and the derived unenrolled backlog;
+an unchanged historical count cannot release this work. Any exclusion remains an
+explicit owner decision. This milestone does not require the separate MCP decision
+or the SHOULD extension itself, and it does not waive the umbrella's other debts.
+
 **Why it waits, and why it must not wait forever.** Gating SHOULD before the
-MUST corpus is finished would add 1053 rows of pressure on top of an unfinished
-2949, and the two would compete for the same attention. But a SHOULD Ze silently
-ignores is still a deviation an operator meets on the wire, and today nothing in
+MUST corpus is finished would have added 1053 rows of pressure on top of an unfinished
+2949 at the 2026-08-04 measurement, and the two would compete for the same attention.
+But a SHOULD Ze silently ignores is still a deviation an operator meets on the wire, and today nothing in
 the repository can tell the difference between "we considered that SHOULD and
 declined it" and "nobody read that sentence".
 

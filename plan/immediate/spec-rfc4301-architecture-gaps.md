@@ -20,7 +20,7 @@ is its own package (R-6).
 | Phase | Block | State |
 |---|---|---|
 | 2a | Section 7.4 DISCARD disposition | LANDED. `RFC4301-7.4-1`, 10 tagged units, 10 discrimination records |
-| 2b | Section 7.4 stateful fragment checking | OPEN, blocked on an owner decision. `RFC4301-7.4-2` carries the gap |
+| 2b | Section 7.4 stateful fragment checking | UNDER INVESTIGATION per the final 2026-09-06 progress entry. Establish backend behaviour before choosing enforcement; no verified vulnerability is claimed |
 | 3 | Section 6 ICMP processing | NOT STARTED |
 | 4 | Section 4.4.1.1 ICMP type/code selectors | NOT STARTED. `RFC4301-4.4.1.1-1` still carries its `{gap}` |
 | 5 | Section 4.4.3.1 PAD matching | LANDED BEFORE THIS SESSION (`rfc4301_pad_subtree_test.go`) |
@@ -40,18 +40,14 @@ rather than on an empty template list. The operator surface is a new
 local/remote prefix and port pair, reconciled into the dataplane by
 `installSPDPolicies` and released on every engine exit.
 
-**Why phase 2b is an owner question rather than an implementation.** Read on
-2026-09-06: `XfrmSelector`
-(`vendor/github.com/vishvananda/netlink/nl/xfrm_linux.go:189`) carries Daddr,
-Saddr, Dport, DportMask, Sport, SportMask, Family, PrefixlenD, PrefixlenS,
-Proto, Ifindex and User. There is NO fragment field. So the stateful fragment
-check of Section 7.4 cannot be an XFRM policy, and A-3's premise holds for a
-reason A-3 did not state. Three layers could discharge it and the choice is a
-design decision, not a preference: kernel reassembly ahead of the policy check,
-a netfilter rule Ze installs, or refusing a port-scoped BYPASS the check does
-not cover. The third breaks `ikeBypassPolicies`, which is itself port-scoped on
-UDP 500 and 4500, so it is not free. The question to the owner is which of the
-three, not whether.
+**Phase 2b investigation boundary.** The 2026-09-06 read found no fragment
+field on `XfrmSelector`. That describes the policy representation, but does
+not establish whether kernel reassembly already discharges Section 7.4.
+The final progress entry therefore leaves A-3 unvalidated. Establish the
+backend packet path first, then put any required enforcement choice to the
+owner: existing reassembly with evidence, a rule Ze installs, or refusal of
+an uncovered policy. Refusal must account for the port-scoped IKE bypasses
+on UDP 500 and 4500; it cannot silently break IKE to satisfy the check.
 
 **Assumptions settled this session.**
 
@@ -81,15 +77,18 @@ decided on 2026-08-30 to correct the public row to `Partial` with the gaps discl
 to open this spec for the implementation work, one phase per block, security-bearing
 blocks first.
 
-The row now reads `Partial` and names this spec. This spec implements the obligations and
-returns the row to `Supported` behind a landed extraction sign-off.
+The row remains `Partial`. This spec owns the architecture obligations in its
+phase table, with the DISCARD, PAD and SPD-ordering deliveries retained as
+completed history. A return to `Supported` requires the lifetime-volume work
+and the extraction/sign-off owner's decision and evidence; completing this
+spec alone cannot authorise that publication.
 
-**Why the fragment block is first.** `ikeBypassPolicies`
-(`internal/component/ike/engine/bypass.go`) installs BYPASS policies scoped to UDP port
-500 and 4500 with any-address selectors. Ze holds no fragment state, so a forged
-non-initial fragment whose addresses and protocol match one of those policies is passed in
-the clear. That is the attack RFC 4301 Section 7.4 and Appendix D.4 describe in their own
-words, reachable on a running daemon, and it is not disclosed by any `{gap}` annotation.
+**Fragment investigation.** `ikeBypassPolicies` installs port-scoped UDP
+500/4500 BYPASS policies. The original draft inferred an exploitable
+non-initial-fragment bypass from the absence of fragment state in Ze. The final
+2026-09-06 entry retracts that inference as a settled gap. Establish the
+kernel and VPP reassembly and policy-check behaviour before treating it as a
+vulnerability or selecting the Section 7.4 enforcement mechanism.
 
 **Why the block list is not the whole RFC.** Two blocks the walk touched are homed
 elsewhere and are NOT re-implemented here. The Section 4.4.2.1 byte-count SAD lifetime is
@@ -198,12 +197,12 @@ under that spec's rules rather than replacing them.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `SPAction` has exactly two members today, so a DISCARD entry cannot be expressed at all | read at `internal/component/ike/dataplane/dataplane.go`, `SPAction` and its two constants, 2026-08-30 | the block is already partly implemented and phase 2 shrinks | re-read the type at the start of phase 2 | confirmed |
+| A-1 | DISCARD was absent in the 2026-08-30 baseline | original `SPAction` read | phase 2a would be smaller if already implemented | 2026-09-06 delivery record above | confirmed then cleared by phase 2a; retained as history |
 | A-2 | Ze holds no IP fragment state anywhere in the IPsec path | a case-insensitive search for `fragment` over `internal/component/ike/` returned only EAP-TLS message fragmentation, 2026-08-30 | phase 2 has an existing mechanism to extend rather than to add | re-run the search at the start of phase 2 and read every hit | confirmed |
-| A-3 | The Linux kernel does not discharge the Section 7.4 stateful fragment obligation for a template-free XFRM policy on its own | XFRM classifies a non-initial fragment on addresses and protocol alone, because the transport header it would need is not present | the obligation is kernel-delegated and the phase becomes a test plus a recorded evidence trail | write the QEMU test that forges a non-initial fragment against a port-scoped BYPASS policy and read what the kernel does, before designing the fix | unvalidated |
+| A-3 | The Linux kernel may not discharge Section 7.4 for a template-free XFRM policy on its own | hypothesis from the absence of a fragment selector field; kernel reassembly and policy order remain unproven | the obligation may be kernel-delegated and need evidence rather than new fragment state | read the producing kernel path and run the QEMU non-initial-fragment scenario before selecting enforcement | unvalidated; final 2026-09-06 entry says under investigation |
 | A-4 | The Section 8.2.2 PMTU aging obligation is met by the kernel's own PMTU expiry for an XFRM route | the kernel ages a dst entry's PMTU, and Ze holds no PMTU value of its own | the phase must add a per-SA PMTU field, its aging timer and its reset period | read the producing kernel path and prove it with a QEMU test that observes the PMTU changing back after the period | unvalidated |
 | A-5 | The seven `{not-applicable}` annotations on `rfc/short/rfc4301.md` are void under the owner directive of 2026-07-27 and must be re-answered rather than cited | `ai/rules/rfc-compliance.md`, "Every earlier answer that pointed away from full compliance or full proof is VOID" | the annotations stand and phase 9 shrinks to a prose repair | read each annotation's producing function and record the fresh answer | unvalidated |
-| A-6 | The VPP backend can express a DISCARD policy | `vpp_policy.go` builds an SPD entry, and VPP's SPD model carries a discard action | the VPP backend refuses the install, which is the correct fail-closed behavior, and the refusal needs its own test | read `spdEntry` in `vpp_policy.go` and the VPP API binding at the start of phase 2 | unvalidated |
+| A-6 | The VPP backend can express a DISCARD policy | 2026-09-06 read of `IPSEC_API_SPD_ACTION_DISCARD` in the VPP API binding | a backend without the action must refuse rather than substitute | session evidence above | confirmed in the recorded phase 2a work |
 | A-7 | No existing interop scenario would break when `SPAction` gains a member and `SPParams` gains fields | the zero value of every new field means "as before", and `SPActionProtect` stays 0 | a landed scenario reds and the change is wider than one enum member | run the whole `test/interop-ipsec` suite at the end of phase 2 | unvalidated |
 
 ### Risks
@@ -213,7 +212,7 @@ under that spec's rules rather than replacing them.
 | R-2 | The fragment work grows into a general connection-tracking subsystem | phase 2 starts naming a new package outside `internal/component/ike/` | the obligation is scoped to BYPASS and DISCARD entries with a non-trivial port range. Reassembly for exactly those entries is the deliverable (`ai/rules/simplicity.md`) |
 | R-3 | A new SPD config surface duplicates the `traffic-selector` list a peer already carries | two config paths describe one selector | one declaration, and the peer selector list derives from it or names it. `ai/rules/principles.md` forbids the second copy |
 | R-4 | An operator order leaf collides with `PriorityIKEBypass`, and a Child SA policy captures IKE | an interop scenario stops rekeying | the IKE bypass keeps a reserved band no operator order can reach, and a config validator refuses an order inside it |
-| R-5 | A phase lands the code and leaves the ledger row at `Partial`, so the public page stays wrong in the other direction | phase 9 never runs | phase 9 is the closing phase and AC-12 is a Goal Gate. The row moves when the sign-off lands, not before |
+| R-5 | A completion report claims Supported before the external dependencies and owner sign-off are satisfied | phase 9 treats this spec's tests as sole publication authority | AC-12 remains blocked on lifetime-volume completion and the extraction/sign-off owner's recorded decision and evidence; no unilateral supportClaimingScope change |
 | R-6 | The ICMP block is large enough to exceed one agent, and gets trimmed to fit | an agent reports partial coverage of Section 6 | the package boundary is the BLOCK. An agent whose block is too big reports the size to the main thread, which re-cuts by section (`ai/rules/planning.md`) |
 | R-7 | A new selector field is programmed but never negotiated, so Ze installs a policy the peer never proposed | an interop scenario shows a selector mismatch | RFC 7296 Section 2.9 narrowing is the existing rule: a selector Ze programs is a selector Ze negotiated, or the install is refused |
 
@@ -384,6 +383,11 @@ under that spec's rules rather than replacing them.
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | no registry entry changes |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED: run `./le spec citation anchors spec plan/immediate/spec-rfc4301-architecture-gaps.md` at the start of each phase and name every doc it lists. `docs/features/rfc-status.md` already carries a `<!-- source: internal/component/ike/dataplane/dataplane.go -->` anchor over a file every phase edits |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/ipsec.md` shows the `vpn ipsec` grammar; verify every example against the YANG after each phase |
+
+The phase table at the top is the remaining-work authority. The original
+implementation steps below retain their obligations and evidence requirements;
+phase 2a and phases 5 and 6 are delivered history and are not repeated.
+
 
 ## Implementation Steps
 

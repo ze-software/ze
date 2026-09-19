@@ -2,29 +2,28 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
-| Depends | - (both owner decisions answered 2026-08-02, see "Owner decisions, 2026-08-02") |
+| Depends | - |
 | Phase | 5/5 |
-| Updated | 2026-08-03 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Let Ze receive both ESP forms on ONE established Child SA, at any time, as RFC 7296
-Section 2.23 asks. Today Ze chooses one form per Child SA and programs the Linux XFRM
-inbound state for that form alone. A peer that changes form on an established SA is not
-served.
+Let Ze receive both ESP forms on one established Child SA, at any time, as RFC 7296
+Section 2.23 asks. The original one-form-per-XFRM-state limit and candidate routes
+below record the design baseline. Route A has since landed on XFRM, as the
+implementation and audit records below describe.
 
-The goal has three parts. Find the route that lifts the limit. Cost each route with
-evidence. Prove the chosen route against a real kernel.
+This spec remains in progress. The 2026-08-29 withdrawal and 2026-09-05 ruling
+govern the remaining scope: measure both forms decrypting on one real-VPP inbound
+SA, complete Stories 1 and 3, and measure the re-presented form's throughput.
+The owner's defer-heavy-testing instruction still controls scheduling. Phase 5/5
+records the implementation sequence, not completion or release evidence.
 
-**This spec is design-time. It selects a route before it writes code.** The four routes
-below are candidates, not decisions. Phase 1 is evidence, and it is the only phase that
-can run today.
-
-### Ze is CONFORMANT-AS-BOUNDED today. This spec raises a platform limit
+### Original conformance boundary (2026-08-01, before route A)
 
 **This is not a record of an outstanding violation.** Both obligations are landed and
 gated. `RFC7296-2.23-10` (`rfc/short/rfc7296.md`) and `RFC7296-2.23-11` each
@@ -51,8 +50,8 @@ Three conditions must hold together.
 3. The peer changes ESP form on an SA that is already established, rather than choosing
    one form at Child SA creation and keeping it.
 
-Condition 3 is the one nobody has measured. Phase 1 measures it, and that measurement
-decides whether this spec is urgent or theoretical.
+At the original design pass, condition 3 had not been measured. Phase 1 was to
+measure it; the later evidence and its stated limits are recorded below.
 
 ### Provenance (do not delete)
 
@@ -92,7 +91,8 @@ agrees with its citation.
 
 ### The four routes, and what each costs
 
-Phase 1 answers all four. No route is chosen before then.
+The original design asked Phase 1 to compare all four routes. The later Key
+Design Decisions and evidence sections record the selection.
 
 | Route | What it does | Cost | Blocking unknown |
 |-------|--------------|------|------------------|
@@ -154,12 +154,13 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
     depends on both.
 
 **Key insights:** (minimal context to resume after compaction)
-- Ze is conformant as bounded. The work raises a limit and fixes no violation.
-- One Child SA carries one encapsulation boolean, and both directions read it.
-- `Dataplane` models installation only. No receive seam exists.
-- The VPP backend installs nothing at all, so route B has a prerequisite.
+- The original conformance bound and owner ruling remain part of the provenance.
+- XFRM now serves the second receive form through `AcceptBothESPForms`.
+- The original installation-only abstraction was extended for the receive path.
+- VPP installs SAs, but IKE policy activation and dual-form decryption proof remain
+  separate prerequisites. SA read-back does not demonstrate packet reception.
 
-## Current Behavior (MANDATORY)
+## Original Behavior (2026-08-01 design baseline)
 
 **Source files read:** (verified in the working tree on 2026-08-01)
 - [ ] `internal/component/ike/dataplane/encap_integration_linux_test.go` -
@@ -314,7 +315,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 | AC-2 | The SAME inbound state for the SAME SPI, and a UDP-encapsulated ESP datagram | The datagram reaches the crypto check. No `XfrmInStateMismatch` is raised |
 | AC-3 | An SPI with no state at all | `XfrmInNoStates` is raised, so AC-1 and AC-2 are real readings and not a counter that never moves |
 | AC-4 | An established Child SA, and the peer changes ESP form | Traffic keeps flowing in both directions. The SA is not rekeyed and not deleted |
-| AC-5 | The VPP dataplane is selected and cannot receive both forms | `ze config verify` fails with an error naming the backend and the unsupported capability, per `ai/rules/protocol.md` |
+| AC-5 | Real VPP receives both ESP forms on one inbound SA | The harness proves both forms decrypt on that same SA, as required by the 2026-09-05 ruling. A backend shown unable to receive both forms must fail `ze config verify` with a named capability error, as originally required, but refusal does not discharge the measurement or permit closure without support |
 | AC-6 | Phase 1 completes | Every assumption A-1 to A-6 is `confirmed` or `broken`, each with a named command or test |
 | AC-7 | The route is chosen | The Key Design Decisions table records the chosen route and each rejected route, with its measured cost |
 
@@ -347,7 +348,7 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 |------|----------|-------------------|--------|
 | `ipsec-esp-encap-no-nat` | `test/ipsec/ipsec-esp-encap-no-nat.ci` | A peer sends encapsulated ESP with no NAT, and traffic flows | |
 | `ipsec-esp-form-change` | `test/ipsec/ipsec-esp-form-change.ci` | The peer changes form on an established SA, and traffic keeps flowing | NOT writable at this tier; see "What is NOT done" |
-| `ipsec-esp-form-vpp-reject` | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | An operator selects VPP and gets a clear refusal | dropped: AC-5 is not-applicable by measurement |
+| `ipsec-esp-form-vpp-reject` | `test/ipsec/ipsec-esp-form-vpp-reject.ci` | Historical refusal-only proposal | superseded by the 2026-09-05 real-VPP measurement requirement in AC-5; no not-applicable verdict stands |
 
 The `ipsec` suite runs inside `./le verify current mode full` (`internal/le/functional/suites.go` and `:217`), so a
 `.ci` there earns a verify tier.
@@ -879,6 +880,13 @@ decision is owed. The work is queued behind the owner's defer-heavy-testing
 instruction, which is a SCHEDULING constraint and never a licence to take the
 narrower arm.
 
+The current native runner is `(*VPP).runIPsec` in
+`internal/le/deployment/vppevidencerun.go`, registered by `VPP.scenarioRuns`
+in `vppevidence.go`. It runs the real-dataplane install probe and reads back
+SAs and policies. The queued extension belongs at that current producer; the
+older `run_ipsec_evidence` name above identifies the runner at the time of the
+ruling.
+
 The urgency is real and is about an accidental guard rather than about VPP.
 `vppPolicyInterface` refuses every IKE policy today because IKE leaves
 `SPParams.IfIndex` zero, so the unmeasured pass-through in `InstallSA` is
@@ -898,7 +906,7 @@ Story 1 (`test/interop-ipsec/scenarios/esp-encap-no-nat/`) and Story 3 (no
 encap or ESP-form field in `internal/component/ike/cmd/show_ipsec.go`) are also
 unbuilt and are part of the same queued package.
 
-## Acceptance Criteria status (2026-08-02)
+## Acceptance Criteria status (August evidence, AC-5 corrected by September ruling)
 
 | AC | Status | Evidence |
 |----|--------|----------|
@@ -906,7 +914,7 @@ unbuilt and are part of the same queued package.
 | AC-2 | met | same test, row 1: the encapsulated form raises `XfrmInStateProtoError` on the SAME state and SPI |
 | AC-3 | met | same test, final control: an SPI with no state raises `XfrmInNoStates` |
 | AC-4 | met, with one bound stated below | `TestEncapEstablishedSAServesAPeerFormChange` (QEMU, own process): a live SA carries form A, the peer switches to form B, then back to A, and the kernel's state table shows ONE state with an unchanged add time throughout. `test/interop-ipsec/scenarios/esp-form-change`: the same property against strongSwan over a real interface, with traffic flowing both ways, `XfrmInStateMismatch` rising, and the SPI set unchanged. Both are RED under a mutation that removes the production behaviour. **Bound:** the peer's form is the one its kernel state does not accept for the whole life of the SA, rather than being SWITCHED part way through. strongSwan switches a live SA's form only through MOBIKE, and ze advertises no `MOBIKE_SUPPORTED` (no notify type 16396 in `wire/payload_notify.go`), so no trigger exists in the lab. The property the switch would exercise is proven; the switch itself is not |
-| AC-5 | not applicable, by measurement | VPP CAN receive both forms on one SA, so there is nothing to refuse. Recorded in `vpp.go` with the VPP source read. That backend installs SAs and refuses every policy IKE produces, which `spec-fixit-vpp-ipsec-inoperable` owns |
+| AC-5 | unresolved; measurement queued | The original "not applicable, by measurement" verdict was withdrawn on 2026-08-29. The 2026-09-05 ruling requires a real VPP to receive and decrypt both forms on one inbound SA; installation/read-back does not prove this |
 | AC-6 | met | A-1 to A-6 are `confirmed`, each with a named test or source read |
 | AC-7 | met | Key Design Decisions records route A and every rejected route with its measured cost |
 
@@ -919,7 +927,7 @@ Stated plainly rather than left to be discovered (`ai/rules/completion.md`).
 | `test/ipsec/ipsec-esp-form-change.ci` | NOT written, and NOT writable at functional tier. Three findings block it, each measured. (1) The suite runs unprivileged in the host namespace (`internal/le/functional/suites.go`, `ze-functional-ipsec-test`), and every ipsec `.ci` selects `ze.test.ike.dataplane=noop`, which installs nothing in the kernel. (2) The `.ci` framework has no ESP injector and no packet observer: `RunEngineSteps` (`internal/test/runner/engine_steps.go`) only dispatches CLI commands, and the whole IKE command surface is show, monitor and clear. (3) The dual-form path needs a TEMPLATED inbound state, which needs `sa.NATDetected \|\| sa.localPort == 4500` (`engine/child.go`), and two loopback ze daemons produce neither. A `.ci` here could assert only that no rekey happened, which is the absence-assertion vacuity trap in `ai/rules/interop-and-goal-validation.md`. AC-4's proof is the QEMU probe plus scenario esp-form-change instead |
 | `test/interop-ipsec/scenarios/esp-form-change/` | WRITTEN and PASSING, and RED under mutation. It is the proof of AC-4 against a real peer |
 | `test/ipsec/ipsec-esp-encap-no-nat.ci` | NOT written, blocked by the same three findings. User story 1 needs the peer to encapsulate, which two loopback ze daemons never do. Its reachable home is a new interop scenario `esp-encap-no-nat` using strongSwan's `encap = yes`, which fakes NAT-D at IKE_SA_INIT and is a valid vici key in 5.9.14 |
-| `test/ipsec/ipsec-esp-form-vpp-reject.ci` | NOT written, and it must NOT be. AC-5 is not-applicable by measurement: VPP's inbound lookup is encapsulation-blind, so one VPP SA already takes both forms and there is nothing to refuse (`dataplane/vpp.go`). A test asserting a refusal would assert behaviour that must not exist. This confirms the 2026-08-02 audit's "drop the planned `ipsec-esp-form-vpp-reject.ci`" |
+| `test/ipsec/ipsec-esp-form-vpp-reject.ci` | The original refusal-only test proposal is superseded. AC-5 remains unresolved and requires the real-VPP dual-form decryption measurement under the 2026-09-05 ruling; neither refusal nor the withdrawn source reading discharges it |
 | `internal/le/qemu/alltests.go` has no `fsuite ipsec` line | Discovered 2026-08-03. A `needs-linux` `.ci` in `test/ipsec/` would skip natively AND never run in QEMU, so it would be dead coverage. This is why option (1) above cannot be routed around with `option=needs-linux:caps=net-admin` |
 | `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `./le rfc index-update` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
 | Throughput of the re-presented form | Not measured. R-1 stands for the bare form on a templated SA |
@@ -976,6 +984,10 @@ on its header rules.
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
 
 ## Audit 2026-08-02: phases 1 to 4 landed, phase 5 open. NOT ready to close
+
+This is the dated audit, retained as history. Its AC-5 not-applicable verdict was
+withdrawn on 2026-08-29, and its remaining-work list is superseded by the
+2026-09-05 ruling and the current acceptance status above.
 
 Read against the code on 2026-08-02, during the closure of
 the rfcgate-1b RFC 7296 pilot spec. This section is a bookkeeping record. It changes no

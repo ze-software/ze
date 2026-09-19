@@ -197,6 +197,11 @@ belong in separate future fix work approved after the audit finding is filed.
 | `spec-release-audit-7-resilience-security.md` | Races, shutdown, reload, authz, secrets, crash loops, resource exhaustion, fuzz, chaos | Does Ze survive hostile or degraded conditions? | Resilience/security finding list |
 | `spec-release-audit-8-docs-onboarding.md` | Install, quickstart, examples, command reference, feature docs, release notes | Can a new user succeed from docs alone? | Docs and first-run finding list |
 
+All eight child paths exist in `plan/pre-release/`. Children 3 through 7 are
+task-only skeletons created on 2026-09-19 from the domains above, with research
+and audit execution still outstanding. A child path records audit ownership;
+it does not authorise implementation or prove a finding closed.
+
 ## Finding Schema
 
 Every finding must use this schema. A finding without reproduction or missing-test analysis is incomplete.
@@ -442,7 +447,7 @@ Despite the template heading, these are audit documentation steps only. They do 
 
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
-| Create every child spec immediately | Would create many partially researched specs without each child audit's source reading complete | Define child set here, create child specs as each audit starts |
+| Treat every new child as a researched design | Would claim source reading and design that had not happened | Capture the defined domains as skeletons, then research each child when its audit starts |
 
 ### Escalation Candidates
 
@@ -517,7 +522,7 @@ For this audit spec, "implementation" means audit documentation only. It does no
 | File | Status | Notes |
 |------|--------|-------|
 | `plan/pre-release/spec-release-audit-0-umbrella.md` | Planned | This file |
-| Child audit specs | Planned | Created as each audit starts |
+| Child audit specs | Present, audits incomplete | Children 1, 2 and 8 carry dated audit evidence; children 3 through 7 are task-only skeletons |
 
 ### Audit Summary
 

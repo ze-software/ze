@@ -18,20 +18,16 @@
 
 ## Task
 
-Ze's DHCP server (its own IPv4 Go implementation) logs at a fixed verbosity: the
-plugin receives a single injected `slog` logger and its call sites use hardcoded
-`Debug`/`Info` levels. ~~There is no operator control over how chatty the server is,
-so debugging a lease problem in the field means either drowning in debug output
-elsewhere or having none.~~ (Superseded 2026-07-10: operator control over the
-dhcpserver logger's level ALREADY exists -- see Post-wave corrections below. The
-injected logger's level is set from the hierarchical `ze.log.<subsystem>` env
-lookup and is runtime-adjustable via the log plugin's `log-set` command. The
-premise of this spec must be re-established or the spec re-scoped before it can
-go ready.)
+Decide whether DHCP logging needs a service-local configuration leaf. The
+2026-07-10 correction below records an existing operator path through
+`ze.log.<subsystem>` at boot and the log plugin's runtime level command, so
+lack of operator control is no longer this spec's premise.
 
-Add a `log-level` (or equivalent verbosity) config leaf to the DHCP server so the
-operator can raise or lower DHCP logging independently, e.g. `set service
-dhcp-server log-level debug|info|warning|error`.
+The owner must choose between documenting and testing that path, or adding
+`set service dhcp-server log-level debug|info|warning|error` with explicit
+precedence against the environment hierarchy and runtime changes. The leaf
+design, ACs and implementation steps below describe the second option only;
+they are conditional on that choice and do not authorise implementation.
 
 ## Required Reading
 
@@ -89,12 +85,16 @@ This is a scope/design decision that requires the user; the spec stays in
 `design` until it is made. A-1 is meanwhile effectively answered: the injected
 logger IS levelable at runtime through its registered `LevelVar`.
 
+Current command spelling: `request log level <subsystem> <level>`, with
+`show log levels` for discovery (`docs/guide/logging.md`). The July
+`log-set` references above name the earlier command surface.
+
 **Behavior to preserve:**
 - Default logging behaviour when the leaf is absent must match today's output (choose the current effective level as the default).
 - No change to lease/pool/handler logic; this is purely observability.
 
-**Behavior to change:**
-- Add a `log-level` leaf; apply it to the plugin's logger so DHCP log verbosity is operator-controlled.
+**Behavior to change, if the owner selects the service-local leaf:**
+- Add a `log-level` leaf with defined precedence over the existing controls.
 
 ## Data Flow (MANDATORY)
 
@@ -128,7 +128,7 @@ logger IS levelable at runtime through its registered `LevelVar`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The injected `slog.Logger` level can be set/leveled at runtime | `loggerPtr.Store` holds a `*slog.Logger` (register.go) | may need a leveled handler wrapper | read `slogutil.Logger` during audit | unvalidated |
+| A-1 | The injected logger has a runtime-adjustable level | `ConfigureEngineLogger` calls `slogutil.Logger`; `Logger` stores its `LevelVar` in `levelRegistry`, and `SetLevel` updates it | No new handler wrapper is needed for that capability | producer reads of `register.go` and `slogutil.go` | confirmed by source; no runtime test in this reconciliation |
 | A-2 | A bounded enum (debug/info/warning/error) covers operator needs | standard log levels | operator wants numeric levels | design confirmation with user | unvalidated |
 
 ### Risks

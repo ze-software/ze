@@ -17,8 +17,8 @@ He chose the full feature over two cheaper answers put beside it: keeping
 `{not-applicable}` with corrected evidence, and refusing the ambiguous
 role-plus-local-as-override combination at config validation.
 
-Status moved `skeleton` to `ready`. The design question that blocked it is
-answered, so the next phase is DESIGN, not another round of provenance checking.
+The ruling authorises the full feature. This spec remains in `design` until
+the confederation-core and OTC contracts below have an implementation design.
 
 **What the ruling commits ze to**, from the option as put:
 
@@ -80,10 +80,12 @@ and it fails closed with a log line when the value is 0.
 
 ## Task
 
-Implement the RFC 9234 Section 5 AS Confederation rules for the Only-To-Customer
-(OTC) attribute: on egress from an AS Confederation the OTC value MUST equal the
-AS Confederation Identifier, and MUST NOT carry any Member-AS number other than
-that identifier.
+Implement AS Confederation support under the 2026-08-05 owner ruling: the
+identifier and member-AS configuration, session identity, AS_CONFED origination
+and forwarding, loop prevention and external-boundary handling. This spec owns
+the confederation core as well as RFC 9234 Section 5's OTC boundary rules.
+On egress from the confederation, a newly added OTC must use the Confederation
+Identifier and no OTC value naming another Member-AS may escape.
 
 **Provenance:** deferred from `plan/spec-followup-bgp-feature.md` item 3. That
 spec has since been closed and removed from disk (commit `7f60301d1`, "spec:
@@ -105,7 +107,8 @@ Real support therefore needs confederation-member configuration plus AS_CONFED
 origination first. That is a large feature and is the true scope of this spec.
 RFC 9234 also records that Role negotiation and OTC procedures are NOT RECOMMENDED
 between autonomous systems in an AS Confederation, so the design must first settle
-whether ze supports the combination at all, or rejects it at config validation.
+whether Role/OTC is allowed on internal member-to-member sessions. That choice
+cannot replace confederation support with configuration refusal.
 
 ~~**Prerequisite bug found while verifying (2026-07-16).** The OTC egress stamp is
 inert today, independent of confederations: `extractLocalASN` reads the key
@@ -135,9 +138,11 @@ handling is a large open design question -- is unaffected.)
 - [ ] `rfc/short/rfc9234.md` - BGP Roles and the OTC attribute
   → Constraint: [RFC9234-5-7] OTC added on egress from an AS Confederation MUST equal the AS Confederation Identifier (Section 5)
   → Constraint: [RFC9234-5-8] On egress from an AS Confederation, an UPDATE MUST NOT contain OTC with a Member-AS number other than the Confederation Identifier (Section 5)
-  → Decision: RFC 9234 marks Role/OTC NOT RECOMMENDED between ASes in an AS Confederation (Section 5), so "reject at config" is a legitimate design answer
+  → Decision: the internal member-to-member Role/OTC combination needs a design decision under RFC9234-5-13. Any refusal is confined to that combination; the owner already commissioned confederation core and external OTC handling.
 - [ ] `rfc/short/rfc4271.md` - base BGP, AS_PATH semantics
   → Constraint: AS_PATH segment types and loop detection define what confederation segments must not escape
+- [ ] `rfc/full/rfc5065.txt` and `rfc/short/rfc5065.md` - confederation core
+  → Constraint: Sections 4 and 4.1 distinguish same-member, other-member and external peers for OPEN identity and AS_PATH origination/propagation. Section 5 governs malformed-boundary input, Section 5.2 covers MED/LOCAL_PREF and Section 5.3 covers path selection. The full-feature ruling requires this design and its evidence; this planning correction makes no compliance claim.
 
 **Key insights:**
 - `role/otc.go`: egress stamping uses one flat local ASN, with no notion of a confederation boundary
@@ -148,8 +153,8 @@ handling is a large open design question -- is unaffected.)
 
 **Source files read:**
 - [ ] `internal/component/bgp/plugins/role/otc.go` - OTC ingress rules, egress suppression, and egress stamping via a single local ASN
-- [ ] `internal/component/bgp/plugins/role/role.go` - plugin entry point; holds `filterLocalASN` and `getLocalASN` (line 66)
-- [ ] `internal/component/bgp/plugins/role/config.go` - `extractLocalASN` (line 230) reads the `local-as` key from the BGP subtree
+- [ ] `internal/component/bgp/plugins/role/role.go` - `setFilterState` stores peer-role configuration and name resolution; it no longer stores a separately parsed local ASN
+- [ ] `internal/component/bgp/plugins/role/config.go` - role configuration; the retired `extractLocalASN` key reader is historical
 - [ ] `internal/component/bgp/reactor/config.go` - reads the global local AS from `bgp > session > asn > local` (lines 479-486)
 - [ ] `internal/core/bgp/attribute/as4.go` - parses confederation AS_PATH segments and strips them on write; never originates them
 - [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - config surface: one global local AS, one per-peer override, no confederation leaves
@@ -159,14 +164,14 @@ handling is a large open design question -- is unaffected.)
 - RFC 9234 ingress rules stay non-overridable by the operator (`checkOTCIngress`, `otc.go`)
 - OTC remains scoped to AFI 1/2 SAFI 1 (`isPayloadUnicast`, `otc.go`)
 - "Once the OTC Attribute has been set, it MUST be preserved unchanged" (`otcAttrModHandler`, `otc.go`)
-- Confederation AS_PATH segments continue to be stripped on egress, never leaked
+- Confederation segments must not escape the external boundary. Internal member-to-member forwarding must retain and extend them under RFC 5065.
 - Malformed OTC continues to be treat-as-withdraw (`otc.go`)
 
 **Behavior to change:**
 - Add confederation identifier and member-AS configuration to the BGP config surface
 - Originate AS_CONFED_SEQUENCE / AS_CONFED_SET within the confederation
 - Stamp OTC on confederation egress with the Confederation Identifier, never a Member-AS
-- Or, if the design rejects the combination: fail config validation with a clear message
+- Specify the internal Role/OTC configuration outcome without making confederation origination or boundary processing conditional on that choice.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -177,10 +182,11 @@ handling is a large open design question -- is unaffected.)
 
 ### Transformation Path
 1. Config resolution builds the BGP tree; the plugin server extracts the `bgp` subtree and marshals it to JSON (`internal/component/plugin/server/reload.go`)
-2. The role plugin parses that JSON and stores per-peer role config plus the local ASN in package state (`setFilterState`, `role.go`)
+2. The role plugin stores per-peer role configuration through `setFilterState`; the reactor supplies the effective local ASN in `PeerFilterInfo`.
 3. On ingress, `checkOTCIngress` applies the Section 5 rules and returns an accept / reject / treat-as-withdraw verdict plus an ASN to stamp (`otc.go`)
-4. On egress, `OTCEgressFilter` suppresses to Provider/Peer/RS, then stamps OTC for Customer/Peer/RS-Client destinations using `getLocalASN` (`otc.go`)
+4. On egress, `OTCEgressFilter` applies the role rules and stamps absent OTC for eligible Customer/Peer/RS-Client advertisements using `dest.LocalAS`. The new confederation boundary must supply the identifier and prevent member-AS leakage.
 5. The attribute mod handler writes the OTC bytes during the progressive attribute build, preserving any existing OTC (`otcAttrModHandler`, `otc.go`)
+6. Confederation core resolves each destination as same-member, other-member or external. It chooses the OPEN identity and the AS_PATH transformation from that relationship before the wire is emitted. OTC processing consumes the same boundary fact.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -208,15 +214,15 @@ handling is a large open design question -- is unaffected.)
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | ze has no confederation config surface today | grep for `confed` over `internal/**/*.yang` matches only filter descriptions | Scope shrinks to OTC value selection only | Re-grep YANG at pickup | unvalidated |
-| A-2 | ze never originates AS_CONFED segments | `as4.go`, `reactor_wire.go`, `wireu/aspath_as4.go` all strip, none construct | Origination exists and only OTC selection is missing | Re-read the AS_PATH writers | unvalidated |
-| A-3 | OTC egress stamping works before confederation work starts | Currently broken: `role/config.go` reads a `local-as` key the tree does not carry | This spec builds on an inert code path and cannot be tested | Fix the key, then assert a stamp fires end-to-end | broken |
+| A-1 | Confederation configuration remains absent at implementation pickup | The recorded source investigation found no identifier or member-AS configuration | Reuse any subsequently added surface, but retain all core acceptance obligations | Re-read YANG and its producing config loader at pickup | unvalidated |
+| A-2 | AS_CONFED origination remains absent at implementation pickup | The recorded writers strip confederation segments | Reuse any subsequently added producer and prove the complete core contract | Re-read the AS_PATH writers | unvalidated |
+| A-3 | The old inert-stamp defect is no longer a prerequisite | `OTCEgressFilter` stamps from `dest.LocalAS`, and the old `extractLocalASN` reader is gone | A current stamping failure would need a new diagnosis | Source inspection of the egress stamp; end-to-end stamp proof remains required | source correction confirmed, 2026-09-19; no new test result |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | RFC 9234 marks Role/OTC NOT RECOMMENDED inside a confederation, so the feature may be unwanted | Design review questions the use case | Implement config-time rejection with a clear message instead of silent wrong behavior |
-| R-2 | Confederation support is a large feature well beyond OTC | Scope creep into AS_PATH origination, best-path, and loop detection | Split: confederation core first, OTC value selection as a dependent spec |
+| R-1 | Internal Role/OTC configuration is mistaken for permission to refuse the full feature | Design makes AS_CONFED origination conditional | Confine the remaining choice to internal member sessions; core and external-boundary ACs are mandatory |
+| R-2 | OTC tests pass while the commissioned confederation core is absent | Tests inject a boundary fact without establishing member and external sessions | Keep core ownership here and require AC-5 through AC-10 from public configuration to peer wire |
 
 ## Wiring Test (MANDATORY)
 | Entry Point | -> | Feature Code | Test |
@@ -233,6 +239,12 @@ handling is a large open design question -- is unaffected.)
 | AC-2 | Route leaves the confederation carrying an OTC set to a Member-AS number | OTC value is corrected to, or rejected against, the Confederation Identifier (RFC9234-5-8) |
 | AC-3 | Route moves between member-ASes inside the confederation | No confederation-boundary OTC processing is applied |
 | AC-4 | No confederation configured | Behavior is byte-identical to today's single-AS path |
+| AC-5 | Operator configures the confederation identifier and Member-AS, with peers in the same member, another member and outside the confederation | Configuration reaches session classification; OPEN uses the Member-AS toward confederation members and the Confederation Identifier toward external peers (RFC 5065 Section 4) |
+| AC-6 | Ze originates a route to each peer class | Same-member iBGP receives an empty AS_PATH; another member receives an AS_CONFED_SEQUENCE containing the local Member-AS; an external peer receives an AS_SEQUENCE containing the Confederation Identifier (Section 4.1) |
+| AC-7 | Ze forwards a route inside the confederation | Same-member forwarding preserves AS_PATH; other-member forwarding prepends the Member-AS to AS_CONFED_SEQUENCE, with segment-boundary handling, while preserving existing confederation structure (Section 4.1) |
+| AC-8 | A route containing AS_CONFED_SEQUENCE and AS_CONFED_SET crosses the external boundary | Both confederation segment types are removed and the Confederation Identifier is prepended to the remaining public AS_PATH; no member-AS segment reaches the peer (Sections 4.1 and 5) |
+| AC-9 | A received path contains the local Confederation Identifier, or a confederation segment contains the local Member-AS | Normal own-AS loop handling rejects the loop; non-loop controls remain usable (Section 4) |
+| AC-10 | Confederation segment origination, malformed input and route selection are exercised | AS_CONFED_SET origination is covered as commissioned. Derive and prove RFC 5065 Section 5's malformed-boundary handling, Section 5.2's member-to-member NEXT_HOP/MED/LOCAL_PREF rules and Section 5.3's neighbour-AS, path-length and internal-path classification; core acceptance cannot be replaced by OTC-only tests |
 
 ## 🧪 TDD Test Plan
 
@@ -242,33 +254,40 @@ handling is a large open design question -- is unaffected.)
 | `TestOTCEgressStampsConfederationIdentifier` | `internal/component/bgp/plugins/role/otc_test.go` | RFC9234-5-7: confederation egress stamps the identifier, not a member-AS | |
 | `TestOTCEgressRejectsMemberASValue` | `internal/component/bgp/plugins/role/otc_test.go` | RFC9234-5-8: a member-AS OTC value never escapes the confederation | |
 | `TestOTCNoConfederationUnchanged` | `internal/component/bgp/plugins/role/otc_test.go` | AC-4: the single-AS path is unaffected | |
+| `TestConfederationSessionIdentity` | reactor/config test carriers selected during design | AC-5: config-derived member versus external OPEN identity, with no-confederation control | planned |
+| `TestConfederationOriginationAndForwarding` | reactor AS_PATH test carriers selected during design | AC-6 through AC-8: same-member, other-member and external wire forms; both confederation segment types and segment boundaries | planned |
+| `TestConfederationLoopAndSelectionRules` | reactor/RIB test carriers selected during design | AC-9 and AC-10: loop rejection, aggregation and Section 5 error/selection rules | planned |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `test-otc-confederation-egress` | `test/bgp/*.ci` | Operator runs a confederation member and sees the Confederation Identifier in OTC on routes leaving the confederation | |
+| `confederation-core` | Functional plugin scenario selected during design | AC-5 through AC-10 from configured member/external sessions through origination, relay, loop rejection, withdrawal and external wire inspection | planned |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `NN-otc-confederation` | `test/interop/scenarios/` | FRR or BIRD | A third-party confederation member accepts ze's OTC value | |
+| `NN-otc-confederation` | `test/interop/scenarios/` | FRR or BIRD with the required OTC support | AC-1 through AC-4: a member-to-external topology observes the Confederation Identifier in OTC, excludes member-AS leakage and preserves the single-AS control | planned |
+| `NN-confederation-core` | `test/interop/scenarios/` | FRR or BIRD confederation peers | AC-5 through AC-10: establish internal and external identities, originate and relay routes through members, reject loops, and inspect external AS_PATH with no AS_CONFED segments | planned |
 
 ## Files to Modify
 - `internal/component/bgp/plugins/role/otc.go` - confederation-aware OTC value selection
-- `internal/component/bgp/plugins/role/config.go` - confederation identity parsing (and the `local-as` key fix, if not already fixed)
+- `internal/component/bgp/plugins/role/config.go` - confederation identity and boundary configuration; the old local-AS-key fix is already present
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - confederation identifier and member-AS config surface
+- `internal/component/bgp/reactor/` - config-derived session identity, member/external classification, announce and forward AS_PATH handling
+- `internal/core/bgp/attribute/` and the BGP RIB selection path - confederation segment, aggregation, loop and selection behaviour required by AC-6 through AC-10
+- `rfc/short/rfc5065.md` - derive the core requirements and evidence before claiming support
 - `rfc/short/rfc9234.md` - tick R012/R013 once proven
 - `docs/features/rfc-status.md` - status ledger row with source anchors
 
 ## Implementation Steps
 
-1. **Phase: Prerequisite.** Fix the inert OTC egress stamp (`local-as` key mismatch) so the stamp path is testable at all
-2. **Phase: Decision.** Settle whether ze supports Role/OTC inside a confederation or rejects it at config validation (RFC 9234 marks it NOT RECOMMENDED)
-3. **Phase: Wiring (MANDATORY FIRST for the chosen path).** Add the config surface and a failing wiring test
-4. **Phase: Confederation core.** Member-AS config plus AS_CONFED origination, if the decision is to support it
-5. **Phase: OTC value selection.** Stamp the Confederation Identifier on confederation egress
-6. **Functional and interop tests** → prove the boundary behavior against a third-party daemon
-7. **Full verification** → `./le verify current mode full`
+1. **Phase: Design the full contract.** Derive RFC 5065 Sections 4 and 5 against AC-5 through AC-10, including AS_CONFED_SET origination. Decide the internal Role/OTC configuration outcome separately. The old inert-stamp prerequisite is resolved.
+2. **Phase: Wiring (MANDATORY FIRST).** Add the identifier/member-AS surface and destination classification, then prove configuration reaches the OPEN and AS_PATH producers.
+3. **Phase: Confederation core.** Implement session identity, origination, member forwarding, external stripping, loop prevention, aggregation and selection/error handling. This phase is mandatory under the owner ruling.
+4. **Phase: OTC boundary.** Consume the same confederation boundary for identifier stamping and member-AS exclusion, with both-polarity tests for RFC9234-5-7 and RFC9234-5-8.
+5. **Phase: Functional and interop proof.** Exercise the complete core and OTC topology; injected boundary facts alone cannot prove the feature.
+6. **Phase: Documentation and full verification.** Update configuration and architecture documentation and the RFC evidence, then run `./le verify worktree`.
 
 ## RFC Documentation
 
@@ -276,14 +295,14 @@ Add `// RFC 9234 Section 5: "<quoted requirement>"` above the enforcing code for
 R012 and R013.
 
 ## Known Limitations
-- Large scope: real support needs confederation-member config and AS_CONFED origination before OTC value selection is meaningful
-- RFC 9234 marks Role/OTC NOT RECOMMENDED inside a confederation, so the feature may resolve to a config-time rejection
-- Blocked in practice by the inert OTC egress stamp recorded in the Task section, which must be fixed independently first
+- Full confederation support remains in design, including the core acceptance contract and its concrete test carriers.
+- RFC9234-5-13 leaves the internal Role/OTC combination to the design decision. It does not leave confederation support or external OTC handling optional.
+- The former inert OTC stamp is fixed; it is retained only in the dated provenance above.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-4 all demonstrated
+- [ ] AC-1..AC-10 all demonstrated, including the confederation core from public configuration through peer wire
 - [ ] Wiring Test table complete: every row has a concrete test name
 - [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)

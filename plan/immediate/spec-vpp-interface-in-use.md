@@ -64,10 +64,10 @@ Add referential-integrity validation for VPP interface usage:
 - Config verify: the full candidate config tree at commit time, seen by the VPP verify hook and/or a new cross-feature verifier.
 
 ### Transformation Path
-1. Collect all interface references from VPP-touching features (NAT inside/outside, ACL, IPFIX, sFlow) into a usage map keyed by interface name, each with the referencing feature.
-2. Collect VPP member assignments (bridge membership) into the same map.
-3. Detect conflicts: an interface appearing both as a feature reference and as a member (bidirectional).
-4. Detect dangling deletes: an interface removed from `interfaces` while still present in the usage map.
+1. Collect interface references from VPP-touching features (NAT inside/outside, ACL, IPFIX, sFlow) into a usage map keyed by interface name, with each referencing feature.
+2. Collect bridge membership, mirror-destination references and LCP-paired status through the same registration mechanism. Include physical, dummy and tunnel interfaces and their VLAN units as reference targets.
+3. Detect incompatible roles in both directions and name both references.
+4. Compare current and candidate targets. Reject deletion of a referenced interface or unit, including a parent deletion that removes a referenced unit, and name the referenced target.
 5. On conflict/dangle, return a `ConfigError` naming both sides; otherwise pass.
 
 ### Boundaries Crossed
@@ -142,6 +142,11 @@ Add referential-integrity validation for VPP interface usage:
 | `TestVPPInterfaceConflictFeatureAndMember` | `internal/component/vpp/verify_refs_test.go` | feature+member conflict rejected | |
 | `TestVPPInterfaceDeleteWhileReferenced` | `internal/component/vpp/verify_refs_test.go` | delete-while-referenced rejected | |
 | `TestVPPInterfaceSingleRoleOK` | `internal/component/vpp/verify_refs_test.go` | single-role accepted | |
+| `TestVPPMirrorDestinationDelete` | `internal/component/vpp/verify_refs_test.go` | AC-6: deleting a mirror target names the source | |
+| `TestVPPLCPRoleConflictAndDelete` | `internal/component/vpp/verify_refs_test.go` | AC-7: pairing participates in conflict and deletion checks | |
+| `TestVPPTunnelTargetDelete` | `internal/component/vpp/verify_refs_test.go` | AC-8: referenced tunnel targets cannot be deleted | |
+| `TestVPPVLANUnitDelete` | `internal/component/vpp/verify_refs_test.go` | AC-9: unit removal is rejected while its parent remains | |
+| `TestVPPParentDeleteWithReferencedUnit` | `internal/component/vpp/verify_refs_test.go` | AC-10: parent deletion names the referenced unit | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -151,7 +156,7 @@ Add referential-integrity validation for VPP interface usage:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpp-interface-in-use` | `test/plugin/vpp-interface-in-use.ci` | conflicting/deleted interface rejected at commit | |
+| `vpp-interface-in-use` | `test/plugin/vpp-interface-in-use.ci` | AC-1 through AC-10 at commit: conflicts and referenced deletions fail, valid single-role configurations pass, and mirror/LCP/tunnel/VLAN-unit cases name the affected reference | |
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -194,10 +199,10 @@ Add referential-integrity validation for VPP interface usage:
 
 ### Implementation Phases
 1. **Phase: Wiring (MANDATORY FIRST)** — add the cross-feature verify hook host with a no-op aggregator; failing `test/plugin/vpp-interface-in-use.ci`.
-2. **Phase: Usage aggregation** — collect feature refs + member assignments via a registration-based mechanism (no hardcoded feature-path list).
-3. **Phase: Conflict + dangle detection** — reject conflicts and delete-while-referenced with clear messages.
-   - Tests: `TestVPPInterfaceConflictFeatureAndMember`, `TestVPPInterfaceDeleteWhileReferenced`, `TestVPPInterfaceSingleRoleOK`
-4. **Functional test**
+2. **Phase: Usage aggregation**: collect feature references, bridge membership, mirror destinations and LCP roles through registration; include dummy/tunnel VLAN units in the target set.
+3. **Phase: Conflict and deletion checks**: reject incompatible roles, referenced-target deletion and parent deletion that removes a referenced unit, with the AC-5 diagnostic.
+   - Tests: every row in the Unit Tests table, covering AC-1 through AC-10.
+4. **Functional test**: demonstrate all ten ACs through config commit, including valid controls.
 5. **Full verification** → `./le verify current mode full`
 6. **Complete spec** → audit, learned summary, two-commit closure.
 
@@ -264,7 +269,7 @@ Add referential-integrity validation for VPP interface usage:
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
+- [ ] AC-1 through AC-10 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean

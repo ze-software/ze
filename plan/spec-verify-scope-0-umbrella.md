@@ -13,8 +13,15 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`./le verify current mode full` takes 74 minutes and certifies nothing. Two separate
-faults produce that result, and each sub-spec fixes one of them.
+This umbrella retains the 2026-08-19 verification-cost investigation and the
+acceptance criteria for the resulting spec set. Children 1, 2, 3, 4 and 6 are
+recorded closed below. Child 5 now has an implemented reached-package selector,
+with full-path recording evidence still to establish.
+
+### Historical baseline (2026-08-19)
+
+`./le verify current mode full` took 74 minutes and produced an unusable
+freshness record. The investigation identified two faults.
 
 **Fault 1: the gate judges a tree no session owns.** `computeTreeHash`
 (`internal/le/verify/engine/run.go`) hashes `HEAD`, the whole `git diff HEAD`, and
@@ -71,9 +78,24 @@ in minutes, and that verdict survives another session's concurrent edit.
 | 2 | spec-verify-scope-2-change-set-selector (CLOSED 2026-09-05) | Fault 2 foundation: one tag-aware change-set selector | - |
 | 3 | spec-verify-scope-3-selector-consumers (CLOSED 2026-09-05) | Fault 2 consumers: staticcheck rows, functional suites | 2 |
 | 4 | spec-verify-scope-4-suite-budget-and-ci (CLOSED 2026-09-05) | The `plugin` suite wall-clock cap, and CI sharding | - |
-| 5 | `plan/spec-verify-scope-5-suite-coverage-map.md` | Functional suite selection, from a RECORDED package-to-suite map. **STOPPED at phase 1 by its own gate** | 2 |
+| 5 | `plan/spec-verify-scope-5-suite-coverage-map.md` | Recorded reached-package suite selection; five implementation phases recorded complete, full recording proof outstanding | 2 |
+| 6 | spec-verify-scope-6-wiring-docs-attribution (CLOSED 2026-09-05) | Per-failure groups for `./le doc wiring`, so attribution reaches the ledger's largest class | 1 |
 
-**Sub-spec 5 stopped, and its reason generalises beyond it.** Phase 1 was a gate:
+Child 5 owns recording, the derived map and the local/gating selection provider.
+`plan/spec-changed-source-to-functional-suite-map.md` owns the remaining
+source-input and CI-consumption assessment, using that same provider and suite
+inventory. This umbrella owns the aggregate cost and freshness evidence in
+AC-U1 through AC-U5; it schedules no second selector.
+
+The September 7 reached-package experiment superseded the stop below: it
+discounted registration-only execution and reduced the three-suite intersection
+from 443 packages to 126. The child records all five implementation phases as
+committed. No full recording result or new umbrella timing result is established
+by this reconciliation.
+
+### Historical phase-1 stop (2026-08-19)
+
+**Sub-spec 5 initially stopped.** Phase 1 was a gate:
 measure whether a suite's EXECUTED package set is small enough to select on, and
 stop if it is not. Over a full instrumented functional run the intersection
 across the 20 suites that record anything is **423 packages of 646**, union 534.
@@ -88,10 +110,9 @@ does. `ze show version` alone records 425 packages, 242 of them covered only
 inside `register.go`. Three unrelated commands recorded 426, 426 and 424, union
 428.
 
-**The registration pattern that makes Ze pluggable is what makes coverage-based
-suite attribution impossible.** Any later attempt to answer "which code does this
-test exercise" must discount registration, or work finer than the package.
-
+The initial conclusion was that raw execution coverage could not attribute
+suites usefully. The later reached-package experiment discounted registration
+and superseded that conclusion.
 Two further findings, either of which would have blocked it alone. Four suites
 record NOTHING: `editor` runs inside the `ze-test` harness, `web` writes a meta
 file and no counters, `runner` tests the harness, and `policy` skips
@@ -100,9 +121,9 @@ load: back to back on one tree, `plugin` gave 628/628 clean against 626/628
 instrumented, and `ui` 184/184 against 181/184 and 177/184, every failure
 `daemon did not become ready`. Instrumentation costs +45% suite time, +52% wall.
 
-So `./le functional` stays unscoped, and AC-U1's under-15-minute target is
-not reachable by any route this umbrella found.
-| 6 | spec-verify-scope-6-wiring-docs-attribution (CLOSED 2026-09-05) | Per-failure groups for `./le doc wiring`, so attribution reaches the ledger's largest class | 1 |
+At that point `./le functional` remained unscoped, and the investigation had
+found no route to AC-U1's under-15-minute target. That was the August conclusion;
+the later implementation still owes a measured result against AC-U1.
 
 **Sub-spec 5 exists because every static route to a suite map was measured and
 failed** (owner approval, 2026-08-19). `go list -deps ./cmd/ze` links 562 of 646
@@ -131,23 +152,24 @@ and its staticcheck half stands on its own.
 
 **Key insights:**
 - The stage list is single-sourced in `stagesForMode` (`internal/le/verify/engine/run.go`), pinned by `TestStagesForModeMatchesGolden`. A gate absent from that function runs nowhere, in CI or locally.
-- `ai/rules/testing.md` derives a `.ci` file's `functional/verify` tier from the literal `all_suites` line in `internal/le/functional/suites.go`. Any per-change suite skipping must not lower a tagged RFC requirement's tier. Sub-spec 3 owns that obligation.
-- The scoped freshness answer is already built. `dirty_manifest` and `manifest_scoped` (`internal/le/verify/status/answer.go`) exist, and their own comment states the reason: "The commit is scoped to a file list; the evidence must be scopeable to the same list, or a session can never hold evidence about its own code". No production caller passes a path.
+- The recorded-map child owns the requirement that selection must not lower a tagged RFC requirement's tier. Its contract retains `Gating` as the gating population and `functionalSuitesFromGo` as the RFC reader; the retired `all_suites` shell line is historical.
+- Scoped freshness is owned by closed child 1. Its August observation that no production caller used the scoped answer is historical; the current contract is documented in `docs/architecture/testing/verify-freshness-scope.md`.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `internal/le/verify/engine/run.go` - runs 30 stages sequentially; `stageResult` records no duration; `writeVerifyStatus` stamps `treeMovedSentinel` on any concurrent edit
-- [ ] `internal/le/verify/status/answer.go` - `tree_hash` covers the whole repository; `manifest_scoped` implements a scoped answer that no production caller uses
-- [ ] `internal/le/` - transitive, untagged reverse-dependency expansion
-- [ ] `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` - `judgeStaticcheckFeatureMatrix` spawns one `staticcheck -matrix ./...`; `deriveFeatureMatrix` emits 38 rows
-- [ ] `internal/le/functional/suites.go` - 24 suites in a sequential shell loop; `ZE_SKIP_SUITES` is the only scoping knob
-- [ ] `internal/le/commit/prepare.go` - `verify_status` runs `verify-status.sh check` with no path arguments; `STRUCTURAL_GATES` names the reds that `--unverified` cannot wave through; `record_debt` writes rows and nothing clears them
+**Current suite-selection producers:**
+- `internal/le/functional/suitemap.go`: `selectSuites` reads the recorded map and `changed.Packages`; `planRun` supplies both the local selection report and the gating run.
+- `internal/le/functional/suites.go`: `Gating` remains the gating population.
+- `docs/architecture/testing/verify-freshness-scope.md`: the current scoped-freshness and stage-consumption contract for the closed children.
+
+The original whole-tree hash, untagged reverse-dependency expansion, shell
+suite loop and commit-helper observations belong to the historical baseline
+above. They are not a fresh inventory of work still to implement.
 
 **Behavior to preserve:**
 - The stage list stays single-sourced in `stagesForMode`.
 - A gate that a change CAN affect still runs. Scoping removes repetition, never coverage.
-- The verify record keeps its file path and field names: `verify-status.sh` and `commit_helper.py` both read them.
+- Preserve usable verification evidence and the commit gate's refusal contract. The original shell-script consumers are historical; the current contract is documented in `docs/architecture/testing/verify-freshness-scope.md`.
 
 **Behavior to change:** named per sub-spec.
 
@@ -156,22 +178,23 @@ and its staticcheck half stands on its own.
 ### Entry Point
 - A session edits files, then runs `./le verify current mode full` or `./le verify current mode changed`.
 
-### Transformation Path
+### Historical transformation path (August 2026)
 1. `verify-lock.sh` (an alias for `ze-run.sh`) admits the job into a slot.
 2. `verify_run.go` reads `stagesForMode`, runs each stage in order, and writes `tmp/ze-verify.status`.
 3. `verify-status.sh check` compares the recorded tree hash against the live one.
 4. `commit_helper.py create` reads that verdict and the failure index, then allows or refuses the commit.
 
-### Boundaries Crossed
+### Historical boundaries (August 2026)
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Verify runner ↔ commit helper | `tmp/ze-verify.status`, `tmp/ze-verify-failures.json` | No |
 | Verify runner ↔ make stages | sub-make invocation per stage | No |
 | Selector ↔ stages | none today; sub-spec 2 creates it | No |
 
-### Integration Points
-- `stagesForMode` - the only live stage list.
-- `feature-gates.txt` - the package-to-tag manifest, parsed today by `plugin_imports.go` and `dep_audit.py`.
+### Current suite-selection integration
+- `selectSuites` reads `changed.Packages` and the derived map.
+- `planRun` computes the decision used by the local report and gating execution.
+- `Gating` supplies the inventory; child 5 owns that provider, and the dependent source-input/CI spec consumes it.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -220,9 +243,18 @@ and its staticcheck half stands on its own.
 |-------|-------------------|-------------------|
 | AC-U1 | Sub-specs 1 to 4 are closed | `./le verify current mode changed` over a single-feature change completes in under 15 minutes on the dev box |
 | AC-U2 | Another session edits an unrelated file while a verify run is in flight | The run still produces a usable verdict for the paths it judged |
-| AC-U3 | A gate is red because of a file outside the committing session's change set | `commit_helper.py create` does not charge that session a debt row for it |
-| AC-U4 | The debt ledger holds open rows for gates that now pass | A make target clears them, and it re-runs each owed gate to do so |
+| AC-U3 | A gate is red because of a file outside the committing session's change set | `./le commit create` does not charge that session a debt row for it |
+| AC-U4 | The debt ledger holds open rows for gates that now pass | The native debt-clear action clears them, and it re-runs each owed gate to do so |
 | AC-U5 | A change touches only `internal/component/ssh` | No functional suite runs that the selector cannot reach from that package, and the staticcheck matrix judges at most 4 rows |
+
+### Evidence still owed by the umbrella
+
+Child closure or implementation does not by itself demonstrate an umbrella AC.
+AC-U1 needs a timed current single-feature verification run; AC-U5 needs the
+current SSH selection and Staticcheck-row result, including child 5's real
+recorded map. AC-U2, AC-U3 and AC-U4 need the closed children's evidence tied to
+their concurrent-edit, attribution and debt-clear scenarios. No new run or
+independent assessment of those results is claimed here.
 
 ## 🧪 TDD Test Plan
 
@@ -244,7 +276,7 @@ and its staticcheck half stands on its own.
 | `verify-scope-freshness-scoped` | `test/runner/verify-scope-freshness-scoped.ci` | A developer's verify record stays FRESH for their own paths while a second writer edits an unrelated file | |
 | `verify-scope-debt-clear` | `test/runner/verify-scope-debt-clear.ci` | A developer clears a debt row, and the clearing re-runs the owed gate rather than trusting the edit | |
 
-## Files to Modify
+## Historical Implementation Surfaces
 - `internal/le/verify/engine/run.go` - freshness record, stage durations, stage selection
 - `internal/le/verify/status/answer.go` - scoped freshness callers
 - `internal/le/` - reduced to a dispatcher: it reads the answer the run published, or runs the selector. The transitive untagged expansion is deleted rather than wrapped, and the tag-aware logic lives in `runSelector` (`internal/le/changed/selector.go`)
@@ -295,14 +327,10 @@ and its staticcheck half stands on its own.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- each sub-spec starts with its own wiring phase, and the rows in the Wiring Test table above are its targets
-   - Tests: the four rows in the Wiring Test table
-   - Files: `internal/le/commit/prepare.go`, `internal/le/verify/engine/run.go`, and the two new make targets
-   - Verify: each wiring test fails because the target it names does not exist yet
-2. **Phase: Sub-spec 1** -- shared-checkout freshness and debt
-3. **Phase: Sub-spec 2** -- the change-set selector
-4. **Phase: Sub-spec 4** -- suite wall-clock budget and CI sharding, independent of 2
-5. **Phase: Sub-spec 3** -- the selector's consumers, after 2 closes
+1. Recover the closed children's evidence for AC-U2, AC-U3 and AC-U4, against the current native consumers. Reopen an implementation question only where a concrete unmet obligation is found.
+2. Finish child 5's full-path recording and acceptance evidence through its existing provider.
+3. Let `plan/spec-changed-source-to-functional-suite-map.md` assess residual input/CI consumption using that provider; do not schedule a second map.
+4. Measure the umbrella's single-feature cost and SSH selection obligations, AC-U1 and AC-U5. A child being closed or implemented is not the measurement.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

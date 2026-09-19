@@ -126,27 +126,27 @@ population, which is the defect this whole line of work exists to remove.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- EVPN UPDATE with PrefixSID containing SRv6 Service TLV and SID Structure with transposLen > 20
+- EVPN UPDATEs for Route Types 1 per-EVI, 2, 3 and 5 whose SRv6 Service TLV declares transposition, with zero-length transposition as the unchanged control and length 25 as the invalid-width case.
 
 ### Transformation Path
-1. EVPN NLRI parsed, label extracted (currently 20 bits?)
-2. Label stored via InternLabels
-3. Best-path change triggers lookupSRv6SIDForBest
-4. ApplyTransposition called with label and labelWidth=24
-5. Bits 23..20 read from label, which are 0 if only 20 bits stored
+1. Preserve the Service TLV association of the extracted SID so Route Type 2 can select Label1 for the L2 Service TLV and Label2 for the L3 Service TLV.
+2. Read the raw 24-bit carrier from the route's existing wire representation: the route-type-specific NLRI field for Types 1 per-EVI, 2 and 5, or the PMSI Tunnel Attribute for Type 3.
+3. Carry that value to `srv6SIDFromResult` / `ApplyTransposition` at best-path change. Extend the existing wire-reader approach; do not add an EVPN `InternLabels` side store.
+4. Reconstruct the SID at width 24, including bits lost by a 20-bit MPLS-label read.
+5. Reject a path whose Transposition Length exceeds the permitted field width through the existing eligibility mechanism. Preserve VPN width-20 and no-transposition behaviour.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| NLRI parser -> label pool | InternLabels([]uint32) | [ ] |
-| Label pool -> transposition | ResolveLabels -> ApplyTransposition | [ ] |
+| NLRI or attribute wire -> carrier selection | Route type and Service TLV identify the raw 24-bit field; Type 3 requires the PMSI attribute | [ ] |
+| Carrier selection -> SID reconstruction and eligibility | `srv6SIDFromResult`, `ApplyTransposition` and the existing invalid-width check | [ ] |
 
 ### Integration Points
-- `ApplyTransposition` (`internal/component/bgp/plugins/rib/pool/srv6sid.go`) - consumes the stored label with `labelWidth`; where the 24-bit read happens
-- `labelWidthForSAFI` (`internal/component/bgp/plugins/rib/rib_bestchange.go`) - already returns 24 for EVPN; the width the storage must honor
-- `InternLabels` / `ResolveLabels` (`internal/component/bgp/plugins/rib/pool/labels.go`) - label storage that may need to keep the full 24-bit field
-- `MaxMPLSLabel` (`internal/component/bgp/route/route_labeled.go`) - the 20-bit cap in conflict with EVPN transposition
-- EVPN NLRI label parsing (`internal/component/bgp/plugins/nlri/`) - source of the label value; investigation item 1
+- `ApplyTransposition` (`internal/component/bgp/plugins/rib/pool/srv6sid.go`) consumes the selected carrier at width 24.
+- `srv6SIDFromResult` and `labelWidthForSAFI` (`internal/component/bgp/plugins/rib/rib_bestchange.go`) already provide the reconstruction seam and EVPN width.
+- `nlrisplit.TranspositionLabel` (`internal/core/bgp/nlri/nlrisplit/transposition.go`) reads VPN labels from NLRI bytes today; extend the wire-reader approach for the appropriate EVPN carriers.
+- `pool.SRv6SIDResult` / `ExtractSRv6SIDFull` must retain the Service TLV association required by AC-3.
+- Type 3's PMSI carrier and Type 1 per-ES Argument handling remain the explicit design investigations in Task; the obsolete label-pool proposal supplies neither.
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -180,7 +180,11 @@ population, which is the defect this whole line of work exists to remove.
 |------|------|-----------|--------|
 | `TestApplyTranspositionEVPNHighBits` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-1: transposLen=16 with value in high bits of the 24-bit field reconstructs the SID correctly | planned |
 | `TestApplyTranspositionEVPNFull24Bits` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-2: transposLen=24 transposes all 24 bits into the SID | planned |
-| `TestApplyTranspositionVPN20BitRegression` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-3: VPN transposition with 20-bit labels unchanged | planned |
+| `TestEVPNType2SelectsServiceTLVLabel` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-3: differing Label1/Label2 values reconstruct the SID from the matching Service TLV | planned |
+| `TestEVPNType1PerEVISIDTransposition` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-4: Route Type 1 per-EVI uses its raw 24-bit label field | planned |
+| `TestEVPNType3PMSISIDTransposition` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-5: Route Type 3 uses the PMSI Tunnel Attribute carrier | planned |
+| `TestApplyTranspositionVPN20BitRegression` | `internal/component/bgp/plugins/rib/pool/srv6sid_test.go` | AC-6: VPN transposition with 20-bit labels unchanged | planned |
+| `TestEVPNTranspositionTooWideIsIneligible` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | AC-7: length 25 cannot become best, with length 24 as the valid control | planned |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -192,8 +196,8 @@ population, which is the defect this whole line of work exists to remove.
 <!-- Planned names derived from ACs; refine during design (spec is skeleton). -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `evpn-srv6-transposition-24bit` | `test/decode/evpn-srv6-transposition-24bit.ci` | AC-1/AC-2: EVPN UPDATE with SRv6 SID Structure and transposLen > 20 decodes with correct reconstructed SID | planned |
-| `vpn-srv6-transposition-regression` | `test/decode/vpn-srv6-transposition-regression.ci` | AC-3: VPN route with SRv6 transposition still decodes correctly (20-bit label) | planned |
+| `evpn-srv6-transposition-24bit` | Functional RIB scenario; concrete carrier to be selected during design | AC-1 through AC-5 and AC-7: UPDATE ingestion through RIB best-path selection yields the reconstructed SID for Types 1 per-EVI, 2, 3 and 5, and excludes length 25. A decode-only assertion is insufficient | planned |
+| `vpn-srv6-transposition-regression` | Functional RIB scenario plus `TestSRv6TranspositionRestoresFunctionBitsFromNLRILabel` | AC-6: existing VPN transposition remains unchanged | planned |
 
 ### Interop Tests
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -218,7 +222,13 @@ population, which is the defect this whole line of work exists to remove.
 
 ## Implementation Steps
 
-(fill during design)
+The detailed design must resolve the Task's open carrier questions before
+implementation. The implementation sequence must cover Service TLV association
+and the raw carrier readers first, then RIB reconstruction for Route Types 1
+per-EVI, 2, 3 and 5. Verification must exercise UPDATE ingestion through
+best-path selection for AC-1 through AC-7, including VPN regression, the
+no-transposition control and invalid-width rejection. The former
+`InternLabels`/`ResolveLabels` proposal is superseded by direct wire reads.
 
 ## Review Gate
 
@@ -248,7 +258,7 @@ population, which is the defect this whole line of work exists to remove.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-3 all demonstrated
+- [ ] AC-1..AC-7 all demonstrated through their current test mappings
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
 - [ ] `./le verify worktree` passes

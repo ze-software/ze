@@ -2,16 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | in flight: `announceFacts` exists in the working tree, UNCOMMITTED |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
-<!-- Backfilled. The work was commissioned straight from a journal row and
-     skipped the spec step. Status is in-progress: the structural change exists
-     in the working tree and closure has not run. -->
+<!-- Backfilled after implementation began. The structural change is present;
+     remaining proof and documentation do not permit closure. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -59,8 +58,7 @@ key, and the compiler is what enforces it.
 - [ ] `rfc/short/rfc7911.md` - Section 3, the ADD-PATH path identifier before every NLRI
 - [ ] `rfc/short/rfc6793.md` - Section 4.2.2, AS_TRANS and AS4_PATH toward an OLD speaker
 - [ ] `rfc/short/rfc8654.md` - the extended message size, which is the SPLIT point
-- [ ] RFC 7705 Section 3.3, the second AS number for a local-as override with no
-  "Replace Old AS". No `rfc/short/rfc7705.md` exists; one is owed before closure.
+- [ ] `rfc/short/rfc7705.md` - Section 3.3, the second AS number for a local-AS override without `replace-as`. Enrolled on 2026-09-14 by `plan/immediate/spec-bgp-as-migration.md`; this spec still owes announce-partition proof.
 
 **Key insights:**
 - Every field in the key is an RFC-driven per-peer distinction. That is why the
@@ -178,9 +176,9 @@ key, and the compiler is what enforces it.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the partition over each field | `internal/component/bgp/reactor/announce_facts_partition_test.go` | AC-1, AC-2, AC-5 | written, uncommitted |
-| framing under `group-updates` | `internal/component/bgp/reactor/group_updates_framing_test.go` | AC-4 | written, uncommitted |
-| extended-size split partition | `internal/component/bgp/reactor/zzprobe_announce_extended_test.go` | AC-3 | written, uncommitted |
+| the partition over each field | `internal/component/bgp/reactor/announce_facts_partition_test.go` | AC-1, AC-2, AC-5 | present; no fresh result recorded here |
+| framing under `group-updates` | `internal/component/bgp/reactor/group_updates_framing_test.go` | AC-4 | present; no fresh result recorded here |
+| extended-size split partition | Current carrier must be identified or restored; the previously named `zzprobe_announce_extended_test.go` is absent | AC-3 | proof remains owed |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -206,7 +204,7 @@ key, and the compiler is what enforces it.
 ## Files to Create
 - `internal/component/bgp/reactor/announce_facts_partition_test.go`
 - `internal/component/bgp/reactor/group_updates_framing_test.go`
-- `internal/component/bgp/reactor/zzprobe_announce_extended_test.go`
+- Extended-size split-partition test carrier for AC-3, if the existing tests do not provide it; the former probe filename is absent.
 - `test/interop/scenarios/local-as-replace-as-partition/` - the interop scenario
 
 ### Integration Checklist
@@ -223,7 +221,7 @@ key, and the compiler is what enforces it.
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
 | 7 | Wire format changed? | No | the bytes each peer is owed are unchanged; which peer receives which bytes is what is repaired |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC 7705 Section 3.3 is newly correct on the announce rail, and `rfc/short/rfc7705.md` does not exist. It is owed, with the `docs/features/rfc-status.md` row |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | RFC 7705 is enrolled and its summary exists. Check the announce-specific evidence and published coverage against the completed partition proof; do not recreate enrolment |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` is the `// Design:` anchor of `reactor_api_batch.go` and MUST state that the group key IS the builder's argument set. `docs/architecture/update-building.md` is the `// Design:` anchor of `forward_prefix_sid.go` and MUST state that a rail carries the operator's leaf rather than the resolved answer, because that is what the key holds |
 | 1-6, 8, 10, 11, 13-15, 17 | - | No | no other surface changed |
 
@@ -237,8 +235,9 @@ key, and the compiler is what enforces it.
    builder unread, and prove the split partition.
 4. **Phase: Framing** - `groupUpdates`, and the shared `nlriUnitLen`.
 5. **Phase: Interop** - the named scenario, walked red against the reverted fix.
-6. **Phase: RFC and documentation** - `rfc/short/rfc7705.md`, its status row, and
-   `docs/architecture/core-design.md`.
+6. **Phase: RFC and documentation** - reconcile announce-partition evidence with
+   the existing `rfc/short/rfc7705.md` and status row; update
+   `docs/architecture/core-design.md` and `docs/architecture/update-building.md`.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -327,14 +326,15 @@ RFC 7911 Section 3, RFC 6793 Section 4.2.2, and RFC 8654 for the split point.
 
 ## Current Condition and What Remains
 
-**IN FLIGHT.** `announceFacts` exists in the working tree with every field and
-its RFC citation, and `reactor_api_batch.go` is uncommitted. Three test files are
-new and untracked. No SHA can be cited.
+The structural change is present in `reactor_api_batch.go`: `announceFacts`
+is both the group key and the builder argument. Git history records its
+introduction in `fa86db31ed`; the 2026-09-06 claim that no SHA could be cited
+is historical. This source check is not a fresh runtime or closure result.
 
 | Item | State |
 |------|-------|
-| Structural change | in the working tree, UNCOMMITTED |
+| Structural change | Present; `announceFacts` was introduced in `fa86db31ed` |
 | Journal row | written, `plan/journal/key-omits-a-fact-the-builder-uses.md`. The local-AS field is called fixed in the announce-rail commit; the CLASS repair is this spec |
-| PROVEN | the partition for the fields the three new unit tests cover, once they are run and observed red against the bare-AS key |
-| ASSERTED, not proven | AC-6, which is a compiler property with no test naming it, and AC-7, which is a statement about every configuration rather than the ones tested. A-2 is unvalidated: only `extended` and `groupUpdates` were found as send-only facts, and nothing proves that set is complete |
-| Remains | (1) the `.ci` over the two-peer `replace-as` case; (2) the `local-as-replace-as-partition` interop scenario, with the revert-rebuild-red walk `ai/rules/interop-and-goal-validation.md` requires; (3) `rfc/short/rfc7705.md`, which does not exist, and its `docs/features/rfc-status.md` row; (4) `docs/architecture/core-design.md`; (5) landing it; (6) closure sections |
+| Evidence still to establish | Reconcile the present partition and framing tests with AC-1 through AC-5, locate or restore AC-3's extended-size proof, and record discriminating runs |
+| ASSERTED, not proven | AC-6 remains a structural constraint to review, and AC-7 covers every configuration. A-2 remains unvalidated: the complete set of send-only facts still needs the declared audit |
+| Remains | The two-peer `replace-as` `.ci`; the `local-as-replace-as-partition` interop scenario with the revert/rebuild discrimination walk; announce-specific RFC evidence against the already enrolled summary; both architecture documentation updates; completion of all ACs and closure sections |

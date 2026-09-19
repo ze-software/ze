@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
 | Phase | 3/4 |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -33,14 +33,16 @@ it is named here is so a later reader does not assume this whole file was parked
 
 ## Task
 
-`ZE_PLUGIN_PARALLEL ?= 8` and `ZE_ENCODE_PARALLEL ?= 8` (`internal/le/functional/suites.go`)
-are constants chosen for a 4-vCPU CI runner and applied unchanged to every host.
-On a 32-core box that costs the `plugin` suite about 400 seconds per run.
+The original defect in test throughput was the fixed value 8 for
+`ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL`, chosen for a 4-vCPU CI runner and
+applied unchanged to larger hosts. The measured cost below is the historical
+reason for the change.
 
-`SuiteConcurrencyFloor`'s comment names the provenance: 8 "is the value
-`ZE_PLUGIN_PARALLEL` has been running the 530-test plugin suite at on GitHub's
-4-vCPU hosted runner". It is a measured survivable figure for the smallest host
-this project builds on, pinned as the value for the largest.
+The current producer, `Parallel` in `internal/le/functional/budget.go`, derives
+the value from the host core count with a floor of 8, unless the suite-specific
+override is set. `Suite.Command` applies it to the scaled `plugin` and `encode`
+suites. Both implementation phases are present; this spec now owes the repeated
+measurements recorded in the September 5 finding below.
 
 **Measured**, the retired `ze-functional-plugin-test ZE_PLUGIN_PARALLEL=N` (current: `./le functional plugin`), seven runs
 on a 32-core box, against the suite's 4545s sum of per-test medians:
@@ -102,6 +104,13 @@ runs of the `plugin` and `encode` suites, and the owner refused a suite run in t
 session because another session holds the box for the ExaBGP compatibility work.
 A-1 and A-2 stay `unvalidated` for that reason, and neither is a code gap.
 
+The September 5 refusal remains a historical owner pause, not permission to
+start a suite run during this reconciliation. The later load-independence work
+in `plan/pre-release/spec-a-test-passes-at-any-concurrency.md` owns the remaining
+synchronisation mechanisms and refuses lower concurrency or wider fixture
+waits as substitutes for them. This spec retains AC-2 and AC-4's measurements;
+the existence of the MCP scaling change does not prove those criteria.
+
 Two page defects were repaired here, both from the make-to-`le`-to-Go port naming
 a symbol that no longer produces the value: `docs/functional-tests.md` cited
 `internal/le/functional.Answer` as the source of the derived `-p`, where `Parallel`
@@ -139,9 +148,9 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 - `ZE_SUITE_TIMEOUT_PLUGIN` stays at 1500s. The worst run measured was 751.5s on a busy box, half the budget.
 - Every `-p` stays overridable from the command line, and `-p 0` still means all.
 
-**Behavior to change:**
-- `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` derive from the host instead of being pinned at 8.
-- The MCP readiness deadline scales with contention the way the runner's budget does.
+**Implemented behaviour awaiting the stated measurements:**
+- `ZE_PLUGIN_PARALLEL` and `ZE_ENCODE_PARALLEL` derive from the host unless overridden.
+- The MCP readiness deadline reads the runner's published contention factor.
 
 ## Data Flow (MANDATORY)
 
@@ -149,10 +158,10 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 - `./le functional plugin`, `./le functional encode`, and the aggregate `./le functional`.
 
 ### Transformation Path
-1. The makefile computes the suite's `-p` and passes it.
+1. `Suite.Command` calls `Parallel` for a scaled suite and passes the derived `-p`.
 2. `cmd_bgp.go` uses it in place of `DefaultParallelConcurrent`.
 3. `parallelRunner` runs that many tests at once and widens each per-test budget by `ParallelTimeoutHeadroom`.
-4. A test carrying its own in-binary deadline does not see that widening.
+4. `cmdMcp` multiplies its readiness timeout by `runner.ChildParallelFactor`, which reads the runner's published factor.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -162,7 +171,7 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 | runner ↔ an in-test deadline | `ze.test.parallel-factor` in the child environment | Yes -- `mcp-parallel-factor-published.ci` (producer), `TestMCPReadinessScalesWithConcurrency` (consumer) |
 
 ### Integration Points
-- `parallelFactor`, which the MCP readiness wait should read.
+- `parallelFactor`, already published to and read by the MCP readiness wait.
 - `SuiteConcurrencyFloor`, the existing floor and the reason CI is unaffected.
 
 ### Architectural Verification
@@ -179,8 +188,8 @@ entry in the same dispatcher, where `budgetDefaults` in `budget.go` holds it.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Scaling the MCP deadline removes that failure cluster | the cluster is exactly that message and its count tracks N | 32 stays flaky for another reason | AC-2: the message's count stays 0 across repeated runs at 32 | unvalidated. The mechanism is proven: `cmdMcp` (`internal/test/cli/cmd_mcp.go`) multiplies its `-timeout` by `runner.ChildParallelFactor`, and `mcp-parallel-factor-published.ci` proves the factor crosses the process boundary. The COUNT is not proven. No suite run since 2026-08-25 is recorded, and no `plan/known-failures/` shard or `plan/journal/` row names that message |
-| A-2 | `encode` behaves like `plugin` | both run through the bgp runner and both were pinned at 8; `encode` has 57 tests and a 6.6s median | `encode` regresses where `plugin` gains | AC-4 measures `encode` separately, not by analogy | unvalidated. AC-4 is a measurement, and no after-measurement exists for either suite |
+| A-1 | Scaling the MCP deadline removes that failure cluster | the historical cluster was that message and its count tracked N | 32 stays flaky for another reason | AC-2: the message's count stays 0 across repeated runs at 32 | unvalidated. `cmdMcp` multiplies its timeout by `runner.ChildParallelFactor`; the required repeated message-count evidence is still absent from this spec. The September 19 plugin runs in `plan/pre-release/spec-a-test-passes-at-any-concurrency.md` concern a different synchronisation investigation and do not establish this criterion |
+| A-2 | `encode` behaves like `plugin` | both run through the bgp runner and both were pinned at 8; the original encode measurement used 57 tests and a 6.6s median | `encode` regresses where `plugin` gains | AC-4 measures `encode` separately, not by analogy | unvalidated. This spec still owes its paired before/after measurement for both suites; later plugin-only concurrency runs do not supply encode evidence |
 | A-3 | The derived value does not starve concurrent sessions | the box admits four such jobs; 32 concurrent daemons each is 128 | the box thrashes and every session slows | AC-5, and the limitation is recorded rather than closed | confirmed as arithmetic, unmeasured as behavior. `defaultSlots` (`internal/le/job/job.go`) answers `runtime.NumCPU() / gotoolchain.CoresPerJob()`, which is 32/8 = 4 on this box, and `Parallel` (`internal/le/functional/budget.go`) answers 32. Four admitted suites therefore start 128 tests on 32 cores, and `docs/functional-tests.md` now carries that number. Whether the box thrashes at that load is unmeasured |
 
 ### Risks

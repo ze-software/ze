@@ -17,21 +17,41 @@ was removed by its closure commit, so the work below lives here.
 The wire-edit-5 fan-out dedup spec (design record:
 `docs/architecture/bgp/fanout-dedup.md`) shipped fan-out dedup with
 mutation-verified Go coverage, including the cross-peer leak the design exists to
-prevent. Its socket-level proof did not ship: `wire-edit-fanout-dedup.ci` is
-unfinished and sits in `test/draft/plugin/`, which is gitignored, so it is in no
-commit and no suite.
+prevent. Its socket-level proof was recorded as unfinished at closure, in a
+gitignored `test/draft/plugin/wire-edit-fanout-dedup.ci`. That file is absent
+from the current checkout, and no live fixture of that name was found under
+`test/`. Recover the draft if an existing copy is available; otherwise
+reconstruct the fixture from the design and the acceptance criteria below.
+Do not treat a missing local draft as implemented or executed coverage.
 
-Two blockers are written into the draft's own header and must be resolved before
-it can be promoted (`ai/rules/testing.md`, "Draft a Functional Test Before It Is
-Live"):
+The closure record attributed two blockers to the draft's header. They remain
+unresolved historical observations until the fixture and its stimulus are
+available:
 
 | Blocker |
 |---------|
 | `community { send none }` did not suppress in the fixture |
 | the `contains=` value came back as a hex-decode error |
 
-The missing piece is end-to-end framing, not design. The behavior itself is
-already proven at the Go level.
+The Go evidence supports the deduplication implementation. It does not settle
+whether the recorded community-suppression result came from the fixture or
+the product. Establish A-1 at the forward producer before classifying the
+remaining item as elective coverage, release evidence, or a suppression
+defect. `reject=bgp` now expresses cross-peer wire negatives, as documented in
+`docs/architecture/bgp/fanout-dedup.md`; retain the exact-byte and mutation
+requirements when reconstructing the fixture.
+
+Current source narrows A-1. `sendCommunitySuppression` maps `none` to all
+community suppression bits, and the forward rail applies those operations
+through `applyFactsSendCommunity`. `genericCommunityHandler`
+(`internal/component/bgp/plugins/filter_community/handler.go`) now calls
+`p.Drop()` when the last set-or-suppress operation is suppression. Its comment
+records an earlier product defect that discarded those operations, and
+`TestSendCommunitySuppressEmittedBytes` in
+`internal/component/bgp/reactor/forward_send_community_test.go` asserts the
+rebuilt bytes. That is reason to reject the assumption that the old fixture
+was necessarily wrong. It does not identify the missing draft's input or
+prove its socket result; A-1 remains unvalidated here.
 
 ## Required Reading
 
@@ -72,7 +92,7 @@ One route fanned out to peers in two policy groups over real sockets.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `community { send none }` suppresses on the forward rail and the fixture was simply wrong. | The draft header records the observation but not a root cause. | A live suppression defect on the forward rail, which becomes the real deliverable. | (fill during design) | unvalidated |
+| A-1 | Current community suppression works for the reconstructed forward scenario, and any surviving failure is understood. | The current mask producer and community handler implement suppression; the missing draft recorded a failure without its root cause. | A reproduced suppression defect becomes the deliverable; coverage cannot hide it. | Recover or reconstruct the two-policy-group stimulus, trace its community policy through the forward producer, and compare the exact socket frames with suppression enabled and disabled. | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -112,7 +132,9 @@ One route fanned out to peers in two policy groups over real sockets.
 
 ## Implementation Steps
 
-1. (fill during design)
+1. Recover or reconstruct the draft and capture the exact community policy and `contains=` input behind the two historical blockers.
+2. Resolve A-1 against the forward producer and classify any failure before changing the fixture or product.
+3. Design the socket assertions against the current peer parser, including cross-peer rejection and the AC-3 base-identity mutation. Promote only after every AC is demonstrated.
 
 ## Checklist
 

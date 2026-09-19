@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
-| Depends | spec-perf-next-2-filter-delta-alloc (closed 2026-09-05) |
+| Status | in-progress |
+| Depends | - |
 | Phase | 5/5 |
-| Updated | 2026-08-03 |
+| Updated | 2026-09-19 |
 
-## Blocked
+## Remaining measurement and historical block
 
 **The block is LIFTED as of 2026-09-05 and every child is closed.** Thomas
 answered the Phase B question on 2026-09-05: implement it and meet AC-3. It
@@ -18,8 +18,8 @@ the cache it optimized was deleted by `df44d8d27` on 2026-08-17.
 `spec-perf-next-3-rib-show-alloc` closed on 2026-08-12.
 
 What this umbrella still owes is its own Phase 5: re-measure end to end and
-write the round up. Its Status field is left as it stands for whoever runs that
-phase to move, because closing a child is not a decision to close the parent.
+write the round up. The scheduling metadata now records that remainder; child
+closure does not complete the parent's acceptance criteria.
 
 The superseded text said: blocked on the same decision by Thomas that blocks
 child 2, with children 1 and 3 complete (`ebgpWireSlot` in
@@ -31,12 +31,12 @@ Two of this umbrella's own criteria need the same answer. AC-1 asks for a fresh
 `ze-perf-bench` exercises none of the three paths this round touched
 (`docs/architecture/perf-round-3.md`), and `Dockerfile.ze` was recorded stale
 when the round closed.
-R-1 in this spec already pre-authorizes per-child Go benchmarks as the proof, so
-Thomas can either waive AC-1 and AC-3 under R-1 or ask for `Dockerfile.ze` to be
-repaired and the harness run.
+R-1 accepts per-child Go benchmarks as evidence for each optimisation. It does
+not waive the umbrella's AC-1 or AC-3. Those obligations remain until the owner
+explicitly accepts substitute evidence or the harness is repaired and run.
 
-Awaiting closure (recorded 2026-07-22 during plan review): all three children
-shipped and the round's design record ALREADY EXISTS as
+Historical position on 2026-07-22, superseded by the September child closures:
+the review recorded all three children as shipped and the round's design record as
 `docs/architecture/perf-round-3.md` (child 1 `ebgpWireSlot` lock-free slots
 in `received_update.go,89`; child 2 `filterAttrs`/`filterAttrID` in
 `filter_chain.go,79`, Phase B scratch-pool deliberately deferred there;
@@ -76,13 +76,13 @@ BIRD's best recorded run (44ms) was attributed by the first campaign
 to architecture (Go GC vs slab allocation, buffered vs in-place parsing,
 socket-layer write coalescing), not to remaining low-hanging fruit.
 
-### Child specs (execution order)
+### Historical child targets and current dispositions
 
-| # | Spec | Target | Expected effect |
+| # | Spec | Original target | Disposition |
 |---|------|--------|-----------------|
-| 1 | `spec-perf-next-1-ebgp-wire-lockfree.md` | Mutex on every `EBGPWire` cache hit | ~15M lock ops/sec removed at 100K UPDATE/s route-server fan-out |
+| 1 | `spec-perf-next-1-ebgp-wire-lockfree` | Mutex on every `EBGPWire` cache hit | Closed 2026-09-05; the entire cache was removed on 2026-08-17. Its benchmark figures are historical and cannot be rerun on the current tree |
 | 2 | `spec-perf-next-2-filter-delta-alloc` | ~24 allocs per filter-modified UPDATE, re-measured at 20 | ACHIEVED, and better: 6 allocs/op, a 70% cut, held by `AllocCeilings["BenchmarkFilterModifyEgress"]` |
-| 3 | `spec-perf-next-3-rib-show-alloc.md` | Per-route []string + String() in show/JSON enrichment | Full-table `show bgp rib` drops millions of string allocations per request |
+| 3 | `spec-perf-next-3-rib-show-alloc` | Per-route []string + String() in show/JSON enrichment | Closed 2026-08-12; the display-allocation change is recorded in `docs/architecture/perf-round-3.md` |
 
 ### Methodology (BLOCKING for every child)
 
@@ -283,10 +283,10 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
    - Tests: n/a (measurement)
    - Files: this spec (baseline section)
    - Verify: profile files exist under `tmp/perf-run/pprof`
-2. **Phase: Child 1** - implement `spec-perf-next-1-ebgp-wire-lockfree.md`
-3. **Phase: Child 2** - implement `spec-perf-next-2-filter-delta-alloc.md`
-4. **Phase: Child 3** - implement `spec-perf-next-3-rib-show-alloc.md`
-5. **Phase: Re-measure + close** - re-run ze-perf, update docs, write learned summary, close children then umbrella
+2. **Phase: Child 1** - closed 2026-09-05; its optimised cache had already been removed on 2026-08-17
+3. **Phase: Child 2** - closed 2026-09-05, including Phase B
+4. **Phase: Child 3** - closed 2026-08-12
+5. **Phase: Re-measure + close** - resolve the outstanding AC-1/AC-3 evidence decision, record the final measurements and round summary, then review this umbrella for closure. All children are already closed
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |

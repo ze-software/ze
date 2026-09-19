@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
-| Depends | spec-ospf-0-umbrella.md (delivered; closed, learned 1114) |
+| Status | blocked |
+| Depends | spec-vrf-0-umbrella.md |
 | Phase | - |
-| Updated | 2026-06-24 |
+| Updated | 2026-09-19 |
 
 ## Post-Compaction Recovery
 
@@ -49,20 +49,28 @@ surface that marks an OSPF instance as a PE-CE instance bound to a VRF.
 
 ### CRITICAL gating assumption (blocking)
 
-Ze currently has **NO MPLS L3VPN / VRF / VPNv4 infrastructure**: there is no VRF
-abstraction, no per-VRF OSPF instance binding, no VPN-IPv4 (AFI 1 / SAFI 128) NLRI,
-no Route Target import/export, no MPLS L3VPN data path. This spec specifies the OSPF
-protocol mechanics (DN set/honour, Domain ID, Route Type community, VPN Route Tag,
-sham link OSPF behaviour) and **explicitly gates its full implementation on that
-VRF / VPNv4 infrastructure landing first** (recorded as blocking assumption A-1).
-The OSPF-only mechanics that do NOT need VRF/VPNv4 (the DN-bit honour on receive, the
-DN-bit set on PE-originated LSAs given a "this is a PE-CE instance" flag, and the
-codec/SPF wiring) are specified to be implementable now behind that flag; the
-mechanics that inherently require the backbone (Domain ID / Route Type community
-encode/decode into BGP VPNv4 attributes, VRF binding, VPNv4 route eligibility,
-sham-link endpoint distribution as a /32 VPNv4 route) are specified here but their
-acceptance criteria are marked dependent on the infrastructure spec and MUST NOT be
-claimed done until it exists.
+Full PE-CE completion requires per-VRF OSPF binding, VPN route import/export
+and MPLS L3VPN forwarding. `plan/spec-vrf-0-umbrella.md` owns the VRF stacks
+and per-VRF routing, but excludes route-target assignment and MPLS/VPNv4
+label distribution. Those excluded dependencies have no live owner identified
+in this reconciliation and remain unscheduled pending an owner decision.
+
+VPN NLRI support itself already exists: `init` in
+`internal/component/bgp/plugins/nlri/vpn/register.go` registers its decoder and
+encoder. That codec does not satisfy the PE-CE integration prerequisite.
+This spec's full implementation remains gated on the infrastructure in A-1.
+The OSPF-only mechanics (DN-bit handling on receive, setting DN on PE-originated
+LSAs behind a PE-CE flag, and codec/SPF wiring) do not themselves need the full
+VRF/VPN path. That technical boundary is not permission to bypass
+`plan/spec-ospf-ext-0-umbrella.md`'s implementation pause. The owner must decide
+whether to authorize this slice independently or keep all implementation
+paused until A-1 is satisfied.
+
+The backbone-dependent mechanics (Domain ID and Route Type communities in BGP
+VPN attributes, VRF binding, VPNv4 route eligibility and sham-link endpoint
+distribution) remain specified here. Their acceptance criteria MUST NOT be
+claimed done without the infrastructure, and completing the local slice
+cannot close this spec.
 
 ### In scope (this spec)
 
@@ -83,11 +91,11 @@ claimed done until it exists.
 
 | Item | Where |
 |------|-------|
-| VRF abstraction (per-VRF RIB/FIB, route import/export) | a future MPLS L3VPN / VRF infrastructure spec (does not yet exist) |
-| BGP VPN-IPv4 (AFI 1 / SAFI 128) NLRI + Route Target | the same future infrastructure spec; this spec consumes its Ext-Community plumbing, it does NOT build VPNv4 NLRI |
-| MPLS L3VPN data path / label stack / sham-link MPLS encapsulation | the same future infrastructure spec; this spec specifies only the OSPF control-plane behaviour of a sham link |
+| VRF abstraction (per-VRF component stacks and RIB/FIB, cross-VRF route leaking) | `plan/spec-vrf-0-umbrella.md`; `plan/spec-vrf.md` owns its device/membership child |
+| VPN route eligibility, Route Target import/export and the backbone attach point | No live owner identified; owner must assign a prerequisite spec or leave full PE-CE delivery unscheduled. Reuse the existing VPN NLRI codec |
+| MPLS L3VPN data path / label distribution / sham-link MPLS encapsulation | No live owner identified; explicitly excluded by the VRF umbrella. Full completion stays blocked until ownership and implementation exist |
 | BGP Extended Communities attribute encode/decode machinery | reuse BGP's existing Ext-Community attribute support; this spec defines the THREE OSPF-specific Ext-Community type codes and their value layout, not the attribute container |
-| Sham link forwarding (forward per the BGP route, TTL for multi-hop) | the infrastructure spec's data path; this spec covers only LSA origination/flooding over the sham link |
+| Sham link forwarding (forward per the BGP route, TTL for multi-hop) | Part of the unresolved MPLS L3VPN prerequisite above; this spec owns the OSPF control-plane behavior |
 | OSPFv3 PE-CE (RFC 6565) | not applicable to RFC 4576/4577 (OSPFv2-only DN bit); a separate RFC, separate spec |
 | Any change to the OSPFv2 LSA codec or Options type | none -- `OptionDN` and the Options codec already exist (RFC 4576 adds no wire structure) |
 
@@ -208,7 +216,7 @@ claimed done until it exists.
 - `internal/plugins/ospf/redist_wiring.go` + `redistribute/` -- where a backbone (VPNv4) route is re-originated; the Domain decision; the Type-4-not-exported and DN-route-not-exported filters.
 - `internal/plugins/ospf/config.go` + `yang/ze-ospf-conf.yang` -- the PE-CE config surface.
 - `internal/plugins/ospf/auth_keystore.go` -- reused for the RFC 4576 §5 / RFC 4577 §6 crypto-auth recommendation.
-- The future MPLS L3VPN / VRF / VPNv4 infrastructure (does not exist) -- the VRF binding, VPNv4 NLRI, Route Target, and BGP Ext-Community attach point (A-1).
+- `plan/spec-vrf-0-umbrella.md` supplies the VRF stack. VPN import/export, the BGP attach point and MPLS/sham-link forwarding need a separate infrastructure owner (A-1); the existing VPN NLRI codec must be reused.
 
 ### Architectural Verification
 - [ ] No bypassed layers (DN LSAs flow wire -> codec -> LSDB store/flood -> SPF reader gate, the same spine as every other LSA; the gate is at route-calc, not at the LSDB)
@@ -223,7 +231,7 @@ claimed done until it exists.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Ze has NO MPLS L3VPN / VRF / VPNv4 infrastructure; the VRF binding, VPN-IPv4 NLRI, Route Target, and BGP Ext-Community attach point this spec needs for its backbone-facing ACs do not exist and must land in a separate infrastructure spec first | task statement ("CRITICAL ASSUMPTION ... Ze currently has NO MPLS L3VPN / VRF / VPNv4 infrastructure"); no `vrf`/`vpnv4`/`vpn-ipv4` dirs under `internal/`; guide lines 1574-1576 "depend on MPLS and VRF support that are separate undertakings" | the VRF-dependent ACs (Domain ID / Route Type Ext-Community encode-decode, VPNv4 route eligibility, sham-link /32 distribution) cannot be implemented or claimed done; only the OSPF-only honour/set-behind-a-flag ACs are deliverable now | `grep -rn "VRF\|VPNv4\|VPN-IPv4\|SAFI 128\|vpnv4" internal/ pkg/` returns no VRF/L3VPN abstraction; the infrastructure spec does not exist | unvalidated |
+| A-1 | Full PE-CE behavior requires VRF binding, VPN route import/export, a BGP Ext-Community attach point and MPLS/sham-link forwarding | `plan/spec-vrf-0-umbrella.md` owns VRF stacks but excludes Route Target assignment and MPLS/VPNv4 labels; `vpn/register.go` already registers VPN NLRI encoding/decoding | The local slice cannot establish the backbone-dependent ACs; keep full completion blocked | Establish a live owner for the excluded prerequisites, then prove the per-VRF route and forwarding path; codec presence alone is insufficient | blocking; infrastructure ownership incomplete |
 | A-2 | `OptionDN = 0x80` is the correct bit and is already wired through the OSPFv2 Options codec and `String()` | `types/options.go` (`OptionDN Options = 0x80`, `optionNames` "DN", `WriteTo`/`OptionsFromBytes`) | the bit or its codec is wrong; DN corrupts another option | `TestDNBitValueAndCodec` round-trips Options with DN through `WriteTo`/`OptionsFromBytes` | unvalidated |
 | A-3 | Setting DN on a Type 3/5 self-LSA is purely passing `opts | OptionDN`; the header round-trips Options with no other change | `lsdb/origination.go` `OriginateSummary`/`OriginateExternal` write `Options: opts` verbatim | a new origination path is needed | `TestOriginateSummaryWithDN` / `TestOriginateExternalWithDN` show the bit in the originated header | unvalidated |
 | A-4 | The DN honour gate fits in the existing SPF readers, which already inspect `lsa.Header.Options` | `spf/external.go` `v4ExternalReader` already calls `lsa.Header.Options.Has(types.OptionNP)`; the Type 3 reader has the header | the gate needs new SPF plumbing | `TestExternalReaderSkipsDN` / `TestInterAreaReaderSkipsDN` | unvalidated |
@@ -441,7 +449,7 @@ claimed done until it exists.
 | /implement Stage | Spec Section |
 |------------------|--------------|
 | 1. Read spec | This file |
-| 2. Audit | Files to Modify/Create, TDD Test Plan -- confirm `OptionDN`, the origination `opts`, and the SPF readers exist; confirm A-1 (no VRF/VPNv4) |
+| 2. Audit | Files to Modify/Create, TDD Test Plan: confirm `OptionDN`, the origination `opts` and SPF readers; establish A-1's VRF/VPN integration and forwarding prerequisites without treating the existing VPN codec as missing |
 | 3. Wiring phase | Wiring Test table -- config flag + failing wiring tests |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
@@ -580,9 +588,9 @@ those parts are specified but gated.
 | Reuse the existing OSPF auth keystore for the §5/§6 crypto-auth recommendation | a new PE-CE auth surface | RFC 4576 §5 / RFC 4577 §6 point at standard OSPF crypto auth, already present (A-8) |
 
 ## Known Limitations
-- The VRF/VPNv4-dependent ACs (AC-7..AC-12) cannot be implemented until the MPLS L3VPN / VRF / VPNv4 infrastructure spec lands (A-1); they are specified and gated, not delivered, by this spec.
+- The backbone-dependent criteria, including AC-4's VPNv4 eligibility and AC-7 through AC-12, require the VRF umbrella plus the still-unassigned VPN/MPLS integration prerequisite (A-1). The OSPF-local slice cannot close this spec.
 - OSPFv3 PE-CE (RFC 6565) is out of scope; RFC 4576/4577 are OSPFv2-only.
-- Sham-link forwarding (per the BGP route, multi-hop TTL) is the infrastructure spec's data path; this spec covers only the sham link's OSPF control-plane behaviour.
+- Sham-link forwarding (per the BGP route, multi-hop TTL) remains an unassigned infrastructure prerequisite; this spec covers the sham link's OSPF control-plane behavior.
 - There is no DN capability negotiation (RFC 4576 §5); correct loop prevention relies on every PE honouring DN, which Ze does only for PE-CE instances.
 
 ## RFC Documentation
@@ -695,8 +703,8 @@ MUST document on:
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-15 all demonstrated (A-1-gated AC-7..AC-12 marked blocked, not done)
-- [ ] End-to-End User Stories: every non-gated story has a working path and a passing test
+- [ ] AC-1 through AC-15 all demonstrated before closure; partial local-slice evidence cannot satisfy A-1-gated criteria
+- [ ] End-to-End User Stories: every story has a working path and a passing test before closure
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `./le verify worktree` passes (lint + all ze tests)

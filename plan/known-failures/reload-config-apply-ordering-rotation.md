@@ -1,10 +1,16 @@
-### `./le functional reload` config-apply-ordering-rotation -- one timeout on 2026-09-08, NOT reproduced since
+### `./le functional reload` config-apply-ordering-rotation: one recorded timeout, later attempts passed
 
 Observed ONCE, in five `./le functional reload` runs over the phase-1 tree of
 `spec-config-apply-ordering-covers-every-root`. The test took 30.0s against a
 2.2s average for that run and the runner reported:
 
 > all expected messages received but test still timed out
+
+This September timeout is separate from the July 26 entry under the same test
+name in `RESOLVED.md`. That entry records commits `834f92629` and `62dcfcacd`
+repairing a BGP Identifier claim race that caused an OPEN rejection. The
+September observation reached all expected messages, and this shard neither
+reopens the July repair nor attributes the later timeout to it.
 
 The shard exists because the spec that found it closed on 2026-09-12 and is no
 longer in the tree. `ai/rules/completion.md` allows a failure to be RECORDED only
@@ -21,25 +27,24 @@ attempt and the next step on the record. Both are below.
 | Later run | 1, after the phase-4 comment edit |
 | Result | **not reproduced.** The test passed at 7.2s, 4.0s and 4.0s |
 | Capture | `tmp/session/2026-09-08-cbc36cee-41ac-4afd-8b71-1bae841964d9/scratch/rotation-repro-{1..6}.log` (scratch, not durable) |
-| Today | It passed again at 2.5s in the closure run, `.../scratch/closure-functional-reload.log`, in a suite that went 44 of 44 |
+| Closure run, 2026-09-12 | It passed again at 2.5s in `.../scratch/closure-functional-reload.log`, in a suite that went 44 of 44 |
 
-Three completed runs are too few to call it gone. All three are well under the
-30s deadline, and none of them is near it.
+The record contains four completed passing attempts, including the closure run.
+All were below the 30s deadline. They do not establish that the timeout was fixed.
 
 ## What was NOT changed
 
-The spec's phase 4 edited this file's COMMENT header only, to stop it claiming
-address operations it does not emit. No behavior of the test moved, so the
-timeout is neither removed nor hidden by that work. The daemon-side code the test
-exercises did change across the spec, so a fourth run is owed on the current
-tree rather than on the phase-1 one.
+The spec's phase 4 edited the COMMENT header of
+`test/reload/config-apply-ordering-rotation.ci` to stop it claiming address
+operations it does not emit. No behavior of the test moved in that edit.
+Daemon-side code did change across the spec, and the closure pass above records
+one later-tree result. The timeout's mechanism remains unknown.
 
 ## The next step, and it is a lead rather than a diagnosis
 
-The message is the useful part: the runner had every expectation it was waiting
-for and still timed out. That is not an elapsed-time assertion and it is not a
-busy host. It is the shape of a test whose COMPLETION signal is separate from its
-expectations.
+The runner reported that every expected message had arrived before the timeout.
+Peer-action completion is therefore an investigation lead. The message alone
+does not identify the blocked wait or exclude host load.
 
 The same spec fixed one instance of exactly that shape in the same suite. A peer
 block that queues an action which does not answer completion leaves the peer

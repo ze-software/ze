@@ -60,11 +60,11 @@ bodies without saying so, is gone. No cap is left to be silent about.
 AC-1 and AC-2 of this work are negatives: one destination's bytes must never
 reach another. They were recorded at closure as inexpressible in the `.ci`
 harness. The only wire assertion was `expect=bgp`, which says what a peer DID
-receive. The nearest thing written is `test/draft/plugin/wire-edit-fanout-dedup.ci`,
-which pins each peer's exact frames. It is a DRAFT, so no gate runs it
-(`test/draft/README.md`), and its only negatives are two `reject=stderr` crash
-guards rather than a wire negative. The statement "peer C never got peer A's
-wire" had nowhere to go.
+receive. The 2026-08-02 closure account named a gitignored draft,
+`test/draft/plugin/wire-edit-fanout-dedup.ci`, that pinned each peer's exact frames. <!-- doc-links: ignore (historical draft, absent from the current checkout) -->
+It recorded two `reject=stderr` crash guards and no wire negative. The
+statement "peer C never got peer A's wire" had nowhere to go. That draft ran
+in no gate, and it is absent from the checkout inspected on 2026-09-19.
 
 `reject=bgp:conn=N:pattern=<hex>` is that statement
 (`docs/architecture/testing/ci-format.md`). Every frame the peer's message loop
@@ -74,10 +74,13 @@ Its own proof is `internal/test/peer/reject_test.go`, plus the nine
 RFC-behaviour tests that carry one. `test/plugin/wellknown-no-advertise-egress.ci`
 is among them, and each was shown red by breaking the suppression it names.
 
-The AC-1/AC-2 negatives are therefore EXPRESSIBLE now. They are not yet
-EXPRESSED. Promoting the draft to a live fixture that carries the rejections is
-separate work. Until that happens the fan-out negatives rest on the draft's
-pinned frames rather than on a gate.
+The AC-1/AC-2 negatives are expressible with the current harness, but no live
+fan-out fixture of that name supplies their socket proof. Recovery or
+reconstruction is owned by
+`plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`, which retains the
+recorded community-suppression and hex-decoding blockers. The historical
+draft's pinned frames are not current executed evidence; the holder requires
+the socket assertions and their discrimination proof before promotion.
 
 <!-- source: internal/test/peer/reject.go -- the wire rejection -->
 

@@ -316,7 +316,7 @@ The hub tests and functional test use the same states. The hub tests enter `run`
 | 14 | Prometheus counters added/changed? | No | none |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/guide/status.md` if it lists doctor codes |
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED at implementation: `./le spec citation anchors spec plan/pre-release/spec-storage-3-content-addressed-history.md` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze config history` and `rollback` examples in `command-reference.md` verified; `./le site build` run and the wiki catalog committed |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `ze config history` and `rollback` examples in `command-reference.md` verified; `./le site build` run; `./le wiki-catalog update file ../wiki/command-catalog.md` run separately and the catalog committed in the wiki checkout |
 
 Design documents declared by the `// Design:` headers of files in scope:
 

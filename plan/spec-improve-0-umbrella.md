@@ -12,14 +12,14 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
-3. Child specs: `spec-improve-1-*` through `spec-improve-6-*`
+3. Accepted Findings below, including later additions and recorded closures
 4. `ai/rules/writing.md` -- rules for cross-project claims
 
 ## Task
 
 An external comparison review of Ze against another open-source routing daemon
-produced 9 ranked findings. This umbrella tracks the 6 findings accepted for adoption
-and records the 3 declined, with reasons.
+produced 9 ranked findings. This umbrella began with 6 accepted findings and
+3 declined findings, and also owns the later accepted additions in rows 7-9.
 
 **Scope statement (comparison honesty):** claims below about the other daemon come
 from the external review and were NOT independently verified in this session. Ze-side
@@ -33,13 +33,13 @@ any external behavior that shapes a design decision against primary sources dire
 |-------|------|--------|---------|
 | 1 | `plan/spec-improve-1-nb-transactions.md` (moved 2026-08-29) | Operator-facing config transaction contract: IDs, comments, confirmed commit, list/get/rollback-by-id | - |
 | 2 | `spec-improve-2-gnmi-state.md` | Operational-state provider fanout; gNMI Get honors CONFIG/STATE/OPERATIONAL/ALL | - |
-| 3 | `spec-improve-3-event-replay.md` | Opt-in JSONL protocol event capture + replay command | - |
-| 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | spec-improve-3-event-replay |
+| 3 | `spec-improve-3-event-replay` (closed 2026-09-05, `d74f428b47` / `99bbe13ab7`) | Opt-in JSONL protocol event capture and message-driven replay; timer-driven and multi-peer remainder owned by `plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md` | - |
+| 4 | `spec-improve-4-conformance-fixtures.md` | File-driven protocol conformance fixture format, one BGP fixture first | - (capture/replay prerequisite fulfilled) |
 | 5 | `plan/immediate/spec-improve-5-panic-boundaries.md` (moved 2026-08-29) | Explicit recover boundaries at network-input task boundaries | - |
 | 6 | `spec-improve-6-yang-coverage.md` | YANG coverage report: per-module implemented/owned/constrained node status | - |
 | 7 | `spec-improve-7-yang-handler-gate` (CLOSED 2026-08-29) | Handler-completeness gate: every config-schema root claimed by a delivery surface, blocking test + doctor check (added 2026-07-10 after primary-source re-review). Shipped: `claims.Audit` (`internal/component/config/claims/claims.go`), `./le config claims` in both verify-stage populations, `checkConfigClaims` (`internal/component/doctor/checks_config_claims.go`), `test/ui/doctor-config-claims.ci` | - |
 | 8 | `spec-improve-8-fuzz-decode-context.md` | Fuzz the negotiated-capability decode space: context args on existing targets + targets for uncovered surfaces (added 2026-07-10) | - |
-| 9 | not written | Strict unknown-key rejection at config verify: `validateContainerEntry` (`internal/component/config/yang/validator.go`) validates only data keys present in the schema dir and passes an unknown key in silence. The opposite direction from child 7, which asks whether a SCHEMA node reaches a handler; this asks whether a WRITTEN key reaches the schema. Homed here on 2026-08-29 at child 7's closure, because its recorded destination spec was never written | spec-improve-7-yang-handler-gate (closed) |
+| 9 | `plan/immediate/spec-config-verify-rejects-unknown-keys.md` | Strict unknown-key rejection at config verify, inherited from child 7 on 2026-08-29. Source read on 2026-09-19: `validateContainerEntry` skips data keys absent from `entry.Dir`; the owner must trace the full verify path and preserve cross-module contributions and `ze:allow-unknown-fields` | - (child 7 closed) |
 
 ### Declined Findings
 
@@ -85,8 +85,8 @@ any external behavior that shapes a design decision against primary sources dire
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Umbrella only: work enters through the six child specs; each child documents its own
-  entry point (CLI commit, gNMI GetRequest, session read loop, fixture harness).
+- Umbrella only: work enters through the accepted-item table; each live child
+  documents its own entry point.
 
 ### Transformation Path
 1. Review finding verified against Ze source (this session, citations above).
@@ -115,13 +115,13 @@ any external behavior that shapes a design decision against primary sources dire
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The review's claims about the other daemon are accurate | External review text | An adoption may copy a capability the other daemon does not actually have; design would chase a phantom | Spot-read primary sources for the findings that shape each child design | validated 2026-07-10 for children 3, 4, 6, 7, 8: primary sources read at the daemon's checkout (event recorder `holo-protocol/src/event_recorder.rs:30-65` + replay `holo-tools/holo-replay/src/main.rs:17-32`; conformance harness `holo-protocol/src/test/stub/mod.rs:320-429`; coverage tool `holo-tools/src/bin/yang_coverage.rs:65-150`; startup callback-completeness abort `holo-daemon/src/northbound/core.rs:815-849`; fuzz decode-context `fuzz/fuzz_targets/bgp/message_decode.rs:7-12`). Children 1, 2, 5 still validate at their own design phase |
-| A-2 | The six adoptions are independent enough to land separately | Child scoping in this file | Hidden coupling forces re-ordering | Design phase of each child re-checks Depends | unvalidated |
+| A-2 | The accepted adoptions can be implemented separately | Child scoping in this file | Hidden coupling forces re-ordering | Design phase of each child re-checks Depends | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Adopting operator-contract features (improve-1, improve-2) grows the API surface before RBAC/hardening work completes | Overlap found with `spec-managed-server-hardening.md` during design | Design phases cross-check security specs; gate new RPCs behind existing auth |
-| R-2 | Six open specs from one review inflate the backlog without an owner ordering | `/ze-status` shows stale improve-* skeletons | Umbrella records the priority order; close or defer children explicitly if direction changes |
+| R-2 | Accepted additions remain unscheduled when only the original six children count towards completion | An accepted row has neither a live owner nor closure evidence | AC-1 and the Goal Gates account for every accepted row, including row 9 |
 
 ## Wiring Test (MANDATORY)
 
@@ -129,14 +129,14 @@ Umbrella: no feature code of its own; wiring lives in child specs.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Child spec implementations | → | see each child's Wiring Test table | child spec wiring tables (spec-improve-1..6) |
+| Child spec implementations | → | see each child's Wiring Test table | all live accepted-item owners |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | All six child specs exist in `plan/` | Each passes validate-spec and names this umbrella |
-| AC-2 | A child spec closes | Umbrella's child table is updated with the learned summary reference |
+| AC-1 | Every row in Accepted Findings, including later additions | Each outstanding item has a live owning spec that names this umbrella and passes spec validation; a closed item has a dated closure reference. Row 9 cannot be satisfied by an ownerless table entry |
+| AC-2 | A child spec closes | The accepted-item table records its closure evidence and names the live owner of any remainder |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -144,7 +144,7 @@ Umbrella only: user stories live in child specs.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Operator follows the adoption set | six child specs in phase order | child spec test plans |
+| 1 | Operator follows the adoption set | accepted-item table and live child specs | child spec test plans |
 
 ## 🧪 TDD Test Plan
 
@@ -175,7 +175,7 @@ Umbrella only: user stories live in child specs.
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | All six children exist and are individually schedulable |
+| Completeness | Every accepted item has a schedulable live owner or dated closure evidence; no remainder is dropped from the completion count |
 | Registration over hardcoding | Children register providers/handlers via the existing registry; no new core switch/factory (`ai/rules/plugins.md`) |
 | Comparison honesty | No unverified external claim asserted as fact in any child |
 
@@ -226,7 +226,7 @@ Umbrella only: user stories live in child specs.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] All six child specs individually pass their own gates
+- [ ] Every accepted item, including rows 7-9, has met its owning spec's gates and has closure evidence; any surviving remainder has a live owner and prevents umbrella completion
 - [ ] `./le verify worktree` passes after each child lands
 
 ### TDD
@@ -244,4 +244,8 @@ Umbrella only: user stories live in child specs.
 
 Deferred by spec-improve-7-yang-handler-gate (Known Limitations).
 
-Strict unknown-key rejection at config verify (reject config keys absent from the schema); `validator.go` is permissive today
+Strict unknown-key rejection at config verify (reject config keys absent from
+the schema). The 2026-09-19 source reading confirms the permissive branch in
+`validateContainerEntry`. The live owner is
+`plan/immediate/spec-config-verify-rejects-unknown-keys.md`; its design must trace
+the full verify path and preserve schema exceptions and cross-module contributions.

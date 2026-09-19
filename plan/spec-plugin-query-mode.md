@@ -514,7 +514,7 @@ N-A. No RFC governs the plugin RPC.
 | 7 | ISSUE | The live start had the process-group attributes and not the group stop, so a daemon stop left the plugin running behind the shell | `(*Process).startExternal`, `internal/component/plugin/process/process.go` | `KillGroupOnCancel` (`sysproc.go`) is the one function that sets both; the connect-back failure path calls `KillProcessGroup`. `TestStopReachesThePluginTheShellStarted` |
 | 8 | ISSUE | The internal-block-not-carried branch had no test | `queriedDeclarationRow`, `declarations.go` | `TestDeclarationRowsRefuseAnInternalBlockWithNoCodeHere`, which also proves no process started |
 | 9 | ISSUE | `ai/INDEX.md` carried no keyword row, so an agent could not reach the feature from the discovery surface the spec's own Discovery table names | `ai/INDEX.md`, Keyword to Architecture Doc | One row: `plugin declarations, query mode, declare mode, ZE_PLUGIN_MODE, ...` pointing at the four pages |
-| 10 | ISSUE | `docs/guide/command-reference.md` documents `show plugin list` in a hand-written section and carried no sibling section for the command this spec adds | `docs/guide/command-reference.md`, after `### show plugin list` | The `### show plugin declarations` section is WRITTEN and correct. It is NOT in the commit: the page carries another session's `show bgp update-delay` row whose source anchor names an untracked file, so carrying the page publishes a claim the committed tree cannot support (`ai/rules/git-safety.md`). Recorded in `plan/journal/documentation-stranded-by-a-siblings-hunk.md` |
+| 10 | ISSUE | `docs/guide/command-reference.md` documented `show plugin list` without the sibling declaration-query section | `docs/guide/command-reference.md`, after `### show plugin list` | Historical handoff: the section was written but omitted from that commit because of a sibling hunk, recorded in `plan/journal/documentation-stranded-by-a-siblings-hunk.md`. The current page contains `### show plugin declarations`; the old commit obstacle is no longer an outstanding documentation task. This source read supplies no new closure review |
 
 ### Notes (not blocking)
 | Note | Disposition |
@@ -603,7 +603,7 @@ N-A. No RFC governs the plugin RPC.
 - `docs/architecture/doctor-and-health-checks.md`, `docs/guide/health-checks.md`, `docs/guide/plugins.md`, `docs/guide/appliance.md`: the shell dependency and `doctor-plugin-shell-missing`.
 - `ai/rules/plugins.md` gained one directive (`ai/rules/points/plugins/directives/answer-a-declaration-without-activating.md`); `ai/INDEX.md` gained the keyword row.
 - `./le doc check verify`: the source-anchor stage names four stale anchors, all pre-existing and none in a file this spec touched (`docs/architecture/api/commands.md` at `getHelpExtension`, `docs/architecture/exabgp-bridge.md` at `script.line`, and two in `docs/architecture/firewall/firewall-irr.md` at `expandIRRTermV6` and `sdk.Registration.FailurePolicy`). Every anchor this spec wrote resolves.
-- NOT updated, and recorded rather than forced: `docs/guide/command-reference.md`. See Review Gate finding 10.
+- `docs/guide/command-reference.md` now contains the declaration-query section. Finding 10 preserves the earlier commit obstacle as history.
 
 ### Deviations from Plan
 - The spec named `internal/component/plugin/declarations.go` and `pkg/plugin/sdk/sdk_query.go` as the new files. Five more were created, each because a fact would otherwise have had two declarations: `pkg/plugin/rpc/declaration.go` (one writer for both binaries), `internal/component/plugin/childenv.go` (one PATH for both forks), `internal/component/plugin/sysproc*.go` (one stop for both forks), `internal/component/plugin/shell.go` (one shell for both forks and the doctor check), `internal/component/config/register_plugin_declarations.go` (the config seam the import direction requires).
@@ -697,7 +697,11 @@ N-A. No RFC governs the plugin RPC.
 |-------------------|-----|---------------------------|
 | The Stage 1 fields with no compiled-in twin (config operations, filters, doctor checks, enrichers, schema, budgets, failure policy) are not answered for a plugin ze carries | The field-scope decision in Key Design Decisions: the untwinned fields are a separate change with a separate blast radius | `plan/spec-plugin-declaration-fields-on-registration.md` |
 | The 19 runners that mutate the host, the process or a process global before they declare are unchanged | Query mode never enters a runner body, so it does not depend on them | `plan/spec-plugin-runner-inertness.md` |
-| The `### show plugin declarations` section of `docs/guide/command-reference.md` is written and not committed | The page carries another session's hunk whose source anchor names an untracked file, so committing the page publishes a claim the tree cannot support | No spec: one row in `plan/journal/documentation-stranded-by-a-siblings-hunk.md`, and the owner's call |
+
+The command-reference section formerly listed here is present in the current
+tree. Its historical omission remains in Review Gate finding 10 and the
+journal. This spec remains open pending its closure audit; the two live
+follow-up owners above do not establish that closure.
 
 ## Pre-Commit Verification
 
@@ -752,7 +756,7 @@ N-A. No RFC governs the plugin RPC.
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
-| 1, 3, 6 user-facing feature and CLI command | `docs/architecture/cli/plugin-modes.md`, `docs/features/introspection.md` | Yes: the state table matches the five constants in `declarations.go`; the budget sentence matches `declarationBudget`; the config-block rule matches `declarationRows`. The hand-written section owed by `docs/guide/command-reference.md` is Review Gate finding 10 |
+| 1, 3, 6 user-facing feature and CLI command | `docs/architecture/cli/plugin-modes.md`, `docs/features/introspection.md` | Recorded verification: the state table, budget and config-block rule matched their producers. The hand-written command-reference section is present in the current tree; Review Gate finding 10 retains its earlier commit obstacle |
 | 4, 8 API/RPC and plugin SDK | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `ai/rules/plugins.md` | Yes: both pages name `rpc.WriteDeclaration` as the one writer, and the SDK page's `main` shape matches `RunOrDeclare`'s signature |
 | 12 internal architecture | `docs/architecture/plugin/plugin-system.md` | Yes: the population sentence matches `registry.SetupResults`, and the stop sentence matches `KillGroupOnCancel` |
 | 15 registered command inventory | `./le docvalid command-contract` | Yes: both wire methods listed and paired |

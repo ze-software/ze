@@ -105,7 +105,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
   `FUZZ=<target> PKG=<pkg> ./le fuzz run` for one.
 
 ### Transformation Path
-1. Fuzz engine mutates (data []byte, context args: asn4 bool, hasAddPath bool, family index int, extended bool as applicable per target).
+1. Fuzz engine mutates raw bytes and the arguments the producer accepts: `asn4` for attributes and `addpath` for EVPN. Capability and MP attribute targets take raw bytes alone.
 2. Target builds the decode call exactly as production does, passing context args to the same producer signatures (`ParseAttributes(data, asn4)`, `ParseNLRIs(data, fam, hasAddPath)`, ...).
 3. The UPDATE-with-context target is DROPPED (see AC-3): no production entry decodes a full UPDATE against a negotiated context. The new capability and MP_REACH/MP_UNREACH targets decode from raw bytes only.
 4. Crashes/panics surface via go test fuzzing; seeds pin both polarities of every varied dimension.
@@ -114,7 +114,6 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Fuzz engine ↔ decode producers | direct calls, production signatures | [ ] |
-| Synthetic negotiation ↔ EncodingContext | production `NewEncodingContext` path only | [ ] |
 
 ### Integration Points
 - `internal/le/fuzz/actions.go` target enumeration -- every new target added.
@@ -131,7 +130,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | An `EncodingContext` can be constructed in a fuzz target through the production producer without a live session | CONFIRMED by direct read 2026-07-10: `PeerIdentity{LocalASN, PeerASN, LocalRouterID, PeerRouterID}` (`capability/identity.go`) and `EncodingCaps{ASN4, ExtendedMessage, Families, AddPathMode}` (`capability/encoding.go`) are plain exported structs; `NewEncodingContext(&id, &caps, DirectionRecv)` (`context.go`) is the production entry (`negotiated.go` is a nil-guard wrapper over it) | - | phase-1 unit test TestEncodingContextFromFuzzArgs pins it | confirmed |
+| A-1 | An `EncodingContext` can be constructed through the production producer without a live session | Confirmed by source reading on 2026-07-10; retained as design history | The only proposed consumer, whole-UPDATE-with-context, was dropped | No construction helper or helper test is required by this spec | confirmed; no shipping consumer |
 | A-2 | Typed-arg fuzzing explores the context space adequately (vs Holo's byte-derived Arbitrary) | Go's engine mutates typed args natively; polarity seeds pin both branches | Context combinations under-explored; switch the worst target to byte-prefix-derived context | Coverage check (`go test -fuzz -coverprofile` or fuzz -v beat lines) on `canonicalizeASPath` both branches during implementation | unvalidated |
 | A-3 | Added targets keep `ze-fuzz-test` wall-clock acceptable | 10s per target; ~8 new targets = +80s | Trim per-target fuzztime for the new set or split a make tier | Time the target list after phase 2 | unvalidated |
 
@@ -155,7 +154,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 |-------|-------------------|-------------------|
 | AC-1 | `FuzzParseAttributes` (or sibling target) | asn4 is a fuzz argument; seeds cover true AND false; `canonicalizeASPath` 2-byte branch (`attrparse.go`) reachable |
 | AC-2 | EVPN NLRI target (the only listed family parser taking an add-path arg) | `FuzzParseEVPN` fuzzes `addpath` as an argument (or a sibling `*AddPath` target exists) with both-polarity seeds against `ParseEVPN(data, addpath)` (`internal/component/bgp/plugins/nlri/evpn/types.go`). Per-family add-path FRAMING is already covered upstream: `FuzzParseNLRIs` (`mpwire_test.go`) fuzzes `hasAddPath` over `ParseNLRIs(data, fam, hasAddPath)` (`mpwire.go`), which strips the path-id framing before the per-family parser. mup/rtc/mvpn/vpls/flowspec/ls parsers take no add-path arg, so nothing to widen there |
-| AC-3 | Uncovered context-consuming surfaces | New targets exist: `capability.Parse`, `ParseFromOptionalParams`, `ParseMPReachNLRI`, `ParseMPUnreachNLRI`. NO whole-UPDATE-with-context target: `UnpackUpdate(data)` (`internal/component/bgp/message/update.go`) takes no context and `Update.Len(_ *EncodingContext)` (`update.go`) ignores its context arg, so no production entry decodes a full UPDATE against a negotiated context (a reconstructed one would be the test-only decode wrapper `buffer-first` forbids). Context-branching decode is covered by the widened `FuzzParseAttributes` (asn4, AC-1) plus the new MP_REACH/MP_UNREACH targets |
+| AC-3 | Uncovered decode surfaces | New targets exist for `capability.Parse`, `ParseFromOptionalParams`, `ParseMPReachNLRI` and `ParseMPUnreachNLRI`, each called with raw bytes. No whole-UPDATE-with-context target: `UnpackUpdate(data)` takes no context and `Update.Len(_ *EncodingContext)` ignores its argument. Negotiation-dependent branches are covered by AC-1 and AC-2; the MP targets exercise attribute framing and next-hop parsing, with AFI/SAFI encoded in the bytes |
 | AC-4 | `internal/le/fuzz/actions.go` | Enumeration lists every Fuzz* target in the affected packages; a grep check proves no orphan |
 | AC-5 | Each varied dimension | Inline seeds pin both polarities with VALIDATES/PREVENTS comments per repo convention |
 
@@ -172,8 +171,8 @@ Every target this spec touches, with producer and fuzz-argument signature. "Wide
 | FuzzParseVPN + FuzzParseVPNAddPath | unchanged | `ParseVPN` | (two-target pattern already covers both) | keep |
 | FuzzParseCapabilities | NEW | `capability.Parse` (`capability.go`) | data []byte | valid OPEN capability TLVs (multiprotocol, asn4, add-path, route-refresh) + truncations |
 | FuzzParseFromOptionalParams | NEW | `ParseFromOptionalParams` (`capability.go`) | data []byte | optional-params blocks incl. RFC 9072 extended-length shape |
-| FuzzParseMPReachNLRI | NEW | `ParseMPReachNLRI` (`mpnlri.go`) | data []byte, famIdx int, hasAddPath bool | per supported family, both polarities |
-| FuzzParseMPUnreachNLRI | NEW | `ParseMPUnreachNLRI` (`mpnlri.go`) | data []byte, famIdx int, hasAddPath bool | per supported family, both polarities |
+| FuzzParseMPReachNLRI | NEW | `ParseMPReachNLRI(data)` (`mpnlri.go`) | data []byte | encoded AFI/SAFI and valid next-hop shapes across supported families; short header, truncated next hop and NLRI payload seeds |
+| FuzzParseMPUnreachNLRI | NEW | `ParseMPUnreachNLRI(data)` (`mpnlri.go`) | data []byte | encoded AFI/SAFI across supported families, empty withdrawn NLRI (EOR), non-empty payload and truncated header seeds |
 
 Context helper: the UPDATE-with-context target that would have consumed a
 constructed `EncodingContext` is DROPPED (see AC-3). No production entry decodes a
@@ -181,9 +180,9 @@ full UPDATE against a negotiated context (`UnpackUpdate(data)` `update.go` takes
 context; `Update.Len(_ *EncodingContext)` `update.go` ignores it), and the
 surviving new targets (`capability.Parse`, `ParseFromOptionalParams`,
 `ParseMPReachNLRI(data)`, `ParseMPUnreachNLRI(data)`) each decode from raw bytes only
-and take no context object. A-1 (that `NewEncodingContext` can be built in a target
-via the production path) and `TestEncodingContextFromFuzzArgs` are retained only as
-feasibility reference; they are no longer tied to a shipping target.
+and take no context object. A-1 remains historical feasibility evidence.
+No context-construction helper or `TestEncodingContextFromFuzzArgs` is shipping
+work in this spec.
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -197,7 +196,6 @@ feasibility reference; they are no longer tied to a shipping target.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| TestEncodingContextFromFuzzArgs | context package or target-side helper test | A-1: production-path context construction from plain args | |
 | FuzzParseCapabilities (+seeds) | `internal/core/bgp/capability/` fuzz test | AC-3 | |
 | FuzzParseMPReachNLRI / FuzzParseMPUnreachNLRI (+seeds) | attribute package fuzz test | AC-3 | |
 | widened FuzzParseAttributes (asn4 arg) | attrparse fuzz test | AC-1 | |
@@ -262,10 +260,10 @@ feasibility reference; they are no longer tied to a shipping target.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** - A-1 context-construction unit test; new empty
-   fuzz targets registered in internal/le/fuzz/actions.go enumeration (AC-4 grep check red)
-2. **Phase: widen existing targets** - asn4 arg (AC-1), add-path per family (AC-2),
-   both-polarity seeds (AC-5); per-target rename-vs-sibling decision recorded (R-2)
+1. **Phase: Wiring (MANDATORY FIRST)** - add the four raw-byte target bodies and
+   their seeds, and register them in `internal/le/fuzz/actions.go` (AC-3/AC-4).
+2. **Phase: widen existing targets** - asn4 arg (AC-1), EVPN add-path arg (AC-2),
+   both-polarity seeds (AC-5); per-target rename-vs-sibling decision recorded (R-2).
 3. **Phase: new surfaces** - capability, MP_REACH/MP_UNREACH (AC-3); no UPDATE-with-context target (dropped -- see AC-3)
 4. **Phase: soak + coverage check** - A-2/A-3 measurements recorded in this spec;
    findings triaged per R-3

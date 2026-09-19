@@ -27,9 +27,19 @@ protocols the operator asked that detector to monitor. The BGP reactor
 subscribes, maps the address to its peers, and tears each one down with a
 NOTIFICATION, so the RIB withdraws the routes learned over it.
 
-The same work closes half of a recorded RFC 5036 MUST gap. On keepalive expiry
-LDP MUST transmit a Shutdown Notification before it closes the transport, and Ze
-transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
+The unconditional fatal LDP Notification on keepalive expiry is owned by
+`plan/immediate/spec-ldp-keepalive-expiry-notification.md`. That spec receives
+AC-8 and the best-effort wire-failure portion of AC-9; this spec retains the
+optional monitor, event and BGP teardown integration. The notification is owed
+with or without a monitor and must not wait for this feature.
+
+The required status is KeepAlive Timer Expired, `0x00000014` with the E bit,
+sent before transport close. The RFC state machine's generic Shutdown wording
+does not select the distinct Shutdown status `0x0000000A`. The owner's
+best-effort write decision is preserved. Current `Session.ReadLoop` returns
+`errKeepaliveExpiry` without sending it (`session.go:368-371`), and `runSession`
+logs the result before its deferred `Stop` closes the session
+(`register.go:747-749,855-859`); no runtime verification is claimed here.
 
 ## Required Reading
 
@@ -49,8 +59,8 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 
 ### RFC Summaries (Scope: protocol)
 - [ ] `rfc/short/rfc5036.md` - LDP session FSM, KeepAlive, Notification, Status TLV
-  → Constraint: `RFC5036-2.5.3-2` is a recorded `{gap}` citing the keepalive-expiry return in `internal/plugins/ldp/session.go`, which is the code this spec edits. The session state machine table in `rfc/full/rfc5036.txt` gives the OPERATIONAL state plus Timeout event the action "Transmit Shutdown msg and close transport connection", and Section 3.5.1.2.3 names the status code
-  → Decision: this spec closes the keepalive half of that gap only. The decode-failure half stays open
+  → Constraint: `RFC5036-2.5.3-2` records the keepalive-expiry gap. Sections 2.5.6 and 3.5.1.2.3 require the fatal KeepAlive Timer Expired status, `0x00000014` with E bit, before close.
+  → Decision: `plan/immediate/spec-ldp-keepalive-expiry-notification.md` owns that correction and its proof. The decode-failure half stays open.
 - [ ] `rfc/short/rfc4486.md` - BGP Cease NOTIFICATION subcodes
   → Constraint: subcode 6 is "a configuration change other than the ones described above", and nothing was configured here, so it is the wrong code. Section 4 recommends `DampPeerOscillations` after subcodes 2, 3, 5 and 8 and NOT after 4, so subcode 4 leaves a transient failure's retry schedule alone
   → Decision: subcode 4, Administrative Reset
@@ -84,12 +94,12 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 **Behavior to preserve:**
 - `ldp.SessionEvent` keeps its exact field set and JSON keys; `internal/plugins/ospf/ldp_sync.go` reads it and must not change.
 - `SessionDown` keeps being published for every session end, whatever the cause.
-- A BGP peer whose LDP neighbour is healthy, and a deployment with no `monitor` configured, behave exactly as today: no new teardown, no new NOTIFICATION.
+- A BGP peer whose LDP neighbour is healthy, and a deployment with no `monitor` configured, receives no liveness-driven BGP teardown or BGP NOTIFICATION. The independently required LDP expiry Notification remains unconditional.
 - BFD-driven teardown keeps its own path and its own Cease subcode 10.
 - The LDP session still closes its transport on keepalive expiry, at the same point in the sequence.
 
 **Behavior to change:**
-- On keepalive expiry only, LDP transmits a Shutdown Notification, then publishes a `liveness` `peer-down` event when `monitor` names at least one protocol.
+- After the independently owned LDP expiry Notification path, publish a `liveness` `peer-down` event only when `monitor` names at least one protocol.
 - The BGP reactor subscribes to `liveness` `peer-down` and tears down every peer at the named address when `monitors` contains `bgp`.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -101,7 +111,7 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 ### Transformation Path
 1. Config parse: `parseLDPConfig` reads `monitor` with `configvalue.LeafList` into `ldpConfig.Monitors`.
 2. Session death: `ReadLoop` returns `errKeepaliveExpiry`; `runSession` receives it at its tail.
-3. LDP wire: the session transmits a Shutdown Notification (Status Data `0x00000014`, E-bit set) on a best-effort write, then closes the transport.
+3. LDP wire prerequisite: `plan/immediate/spec-ldp-keepalive-expiry-notification.md` owns the best-effort fatal Notification (KeepAlive Timer Expired, `0x00000014`, E bit) before transport close.
 4. Emit: the `runSession` tail, gated on `errors.Is(err, errKeepaliveExpiry)` and on a non-empty `Monitors`, publishes `liveness` `peer-down` with address, detector `ldp`, cause `keepalive-expired`, the monitor list, and the discovering interface.
 5. Bus delivery: the reactor's `liveness` handler unmarshals the payload, filters on `monitors` containing `bgp`, and parses and `Unmap`s the address.
 6. Peer match: the handler copies, under `RLock`, the set of peers whose `netip.AddrPort` key `.Addr()` equals the event address, releases the lock, then calls `teardownAutomatic` on each.
@@ -115,7 +125,7 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 | Event bus → BGP reactor | `eventBus.Subscribe(liveness.Namespace, liveness.EventPeerDown, ...)`, synchronous delivery | No |
 | Config tree → LDP plugin | `configvalue.LeafList` over the `monitor` leaf-list, scalar-or-array tolerant | No |
 | BGP reactor → wire | `teardownAutomatic` → NOTIFICATION Cease subcode 4 with RFC 9003 shutdown communication | No |
-| LDP session → wire | Notification message plus Status TLV, new encoders in `wire.go` | No |
+| LDP session → wire | Fatal Notification and Status TLV supplied by `plan/immediate/spec-ldp-keepalive-expiry-notification.md`; this feature preserves them | No |
 
 ### Integration Points
 - `internal/plugins/ldp/register.go`, the `runSession` tail - the only site where the death cause is in scope.
@@ -183,8 +193,8 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 | AC-5 | The same event names an address no BGP peer uses, or its `monitors` omits `bgp` | No BGP peer changes state, and the handler returns without error |
 | AC-6 | A peer is torn down by a `liveness` event | The NOTIFICATION on the wire is Cease, subcode 4 Administrative Reset, and its RFC 9003 shutdown communication names the detector and the cause |
 | AC-7 | A peer torn down by a `liveness` event had advertised routes into the Loc-RIB | Those routes leave the Loc-RIB and are withdrawn to the peers that received them |
-| AC-8 | An LDP session reaches keepalive expiry | A Shutdown Notification, Status Data `0x00000014` with the E-bit set, is transmitted before the transport is closed |
-| AC-9 | The Shutdown Notification write fails because the socket is already gone | The session still closes, the `liveness` event is still published, and the failure is logged once |
+| AC-8 | An LDP session reaches keepalive expiry, with or without `monitor` | The fatal KeepAlive Timer Expired Notification (`0x00000014`, E bit) precedes close; implementation and wire proof are owned by `plan/immediate/spec-ldp-keepalive-expiry-notification.md`, and liveness integration preserves them |
+| AC-9 | The fatal Notification write fails because the socket is already gone | The immediate notification spec owns close-on-failure and one logged failure; this spec proves that a configured monitor still publishes AC-1's event, and AC-3 continues to forbid it without a monitor |
 | AC-10 | Config names `monitor bgp` | The config validates. `monitor ospf`, or any value the enumeration does not carry, is refused at validation with a message naming the leaf |
 | AC-11 | Config names one `monitor` value, and separately several | Both spellings yield the same parsed list; the single-value spelling does not yield an empty list |
 | AC-12 | A `liveness` `peer-down` event is delivered while another goroutine adds a peer | No deadlock and no data race under `-race`; the handler holds no reactor lock while tearing a peer down |
@@ -196,7 +206,7 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 |---|-----------|--------------------|-----------------------|
 | 1 | Configures `ldp { monitor bgp; }` and loses the LDP neighbour to a dead link | config tree → `parseLDPConfig` → `runSession` → `liveness` `peer-down` → reactor handler → `teardownAutomatic` → NOTIFICATION → RIB withdraw | `test/ldp/liveness-tears-down-bgp-peer.ci` |
 | 2 | Runs Ze against FRR, kills the LDP keepalive, and watches FRR report the BGP session closed by an administrative reset | Ze LDP timer → Ze BGP NOTIFICATION Cease subcode 4 with RFC 9003 text → FRR log | interop scenario `ldp-liveness-bgp-cease-frr` |
-| 3 | Runs Ze against FRR, lets the LDP keepalive expire, and watches FRR report the received Shutdown Notification | Ze LDP timer → LDP Notification message with Status Data `0x00000014` → FRR log | interop scenario `ldp-keepalive-shutdown-notification-frr` |
+| 3 | Lets LDP keepalive expire while observing the independent fatal Notification | The immediate notification spec's send path precedes close; liveness integration preserves it | Wire proof owned by `plan/immediate/spec-ldp-keepalive-expiry-notification.md` |
 
 ## 🧪 TDD Test Plan
 
@@ -207,8 +217,8 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 | `TestLDPKeepaliveExpiryPublishesLivenessPeerDown` | `internal/plugins/ldp/register_test.go` | AC-1: payload fields, namespace and type | |
 | `TestLDPOtherSessionEndPublishesNoLivenessEvent` | `internal/plugins/ldp/register_test.go` | AC-2: decode failure and clean shutdown are silent | |
 | `TestLDPNoMonitorPublishesNoLivenessEvent` | `internal/plugins/ldp/register_test.go` | AC-3 | |
-| `TestLDPEncodeShutdownNotification` | `internal/plugins/ldp/wire_test.go` | AC-8: message type, Status TLV, Status Data `0x00000014`, E-bit | |
-| `TestLDPShutdownNotificationWriteFailureIsBestEffort` | `internal/plugins/ldp/session_test.go` | AC-9 | |
+| Fatal Notification encoding and send-failure tests | `plan/immediate/spec-ldp-keepalive-expiry-notification.md` | AC-8 and unconditional AC-9 wire/close behaviour | transferred |
+| `TestLDPWriteFailureStillPublishesConfiguredLiveness` | `internal/plugins/ldp/register_test.go` | Optional AC-9 integration: a failed notification write does not suppress the configured event, and no monitor emits none | planned |
 | `TestReactorSubscribesToLivenessPeerDown` | `internal/component/bgp/reactor/reactor_liveness_test.go` | Wiring: the subscription exists on the start path | |
 | `TestLivenessPeerDownTearsDownMatchingPeers` | `internal/component/bgp/reactor/reactor_liveness_test.go` | AC-4 | |
 | `TestLivenessPeerDownIgnoresUnmatchedAddressAndMonitors` | `internal/component/bgp/reactor/reactor_liveness_test.go` | AC-5 | |
@@ -220,7 +230,7 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| LDP Status Data (Shutdown) | fixed `0x00000014` | `0x00000014` | N/A | N/A |
+| LDP Status Data (KeepAlive Timer Expired) | fixed `0x00000014`, E bit set; proof owned by the immediate notification spec | `0x00000014` | N/A | N/A |
 | BGP Cease subcode | 1-10 (RFC 4486, RFC 9003, RFC 9384) | 4 on this path | N/A | N/A |
 | RFC 9003 shutdown communication length | 0-255 octets | 255 | N/A | 256 is refused by the encoder |
 | `monitor` leaf-list length | 0-1 today, one enum value | 1 | N/A | a repeated value is refused by YANG |
@@ -236,12 +246,11 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `ldp-liveness-bgp-cease-frr` | `test/interop/scenarios/ldp-liveness-bgp-cease-frr/` | FRR | FRR reports the BGP session closed by Cease Administrative Reset carrying Ze's shutdown communication, after the LDP keepalive to the same address expires | |
-| `ldp-keepalive-shutdown-notification-frr` | `test/interop/scenarios/ldp-keepalive-shutdown-notification-frr/` | FRR | FRR receives and logs an LDP Shutdown Notification on keepalive expiry rather than a bare transport close | |
+| `ldp-keepalive-shutdown-notification-frr` (original planned name) | Owned by `plan/immediate/spec-ldp-keepalive-expiry-notification.md` | FRR | Fatal KeepAlive Timer Expired Notification on the wire before close | transferred; scenario naming settled during that spec's design |
 
 ## Files to Modify
 - `internal/plugins/ldp/register.go` - `ldpConfig` gains `Monitors`; `parseLDPConfig` reads the leaf-list; the `runSession` tail publishes the event when `errors.Is(err, errKeepaliveExpiry)` holds
-- `internal/plugins/ldp/session.go` - transmit the Shutdown Notification before closing the transport on keepalive expiry
-- `internal/plugins/ldp/wire.go` - Notification message encoder and Status TLV encoder
+- `internal/plugins/ldp/session.go` and `wire.go` - consume the notification behaviour owned by `plan/immediate/spec-ldp-keepalive-expiry-notification.md`; no duplicate encoder or send implementation here.
 - `internal/plugins/ldp/yang/ze-ldp-conf.yang` - import `ze-types` and `uses liveness-monitor` inside `container ldp`
 - `internal/component/config/yang/modules/ze-types.yang` - `grouping liveness-monitor` with `leaf-list monitor`, typed as an enumeration carrying `bgp`
 - `internal/component/bgp/reactor/reactor.go` - call the new subscription beside `r.subscribeInterfaceEvents()`
@@ -249,7 +258,7 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 - `docs/architecture/ldp/mpls-ldp.md` - the monitor leaf, the emitted event, and the Shutdown Notification on keepalive expiry
 - `docs/architecture/bgp/interface-event-reactions.md` - the reactor's second bus reaction, and the correction named in Known Limitations
 - `docs/architecture/core-design.md` - declared by the `// Design:` header of both changed reactor files; the liveness-driven teardown joins the ways a peer leaves Established
-- `rfc/short/rfc5036.md` - `RFC5036-2.5.3-2` narrows from a whole `{gap}` to the decode-failure half, with the keepalive half proven
+- `rfc/short/rfc5036.md` - the immediate notification spec owns any keepalive-gap proof/status update; this feature does not claim the decode-failure half.
 - `docs/features/rfc-status.md` - the RFC 5036 row's counts and its `Support remaining` prose
 - `docs/guide/mpls.md` - the operator-facing `monitor` leaf, if that page carries the LDP config surface
 
@@ -315,13 +324,13 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
    - Tests: `TestLivenessPeerDownTearsDownMatchingPeers`, `TestLivenessPeerDownIgnoresUnmatchedAddressAndMonitors`, `TestLivenessPeerDownUsesCeaseAdministrativeReset`, `TestLivenessPeerDownHoldsNoLockDuringTeardown`, `TestLivenessPeerDownMalformedAddress`
    - Files: `internal/component/bgp/reactor/reactor_liveness.go`, `internal/component/bgp/reactor/reactor_peers.go`
    - Verify: the NOTIFICATION carries Cease subcode 4 and the RFC 9003 text; the race test is clean under `-race`
-4. **Phase: LDP Shutdown Notification (RFC 5036)** -- encode and transmit it
-   - Tests: `TestLDPEncodeShutdownNotification`, `TestLDPShutdownNotificationWriteFailureIsBestEffort`, plus the RFC-tagged unit that discharges the keepalive half of `RFC5036-2.5.3-2`
-   - Files: `internal/plugins/ldp/wire.go`, `internal/plugins/ldp/session.go`, `rfc/short/rfc5036.md`
-   - Verify: the encoded message decodes back to Status Data `0x00000014` with the E-bit set; `./le rfc discriminate-record` writes the record for the tagged unit
+4. **Integration with the immediate LDP notification correction** - consume `plan/immediate/spec-ldp-keepalive-expiry-notification.md`; its implementation and proof run independently of phases 1 through 3.
+   - Tests: `TestLDPWriteFailureStillPublishesConfiguredLiveness`, plus the no-monitor event case.
+   - Files: `internal/plugins/ldp/register.go` event integration.
+   - Verify: notification success or failure does not change the monitor gate, and the inherited notification-before-close behaviour remains intact.
 5. **Phase: End to end** -- functional and interop coverage, and the remaining pages
-   - Tests: the three `.ci` scenarios and the two named interop scenarios
-   - Files: `test/ldp/`, `test/interop/scenarios/ldp-liveness-bgp-cease-frr/`, `test/interop/scenarios/ldp-keepalive-shutdown-notification-frr/`, and every page named in the Documentation Update Checklist that phases 1 to 4 did not already edit
+   - Tests: the three `.ci` scenarios and `ldp-liveness-bgp-cease-frr`; the independent notification scenario remains with its immediate owner.
+   - Files: `test/ldp/`, `test/interop/scenarios/ldp-liveness-bgp-cease-frr/`, and every page named in the Documentation Update Checklist that phases 1 to 4 did not already edit.
    - Verify: each interop scenario is observed RED with the change reverted and the artifact rebuilt, then GREEN, and the RED is recorded
 
 ### Critical Review Checklist
@@ -387,7 +396,7 @@ transmits nothing, because `wire.go` has no Notification or Status TLV encoder.
 - Only LDP produces the event. IKE DPD and BFD are the expected next producers and are not in scope here.
 - Only BGP consumes it. The `monitor` enumeration carries one value, `bgp`, and grows when a second consumer exists.
 - The association is global to the LDP instance, not per neighbour, because LDP's YANG has no neighbour list. A per-neighbour association needs that list first and is a spec of its own if an operator asks for it.
-- The decode-failure half of `RFC5036-2.5.3-2` stays a gap. This spec closes the keepalive half only, and `RFC5036-3.5.1-1` follows the decode-failure half.
+- The decode-failure half of `RFC5036-2.5.3-2` stays a gap. `plan/immediate/spec-ldp-keepalive-expiry-notification.md` owns only the keepalive half, and `RFC5036-3.5.1-1` still follows the decode-failure half.
 - A reason field on `ldp.SessionEvent` is deliberately NOT added and owes no spec: the new event carries `cause`, and the only consumer of `SessionEvent`, `internal/plugins/ospf/ldp_sync.go`, reads no reason.
 - `docs/architecture/bgp/interface-event-reactions.md` claims that a disappearing address "drains gracefully with NOTIFICATION cease subcode 6, per RFC 4486", while `handleAddrRemovedPayload` only stops the listener and `message.NotifyCeaseOtherConfigChange` has no non-test caller in `internal/`. That defect is recorded in `plan/journal/unwired-feature.md` and is NOT this spec's to fix. This spec edits the same page, so correcting that one sentence is in scope for the page edit; wiring an address-removal teardown is not.
 

@@ -2,19 +2,26 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-05-24 |
+| Updated | 2026-09-19 |
 
-Reconciliation needed (2026-07-22 plan review): all five child spec files
-(pol-1..pol-5) are gone from `plan/`; pol-2 (actions), pol-3 (validation) and
-pol-4 (explain) closed with learned 782/809/814, but pol-1 (named-sets) and
-pol-5 (rs-defaults) have NO learned summary and no obvious landing (no
-`bgp/sets` package under `internal/`). Before treating this umbrella as an
-open `ready` roadmap: mark pol-2/3/4 done and resolve whether pol-1/pol-5
-landed elsewhere or were dropped -- if dropped, that is an unrecorded scope
-reduction to surface to Thomas.
+The five `pol-1` through `pol-5` child files are absent. The 2026-07-22 review
+recorded closure of actions, validation and explain (learned 782/809/814), but
+left named sets and route-server defaults unresolved. Missing files do not
+authorise removing either requirement.
+
+This umbrella retains ownership of every unmet AC until a concrete successor
+spec accepts it. Named sets and route-server defaults remain here for design;
+they are not delegated to absent children. Current source includes
+`buildDynamicDelta` in `filter_modify/modify.go` and `handleShowPolicyTest` in
+`cmd/policy/handler.go`, so action arithmetic and the dry-run entry point must
+be assessed as existing implementation rather than scheduled from scratch.
+`filter_prefix/config.go` still reads inline `entry` definitions. No
+`bgp/sets` or `rs-profile` declaration was found in the targeted policy/schema
+search. The original child scope and ACs below remain the reconciliation
+checklist; no current test pass or complete child delivery is claimed here.
 
 ## Post-Compaction Recovery
 
@@ -54,15 +61,15 @@ implementation, not in the operator's config.
 chain. "If community 65000:100 then set local-pref 200" is two chain entries:
 `community-match:HAS-CUSTOMER` then `modify:LP-200`. No from/then blocks needed.
 
-The work splits into five child specs:
+The original decomposition now has these dispositions:
 
-| Spec | Scope | Depends |
-|------|-------|---------|
-| `spec-pol-1-named-sets.md` | Prefix-set, community-set, AS-path-set definitions in `bgp/sets` | - |
-| `spec-pol-2-actions.md` | Action macros: inc/dec, community add/remove, remove-private-as | - |
-| `spec-pol-3-validation.md` | Compile-time validation of all policy references at commit | pol-1, pol-2 |
-| `spec-pol-4-explain.md` | Policy trace: dry-run test, per-filter explain output | pol-2 |
-| `spec-pol-5-rs-defaults.md` | Route-server default chains and built-in sets | pol-1, pol-2 |
+| Former child | Scope retained by this umbrella | Disposition |
+|--------------|---------------------------------|-------------|
+| `spec-pol-1-named-sets` | Prefix-set, community-set, AS-path-set definitions and filter references | Open design here; former child absent |
+| `spec-pol-2-actions` | Inc/dec, community add/remove, remove-private-as and AS-path-length | Closure recorded by the July review; map current producers and evidence to AC-4 through AC-11 before umbrella closure |
+| `spec-pol-3-validation` | Policy reference validation at commit | Closure recorded by the July review; named-set validation AC-12 and AC-13 remains owned here with the missing named-set feature |
+| `spec-pol-4-explain` | Dry-run and per-filter explain | Closure recorded by the July review; current dry-run handler exists, with AC-14 evidence reconciliation still owed here |
+| `spec-pol-5-rs-defaults` | Route-server default chains and built-in sets | Open design here; former child absent |
 
 ## Required Reading
 
@@ -99,12 +106,18 @@ they carried is stated here.
 - The original policy framework explicitly chose "specialized filter plugins over a generic policy language" (541). This spec extends that decision, not reverses it.
 - Six filter plugins already exist: prefix-list, as-path-list, community-match, modify, community tag/strip, loop-detection.
 - The modify filter is unconditional by design. Conditional modification = match filter + modify filter composed in chain.
-- show policy test (dry-run) was explicitly deferred in 572 as future work.
+- The original policy-show record deferred dry-run; the current `handleShowPolicyTest` reaches `PolicyDryRun`. Its AC-14 proof must be reconciled here.
 - MP_REACH rewrite is explicitly outside scope (filter_delta.go). Filters needing per-NLRI decisions on non-CIDR families declare raw=true.
 - ModAccumulator supports five ops: Set, Add, Remove, Prepend, Suppress. Actions spec (pol-2) builds on these existing constants.
-- AttrModAdd and AttrModRemove constants exist (registry_bgp_filter.go) and are referenced by filter_community handler code, but only via Set paths today. The infrastructure for list-level add/remove is partially wired.
+- The current `buildDynamicDelta` emits increment/decrement results and community operation directives. The original claim that these action paths still needed implementation is historical.
 
-## Current Behavior (MANDATORY)
+## Current Behavior (original design baseline)
+
+The inventory below describes the original design's starting point. The current
+disposition above supersedes its absence claims for action arithmetic and policy
+dry-run. Before implementation resumes, replace this baseline with the producer
+and proof mapping for each surviving AC; a recorded child closure does not prove
+the named-set integration that never acquired a current owner.
 
 **Source files read:**
 
@@ -496,13 +509,15 @@ chain with safety filters when enabled.
 
 ## Execution Order
 
-| Phase | Specs | Rationale |
-|-------|-------|-----------|
-| 1 | pol-1 (named sets), pol-2 (actions) | Independent, no cross-dependencies |
-| 2 | pol-3 (validation) | Needs sets and new actions to exist |
-| 3 | pol-4 (explain), pol-5 (rs-defaults) | Polish and operator experience |
+1. Reconcile AC-4 through AC-11 and AC-14 with the recorded action/explain
+   closures and current producers; preserve any unmet outcome in this umbrella.
+2. Design the named-set feature and its reference validation together
+   (AC-1 through AC-3, AC-12 and AC-13).
+3. Design built-in sets and route-server defaults (AC-15 and AC-16) against
+   those named sets and existing action filters.
 
-Within Phase 1, pol-1 and pol-2 are independent and can be implemented in parallel.
+Implementation waits for that design and an approved current decomposition.
+The absent child files provide no execution or test ownership.
 
 ## Open Questions
 
@@ -555,7 +570,7 @@ Within Phase 1, pol-1 and pol-2 are independent and can be implemented in parall
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
-Umbrella coordinates child specs. Wiring tests live in each child spec.
+This umbrella owns the wiring obligations below. The `pol-N` labels identify the original scope slice; they do not refer to an existing child test plan.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
@@ -591,15 +606,15 @@ Umbrella coordinates child specs. Wiring tests live in each child spec.
 
 ### Unit Tests
 
-Tests are defined in each child spec. Summary:
+This umbrella retains the following test obligations. Existing action, validation and explain evidence must be mapped before new tests or implementation are planned.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| pol-1: set registry, prefix-set parsing, set references | child spec | Named sets parsed and resolvable | |
-| pol-2: inc/dec arithmetic, community add/remove, remove-private-as | child spec | Action operations correct | |
-| pol-3: reference validation, type checking | child spec | Bad references caught at commit | |
-| pol-4: dry-run execution, trace buffer | child spec | Explain output matches chain behavior | |
-| pol-5: built-in sets, RS profile chain population | child spec | Defaults auto-populated correctly | |
+| pol-1: set registry, prefix-set parsing, set references | This umbrella's named-set design | Named sets parsed and resolvable | open |
+| pol-2: inc/dec arithmetic, community add/remove, remove-private-as | Existing action suites, to map by AC | Action operations correct | historical closure; current proof reconciliation owed |
+| pol-3: reference validation, type checking | This umbrella's named-set design for AC-12/13 | Bad references caught at commit | set integration open |
+| pol-4: dry-run execution, trace buffer | Existing policy suites, to map to AC-14 | Explain output matches chain behavior | historical closure; current proof reconciliation owed |
+| pol-5: built-in sets, RS profile chain population | This umbrella's defaults design | Defaults auto-populated correctly | open |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -613,8 +628,8 @@ Tests are defined in each child spec. Summary:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Defined in each child spec | child specs | Per-child-spec scenarios | |
-| policy child suites | `test/plugin/policy-*.ci` (one per child spec; see Files to Create) | Named sets, action macros, commit validation, explain, and rs-defaults exercised from the user entry point | |
+| Current action/validation/explain suites | Existing suites to map during reconciliation | The applicable retained ACs are demonstrated from their user entry points | evidence mapping owed |
+| Named-set and RS-default suites | To specify in this umbrella's completed design or an existing successor that accepts ownership | Named sets, type-safe references and defaults exercised from the user entry point | design owed |
 
 ### Interop Tests (MANDATORY for protocol features)
 AS_PATH modification (remove-private-as) and community actions affect wire-format
@@ -631,7 +646,7 @@ UPDATEs. Interop validation needed for pol-2.
 
 ## Files to Modify
 
-Umbrella scope. Detailed file lists in each child spec.
+This umbrella owns the file inventory until the current design assigns it to an existing successor. The original inventory below must be reconciled with delivered action/validation/explain code before implementation.
 
 - `internal/component/bgp/yang/ze-bgp-conf.yang` - add bgp/sets container
 - `internal/component/bgp/config/filter_registry.go` - extend for set validation
@@ -672,7 +687,7 @@ Umbrella scope. Detailed file lists in each child spec.
 
 ## Files to Create
 
-Detailed in child specs. Summary:
+Original planned additions follow. Existing action plugins must not be recreated; named-set and default additions remain subject to the current design.
 
 - `internal/component/bgp/sets/` - new set registry package (pol-1)
 - `internal/component/bgp/sets/yang/ze-bgp-sets.yang` - YANG for bgp/sets (pol-1)
@@ -686,10 +701,10 @@ Detailed in child specs. Summary:
 
 | /implement Stage | Spec Section |
 |------------------|--------------|
-| 1. Read spec | This file + relevant child spec |
-| 2. Audit | Files to Modify, Files to Create, TDD Test Plan in child spec |
-| 3. Wiring phase | Wiring Test table in child spec |
-| 4. Implement (TDD) | Implementation phases in child spec |
+| 1. Read spec | This umbrella and its current disposition |
+| 2. Audit | Map current producers and evidence to every retained AC |
+| 3. Wiring phase | Current approved wiring plan, completed before implementation |
+| 4. Implement (TDD) | Approved design for unmet ACs only |
 | 5. /ze-review gate | Review Gate section |
 | 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
@@ -703,13 +718,10 @@ Detailed in child specs. Summary:
 
 ### Implementation Phases
 
-Each child spec defines its own phases. Umbrella execution order:
-
-1. **pol-1: Named sets** - bgp/sets YANG, set registry, plugin reference leaves
-2. **pol-2: Actions** - modify extensions, remove-private-as, as-path-length
-3. **pol-3: Validation** - compile-time checks in filter_registry
-4. **pol-4: Explain** - show policy test, trace buffer
-5. **pol-5: RS defaults** - built-in sets, built-in filters, rs-profile
+The Execution Order above governs the next design pass. The former five-child
+implementation sequence is withdrawn: actions and explain have recorded
+closures, while the absent named-set/default children cannot carry new work.
+No acceptance criterion is removed by this change.
 
 ### Critical Review Checklist (/implement stage 6)
 

@@ -17,40 +17,39 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 concerned, and ze does not wait for a peer's marker before sending its own
 (owner ruling, 2026-09-18).**
 
-Ze sends its initial table to a new session and then the marker RFC 4724
-Section 2 defines: everything before it was the initial routing update. Today
+Ze sends its initial table to a new session and then the End-of-RIB marker.
 `sendInitialRoutes` (`internal/component/bgp/reactor/peer_initial_sync.go`)
-drains its own queue, then WAITS for every process entitled to push routes into
-that update, and writes the marker only when each has reported ready or the sync
-timeout expires. That wait exists because of an earlier ruling, cited in the
-same function, that a plugin-injected route belongs to the initial update
-(owner, 2026-08-30).
+already omits the wait for external route-pushing processes. It drains and
+closes its queue gate, calls `wakeForwardOverflow`, then takes the write hold
+and sends the eligible family markers. The earlier implementation waited for
+process readiness or the API-sync timeout after draining, under the
+2026-08-30 ruling that placed plugin-injected routes in the initial update.
 
 This ruling supersedes that one for the marker's TIMING. A route-creating
 process stands where a peer stands: ze never holds its own marker waiting for a
 peer's, so it does not hold it waiting for a process either. The routes such a
 process pushes are ordinary updates when they arrive, exactly as a peer's are.
 
-**Why it matters.** The wait is a window, not a barrier. The queue gate closes
-and the forwarding rail reopens at the START of it (`wakeForwardOverflow`),
-while the marker is still owed, so a route forwarded from another peer can reach
-the wire before the marker that claims to end the initial table. The peer is
-then told that a live forwarded route was part of ze's initial table. Removing
-the wait closes that window by making the marker follow ze's own table
-immediately, which is what "treat the process like a peer" means on the wire.
+The no-wait change removes that timeout window, but it does not by itself prove
+the forwarding order required by AC-2. The current producer still reopens the
+forwarding rail before taking the marker's write hold, and `forwardOrderHold`
+reads the initial-sync flag rather than `initialSyncEOROwed`. Research must
+establish whether a forwarded UPDATE can overtake the marker through either
+rail and preserve AC-2 when correcting that order.
 
 **What it also settles.** Four functional tests assert routes-before-marker and
 lose that race under load: `redistribute-export-reject`,
 `ipv4-announce-withdraw`, `ipv6-announce-withdraw` and
 `show-bgp-bare-runs-summary` (`plan/journal/false-synchronization-claim.md`,
-2026-09-18). They are the symptom this ruling removes at the source; the spec
-must decide what each of them asserts afterwards, because an ordering the
-product no longer promises must not stay in a test.
+2026-09-18). Their recorded failures motivated the ruling. Each consumer still
+needs assessment against the current producer; an ordering the product no
+longer promises must not remain in a test, and no assertion may be discarded
+without accounting for the behaviour it was intended to prove.
 
-**What this spec must NOT assume.** That deleting the wait is the whole change.
-`initialSyncEOROwed` gates EOR suppression on the API rail
-(`reactor_api_forward.go`), `apiSyncExpected` and `waitForAPISync` exist to serve
-the 2026-08-30 ruling, and `forwardOrderHold` narrows `shouldQueue` twice for
+**What this spec must NOT assume.** The applied no-wait change is only part of
+the scope. `initialSyncEOROwed` still gates EOR suppression on the API rail
+(`reactor_api_forward.go`). The remaining consumers of `apiSyncExpected` and
+`waitForAPISync` need assessment, and `forwardOrderHold` narrows `shouldQueue` twice for
 reasons its own comment calls load-bearing. Each has to be read before anything
 is removed, and the 2026-08-30 ruling has to be re-read in full: it may still
 govern WHICH routes belong to the initial update even where it no longer governs
@@ -72,7 +71,7 @@ WHEN the marker goes out.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/bgp/reactor/peer_initial_sync.go` - `sendInitialRoutes` drains the queue, calls `wakeForwardOverflow`, waits for the route-pushing processes, then writes the marker and clears `initialSyncEOROwed`
+- [ ] `internal/component/bgp/reactor/peer_initial_sync.go` - `sendInitialRoutes` drains the queue, calls `wakeForwardOverflow`, then takes the write hold and sends eligible markers without an external route-process wait; it retains `waitPeerUpBarrier` earlier in the send and clears `initialSyncEOROwed` at the end
 - [ ] `internal/component/bgp/reactor/peer.go` - `forwardOrderHold` is `Established && sendingInitialRoutes != 0` and does not read `initialSyncEOROwed`
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - the EOR suppression path DOES read `initialSyncEOROwed`, beside `shouldQueue`
 
@@ -81,7 +80,7 @@ WHEN the marker goes out.
 - A forwarded UPDATE never overtakes route operations still queued for that peer
 
 **Behavior to change:** (only what the user asked for)
-- Ze stops holding its own End-of-RIB for the processes that push routes into the initial update
+- Preserve and prove the applied no-wait timing change; finish the forwarding-order and consumer obligations in AC-2 and AC-3 before considering closure
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -89,7 +88,7 @@ WHEN the marker goes out.
 - `Peer.sendInitialRoutes` (`internal/component/bgp/reactor/peer_initial_sync.go`): every session that reaches Established.
 
 ### Transformation Path
-1. [fill during design] The queue drains, the marker follows it, and the processes' routes arrive as ordinary updates afterwards.
+1. Current producer: drain the queue and clear its gate, wake forwarding overflow, then take the marker write hold and send the eligible family markers. Design still owes AC-2's ordering across that release/reacquire boundary and the treatment of process routes arriving concurrently.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -162,7 +161,7 @@ WHEN the marker goes out.
 | [fill during design] | `test/plugin/*.ci` | AC-2 | |
 
 ## Files to Modify
-- `internal/component/bgp/reactor/peer_initial_sync.go` - the wait, and the marker's timing. Design doc: [fill during research]
+- `internal/component/bgp/reactor/peer_initial_sync.go` - assess the remaining marker/forwarding ordering; the external route-process wait is already removed. Design doc: `docs/architecture/core-design.md`.
 
 ## Files to Create
 - [fill during design]

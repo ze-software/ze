@@ -2,17 +2,19 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-ledger-shards-per-commit-session.md` (both touch `internal/le/commit/prepare.go`) |
-| Phase | product code landed `a9f2207a3` and `06f6185cb`; end-to-end proof and closure outstanding |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
-<!-- Backfilled. The work was commissioned straight from a journal row and
-     skipped the spec step. Status is in-progress: the product code exists in
-     the working tree, nothing has closed, and the landing is what it owes
-     first. -->
+Product code landed in `a9f2207a3` and `06f6185cb`. End-to-end proof and
+closure remain outstanding.
+
+<!-- Backfilled after work commissioned from a journal row. Product code
+     landed in the commits named above; proof, the limitation decision and
+     closure remain outstanding. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -125,7 +127,7 @@ care is irrelevant to whether that holds.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | A `git ls-files -s` line is a stable interchange for `update-index --index-info` | git's own documented format | the script cannot rebuild the index | `snapshot_test.go` round-trips it | confirmed |
 | A-2 | The object database keeps the snapshot blob alive between preparation and the run | blobs are unreferenced until the commit, so `gc --prune=now` could collect them | a script prepared long ago fails at `update-index` with an unknown object | not validated by a test | UNVALIDATED |
-| A-3 | Repairing the shared index for this block's paths cannot destroy another session's staged entry | the repair names only `block.Paths` | a peer's staged path is reset | asserted from the rendered text, no test | UNVALIDATED |
+| A-3 | Repairing the shared index for this block's paths cannot destroy another session's staged entry | the repair names only `block.Paths` | a peer's staged path is reset | the current `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` covers a different foreign path; the same-path case remains to resolve | UNVALIDATED |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -272,7 +274,8 @@ care is irrelevant to whether that holds.
   comment says why it is a print rather than a refusal: nothing here knows which
   hunks this author wrote. A signal is not a mechanism, and the seventh journal
   row is the measurement of what a signal is worth against habit.
-- The end-to-end run of a generated script is untested. See "What Remains".
+- The September 6 evidence record below does not establish the end-to-end
+  obligations. Reconcile it with the current script tests before closure.
 
 ## Checklist
 
@@ -304,11 +307,11 @@ care is irrelevant to whether that holds.
 
 ## Current Condition and What Remains
 
-**The change is complete and LANDED.** The product code, the two unit tests and
-the `docs/contributing/committing.md` reconciliation went in as `a9f2207a3` on
-2026-09-06, and `06f6185cb` followed with the drift note fix. A fresh clone and
-this tree now agree about how committing works. What this spec still owes is the
-end-to-end proof, not the landing.
+The September 6 record says the product code, two unit tests and
+`docs/contributing/committing.md` edits landed as `a9f2207a3`, followed by
+`06f6185cb` for the drift note. `renderBlock` and `renderPrivateIndex` in
+`internal/le/commit/script.go` still implement the private-index path. The
+evidence rows below describe that dated record; they are not a fresh test run.
 
 | Item | State |
 |------|-------|
@@ -316,5 +319,5 @@ end-to-end proof, not the landing.
 | Documentation | `docs/contributing/committing.md` reconciled with the new contract in `a9f2207a3` and `06f6185cb` |
 | Journal row | written, `plan/journal/concurrent-session-corruption.md`, seventh occurrence |
 | PROVEN | the snapshot round-trip and the rendered block shape, by the two unit tests. The drift-rewrite trap was measured directly on 2026-09-06 |
-| ASSERTED, not proven | AC-1, AC-2 and AC-5. No test runs a generated script against a repository with a foreign path staged, so the property the whole change exists for is read off the rendered text rather than observed. A-2 and A-3 are unvalidated |
-| Remains | (1) the end-to-end script run that proves AC-1, AC-2 and AC-5; (2) validate A-2 and A-3; (3) the residual gap in Known Limitations, which needs a decision rather than a repair; (4) closure sections |
+| Current proof source | `TestTheCommitCarriesThePreparedContentAndNotAConcurrentSessionsEdit` in `internal/le/commit/snapshot_test.go` now runs the generated script after a peer commit, a foreign staged path and a later edit. It asserts the committed population, peer ancestry, preserved working-tree edit, shared index and drift report. This supersedes the September 6 statement that no end-to-end test existed; no current pass is claimed |
+| Remains | (1) run and map the existing script regressions to AC-1, AC-2 and AC-5; (2) validate A-2 and A-3, including whether A-3 covers a peer staging the same named path; (3) resolve the pre-preparation ownership limitation without silently shrinking the goal; (4) closure sections |

@@ -53,7 +53,9 @@ work one layer over, on the NLRI.
       ladder, and Section 8.2.6's two sentences
   → Constraint: "A Link-State NLRI MUST NOT be considered malformed or invalid
     based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e.,
-    semantic errors)". Only lengths and ordering are judged
+    semantic errors)". Structural length, ordering and descriptor-uniqueness
+    checks still apply. Section 5.1 orders equal-Type TLVs by Length and then
+    by opaque lexicographic Value; reading those bytes does not interpret them.
   → Constraint: the action depends on the error class. Skipable (e.g. a TLV
     ordering violation) is 'NLRI discard'. Unprocessable (e.g. a length-encoding
     error) is 'AFI/SAFI disable' when another AFI/SAFI shares the session, and
@@ -134,7 +136,9 @@ configuration, declaring a peer's BGP-LS role.
 2. The MP attribute walk reaches `validateMPNLRISyntax` with AFI 16388.
 3. A new BGP-LS branch walks the Link-State NLRI: Total NLRI Length against the
    summed TLV lengths, each TLV's length against its container, the §5.1
-   ascending-Type ordering, and one instance per Node Descriptor sub-TLV.
+   Type/Length/opaque-Value ordering, and one instance per Node Descriptor
+   sub-TLV. Type inspection identifies recognised containers and repeated
+   sub-TLV types; it must not reject unknown or unexpected types.
 4. The verdict classifies the error as skipable or unprocessable, and
    `enforceRFC7606` takes the corresponding action.
 5. Separately, at config-apply: a peer's declared BGP-LS role appends an import
@@ -172,7 +176,7 @@ configuration, declaring a peer's BGP-LS role.
 | A-1 | `enforceRFC7606`'s RFC 7606 §5.4 typed-NLRI discard can express §8.2.2's 'NLRI discard' | the branch exists and rebuilds the body, per the function's own comment | Phase 2 must add an action member and every switch on `RFC7606Action` grows a case | reading the §5.4 branch whole in Phase 1 | unvalidated |
 | A-2 | 'AFI/SAFI disable' has no existing mechanism in ze | `RFC7606Action` has four members and none is it | Phase 3 is larger than planned: disabling one family mid-session touches capability state | grep for a per-family disable in the reactor during Phase 1 | unvalidated |
 | A-3 | Appending an import filter at config-apply is expressible without a new core switch | `filter_family` already parses and applies per-peer import filters | the declared role needs its own apply path, which risks the coupling `ai/rules/plugins.md` forbids | reading `filter_family/handler.go` in Phase 4 | unvalidated |
-| A-4 | The §5.1 TLV ordering rule is checkable without recognizing a TLV | §8.2.2 lists ordering among SYNTACTIC checks and forbids semantic ones | the ordering bullet cannot be implemented without violating the section's own opening constraint, and needs its own annotation | reading §5.1's ordering sentence against §8.2.2's opening in Phase 1 | unvalidated |
+| A-4 | Ordering can be checked without interpreting TLV semantics | §5.1 explicitly requires Type, Length and opaque lexicographic Value ordering; §8.2.2 separately requires recognised-container length checks and descriptor uniqueness | A validator that treats structural inspection as forbidden omits required checks | Read §5.1 and §8.2.2 together; tests must accept well-formed unknown types and reject ordering violations | confirmed by protocol text during planning reconciliation, 2026-09-19; implementation proof remains owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -208,7 +212,7 @@ configuration, declaring a peer's BGP-LS role.
 | AC-2 | MP_REACH_NLRI whose Link-State TLV lengths do not sum to the attribute length | malformed, per §8.2.2 bullet 1 |
 | AC-3 | MP_UNREACH_NLRI, the same | malformed, per §8.2.2 bullet 2 |
 | AC-4 | a TLV whose declared length overruns its container | malformed, per §8.2.2 bullet 4 |
-| AC-5 | Link-State NLRI TLVs not in ascending Type order | malformed and handled as NLRI discard, which §8.2.2 names as its example of a skipable error |
+| AC-5 | Link-State NLRI TLVs violate §5.1 ordering: Type, then Length for equal Types, then opaque lexicographic Value for equal Type and Length | malformed and handled as NLRI discard, which §8.2.2 names as its example of a skipable error; correctly ordered unknown types remain accepted |
 | AC-6 | a Local or Remote Node Descriptor carrying the same sub-TLV twice | malformed, per §8.2.2 bullet 7 |
 | AC-7 | a length-encoding error on a session carrying BGP-LS AND another AFI/SAFI | AFI/SAFI disable, per §8.2.2 |
 | AC-8 | the same error on a session carrying BGP-LS only | session reset, per §8.2.2 |
@@ -337,7 +341,7 @@ configuration, declaring a peer's BGP-LS role.
 3. **Phase: Ordering and descriptor uniqueness** -- the two structural bullets
    - Tests: `TestBGPLSNLRITLVsOutOfOrderAreDiscarded`, `TestBGPLSNodeDescriptorRefusesARepeatedSubTLV`
    - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
-   - Verify: ordering is a skipable error and reaches NLRI discard, not session reset
+   - Verify: Type ordering, equal-Type Length/opaque-Value ordering and duplicate descriptor sub-TLVs are covered with valid controls, including unknown types. Skipable ordering errors reach NLRI discard.
 4. **Phase: The action ladder** -- skipable, disable, reset
    - Tests: `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI`, `bgp-ls-malformed-nlri`
    - Files: `internal/component/bgp/reactor/session_validation.go`
@@ -356,7 +360,7 @@ configuration, declaring a peer's BGP-LS role.
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | the walk reads NO TLV type and NO value byte. §8.2.2 opens by forbidding a malformed verdict based on inclusion, exclusion or contents, and a `switch` on a TLV type is the tell |
+| Correctness | The NLRI walk reads Types to check ordering, identify recognised sub-TLV containers and detect repeated descriptor sub-TLV types (§8.2.2 bullets 4, 6 and 7). Equal-Type ordering compares Length and then opaque Value bytes (§5.1). It never validates field meanings, permissible values, mandatory TLV presence or whether a type belongs with an NLRI. Unknown and unexpected types remain valid when structurally well formed. The existing attribute-only length walk is unchanged. |
 | Correctness | every loop iteration advances by at least the 4-octet header, so a zero-length TLV cannot stall the receive path |
 | Correctness | the skipable class reaches NLRI discard and the unprocessable class reaches disable or reset. Collapsing the two into session reset is a conformance failure that reads as caution |
 | Naming | the role enumeration names the ROLE (`consumer-facing`), never the action it causes |

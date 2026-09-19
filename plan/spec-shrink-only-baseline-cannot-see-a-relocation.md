@@ -10,14 +10,28 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-Filed in `plan/future/` because it is process tooling, not a release defect: it
-matches none of the five defect kinds in `plan/future/README.md`.
+Originally filed in `plan/future/` on 2026-08-19 as process tooling. That path
+and the bucket rationale below describe the filing context.
 
 ## Task
 
-A grandfathering baseline keyed on a file's PATH cannot distinguish a
-relocation from new debt, so moving a file reads as growth and a shrink-only
-gate refuses it.
+Determine whether any currently checked relocation still needs debt-identity
+handling. The original spec-relocation case below no longer establishes pending
+implementation work: `citationExcludes` in `internal/le/doc/check/links.go`
+derives a `spec-` exclusion for every bucket from `specpath.Dirs`, and
+`sweepTracked` skips citation inspection for those paths. This follows the
+record-preservation rule in `ai/rules/writing.md`.
+
+The baseline still keys rows by citer and target. Before a broader change is
+designed, identify a currently included non-spec population and reproduce the
+relocation refusal there. The owner can retain that broader scope or consider
+the original blocker resolved through normal review. Neither decision, nor
+closure, is recorded here.
+
+## Original Problem, 2026-08-19
+
+A grandfathering baseline keyed on a file's PATH could not distinguish the
+measured relocation from new debt.
 
 `internal/le/doc/check/links.go` grandfathers dead citations as
 `citer<TAB>target` pairs in `internal/le/`, and refuses
@@ -26,24 +40,22 @@ silencing fresh dead references by appending to the list. What it cannot see is
 that a repointed citer is the same debt at a new address, so relocating a file
 that carries N grandfathered rows reports N new pairs.
 
-The consequence is the part worth fixing. `plan/future/` is where a spec goes
-when it stops blocking the release, and the specs most likely to go there are
-the OLD ones, whose plans name files nobody built. Those are exactly the specs
-carrying grandfathered rows. So the gate makes `plan/future/` hardest to reach
-for the specs that most need it, and the only honest routes are to repair
-citations to files nobody ever built, or to leave the spec where it is.
+At filing, `plan/future/` was where a spec went when it stopped blocking the
+release. Old specs carried grandfathered references to files that had never
+been built, so moving those specs raised baseline-growth findings. This was
+the motivating cost; it is no longer a current consequence for bucketed specs.
 
 Measured 2026-08-19: relocating one spec reported 17 new baseline pairs and one
 dead reference from a deferral shard that named its old path. The move was
 reverted rather than forced.
 
-## What a fix has to decide
+## Decisions Retained for Any Broader Baseline Change
 
 | Question | Why it is not obvious |
 |----------|-----------------------|
 | Key the baseline on something that survives a move, or teach the check to net a rename | A content hash of the citing line survives a move and a reflow; a path does not. Netting a rename needs the check to read two trees rather than one |
-| Whether a relocation should carry its debt at all | Moving a spec out of the release backlog and keeping its dead citations is arguably the honest outcome, and arguably the thing the shrink-only rule exists to prevent |
-| What updates the referrers | A deferral shard naming the old path goes dead on the move, and nothing repoints it |
+| Whether a relocation should carry its debt at all | Specs now preserve historical citations outside this check. Any broader proposal must name the currently checked population and explain why its debt should move |
+| What updates live referrers | A live document can still need a reference update when its target moves. Historical record paths follow `ai/rules/writing.md` and must not be rewritten as current claims |
 
 ## Notes
 

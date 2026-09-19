@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | implemented and landed at `8c7f0a5bf2`; the sibling parser is a spec of its own |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 <!-- Backfilled. The work was commissioned straight from two journal rows and
      skipped the spec step. Status is in-progress: the product code exists, so
@@ -31,6 +31,12 @@ commit message of `8c7f0a5bf2`. Neither is restated here.
 Goal: a `.ci` file naming a key the parser does not read FAILS the file, naming
 the key, the accepted keys and the line. `ai/rules/principles.md`: a parser that
 cannot answer says so.
+
+Implementation and vocabulary migration landed at `8c7f0a5bf2`. The remaining
+work is the AC-5 discrimination walk over the sixteen repaired assertions and
+the closure evidence. The sibling parser's migration is recorded separately in
+`plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md`; neither spec is
+ready-to-start implementation.
 
 ## Required Reading
 
@@ -83,7 +89,7 @@ cannot answer says so.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | `.ci` author ↔ runner | the directive text | Yes, the file now fails on an unread key |
-| Generic parser ↔ the `test/parse` parser | two independent implementations of one format | NO. That disagreement is `plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md` |
+| Generic parser ↔ the `test/parse` parser | two implementations with a shared vocabulary | migration is committed; both now scope stdout/containment to a command, while stderr regex and legacy handling differ. Remaining evidence belongs to `plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md` |
 
 ### Integration Points
 - `internal/test/runner/accept_only.go` - the accept-only ratchet parses with
@@ -95,7 +101,7 @@ cannot answer says so.
 |-------|--------|----------|
 | No bypassed layers | Yes | every arm routes through `checkKeys` |
 | No unintended coupling | Yes | change confined to `internal/test/runner` and `internal/test/ci` |
-| No duplicated functionality | Partly | a SECOND parser for the same format still exists in `internal/test/runner/parsing.go`; that is the sibling spec |
+| No duplicated functionality | Partly | both parsers remain; current generic stdout/containment assertions use `assertionTarget` and `checkCommandAssertions`, so the old whole-file contrast no longer describes those arms |
 | Zero-copy preserved where applicable | N-A | test tooling |
 | Registration over hardcoding | No | each arm names its own key list, which is a per-arm declaration rather than a central one, and the compiler does not tie the list to the reads |
 
@@ -111,7 +117,7 @@ cannot answer says so.
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A repaired assertion turns red because the PRODUCT is wrong | the assertion fails after migration | that red is the finding; fix the product, never the assertion (`ai/rules/pre-release.md`) |
-| R-2 | The `test/parse` suite's own parser still reads the deleted spellings | its three files become unparseable to the accept-only ratchet | named in the sibling spec, and recorded in `plan/journal/silent-fall-through.md` |
+| R-2 | The `test/parse` parser diverges again from the shared vocabulary | a file accepted by one parser is refused or means something else to the other | the sibling spec owns migration and cross-parser evidence; the original disagreement is historical in `plan/journal/silent-fall-through.md` |
 
 ## Blast Radius
 
@@ -186,7 +192,7 @@ cannot answer says so.
 | 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/ci-format.md` is the anchor for the runner's parse files, and it was updated |
 | 1-9, 11-15, 17 | - | No | no operator-facing surface changed |
 
-## Implementation Steps
+## Implemented Steps (landed in `8c7f0a5bf2`)
 
 1. **Phase: Wiring (MANDATORY FIRST)** - add `checkKeys` and call it from one
    arm; write the refusal test and observe it red.

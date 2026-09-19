@@ -2,32 +2,31 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | cli |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-08-29 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-Eighty hand-written `Usage:` sentences live inside YANG `description` strings,
-spread over 24 `-cmd` modules. Each one states the argument grammar of one
-command in prose. Nothing checks them, nothing generates them, and nothing
-reads them: the published catalog once got its syntax column from a retired
-Python post-processing step (`usage_syntax` in the deleted
-`website/tools/render-cli-catalog.py`, removed in `eae282592`), never from
-`ze help command --json`. `commandEntry` in `cmd/ze/help_command.go` has never
-carried a usage or syntax field.
+The original inventory found eighty hand-written `Usage:` sentences inside YANG
+`description` strings across 24 `-cmd` modules. Each stated the argument grammar of one
+command in prose. At that inventory, no shared producer generated or checked
+those sentences. The published catalog had previously obtained syntax from
+`usage_syntax` in the retired Python post-processing step
+(`website/tools/render-cli-catalog.py`, removed in `eae282592`). The current
+`commandEntry` in `cmd/ze/help_command.go` carries both `usage` and `grammar`,
+filled from `command.Usage` and `command.UsageLine`.
 
 Prose is the wrong home for this twice over. `ai/rules/cli.md` already forbids
 it: "A `description` states what the leaf MEANS. It MUST NOT prescribe a CLI
-spelling." That rule has no feeder for the `Usage:` case, so 80 violations
-accumulated. And prose drifts silently: `create interface dummy name <name>
-unit <vid>` is what the description claims, while the model declares no leaf
-for `<vid>` at all.
+spelling." The missing feeder let the original violations accumulate, including
+`create interface dummy name <name> unit <vid>` when the model had no `vid`
+leaf. These examples describe the input to the migration.
 
 The goal is that every command's usage line is GENERATED from the command
 model, that the prose is deleted, and that a gate keeps the two honest while
@@ -35,9 +34,15 @@ the deletion happens command by command. A command the model cannot express
 keeps its authored sentence and stays a reported difference, and the way to
 close it is to make the model able to express it.
 
-Five failure classes stand between the model and a generated line. Four were
-found by survey, the fifth by reading the announce module. They are enumerated
-under Current Behavior and each one owns an implementation phase.
+Five failure classes separated that model from a generated line. Four were
+found by survey, the fifth by reading the announce module. The original
+Current Behavior section and implementation phases record them.
+
+The renderer and the original migration are implemented. The dated counts and
+intermediate remainders below are implementation history; Current remaining
+ownership at the end of this file governs the next step. This spec still owes
+refusal proof, a current corpus result, and closure evidence; the usage gate is
+already integrated into documentation verification.
 
 ## Required Reading
 
@@ -85,6 +90,17 @@ under Current Behavior and each one owns an implementation phase.
   free name for anything about command usage.
 
 ## Current Behavior (MANDATORY)
+
+The implemented catalog publishes `usage` and `grammar` from the shared
+renderer. Argument extraction preserves declaration order, and intermediate
+containers can supply inherited arguments. Current remaining ownership at the
+end of this file names the unfinished gate and proof.
+
+### Original implementation baseline, 2026-08-29
+
+The source inventory and failure classes below record the pre-migration
+behaviour. Their missing fields and alphabetical extraction are historical
+inputs to the implementation, not changes still owed.
 
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `cmd/ze/help_command.go` - builds the published catalog. `commandEntry`
@@ -814,7 +830,7 @@ Each row says what the spec claimed, what the code says, and why the change.
 | The gate compares against git HEAD, not a checked-in baseline file | A baseline file listing the known differences | A checked-in baseline can be edited to lie, and the cheapest route from red to green becomes editing it. Comparing against HEAD is the idiom the RFC ratchets already use in this repository, and it cannot be edited without also editing history |
 | `args` stays on `commandEntry` beside `grammar` | Delete `args` and let readers derive it from `grammar` | `internal/le/docvalid/command_surfaces.go` reads `args` to check published command identity. The two answer different questions: `args` is the type dictionary, `grammar` is the positioned form. If review finds `grammar` makes `args` dead, `ai/rules/no-layering.md` applies and `args` is deleted rather than left beside it |
 
-## Known Limitations
+## Historical limitations during the migration
 
 - **Command identity collides, and this spec does not fix it.** 384 `ze:command`
   declarations resolve to 377 distinct identifiers. `ze-iface:interface-unit-add`
@@ -1041,7 +1057,7 @@ verdict clean, 9 files pinned, `./le spec session review check` exits 0.
 | HEAD compiles | `go build ./...` and `go build -tags <each of the nine>` `./cmd/ze` both exit 0 in a detached worktree at eff4c1e38 |
 | Neither repair reverted another session's work | e53c244ab restores two string literals the consumer never needed; bd25f033e ADDS a const block. Both files are clean in the working tree, so nothing was overwritten |
 
-## Closure status: one command left, and it needs its own spec
+## Closure investigation, 2026-08-30: one command remained
 
 Measured on 2026-08-30 with `./le docvalid usage-contract`, over an overlay of
 HEAD carrying the working tree: 384 command nodes, 1 authored usage sentence,
@@ -1075,8 +1091,32 @@ of its own (`ai/rules/cli.md`). It needs its own spec, not a branch in this one.
 
 The row is in `plan/journal/command-takes-an-untyped-positional-value.md`.
 
-Two further facts the next session needs. The gate is not wired into
-`./le verify`, so nothing runs it: `usageRow` and its siblings stay
-package-private until the prose is gone. And `./le` is an existence cache, so a
-stale `bin/le` reports stale counts; build a fresh one before reading them, and
-only when the tree compiles.
+At that investigation the gate was not wired into `./le verify`, and the report
+types were package-private. Those were observations of that revision rather
+than a permanent API constraint.
+
+## Current remaining ownership
+
+`ze-cli-announce-cmd.yang` now declares separate unicast, blackhole and flowspec
+forms under `send bgp <selector>`, with typed leaves and modifier groups. The
+August 30 instruction to create a spec for that split is satisfied by
+`plan/immediate/spec-announce-grammar-stated-and-enforced.md`, which owns the
+remaining announce grammar and functional proof. The August 31 journal entry
+records deletion of the final authored sentence; it is not a fresh corpus run.
+
+The usage gate now returns an exported `UsageReport`
+(`internal/le/docvalid/usage.go`). `usageContract` builds the command tree,
+compares any authored usage against generated grammar, checks hidden deletions
+against HEAD and derives `Valid` from those results. The documentation
+verification pipeline already runs `docUsageStage` and fails on an invalid
+report (`internal/le/doc/wiring/docverify.go`, `docVerifyStages` and
+`answerDocVerify`). The integration is present. This spec still owes refusal
+proof for a new authored sentence or hidden disagreement, a current corpus
+result, and closure evidence. No current command or disagreement count is
+asserted here.
+
+`plan/immediate/spec-declared-commands-without-leaves.md` owns residual missing
+argument declarations and their completion, validation and web-form effects.
+Its August 8 count of 30 cannot be added to this spec's migration counts:
+declaration-order extraction, inherited arguments and the command splits here
+changed the population.

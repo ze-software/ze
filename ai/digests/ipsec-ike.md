@@ -8,14 +8,24 @@
 Ze's own pure-Go IKEv2 daemon runs as the `ike` plugin: one `PeerSession` goroutine per
 configured peer drives a per-peer `SA` state machine (RFC 7296 IKE_SA_INIT + IKE_AUTH),
 derives Child SA (ESP) keys, and installs them into the Linux kernel via XFRM netlink
-(a VPP backend also exists but is not wired to real binapi). Two UDP listeners (port
-500 and NAT-T port 4500) demultiplex inbound packets to SAs by SPI pair through one
-shared `SATable`. **Only the initiator role is implemented end-to-end today**: a peer
-configured to "respond" just blocks, and any inbound packet whose SPI pair does not
-already match a table entry is silently dropped, so Ze cannot yet accept a first
-IKE_SA_INIT from an unknown peer (see gotchas). EAP (MSCHAPv2/TLS) and NAT-T are
-initiator-side only for the same reason. There is no MOBIKE support anywhere in the
-tree.
+(the VPP backend uses generated GoVPP binapi, but the IKE policy path still lacks
+the VPP interface that `vppPolicyInterface` requires). Two UDP listeners (port
+500 and NAT-T port 4500) demultiplex inbound packets to SAs through one shared
+`SATable`.
+
+Both initiator and responder roles are implemented. `tryResponderSAInit`
+(`engine/register.go`) admits an initial request from a configured `respond`
+peer whose remote address matches the source. `handleResponderInbound`
+(`engine/responder.go`) drives that handshake, including the EAP authenticator
+through `handleResponderEAP` (`engine/responder_eap.go`), and `runResponder`
+(`engine/fsm.go`) adopts the established SA into its owner loop. Admission from
+an unconfigured source remains a separate remote-access gap; it does not mean
+the responder or EAP server is absent.
+
+VPP SA installation uses `vppBackend.InstallSA` (`dataplane/vpp.go`), while
+`childPolicyParams` (`engine/child.go`) leaves `IfIndex` unset and
+`vppPolicyInterface` (`dataplane/vpp_policy.go`) refuses that policy. SA
+install/read-back therefore does not establish an operator-usable VPP tunnel.
 
 ## Flow
 1. **Plugin registration.** `init()` registers the `"ike"` plugin with

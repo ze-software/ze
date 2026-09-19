@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | config |
 | Depends | - |
-| Phase | 1/8 |
+| Phase | 7/8 |
 | Handoff | - |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -206,6 +206,7 @@ Four entries, which do not share a trigger:
 | `ze doctor` | → | the three crash-capture checks run and report | `TestDoctorReportsCrashCaptureReadiness` |
 | Appliance image build | → | reservation rendered onto the kernel command line | `TestApplianceBuildRendersCrashReservation` |
 | Built runtime kernel | → | `CONFIG_` floor check | `TestRuntimeKernelRequirementsIncludePstore` |
+| Opt-in memory-image capture on supported amd64 appliance, then a kernel panic | → | staged capture kernel → persisted memory image → normal boot | `qemu-crash-capture-memory-image` |
 
 ## Acceptance Criteria
 
@@ -225,6 +226,7 @@ Four entries, which do not share a trigger:
 | AC-12 | `system crash-dump memory-image enabled true` on a non-amd64 build | The config is refused with a reason naming the architecture limit |
 | AC-13 | `system crash-dump memory-image enabled true` where free space is below the estimate plus reserve | Readiness reports armed false with the shortfall in bytes; no capture is attempted |
 | AC-14 | Every command in this feature run through `| json` | The payload renders as structured data with kebab-case keys |
+| AC-15 | Supported amd64 appliance with memory-image capture explicitly enabled, sufficient space, and the approved signing prerequisites satisfied; a kernel panic occurs | Readiness reports the capture kernel armed before the panic. The capture writer persists a usable memory image in the configured crash storage, the appliance returns to normal service, and an offline reader can open the image with the matching kernel symbols and recover the panic context |
 
 ## End-to-End User Stories
 
@@ -235,6 +237,7 @@ Four entries, which do not share a trigger:
 | 3 | Sends a support bundle after a kernel panic | panic → harvest → `crashes` module → archive | `TestSupportArchiveContainsKernelArtifact` |
 | 4 | Checks why capture is not working | `ze doctor` → three checks → diagnostic codes | `TestDoctorReportsCrashCaptureReadiness` |
 | 5 | Inspects a crash with the daemon down | offline fallback → crash directory → listing | `TestOfflineShowCrashesListsKernelKind` |
+| 6 | Opts into full-memory capture and investigates a panic after service returns | config → reservation and capture-kernel staging → panic → image persistence → normal boot → offline image inspection | `qemu-crash-capture-memory-image` |
 
 ## 🧪 TDD Test Plan
 
@@ -276,6 +279,7 @@ Four entries, which do not share a trigger:
 |------|--------------|----------------|--------|
 | `qemu-crash-capture-panic-harvest` | `internal/le/qemu/actions.go`, runtime-kernel labs | A-2, A-3, A-5, AC-3: reserve, panic, warm reboot, artifact present in the probed directory | |
 | `qemu-crash-capture-ota-unaffected` | `internal/le/qemu/actions.go` | R-5: an OTA-style kexec reboot still works with crash capture active | |
+| `qemu-crash-capture-memory-image` | `internal/le/qemu/actions.go`, amd64 runtime-kernel lab | AC-15: opt-in configuration, armed staging, induced panic, persisted image readable with matching kernel symbols, and return to normal service | not written |
 
 ### Interop Tests (Scope: protocol)
 N-A. This feature is not protocol-implementing and changes no wire-visible behavior.
@@ -293,9 +297,9 @@ N-A. This feature is not protocol-implementing and changes no wire-visible behav
 - `internal/plugins/crashes/crashes.go` - offline path returns the same shape
 - `internal/component/support/support.go` - `collectCrashes` carries kernel metadata and readiness
 - `internal/core/diagnostic/codes.go` - three diagnostic codes
-- `internal/le/qemu/actions.go` - register the two QEMU labs
+- `internal/le/qemu/actions.go` - register the panic-harvest, OTA-unaffected and memory-image QEMU labs
 - `docs/architecture/diagnostics/crash-capture.md` - the kernel half, with source anchors
-- `docs/architecture/testing/qemu-integration.md` - its registered-action anchor enumerates the actions by name, so two new labs make it stale
+- `docs/architecture/testing/qemu-integration.md` - document all three registered capture labs
 - `ai/INDEX.md` - discovery row for the feature
 
 ## Files to Create
@@ -339,7 +343,7 @@ N-A. This feature is not protocol-implementing and changes no wire-visible behav
 | 7 | Wire format changed? | N-A | No wire format touched |
 | 8 | Plugin SDK/protocol changed? | N-A | No SDK or process-protocol change |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | Not protocol work; no RFC requirement bound |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, the two new QEMU labs |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, the three QEMU labs |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md`: VyOS and FRR crash-artifact behavior |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/diagnostics/crash-capture.md` gains the kernel half |
 | 13 | Route metadata keys added/changed? | N-A | No route metadata |
@@ -381,9 +385,9 @@ N-A. This feature is not protocol-implementing and changes no wire-visible behav
    - Files: `internal/le/qemu/actions.go`
    - Verify: A-2, A-3 and A-5 move to confirmed or the design changes. STOP and report if the reserved region does not survive the reboot
 8. **Phase: Phase 2, memory image (opt-in)** -- only after 1 to 7 are closed and A-7 is confirmed
-   - Tests: `TestReadinessReportsSpaceShortfall` extended to the image estimate, `qemu-crash-capture-ota-unaffected` re-run with staging active
+   - Tests: `TestReadinessReportsSpaceShortfall` extended to the image estimate, `qemu-crash-capture-ota-unaffected` re-run with staging active, and `qemu-crash-capture-memory-image`
    - Files: crash-dump kernel symbols, the capture writer, the memory-image leaves
-   - Verify: AC-12, AC-13, R-5 and R-7 hold. The writer reboots unconditionally on every error path
+   - Verify: AC-12, AC-13, AC-15, R-5 and R-7 hold. The writer reboots unconditionally on every error path; the positive lab must prove that a usable image survives and service returns
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -471,7 +475,7 @@ N-A. Not protocol work.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-14 all demonstrated
+- [ ] AC-1..AC-15 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes
@@ -501,3 +505,7 @@ N-A. Not protocol work.
 
 Committed in `0e72b398f2`, `d430407555` and `cd70557e7a`. The two QEMU labs are
 not written, so A-2, A-3 and A-5 stay unvalidated.
+
+The current phase is 7/8 because boot proof remains unwritten; this is not a
+verification handoff. Phase 8 also owes the positive memory-image lab added to
+AC-15. The recorded commits do not establish usable full-memory capture.

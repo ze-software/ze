@@ -2,16 +2,23 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+The receive-window implementation is present in `authStore.verify`, and the
+interop registration is now committed. The September 6 progress and test
+results below are historical evidence; this reconciliation ran no tests and
+does not establish closure readiness.
+
+### Original defect (2026-09-06)
 
 **What the operator is promised.** The `accept-lifetime` container under
 `key-chains/key` in `internal/plugins/ospf/yang/ze-ospf-conf.yang` is described
@@ -75,8 +82,9 @@ clock was the cause. `verify` now reads the Key ID the packet names
 (`packet.AuthKeyID`) and reports `accept-lifetime` when the sender's own key is
 the one outside its window.
 
-**Not committed with this spec:** the interop scenario's registration. See
-Known Limitations.
+The September 6 commit excluded the interop registration because its files
+also held concurrent BMP changes. That commit-coordination limitation is
+resolved in the current tree; see Known Limitations.
 
 ## Required Reading
 
@@ -415,15 +423,12 @@ Known Limitations.
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      is not a limitation: write it as its own spec, in the bucket that item
      belongs to, and name that spec here (ai/rules/planning.md). -->
-- **The interop scenario is written, run and proven, but NOT COMMITTED.** Its two
-  registration files, `internal/le/interoplab/bgp/checkers.go` and
-  `internal/le/interoplab/bgp/check_extras.go`, carry another session's
-  uncommitted RFC 7854 `scenarioStatisticsPMACCT` work in the same hunks, and a
-  commit naming either file would carry that work too. `interoplab.Discover`
-  errors on a scenario directory with no checker, so committing
-  `test/interop/scenarios/ospf-accept-lifetime-frr/` alone would break
-  `./le integration interop` for every session. Both stay in the working tree
-  until the BMP session commits, then land together.
+- The September 6 interop commit-coordination blocker is resolved.
+  `internal/le/interoplab/bgp/checkers.go` and `check_extras.go` register
+  `ospf-accept-lifetime-frr`, and those files and its scenario directory have
+  no uncommitted changes at reconciliation. The earlier BMP overlap is history.
+  The recorded FRR result has not been rerun here, and final review and all
+  closure gates remain required.
 - Clock skew between neighbors is not addressed. RFC 7474 Section 4 defines the
   windows as absolute times and says nothing about synchronizing them.
 - A simple-password chain (AuType 1) carries no Key ID on the wire, so its

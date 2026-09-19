@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 1/3 |
+| Phase | 3/3 |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -81,9 +81,14 @@ space (`dedupSentSalt`, `dedupKey`), with the counter in a sibling map keyed the
 same way. That is one map per peer rather than two, and the tagged test compiles
 byte for byte as HEAD holds it.
 
-Everything below is complete. The interop scenario is
-`test/interop/scenarios/bmp-statistics-pmacct/`, not `bmp-frr/`: `bmp-frr` reads
-ze's stream with ze's own collector, which is not another implementation.
+The implementation and pmacct evidence below were recorded on 2026-09-06.
+The functional table still records no green run for
+`test/plugin/bmp-sender-statistics.ci`, so verification and closure remain
+outstanding. The current tree contains `setStatisticsTimeout`,
+`statisticsLoop` and `sendStatisticsReports` in `statistics.go`; their presence
+does not discharge that functional gate. The interop scenario is
+`test/interop/scenarios/bmp-statistics-pmacct/`; `bmp-frr` reads Ze's stream with
+Ze's own collector and cannot supply independent-decoder evidence.
 
 ## Required Reading
 

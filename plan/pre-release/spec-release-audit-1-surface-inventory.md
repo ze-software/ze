@@ -251,6 +251,14 @@ Inventory data enters from code and tests:
 | RA-TEST-001 | Major | test gate inventory | `test/install`, `test/ipsec`, `test/pppoe`, Makefiles | Existing release-relevant tests may not run in any release gate | Compare `test/` dirs and `cmd/ze-test` subcommands with Make targets | Every shipped test suite has a documented runner and release disposition | Research found install tests not in Make gate and possible `ipsec`/`pppoe` runner gaps | Future fix should document or add release disposition for every `test/` directory, including Make/runner coverage | `spec-release-audit-1-surface-inventory.md`, then relevant child audit |
 | RA-DOC-002 | Minor | docs/test evidence | `docs/functional-tests.md`, `internal/le/fuzz/actions.go`, `internal/le/functional/suites.go` | Developer/release operator may run stale or incomplete evidence | Compare docs against Make targets | Docs match current gate composition and fuzz target count/time | Research found docs omit `ze-evidence-vet` and stale fuzz details | Future fix should update docs after source-backed verification of current targets | `spec-release-audit-8-docs-onboarding.md` |
 
+The audit routes above now resolve to live children in `plan/pre-release/`,
+including the task-only config/CLI and web/LG/API skeletons created on
+2026-09-19. These routes assign the next audit pass, not product repair.
+Each child must recheck the dated findings against its current producers and
+name a separate implementation spec for any surviving repair. The inventory's
+partial acceptance evidence and the 2026-07-10 retirement of RA-INV-001 remain
+unchanged.
+
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |

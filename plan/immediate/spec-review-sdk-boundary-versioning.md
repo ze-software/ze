@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-unify-startup (two Stage-1 handshake sites share the version check; closed, learned 1083) |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-07-06 |
 
@@ -53,9 +53,10 @@ an external module builds cleanly (empirically confirmed). The true defect is th
 internal-typed API (above), not a build failure. This spec fixes the real defect.
 
 **Explicitly out of scope (referenced, not duplicated):**
-- Unifying the two daemon startup topologies (`server/startup.go` vs `server/subsystem.go`):
-  owned by `spec-unify-startup.md`; this spec adds the version check at both Stage-1 sites (or
-  the single unified site once that lands).
+- Unifying the two daemon startup topologies: the closed `spec-unify-startup`
+  delivered `runStartupHandshake` in `server/startup_driver.go`, shared by
+  `engineStartupSink` and `hubStartupSink`. This spec owns version validation
+  in that common Stage-1 path and evidence through both callers.
 - The `pkg/plugin/rpc` command-envelope wire types: owned by `spec-unify-response-envelope.md`
   (its A-2 already documents `pkg/plugin/rpc` as the cross-process wire layer).
 
@@ -115,8 +116,8 @@ first; API cleanup + a guard fixes the second.
   (:27) / `UpdateRouteSelWithMeta` (:32) are the in-process-only typed fast path (comment :24-26)
   exposing `*selector.Selector`, with a `sel.String()` fallback (:36) external plugins already
   reach via the string `UpdateRoute` (:20).
-- [ ] `internal/component/plugin/server/startup.go` - engine Stage-1 read + `registrationFromRPC`.
-- [ ] `internal/component/plugin/server/subsystem.go` - the SECOND engine Stage-1 read site.
+- [ ] `internal/component/plugin/server/startup_driver.go` - `runStartupHandshake` reads and decodes Stage 1 once for both startup topologies, then calls the sink's `onRegistration`
+- [ ] `internal/component/plugin/server/startup.go` and `subsystem.go` - engine and hub sinks supplying caller-specific effects
 
 **Behavior to preserve:** (unless user explicitly said to change)
 - In-tree plugins (rebuilt in lockstep) keep working across all 5 stages unchanged.
@@ -140,8 +141,8 @@ first; API cleanup + a guard fixes the second.
 
 ### Transformation Path
 1. Plugin authenticates via `SendAuth`, then emits Stage-1 `DeclareRegistrationInput`.
-2. Engine reads Stage 1 at `server/startup.go` OR `server/subsystem.go` (two topologies) and
-   converts via `registrationFromRPC`.
+2. `runStartupHandshake` in `server/startup_driver.go` reads and decodes Stage 1,
+   then calls `onRegistration` on the engine or hub sink.
 3. Today: no version is present, so a struct-shape drift decodes into wrong/zero fields silently.
 4. Separately, at runtime an in-process plugin may call `Plugin.UpdateRouteSel(*selector.Selector)`
    (`sdk_engine.go`) into `DirectBridge.UpdateRouteSel` (`bridge.go`) - an exported path
@@ -160,7 +161,7 @@ first; API cleanup + a guard fixes the second.
 ### Integration Points
 - `pkg/plugin/rpc.DeclareRegistrationInput` and a new `ProtocolVersion` constant - the version carrier.
 - `pkg/plugin/sdk` Stage-1 send path - where the plugin declares its version.
-- `server/startup.go` / `server/subsystem.go` `registrationFromRPC` - where the engine validates it.
+- `server/startup_driver.go` `runStartupHandshake` - shared Stage-1 version validation before caller-specific registration effects
 - `pkg/plugin/rpc/bridge.go` / `pkg/plugin/sdk/sdk_engine.go` - the exported internal-typed surface.
 - `./le verify current mode full` - where the new boundary guard runs.
 
@@ -185,7 +186,7 @@ first; API cleanup + a guard fixes the second.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Version check added at only one of the two Stage-1 sites (startup vs subsystem) | one topology rejects, the other silently accepts | Add to both, or gate on `spec-unify-startup`; a test drives both topologies |
+| R-1 | Version validation is placed in one sink and bypassed by the other | one topology rejects, the other accepts | Validate in `runStartupHandshake`; tests drive both engine and hub callers |
 | R-2 | Strict version match is too rigid for future minor-compatible changes | every minor bump breaks all plugins | Decide match policy (exact vs min-supported range) as a Key Design Decision |
 | R-3 | Moving the exported internal-typed API breaks in-process plugin callers | compile break in in-tree plugins | Relocate to an internal in-process seam the in-tree callers import (allowed); update callers |
 
@@ -202,7 +203,7 @@ first; API cleanup + a guard fixes the second.
 |-------|-------------------|-------------------|
 | AC-1 | Plugin and engine at the same protocol version | Stage-1 declare-registration carries a `ProtocolVersion`; handshake proceeds normally through Stage 5 |
 | AC-2 | Plugin declares a protocol version the engine does not support | Engine rejects at Stage 1 with a specific, logged diagnostic BEFORE any later typed struct is trusted; the plugin sees a clear error, not a hang or silent mis-decode |
-| AC-3 | Version check present at BOTH engine Stage-1 sites (or the unified site) | `startup.go` and `subsystem.go` topologies both enforce it; a test drives both |
+| AC-3 | Engine and hub startup topologies receive an incompatible version | Both reject through the shared `runStartupHandshake` Stage-1 validation; a test drives each caller |
 | AC-4 | Inspect the advertised public `pkg/plugin/**` exported API | No exported func/method/type/handler signature names a type from any `internal/` package (`*selector.Selector` no longer appears in the public surface) |
 | AC-5 | Run `./le verify current mode full` | A mechanical guard fails the build if any exported `pkg/plugin/**` signature references an `internal/` type, preventing regression |
 
@@ -220,7 +221,7 @@ first; API cleanup + a guard fixes the second.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestProtocolVersionNegotiated` | `internal/component/plugin/server/startup_test.go` | matching version proceeds; mismatch rejected with diagnostic | |
-| `TestProtocolVersionBothTopologies` | `internal/component/plugin/server/subsystem_test.go` | both Stage-1 sites enforce the version | |
+| `TestProtocolVersionBothTopologies` | `internal/component/plugin/server/startup_driver_test.go` | engine and hub callers both enforce the common version policy | |
 | `TestPublicPkgAPIHasNoInternalTypes` | `pkg/plugin/boundary_test.go` | no exported pkg/plugin signature names an internal type | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -246,9 +247,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 - `pkg/plugin/rpc/types.go` - add a `ProtocolVersion` constant and field on
   `DeclareRegistrationInput` (Stage 1).
 - `pkg/plugin/sdk/sdk.go` - send `ProtocolVersion` at Stage 1; surface the engine's rejection.
-- `internal/component/plugin/server/startup.go` - validate the version in `registrationFromRPC`
-  (or before it); reject on mismatch.
-- `internal/component/plugin/server/subsystem.go` - the second Stage-1 site; same check.
+- `internal/component/plugin/server/startup_driver.go` - validate Stage-1 protocol compatibility before `sink.onRegistration`; reject incompatible versions with the AC-2 diagnostic
 - `pkg/plugin/rpc/bridge.go` - move the `*selector.Selector` typed fast path out of the exported
   public surface (option a) so no exported signature names an internal type.
 - `pkg/plugin/sdk/sdk_engine.go` - relocate `UpdateRouteSel`/`UpdateRouteSelWithMeta` to an
@@ -292,8 +291,8 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
    `TestPublicPkgAPIHasNoInternalTypes` expecting the end state (both fail now).
    - Files: `pkg/plugin/rpc/types.go`, `pkg/plugin/boundary_test.go`, the `.ci` files.
    - Verify: version test fails (no field), boundary test fails (selector leak present).
-2. **Phase: Version negotiation** — plugin sends the version; both engine Stage-1 sites validate
-   and reject with a diagnostic; matching version proceeds.
+2. **Phase: Version negotiation**: the plugin sends its version; the common
+   Stage-1 driver enforces the selected policy for both callers.
    - Tests: `TestProtocolVersionNegotiated`, `TestProtocolVersionBothTopologies`,
      `plugin-version-mismatch.ci`, `plugin-version-match.ci`.
 3. **Phase: Boundary cleanup** — relocate the internal-typed `UpdateRouteSel*` fast path out of
@@ -328,7 +327,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 ### Failure Routing
 | Failure | Route To |
 |---------|----------|
-| One topology accepts a bad version | Add the check to both sites (Phase 2, R-1) |
+| One topology accepts a bad version | Trace its path through the shared driver; remove any sink-only version check (Phase 2, R-1) |
 | In-process caller breaks after relocation | Point it at the internal seam (Phase 3, R-3) |
 | Guard flags a leak beyond selector | Fix that signature too (A-2) |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
@@ -359,7 +358,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 |----------|------------------------|-----------|
 | Relocate the in-process `UpdateRouteSel*` internal-typed API out of public `pkg/` (option a) | (b) move the whole SDK under `internal/` and drop the public claim; (c) relocate `selector` to `pkg/` | (a) keeps the in-process fast path while making the public surface honest; (c) has a large blast radius (selector is used across internal); (b) is the honest-retreat fallback if external plugins are never intended |
 | Version at Stage-1 declare-registration | Version in `SendAuth`, or a separate Stage-0 hello | Stage 1 is the first structured message and matches the finding's proposal; avoids a new stage |
-| Match policy decided in design | strict-equality vs min-supported-range | Range tolerates minor-compatible changes; strict is simpler; pick per rollout needs (R-2) |
+| Match policy remains OPEN before readiness | strict equality vs a supported-version range | Record the selected policy and the treatment of missing, older and future versions before implementation; AC-2's incompatible-version refusal remains required |
 
 ## Known Limitations
 - This spec does not make `pkg/plugin/sdk` free of ALL internal imports (it may still use

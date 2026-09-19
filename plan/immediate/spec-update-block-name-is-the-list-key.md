@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Scope | config |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-13 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -28,8 +28,8 @@ disagree about which one to read.
 
 The owner ruled on 2026-09-13 that `update <name> { ... }` is the spelling. The
 `name` leaf form is retired. The owner ruled the same day that the name is
-unique and a repeat is refused at config load, which is what the parser already
-does. The name is operator memory: nothing keys behavior off it, it reaches no
+unique and a repeat is refused at config load. The parser enforces that for
+ordinary names, but currently exempts the literal name `default`. The name is operator memory: nothing keys behavior off it, it reaches no
 BGP message, and it needs no lookup path and no registry. What it owes is that
 it survives a read and write round trip and that the CLI and the web show it.
 
@@ -54,6 +54,23 @@ leaf and the `ze:display-key` extension deleted with it; every surface reading
 the one fact; and a bare `update { }` still legal, because the whole tree writes
 it that way.
 
+### Representation decision required before implementation
+
+The current tree cannot distinguish `update default { }` from `update { }`.
+`parseList` passes `KeyDefault` for the anonymous form and the same string for
+the explicit name; `Tree.AddListEntry` retains only that key and adds `#N` on a
+collision. Stripping the suffix cannot recover whether the operator supplied a
+name. The earlier stored-key-only helper design is withdrawn.
+
+Both behaviours remain required: several anonymous blocks are legal, and
+`default` is a legal, unique operator name that survives every round trip.
+Before returning to `ready`, the design must choose a collision-free internal
+key representation or explicit anonymous-entry identity, then carry it through
+parsing, tree mutation/copy/merge, CLI editing, web creation, duplicate checks
+and all serializers. The operator name still has one declaration; identity
+must not revive the retired `name` leaf. No naming restriction is approved.
+The implementation phases below depend on this decision.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -76,8 +93,8 @@ reads the `attribute` container and the `nlri` list of each entry and never
 reads the entry key or a `name` leaf.
 
 **Key insights:** (minimal context to resume after compaction)
-- The parser already stores the positional word as the entry key, for every list, keyed or not. No parser work is owed for the new spelling.
-- The CLI is already correct. `diff_tree.go` strips the `#N` suffix before comparing against `KeyDefault`, and `completer.go` shows the key for a named entry and `#N` for an unnamed one. The web and `serialize.go` are the outliers.
+- The parser stores the positional word as the entry key, but loses the distinction between an anonymous entry and the permitted name `default`. Parser and tree work is owed before a shared display helper can be correct.
+- The CLI strips generated suffixes, but its `KeyDefault` comparison shares that ambiguity. CLI editing, completion and diff must consume the resolved identity with the web and serializers.
 - `list update` is the only keyless list in the config tree. A walk of every `.yang` under `internal/` finds eleven keyless lists, and the other ten are rpc input and output lists in `ze-system-api.yang`, `ze-plugin-api.yang`, `ze-bgp-api.yang` and `ze-rib-api.yang`, which the config parser never reaches.
 - `allowsDuplicateParsedListEntries` is what keeps two bare `update { }` blocks legal, and it reads `DisplayKey` to decide. Deleting the extension without replacing that condition makes every config with two bare blocks fail to load, and the tree holds dozens.
 
@@ -91,7 +108,7 @@ reads the entry key or a `name` leaf.
 - [ ] `internal/component/config/serialize.go` - `serializeListBlocks` sorts the keys, then writes the key after the list name for every key other than the literal `KeyDefault`, so a generated `default#1` is written out. `StripListKeySuffix` exists in the same file and is not used there.
 - [ ] `internal/component/config/serialize_annotated.go` - strips the suffix into `displayKey`, then still tests the raw `key` against `KeyDefault`, so a `default#1` entry is written as `update default`.
 - [ ] `internal/component/config/serialize_blame.go` - the same pair of lines as the annotated writer, with the same result.
-- [ ] `internal/component/cli/diff_tree.go` - strips the suffix and compares the STRIPPED key against `KeyDefault`, which is the correct shape and the one this spec adopts everywhere.
+- [ ] `internal/component/cli/diff_tree.go` - strips the suffix and compares the stripped key against `KeyDefault`; this suppresses a literal name `default` as well as an anonymous key.
 - [ ] `internal/component/cli/completer.go` - `isDefaultKey` answers for `KeyDefault` and `KeyDefault#N`; the key completion shows the key for a named entry and `#N` for an unnamed one.
 - [ ] `internal/component/cli/editor_walk.go` - a path element that is not a schema child of the list is taken as the entry key, so `edit bgp peer p1 update drop-ssh-scan` already reaches a named block; a path that stops at the list name uses `KeyDefault`.
 - [ ] `internal/component/web/fragment.go` - `buildListColumn` sets the display name to the key, then for a keyless schema replaces it with `keylessEntrySummary` or `#<key>`, and files the entry under `UnnamedItems` when the summary is empty. `keylessEntrySummary` prefers the `DisplayKey` leaf, then child list keys, then the first non-empty leaf.
@@ -112,14 +129,14 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - `update { attribute {} nlri {} }` with no name stays legal at the bgp, group and peer levels, and several of them in one container stay legal. Dozens of `.ci`, `.conf` and interop scenario files depend on it, including seven bare blocks in `test/parse/simple-v4.ci`.
-- A repeated name is refused at load, with the existing message `duplicate list key for update: <name>`.
+- Repeated names remain refused at load with the existing message `duplicate list key for update: <name>`; the current exemption for a literal `default` must be removed without refusing repeated anonymous blocks.
 - The routes an update block produces do not change. `extractRoutesFromUpdateBlock` keeps reading `attribute` and `nlri` only, and entries keep being walked in insertion order.
 - The CLI key completion keeps showing `#N` for an unnamed entry and the key for a named one.
 - Every other list keeps its current key handling. `list update` is the only keyless list the config parser reaches.
 
 **Behavior to change:**
 - `update { name <x>; }` stops parsing. The leaf is gone, so the parser answers `unknown field in update: name`.
-- A keyless list entry whose stored key is the anonymous one is written with no key at all, by all three serializers. `update "default#1" {` and `update default {` stop being written.
+- An anonymous entry is written with no key by all three serializers. A literal operator name `default` is written as `update default {`; generated anonymous keys never reach config text.
 - The web finder labels an update entry with its name when it has one, and keeps the content summary only for an unnamed one.
 - The web add form asks for an optional name and posts it as the entry key. An entry created with no name gets the anonymous key, not a sequential number.
 
@@ -130,9 +147,9 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 - Format at entry: config text read by `internal/component/config/parser_list.go`, a CLI editor path, or an HTTP POST form field.
 
 ### Transformation Path
-1. `parseList` reads the word after `update` and calls `ValidateListKey`, which checks it against the list's key type.
-2. `addParsedListEntry` refuses a repeat of an existing name, and lets two anonymous entries through.
-3. `Tree.AddListEntry` stores the entry under that key, appending `#N` when the key repeats, and records insertion order.
+1. `parseList` records whether the operator supplied a name and validates supplied names with `ValidateListKey`.
+2. `addParsedListEntry` refuses a repeated operator name, including `default`, and allows several anonymous entries.
+3. The tree preserves that distinction and insertion order using the representation selected during design; generated entry identifiers cannot collide with operator names.
 4. `extractRoutesFromUpdateBlock` reads `attribute` and `nlri` from the entry and ignores the key, so the name reaches no route and no BGP message.
 5. On the way out, the three serializers and the CLI diff view ask one helper what an entry's operator-visible name is, and write the list name alone when there is none.
 6. The web finder column and the add form ask the same helper, so the label the operator sees is the key they typed.
@@ -140,14 +157,14 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config text ↔ config tree | The entry key is the name; parse and serialize are inverses of each other | No |
-| Config tree ↔ CLI editor and diff | `editor_walk` takes the path element as the key; `diff_tree` shows the stripped key | No |
-| Config tree ↔ web finder and add form | HTTP form field `name` becomes the entry key; the finder column shows it | No |
+| Config text ↔ config tree | Parsing preserves supplied names and anonymous identity; serialization reconstructs the same distinction | No |
+| Config tree ↔ CLI editor and diff | CLI mutation preserves the resolved identity; diff and completion read the shared entry-name operation | No |
+| Config tree ↔ web finder and add form | HTTP form field `name` supplies the optional name; empty input creates anonymous identity and the finder reads that distinction | No |
 | Config tree ↔ BGP reactor | `extractRoutesFromUpdateBlock` reads attribute and nlri only, so nothing keys off the name | No |
 
 ### Integration Points
-- `config.StripListKeySuffix` - already the repository's answer to a generated key, and the base of the one helper this work leaves behind.
-- `config.KeyDefault` - the anonymous key, currently compared against in five places with three different meanings.
+- `config.StripListKeySuffix` - handles generated suffixes today; it cannot recover anonymous identity from the current ambiguous key.
+- `config.KeyDefault` - currently represents both an anonymous entry and a literal name `default`; the chosen representation must separate them before readers share an entry-name helper.
 - `ListNode.KeyName` - stays empty for `list update`, which is what keeps the name optional. YANG has no way to declare an optional key, so the keyless list plus an optional stored key IS the declaration.
 
 ### Architectural Verification
@@ -155,10 +172,10 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | The name enters through `parseList` and leaves through the serializers; no surface reads config text directly |
 | No unintended coupling (components stay isolated) | Yes | `internal/component/web` and `internal/component/cli` both call into `internal/component/config`, which is the existing direction; neither learns about `update` by name |
-| No duplicated functionality (extends existing, does not recreate) | Yes | The work removes four copies of the anonymous-key test and keeps the one in `internal/component/config`; `StripListKeySuffix` is reused rather than reimplemented |
+| No duplicated functionality (extends existing, does not recreate) | No | The shared entry-name operation is required, but its input representation remains a design decision |
 | Zero-copy preserved where applicable (refs, not copies) | Yes | Config parsing is not a hot path; the serializers keep writing through `textbuf.Buffer` |
-| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | Nothing is registered and nothing is added; `ListNode` loses a field |
-| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | Yes | No new name is introduced. The lists searched for `display-key` are every `.yang`, `.go`, `.html` and `.md` under the checkout (one YANG user, one extension declaration, two doc tables, two published site fixtures); the lists searched for the anonymous-key test are every `KeyDefault` reference under `internal/`, which the helper now derives from |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | The representation change must remain generic to keyless lists; review the selected design before implementation |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name (`ai/rules/principles.md`) | No | The selected representation and shared readers must derive identity without a special case for `update` |
 
 ## Risks & Assumptions
 
@@ -169,12 +186,13 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 | A-2 | No config, test, doc or fixture in the tree uses `update { name <x>; }` | A scan of every `.ci`, `.conf`, `.et`, `.md` and `.txt` for a `name` leaf inside an update block returned zero hits on 2026-09-13 | Deleting the leaf breaks a test, which then has to be rewritten to the new spelling in this work | `./le verify current mode full` after the leaf is deleted | unvalidated |
 | A-3 | Nothing reads the update entry key to decide behavior | `extractRoutesFromUpdateBlock` (`internal/component/bgp/config/bgp_routes.go`) reads `attribute` and `nlri` only; the owner's ruling of 2026-09-13 says the name is operator memory | A name change would alter routing, and the name would be an identifier rather than a mnemonic | AC-8: renaming a block leaves the announced routes byte-identical | unvalidated |
 | A-4 | The `name` form field the web add form already posts can carry the optional name for a keyless list with no handler change to the key path | `HandleConfigAddWithAuthorizer` appends the `name` form value to the path before it looks at whether the list is keyless | The handler needs a keyless branch of its own | AC-6 and its web functional test | unvalidated |
+| A-5 | The current stored key distinguishes anonymous entries from every permitted name | `parseList` passes `KeyDefault` for both a bare entry and an explicit `default`; `Tree.AddListEntry` stores only that string | A key-only helper erases a legitimate name and accepts repeated named-default entries | Producer read on 2026-09-19: `parser_list.go:23-62`, `tree.go:544-566` | broken; representation redesign required |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Deleting `ze:display-key` without replacing the `DisplayKey` condition in `allowsDuplicateParsedListEntries` makes every config with two bare update blocks fail to load | `test/parse/simple-v4.ci` and `test/parse/simple-v6.ci` go red on the first run | Change the condition in the same edit as the extension deletion, and keep AC-2 as the test that names it |
-| R-2 | Suppressing the key when its stripped form is the anonymous one hides a legitimate entry named `default` | A config with a block named `default` round trips to an unnamed block | The name pattern accepts `default`, so the implementation must decide on the STRIPPED key equalling the anonymous constant, and the .ci covers a block named `default` |
+| R-2 | Anonymous identity collides with the legitimate name `default` | Mixed anonymous/named-default input loses names or duplicate-name validation | Choose a representation that preserves the distinction at creation; exercise mixed round trips and duplicate `default` through every creation surface |
 | R-3 | `serializeListBlocks` sorts entry keys, so a rewrite reorders update blocks and naming a block moves it. This is a defect of every list, not of this work | `ze config fmt` on the measurement config put the two bare blocks before the two named ones, reversing the file | Out of scope here and named in Known Limitations; this spec asserts the name and the absence of a generated key, not the order |
 | R-4 | The web golden fixture for the keyless add form and the two published site fixtures carry the retired leaf, so they go red | `./le verify current mode full` reports golden mismatches | Regenerate both in the same work and read the diff before accepting it |
 
@@ -203,14 +221,14 @@ Measured with `bin/ze` on 2026-09-13, on a peer holding `update drop-ssh-scan`,
 |-------|-------------------|-------------------|
 | AC-1 | A config holds `update drop-ssh-scan { attribute {} nlri {} }` | It loads, and the block's name is `drop-ssh-scan` everywhere it is shown |
 | AC-2 | A config holds two or more bare `update { }` blocks in one container | It loads, and each block is a separate entry, at the bgp, group and peer levels |
-| AC-3 | A config holds two update blocks with the same name | It is refused at load, naming the repeated name and the line |
+| AC-3 | A config holds two update blocks with the same name, including two explicitly named `default` with anonymous entries between them | It is refused at load, naming the repeated name and the line; anonymous entries do not bypass named uniqueness |
 | AC-4 | A config holds `update { name drop-ssh-scan; }` | It is refused, naming `name` as an unknown field of `update` |
-| AC-5 | `ze config fmt` or `ze config show` runs over a config holding named and bare blocks | Each named block is written as `update <name> {`, each bare block as `update {`, and no generated key such as `default`, `default#1` or a sequential number appears |
+| AC-5 | `ze config fmt` or `ze config show` runs over named and bare blocks, including a literal name `default` mixed with several bare blocks | Each named block retains its supplied name, including `default`; each bare block stays bare and no generated anonymous key appears |
 | AC-6 | An operator adds an update block in the web with a name typed in the form | The block's entry key is that name, the finder lists it under that name, and the committed config text carries `update <name> {` |
 | AC-7 | An operator adds an update block in the web with the name left empty | The block is created as an anonymous entry, the finder shows the content summary for it, and the committed config text carries a bare `update {` |
 | AC-8 | The name of an update block is changed and nothing else is | The routes the block announces are unchanged, and no BGP message differs |
 | AC-9 | The schema is loaded | No YANG module in the tree declares or uses `ze:display-key`, and `ListNode` carries no display-key field |
-| AC-10 | A config file is read and written back | Every update block name the operator typed is read back as typed, and no name the operator did not type appears |
+| AC-10 | A config containing `update default { }`, another named block and several bare blocks is read, written and parsed again through plain, annotated and blame serializers | Each operator name is preserved exactly and every anonymous block stays anonymous; CLI diff/completion and web creation/display preserve the same distinction |
 
 ## End-to-End User Stories
 
@@ -257,12 +275,11 @@ now carry, so a name the leaf would have refused is still refused.
 | `test-web-update-block-name` | `test/web/update-block-name.wb` | An operator adds a named update block in the web and reads the name back in the finder | |
 | `test-editor-update-block-name` | `test/editor/completion/bgp-peer-update-name.et` | Key completion offers the name of a named block and `#1` for a bare one | |
 
-The `.ci` discrimination, one assertion per property: the fmt assertion names
-`update drop-ssh-scan {`, which no input line carries in that form after the
-serializer normalizes the file; the reject names `default`, which is what the
-current serializer writes and which no correct output carries; the refusal case
-asserts the exit code and the message text, which a parser that accepts a
-repeat cannot produce.
+The `.ci` assertions must distinguish operator-supplied names from generated
+keys. A blanket rejection of `default` is invalid because it is a required
+legal name. Mixed named-default and anonymous blocks must retain their separate
+identities after formatting and reparsing, and a second explicitly named
+`default` must fail even when anonymous blocks are present.
 
 ### Interop Tests (Scope: protocol)
 Not applicable. Scope is `config` and no wire-visible behavior changes.
@@ -277,10 +294,12 @@ keep loading under AC-2.
 - `internal/component/config/yang/modules/ze-extensions.yang` - delete `extension display-key` and its comment block
 - `internal/component/config/yang_schema.go` - delete `hasDisplayKeyExtension` and the keyless-list scan that fills `DisplayKey`
 - `internal/component/config/schema.go` - delete `ListNode.DisplayKey`; make `ValidateListKey` apply the update list's name pattern to a keyless list's key
-- `internal/component/config/parser_list.go` - `allowsDuplicateParsedListEntries` allows a repeated anonymous key on any keyless list, which is what keyless means, and stops reading `DisplayKey`
-- `internal/component/config/serialize.go` - one helper answering, for a stored key, the operator-visible name and whether the entry has one, built on `StripListKeySuffix`; `serializeListBlocks` writes the key through it
+- `internal/component/config/parser_list.go` - preserve whether a name was supplied; duplicate validation permits repeated anonymous entries while refusing every repeated supplied name, including `default`, without `DisplayKey`
+- `internal/component/config/tree.go` and its mutation/copy/merge paths - preserve the selected anonymous-entry identity across every tree operation; determine the exact representation during design
+- `internal/component/config/serialize.go` - one entry-name helper consuming the resolved identity rather than guessing from the current key string; `serializeListBlocks` writes names through it
 - `internal/component/config/serialize_annotated.go` - use the helper in place of the stripped-key and raw-key pair
 - `internal/component/config/serialize_blame.go` - the same
+- `internal/component/cli/editor_walk.go` and the CLI list-entry mutation paths selected during design - distinguish a supplied `default` from creating or selecting an anonymous entry.
 - `internal/component/cli/diff_tree.go` - use the helper in place of its own copy of the test
 - `internal/component/cli/completer.go` - `isDefaultKey` becomes a call to the helper
 - `internal/component/web/fragment.go` - `buildListColumn` shows the entry's name when it has one and the content summary only when it does not; `keylessEntrySummary` loses its `DisplayKey` preference
@@ -340,13 +359,17 @@ keep loading under AC-2.
 
 ## Implementation Steps
 
+Before phase 1, resolve the representation decision above and update the tree
+API and caller inventory. These phases describe required outcomes, not an
+approved key-only implementation.
+
 1. **Phase: Wiring (MANDATORY FIRST)** -- prove the entry points before changing behavior
    - Tests: `TestUpdateBlockNameIsTheEntryKey`, `TestBuildListColumnShowsUpdateBlockName`, `test/parse/update-block-name.ci`
    - Files: `internal/component/config/parser_list_test.go`, `internal/component/web/fragment_test.go`, `test/parse/update-block-name.ci`
    - Verify: the parser test passes today (the key is already stored) and the web test and the `.ci` fail, which is the split this work closes
-2. **Phase: one declaration of the entry name** -- add the helper and route every reader through it
-   - Tests: `TestSerializeOmitsGeneratedListKey`, `TestSerializeWritesOperatorName`, `TestConfigTextRoundTrip`
-   - Files: `internal/component/config/serialize.go`, `serialize_annotated.go`, `serialize_blame.go`, `internal/component/cli/diff_tree.go`, `internal/component/cli/completer.go`
+2. **Phase: one declaration of the entry name** - preserve anonymous identity at creation and route every reader through the shared entry-name operation
+   - Tests: mixed named-default/anonymous parsing and duplicate-name cases, `TestSerializeOmitsGeneratedListKey`, `TestSerializeWritesOperatorName`, `TestConfigTextRoundTrip`
+   - Files: `internal/component/config/parser_list.go`, tree storage and mutation/copy/merge paths selected during design, `serialize.go`, `serialize_annotated.go`, `serialize_blame.go`, `internal/component/cli/editor_walk.go`, `diff_tree.go`, `completer.go`
    - Verify: the three serializers and the CLI diff give the same answer for the same key, and no generated key reaches config text
 3. **Phase: delete the retired spelling** -- the leaf, the extension, and the plumbing
    - Tests: `TestUpdateBlockRejectsRetiredNameLeaf`, `TestKeylessListAllowsSeveralAnonymousEntries`, `TestNoDisplayKeyExtensionRemains`
@@ -366,11 +389,11 @@ keep loading under AC-2.
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line, and AC-9 is satisfied by a grep over the whole tree rather than over the edited files |
 | Feature completeness | The name survives config text, the CLI editor, the CLI diff, the web finder, the web add form and a commit, with no surface left reading a deleted field |
-| Correctness | The anonymous-key test is on the STRIPPED key in every caller, so `default#1` is anonymous and a block literally named `default` is not |
+| Correctness | Anonymous identity survives creation and every tree operation independently of the permitted name `default`; mixed round trips preserve both, and repeated named-default entries are refused |
 | Naming | The helper names what it answers (the entry's operator-visible name), not how it is computed, and no caller re-implements it |
 | Data flow | Nothing reads the entry key to decide behavior; `extractRoutesFromUpdateBlock` is unchanged |
 | Rule: `ai/rules/no-layering.md` | The `name` leaf and `ze:display-key` are deleted, not deprecated, and no fallback reads the leaf when the key is empty |
-| Rule: `ai/rules/principles.md` | After the change, `KeyDefault` is compared against in one place, and the count is evidence in the review |
+| Rule: `ai/rules/principles.md` | One shared operation answers the operator-visible name from the resolved representation; no caller reconstructs identity by comparing the current ambiguous string |
 | Rule: `ai/rules/documentation.md` | The four pages are edited in phase 5 of this work, not in a follow-up |
 
 ### Deliverables Checklist
@@ -378,8 +401,8 @@ keep loading under AC-2.
 |-------------|---------------------|
 | No `ze:display-key` anywhere | `grep -rn "display-key" --include="*.yang" --include="*.go" --include="*.md" .` returns nothing outside this spec |
 | No `DisplayKey` field | `grep -rn "DisplayKey" --include="*.go" internal/` returns nothing |
-| One anonymous-key test | `grep -rn "KeyDefault" --include="*.go" internal/` outside test files shows the parser's two uses and the helper, and no comparison in a caller |
-| No generated key in config text | `./bin/ze config fmt test/parse/simple-v4.ci`-shaped config prints no `default` |
+| One entry-name operation | Every serializer, CLI and web reader consumes the resolved identity; no caller infers anonymity from a permitted operator name |
+| No generated key in config text | Formatting mixed named-default/anonymous input preserves the literal name and emits bare syntax for every anonymous block |
 | Four functional tests run | `./le test ci test/parse/update-block-name.ci` and the `.wb` and `.et` runs pass |
 | Whole gate | `./le verify worktree` passes |
 
@@ -404,19 +427,19 @@ keep loading under AC-2.
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-- The repository already held the right answer and did not apply it uniformly. `internal/component/cli/diff_tree.go` strips the generated suffix before testing for the anonymous key, and `internal/component/cli/completer.go` shows the key for a named entry and `#N` for an unnamed one. That pair IS the design; the work is to make the other four readers agree with it.
+- The existing CLI suffix handling is useful but cannot distinguish two inputs collapsed by the parser. Identity must survive creation before the shared readers can give the right answer.
 - YANG cannot declare an optional key, because a `key` statement makes its leaves mandatory. Ze's config language has the concept anyway, and it is spelled as a keyless list whose entries may carry a stored key. That is why `list update` stays keyless: adding `key "name"` would make every bare `update { }` in the tree illegal.
 - A generated value escaping into a user-visible artifact is the failure shape behind two of the three defects here. `default#1` and the sequential `1` are both internal disambiguation that reached the operator's file.
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| The list stays keyless in YANG and the stored entry key is the name | Add `key "name"` to `list update` | A YANG key is mandatory. Adding one makes `update { }` illegal, and the tree writes it that way in dozens of `.ci`, `.conf` and interop files. The name is optional by the owner's own requirement, so the schema must not demand it |
+| The list stays keyless in YANG and the supplied entry name remains optional | Add `key "name"` to `list update` | A YANG key is mandatory and would refuse bare blocks. The internal representation must preserve anonymous identity separately from every permitted supplied name; its concrete form remains under design |
 | `update <name> { }` is the one spelling; `leaf name` and `ze:display-key` are deleted | Keep the leaf and reconcile it with the key at load | Two declarations of one fact is the defect (`ai/rules/principles.md`), and keeping both while preferring one is the hybrid `ai/rules/no-layering.md` bans. Nothing in the tree uses the leaf form, so deleting it costs no config |
-| The name is unique, refused at load (owner ruling, 2026-09-13) | Allow repeats, since a mnemonic arguably need not be unique | → Decision: the owner ruled on 2026-09-13 that the name is the list key and a repeat is a config error the operator sees at load. This is what `addParsedListEntry` already does. "Operator memory only" constrains what the name MUST NOT do (no behavior keys off it, it reaches no BGP message, it needs no lookup path or registry), not how it is stored. Do not reopen |
-| One helper answers "does this entry have an operator-visible name, and what is it" | Leave each reader its own test against `KeyDefault` | The test is spelled five times today with three different meanings, and two of the five are wrong. One declaration is the rule, and the count of `KeyDefault` comparisons is the review's evidence |
+| The name is unique, refused at load (owner ruling, 2026-09-13) | Allow repeated names | The rule includes the literal `default`. The current parser's exception conflates it with anonymous entries and must be corrected; the owner's uniqueness requirement remains unchanged |
+| One helper answers whether an entry has an operator-visible name and what it is | Leave each reader its own test against `KeyDefault` | The helper must consume identity preserved by the parser and tree. The earlier proposal to infer it solely from the current stored key is withdrawn |
 | `allowsDuplicateParsedListEntries` allows a repeated anonymous key on any keyless list | Keep a per-list opt-in, now keyed on something other than `DisplayKey` | A keyless list has no key, so two anonymous entries are two entries and "duplicate list key" is not a statement about them. An opt-in would be a new central enumeration of which lists may repeat, which is the shape `ai/rules/principles.md` names. `list update` is the only keyless list the config parser reaches, so the wider rule changes nothing else today |
-| A web-created entry with no name takes the anonymous key | Keep the sequential numeric key | Under this spec a stored key IS the name, so a sequential `1` publishes a name the operator never typed, and writes it into their config file. The anonymous key is what the parser gives a bare block, so the two entry points agree |
+| A web-created entry with no name has the same anonymous identity as a parsed bare block | Keep the sequential numeric key as its visible name | A sequential name publishes input the operator never supplied. Web and CLI creation must use the selected representation and preserve an explicitly supplied `default` |
 
 ## Known Limitations
 - `serializeListBlocks` sorts list entry keys, so writing a config back reorders update blocks and naming a block moves it in the file, while the config tree keeps insertion order and the route extractor walks that order. Measured on 2026-09-13: a peer holding `drop-ssh-scan`, `scrubbing` and two bare blocks formats back with the bare blocks first. This is a defect of every list, not of the name, and it is not fixed here. It is reported to the main thread for a journal row in `plan/journal/`, and this spec asserts the block NAMES that come back, not their order.

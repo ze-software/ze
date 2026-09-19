@@ -39,6 +39,14 @@ and takes part in the login-set gate that
 only the four surfaces that already carry a username; this one supplies the
 identity the other two lack.
 
+The first-release classification is unresolved. This spec is in `immediate/`,
+but the login-service gate it requires is in `plan/`, the optional bucket.
+The dependency remains mandatory: neither surface is complete here without
+joining that gate. The owner must either include the prerequisite in the
+first-release scope, move this combined identity work to the optional scope,
+or approve a separately specified prerequisite subset. Until that disposition
+is recorded, the two specs cannot be scheduled as independent commitments.
+
 ## Required Reading
 
 ### Architecture Docs

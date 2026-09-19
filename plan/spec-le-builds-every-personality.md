@@ -13,6 +13,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+AC-6's parser consolidation was recorded delivered on September 13.
+`skeleton` describes the remaining feature's planning readiness: personality
+actions, the named second axis, build logs and the guard message still need
+research and design. It does not mean that the parser change is unimplemented.
+
 Owner observation, 2026-09-13: building a tagged binary is a workflow `le`
 should own, and today the caller assembles it by hand.
 
@@ -148,7 +153,7 @@ actions today: `host`, `installer-amd64`, `installer-arm64`.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A personality builds with a different tag set than before and something silently changes | a feature compiled out of a binary that had it | Derive, then diff the derived set against each of the 26 hand-written lists before deleting any |
+| R-1 | A personality builds with a different tag set than before and something silently changes | a feature compiled out of a binary that had it | Reinventory the current build sites, then compare every derivable tag set before migrating its caller. The initial 26-file count was superseded by the September 13 research |
 | R-2 | Cross-compiling a host binary, which the naming rule exists to prevent | `exec format error` | The action refuses `GOARCH` on a host personality rather than trusting the caller |
 | R-3 | The hook keeps pointing at the wrong command | a caller told to use `-o bin/<name>` for a tagged build | The hook message names the new action; that edit lands with the action |
 
@@ -207,7 +212,7 @@ actions today: `host`, `installer-amd64`, `installer-arm64`.
 ## Files to Modify
 - `internal/le/buildartifacts/` - the personality actions
 - `internal/le/hookruntime/bash.go` - the guard message
-- the 26 files carrying a hand-written tagged build
+- current build callers identified by the resumed inventory; the September 13 parser consolidation is already recorded under AC-6
 - `docs/contributing/running-commands.md`, `ai/INSTRUCTIONS.md`
 
 ## Files to Create
@@ -230,7 +235,7 @@ actions today: `host`, `installer-amd64`, `installer-arm64`.
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- one personality builds through a registered action, and the test that proves its tag set matches the hand-written one is red first
-2. **Phase: derive every personality** -- AC-2 diffs the derived set against all 26 before deleting any
+2. **Phase: derive every personality** -- refresh the build-site inventory and prove AC-2 for every derivable caller before replacing its hand-written form; retain AC-7's named second-axis decision for the remaining tag sets
 3. **Phase: the guard points at the action**
 4. **Phase: delete the hand-written forms**
 

@@ -13,417 +13,244 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-> **RETURNED TO DESIGN 2026-08-24. The Task below is kept for its history and
-> MUST NOT be implemented as written.** Its research was incomplete on
-> 2026-08-22, and three of its statements are false against code that predates
-> it. The measured correction is in "What the 2026-08-24 re-cut established"
-> immediately after it. Read that section first, then re-cut the acceptance
-> criteria against it.
+Reconcile the remaining functional storage evidence with the current live-store
+contract before commissioning further implementation. The original task was
+returned to design on 2026-08-24 and its ACs were explicitly voided on
+2026-08-28. Neither the original all-daemons-pinned claim nor the later
+client-pin diagnosis describes the current runner.
 
-**Every functional test runs against a storage backend Ze does not ship, so no
-`.ci` or `.wb` can see a defect in the one operators get.**
+`Runner.runTest` now supplies `ze.config.dir=rec.WorkDir`, and
+`runOrchestrated` supplies an isolated `configDir` in
+`internal/test/runner/runner_exec.go`. Neither launch environment contains the
+old `ze.storage.blob=false` pin. `zeConfigFileName`
+(`internal/test/runner/runner_config.go`) gives distinct daemon stdin blocks
+distinct directories and reuses the assignment on restart.
 
-Two producers were read on 2026-08-22 and both hold today.
+The storage product changed too. `docs/architecture/storage-backends.md`
+defines a live framed `database` tree. `detect` and `openLive`
+(`internal/component/config/storage/open.go`) open that tree and refuse a
+legacy `database.zefs` with an explicit import diagnostic. Blob artifacts are
+seeds, backups and import inputs; restoring a blob-default switch or adding a
+`storage` directive would implement a retired design.
 
-`ze_core_dispatch.go` registers `ze.storage.blob` with `Default: "true"`
-(`cmd/ze/ze_core_dispatch.go`, the `env.MustRegister` call). Blob storage is what
-a shipped daemon uses.
+The retained concern is evidence that functional tests exercise the storage
+behaviour the product exposes, with isolated state for distinct daemons and
+stable state for a restarted daemon. The inherited web pending-diff coverage
+item remains to be assessed against current coverage. Existing
+`test/web/edit-diff-modal.wb` and `workbench-bgp-pending-diff.wb` are candidate
+carriers to inspect; their existence alone does not prove that they cover the
+original structural-operation failure.
 
-`runner_exec.go` appends `ze.storage.blob=false` to the daemon environment in two
-places (`internal/test/runner/runner_exec.go`, the suite launch path and the
-process launch path). Every daemon the functional runner starts therefore uses
-filesystem storage.
+The August disposition classed this as elective coverage. No current product
+defect or release blocker is established by this document. Before any new
+runner or product change, decide whether existing implementation and evidence
+satisfy the retained intent, or whether a specific coverage gap survives. This
+planning correction neither closes the spec nor authorises a new storage mode.
 
-So the suite's green says nothing about the shipped configuration. A defect that
-exists only under blob storage passes every `.ci` and every `.wb`, and the suite
-reports full coverage while exercising a path no operator runs.
+## Historical corrections and measurements
 
-**This is not hypothetical, and the instance is what found it.**
-`spec-fixit-zefs-diff-structural-ops` closed a defect that appeared only under
-blob storage: the pending-change review UI rendered a count over an empty body.
-It was reachable from the web editor, which is an operator surface, and the
-functional suite could not see it. That spec fixed the same class one layer down
-for `.et` tests by giving the runner a `storage` option. The `.ci` and `.wb`
-runners still have no such seam, which is why the surface the defect's own Task
-names, `/config/diff`, has no functional test.
+### 2026-08-22 premise, superseded on 2026-08-24
 
-**The pin is presumably deliberate and its reason is not recorded.** Filesystem
-storage is easier to inspect from a test, and a suite written before blob storage
-became the default would have had no reason to choose. Establish the reason
-before removing the pin: a test that reads a config file directly from disk
-breaks under blob storage, and that is a real cost to weigh rather than a
-surprise to hit.
+The original task claimed every functional daemon used filesystem storage,
+that the pin's reason was undocumented, and that neither `.ci` nor `.wb` could
+see a blob-only defect. The re-cut established that the daemon pin was guarded
+by `zeDaemonShouldForceFileStorage`, excluded web daemons and documented its
+purpose: keeping tests out of the developer's shared active pointer. The web
+runner used a separate environment producer and already ran blob storage.
+The client pin was unconditional at that time.
 
-## Disposition 2026-08-28: an IMPROVEMENT, moved to `plan/future/`
+`option=env:var=ze.storage.blob:value=...` was already an override; 17 fixtures
+used it in the August survey. The `.et` runner defaulted to filesystem and
+opted into blob, contrary to the original claimed precedent. Those are dated
+facts about the former two-backend contract, not instructions for the current
+live store.
 
-Judged against `plan/future/README.md`'s own list of what makes a defect. This
-spec matches none of the five: Ze puts no forbidden bytes on the wire, accepts no
-configuration it then ignores, exposes no unauthenticated surface, loses no
-route, and leaks nothing. Its own Blast Radius says it: **"Nothing ships
-differently."** What it describes is a gap in what the test suite EXERCISES, and
-the re-cut below already narrowed that gap twice: the daemon pin is guarded and
-excludes web daemons, and `.wb` already runs blob storage.
+### 2026-08-24 isolation experiment
 
-What survives is real and it is coverage: the CLIENT pin (`clientEnv`,
-`internal/test/runner/runner_exec.go`) is unconditional, so `ze cli`,
-`ze config` and `ze show` run filesystem storage in every functional test. A
-CLI-surface defect that exists only under blob storage would pass the suite.
+At that time `resolve.Storage()` selected
+`<DefaultConfigDir()>/database.zefs`, and the runner did not give each daemon
+its own config directory. The shared active pointer explained why removing
+both pins without isolation was unsafe.
 
-Two things go with the move, so the next reader does not re-derive them:
-
-| Item | Where it goes |
-|------|---------------|
-| The ACs as written | VOID. The re-cut below falsifies three of the Task's statements, and AC-3 is unreachable as stated: the tests need isolation, not a filesystem |
-| The real root cause | `resolve.Storage()` and `DefaultConfigDir()` give every daemon in a suite the same blob. Measured cost of the naive fix: 31 of 43 green reload tests regress. That is a design problem, and it is why this is not a small change |
-
-It is NOT moved to shrink the `plan/` count, which that README bans. It is moved
-because it is not a defect in the shipped product, and the release does not wait
-on it.
-
-## What the 2026-08-24 re-cut established
-
-Every statement here was read at the producing function, and the two counts came
-from running the reload suite serially.
-
-### Three statements in the Task above are false
-
-| Task statement | What the producer says |
-|----------------|------------------------|
-| "Every daemon the functional runner starts uses filesystem storage" | The daemon pin (`runner_exec.go`, the `binName == "ze"` branch) is GUARDED by `zeDaemonShouldForceFileStorage` (`runner_exec_util.go`), which is `zeDaemonConfigArgIndex(args) >= 0 && !zeDaemonUsesWeb(args)`. A web daemon is excluded. The guard landed in `31fa81106` on 2026-06-18, three months before this spec |
-| "The pin is presumably deliberate and its reason is not recorded" | The reason sits in the comment directly above the pin: "Keep them out of the developer's shared zefs active pointer so tests cannot load stale state." `TestZeDaemonShouldForceFileStorage` (`runner_exec_test.go`) holds it |
-| "no `.ci` or `.wb` can see a defect in the one operators get" | False for `.wb`. Its daemon environment comes from `zeTestEnv` (`internal/test/cli/cmd_web.go`), a different runner that never sets the key at all. `.wb` ALREADY runs blob |
-
-Two pins exist and this spec conflated them. The DAEMON pin is guarded as
-above. The CLIENT pin (`clientEnv` in `runner_exec.go`) is unconditional, so
-`ze cli`, `ze config` and `ze show` do run filesystem.
-
-### The per-test seam already exists
-
-`option=env:var=ze.storage.blob:value=...` works today and 17 `.ci` use it. It
-overrides the pin because `rec.EnvVars` are appended AFTER the pin and Go's exec
-dedup keeps the last entry. A new `storage` directive would be a second spelling
-of it (`ai/rules/no-layering.md`). The `.et` precedent runs the OTHER way from
-what the Key Design Decision claims: `internal/component/cli/testing/runner.go`
-defaults filesystem and opts INTO blob.
-
-### The real root cause is isolation, not the storage default
-
-`resolve.Storage()` (`internal/core/resolve/resolve.go`) builds
-`<DefaultConfigDir()>/database.zefs`. `DefaultConfigDir()`
-(`internal/core/paths/paths.go`) returns `ze.config.dir` when set and otherwise
-falls back binary-relative. The `.ci` runner never sets `ze.config.dir` for a
-daemon, so every daemon in a suite resolves the SAME blob and the same active
-pointer. That is exactly what the pin's own comment says it prevents.
-
-Measured on the reload suite, run serially:
-
-| Tree | PASS | TIMEOUT | FAIL |
-|------|------|---------|------|
-| HEAD | 42 | 0 | 1 (`mgmt-guard-reload-auth-rebuild`, a foreign red owned elsewhere) |
+| August tree | PASS | TIMEOUT | FAIL |
+|-------------|------|---------|------|
+| Then-HEAD | 42 | 0 | 1 (`mgmt-guard-reload-auth-rebuild`, attributed elsewhere) |
 | Both pins removed | 11 | 19 | 8 |
 | Pins removed, plus a per-test `ze.config.dir` | 25 | 15 | 3 |
 
-31 green tests regress in one suite of 24 files. Six of six regressed tests pass
-ALONE under blob with a fresh blob directory, each writing a real blob of about
-2 KB, which is what makes these harness failures rather than product defects.
-The residual 17 failures under a per-test `ze.config.dir` are NOT explained, and
-that experiment is not a design to build on.
+The August record reported 31 formerly green reload tests regressing across
+24 files. Six sampled cases passed alone with a fresh blob directory and
+wrote blobs of about 2 KB. Seventeen failures remained unexplained with a
+per-test directory; that experiment did not establish a finished isolation
+design. The parse suite's 312/312 result was weak storage evidence because its
+blob was a 37-byte header, while the reload suite's reached 12.6 KB.
 
-the retired `ze-functional-parse-test` (current: `./le functional parse`) was 312/312 with the pins removed, but that
-green is close to vacuous: its blob came out at 37 bytes, a bare header, where
-the reload suite's reached 12.6 KB.
+These counts are preserved as history. They are not a measurement of the
+current runner or of the framed-tree storage cutover.
 
-### What the re-cut has to change
+### 2026-08-28 disposition
 
-- **AC-3 is unreachable as written.** It asks every filesystem declaration to
-  carry a stated reason. The tests do not need filesystem, they need ISOLATION,
-  so any reason added to silence them would be false, which this spec's own R-2
-  and Critical Review row forbid.
-- **AC-4 is deliverable today and should be split out.** `.wb` needs no runner
-  change at all.
-- **The target is the config-dir root cause, not the storage default.** A spec
-  that removes the pins without giving each daemon its own config dir trades a
-  coverage gap for 31 red tests.
+The old ACs were voided. In particular, old AC-3 asked every filesystem
+selection to carry a justification even though the diagnosed need was
+isolation. Adding backend declarations to silence unexplained failures would
+have hidden the cause. The web structural-diff proof did not depend on a
+runner backend change. The work was placed in the elective tooling backlog.
 
 ## Required Reading
 
-### Architecture Docs
-- [ ] `docs/architecture/zefs-format.md` - what blob storage is and how a key resolves
-  → Constraint: a blob store resolves a directory key differently from a file path, which is the seam the closed spec's defect lived in.
-- [ ] `docs/architecture/testing/runner-architecture.md` - how the functional runner launches a daemon
-  → Constraint: the runner owns the daemon environment. A per-test option is the established way to vary it, and `.et` already has one.
-- [ ] `docs/functional-tests.md` - what the suites claim to cover
-  → Constraint: the page states what a green run means. It must stop implying coverage of a backend no test runs.
-
-**Key insights:**
-- A suite that pins a non-default configuration reports coverage of something nobody ships.
-- The `.et` runner already solved this with a `storage` option, so the shape is established and does not need designing.
+- [ ] `docs/architecture/storage-backends.md`: live tree, owner lock and explicit
+      blob import.
+- [ ] `docs/architecture/zefs-format.md`: artifact format, distinct from the live store.
+- [ ] `docs/architecture/testing/runner-architecture.md`: per-test execution and
+      the separate web runner.
+- [ ] `docs/architecture/testing/ci-format.md`: stable per-daemon directories and
+      restart semantics.
+- [ ] `docs/functional-tests.md`: what each suite exercises.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:**
-- [ ] `cmd/ze/ze_core_dispatch.go` - registers `ze.storage.blob` with default `true`
-- [ ] `internal/test/runner/runner_exec.go` - appends `ze.storage.blob=false` at two launch sites
-- [ ] `internal/component/cli/testing/runner.go` - `runTestCase` and its `case "storage"` branch, the seam `.et` already has
-- [ ] `internal/component/config/storage/blob.go` - `(*blobStorage).List` and `resolveDirKey`, the producer whose defect the suite could not see
+| Producer | Current fact | Evidence still owed |
+|----------|--------------|---------------------|
+| `internal/test/runner/runner_exec.go`, `runTest` | Client environment selects the test work directory and has no old blob pin | Identify current consumer-visible storage assertions |
+| `internal/test/runner/runner_exec.go`, `runOrchestrated` | Child environment receives `configDir` | Confirm the existing tests cover distinct daemons and restart reuse |
+| `internal/test/runner/runner_config.go`, `zeConfigFileName` | Distinct stdin blocks receive numbered directories; repeated blocks reuse their path | Map the existing `runner_config_test.go` cases to the intended isolation contract |
+| `internal/test/cli/cmd_web.go` | Web daemon environment selects its temporary config directory | Determine whether existing `.wb` assertions cover structural pending changes |
+| `internal/component/config/storage/open.go`, `detect` / `openLive` | Live storage is the framed tree; a legacy blob is refused | Use current storage behaviour in any retained regression case |
 
-**Behavior to preserve:**
-- A test that genuinely needs filesystem storage keeps getting it, by asking rather than by inheriting a suite-wide default.
-- The runner keeps one daemon environment producer. This adds an option to it; it does not add a second path.
-- Existing `.ci` and `.wb` assertions keep passing where they are backend-independent.
+Preserve current storage ownership and explicit import, daemon isolation,
+restart persistence, and backend-independent assertions. Do not restore
+`ze.storage.blob` to make the old plan executable.
 
-**Behavior to change:**
-- The functional runner defaults to the SHIPPED backend, so a green means what a reader assumes it means.
-- A test that reads config state from the filesystem declares that it needs filesystem storage, and the declaration is visible in the test.
-
-## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+## Data Flow (MANDATORY)
 
 ### Entry Point
-- A `.ci` or `.wb` file is run by the functional runner, which launches a `ze` daemon.
-- Format at entry: the test file's directives, plus the environment the runner composes.
+
+Existing `.ci` and `.wb` fixtures through their respective runners.
 
 ### Transformation Path
-1. The runner reads the test file and composes the daemon environment (`internal/test/runner/runner_exec.go`) -- the defect is here.
-2. `ze.storage.blob=false` is appended unconditionally at two launch sites.
-3. The daemon starts, and `ze_core_dispatch.go` reads the key it registered with default `true`, finding the override.
-4. Every config read and write in that daemon goes through filesystem storage.
+
+1. A fixture selects a daemon configuration and its isolated working directory.
+2. The runner composes the environment and starts the selected binary.
+3. The daemon opens the live store according to current storage ownership rules.
+4. Functional assertions observe config operations, restart persistence or the
+   pending-diff surface through the product entry point.
 
 ### Boundaries Crossed
-| Boundary | How | Verified |
-|----------|-----|----------|
-| Runner ↔ daemon | the composed process environment | No |
-| Daemon ↔ storage | `config.Storage`, blob or filesystem | No |
+
+| Boundary | Evidence to establish |
+|----------|-----------------------|
+| Runner -> daemon directory | Independent daemons do not share mutable state |
+| Restart -> same daemon directory | Restart preserves the intended state |
+| Pending changes -> web diff | The displayed content describes the structural operation, not only a nonzero count |
 
 ### Integration Points
-- `runner_exec.go` - the single composer of the daemon environment
-- `runTestCase`'s `case "storage"` branch (`internal/component/cli/testing/runner.go`) - the precedent this follows
+
+The existing runners and storage API own these boundaries. No new backend
+selector, environment registration or `.ci` directive is planned.
 
 ### Architectural Verification
-| Check | Holds? | Evidence |
-|-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+
+The current directory allocation is existing implementation. Assess its
+consumer-visible evidence before designing another isolation mechanism.
 
 ## Risks & Assumptions
 
 ### Assumptions
-| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
-|----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The pin has a reason, and the reason is that some tests read config state from the filesystem | filesystem storage is inspectable from a shell; blob storage is not | removing the pin breaks a population nobody sized, and the phase-1 count is the answer | run the whole suite once with the pin removed and count what fails | unvalidated |
-| A-2 | The failures a flipped default produces are test-harness failures, not product defects | the product ships blob storage, so a product defect under blob would already reach operators | each failure is a real defect the suite was hiding, which makes this spec much larger and is the outcome worth knowing early | read the first several failures at their producers before fixing any | unvalidated |
-| A-3 | A per-test `storage` option is enough, and no test needs BOTH backends in one run | the `.et` runner's option works that way, and the closed spec's pair of files is two tests rather than one | the seam needs to parameterize a test rather than select for it | the count from A-1, split by cause | unvalidated |
+
+| ID | Assumption | Basis | If wrong | Validation | Status |
+|----|------------|-------|----------|------------|--------|
+| A-1 | Existing isolation implementation covers the former shared-store failures | Per-test and per-daemon directory producers now exist | Identify the remaining failing transition rather than re-add a backend pin | Map existing tests, then run current concurrent and restart cases | unvalidated |
+| A-2 | Current web diff coverage may already exercise the inherited structural-operation case | Existing diff fixtures were found | A specific coverage item remains | Read their stimulus and assertions against the current diff producer | unvalidated |
 
 ### Risks
-| ID | Risk | Early signal | Mitigation / fallback |
-|----|------|--------------|----------------------|
-| R-1 | Flipping the default reddens a large population at once and stalls the release | the phase-1 count is large | the count is taken FIRST, before any change lands. If it is large, the default flips per suite rather than at once, and the order is recorded here |
-| R-2 | A failure is read as a harness problem and papered over with the option, hiding a real product defect | a test gains `storage: filesystem` with no reason stated | every use of the option states why that test needs the backend it asks for, and A-2 is settled by reading producers rather than by assuming |
+
+| ID | Risk | Early signal | Mitigation |
+|----|------|--------------|------------|
+| R-1 | Old measured failures are reported as current product defects | The report cites only August blob runs | Require a current fixture and producing path |
+| R-2 | A test failure is hidden by an obsolete storage override | A proposed change restores the retired selector | Keep the live-store contract and investigate the actual failure |
 
 ## Blast Radius
 
-| Question | Answer |
-|----------|--------|
-| What breaks if this is wrong? | Nothing ships differently. The cost of being wrong is a red suite and a stalled release, not a defect reaching an operator |
-| How is it reverted? | Single commit revert. The pin returns and the suite is exactly as it is today |
-| Who else touches this path? | Every functional suite. `spec-fixit-zefs-diff-structural-ops` closed the `.et` half of this on 2026-08-22 |
+The retained subject is functional evidence. Product behaviour changes require
+a current reproduced defect; neither historical pin removal nor restoration of
+a selectable live blob backend is an authorised implementation step.
 
-## Wiring Test (MANDATORY -- NOT deferrable)
+## Wiring Test (MANDATORY)
 
-| Entry Point | → | Feature Code | Test |
-|-------------|---|--------------|------|
-| A `.ci` that asserts which backend the daemon is using | → | the runner's environment composer | `test/plugin/storage-backend-is-the-shipped-default.ci` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
-| A `.ci` that declares it needs filesystem storage | → | the new option | `TestRunnerStorageOptionSelectsTheBackend` |
+Map existing isolation/restart tests and the current web diff fixtures before
+selecting new carriers. A regression proof must reach the current product
+surface and fail for the relevant behavioural defect.
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | A `.ci` with no storage directive | The daemon runs the shipped default, blob storage |
-| AC-2 | A `.ci` declaring it needs filesystem storage | The daemon runs filesystem storage, and the declaration is in the test file |
-| AC-3 | The whole functional suite | It passes, with every filesystem declaration carrying a stated reason |
-| AC-4 | A defect reachable only under blob storage | At least one `.ci` can fail for it, proven by reverting the closed spec's `List` fix and observing a red |
-| AC-5 | The runner is grepped for a pinned non-default env value | No environment key is pinned away from its registered default without a test-visible declaration |
+The old AC-1 through AC-5 remain void under the 2026-08-28 decision. Their
+replacement implementation contract requires a decision at the design gate.
+The reconciliation must answer each retained concern without inventing a new
+feature or deleting evidence obligations:
+
+| Retained concern | Required disposition before implementation |
+|------------------|-------------------------------------------|
+| The suite exercises the shipped storage contract | Map the current live-tree paths and existing assertions; name any actual gap |
+| Tests do not share a live store accidentally | Map distinct-daemon isolation and restart reuse to evidence |
+| Structural pending changes have functional diff proof | Identify an existing discriminating carrier or design the missing case against the current producer |
+| Harness failures are not hidden as backend exceptions | Attribute each current failure before changing a fixture |
 
 ## End-to-End User Stories
 
-| # | User does | Path through system | Test proving it works |
-|---|-----------|--------------------|-----------------------|
-| 1 | Edits configuration through the web editor on a shipped daemon and reviews the pending changes | web editor → `EditorManager.Diff` → blob storage | `test/web/config-diff-structural-op.wb` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
-| 2 | Runs the functional suite to gain confidence before a release | runner → daemon on the shipped backend | the suite itself |
+A maintainer can tell which current storage behaviour a functional pass proves.
+A user reviewing structural config changes gets the corresponding pending-diff
+content. Neither story calls for a second live storage backend.
 
-## 🧪 TDD Test Plan
+## TDD Test Plan
 
-### Unit Tests
-| Test | File | Validates | Status |
-|------|------|-----------|--------|
-| `TestRunnerStorageOptionSelectsTheBackend` | `internal/test/runner/runner_exec_test.go` | the option reaches the daemon environment, both values | |
-| `TestRunnerDefaultsToTheShippedBackend` | `internal/test/runner/runner_exec_test.go` | validates AC-1: no directive means blob | |
-| `TestNoEnvKeyIsPinnedAwayFromItsDefault` | `internal/test/runner/runner_exec_test.go` | validates AC-5 structurally, so the next pin cannot be silent | |
-
-### Boundary Tests (numeric inputs)
-| Field | Range | Last Valid | Invalid Below | Invalid Above |
-|-------|-------|------------|---------------|---------------|
-| N-A | the option is an enumeration of two backends, not a number | N-A | N-A | N-A |
-
-### Functional Tests
-| Test | Location | End-User Scenario | Status |
-|------|----------|-------------------|--------|
-| `storage-backend-is-the-shipped-default` | `test/plugin/storage-backend-is-the-shipped-default.ci` | the daemon a test drives is the daemon an operator runs | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
-| `config-diff-structural-op` | `test/web/config-diff-structural-op.wb` | the surface the closed spec's Task named, finally covered | <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) --> |
-
-### Interop Tests (Scope: protocol)
-| Scenario | Directory | Peer Daemon | What It Proves | Status |
-|----------|-----------|-------------|----------------|--------|
-| N-A | - | - | Storage backend selection is local and reaches no wire. No peer can observe it | N-A |
+Read existing carriers first. If a retained gap survives, design a consumer-
+visible regression for that gap and demonstrate its failure under a relevant
+current producer break. Reverting the removed August blob implementation is
+not a usable current mutation plan.
 
 ## Files to Modify
-- `internal/test/runner/runner_exec.go` - the default becomes the shipped backend, and a per-test option selects the other
-- `docs/functional-tests.md` - state which backend a suite runs and how a test asks for the other
-- `docs/architecture/testing/runner-architecture.md` - the environment composer's contract
-- `docs/architecture/testing/ci-format.md` - the design doc `runner_exec.go` declares: the new storage directive joins the `.ci` vocabulary
-- Every `.ci` or `.wb` the phase-1 count identifies, each gaining a declaration with a stated reason
+
+None selected before the remaining-evidence decision. Candidate inspection
+surfaces are the existing runner environment/config allocation, its tests,
+and current web diff fixtures. Documentation changes follow only a changed
+contract or a demonstrated inaccurate coverage claim.
 
 ## Files to Create
-- `test/plugin/storage-backend-is-the-shipped-default.ci` - the AC-1 proof <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
-- `test/web/config-diff-structural-op.wb` - the AC-4 proof, and the closed spec's missing coverage <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
 
-### Integration Checklist
-| Integration Point | Applies? | File / reason |
-|-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | No | no operator-visible setting changes; `ze.storage.blob` already exists |
-| YANG validation constraints | N-A | no new leaf |
-| YANG custom validators | N-A | no new leaf |
-| CLI commands/flags | No | no command changes |
-| CLI grammar (keyword before value) | N-A | no grammar change |
-| Editor autocomplete | N-A | no new leaf |
-| Functional test for new RPC/API | N-A | no new RPC |
-| Pipe completeness | N-A | no new output |
-| Env var registration | No | `ze.storage.blob` is already registered; this stops overriding it |
-| Doctor check for runtime dependencies | No | no new runtime dependency |
-| Prometheus counters/metrics | No | a test harness surface |
-| BGP family surface | N-A | not BGP |
-
-### Documentation Update Checklist (BLOCKING)
-| # | Question | Applies? | File to update |
-|---|----------|----------|---------------|
-| 1 | New user-facing feature? | No | a coverage hole is closed |
-| 2 | Config syntax changed? | No | no leaf changes |
-| 3 | CLI command added/changed? | No | none |
-| 4 | API/RPC added/changed? | No | none |
-| 5 | Plugin added/changed? | No | none |
-| 6 | Has a user guide page? | No | the runner is not an operator surface |
-| 7 | Wire format changed? | No | none |
-| 8 | Plugin SDK/protocol changed? | No | none |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | no RFC obligation is touched |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, and the runner architecture page. Also `docs/architecture/testing/ci-format.md`, the design doc `runner_exec.go` declares in its `// Design:` header: it defines the `.ci` directive vocabulary, and this spec adds a storage directive to it |
-| 11 | Affects daemon comparison? | No | none |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/testing/runner-architecture.md`, the environment composer's contract |
-| 13 | Route metadata keys added/changed? | No | none |
-| 14 | Prometheus counters added/changed? | No | none |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | none |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | grep `docs/` for anchors on `runner_exec.go` |
-| 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify any documented runner directive list |
+None commissioned. The former `storage-backend-is-the-shipped-default.ci` and
+`config-diff-structural-op.wb` were proposed names, not delivered files.
 
 ## Implementation Steps
 
-1. **Phase: Count it, and validate A-1 and A-2 (MANDATORY FIRST)** -- remove the pin locally, run the whole functional suite, and count what fails
-   - Files: this spec's Assumptions table, and a recorded list of the failing tests grouped by cause
-   - Verify: A-1 and A-2 flip to `confirmed` or `broken`. **Read the first several failures at their producers before fixing any.** A failure that is a real product defect under the shipped backend is the outcome that matters most, and it must not be papered over with the option
-   - If the count is large, record the per-suite order here before anything lands
-2. **Phase: Wiring** -- the option and its tests, with the default still pinned
-   - Tests: `TestRunnerStorageOptionSelectsTheBackend`, `storage-backend-is-the-shipped-default`
-   - Files: `internal/test/runner/runner_exec.go`
-   - Verify: a test can ask for either backend, and the `.ci` reports which one it got
-3. **Phase: Flip the default** -- the shipped backend becomes what a test gets by default
-   - Tests: `TestRunnerDefaultsToTheShippedBackend`, plus the suite
-   - Verify: the suite is green, and every filesystem declaration states its reason
-4. **Phase: Prove it can fail** -- close AC-4
-   - Tests: `test/web/config-diff-structural-op.wb` <!-- doc-links: ignore (this spec's own acceptance criteria create this file; the spec is ready and not yet authorised to run) -->
-   - Verify: reverting `(*blobStorage).List` to `resolveKey` reddens it. Without this the spec has moved the pin and proven nothing
-5. **Phase: Close the class** -- no env key is pinned away from its default silently
-   - Tests: `TestNoEnvKeyIsPinnedAwayFromItsDefault`
-   - Verify: the guard fails when a pin is added without a declaration
-
-### Critical Review Checklist
-| Check | What to verify for this spec |
-|-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file plus symbol |
-| Correctness | Every filesystem declaration states a reason, and none was added to silence a failure nobody read |
-| Data flow | One environment composer, one option, no second launch path |
-| Rule: `ai/rules/completion.md` | A red found in phase 1 that is a product defect gets fixed or gets its own spec. It is never resolved by declaring the test filesystem-only |
-| Rule: `ai/rules/interop-and-goal-validation.md` | AC-4 is the discrimination proof for this whole spec. Without it the change is a preference |
-
-### Deliverables Checklist
-| Deliverable | Verification method |
-|-------------|---------------------|
-| The suite runs the shipped backend by default | `TestRunnerDefaultsToTheShippedBackend` |
-| A blob-only defect can redden a functional test | revert `(*blobStorage).List` and run `config-diff-structural-op.wb` |
-| No silent pin remains | `TestNoEnvKeyIsPinnedAwayFromItsDefault` |
-
-### Security Review Checklist
-| Check | What to look for |
-|-------|-----------------|
-| Input validation | None: the option is a test-file directive read by the runner, not operator input |
-| Resource exhaustion | Blob storage has a different write pattern from filesystem. If the suite slows materially, record the measurement rather than reverting on impression |
-
-### Failure Routing
-| Failure | Route To |
-|---------|----------|
-| Compilation error | Fix in the phase that introduced it |
-| Test fails for the wrong reason | Fix the test assertion or setup |
-| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
-| Lint failure | Fix inline. If architectural → DESIGN |
-| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
-| Audit finds a missing AC | Back to the relevant phase and implement |
-| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
-
-## Design Insights
-
-- A suite that pins a non-default value reports coverage of a configuration nobody ships, and the report is indistinguishable from real coverage.
-- The cost of the pin is invisible until a defect escapes through it, which is why the instance that found this one came from a closed spec rather than from the suite.
+1. Map current implementation and evidence to the retained concerns above.
+2. Present the remaining design decision: close through the normal review path
+   if existing evidence satisfies the intent, or retain a specifically named
+   coverage gap and obtain approval of its revised ACs.
+3. Only for approved remaining coverage, add the missing discriminating proof
+   and fix any reproduced product defect that blocks it.
+4. Complete the applicable independent review and worktree verification gates.
 
 ## Key Design Decisions
 
-| Decision | Alternatives Considered | Rationale |
-|----------|------------------------|-----------|
-| Default to the shipped backend and let a test ask for the other | **B. Run every test twice, once per backend.** REJECTED for the first release: it doubles the suite's cost to cover a difference most tests cannot express. Worth revisiting once the phase-1 count says how many tests are backend-sensitive. **C. Leave the pin and add blob-only tests beside it.** REJECTED: it leaves the default suite testing an unshipped configuration, which is the defect | The `.et` runner already took this shape on 2026-08-22, so this makes the `.ci` and `.wb` runners consistent with a decision already made rather than inventing one |
+The August return-to-design pause remains in force. The choice is between
+reviewing already-satisfied intent and approving a concrete surviving coverage
+item. Reviving the removed live-blob selector is outside this task.
 
 ## Known Limitations
 
-- Phase 1 bounds this spec, and its count is not known when the spec is written. A large count changes the landing order and is recorded here before anything lands.
-
-## RFC Documentation (Scope: protocol)
-
-N-A. Storage backend selection reaches no wire and no RFC obligation.
+No current suite or reproduction was run during this reconciliation. Source
+reading establishes changed ownership and removed pins; it does not establish
+that all retained functional evidence is complete.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
-- [ ] Every user story has a working path and a passing test
-- [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
-- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
-- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
-- [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
-- [ ] Every A-N confirmed or broken, none `unvalidated`
-- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
-
-### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional `.ci` tests for end-to-end behavior
-- [ ] Interop tests for protocol features (or N-A with a reason)
+- [ ] Retained concerns mapped to current evidence.
+- [ ] Revised implementation ACs approved if a coverage gap survives.
+- [ ] Every retained AC demonstrated without weakening existing assertions.
+- [ ] Every assumption resolved.
+- [ ] `./le verify worktree` passes before closure.
 
 ### Closure
-- [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] Complete `plan/TEMPLATE-CLOSURE.md` and independent review.
+- [ ] Preserve the final evidence and decisions in commit A; remove this spec only in commit B.

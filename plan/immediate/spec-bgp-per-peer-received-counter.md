@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-bgp-filtered-route-storage (for the received-vs-accepted gap to be attributable) |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-08-08 |
 
@@ -57,52 +57,36 @@ neither the Adj-RIB-In size nor FRR's `pcount` (post-install) nor BIRD's
 `imp_routes` (post-import-filter). A surface built on it must say so, and must
 say which mode produced the number.
 
-Correction (2026-07-22 plan review): the BLOCKED note's reason #2 below (the
-Depends spec is "superseded" by a Phase-B pre-policy store that "probably
-dissolves this spec") is STALE -- both cited dependencies withdrew that
-premise on the same day it was written:
-`spec-bgp-peer-settings-reload-ignored.md` D-1b says "No new store anywhere"
-and D-4 is "WITHDRAWN 2026-07-16. It is NOT superseded";
-`spec-bgp-filtered-route-storage` now explicitly rejects any pre-policy
-store. The spec REMAINS legitimately blocked, but on reason #1 alone (A-4:
-the tally drifts under implicit withdraw -- `session_prefix.go`
-`prefixCounts` holds no per-prefix identity and `:196` `add()` does an
-unconditional `+= delta`).
+The 2026-07-22 correction withdrew the supposed Phase-B pre-policy store.
+`plan/immediate/spec-bgp-filtered-route-storage.md` remains related work for
+explaining policy rejects, but supplies no replacement store on which this
+spec can wait. The status is `design`: implementation remains paused on the
+received-count model itself, rather than on an external prerequisite.
 
-## BLOCKED: do not implement as currently written
+## Implementation paused pending received-count redesign
 
 An implementation attempt on 2026-07-16 stopped during the pre-code audit. Two
 findings, the first of which invalidates the spec's central premise. Both are
 evidenced below; a future session should re-design, not re-plumb.
 
-1. **The tally is pre-policy (A-1 holds) but it is NOT an accurate count of what
-   the peer sent.** It drifts upward without bound under implicit withdraw. See
-   A-4 in Risks & Assumptions. The spec's framing (lines "the reactor already
-   maintains it internally", "this spec is about safe exposure ... not about
-   computing a new number") is WRONG: an honest pre-policy count needs per-prefix
-   identity tracking, which does not exist today.
-2. **The Depends spec is superseded, and its replacement probably dissolves this
-   spec too.** During this audit `spec-bgp-filtered-route-storage` went
-   `skeleton` -> `in-progress` -> `blocked` in a concurrent session, which
-   concluded (its D-4) that it is **superseded, not merely blocked**, by
-   `spec-bgp-peer-settings-reload-ignored`: that spec's Phase B was read as
-   building a **pre-policy store**, making `routes_filtered` a QUERY over that
-   store rather than separate storage.
+1. **The offered tally is pre-policy but is not an accurate prefix count.**
+   The July audit found drift under implicit withdrawal. Installed mode later
+   gained per-prefix identity, as recorded above, so the July claim that no
+   identity tracking existed is historical. Neither mode may be relabelled as
+   the required received count without resolving its accounting semantics.
+2. **The supposed replacement store was never an implementation dependency.**
+   The July audit read `spec-bgp-peer-settings-reload-ignored` Phase B as a
+   pre-policy store. That reading was withdrawn; the delivered change was an
+   atomic settings swap (`peerSettingsSwapPlan`), and the spec closed on
+   2026-08-13. This spec owns its received-prefix identity and publication design.
 
-   **That reading is VOID, and so is the supersession it produced.**
-   `spec-bgp-peer-settings-reload-ignored` withdrew it (its D-4) and then built
-   no store of any kind (its D-5): the delivered design is an atomic settings
-   swap on the running peer, `peerSettingsSwapPlan`
-   (`internal/component/bgp/reactor/peer_settings_apply.go`). It closed on
-   2026-08-13. No store exists for `routes_filtered` to query, so this spec owns
-   its own storage question.
-
-   **Read that before re-designing this one.** A store keyed by prefix identity is
-   exactly what A-4 says the wire tally lacks: with it a re-announce REPLACES
-   instead of incrementing, so an honest pre-policy count becomes a query over the
-   store -- no new atomics, no `PeerInfo` plumbing, and most of this spec's Data
-   Flow and Files-to-Modify sections evaporate. Do NOT implement the atomic-snapshot
-   design here until Phase B's shape is known; re-derive against it.
+   Re-design against `applyInstalledPrefixSections` and its refusal rollback
+   in `session_prefix.go`. The installed mode already tracks NLRI identities
+   before import policy, but excludes messages refused before plugin delivery.
+   Decide how the required received count accounts for those refusals and
+   explicit/implicit withdrawals, independently of the operator's enforcement
+   mode. No future Phase B is awaited, and the old atomic-snapshot-only plan
+   below is withdrawn as an implementation prescription.
 
    (Collision note, kept as history: this spec targets `cmd/peer/summary.go`,
    `lg/handler_api.go`, `summary_test.go` and
@@ -120,20 +104,25 @@ evidenced below; a future session should re-design, not re-plumb.
 
 ## Task
 
-Surface a per-peer PRE-policy received count: how many prefixes the peer advertised
-on the wire BEFORE import policy, distinct from the post-policy accepted count that
-`show bgp` already reports. Today `routes-received` equals `routes-accepted`
-(both are the Adj-RIB-In size), so the number of routes the peer sent before filtering
-is invisible in the CLI and in the birdwatcher Looking Glass, even though the reactor
-already maintains it internally for prefix-limit enforcement.
+Surface a per-peer pre-policy received count: how many prefixes the peer
+advertises before import policy, distinct from the accepted count reported by
+`show bgp`. The CLI and birdwatcher Looking Glass must expose that distinction
+without changing accepted/imported semantics.
 
-This is a deferred item from `spec-bgp-summary-route-counts` (Known Limitations). It was
-NOT implemented there because the internal counter is mutated on the session hot path
-without the reactor lock, so reading it from the peer-snapshot API is a data race; making
-it safe needs new atomics plus session-to-peer plumbing for a signal whose gap cannot yet
-be attributed (filtered routes are untracked; see the Depends spec) and that is already
-exposed as a Prometheus gauge. This spec records the design so a future session can
-implement it deliberately rather than half-land it.
+This scope was deferred from `spec-bgp-summary-route-counts`. An event tally
+cannot supply the required count: `offered` drifts under implicit withdrawal,
+while `installed` maintains identities but excludes messages refused before
+plugin delivery. Design must settle the treatment of those refusals, maintain
+prefix identity across replacement and withdrawal, and publish the result
+without racing the session goroutine. AC-1 through AC-4 remain required.
+
+This spec also owns the existing enforcement metrics' missing count-mode
+identity, inherited from `fixit-prefix-count-metric-does-not-say-its-mode` and
+previously placed in `plan/spec-bgp-peer-metric-labels.md`. The count, ratio,
+warning gauge and exceeded counters must identify whether `offered` or
+`installed` produced them. This correction is independent of received-count
+redesign and of optional descriptive labels; it must preserve enforcement and
+the meaning of the reported values, with any metric-label migration documented.
 
 ## Required Reading
 
@@ -153,12 +142,12 @@ implement it deliberately rather than half-land it.
   → Constraint: Adj-RIB-In holds routes accepted by inbound policy (post-policy); the pre-policy count is a wire-level tally, not a RIB size.
 
 **Key insights:**
-- The pre-policy count already exists as `prefixCounts` and is already published to Prometheus; this spec is about safe exposure through the CLI/LG boundary, not about computing a new number.
+- Accurate received-prefix identity and safe publication are both required. The enforcement modes and existing Prometheus gauge do not by themselves satisfy this contract.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/reactor/session_prefix.go` - `prefixCounts` struct (line 179) is a `map[uint32]int64` per family; `add()` (line 196) mutates it with no lock; `checkPrefixLimits()` (line 225) counts NLRI straight from the wire UPDATE via `countBodyNLRI`/`countPrefixEntries` BEFORE any import filter, so the tally is pre-policy; `setPrefixCountMetric()` (line 530) publishes it as the `ze_bgp_prefix_count` gauge.
+- [ ] `internal/component/bgp/reactor/session_prefix.go` - `applyInstalledPrefixSections` maintains per-family NLRI identity sets before import policy and rolls them back when an UPDATE is refused; offered mode remains an event tally. `setPrefixCountMetric` publishes the selected enforcement count with peer and family labels.
 - [ ] `internal/component/bgp/reactor/reactor_api.go` - `reactorAPIAdapter.Peers()` (line 89) builds the `[]plugin.PeerInfo` snapshot under `a.r.mu.RLock()` (line 90); it cannot safely read `prefixCounts` because the session write path holds no such lock.
 - [ ] `internal/component/bgp/reactor/reactor_notify.go` - the import filter reject gate (line 448) returns before caching/dispatching a rejected route, which is why the Adj-RIB-In size is post-policy.
 - [ ] `internal/component/bgp/plugins/rib/rib_commands.go` - `status()` (lines 709-714) sets each peer's `route-counts.in` from `peerRIB.Len()`/`FamilyLen()`, i.e. the Adj-RIB-In (accepted) size.
@@ -166,14 +155,19 @@ implement it deliberately rather than half-land it.
 
 **Behavior to preserve:**
 - `routes-accepted` / `routes-imported` MUST remain the Adj-RIB-In size (post-policy). This spec ADDS a pre-policy signal; it does not change the accepted semantics.
-- The `ze_bgp_prefix_count` Prometheus gauge and its labels stay as-is.
+- The enforcement metrics retain their measured meaning and family/peer identity; their missing count-mode identity is corrected under AC-5, with the operator-visible label migration documented.
 - Prefix-limit enforcement reads of `prefixCounts` on the session goroutine must not regress (no new lock on the hot path).
 
 **Behavior to change:**
 - `show bgp` per-peer rows gain a pre-policy received count, distinct from accepted, family-scopable like the existing counts.
 - Birdwatcher `routes_received` is remapped to the pre-policy count so its semantics match BIRD (received = pre-import, imported = post-import).
 
-## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+## Data Flow (withdrawn atomic-snapshot proposal)
+
+The following mechanism was written before A-4 failed. It is retained as design
+history and must be replaced before `ready`; its atomic snapshot is not an
+approved source of an accurate received count. The CLI/LG outcomes and ACs remain
+the live requirements.
 
 ### Entry Point
 - Operator runs `show bgp` (optionally `show bgp <afi/safi>`) over the CLI, or the Looking Glass calls the birdwatcher protocols endpoint.
@@ -247,20 +241,22 @@ this spec's Task asks for.
 | AC-2 | Concurrent UPDATE load while `show bgp` runs | `go test -race` clean; no read of `prefixCounts` under a foreign lock |
 | AC-3 | Birdwatcher protocols endpoint after the same exchange | `routes_received` = N (pre-policy), `routes_imported` = N-M (post-policy) |
 | AC-4 | `show bgp <afi/safi>` with a two-family peer | pre-policy count is family-scoped, matching the existing accepted/sent scoping |
+| AC-5 | Two peer/family combinations use offered and installed counting, then a configured mode changes | A scrape identifies the selected mode for the prefix count, ratio, warning gauge and exceeded counters; obsolete series do not misrepresent the new mode, and enforcement behaviour is unchanged |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Runs `show bgp` and sees how many routes a peer sent vs accepted | wire tally -> atomic snapshot -> PeerInfo -> summary row | `test/plugin/bgp-summary-received-prepolicy.ci` |
+| 1 | Runs `show bgp` and sees how many routes a peer sent vs accepted | received-prefix identity -> approved race-safe publication -> summary row | `test/plugin/bgp-summary-received-prepolicy.ci` |
 | 2 | Opens the Looking Glass and sees received >= imported per peer | summary JSON -> `transformProtocols` -> birdwatcher fields | `test/web/lg-received-prepolicy.ci` |
+| 3 | Scrapes two enforcement modes and changes one family from offered to installed | configured mode -> enforcement metric publication -> Prometheus scrape | `test/plugin/bgp-prefix-count-mode.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPrefixCountsPrePolicySnapshot` | `internal/component/bgp/reactor/session_prefix_test.go` | atomic snapshot returns the pre-policy per-family tally | |
+| `TestReceivedPrefixIdentity` | Received-count implementation selected during design | Re-announcement replaces one prefix, explicit withdrawal removes it, and refused-message accounting follows the approved received contract | design required |
 | `TestPeersIncludesPrePolicyCount` | `internal/component/bgp/reactor/reactor_api_test.go` | `Peers()` carries the pre-policy count without racing (`-race`) | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -273,6 +269,7 @@ this spec's Task asks for.
 |------|----------|-------------------|--------|
 | `bgp-summary-received-prepolicy` | `test/plugin/bgp-summary-received-prepolicy.ci` | peer sends N routes, M rejected; summary shows received=N, accepted=N-M | |
 | `lg-received-prepolicy` | `test/web/lg-received-prepolicy.ci` | birdwatcher endpoint reports received >= imported | |
+| `bgp-prefix-count-mode` | `test/plugin/bgp-prefix-count-mode.ci` | Scrapes identify offered/installed semantics for every derived metric and remain truthful after a mode change (AC-5) | planned |
 
 ### Interop Tests
 - N/A for the counter surface itself; the underlying pre-policy tally is already exercised by prefix-limit interop.
@@ -281,16 +278,17 @@ this spec's Task asks for.
 - None planned.
 
 ## Files to Modify
-- `internal/component/bgp/reactor/session_prefix.go` - add a lock-free per-family snapshot of the pre-policy tally.
+- `internal/component/bgp/reactor/session_prefix.go` - derive the accurate received-prefix model and safe publication design; copying the existing tally alone is insufficient.
 - `internal/component/bgp/reactor/reactor_api.go` - include the pre-policy count in the `Peers()` snapshot.
 - `internal/component/plugin/types_bgp.go` - add the pre-policy count field to `PeerInfo`.
 - `internal/component/bgp/plugins/cmd/peer/summary.go` - merge the count into the summary row.
 - `internal/component/lg/handler_api.go` - map birdwatcher `routes_received` to the pre-policy count.
+- `internal/component/bgp/reactor/reactor_metrics.go` and metric publication/cleanup in `session_prefix.go` - carry count-mode identity for the existing enforcement metrics and retire obsolete label combinations on mode changes.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| Prometheus counters/metrics | [ ] | `ze_bgp_prefix_count` already exists; no new metric required |
+| Prometheus counters/metrics | [x] | AC-5 requires count-mode identity on the existing count-derived metrics and truthful series lifecycle |
 | Functional test for new RPC/API | [x] | `test/plugin/bgp-summary-received-prepolicy.ci` |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -299,10 +297,12 @@ this spec's Task asks for.
 | 3 | CLI command added/changed? | [x] | `docs/guide/command-reference.md` (new summary column) |
 | 13 | Route metadata keys added/changed? | [x] | `docs/architecture/meta/README.md` (pre-policy key) |
 | 15 | Runtime inventory changed? | [ ] | No new plugin/command registered |
+| 14 | Prometheus metric labels changed? | [x] | `docs/guide/monitoring.md`, `docs/guide/configuration.md` and `docs/guide/bgp-peering.md`: count mode and any query migration |
 
 ## Files to Create
 - `test/plugin/bgp-summary-received-prepolicy.ci` - functional test for the pre-policy count.
 - `test/web/lg-received-prepolicy.ci` - LG mapping test.
+- `test/plugin/bgp-prefix-count-mode.ci` - scrape semantics across offered/installed configuration and a mode change.
 - `plan/learned/NNN-bgp-prepolicy-received-counter.md` - learned summary at closure.
 
 ## Implementation Steps
@@ -317,21 +317,17 @@ this spec's Task asks for.
 | 13. /ze-review gate | Review Gate section |
 
 ### Implementation Phases
-1. **Phase: Wiring (MANDATORY FIRST)** - add the `PeerInfo` field and a failing `.ci` that asserts received != accepted after a rejected route.
-   - Tests: `bgp-summary-received-prepolicy.ci`
-   - Files: `types_bgp.go`, `summary.go`
-   - Verify: field exists, `.ci` fails because the count is still equal to accepted.
-2. **Phase: Lock-free snapshot** - publish the pre-policy tally without a foreign-lock read.
-   - Tests: `TestPrefixCountsPrePolicySnapshot`, `-race`
-   - Files: `session_prefix.go`, `reactor_api.go`
-   - Verify: `-race` clean, count flows to `Peers()`.
-3. **Phase: LG mapping** - remap birdwatcher `routes_received`.
-   - Tests: `lg-received-prepolicy.ci`
-   - Files: `lg/handler_api.go`
-   - Verify: received >= imported.
-4. **Functional tests** -> both `.ci` pass.
-5. **Full verification** -> `./le verify current mode changed` (scope to changed while other sessions run).
-6. **Complete spec** -> audit tables, learned summary, two-commit closure.
+1. **Received-count redesign.** Resolve identity tracking, refusal accounting,
+   withdrawal/replacement semantics and publication ownership from current
+   producers. Replace the withdrawn Data Flow and mechanism-specific test
+   proposals before requesting `ready`.
+2. **Wiring and implementation.** Prove AC-1 through the CLI entry point, then
+   implement the approved count and its race-safe publication.
+3. **LG mapping.** Remap `routes_received` while preserving accepted/imported
+   semantics, with AC-3's functional proof.
+4. **Verification.** Prove family scoping, concurrency, repeated announcements
+   and withdrawals, including messages refused before import policy. Retain the
+   full `./le verify worktree` goal gate and the independent closure requirements.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
@@ -384,7 +380,7 @@ Facts established while auditing; carry these into any re-design.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-4 all demonstrated
+- [ ] AC-1..AC-5 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean
@@ -419,4 +415,4 @@ Facts established while auditing; carry these into any re-design.
 
 Deferred by spec-bgp-summary-route-counts (Known Limitations).
 
-Surface a per-peer PRE-policy received count, distinct from accepted. Today the birdwatcher routes_received == routes_imported (both the Adj-RIB-In / accepted size); how many routes the peer advertised BEFORE import policy is not shown. That count exists only in the reactor session (`prefixCounts`, `session_prefix.go`)
+Surface a per-peer pre-policy received count, distinct from accepted. This is the inherited requirement; the claim that `prefixCounts` already supplied that number was withdrawn after the July audit and must not be used to bypass redesign.

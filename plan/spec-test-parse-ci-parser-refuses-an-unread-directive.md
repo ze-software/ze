@@ -2,30 +2,30 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | `plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md` (landed at `8c7f0a5bf2`, which set the vocabulary this one adopts) |
-| Phase | in flight: `internal/test/runner/parsing.go` is rewritten in the working tree, UNCOMMITTED |
+| Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
-<!-- Backfilled. The work was commissioned straight from a journal row and
-     skipped the spec step. Status is in-progress: the rewrite exists in the
-     working tree and the migration is not finished. -->
+<!-- Backfilled after work commissioned from a journal row. The parser rewrite
+     and migration are committed; acceptance and discrimination evidence remains
+     to be reconciled before closure. -->
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The `test/parse` suite has its OWN `.ci` parser. Its line loop is a chain of
-prefix matches with NO default, so a directive no arm matches is dropped and the
-file still parses. Its vocabulary also disagrees with the generic parser: it
-reads `expect=stdout:regex=` where the generic reads `pattern=`, and
-`expect=stdout:not:contains=` where the generic reads `reject=stdout:contains=`.
+The `test/parse` suite has its own `.ci` parser. Before the September 6 repair,
+its line loop was a chain of prefix matches with no default, so an unmatched
+directive was dropped and the file still parsed. Its vocabulary also disagreed
+with the generic parser: `regex=` meant `pattern=`, and
+`expect=stdout:not:contains=` meant `reject=stdout:contains=`.
 
-Worse than absent: `not:contains=` means the OPPOSITE in the two parsers. The
-generic `splitOnKeyBoundary` cuts at `:contains=` and drops the bare `not`, so
-the generic parser reads a NEGATIVE assertion as a POSITIVE one.
+The retired `not:contains=` form also meant the opposite in the two parsers:
+the generic splitter cut at `:contains=` and dropped the bare `not`, so a
+negative assertion became a positive one.
 
 Measured on 2026-09-06 over `test/parse/*.ci` and recorded in
 `plan/journal/silent-fall-through.md`: 26 lines assert nothing. One of them,
@@ -33,6 +33,13 @@ Measured on 2026-09-06 over `test/parse/*.ci` and recorded in
 is masked. The counts are in the journal row and are not restated here.
 
 Goal: one vocabulary for one format, and a directive no arm reads fails the file.
+
+The rewrite and migration landed in `d1e6e2d200` on September 6, with further
+directive/key refusal work in `0897c2b951` on September 7. Current
+`ciDirectives` dispatches the shared spellings and `ciFileParser.line` refuses
+unknown directives. `checkExpectations` evaluates the recorded assertions per
+command. This is an implemented parser with outstanding evidence, not an
+uncommitted rewrite.
 
 ## Required Reading
 
@@ -58,20 +65,18 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 - [ ] `docs/architecture/testing/ci-format.md` - the published grammar
 
 **Behavior to preserve:**
-- The parse suite's assertion SCOPE is per-command: an assertion is checked
-  against the stdout and stderr of the `cmd=` line that precedes it. That differs
-  from the generic runner, where a stream assertion is file-level over one
-  combined buffer, and the difference is deliberate.
+- The parse suite's assertion scope is per-command: each assertion reads the
+  stdout or stderr of the preceding `cmd=`. The generic runner now also binds
+  stdout and containment assertions to that command through `assertionTarget`;
+  its stderr regex logging assertions remain file-level. Preserve the parse
+  suite's existing semantics rather than assuming the old all-file contrast.
 - Every `test/parse` file that asserts something today still asserts it.
 
-**Behavior to change:**
-- The line loop gets a default that FAILS the file, naming the directive and the
-  line.
-- `regex=` is DELETED in favour of `pattern=`, and `not:contains=` in favour of
-  `reject=stdout:contains=` (`ai/rules/no-layering.md`). No alias.
-- The 30 affected lines are migrated.
-- Whatever the 26 now-live assertions turn red is diagnosed. A red that says the
-  PRODUCT is wrong is the finding.
+**Implemented changes and remaining proof:**
+- The dispatcher refuses an unread directive and quotes its source line.
+- The retired `regex=` and `not:contains=` spellings have been migrated to the shared vocabulary, with no aliases.
+- The original 30-line migration and 26 now-live assertions still need an evidence account showing that each intended assertion is exercised.
+- Every red exposed by those assertions must be diagnosed at its producer. Migration and source inspection alone do not satisfy that obligation.
 
 ## Data Flow (MANDATORY)
 
@@ -88,9 +93,9 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `.ci` author ↔ the parse suite | the directive text | in flight; the default arm is the mechanism |
-| parse suite ↔ generic runner | two parsers, one format | the vocabulary converges here; the two parsers do NOT merge, because the assertion scope genuinely differs |
-| `test/parse` ↔ the accept-only ratchet | the ratchet parses these files with the GENERIC parser | Yes, and it currently names the three files carrying `regex=` and `not=` as unparseable |
+| `.ci` author ↔ the parse suite | the directive text | implementation committed: the dispatcher refuses unmatched directives and quotes the source line; discrimination evidence still needs reconciliation |
+| parse suite ↔ generic runner | two parsers, one vocabulary | both now bind stdout/containment assertions to the preceding command; parse-suite stderr regex and legacy no-command negative cases retain their documented differences |
+| `test/parse` ↔ the accept-only ratchet | the ratchet parses these files with the generic parser | `d1e6e2d200` records that the ratchet named no parse-suite file; no current run is claimed |
 
 ### Integration Points
 - `internal/test/runner/accept_only.go` - the ratchet that reads the same files.
@@ -101,7 +106,7 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 |-------|--------|----------|
 | No bypassed layers | Yes | every line goes through the dispatcher, including the unmatched one |
 | No unintended coupling | Yes | confined to `internal/test/runner` |
-| No duplicated functionality | Partly | two parsers remain, by design, because the assertion scope differs. Only the VOCABULARY converges, and that divergence is now stated in the type's own comment |
+| No duplicated functionality | Partly | the vocabulary converges; the two parsers remain. Generic command scoping has since removed the historical all-file distinction, while stderr regex and legacy negative-test handling still differ |
 | Zero-copy preserved where applicable | N-A | test tooling |
 | Registration over hardcoding | No | the arms are a dispatch chain; the default is what makes an unlisted directive loud rather than silent |
 
@@ -111,7 +116,7 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | All 26 vacuous lines can be migrated to a live assertion | each was read during the measurement | a line has no equivalent in the shared vocabulary | the migration | UNVALIDATED |
-| A-2 | The per-command assertion scope is deliberate, not an accident of the second parser | the suite's own files depend on it | merging the parsers would be correct after all | asserted from the files; the rewrite states it in the type comment | UNVALIDATED |
+| A-2 | The parse suite's existing per-command semantics must be preserved | its files depend on command-local assertions; the generic runner has since adopted command scoping too | the original argument against sharing parser machinery needs reassessment, without changing consumer meaning | compare the current documented dialects and their assertion producers | original all-file contrast superseded; semantic-preservation proof still owed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -124,7 +129,7 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | the parse suite stops running, or keeps passing over assertions that check nothing |
-| How is it reverted? | not yet landed; a single commit revert once it is |
+| How is it reverted? | revert the parser and its consumer migrations together; the rewrite is committed in `d1e6e2d200` |
 | Who else touches this path? | the accept-only ratchet, and every author of a `test/parse` file |
 
 ## Wiring Test (MANDATORY)
@@ -151,7 +156,7 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| the parser's default-arm refusal and each migrated key | `internal/test/runner/parsing_test.go` | AC-1, AC-2, AC-3, AC-4 | written, uncommitted |
+| the parser's default-arm refusal and each migrated key | `internal/test/runner/parsing_test.go` | AC-1, AC-2, AC-3, AC-4 | committed in `d1e6e2d200`; current execution and discrimination evidence not assessed here |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -162,8 +167,8 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| the parse suite itself | `test/parse/*.ci` | an author writes a `test/parse` file and its assertions run | in flight; 26 lines are being made live |
-| `config-dump-masks-bcrypt` | `test/parse/config-dump-masks-bcrypt.ci` | `ze config dump` masks a bcrypt hash | the assertion exists and is vacuous today |
+| the parse suite itself | `test/parse/*.ci` | an author writes a `test/parse` file and its assertions run | migration committed; corpus-wide assertion accounting and red diagnosis remain evidence obligations |
+| `config-dump-masks-bcrypt` | `test/parse/config-dump-masks-bcrypt.ci` | `ze config dump` masks a bcrypt hash | live `reject=stdout:contains=UlwuiuH82Unfsq` since `8c7f0a5bf2`; AC-6 discrimination still owed |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -195,7 +200,7 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 | 16 | Any changed source file referenced by existing doc anchors? | Yes | `docs/architecture/testing/ci-format.md` is the `// Design:` anchor of `parsing.go`, and it MUST state the per-command scope that distinguishes this parser from the generic one |
 | 1-9, 11-15, 17 | - | No | no operator-facing surface changed |
 
-## Implementation Steps
+## Original Implementation Steps (committed work; evidence reconciliation remains)
 
 1. **Phase: Wiring (MANDATORY FIRST)** - move the line loop onto a dispatcher
    with a default that fails, and write the refusal test. Observe it red.
@@ -243,7 +248,7 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Keep two parsers, converge the vocabulary | merge into `record_parse.go` | the assertion SCOPE genuinely differs: per-command here, file-level there. Merging would change what every `test/parse` file asserts |
+| Keep the parse suite's semantics while converging vocabulary | the original alternative was merging into `record_parse.go` | the September 6 design preserved per-command scope against a then-file-level generic runner. That historical distinction is now narrower: generic stdout/containment assertions are command-scoped too. This spec authorises no additional parser merger |
 | Delete rather than alias | alias `regex=` to `pattern=` | `ai/rules/no-layering.md`; the alias is what let the dialect persist |
 
 ## Known Limitations
@@ -282,15 +287,22 @@ Goal: one vocabulary for one format, and a directive no arm reads fails the file
 
 ## Current Condition and What Remains
 
-**IN FLIGHT.** `internal/test/runner/parsing.go` is rewritten in the working tree
-and `internal/test/runner/parsing_test.go` is new and untracked. Neither is
-committed, so no SHA can be cited. Meanwhile the accept-only ratchet parses
-`test/parse` with the GENERIC parser, so the three files carrying `regex=` and
-`not=` are unparseable to it and it names them.
+The uncommitted snapshot recorded when this spec was written is superseded.
+`d1e6e2d200` committed the dispatcher, its tests, vocabulary migrations and the
+per-command documentation. Its commit account reports that the accept-only
+ratchet named no parse-suite file, and records the reds it exposed rather than
+claiming a green corpus. `0897c2b951` subsequently extended directive/key
+refusal. The bcrypt rejection was repaired in `8c7f0a5bf2`, before the
+parse-specific rewrite.
+
+Current source confirms the refusal and assertion-consumer paths, and the
+retired stdout `regex=`/`not:contains=`/`not=` spellings were not found in the
+current `test/parse/*.ci` source search. This is source and history evidence,
+not a new parser, corpus or discrimination run.
 
 | Item | State |
 |------|-------|
-| Parser rewrite | in the working tree, UNCOMMITTED |
-| PROVEN | nothing yet. The rewrite has its own tests, and no discrimination walk has forced the default arm red |
-| ASSERTED, not proven | AC-1 through AC-4, from the rewritten dispatcher; AC-5, AC-6 and AC-7 depend on the migration, which is not finished |
-| Remains | (1) the 30-line migration in `test/parse/*.ci`; (2) diagnosing every red the 26 now-live assertions produce, including `config-dump-masks-bcrypt`; (3) the accept-only baseline reconciliation; (4) the documentation of the per-command scope; (5) landing it; (6) closure sections |
+| Parser rewrite and vocabulary | committed; `ciDirectives`, `ciFileParser.line` and `checkExpectations` remain the producers |
+| Documentation | the shared vocabulary and per-command scope are described in `docs/architecture/testing/ci-format.md`, "The parse suite reads its own dialect" |
+| Acceptance evidence | reconcile AC-1 through AC-7 individually; do not equate a migrated spelling with a discriminating assertion |
+| Remains | account for every originally identified migration and exposed red; prove the bcrypt rejection discriminates; recover or repeat corpus and ratchet evidence and reconcile the baseline if needed; complete the closure sections only after those obligations are met |

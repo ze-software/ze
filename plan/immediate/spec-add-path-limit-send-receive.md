@@ -114,16 +114,17 @@ A later WITHDRAW for a path Ze never kept is accepted and frees no slot. The sen
 - [ ] `test/exabgp-compat/etc/conf-paths-limit.conf` - ExaBGP-native input carrying `ipv4 unicast limit 10`. The input stays; what Ze migrates it INTO changes
 
 **Behavior to preserve:**
-- Outbound enforcement against the peer's advertised limit, exactly as `pathsLimitSection` performs it today: withdrawals always pass including unknown identifiers, replacement of an existing identifier passes at capacity, a withdrawal frees a slot, a new connection starts empty, and the route-server fast path shares the state.
+- Outbound enforcement keeps the peer's advertised ceiling and these admission invariants: withdrawals always pass including unknown identifiers, replacement of an existing identifier passes at capacity, a withdrawal frees a slot, a new connection starts empty, and the route-server fast path shares the state. Candidate selection changes to best-path order under AC-17 and AC-18.
 - The four draft MUSTs already proven: one coalesced instance in OPEN, ignore PATHS-LIMIT without ADD-PATH, ignore a tuple whose family the ADD-PATH capability did not carry, first duplicate tuple wins.
 - The `paths-limit` CLI and JSON key with its `send` and `receive` sub-maps. The words stay; their meaning gains the local cap.
 - The PATHS-LIMIT tuples stay derived from `addPath.Families`, so the two sets cannot disagree.
-- Every peer with no `limit` block behaves exactly as it does today.
+- With no `limit` block, capability encoding and the absence of local caps are unchanged. An uncapped peer keeps its outbound behaviour; a peer capped solely by its advertised PATHS-LIMIT gains the best-path selection and demotion withdrawals required by AC-17 and AC-18.
 
 **Behavior to change:**
 - The scalar `limit` leaf is deleted at both levels and replaced by a `limit` container carrying `send` and `receive`.
 - `receive` becomes an enforced ingress ceiling as well as the advertised number.
 - `send` becomes a local outbound cap, combined with the peer's advertised limit by minimum.
+- Every effective outbound cap, including a peer-advertised cap with no local `send`, selects best-ranked paths and withdraws a demoted path before replacing it (AC-17 and AC-18).
 - `docs/features.md`, `docs/guide/add-path.md` and the `rfc/short/` Support coverage each state that the knob does not police. They stop being true.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -224,7 +225,7 @@ Two entry points, one per direction.
 | AC-3 | A peer config carries `family { ipv4/unicast { limit { receive 2; send 4; } } }` and a container `limit { receive 10; }` | ipv4/unicast advertises 2 and caps outbound at 4. Every other advertised family advertises 10 and has no outbound cap |
 | AC-4 | A peer advertised PATHS-LIMIT 2 for a family and the local config says `limit { send 4; }` for it | Ze admits at most 2 paths per prefix outbound for that family |
 | AC-5 | A peer advertised no PATHS-LIMIT and the local config says `limit { send 4; }` | Ze admits at most 4 paths per prefix outbound for that family |
-| AC-6 | A peer advertised PATHS-LIMIT 2 and the local config carries no `send` | Ze admits at most 2 paths per prefix outbound, which is today's behavior unchanged |
+| AC-6 | A peer advertised PATHS-LIMIT 2 and the local config carries no `send` | Ze admits at most 2 paths per prefix outbound. The ceiling is unchanged; best-path selection and demotion withdrawals follow AC-17 and AC-18 |
 | AC-7 | Neither the peer nor the local config states a send limit | Ze applies no outbound bound, which is today's behavior unchanged |
 | AC-8 | The local config says `limit { receive 2; }` and the peer announces a third distinct path identifier for one prefix, in an UPDATE that also carries other prefixes at or under their ceiling | The excess path identifier is dropped before installation (Q-1: O-1, decided); the two admitted paths and every other prefix in the same UPDATE install normally |
 | AC-9 | Following AC-8, the peer sends a WITHDRAW for the identifier Ze refused | The withdrawal is accepted, no error is raised, the session survives, and no slot is freed that was never taken |
@@ -235,8 +236,8 @@ Two entry points, one per direction.
 | AC-14 | `show bgp peer <ip> capabilities` on a session with both a negotiated peer limit and a local send cap | The `paths-limit` payload distinguishes what the peer asked for from what Ze enforces, and the json, yaml and table pipes each render it |
 | AC-15 | The editor is asked to complete inside `add-path` and inside `add-path > limit` | The first offers `direction`, `limit`, `family`. The second offers `send` and `receive` |
 | AC-16 | `limit { receive 0; }` or `limit { send 0; }` | Refused by the YANG range `1..65535` at load time |
-| AC-17 | A prefix carries 5 candidate paths and the effective outbound bound (peer limit combined with local `send`) is 2 | Ze announces the 2 BEST-ranked paths by best-path selection, not the first 2 received (owner decision, 2026-09-11) |
-| AC-18 | A prefix is already announcing its best 2 paths under an effective outbound bound of 2, and a newly received path outranks one of the two currently sent | Ze WITHDRAWS the demoted path and announces the newly best one in its place. A path later demoted back below the bound is not re-announced unless it again becomes best |
+| AC-17 | A prefix carries 5 candidate paths and the effective outbound bound is 2; cover both a local `send` cap and a peer-advertised cap with no local `limit` block | Ze announces the 2 BEST-ranked paths by best-path selection, not the first 2 received (owner decision, 2026-09-11) |
+| AC-18 | A prefix is already announcing its best 2 paths under a bound of 2 and a newly received path outranks one of them; cover both cap sources from AC-17 | Ze WITHDRAWS the demoted path and announces the newly best one in its place. A path later demoted back below the bound is not re-announced unless it again becomes best |
 | AC-19 | The local config says `limit { receive 2; }` and the peer sends five excess paths for one prefix across separate UPDATEs | Ze logs the refusal once for that prefix, not once per refused path, and the tracked path-id set for that prefix never exceeds 3 (2 admitted + 1 headroom) |
 | AC-20 | Following AC-19, the peer withdraws a tracked (refused) identifier that had saturated the tracking set, then sends a new excess path for the same prefix | The withdrawal frees the slot and clears the warned marker; the new excess path produces a fresh log line rather than staying silently suppressed |
 
@@ -462,9 +463,9 @@ Two entry points, one per direction.
 | G-2 `receive` bounds what Ze accepts, not only what Ze advertises | `test/plugin/paths-limit-receive-ceiling.ci`: a peer sends three paths for one prefix at ceiling 2 and the RIB holds two. The tagged carrier for requirement 3-7 with a `./le rfc discriminate-record` artifact proving it goes RED when the ceiling is removed |
 | G-3 `send` caps what Ze announces, combined with the peer's limit by minimum | `test/plugin/paths-limit-local-send-cap.ci` for the peer-silent case, plus the four `TestInitPathsLimit` unit tests covering every combination of present and absent |
 | G-4 A migrated ExaBGP config asks peers for exactly what it asked for before | `TestMigrateAddPathLimitBecomesReceiveContainer` and `test/exabgp-compat/encoding/conf-paths-limit.ci`, which drives the ExaBGP-native config end to end and asserts the same wire output |
-| G-5 The wire is unchanged for every config that states no `send` | `test/encode/paths-limit.ci` unchanged in its assertion, and the `bgp-paths-limit-frr` interop scenario green after the config restructure |
+| G-5 Capability encoding preserves the existing receive request when the scalar is migrated to `receive`, and no local `send` value is advertised | `test/encode/paths-limit.ci` keeps its OPEN assertion and `bgp-paths-limit-frr` proves negotiation after the config restructure. UPDATE selection and demotion withdrawals may change for remotely capped peers even without a local `send`; AC-17/AC-18 and G-7 must prove that case |
 | G-6 The public ledger stops over-claiming | `rfc/short/` requirement 3-7 carries a tagged test and a discrimination record. `docs/features.md` and `docs/guide/add-path.md` no longer state that the knob does not police |
-| G-7 Outbound truncation picks the best paths, not the first-arrived ones, and a demoted path is withdrawn rather than silently dropped (owner decision, 2026-09-11) | AC-17 and AC-18, proven by `TestPathsLimitSectionAdmitsBestPathOrder`, `TestPathsLimitSectionWithdrawsDemotedPath`, and `test/plugin/paths-limit-outbound-best-path.ci`, which also proves a path that later becomes best is announced in place of the one it demotes |
+| G-7 Outbound truncation picks the best paths and withdraws a demoted path (owner decision, 2026-09-11) | AC-17 and AC-18, proven by `TestPathsLimitSectionAdmitsBestPathOrder`, `TestPathsLimitSectionWithdrawsDemotedPath`, and `test/plugin/paths-limit-outbound-best-path.ci`. Each proof includes a peer capped only by its advertised limit with no local `limit` block, as well as a locally capped peer, and re-admission when a demoted path becomes best again |
 
 ## Design Insights
 

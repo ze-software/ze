@@ -28,42 +28,32 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Deferred out of `plan/spec-rfcgate-2-evidence.md` (see
 the retired deferral shard "rfcgate-2-evidence").
 
-Three interop trees have runners but no automated caller, so a test in them
-executes only when somebody remembers to type the target:
+The IPsec, L2TP and PPPoE automated callers now exist. This spec retains the
+execution and discrimination evidence review before any closure; the presence
+of a job or a derived tier is not a successful scenario run.
 
-| Tree | Scenarios | Runner | Automated caller |
-|------|-----------|--------|------------------|
-| `test/interop-ipsec/` | 12 `check.py` | `./le integration interop-ipsec` | none |
-| `test/interop-l2tp/` | 2 `check.py` (+1 self-run scenario) | `./le deployment docker-l2tp-ppp-test` | none |
-| `test/interop-pppoe/` | 1 `check.py` | `./le deployment docker-pppoe-accel-test` | none |
+| Native carrier | Runner | Scheduled caller |
+|---|---|---|
+| `internal/le/interoplab/ipsec/` | `./le integration interop-ipsec` | `ipsec-interop` |
+| `internal/le/interoplab/l2tp/` | `./le deployment docker-l2tp-ppp-test` | `l2tp-interop` |
+| `internal/le/interoplab/pppoe/` | `./le deployment docker-pppoe-accel-test` | `pppoe-interop` |
 
-→ Constraint: the counts above are measured (`find test/*-interop -name check.py`),
-not the 10/3/1 the deferral row carried. The l2tp runner's target name is
-`./le deployment docker-l2tp-ppp-test` (`internal/le/integration/gates.go`), not "the L2TP
-interop runner" as `CARRIERS` currently spells it.
+All callers are in `.github/workflows/evidence-nightly.yml`.
+`scheduledActionsFrom` and `interopCarriers` in `internal/le/rfc/carriers.go`
+derive `interop/nightly` from those scheduled native actions; an action without
+a scheduled caller resolves to `unrun`. The old Python `check.py` paths are
+historical locations, not the current tagged-test implementation.
 
-Because nothing runs them, `internal/le/rfc/rfc.go` classifies each as
-tier `unrun` and REFUSES an `RFC requirement:` tag placed there, naming the file
-and the missing pipeline. That refusal is the correct interim state, not the
-fix: it keeps false evidence out, and it also keeps real evidence unavailable.
+The workflow deliberately removed `continue-on-error: true` on 2026-09-02.
+It remains outside the merge gate, but a failed job must report failure.
+Restoring hidden failures would violate this contract.
 
-The work: give each tree an automated caller (the BGP tree's own advisory job in
-`.github/workflows/evidence-nightly.yml` is the pattern), confirm each runner
-fails closed on a missing lab the way `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and
-`test/interop-ipsec/run.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> now do, then change that tree's row in `CARRIERS`
-from `TIER_UNRUN` to a real tier so its scenarios can carry evidence.
-
-**Research changed the shape of this work. It is three problems, not two.** A
-tier is honest only when something executes the test AND the test can fail. The
-original framing covered the first. Research (2026-08-01) found the second is
-violated in the ipsec tree today, so wiring alone would grant a tier to checks
-that pass with the dataplane broken.
-
-| # | Problem | Status after research |
-|---|---------|----------------------|
-| 1 | Nothing executes the three trees | confirmed; fix is a workflow job per tree |
-| 2 | Two ipsec scenarios pass when the assertion throws | NEW, confirmed by reading the source |
-| 3 | The interop tier is an unchecked literal in `CARRIERS` | NEW; `interop-bgp` has the same weakness |
+The 2026-08-01 observations below remain historical evidence. Current source
+returns XFRM assertion errors from `checkIPsecBGPRedistributeFRR`, while
+`checkEAPTLS` now proves an explicit TLS 1.2 refusal after a real handshake and
+requires no XFRM state on either peer. That refusal scenario cannot replace the
+positive EAP/ESP proof the original plan sought. Both proof directions and
+current runner results must be reconciled before closure.
 
 ## Required Reading
 
@@ -74,10 +64,9 @@ that pass with the dataplane broken.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/testing.md` - the carrier table and the two evidence axes (kind, tier)
-  → Constraint: "A tag in `test/interop-ipsec/`, `test/interop-l2tp/`,
-    `test/interop-pppoe/`, or any other `check.py` tree is REFUSED ... wire the
-    suite into a pipeline first, then give its carrier a tier in `CARRIERS`."
-    Sequencing is normative: wire, observe, then grant.
+  → Constraint: a native interop action without a scheduled caller remains
+    `unrun`; its tags are refused. Scheduling grants a carrier tier, while
+    scenario execution and discrimination establish the claimed proof.
   → Constraint: `interop/nightly` evidence is ADVISORY and never merge-gate. A
     requirement whose only evidence is nightly is marked `**nightly-only**` and
     counted in its own rollup column, never summed with verify-tier evidence.
@@ -90,115 +79,90 @@ that pass with the dataplane broken.
 - [ ] `ai/rules/platform-linux.md` - "Interop Labs and Docker-Based Tests Need a QEMU Runner Too"
   → Decision: for a Docker lab needing host-kernel features, the repo's existing
     answer is a QEMU sibling (`ze-qemu-l2tp-ppp-test`, `ze-qemu-pppoe-accel-test`).
-  → Constraint: those siblings run `internal/le/deployment/`, NOT the
-    tree's `check.py`. A QEMU run therefore does NOT execute the tagged carrier,
-    so it cannot justify a tier for `test/interop-l2tp/scenarios/*/check.py`.
+  → Constraint: a platform run can prove a tagged carrier only when it invokes
+    that carrier's native checker. A similarly named deployment target is
+    insufficient evidence on its own.
 - [ ] `docs/labs/l2tp-interop.md`, `docs/labs/pppoe-interop.md` - host requirements
-  → Constraint: both claim Docker Desktop on macOS lacks the modules. Measured
-    2026-08-01: `pppoe` and `/dev/ppp` are PRESENT, `l2tp_ppp` is absent. The
-    pppoe half of that claim is stale and the doc needs correcting.
+  → Constraint: the 2026-08-01 host observation found `pppoe` and `/dev/ppp`
+    present but `l2tp_ppp` absent on that Darwin/Docker Desktop host. Compare
+    current documentation with the native preflight; do not generalise that
+    dated observation to a different host.
 
 ### RFC Summaries (Scope: protocol)
 - N-A. Scope is tooling: this spec changes which carriers may hold a tag, never
   what any RFC requires.
 
-**Key insights:** (minimal context to resume after compaction)
-- The ipsec lab is GREEN on a real host and its Ze-side XFRM assertion passes,
-  so the "expected on Docker for Mac" excuse the fail-open checks cite is stale.
-- `CARRIERS` asserts the interop tier as a literal; nothing ties it to a workflow.
+**Key insights:**
+- Native scheduled callers and tier derivation exist for all three trees.
+- A negative EAP-TLS refusal and a positive ESP assertion prove different
+  behaviours. Preserve both obligations when reconciling the migrated scenarios.
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/le/rfc/rfc.go` - holds `CARRIERS`, the ONE table where the
-  evidence kind and tier are spelled. `TIER_VERIFY`/`TIER_NIGHTLY`/`TIER_UNRUN`.
-  `functional_suites()` DERIVES the `.ci` tier from `internal/le/functional/suites.go`'s own
-  `all_suites=` line and fails closed when it cannot read it. `_suite_carriers()`
-  emits one derived row per suite. The four interop rows are literals instead:
-  `interop-bgp` asserts `TIER_NIGHTLY`, and `interop-ipsec`/`interop-l2tp`/
-  `interop-pppoe` assert `TIER_UNRUN`. `carrier_for()` → `_lookup()` returns the
-  first row whose prefix AND suffix match. `_refuse_unrun()` builds the refusal.
-  `_build_head_carriers()` re-reads HEAD's `all_suites=` so a suite DROP registers
-  as an evidence loss rather than a symmetric relabel.
-- [ ] `.github/workflows/evidence-nightly.yml` - scheduled-only, every job
-  `continue-on-error: true`. Jobs: `fuzz`, `integration`, `interop`. The `interop`
-  job runs `./le integration interop` and is the sole automated caller of any interop
-  tree.
-- [ ] `internal/le/` - `TestEvidenceNightlyRunsInterop`
-  pins that the `interop` job exists, runs `./le integration interop` by name, and is
-  advisory. `TestWorkflowMakeTargetsExist` proves every `make <target>` a workflow
-  names is real. `parseMakeTargets()` is the shared extractor.
-- [ ] `internal/le/integration/gates.go` - `./le integration interop`, `./le integration interop-ipsec`,
-  `./le deployment docker-l2tp-ppp-test`, `./le deployment docker-pppoe-accel-test`.
-- [ ] `test/interop-ipsec/run.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `build_images()` cross-compiles ze on the HOST
-  (`CGO_ENABLED=0 GOOS=linux go build`) into the gitignored `test/interop-ipsec/ze-linux`,
-  then Docker COPYs it. Preflight is `docker info` only; a missing daemon exits 1.
-- [ ] `test/interop-l2tp/lab.py` (retired; now `internal/le/interoplab/l2tp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> `preflight_strict()` / `test/interop-pppoe/lab.py` (retired; now `internal/le/interoplab/pppoe/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->
-  `preflight_strict()` - run a privileged alpine probe against the host's
-  `/lib/modules`, then `raise SystemExit("host kernel missing ... requirements: %s")`.
-  Both refuse a skip override.
-- [ ] `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and
-  `.../ipsec-bgp-redistribute-frr/check.py` - the Ze-side XFRM assertion is
-  wrapped in `except (AssertionError, Exception)`. eap-tls calls `log_pass(...)` in the
-  handler, so a real ESP failure is reported as a PASS.
+**Source files read for the 2026-09-19 reconciliation:**
+- `internal/le/rfc/carriers.go`: `carriers` reads the scheduled action map;
+  `interopCarriers` grants nightly tier only to a scheduled native action.
+  `CarrierFor` recognises the native `.go` prefixes.
+- `.github/workflows/evidence-nightly.yml`: the three named jobs invoke their
+  native runners and set up Go. Failures are visible.
+- `internal/le/interoplab/ipsec/checkers.go`: `checkIPsecBGPRedistributeFRR`
+  returns failures from both peers' XFRM checks; `checkEAPTLS` requires handshake
+  and refusal facts before checking that both peers have zero XFRM state.
+
+The Python fail-open handlers described in the original 2026-08-01 research
+were retired with the native migration. Their dated red runs below remain
+evidence about that tree, not a pass or a failure of the current native suite.
 
 **Behavior to preserve:**
-- `./le rfc check` stays green and keeps refusing a tag in any carrier nothing
-  runs. The refusal message keeps naming the file, the runner, and the pipeline.
-- `interop-bgp` keeps its `interop/nightly` label, so the 2 existing interop tags
-  keep resolving and no ratchet fires.
+- The RFC gate continues refusing a tag in any carrier with no scheduled caller.
+  No current green gate is claimed here.
+- The existing BGP interop evidence keeps its nightly classification while its
+  scheduled caller remains present; retain its actual tagged population.
 - Every runner keeps failing CLOSED: a missing Docker daemon or a missing host
   kernel module exits non-zero and never prints "skipping".
 - `test/draft/` stays invisible to the scan.
 
-**Behavior to change:**
-- The interop tier stops being an asserted literal and becomes derived from the
-  workflow set, so deleting a job DOWNGRADES the carrier instead of doing nothing.
-- The two ipsec checks stop converting a thrown assertion into a pass.
-- `test/interop-ipsec/` gains an automated caller and, with it, `interop/nightly`.
+**Completion work:**
+- Review the delivered workflow and carrier derivation against the ACs below.
+- Record current runner results, prerequisite failures and discriminating
+  breaks; retain every unresolved positive EAP/ESP proof obligation.
+- Do not re-add the delivered callers or hand-assign their tiers.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- A developer writes `# RFC requirement: <id> <polarity> -- <why>` in a
-  `check.py` under one of the three trees.
-- Format at entry: a Python comment token, read by `scan_python_tags`.
+- An `RFC requirement:` Go comment in a native checker under
+  `internal/le/interoplab/ipsec/`, `l2tp/` or `pppoe/`.
 
 ### Transformation Path
-1. `scan_tree()` walks `TEST_ROOTS` and calls `carrier_for(rel)` for each file.
-2. `carrier_for()` → `_lookup()` returns the first `CARRIERS` row matching prefix
-   and suffix; today that is `interop-ipsec` / `interop-l2tp` / `interop-pppoe`.
-3. Today: `carrier.tier == TIER_UNRUN`, so `scan_tree` raises `_refuse_unrun()`
-   and `./le rfc check` exits 2 naming the file.
-4. After this spec: the row's tier is computed by a new `scheduled_workflow_targets()`
-   reader over `.github/workflows/*.yml`. A tree whose runner target appears in a
-   scheduled workflow resolves to `TIER_NIGHTLY`; one that does not stays `TIER_UNRUN`.
-5. The tag resolves, `evidence_label()` prints `interop/nightly`, and the ledger
-   marks the requirement `**nightly-only**` unless it also has verify-tier evidence.
+1. `scheduledWorkflowActions` reads `.github/workflows/`, and
+   `scheduledActionsFrom` derives actions from scheduled workflows.
+2. `interopCarriers` maps each native checker tree to its declared action.
+   A scheduled action grants `nightly`; an absent one leaves `unrun`.
+3. `CarrierFor` resolves the native Go carrier before the tooling exclusion,
+   and the scanner reads its tags. An unrun tag is refused.
+4. The ledger reports `interop/nightly` separately from verify-tier evidence.
+   A successful tag scan does not certify a scenario run.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| `CARRIERS` ↔ `.github/workflows/*.yml` | new reader parses `make <target>` out of scheduled workflows | No - new code |
-| `CARRIERS` ↔ git HEAD | `_build_head_carriers()` must also read HEAD's workflows, or a job deletion relabels both sides and the loss is invisible | No - new code |
-| gate ↔ `github_workflows_test.go` | both extract make targets from workflow YAML; two extractors would drift | No - new code |
+| Carrier ↔ workflow | `scheduledWorkflowActions`, `scheduledActionsFrom`, `interopCarriers` | Source present; runtime proof still owed |
+| Current carrier ↔ HEAD baseline | each side must read its own workflow snapshot | Regression proof still owed before closure |
+| Native action ↔ scenario checker | the runner must invoke the checker carrying the tag | Current suite execution still owed |
 
 ### Integration Points
-- `_suite_carriers()` / `functional_suites()` - the existing derive-from-recipe
-  pattern this change copies for workflows. Same fail-closed shape.
-- `_build_head_carriers()` - already swaps derived rows for HEAD's; must learn the
-  workflow-derived rows too.
-- `parseMakeTargets()` (`internal/le/`) - the Go side's
-  make-target extractor. The Python reader must agree with it on the same files.
+- `internal/le/rfc/carriers.go` owns action parsing and tier assignment.
+- Native interop packages own executable assertions; workflow callers own scheduling.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | Yes | the tier stays a `CARRIERS` property; only its SOURCE changes from literal to derived |
-| No unintended coupling (components stay isolated) | Yes | the reader is one function in `rfc_requirements.py`; nothing else learns about workflows |
-| No duplicated functionality (extends existing, does not recreate) | Partial | a make-target extractor already exists in Go (`parseMakeTargets`). AC-7 requires the two be pinned against each other rather than left to drift |
-| Zero-copy preserved where applicable (refs, not copies) | N-A | tooling, no wire path |
-| Registration over hardcoding: new commands, views, families, handlers register and the core discovers them; no per-feature field, switch case, or factory added to a core/shared package (`ai/rules/plugins.md`) | Yes | this change REMOVES hardcoding: four asserted tiers become one derived rule (`ai/rules/evidence.md`) |
+| No bypassed layers | Yes at source | the tier is derived by `interopCarriers` from scheduled actions |
+| No unintended coupling | Yes at source | workflow parsing remains in the RFC carrier producer |
+| No duplicated functionality | Required | use the native action identity rather than restoring a Python make-target reader |
+| Zero-copy preserved where applicable | N-A | tooling, no wire-path implementation here |
+| Registration over hardcoding | Required | declared native trees map to actions; tiers remain derived from the workflow |
 
 ## Risks & Assumptions
 
@@ -207,6 +171,10 @@ that pass with the dataplane broken.
      land HERE, not only in conversation. -->
 
 ### Assumptions
+The following assumption outcomes are the 2026-08-01 record. They do not
+certify the migrated native runners. AC-4/AC-5 still require current hosted
+execution evidence, but their callers are no longer absent.
+
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The ipsec lab actually passes, so its green is real rather than assumed | deferral note says all three are unverified since the launcher fix | the tree cannot earn a tier at all | ran `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=psk-site-to-site` on Darwin/Docker: exit 0, Ze-side XFRM SA present, ESP counters advanced | **confirmed for psk-site-to-site only -- see A-9/A-10** |
@@ -223,9 +191,9 @@ that pass with the dataplane broken.
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Granting `interop-ipsec` a tier while A-5 stays broken hands evidence status to a check that passes with ESP broken | a scenario passes on a host with no XFRM | AC-3 fixes the checks BEFORE AC-2 grants the tier; ordering is normative in Implementation Steps |
-| R-2 | The l2tp/pppoe jobs go red every night, and an advisory red trains people to ignore the workflow | first nightly after merge | do not wire a tree whose lab cannot run; settle A-6/A-7 first (owner question below) |
-| R-3 | The Python workflow reader and Go `parseMakeTargets` drift, so the gate believes a target runs that CI does not invoke | none - silent | AC-7: a test asserts both extractors return the same target set for every workflow file |
+| R-1 | A scheduled checker passes with broken ESP | a positive scenario passes without its required XFRM state | AC-3 requires discriminating native checks; an available tier cannot substitute for that proof |
+| R-2 | A scheduled L2TP/PPPoE job lacks a kernel prerequisite | hosted run reports a preflight failure | retain the visible failure and obtain the required execution proof; never hide it with continue-on-error |
+| R-3 | The carrier parser credits an action the workflow does not run | tag accepted without its scheduled runner | AC-7 checks native action identity, comments, trigger scope and unreadable workflows |
 | R-4 | The ipsec nightly job needs Go + Docker + privileged; a missing one turns a real failure into an infrastructure blip | job red with a build error, not a scenario failure | job runs `actions/setup-go` like its siblings; runner fails closed with a message naming Docker |
 | R-5 | Adding a tree to `CARRIERS` with a nightly tier lets a future author bind an RFC MUST to nightly-only evidence when a `.ci` would have run on every push | a requirement's only evidence is `interop/nightly` | `ai/rules/testing.md` already prefers a `.ci`; the ledger already marks such rows `**nightly-only**` and never sums them |
 
@@ -246,10 +214,10 @@ that pass with the dataplane broken.
      by `internal/le/hookruntime/lifecycle.go`, which is the point: an unedited row fails. -->
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `# RFC requirement:` tag in `test/interop-ipsec/scenarios/*/check.py` | → | `carrier_for()` → `_lookup()` returns `interop-ipsec` with `TIER_NIGHTLY` | `test_ipsec_interop_carrier_earns_nightly_when_wired` (`internal/le/`) |
-| `.github/workflows/evidence-nightly.yml` `ipsec-interop` job | → | `scheduled_workflow_targets()` reports `./le integration interop-ipsec` | `TestEvidenceNightlyRunsIpsecInterop` (`internal/le/`) |
-| A workflow that does NOT name a tree's runner | → | that tree's carrier resolves `TIER_UNRUN` and `_refuse_unrun()` fires | `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` |
-| Deleting the interop job at HEAD→tree | → | `_build_head_carriers()` labels HEAD `nightly` and tree `unrun`, so the evidence ratchet reports a LOSS | `test_head_carriers_read_head_workflows` |
+| A tag in a native IPsec checker | → | `CarrierFor` resolves the `interop-ipsec` row derived by `interopCarriers` | native tag/runner proof required by AC-2 |
+| Scheduled versus push-only workflow | → | `scheduledActionsFrom` | `TestOnlyAScheduledWorkflowGrantsANightlyTier` |
+| Unreadable workflow directory | → | `scheduledWorkflowActions` refuses the read | `TestAWorkflowDirectoryTheGateCannotReadIsRefused` |
+| Workflow native action syntax | → | `nativeActionsIn` | `TestNativeActionsInWorkflowCommands` |
 
 ## Acceptance Criteria
 
@@ -257,14 +225,14 @@ that pass with the dataplane broken.
      observable behavior, never as the mechanism used to reach it. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `.github/workflows/evidence-nightly.yml` after the change | carries an `ipsec-interop` job, `continue-on-error: true`, running `./le integration interop-ipsec` by name, with `actions/setup-go` (the lab cross-compiles ze on the host) |
-| AC-2 | An `RFC requirement:` tag in `test/interop-ipsec/scenarios/*/check.py` | is accepted and labelled `interop/nightly`; `./le rfc check` exits 0 |
-| AC-3 | `eap-tls/check.py` and `ipsec-bgp-redistribute-frr/check.py` run against a host where the Ze-side XFRM SA never appears | the scenario FAILS. No `except Exception` path reports a pass |
-| AC-4 | An `RFC requirement:` tag in `test/interop-l2tp/scenarios/*/check.py` | BLOCKED on A-6. Accepted as `interop/nightly` only once a scheduled job runs the lab green; otherwise the tag stays refused and the refusal names the runner |
-| AC-5 | An `RFC requirement:` tag in `test/interop-pppoe/scenarios/*/check.py` | BLOCKED on A-7. Same condition as AC-4 |
-| AC-6 | The `interop` job is deleted from `evidence-nightly.yml` | `interop-bgp` resolves `TIER_UNRUN`, the 2 existing BGP interop tags are refused, and `./le rfc check` exits 2. Today this deletion changes nothing in `CARRIERS` |
-| AC-7 | Every file under `.github/workflows/` | the Python `scheduled_workflow_targets()` and the Go `parseMakeTargets()` agree on the make targets found, so the gate cannot believe in a caller CI does not have |
-| AC-8 | `./le rfc check` after the change | exits 0; the `evidence:` line reports a non-zero `interop/nightly` count and no requirement silently loses a polarity or an evidence kind |
+| AC-1 | The scheduled IPsec job runs | It invokes `./le integration interop-ipsec` with its required host toolchain; a runner or scenario failure fails the job. No `continue-on-error: true` masks it |
+| AC-2 | A valid requirement tag in an executed native IPsec checker | The tag resolves as `interop/nightly`, the recorded scenario result names the checker that ran, and its discriminating break fails that checker |
+| AC-3 | A positive IPsec scenario cannot obtain the required Ze-side XFRM state | It fails. `ipsec-bgp-redistribute-frr` and the positive EAP/ESP proof must propagate failed assertions. The migrated `eap-tls` TLS 1.2 refusal is recorded separately and cannot discharge a positive ESP proof |
+| AC-4 | The L2TP caller and native checker run on the hosted Linux runner | A dated run demonstrates the required kernel prerequisites and scenario assertions; valid tags resolve as `interop/nightly`. Scheduling alone is insufficient completion evidence |
+| AC-5 | The PPPoE caller and native checker run on the hosted Linux runner | The same proof as AC-4 is recorded for PPPoE, including its kernel prerequisites |
+| AC-6 | A scheduled interop action is removed from the workflow snapshot | Its carrier becomes `unrun`, its tags are refused, and comparison with HEAD reports lost evidence without relabelling both sides from the new workflow |
+| AC-7 | Native workflow action parsing receives scheduled, push-only, commented or unreadable input | Only an executed native action in a scheduled workflow grants nightly tier; comments and push-only jobs grant none, and unreadable/empty workflow sources fail closed |
+| AC-8 | The final proof inventory and RFC gate are reconciled | Every original carrier/proof obligation is accounted for, no evidence kind or polarity is silently lost, and all remaining suite failures are explicit. Closure still owes the required clean final gate and current execution evidence |
 
 ## End-to-End User Stories
 
@@ -281,15 +249,12 @@ a test, and that path is covered by the Wiring Test table above.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `test_scheduled_workflow_targets_reads_make_targets` | `internal/le/` | the reader finds `./le integration interop` and `./le integration interop-ipsec` in a scheduled workflow fixture | |
-| `test_scheduled_workflow_targets_ignores_push_only_workflow` | same | a target named only by `verify.yml` (push/pull_request) does not grant a NIGHTLY tier | |
-| `test_scheduled_workflow_targets_ignores_comments` | same | a commented-out `make` line grants nothing, matching `stripComments` on the Go side | |
-| `test_scheduled_workflow_targets_fails_closed_when_unreadable` | same | an unreadable workflow dir raises `ParseError`, never "everything runs" (`ai/rules/evidence.md`) | |
-| `test_ipsec_interop_carrier_earns_nightly_when_wired` | same | `carrier_for('test/interop-ipsec/scenarios/x/check.py').tier == TIER_NIGHTLY` | |
-| `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` | same | with the job removed from the fixture, the same path resolves `TIER_UNRUN` and `_refuse_unrun` names the runner | |
-| `test_head_carriers_read_head_workflows` | same | `_build_head_carriers()` labels from HEAD's workflow set, so a job deletion is a LOSS not a wash | |
-| `TestEvidenceNightlyRunsIpsecInterop` | `internal/le/` | the `ipsec-interop` job exists, is advisory, and runs the target by name | |
-| `TestWorkflowTargetExtractorsAgree` | same | Go `parseMakeTargets` and the Python reader return the same set for every workflow file (AC-7) | |
+| `TestOnlyAScheduledWorkflowGrantsANightlyTier` | `internal/le/rfc/tags_test.go` | scheduled versus push-only tier derivation | Existing; not run in this reconciliation |
+| `TestNativeActionsInWorkflowCommands` | same | native action identity | Existing; not run |
+| `TestAWorkflowDirectoryTheGateCannotReadIsRefused` | same | fail-closed workflow reads | Existing; not run |
+| `TestEAPTLSNegativeHandshakeIsProvenAndFailClosed` | `internal/le/interoplab/ipsec/ipsec_test.go` | refusal proof requires a real handshake | Existing; not run |
+| `TestXFRMStatePropagatesCommandFailure` | same | failed kernel read is not empty success | Existing; not run |
+| HEAD/current workflow-loss proof | `internal/le/rfc/` | AC-6, including each side's own workflow snapshot | Review required |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -302,7 +267,7 @@ a test, and that path is covered by the Wiring Test table above.
      Structure: ai/patterns/functional-test.md -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N-A - no daemon-visible behavior changes. The user entry point is `./le rfc check`, exercised by `--selftest` (699 tests) and by the gate itself in `./le verify current mode full`. No `internal/**` or `cmd/**` Go file is modified. | - | - | - |
+| Native RFC gate and lab entry points | `internal/le/rfc/`, `internal/le/interoplab/` | The contributor invokes the native action and receives its actual result | Current execution evidence owed |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See
@@ -310,42 +275,26 @@ a test, and that path is covered by the Wiring Test table above.
      the test FAILS when the behavior under test is reverted. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
+| Current native positive EAP/ESP proof | `internal/le/interoplab/ipsec/` | strongSwan | Reconcile the positive proof with the original EAP scenario before closure; the TLS 1.2 refusal below cannot replace it | Unfinished evidence review |
 | `psk-site-to-site` | `test/interop-ipsec/scenarios/` | strongSwan | the tree is genuinely green: IKE SA + Child SA + XFRM SA on BOTH sides, ESP counters advancing | **PASS** (measured 2026-08-01, exit 0) |
 | `eap-tls` | `test/interop-ipsec/scenarios/` | strongSwan | after AC-3, a missing Ze-side XFRM SA FAILS the scenario instead of logging a pass | **AC-3 met; scenario RED for an unrelated, earlier reason** (EAP-TLS auth, A-10) |
 | `ipsec-bgp-redistribute-frr` | `test/interop-ipsec/scenarios/` | strongSwan + FRR | same, plus the BGP redistribute assertion is unaffected | **AC-3 met and it DISCRIMINATED: the un-guarded assertion is what goes red** (A-9). BGP steps 1 and 4 passed |
 
-→ Constraint: both reds live in `internal/component/ike/**`, which this spec must not
-touch (a Review Gate is reading it and a sibling session owns the uncommitted work
-there). Neither is fixable from inside this spec. They are the OWNER QUESTION below,
-not a deferral: the tooling deliverable is complete and these are product defects the
-tooling just made visible for the first time.
-
-→ Decision: the tier is still granted. AC-3's requirement is that the checks CAN fail,
-and two of them just did, on real evidence rather than a synthetic mutation. A nightly
-advisory job reporting two genuine reds is the system working. No RFC requirement is
-bound to this tree yet, so no false evidence is created either way.
+The three scenario rows dated 2026-08-01 above preserve the original runs.
+They do not certify the native migration. Current product failures remain
+owned until fixed or transferred to a named live spec under the normal scope
+rules. Scheduling a truthful red job does not turn it green or complete this
+spec's execution evidence.
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files.
      Check each file's // Design: annotation: if the change alters behavior the
      referenced architecture doc describes, list that doc here too. -->
-- `internal/le/rfc/rfc.go` - add `scheduled_workflow_targets()`; make the
-  four interop rows derive their tier from it; teach `_build_head_carriers()` to
-  read HEAD's workflows. **Feature code for a tooling spec.**
-- `.github/workflows/evidence-nightly.yml` - add the `ipsec-interop` job.
-- `internal/le/` - add `TestEvidenceNightlyRunsIpsecInterop`
-  and `TestWorkflowTargetExtractorsAgree`.
-- `internal/le/` - the seven unit tests above.
-- `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - remove the fail-open handler.
-- `test/interop-ipsec/scenarios/ipsec-bgp-redistribute-frr/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - same.
-- `docs/labs/pppoe-interop.md` - line 58 reads "Docker Desktop on macOS typically
-  cannot pass this check (its Linux VM lacks the ... modules)". Measured
-  2026-08-01 on Docker Desktop: `PPPOE=ok`, `DEV_PPP=ok`. The sentence is hedged
-  ("typically"), so correct it to say the probe decides rather than deleting the
-  caveat outright.
-- `ai/rules/testing.md` - update the carrier table: `test/interop-ipsec/` is no
-  longer in the refused list, and the l2tp target name is corrected.
-- `ai/RFC-REQUIREMENTS.md` - regenerated by `./le rfc index-update`.
+- `internal/le/rfc/carriers.go` and its tests, only if the AC review finds a defect in native action parsing or tier derivation.
+- `.github/workflows/evidence-nightly.yml`, only for a measured runner defect; retain all delivered callers and visible job failures.
+- `internal/le/interoplab/ipsec/`, `l2tp/`, `pppoe/` and their fixtures, only for measured checker/runner defects or missing original proofs.
+- `docs/labs/pppoe-interop.md`, `docs/labs/l2tp-interop.md`, `ai/rules/testing.md` and `docs/functional-tests.md` - correct any remaining claim that disagrees with the native preflight or carrier owner. The Darwin module observations are dated evidence.
+- `ai/RFC-REQUIREMENTS.md` - regenerate through the native writer when implementation evidence changes.
 
 ## Files to Create
 - None. Every file this spec needs already exists.
@@ -400,29 +349,17 @@ bound to this tree yet, so no false evidence is created either way.
      (write test -> fail -> implement -> pass) and ends with a self-critical
      review; fix what it finds before starting the next phase. -->
 
-**Ordering is normative. AC-3 lands before AC-2.** Granting a tier to a tree
-whose checks can swallow their assertion is the failure this spec exists to
-avoid, so the checks are fixed before the tier is available.
-
-1. **Phase: Wiring (MANDATORY FIRST)** -- add the `ipsec-interop` job and the failing tier test
-   - Tests: `TestEvidenceNightlyRunsIpsecInterop`, `test_ipsec_interop_carrier_earns_nightly_when_wired`
-   - Files: `.github/workflows/evidence-nightly.yml`, `internal/le/`, `internal/le/`
-   - Verify: the job exists and is advisory; the carrier test FAILS because `CARRIERS` still asserts `TIER_UNRUN`
-2. **Phase: Discriminating checks (AC-3)** -- remove the two fail-open handlers
-   - Tests: `eap-tls` and `ipsec-bgp-redistribute-frr` run green on a host WITH XFRM, and fail on one without
-   - Files: the two `check.py`
-   - Verify: `./le integration interop-ipsec` still exits 0 here (XFRM is present); mutation-check by asserting a bogus container name and confirming the scenario reddens
-3. **Phase: Derive the tier (AC-2, AC-6, AC-7)** -- replace the literal with a reader
-   - Tests: the seven `rfc_requirements_test.py` tests, `TestWorkflowTargetExtractorsAgree`
-   - Files: `internal/le/rfc/rfc.go`, `internal/le/`
-   - Verify: `./le rfc selftest` green; the phase-1 carrier test now PASSES; removing the BGP `interop` job from a fixture refuses the BGP tags
-4. **Phase: Docs and ledger** -- correct the stale claims, regenerate
-   - Files: `ai/rules/testing.md`, `docs/labs/pppoe-interop.md`, `ai/RFC-REQUIREMENTS.md`
-   - Verify: `./le rfc index-update && ./le rfc check && ./le doc check verify`
-5. **Phase: l2tp / pppoe (AC-4, AC-5) -- BLOCKED, needs the owner ruling below**
-   - Do not start until A-6/A-7 are settled. Wiring a lab whose kernel prerequisite
-     the runner lacks produces a nightly red, which earns no tier and trains people
-     to ignore the workflow (R-2).
+1. Reconcile each AC with the delivered native producer and existing tests.
+   Preserve the original positive EAP/ESP obligation alongside the current
+   negative TLS 1.2 scenario; name any missing proof before implementation.
+2. Exercise the current IPsec, L2TP and PPPoE runners on the required Linux
+   host, including missing-prerequisite refusal and discriminating assertion
+   failures. Record the scenario and revision behind every result.
+3. Prove workflow removal downgrades the carrier and the HEAD comparison sees
+   the evidence loss. Use native action identities and the current Go scanner.
+4. Correct only measured gaps, preserve failure visibility, and reconcile
+   carrier documentation and evidence. Any unresolved obligation stays open
+   here or receives an approved live destination before closure.
 
 ### Critical Review Checklist
 
@@ -431,13 +368,13 @@ avoid, so the checks are fixed before the tier is available.
      is not worth a row. -->
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N has an implementation at file + symbol; AC-4/AC-5 are explicitly BLOCKED, not silently dropped |
-| Feature completeness | A tag in `test/interop-ipsec/` is accepted end to end: written, scanned, labelled, rendered in the ledger |
-| Fail-closed | An unreadable or absent `.github/workflows/` raises `ParseError`. It must never resolve to "everything runs" (`ai/rules/evidence.md`) |
-| Discrimination | No `check.py` in the newly-tiered tree converts a thrown assertion into a pass. Grep the whole tree for `except`, not only the two known sites |
-| Ratchet safety | `check_evidence_ratchet` and `check_coverage_ratchet` stay green: no requirement loses a kind or a polarity. Run `./le rfc check` before and after |
-| Derivation, not assertion | No tier literal survives for a carrier whose runner a workflow names. `grep TIER_NIGHTLY` returns the derivation, not four hardcoded rows |
-| HEAD symmetry | `_build_head_carriers()` reads HEAD's workflows. Prove a job deletion reports a LOSS by running the ratchet against a fixture |
+| Completeness | All three carriers have current execution proof; every original scenario obligation is preserved |
+| Feature completeness | Native tags are scanned, classified and backed by the checker the scheduled action executes |
+| Fail-closed | Missing workflow or lab prerequisites refuse the run, and no failed assertion is converted to success |
+| Discrimination | Both the positive XFRM proof and the negative EAP-TLS refusal fail under their own meaningful breaks |
+| Ratchet safety | Evidence-loss checks compare the current tree with HEAD's own workflow population |
+| Derivation | No native interop tier is hand-assigned independently of a scheduled action |
+| Failure visibility | Advisory jobs remain outside merge requirements but report their own failure |
 | Rule: `ai/rules/testing.md` | The rule's carrier table and the code agree after the change. The rule is the published contract; a stale row there is a false promise |
 | Rule: `ai/rules/evidence.md` | The workflow reader is the ONLY place a tier is decided; `ai/rules/testing.md` describes it rather than re-listing it |
 
@@ -447,13 +384,11 @@ avoid, so the checks are fixed before the tier is available.
      verification method. -->
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `ipsec-interop` job exists and is advisory | `go test -tags "ze_core $TAGS" -run TestEvidenceNightlyRunsIpsecInterop ./scripts/dev/` |
-| A tag in `test/interop-ipsec/` is accepted | add one, run `./le rfc check`, expect exit 0 and a non-zero `interop/nightly` count |
-| The two checks discriminate | `./le integration interop-ipsec IPSEC_INTEROP_SCENARIO=eap-tls` green; then break the container name and confirm red |
-| The tier is derived | `./le rfc selftest` |
-| Deleting the BGP interop job refuses BGP tags | the fixture test `test_interop_carrier_falls_to_unrun_without_a_scheduled_caller` |
-| The gate is still green overall | `./le rfc check` exit 0 |
-| No ratchet fired | compare the `evidence:` line against `tmp/rfccheck-baseline.log` (unit/verify 3103, functional/verify 19, editor/verify 0, interop/nightly 2) |
+| Scheduled callers retain visible failures | workflow review plus current job results |
+| Native tags resolve to the right runner | carrier tests and requirement-to-checker inventory |
+| Original positive and negative scenarios discriminate | current scenario runs and recorded meaningful breaks |
+| Job removal removes its tier and reports evidence loss | AC-6 regression evidence |
+| Final evidence and documentation agree | native RFC gate and documentation review at closure |
 
 ### Security Review Checklist
 
@@ -491,10 +426,9 @@ avoid, so the checks are fixed before the tier is available.
   refused, nobody noticed the fail-open checks. Removing the refusal without
   reading the checks would have converted a visible blocker into an invisible
   false positive.
-- **`CARRIERS` derives the `.ci` tier but asserts the interop tier.** The `.ci`
-  path reads `internal/le/functional/suites.go` and even re-reads HEAD's copy so a dropped
-  suite registers as a loss. The interop path is four literals. The asymmetry is
-  not principled; it is the order the two were written in.
+- The original 2026-08-01 carrier table asserted interop tiers as literals.
+  `interopCarriers` now derives them from scheduled native actions. The old
+  asymmetry records the motivation for the change.
 - **The measured host facts contradict two docs.** Docker Desktop on this Darwin
   host has `pppoe` and `/dev/ppp` but not `l2tp_ppp`, and the ipsec lab's Ze-side
   XFRM works. Three separate comments and doc lines say otherwise.
@@ -505,27 +439,22 @@ avoid, so the checks are fixed before the tier is available.
 |----------|------------------------|-----------|
 | Derive the interop tier from `.github/workflows/*.yml` | Keep the literal and just flip `TIER_UNRUN`→`TIER_NIGHTLY` for ipsec | The literal is a claim nobody checks. Flipping it would grant a tier that survives deleting the job. Deriving fixes `interop-bgp`'s identical weakness in the same change (`ai/rules/evidence.md`) |
 | Fix the two fail-open checks BEFORE granting the tier | Grant the tier now, fix the checks in a follow-up | A tier granted to a vacuous check is exactly the false evidence the `unrun` refusal exists to prevent. Ordering costs nothing and the reverse is unsafe (R-1) |
-| Wire ipsec now; hold l2tp/pppoe for evidence | Wire all three at once | Their kernel prerequisite on `ubuntu-latest` is unmeasured (A-6, A-7). Wiring a lab that cannot run yields a permanent advisory red, which earns no tier and devalues the workflow. `ai/rules/testing.md` sequencing is wire → observe → grant |
-| Reject the QEMU siblings as the pipeline for l2tp/pppoe | Point the tier at `ze-qemu-l2tp-ppp-test` / `ze-qemu-pppoe-accel-test` | Those targets run `internal/le/deployment/`, NOT the trees' `check.py`. Crediting a `check.py` for a run that never opens it is precisely a tier the carrier has not earned |
-| One shared notion of "make targets in a workflow" | Let the Python reader and Go `parseMakeTargets` evolve separately | Two extractors that disagree let the gate believe in a caller CI does not have. AC-7 pins them together |
+| The original L2TP/PPPoE hold is superseded by delivered scheduled callers | Restore the missing-caller blocker | Current workflow source contains both actions; AC-4/AC-5 retain the independent execution-proof obligation |
+| A platform run must execute the tagged native checker | Credit a similarly named deployment action without tracing it | Runner identity and scenario execution must agree |
+| One native action parser supplies tier derivation | Restore paired Python/Go make-target extractors | The migration retired the Python path; AC-7 preserves its intended agreement with the executed action |
 
 ## Known Limitations
 <!-- Deliberate scope boundaries. Anything here that is actually outstanding work
      needs a row in the deferral shard named in the metadata table. -->
-- **AC-4 and AC-5 (l2tp, pppoe) are NOT delivered in the first pass and are NOT
-  dropped.** They are BLOCKED on A-6/A-7, which need either one observed nightly
-  run on `ubuntu-latest` or an owner ruling. They stay acceptance criteria of
-  THIS spec, so the spec stays open until they are settled: blocked is not
-  deferred, and a blocker is not a scope reduction (`ai/rules/completion.md`).
-  The two matching rows in the retired deferral shard "rfcgate-2-evidence" already name
-  this spec as their destination and stay `deferred` (live) until then.
+- AC-4 and AC-5 remain unfinished until the current hosted L2TP/PPPoE results
+  and discrimination evidence are recorded. Their scheduled callers are
+  delivered; this reconciliation records no fresh execution or pass.
 - `interop/nightly` is advisory evidence by construction. It never gates a merge,
   and the ledger keeps it in a separate rollup. A requirement whose only proof is
   an interop scenario is proven nightly, not on every push. That is a property of
   the tier, not a gap in this work.
-- The `interop` tier remains unavailable to the four other `check.py` trees
-  (`test/stress/scenarios/`, `test/l2tp-scale/` (retired; now `internal/le/interoplab/l2tp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, and the two named above). The
-  `scenario-check` catch-all keeps refusing them, which is the fail-closed default.
+- Unscheduled native interop trees remain `unrun`. Retired `check.py` paths
+  cannot stand in for an executable native checker or establish current proof.
 
 ## RFC Documentation (Scope: protocol)
 

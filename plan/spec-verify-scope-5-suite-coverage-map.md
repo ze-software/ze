@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go` and `docs/architecture/testing/verify-freshness-scope.md`) |
-| Phase | 3/5 |
+| Phase | 5/5 |
 | Handoff | - |
 | Updated | 2026-09-07 |
 
@@ -16,10 +16,17 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Derive which functional suites exercise which Go packages, by RECORDING it at
 run time, so the functional stage can run only the suites a change can reach.
 
-`./le functional` is 1472s of the 4418s full run and is now the largest
-remaining cost: sub-spec 3 cut the staticcheck matrix from 38 rows to 3 for a
-feature-local change (12.1x, measured), and sub-spec 2 scoped the lint and unit
-stages. The functional suite is the one stage still judging everything.
+This spec is the sole owner of the recorded package-to-suite map, its recording
+and freshness rules, and `planRun`/`selectSuites` for local and gating selection.
+`Gating` and the suite catalog remain the single inventory. The dependent
+`plan/spec-changed-source-to-functional-suite-map.md` assesses source inputs and
+CI consumption against this provider; it must not create a second map or
+selection implementation. The umbrella owns aggregate verification-cost proof.
+
+At the August 19 baseline, `./le functional` cost 1472s of a 4418s full run and
+was the largest remaining cost after child 3's measured Staticcheck reduction
+and child 2's lint/unit scoping. The functional selection implementation now
+exists; narrowing still depends on a usable recorded map.
 
 **Every static route to a package-to-suite map was measured, and every one
 failed.** This spec exists because of that measurement rather than instead of it:
@@ -165,26 +172,37 @@ and 2236s of wall clock against 1472s (+52%).
 
 ### Where this spec stands (2026-09-07, 22:20)
 
-All five phases are implemented and committed: phase 2 `c770a44a28`, phase 3
-`1620f1491`, phase 4 `37502476d`, phase 5 `5d497dcc9`. **One artifact is
-missing and it is the only thing between here and closure.**
+The September 7 account records all five phases implemented and committed:
+phase 2 `c770a44a28`, phase 3 `1620f1491`, phase 4 `37502476d`, phase 5
+`5d497dcc9`. The metadata therefore records phase 5/5, while status remains
+in-progress because the recording and acceptance evidence is incomplete.
 
-`tmp/ze-suite-map.json` has never been written. Only a run of every gating suite
-publishes one, and the first attempt was killed by the OOM killer at suite 2 of
-27. A second run started at 22:20 under `ZE_COVER=1 ZE_SUFFIX=recordmap
-./le functional gating`, detached, logging to
+At 22:20 on September 7, `tmp/ze-suite-map.json` had not been written. The first
+attempt was killed by the OOM killer at suite 2 of 27; a second had just started
+under `ZE_COVER=1 ZE_SUFFIX=recordmap ./le functional gating`, logging to
 `tmp/session/2026-09-07-871bd039-337f-4814-a6a3-c4a31407fbaf/scratch/record-map.log`.
+That is a historical launch record, not a current running job or completed run.
 
-Whoever picks this up reads the tail of that log and the artifact. The run ends
-in one of two ways, both by design: it names the suites that recorded nothing
-and says the map now records what it reached, or it refuses and names the first
-gating suite it did not run. AC-1 closes on the first. A run killed again leaves
-no map, which is safe: every reader widens on an absent map, so the functional
-stage runs every suite exactly as it did before this spec.
+The next evidence step is to recover that run's result and map provenance, or
+record a full run if no usable result survives. A published map must account
+for every gating suite, omit suites that recorded nothing, and identify its
+source commit. An absent map remains safe because readers widen to every suite.
+Publication alone does not prove all of AC-1: its paired-run equivalence clause
+still needs evidence. AC-2 also needs recording cost compared with the saving
+on a feature-local change; AC-3 needs selection from the real recorded map.
 
-The recording is the only open item. It also upgrades
-`test/runner/verify-scope-suite-map.ci` from a proof of the SELECTION, which is
-what it is today over a map the fixture writes, to a proof of the whole path.
+`test/runner/verify-scope-suite-map.ci` proves selection over a fixture-written
+map. Recording a real map supplies the separate producer-to-artifact evidence;
+it does not change what that fixture itself proves. Closure must account for
+every AC, including the fail-open and RFC-tier obligations, without treating a
+successful write as a substitute.
+
+AC-3's “and no others” remains an acceptance obligation. The current
+`suitesFor` implementation always includes gating suites omitted from the map,
+because their coverage is unknown. A map or source read cannot certify that
+literal condition while those suites remain unknown. The closure assessment
+must expose that mismatch to the owner rather than drop the fail-open rule or
+silently weaken AC-3. The same qualification applies to umbrella AC-U5.
 
 ### Phase 1b measurement (2026-09-07)
 
@@ -357,19 +375,20 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 | `TestSuiteSelectionSkipsOnlyUnreachedSuites` | `internal/le/functional/suitemap_test.go` | AC-3 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | `TestAbsentMapRunsEverySuite` | `internal/le/functional/suitemap_test.go` | AC-4, AC-6: the fail-open branches | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
 | `TestStaleMapTreatsTouchedPackagesAsUnknown` | `internal/le/functional/suitemap_test.go` | AC-5 | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
-| `TestEmptyRecordedSetIsARefusal` | `internal/le/functional/suitemap_test.go` | a suite recording nothing must fail, never read as covering nothing | | <!-- doc-links: ignore (artifact a later phase of this spec will create) -->
+| `TestEmptyRecordedSetIsARefusal` | `internal/le/functional/suitemap_test.go` | the reader refuses a stored empty package set; the writer omits a suite that recorded nothing, so that unknown suite still runs | |
 | `TestOperatorSkipStillWins` | `internal/le/` | AC-8 | |
 | `test_functional_tier_is_unchanged_by_selection` | `internal/le/` | AC-7 | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| suites selected | 0-24 | 24 | N/A | N/A |
-| packages in a suite's recorded set | 1-646 | 646 | 0 | N/A |
+| suites selected | 0 through the current `Gating` population | every gating suite | N/A | N/A |
+| packages in a stored suite set | 1 through the recorded package population | all reached packages | 0 is refused by the reader | N/A |
 
-<!-- Zero suites is valid: a docs-only change reaches none. Zero packages in a
-     suite's recorded set is NOT: it means the recording broke, and reading it
-     as "this suite covers nothing" would skip that suite for ever. -->
+Zero selected suites is valid only when every gating suite is known and none
+reaches the change. A suite omitted from the map is unknown and still runs,
+including for a docs-only change. A stored empty set is refused; a recording
+with no reached package for one suite omits that suite rather than storing it.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -452,7 +471,7 @@ box carried a load average of 20 to 60 across 32 cores for every `encode` and
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file:line |
 | Feature completeness | Both binary producers are instrumented, or the spec names which mode produces the map |
-| Correctness | A suite recording an EMPTY set fails loudly. Reading it as "covers nothing" would skip that suite for ever |
+| Correctness | The reader refuses a stored empty package set. The writer omits a suite that recorded nothing, and every omitted suite still runs; a partial gating run publishes no map |
 | Naming | One name for the map, used by the stage and by any later consumer |
 | Data flow | The map only ever narrows from a package it records; every unknown widens |
 | Rule: `ai/rules/rfc-compliance.md` | No requirement loses a tier. Diff the ledger, do not assume |

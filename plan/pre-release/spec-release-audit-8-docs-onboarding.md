@@ -161,16 +161,16 @@ Every docs/onboarding finding must include:
 
 ## Docs Audit Matrix
 
-| Surface | Current Evidence | Release Risk | Finding |
-|---------|------------------|--------------|---------|
-| Documentation drift target | `./le doc check verify` output | Release docs are known-stale before release | RA-DOC-002 |
-| Consistency backlog | `./le consistency` output | Release engineers cannot use one consistency gate as clean docs signal | RA-DOC-008 |
-| Release gate documentation | `docs/functional-tests.md`, `internal/le/verify/engine/run.go` | Documented ./le verify current mode full order omits five live gates | RA-DOC-009 |
-| Interop inventory docs | interop docs, scenario tree | Scenario counts re-drifted across three docs | RA-DOC-010 |
+| Surface | Current source disposition (2026-09-19) | Evidence still owed | Finding |
+|---------|----------------------------------------|---------------------|---------|
+| Documentation gate | The July stale-index failure is dated; `docstocode.Check` now generates an absent derived index and judges an existing one for staleness | A current doc-gate run and disposition of each failure, not an assumed rerun of the July counts | RA-DOC-002 |
+| Consistency backlog | `pathset.go` still cites absent `familyrib_bart.go` and `familyrib_map.go`; `consistency.Check` checks cross-references | Current output and a named implementation owner for surviving repairs; no current error/warning count is claimed | RA-DOC-008 |
+| Release gate documentation | `docs/functional-tests.md` no longer reproduces the stage list; it directs readers to `StagesForMode` in `internal/le/verify/engine/stages.go` and `full-list` | Audit proof that the documented query and producer agree; the original five-omitted-gates defect is no longer a current repair requirement | RA-DOC-009 |
+| Interop inventory docs | Features and DESIGN now say 100+; the architecture page identifies native discovery and checker ownership | Reconcile the current inventory and positive/negative evidence; the July 96/97/101 discrepancy is historical | RA-DOC-010 |
 
 (Matrix rows for the removed findings RA-DOC-001/003/004/005/006/007 deleted 2026-07-10; see Post-wave corrections.)
 
-## Initial Findings
+## Initial Findings (historical May/July 2026 evidence)
 
 | ID | Severity | Surface | File/line | User Impact | Reproduction | Expected | Actual | Missing Test | Suggested Direction | Owner | Verification Requested |
 |----|----------|---------|-----------|-------------|--------------|----------|--------|--------------|---------------------|-------|------------------------|
@@ -178,6 +178,18 @@ Every docs/onboarding finding must include:
 | RA-DOC-008 | Minor | consistency and doc-ref backlog | `./le consistency` output; `internal/component/bgp/plugins/rib/storage/pathset.go`; `internal/component/bgp/plugins/cmd/cache`; `internal/component/bgp/plugins/cmd/commit` | Release engineers cannot treat `./le consistency` as a clean documentation consistency gate because doc-relevant errors are mixed into a large backlog | Run `./le consistency` | Consistency output is clean or split into actionable release-gate categories with doc failures visible | Command fails with 42 errors and 712 warnings, including stale refs to non-existent storage files and missing plugin command package docs/schema markers | No focused docs-consistency gate separates source-anchor/link/plugin-doc failures from broader code size and style backlog | Future fix should either clean doc-relevant consistency errors or split a narrower docs consistency target from broad code health checks | docs/tooling plus relevant subsystem owners | Passing focused docs consistency target, or `./le consistency` clean enough that docs failures are actionable |
 | RA-DOC-009 | Major | release gate documentation | `docs/functional-tests.md`; `internal/le/verify/engine/run.go`; `internal/le/` native action tables | Release engineers reading the documented ./le verify current mode full order miss five live gates and cannot route their failures | Compare `docs/functional-tests.md` with `stagesForMode` (`internal/le/verify/engine/run.go`) | Docs list the live stage order | Docs omit `./le tier check`, `ze-iface-resolution-check`, `./le plugin boundary check`, `./le port-defaults check`, `ze-platform-vet`, which the live producer runs between ./le verify lint run and ./le doc wiring (`verify_run.go`); the dead `_ze-verify-impl` target (`internal/le/` native action tables, zero callers per `internal/le/` native action tables) additionally lists `./le cli-grammar`, absent from the live list | `doc_drift.go` does not compare the documented order sentence against `stagesForMode` | Future fix should update the order sentence from `stagesForMode` and consider deriving the check in `doc_drift.go` | docs/onboarding plus docs/tooling | `docs/functional-tests.md` ./le verify current mode full order matches `stagesForMode`; ideally a drift check guards it |
 | RA-DOC-010 | Minor | interop inventory docs | `docs/features/interoperability-testing.md`; `docs/architecture/testing/interop.md`; `docs/DESIGN.md`; `test/interop/scenarios/` | Users and release engineers see three different scenario counts | Compare documented counts with the scenario directory count | All docs state the live count or a generated-list policy | Features doc says 96, interop architecture doc says 97, DESIGN.md says 101; the tree has 101 scenario directories (2026-07-10) | No inventory check keeps counts in sync (successor to removed RA-DOC-003) | Future fix should derive or validate scenario counts from the tree | docs/onboarding plus BGP protocol audit | Counts consistent across docs or generated from the tree |
+
+The current matrix supersedes the initial Actual and Missing Test claims.
+The July correction record below remains a dated record, not a current gate
+result. No validation command was run for this source reconciliation.
+
+This spec owns the docs audit, not documentation or tooling repair. RA-DOC-002
+needs a fresh failure population before an implementation owner can be assigned.
+RA-DOC-008's surviving stale source references need a named implementation owner.
+Those assignments are outstanding; “docs/tooling”, child 2 and child 8 are not
+implementation owners. An owner must accept the scoped repair in a live
+implementation spec before the umbrella can count it as routed. RA-DOC-009/010
+need current audit evidence rather than automatic recreation of obsolete fixes.
 
 ## Wiring Test (MANDATORY)
 
@@ -240,14 +252,14 @@ This docs audit does not add protocol behavior. Interop evidence remains owned b
 
 ### Future
 
-- Add local Markdown link validation to `./le doc check verify` or document a separate docs link gate.
-- Add source-anchor validation tests before requiring `./le docs-to-code index-check` in release evidence.
+- Exercise the documented `./le doc check links` action, implemented by `doccheck.checkLinks`, rather than add a second link checker.
+- Revalidate the existing `CheckCodeIndex` path/symbol checks through `./le docs-to-code index-check`; retain evidence for any reproduced gap before proposing repair.
 
 (The docs-smoke-test bullet was deleted 2026-07-10 with its finding RA-DOC-001; see Post-wave corrections.)
 
 ## Files to Modify
 
-This audit spec does not modify product files. Future fix work is expected to touch some of these files:
+This audit spec does not modify product files. The following are historical repair candidates, not current assignments; use the current matrix before selecting any repair scope:
 - `docs/features/interoperability-testing.md` - scenario count and list (RA-DOC-010).
 - `docs/architecture/testing/interop.md` - scenario inventory (RA-DOC-010).
 - `docs/functional-tests.md` - ./le verify current mode full order sentence (RA-DOC-009).
@@ -304,9 +316,10 @@ This audit spec has no implementation phase. Future fix specs should be created 
 
 | Failure | Route To |
 |---------|----------|
-| `./le doc check verify` fails | RA-DOC-002 owner until every issue is fixed or explicitly routed |
-| ./le verify current mode full order docs drift | RA-DOC-009 docs/tooling future fix |
-| Interop inventory drift | RA-DOC-010 and BGP protocol audit |
+| `./le doc check verify` fails | Capture the current RA-DOC-002 population, then assign each surviving repair to a named implementation spec |
+| Stale source consistency references | RA-DOC-008 audit evidence; implementation ownership remains unassigned and blocks a routed/closed claim |
+| Release gate documentation | Revalidate RA-DOC-009 against the producer query; only a reproduced residual needs a repair owner |
+| Interop inventory drift | RA-DOC-010/child 2 audit reconciliation; a surviving repair needs its own implementation owner |
 
 (Routing rows for the removed findings RA-DOC-001/003/004/006/007 deleted 2026-07-10; see Post-wave corrections.)
 

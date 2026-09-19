@@ -87,7 +87,7 @@ evidence rather than assuming it.
 
 ### Related Specs
 - [ ] `plan/immediate/spec-dataplane-seams-0-umbrella.md` - the parent, finding F-2
-- [ ] `plan/spec-finish-vpp-stub.md` - VPP test coverage this spec's tests may depend on
+- [ ] `plan/spec-finish-vpp-stub.md` - related native VPP coverage work; the retired Python emulator is not an implementation prerequisite
 
 **Key insights:** (minimal context to resume after compaction)
 - The design is settled and is not being revisited. Only the enforcement moves.
@@ -215,6 +215,15 @@ evidence rather than assuming it.
 | `static-interface-nexthop-no-backend` (existing, must not regress) | `test/static/static-interface-nexthop-no-backend.ci` | The no-backend case still fails with an actionable error | |
 | `vpp-iface-create`, `vpp-fib-route` (existing, must not regress) | `test/vpp/vpp-iface-create.ci`, `test/vpp/vpp-fib-route.ci` | Interface and route programming still work on VPP | |
 | new: backend mismatch is refused | `test/static/*.ci` | Asking for a VPP index under a kernel backend fails with a message naming both, and programs nothing | |
+
+These VPP cases now use native fixture drivers:
+`test/vpp/vpp-fib-route.ci` invokes `ze-test fixture vpp/vpp-fib-route`,
+and `startVPPStub` in `internal/test/fixture/misc_fixture_vpp.go` starts
+`ze-test vpp-stub`. Design the missing backend-mismatch evidence on the
+current fixture and backend seams. If a required operation is absent, name
+that operation in `plan/spec-finish-vpp-stub.md` before treating it as a
+dependency. Do not restore the retired Python helper. AC-1 through AC-5
+still require proof, including no programming on a backend mismatch.
 
 ## Files to Modify
 - `internal/component/iface/iface.go` - `Binding` and the accessor

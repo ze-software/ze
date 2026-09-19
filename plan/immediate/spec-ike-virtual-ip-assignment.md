@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | `plan/immediate/spec-ipsec-remote-access.md` |
+| Depends | - |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-08-31 |
@@ -84,6 +84,22 @@ two owns the CP work before implementation starts.** The two viable answers are:
 supersedes phases A, B, D and E of `plan/immediate/spec-ipsec-remote-access.md` and those rows are
 repointed here, or this spec is folded into that one and deleted. Implementing both is not
 an answer. Neither is implementing this one while the rows in the other stay live.
+
+Until OI-1 is answered, the 2026-07-31 ownership recorded in
+`plan/immediate/spec-ipsec-remote-access.md` remains in force and CP
+implementation is paused. The phases and ACs below describe the candidate
+assignment slice; they are not an independently scheduled second implementation.
+Admission is a separate product boundary, so it is not a prerequisite for
+proving assignment through configured responder peers. It remains necessary
+for the complete road-warrior service.
+
+The transfer option must map all shared behavior, including remote-access AC-15
+and AC-16..AC-28: codec limits, config/pool selection, DNS, CP authorization and
+both error notifications, lease expiry and identity quotas, optional attributes,
+and their tests and documentation. Repointing only phases A, B, D and E would
+leave overlap in C, F and G and lose requirements absent from this AC table.
+The fold option must retain this spec's two-client uniqueness proof and
+configured-peer strongSwan assignment scenario in the surviving owner.
 
 **A false conformance claim is on the ledger today (OPEN OWNER DECISION, OI-2).** Two tests
 in `internal/core/eap/pool_test.go` carry an `RFC requirement: RFC3948-5.1-1` tag.
@@ -332,7 +348,7 @@ road-warrior access usable.
 | IKE SA teardown | → | `eap.Pool.Release` | `TestIKESATeardownReturnsLease` |
 | strongSwan client asking for a virtual IP | → | the whole chain | interop scenario `virtual-ip-assignment` |
 
-## Acceptance Criteria
+## Acceptance Criteria (candidate slice, implementation paused on OI-1)
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
@@ -502,7 +518,7 @@ discriminate-record`.
 | 16 | Any changed source file referenced by existing doc source anchors? | Yes | DERIVED from `./le spec citation anchors spec plan/immediate/spec-ike-virtual-ip-assignment.md`, run 2026-08-31. Three pages are DECLARED by this spec's own code and therefore BLOCK: `docs/architecture/ike/ipsec-3-data-model.md` (declared by `internal/component/ike/ipsec/config.go`, and the pool-selecting leaf changes the data model it describes), `docs/architecture/ike/ipsec-7-ikev2-engine.md` (declared by `register.go` and `sa.go`, and the pool stops being discarded there), `docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md` (declared by `ts_narrow.go`, and the leased address becomes a source selector). `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` is declared by `eap/pool.go` and is already named in row 12. Five pages MENTION this code and are advisory: `docs/DESIGN.md`, `docs/architecture/ike/ipsec-10-cli-diag.md`, `docs/architecture/ike/ipsec-11-interop-eap.md`, `docs/architecture/ike/ipsec-13-rekey-wire.md`, `docs/config-reference.md`. Of those, `docs/config-reference.md` and `docs/architecture/ike/ipsec-10-cli-diag.md` are affected in fact (new leaf, new SA field) and are updated; the other three describe rekey, interop-EAP and the design overview, which this change does not alter |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | the `remote-access` examples in `docs/guide/ipsec.md` are verified against the YANG after the pool-selecting leaf lands |
 
-## Implementation Steps
+## Implementation Steps (run only under the owner selected by OI-1)
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- make the pool reachable and the CP payload visible
    - Tests: `TestResponderCFGRequestReachesPool`, `TestConfiguredPoolIsTheOneServingClients`

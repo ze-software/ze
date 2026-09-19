@@ -172,7 +172,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 2. Initiator: `buildChildSAPayloads` -> `buildWireESPProposals(...)` emits ESN transforms:
    `disabled`=[0], `required`=[1], `optional`=[0,1]. (IKE builder still emits none.)
 3. Initiator: IKE_AUTH response handler (`fsm.go`) reads the single ESN transform the responder
-   selected in SAr2 -> stores agreed value on `SA` (e.g. `ChildESN bool` + a "set" marker).
+   selected in SAr2, verifies that it is exactly one value from the offer, then stores the agreed value on `SA`. A missing, duplicate, unknown or unoffered selection refuses the exchange before Child SA installation.
 4. Responder: IKE_AUTH request handler selects ESN from the offered transforms vs local policy
    (`esnNegotiate`), stores agreed value on `SA`, and `buildWireESPProposals` emits the single
    chosen ESN transform in SAr2.
@@ -217,7 +217,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 |----|------|--------------|----------------------|
 | R-1 | Adding `Flags` to `ipsecSAEntry` shifts the VPP binary-API layout; mismatch corrupts every SA install | VPP `ipsec sa add` retval != 0; all VPP tunnels break | Verify field order against govpp-generated `vl_api_ipsec_sad_entry_t`; add a struct-layout/encode test; gate behind VPP interop before claiming done |
 | R-2 | ESN replay-window semantics: with ESN the kernel needs the ESN replay struct; legacy replay value rejected | `XfrmStateAdd` error or replay drops in QEMU | Set `state.ESN` AND ensure replay window expressed via ESN attr; verify with `ip xfrm state`; if lib insufficient, set replay window explicitly for ESN |
-| R-3 | `optional` mode: peer echoes both/zero ESN transforms -> ambiguous agreed value | Initiator parses != 1 ESN transform in SAr2 | Default to No-ESN when the response does not carry exactly one ESN transform; log a warning |
+| R-3 | `optional` mode: peer echoes both/zero ESN transforms or selects an unknown/unoffered value | accepted SAr2 is not one valid selection from the offer | refuse the exchange before Child SA installation, as the 2026-08-29 amendment requires. No warning-only fallback to No-ESN |
 | R-4 | ESN mismatch installed silently (one side ESN, other not) -> anti-replay drops all packets | Tunnel up but no traffic passes; replay-fail counters climb | Derive the dataplane flag strictly from the negotiated transform, never from raw local config; interop test asserts traffic flows |
 | R-5 | Inert `ike-group esn` leaf confuses operators | Support questions; config that "does nothing" | YANG description states it applies to the Child SA only; AC-9 proves IKE wire carries no ESN; documented Known Limitation |
 | R-6 | Responder selection placed in the wrong handler (no `responder.go`; responder path is in `auth.go`/`fsm.go`) | Responder ignores offered ESN, always No-ESN | Locate the IKE_AUTH request handler that processes incoming SAi2; add negotiation there; unit-test the pure `esnNegotiate` helper independently |
@@ -238,7 +238,8 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | AC-3 | ESP proposal `esn disabled` (or unset) | `buildWireESPProposals` emits exactly one ESN transform with value 0 (byte-identical to current output) |
 | AC-4 | ESP proposal `esn required` | `buildWireESPProposals` emits exactly one ESN transform with value 1 |
 | AC-5 | ESP proposal `esn optional` | `buildWireESPProposals` emits two ESN transforms, values 0 and 1, in one proposal |
-| AC-6 | Initiator receives SAr2 with ESN transform value 1 | agreed ESN stored on `SA`; `ChildSA.ESN == true`; both `SAParams.ESN == true` |
+| AC-6 | Initiator receives SAr2 selecting one ESN transform value 1 that it offered | agreed ESN stored on `SA`; `ChildSA.ESN == true`; both `SAParams.ESN == true` |
+| AC-6b | SAr2 carries zero or multiple ESN transforms, or an unknown/unoffered value | exchange refused before Child SA installation; no default No-ESN value substitutes for the malformed selection |
 | AC-7 | Responder receives SAi2 offering [0,1], local policy `optional` | selects value 1 (prefer ESN), echoes a single ESN transform value 1, installs Child SA with ESN |
 | AC-7b | Responder local policy `disabled`, peer offers only value 1 | proposal rejected (no ESN-compatible match) |
 | AC-8 | `installChildSA` with `ChildSA.ESN==true` (XFRM backend) | `netlink.XfrmState.ESN == true` for inbound and outbound SA |
@@ -267,7 +268,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | `TestBuildWireESPProposalsESN` | `internal/component/ike/engine/initiator_test.go` | disabled->[0], required->[1], optional->[0,1] (AC-3/4/5) | |
 | `TestBuildWireIKEProposalsNoESN` | `internal/component/ike/engine/initiator_test.go` | IKE proposals never carry ESN (AC-9) | |
 | `TestESNNegotiate` | `internal/component/ike/engine/*_test.go` | pure helper: (localMode, offeredIDs) -> chosen/ok matrix (AC-7/7b) | |
-| `TestInitiatorParseAgreedESN` | `internal/component/ike/engine/fsm_test.go` | reads single ESN transform from SAr2 -> SA.ChildESN (AC-6, R-3) | |
+| `TestInitiatorParseAgreedESN` | `internal/component/ike/engine/fsm_test.go` | accepts exactly one offered ESN value and refuses missing, duplicate, unknown and unoffered selections before install (AC-6, AC-6b, R-3) | |
 | `TestInstallChildSAESNFlag` | `internal/component/ike/dataplane/dataplane_test.go` | fake dataplane captures `SAParams.ESN` for in+out (AC-8) | |
 | `TestVPPSAEntryESNFlag` | `internal/component/ike/dataplane/vpp_test.go` | USE_ESN bit set; struct encodes at expected layout (AC-8b, R-1) | |
 
@@ -275,7 +276,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | `esn` leaf | enum {required, optional, disabled} | N/A (enum, not numeric) | rejected non-enum string | rejected non-enum string |
-| ESN transform value | {0, 1} | 1 | N/A | value >=2 treated as unknown/ignored on parse |
+| ESN transform value | {0, 1}, subject to the actual offer | one offered value | N/A | an unknown or unoffered accepted value refuses the exchange; never defaults to 0 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -288,7 +289,7 @@ Section 3.3.2). This is a deliberate, documented limitation (see Known Limitatio
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `NN-ipsec-esn-strongswan` | `test/interop-ipsec/scenarios/` (new, mirror `test/interop-pppoe` layout) | strongSwan `esn=yes` | ESN negotiated, tunnel up, bidirectional traffic (AC-11, R-4) | |
-| `NN-ipsec-esn-optional-fallback` | same | strongSwan `esn=no` | Ze `optional` falls back to No-ESN, tunnel still up (R-3) | |
+| `NN-ipsec-esn-optional-fallback` | same | strongSwan `esn=no` | Ze `optional` accepts an explicitly negotiated No-ESN selection from its offer; traffic passes. This is separate from malformed-selection refusal in AC-6b | |
 
 ### Future (if deferring any tests)
 - None planned. QEMU is mandatory for the XFRM (linux-only) path per `ai/rules/platform-linux.md`.
@@ -527,7 +528,7 @@ Add above enforcing code:
 
 ## Checklist
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-11 all demonstrated
+- [ ] AC-1..AC-11, including AC-6b, AC-7b and AC-8b, all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
@@ -601,3 +602,9 @@ Consequences for the remaining work:
   strongSwan 5.9.14. Phase 5 extends them rather than creating them.
 - `RFC7296-2.7-1` now carries unit and interop evidence in `rfc/requirements/rfc7296.md`.
   The evidence ratchet holds both, so a later phase MUST keep them green.
+
+The malformed-selection requirement above must remain separate from the dated
+proof claim. `acceptedESPESNConsistent` currently rejects duplicate and
+unoffered values but accepts zero ESN transforms (`esns <= 1`). AC-6b therefore
+still owes missing-transform refusal and its evidence; the August amendment
+does not prove that case. RFC 7296 Section 3.3.3 lists ESN as mandatory for ESP.

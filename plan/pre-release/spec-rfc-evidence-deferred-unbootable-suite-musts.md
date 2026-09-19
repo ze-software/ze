@@ -2,22 +2,24 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-09-07 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 **Status set to `blocked` on 2026-08-05**, from `skeleton`, because the first
 deliverable was a decision only the owner could make. **Unblocked on 2026-09-07:
-he made it on 2026-09-05 and the carrier half is built.** What remains is
-test-writing, which this spec owns outright.
+he made it on 2026-09-05 and the carrier half is built.** The remaining proof
+backfill belongs here. The contract is in `design` until the per-requirement
+test map and the separate DNS decision below are recorded; the BFD, DHCP and
+VRRP suite decision is settled and must not be asked again.
 
 ## Task
 
-242 gated MUST-level requirements could not be proven at verify tier at all,
+At the 2026-08-02 measurement, 242 gated MUST-level requirements could not be proven at verify tier at all,
 because no functional suite booted their subsystem: BFD 98, VRRP 80, dhcpserver
 28, geodns 18, dnsserver 18. `internal/le/functional.Gating` is the only input
 `carriers` (`internal/le/rfc/carriers.go`) reads to grant a verify tier, so a
@@ -38,17 +40,26 @@ pins it, and each suite carries one `.ci` proving it discriminates:
 `test/bfd/bfd-detection-interval.ci`, `test/dhcp/dhcp-range-inside-subnet.ci` and
 `test/vrrp/vrrp-config-invalid.ci`.
 
-**What this spec owes now:** the 206 tagged tests for RFC 5880/5881/5883, RFC
-5798 and RFC 2131/2132, each in both polarities, each with a discrimination
-record from `./le rfc discriminate-record`. `geodns` and `dnsserver` are outside
-the owner's sentence, so their 36 MUSTs stay unit-only and a fourth and fifth
-suite is a separate question to put to him.
+This spec owes functional verify-tier proofs for all 206 BFD, VRRP and DHCP
+obligations in that snapshot: RFC 5880/5881/5883, RFC 5798 and RFC 2131/2132.
+Every obligation owes positive and negative tagged assertions and a valid
+discrimination record from `./le rfc discriminate-record` for each binding.
+The number describes obligations, not a required number of files; sharing a
+test never excuses an untested requirement or polarity.
+
+The implementation inventory must reconcile those original obligations against
+the current summaries under their permanent ids and include newly extracted
+obligations. A changed count is not authority to drop any of the original 206.
+`geodns` and `dnsserver`, measured at 36 MUSTs together, remain a separate owner
+decision in this spec. The recorded instruction did not select their proof
+carrier, and neither their unit-only evidence nor the three delivered suites
+discharges that remainder.
 
 ### The three routes, and which one was taken
 
 | Route | What it costs | What it buys |
 |-------|---------------|--------------|
-| **TAKEN for bfd, dhcp and vrrp.** Add a verify-tier suite per subsystem | new suite infrastructure per subsystem, and the runtime it adds to `./le verify current mode full` | every one of the 206 becomes provable on every push |
+| TAKEN for bfd, dhcp and vrrp. Add a verify-tier suite per subsystem | suite infrastructure, now delivered | every original obligation has a verify-tier proof carrier; the tests still have to be written and run |
 | Accept nightly-only tier for these | a tier that is scheduled and advisory, not merge-gating | reachable today for VRRP, which has `ze-qemu-vrrp-keepalived-test`; the others have no nightly path either |
 | Leave them unit-only by decision | the obligation stays proven at the wrong altitude | nothing new to build |
 
@@ -57,33 +68,34 @@ is a compliance decision, not bookkeeping.
 
 ### Constraints
 
-- `functional_suites()` (`internal/le/rfc/rfc.go`) reads
-  `internal/le/functional/suites.go` `all_suites` and fails closed when it cannot. A suite
-  that is not named there confers no tier, however good its tests are.
-- VRRP is the one subsystem with any automated path today
-  (`ze-qemu-vrrp-keepalived-test`, nightly). BFD, dhcpserver, geodns and
-  dnsserver have none.
-- Counts are a 2026-08-02 snapshot. Re-measure by importing
-  `internal/le/rfc/rfc.go`; do not render `ai/RFC-REQUIREMENTS.md` to
-  read a number.
+- `FunctionalSuites` and `suiteCarriers` (`internal/le/rfc/carriers.go`) read
+  `functional.GatingNames()`, backed by `Gating` in
+  `internal/le/functional/suites.go`. BFD, DHCP and VRRP are in that owner set.
+  A suite outside it confers no verify tier.
+- A verify tier records the gating runner's ownership. It does not prove that a
+  particular selected gating run executed a particular test.
+- Counts are the 2026-08-02 snapshot. Before implementation, reconcile requirement
+  ids from the summaries and evidence bindings from the native RFC collector;
+  record the dated population and every addition or correction without lowering
+  the owner's full-proof obligation.
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
-- [ ] `internal/le/rfc/rfc.go` - `CARRIERS`, `carrier_for`, `functional_suites`
-  → Constraint: `TIER_UNRUN` is a refusal, and it is the correct interim state rather than a defect.
-- [ ] `internal/le/functional/suites.go` - `all_suites`
-  → Constraint: this list is the tier gate.
+- [ ] `internal/le/rfc/carriers.go` - `FunctionalSuites`, `suiteCarriers`, `CarrierFor`
+  → Constraint: an unrun carrier is refused; suite membership alone proves no requirement.
+- [ ] `internal/le/functional/suites.go` - `Gating`
+  → Constraint: this owner set supplies the functional verify tier.
 - [ ] `plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md` - the sibling problem for interop trees
-  → Decision: that spec gives an existing runner an automated caller; this one asks whether a runner should exist at all.
+  → Decision: its scheduled interop carriers do not replace the verify-tier proof selected here.
 - [ ] `ai/rules/rfc-compliance.md` - who decides when full proof is not reachable
   → Constraint: ask which way to fix it, never whether to skip it.
 
 ### RFC Summaries (Scope: protocol)
-- [ ] `rfc/short/rfc5880.md` and the VRRP, DHCP and DNS summaries
-  → Constraint: fill at design time, once the route is chosen.
+- [ ] `rfc/short/rfc5880.md`, `rfc/short/rfc5881.md`, `rfc/short/rfc5883.md`, `rfc/short/rfc5798.md`, `rfc/short/rfc2131.md`, `rfc/short/rfc2132.md`
+  → Constraint: map every gated obligation to positive and negative functional assertions; retain the separate DNS population pending the owner's carrier decision.
 
 **Key insights:** (minimal context to resume after compaction)
 - The infrastructure blocker is gone for bfd, dhcp and vrrp: a `.ci` in `test/bfd/` now earns `functional-bfd` at `verify`. What is left is writing 206 tagged tests in both polarities.
@@ -91,13 +103,13 @@ is a compliance decision, not bookkeeping.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/le/rfc/rfc.go` - refuses a tag whose suite `all_suites` does not name
+- [ ] `internal/le/rfc/carriers.go` - derives verify-tier rows from `FunctionalSuites`; `CarrierFor` matches the suite prefix.
 
 **Behavior to preserve:**
 - The `TIER_UNRUN` refusal. It keeps false evidence out and must not be softened to make these 242 look proven.
 
 **Behavior to change:**
-- Fill once the route is chosen. Route 1 adds suites; route 2 adds a nightly carrier row; route 3 changes nothing in code.
+- Backfill the BFD, DHCP and VRRP functional proofs and discrimination records. Carrier registration is already delivered.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -105,17 +117,19 @@ is a compliance decision, not bookkeeping.
 - A `# RFC requirement:` tag in a `.ci` under a subsystem directory.
 
 ### Transformation Path
-1. `scan_ci_tags` reads the tag.
-2. `carrier_for` maps the path to a carrier, an evidence kind and an execution tier.
-3. An unnamed suite resolves to `TIER_UNRUN` and the tag is refused.
+1. `CarrierFor` resolves the `.ci` path against the suite-derived carrier table.
+2. The scanner reads the requirement tags and binds each to its evidence kind
+   and execution tier.
+3. BFD, DHCP and VRRP have verify-tier carriers. An unrun carrier's tag is
+   refused; an accepted tag still owes its behaviour and discrimination proof.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Test tree ↔ ledger | `scan_tree` over `.ci` tags | Yes, by the refusal this spec exists to answer |
+| Test tree ↔ ledger | `ScanTree` over suite-resolved `.ci` tags | Source-derived carrier membership; execution and proof remain owed |
 
 ### Integration Points
-- `internal/le/functional/suites.go` `all_suites` - the list any new suite must join.
+- `internal/le/functional/suites.go` `Gating` and `functional.GatingNames()` supply existing carrier membership.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -131,57 +145,63 @@ is a compliance decision, not bookkeeping.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Each of the five subsystems can be booted by a functional suite at all | they run as daemons or plugins today | route 1 is unavailable for that subsystem and the question narrows | attempt a minimal suite for one subsystem | unvalidated |
-| A-2 | The 242 count is stable enough to decide on | measured 2026-08-02 | the decision is taken on a stale size | re-measure before asking | unvalidated |
+| A-1 | Every remaining obligation is reachable by its existing functional harness | suites exist, but the initial DHCP proof covers config validation and live DHCP needs privileged UDP 67 | a suite smoke test cannot discharge the wire obligation | map each requirement to its enforcing producer and executable stimulus, including any privileged harness needed | unvalidated |
+| A-2 | The historical 206 obligations map completely to current permanent ids | 2026-08-02 count and the 2026-09-05 owner instruction | obligations vanish behind a new denominator | reconcile original and current populations before implementation; retain every original obligation | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | A new suite is added and `./le verify current mode full` grows past its budget | verify wall time rises | measure the added runtime per suite before adding the second |
-| R-2 | The refusal is softened instead of answered, and 242 requirements gain a tier they do not have | a change to `CARRIERS` or `functional_suites` with no new runner | the tier must follow a runner, never precede it |
+| R-1 | The full proof backfill exceeds the existing suites' runtime allowance | owning suite runtime rises | measure and address runtime without dropping obligations or replacing functional proof with unit-only tags |
+| R-2 | Carrier membership is presented as completed requirement proof | a suite exists but the requirement has no discriminating assertion | reconcile every obligation and both polarities against the actual test body and discrimination record |
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | Route 2 or 3 leaves 242 MUSTs proven at the wrong altitude, which is a public claim outrunning its evidence. Route 1 grows the merge gate |
-| How is it reverted? | Route 1 by removing the suite from `all_suites`, which the enrolment ratchet will then flag |
-| Who else touches this path? | Any session working `internal/le/rfc/rfc.go` or `internal/le/functional/suites.go` |
+| What breaks if this is wrong? | A public proof claim outruns the behaviour its tests exercise, or the required full-proof backfill is silently reduced |
+| How is it reverted? | Preserve carrier membership and existing evidence; a removed proof is an evidence loss that must be reported rather than hidden by changing the suite set |
+| Who else touches this path? | Sessions working the BFD, DHCP and VRRP suites, their producers and RFC evidence records |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| a `.ci` in a newly added suite | → | `functional_suites` then `carrier_for` (`internal/le/rfc/rfc.go`) | the tag is accepted rather than refused as `TIER_UNRUN` |
+| `.ci` under `test/bfd/`, `test/dhcp/` or `test/vrrp/` | → | `FunctionalSuites`, `suiteCarriers`, `CarrierFor` | `TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier` (existing carrier check; it does not replace the requirement proofs) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | The question above is put to Thomas with the counts re-measured | An answer is recorded in this spec, and the routes not taken are recorded with it |
+| AC-1 | The original 206 BFD/VRRP/DHCP obligations and the current summary ids are reconciled | A dated requirement-to-test map accounts for every original obligation and every newly extracted obligation; no count change, annotation or carrier downgrade removes a proof owed |
+| AC-2 | Each obligation in AC-1 is exercised through the running subsystem | Positive and negative tagged functional assertions in `test/bfd/*.ci`, `test/dhcp/*.ci` or `test/vrrp/*.ci` observe its required behaviour at verify tier; a config-only assertion cannot stand in for an unexercised wire requirement |
+| AC-3 | Each requirement/polarity/test binding from AC-2 | `./le rfc discriminate-record` records a break that makes that named test fail; the restored producer passes and the record verifies against the final tree |
+| AC-4 | The proof inventory is checked after the backfill | Every AC-1 obligation has both functional polarities and valid discrimination evidence, with no loss of existing evidence; each owning suite has a recorded execution result |
+| AC-5 | The separate geodns/dnsserver remainder is reconciled | Thomas's carrier decision is recorded for the historical 36 obligations and their current id set. Any resulting proof work remains open here until completed, or is named in an owner-approved live destination spec before this spec can close |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Fill once the route is chosen | Fill once the route is chosen | Fill once the route is chosen |
+| 1 | A contributor checks one BFD, DHCP or VRRP MUST | running subsystem → functional assertion → requirement tag → discrimination record | the requirement-to-test map required by AC-1 names both polarity proofs |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `internal/le/` | `internal/le/` | a newly named suite resolves to a real tier | |
+| `TestTheBFDDHCPAndVRRPSuitesCarryAVerifyTier` | `internal/le/rfc/tags_test.go` | existing suite membership; no substitute for AC-2 | Existing |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| Fill at design time | - | - | - | - |
+| Per-requirement protocol bounds | From the six RFC summaries | Required legal edge | Required refusal edge | Required refusal edge |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Fill once the route is chosen | `test/<subsystem>/*.ci` | Fill once the route is chosen | |
+| BFD requirement proofs, positive and negative | `test/bfd/*.ci` | RFC 5880/5881/5883 behaviour through the running subsystem | Owed |
+| DHCP requirement proofs, positive and negative | `test/dhcp/*.ci` | RFC 2131/2132 behaviour, including live exchanges where the requirement binds wire behaviour | Owed |
+| VRRP requirement proofs, positive and negative | `test/vrrp/*.ci` | RFC 5798 behaviour through the running subsystem | Owed |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -189,11 +209,12 @@ is a compliance decision, not bookkeeping.
 | `ze-qemu-vrrp-keepalived-test` | `test/` | keepalived | the one existing nightly path, for VRRP only | |
 
 ## Files to Modify
-- `internal/le/functional/suites.go` - `all_suites`, if route 1 is chosen.
-- `internal/le/rfc/rfc.go` - `CARRIERS`, only after a runner exists.
+- `test/bfd/*.ci`, `test/dhcp/*.ci`, `test/vrrp/*.ci` - extend existing proofs where they cover the required behaviour.
+- `rfc/discrimination/<stem>.json` - native-recorded proofs for the six in-scope RFCs.
+- `rfc/short/<stem>.md` - only evidence-related factual corrections justified by the requirement walk; no reduced obligation.
 
 ## Files to Create
-- `test/<subsystem>/*.ci` - if route 1 is chosen.
+- Requirement-specific `.ci` files under `test/bfd/`, `test/dhcp/` and `test/vrrp/`, as named by the AC-1 map. Any missing harness capability must be designed before claiming its obligation is reachable.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -204,7 +225,7 @@ is a compliance decision, not bookkeeping.
 | CLI commands/flags | No | no command added |
 | CLI grammar (keyword before value) | No | no command added |
 | Editor autocomplete | No | no leaf added |
-| Functional test for new RPC/API | Yes | the suites this spec may add |
+| Functional test for new RPC/API | Yes | existing BFD, DHCP and VRRP suites carry the required subsystem proofs |
 | Pipe completeness | No | no command output added |
 | Env var registration | No | none added |
 | Doctor check for runtime dependencies | No | no new runtime dependency |
@@ -234,24 +255,30 @@ is a compliance decision, not bookkeeping.
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- re-measure the 242, then put the question to Thomas
-   - Tests: `carrier_for` on a draft `.ci` in each of the five subsystems, showing the refusal
-   - Files: session scratch only
-   - Verify: the counts are current and the refusal is reproduced, not quoted
-2. **Phase: Execute the chosen route** -- fill once answered
+1. Reconcile the original population and current ids, inspect each enforcing
+   producer, and name both test polarities in the AC-1 map. Resolve harness
+   prerequisites, including privileged wire exchanges, before implementation.
+2. Write and run the BFD, DHCP and VRRP functional proofs in their existing
+   suites. Preserve unit and interop evidence already attached to those ids.
+3. Record each binding's discriminating break through the native writer, run
+   the restored proof, and reconcile the final inventory against AC-1.
+4. Put only the still-open geodns/dnsserver carrier decision to Thomas. Record
+   its resulting work and ownership under AC-5; do not repeat the settled
+   BFD/DHCP/VRRP infrastructure question.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | The answer is recorded, and so are the routes not taken |
+| Completeness | Every original obligation has both functional polarities and discrimination evidence; DNS remains explicitly owned until its decision and resulting work are resolved |
 | Tier honesty | No carrier gains a tier before a runner exists |
 | Rule: `ai/rules/rfc-compliance.md` | No `{gap}` written for any of the 242 |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Re-measured counts | import `rfc_requirements` and fold `carrier_for` |
-| The recorded answer | this spec's Task section |
+| Reconciled requirement-to-test map | original obligations matched to current permanent ids and named proofs |
+| BFD, DHCP and VRRP full-proof backfill | both tagged polarities, suite execution and native discrimination records |
+| DNS decision and resulting work | recorded owner decision and completed work or an approved live destination |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -277,7 +304,7 @@ is a compliance decision, not bookkeeping.
 |----------|------------------------|-----------|
 
 ## Known Limitations
-- Fill once the route is chosen.
+- The existing suites prove only the behaviours their test bodies exercise. Their presence does not complete the 206-obligation backfill, and the DNS carrier decision remains open.
 
 ## RFC Documentation (Scope: protocol)
 

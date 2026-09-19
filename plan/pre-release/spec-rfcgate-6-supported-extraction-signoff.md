@@ -2,14 +2,43 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | blocked |
 | Scope | protocol |
-| Depends | `plan/pre-release/spec-followup-rfc-enrollment.md` (owns `rfc/enrolled.txt`, the coverage rollup, and the drain the retired rfcgate-0-umbrella shard called "the drain itself") |
+| Depends | `plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` (RFC 7947 implementation/sign-off slice) |
 | Phase | - |
 | Handoff | verify |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Current remainder and scope hold, 2026-09-19
+
+This is the Supported-claim child of
+`plan/pre-release/spec-followup-rfc-enrollment.md`; the umbrella is its programme
+owner, not a prerequisite that must close first. The dated progress records
+below preserve completed sign-offs and gate wiring separately from unfinished
+proof. They are not current run results.
+
+The 2026-09-05 owner scope question remains unresolved: AC-3 retains its named
+Class A population, including `rfc4301` and `rfc9582`, until Thomas decides
+whether both sign-offs remain required here or whether their departure from the
+Supported-claim set changes this child's boundary. Current summary Meta still
+states `Partial` for RFC 4301 and `Unsupported` for RFC 9582. Re-deriving public
+rows discovers changes; it cannot remove either stem from this contract.
+Status is `blocked` for that decision, rather than claiming the package is ready.
+
+| Remaining slice | Ownership and completion condition |
+|---|---|
+| Untested obligations and stale discrimination records named on 2026-09-05 | This spec retains AC-2 and the final evidence reconciliation. Derive current ids and proof state from summaries, tags and records; do not repeat the old totals as current debt |
+| RFC 5798 functional backfill | `plan/pre-release/spec-rfc-evidence-deferred-unbootable-suite-musts.md` owns the full VRRP proof alongside BFD and DHCP. Its completion supplies evidence here; it does not remove RFC 5798 from AC-2 |
+| RFC 7947 filtered Adj-RIB-In and extraction | `plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md` supplies that slice |
+| RFC 5176 residual behaviour | The extraction signed on 2026-09-01. `plan/immediate/spec-rfc5176-remaining-defect-classes.md` owns atomic multi-change application and subscriber selector correctness; `plan/immediate/spec-lifecycle-invariants.md` owns applied-result reporting and PPPoE delivery. The signature does not close either |
+| Class A scope conflict | Thomas must resolve RFC 4301 and RFC 9582 explicitly before closure; all original obligations remain accounted for meanwhile |
+
+The original 39/7 class sizes and 52-signoff floor below remain dated acceptance
+baselines. They are not a fresh inventory or authority to omit proof. The
+implementation must record the owner-approved population and reconcile every
+original stem before a closure claim.
 
 ## Session progress, 2026-09-05 (resume here)
 
@@ -60,11 +89,11 @@ by re-derivation. `rfc8671` is settled: `6f1f034bd` re-walked Section 5.2, the
 artifact carries 10 sites with no `null` disposition, and no check violation
 names the stem.
 
-**What is left, and it is an implementation package.** Tagged tests in both
-polarities plus discrimination records for 36 untested MUSTs across IKEv2 AEAD
-(`rfc5282` 18), EAP (`rfc3748` 15) and `rfc5798`, `rfc4302` and `rfc5082`, plus
-four stale discrimination records to re-record. That is not a closure phase and
-it is not one work package.
+The remaining implementation work recorded on 2026-09-05 was tagged tests in
+both polarities for the untested obligations in the table above, plus the stale
+discrimination records. The earlier prose total of 36 did not describe that
+whole table. Reconcile the ids at implementation time; no refreshed count or
+completed proof is claimed here.
 
 ## Session progress, 2026-08-30
 
@@ -99,10 +128,10 @@ RFC 2865 Section 5.25, Service-Type never read, a missing NAS identifier, the BM
 left set on a Statistics Report, and the MS-CHAPv2 peer never verifying the authenticator
 response.
 
-**What a resuming session does first:** re-derive the in-scope set from
-`docs/features/rfc-status.md` rather than trusting the tables below, because other sessions
-correct public rows continuously. `TestSupportedRowsHaveDerivableScope` is the mechanical
-check for that.
+On resume, derive the current public set from summary Meta and compare it with
+the dated tables below. Record additions and departures explicitly. A departure
+does not release a named AC obligation; the RFC 4301/RFC 9582 scope hold above
+must be resolved by Thomas before changing the completion population.
 
 ## Task
 
@@ -512,8 +541,8 @@ tables above, so this note records the delta and changes no count in place.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le rfc extraction-status` is run after the last phase | the `signed` field is at least 52: the 6 credited today plus the 46 in scope. `rfc1035` stays uncredited because it is not enrolled |
-| AC-2 | `./le rfc check` is run over the closing tree | it reports no violation naming any of the 46 in-scope stems, and no violation naming extraction sign-off, enrolment, or public status for them |
+| AC-1 | `./le rfc extraction-status` is run after the last phase | Meet the original signed floor of 52 (the 2026-08-31 baseline of 6 plus the then-scoped 46), subject to an explicit owner-recorded scope amendment. Reconcile credited membership from the current enrolled set; this historical floor alone cannot establish completion |
+| AC-2 | `./le rfc check` is run over the closing tree | It reports no violation naming any retained in-scope stem, including every original Class A/Class B stem unless Thomas explicitly changes its owner or scope; no extraction, enrolment, proof or public-status debt for that population is silently omitted |
 | AC-3 | Each of the 39 Class A stems is inspected | `rfc/extraction/<stem>.json` exists, every entry in `sites[]` carries a `disposition` of `mapped` or `excluded` and no `null`, every entry in `sections[]` carries `walked` or `skipped`, and `signed-off`, `reviewer` and (for `manual-walk`) `register-reason` are present |
 | AC-4 | Each of the 7 Class B stems is inspected | `rfc/full/<stem>.txt`, `rfc/short/<stem>.md` and `rfc/extraction/<stem>.json` all exist, the stem appears in exactly one of `rfc/enrolled.txt` and `rfc/not-enrolled.txt`, and its `docs/features/rfc-status.md` row states a coverage note tied to source anchors |
 | AC-5 | The RFC 1997 row is read on the public page | its Status cell reads `Supported`, one of the five statuses the page's own vocabulary paragraph defines |
@@ -523,7 +552,12 @@ tables above, so this note records the delta and changes no count in place.
 | AC-7 | A test tree carries a `Supported` ledger row naming an RFC with no `rfc/short/` summary | `./le rfc check` reports a violation naming the stem, closing the hole `checkUnprovenSupport` discloses in its own error text |
 | AC-8 | A walk finds an obligation Ze does not meet | the phase report names the requirement id, quotes the RFC sentence, names the producing function, and records the question put to Thomas. No `{gap}`, `{not-applicable}` or `partial` annotation is written for it without his answer |
 | AC-9 | `rfc/drain-budget.txt` is read at closure | this spec has not CHANGED it. Arming the quota belongs to `spec-fixit-rfc-drain-quota-never-armed`, which may land a non-zero `rate` while this spec runs, so the assertion is on this spec's diff and not on the file's value (A-9) |
-| AC-10 | `ai/RFC-REQUIREMENTS.md` is read at closure | it is regenerated, and its per-RFC exclusion ratio is present for all 46 new sign-offs |
+| AC-10 | `ai/RFC-REQUIREMENTS.md` is read at closure | It is regenerated and its per-RFC exclusion ratio is present for every accepted in-scope sign-off; the original 46 is a dated baseline, not a substitute for the reconciled stem population |
+
+AC-3 retains the full named Class A set pending the scope decision above. A
+newly derived public set may not silently replace it. If Thomas changes the
+boundary, record each excluded stem and its remaining live owner before
+updating this row.
 
 ## End-to-End User Stories
 
@@ -708,12 +742,12 @@ tables above, so this note records the delta and changes no count in place.
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | All 46 stems have an artifact the check ACCEPTS, and the count is read from `./le rfc extraction-status`, never from `ls rfc/extraction` |
+| Completeness | Every stem in the owner-approved population has an artifact the check accepts and its required proof; reconcile all original Class A/Class B stems, and read counts from the native owner sets |
 | Feature completeness | `checkSupportedSignoff` is called from `Answer` and reached by the two `.ci` cases, not only by unit fixtures |
 | Correctness | No authored field duplicates a derived one. Every `excluded-kind` is from the closed set and its reason says what the kind's row in `rfc/extraction/README.md` demands |
 | Correctness | Every `manual-walk` sign-off over a support-claiming row carries a `register-reason`, and its source does not derive `rfc2119` |
 | Naming | Requirement ids follow `<RFCSTEM>-<section>-<n>`; new obligations get new ids and no existing id changes |
-| Data flow | The scope set is re-derived from `docs/features/rfc-status.md` at phase 1 and at closure, never carried forward from this spec's table |
+| Data flow | Derive current public claims from summary Meta at phase 1 and closure, compare with the retained named population, and require Thomas's recorded scope decision before removing any named AC obligation |
 | Rule: `ai/rules/rfc-compliance.md` | No `{gap}`, `{not-applicable}` or `partial` was written for a found-and-unmet obligation without a recorded answer from Thomas |
 | Rule: `ai/rules/evidence.md` | Every claim about what a check does names the function in `internal/le/rfc/` that produces the verdict |
 | Rule: `ai/rules/completion.md` | No stem was skipped, and no tier was closed with a stem carrying an unclassified site |
@@ -812,25 +846,27 @@ sentence, the producing function, and the question put to Thomas. No `{gap}`,
 
 ### rfc5176, walked 2026-08-31, SIGNED 2026-09-01: 72 of 72 sites classified
 
-23 sites stated an obligation Ze meets that the summary never declared; 23 stated one Ze
-did not meet. Both sets are now resolved. Commit `fe51839da` landed the CoA-path answers
-for Sections 2.3, 3.1, 3.2, 3.3 and 6.3, `rfc/short/rfc5176.md` declares 22 gated ids, and
-`rfc/extraction/rfc5176.json` signs the walk at 44 mapped, 28 excluded, ratio 0.39.
-One residual is NOT closed and is named in row 9 below: a successful `Emit` is not an
-applied change, so a CoA-ACK can still report a rate the shaper failed to program. Closing
-it changes the plugin subscriber contract, not the RADIUS listener.
+The 2026-09-01 walk classified the source sites and recorded a signature.
+Commit `fe51839da` supplied the CoA-path changes recorded below, and the dated
+artifact count was 44 mapped and 28 excluded. That classification is not proof
+that the remaining CoA behaviours are correct. Current ownership is shared:
+`plan/immediate/spec-rfc5176-remaining-defect-classes.md` owns multi-change
+atomicity and subscriber selector correctness, while
+`plan/immediate/spec-lifecycle-invariants.md` owns applied-result reporting and
+PPPoE delivery. Termination-Action remains the optional-feature exclusion in
+the artifact, with the residual spec retaining the scope question.
 
 | # | Section | Requirement | Producer read | State |
 |---|---|---|---|---|
 | 1 | 3.4 | CLOSED (`bcd764a5e`, `fe51839da`). "the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero. The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated" | `VerifyMessageAuthenticator` (`internal/component/radius/packet.go`), `VerifyCoARequestAuth`, both called from `coaListener.handlePacket` (`internal/component/l2tp/plugins/authradius/coa.go`) | Both halves inverted. `handlePacket` discards a CoA-Request carrying no Message-Authenticator, so no path bypasses either check, and no conformant Dynamic Authorization Client can authenticate. Verified by the main thread at both producers and against the RFC text. FIX DISPATCHED under `ai/rules/rfc-compliance.md` (conformance improvements are done and reported, never asked) |
 | 2 | 2.2 | "A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an unsupported value with a CoA-NAK" | `handleCoA` (`coa.go`) | CLOSED (`fe51839da`). `handlePacket` answers every CoA-Request carrying a Service-Type with a CoA-NAK and Error-Cause 405 (`RFC5176-3.2-1`) |
-| 3 | 3.2 | "Authorize Only" is an explicit OPTIONAL | -- | A MAY. `ai/rules/rfc-compliance.md` sends it to Thomas: implement, decline, or make it config. Declining still owes row 2 |
+| 3 | 3.2 | "Authorize Only" is an explicit OPTIONAL | -- | Declined by the owner on 2026-08-31, as recorded in `rfc/extraction/rfc5176.json`. Preserve the Service-Type refusal in row 2; this decision is settled |
 | 4 | 2.3 | "In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as mandatory" | `handleCoA`, `handleDisconnect` | CLOSED (`fe51839da`). `unsupportedAttr` reads every attribute against `coaSupportedAttrs` or `disconnectSupportedAttrs` and NAKs 401 on the first it does not support (`RFC5176-2.3-5`) |
-| 5 | 3 | "a CoA-Request or Disconnect-Request MUST apply to all matching sessions" | `findSession` (`coa.go`) | CLOSED (`fe51839da`). `findSessions` returns every match and `oneSession` NAKs 508 on more than one (`RFC5176-2.3-7`) |
+| 5 | 3 | "a CoA-Request or Disconnect-Request MUST apply to all matching sessions" | `findSessions`, `oneSession`, `findSubscriberSession` (`coa.go`) | L2TP match-set refusal landed in `fe51839da`. The subscriber fast path reads Acct-Session-Id alone; conjunction with all supplied identifiers and complete match-set handling remain owned by `plan/immediate/spec-rfc5176-remaining-defect-classes.md` |
 | 6 | 3.1 | "the Dynamic Authorization Server MUST include those Proxy-State attributes in its response" | `sendResponse` (`coa.go`) | CLOSED (`fe51839da`). `sendResponse` copies every Proxy-State of the request into the response in arrival order (`RFC5176-3.1-1`) |
 | 7 | 3.3 | State attribute echo | `sendResponse` | CLOSED (`fe51839da`). The same loop copies State, unread (`RFC5176-3.3-2`) |
 | 8 | 6.3 | "If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded" | `handlePacket` (`coa.go`) | CLOSED (`fe51839da`). `eventTimestampState` grades the attribute and `handlePacket` returns without a response for the stale case; an ABSENT attribute still draws a NAK 404, which is the Section 6.3 SHOULD (`RFC5176-6.3-1`) |
-| 9 | 2.3 | "State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made" | `handleCoA` and `applySubscriberCoA` (`coa.go`); `(*shaperPlugin).onSessionRateChange` (`internal/component/l2tp/plugins/shaper/shaper.go`) | HALF CLOSED (`fe51839da`). A FAILED `Emit` now draws a CoA-NAK with Error-Cause 506. A SUCCESSFUL one still does not prove the change was made: `onSessionRateChange` returns `void` and its three failure paths (session unknown to the shaper, payload type mismatch, `applyTC` error) each log a warning and return, so the CoA-ACK is already on the wire. The signature that loses the result is `ze.EventBus.Subscribe`, whose handler is `func(payload any)`, and `events.Event[T].Subscribe` on top of it. Closing this changes the plugin subscriber contract for every consumer, which is why it stops here rather than inside the RADIUS listener |
+| 9 | 2.3 | "State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made" | `handleCoA`, `applySubscriberCoA` (`coa.go`), `shaper.onSessionRateChange` | Failed emits NAK, but successful emits do not report downstream application results and earlier changes have no rollback. Applied-result reporting belongs to `plan/immediate/spec-lifecycle-invariants.md`; atomic multi-change application belongs to `plan/immediate/spec-rfc5176-remaining-defect-classes.md`. Both remain open |
 | 10 | 3.3 | Termination-Action State echo | -- | Ze sends no such Access-Request: the three non-test Access-Request producers each build one at authentication time, and no code names attribute 29. Excluded `feature-out-of-scope` on RFC 2865 Section 5.29's MAY, and disclosed in the RFC 5176 row of `docs/features/rfc-status.md` |
 
 Adjacent, not a MUST: `eventTimestampState` (`coa.go`) grades an ABSENT Event-Timestamp as

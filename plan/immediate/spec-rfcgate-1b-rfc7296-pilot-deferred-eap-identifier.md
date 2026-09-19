@@ -22,29 +22,28 @@ the rfcgate-1b RFC 7296 pilot (closed), while it was making the EAP-TLS
 termination follow RFC 5216 Section 2.1.3. The pilot is closed and its shard is
 deleted, so this file is the tracker.
 
-**The problem.** RFC 3748 Section 4.2 (`rfc/full/rfc3748.txt`, the Success and Failure
+**Original sender defect, fixed by the recorded 2026-08-05 delivery.** RFC 3748 Section 4.2 (`rfc/full/rfc3748.txt`, the Success and Failure
 packet format) states that the Identifier field "MUST match the Identifier field of the
 Response packet that it is sent in response to". `Session.failure`
-(`internal/core/eap/eap.go`) increments `s.identifier` and THEN stamps the
-packet, and the `CodeSuccess` arm of `Session.handleMethod` does the same, so both
-terminal packets carry the response Identifier plus one.
+(`internal/core/eap/eap.go`) incremented `s.identifier` and THEN stamped the
+packet, and the `CodeSuccess` arm of `Session.handleMethod` did the same, so both
+terminal packets carried the response Identifier plus one.
 
-**Why it went unseen.** `PeerSession.Process`
-(`internal/core/eap/peer.go`) switches on `request.Code` alone and never
-compares the Identifier, so Ze talking to Ze agrees with itself. A peer that enforces
-Section 4.2 discards both the EAP-Failure and, by the same producer, the EAP-Success.
+**Why it went unseen.** The peer did not compare terminal Identifiers, so a
+Ze-to-Ze exchange did not detect the sender's off-by-one. A strict external
+peer could discard those incorrectly numbered Success and Failure packets.
 
-**Why it is here rather than fixed in the pilot.** The pilot's own goal does not depend
-on it: the round-7 fix changed WHICH round the Failure lands on, not what it carries, so
-the defect predates that work and survives it unchanged (`ai/rules/rule-precedence.md`,
-the closing-order clause). It is a different RFC from the pilot's subject, and the
-obligation is UNEXTRACTED: `rfc/short/rfc3748.md` carries `4.2-1` (retransmission),
-`4.2-2` (format) and `4.2-3` (implicit success), none of which is this sentence.
+**Why it was recorded outside the pilot.** The pilot changed which round
+carried Failure; it did not change the Identifier. At that point this separate
+RFC 3748 obligation was unextracted. The 2026-08-05 record below covers its
+extraction and sender fix.
 
-## STATUS 2026-08-05: the RFC obligation is MET. One owner decision remains.
+## Sender delivery recorded 2026-08-05; owner decisions remain
 
-**Steps 1, 2, 3, 5 and 6 are done and committed (`ee305d5bc`). Step 4 is an owner
-decision and is the only thing holding this spec open.**
+**Steps 1, 2, 3, 5 and 6 are recorded as committed (`ee305d5bc`).**
+The receiver-strictness decision in step 4 remains owner-held. The later
+NAK-after-TLS-alert diagnostic item also needs an owner disposition against
+the current `FinalRequest` path described below. Neither reopens the sender fix.
 
 The sender-side violation is fixed. `Session.failure` now takes the packet it
 answers and stamps that Identifier, and the `result.Done` arm of
@@ -76,14 +75,15 @@ Step 6 needed no edit. `rfc3748` was already enrolled, so `check_new_summaries`
 does not fire, and the gate's own status checks passed, which is what would have
 caught a `docs/features/rfc-status.md` disagreement.
 
-### The one open item: step 4, and it is Thomas's
+### Receiver decision: step 4
 
 **Should `PeerSession.Process` REJECT a terminal packet whose Identifier does not
 match the Request it answers?**
 
-It does not today. It switches on `request.Code` alone
-(`internal/core/eap/peer.go`), which is exactly why ze talking to ze
-never noticed the sender-side bug for as long as it lived.
+The current `PeerSession.Process` still does not compare the terminal
+Identifier. It does enforce state and method-success guards before accepting
+Success or Failure (`internal/core/eap/peer.go`); those checks must remain
+intact whichever Identifier policy the owner selects.
 
 This is NOT a conformance question. RFC 3748 Section 4.2 binds the sender, and ze
 is now conformant as a sender. A receive-side check is defensive hardening, and it
@@ -93,7 +93,7 @@ trade is the owner's to make, which is what the original step 4 says.
 
 Do not close this spec by answering step 4 unilaterally in either direction.
 
-**The work.**
+**Original work list, retained against the delivery record above.**
 
 1. Read RFC 3748 Section 4.2 and confirm the obligation and its exact wording.
 2. Extract it as a new row in `rfc/short/rfc3748.md` with the next free ordinal for
@@ -113,23 +113,23 @@ Do not close this spec by answering step 4 unilaterally in either direction.
 summary that declares gated MUSTs is itself gated by `check_new_summaries`, and adding a
 gated row to an enrolled RFC without both polarities reds `./le rfc check`.
 
-## A second item, same file, same layer
+## Earlier diagnostic item: NAK after the EAP-TLS alert
 
-**A NAK after the EAP-TLS alert loses the reported cause.** `Session.handleMethod`
-(`internal/core/eap/eap.go`) returns `s.failure()` for `TypeNAK` before
-`tlsMethod.Process` runs, so the cause parked on `tlsMethod.alertSent` is never
-consulted and the operator sees no reason for the rejection.
+The original note described a cause parked on `tlsMethod.alertSent` and lost
+when `Session.handleMethod` answered a NAK before calling the method. That
+description is superseded by the current producer path:
 
-This is observability, not conformance: the EAP-Failure is still correct and still
-sent, and a NAK legitimately means the peer refuses the method. It is recorded here
-because it is the one reply shape a rejected peer can send that
-`TestEAPTLSRejectedPeerCannotSteerTheReportedCause` cannot reach -- the other two, a
-malformed TLS message and a foreign EAP type, are both covered -- and it is
-unreachable from inside the method because the Session layer short-circuits above it.
+- `tlsMethod.Process` returns the alert as `MethodResult.FinalRequest` beside
+  `Err` (`internal/core/eap/eap_tls.go`).
+- `Session.finalRequest` records `s.err` immediately and enters `stateLastWord`.
+- `Session.Process` answers an eligible response in `stateLastWord` with
+  `failure(response)` without calling `handleMethod`; `failure` preserves
+  the recorded error (`internal/core/eap/eap.go`).
 
-Fixing it means the Session asking the method for a cause before it answers a NAK,
-which is a change to the `Method` interface. Weigh that against the value of the log
-line before doing it.
+The former proposal to add a cause query to the `Method` interface is therefore
+not an implementation instruction. The owner must disposition the recorded
+diagnostic item against this path or identify a remaining failing reply shape.
+This source reconciliation records no new runtime proof or closure.
 
 ## Required Reading
 

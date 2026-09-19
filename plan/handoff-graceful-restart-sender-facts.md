@@ -2,11 +2,35 @@
 
 **Spec:** `spec-test-peer-open-mirrors-five-more-sender-facts`, closed on 2026-09-08, so it is no longer on disk. Its implementation is in commits `1e9951ab4`, `d2ce72db0` and `693eb7553`, and its closure record is the commit that removed it
 **Branch:** main
-**Goal:** The test peer now owns the sender facts it used to mirror from Ze. Getting there proved that Ze's Graceful Restart does not work on either half, and that the tests which should have caught it pass over dead code.
+**Goal at the September handoff:** The test peer owns the sender facts it used to mirror from Ze. The investigation recorded GR advertisement/retention defects and tests that stayed green with GR dispatch broken. Those are dated observations, not a current runtime verdict.
 
-## The one thing to read first
+## Historical evidence and current ownership
 
-The 2026-09-08 audit recorded three findings, each with a journal row. Finding 3 is implemented in the working tree on 2026-09-09: six affected Go package suites and the live IPv4/IPv6 CLI-to-wire scenario passed. The changes are deliberately uncommitted for operator review. Findings 1 and 2 retain their recorded status.
+The findings and measurements below record 2026-09-08 and the PATHS-LIMIT
+working-tree snapshot of 2026-09-09. The sender-fact spec is closed, as the header
+states; its closure is no longer in progress. The recorded uncommitted state
+does not describe the current checkout. Current PATHS-LIMIT requirements belong
+to `plan/immediate/spec-add-path-limit-send-receive.md`.
+
+Source reconciliation on 2026-09-19 found that `parseGRCapValue` in
+`internal/component/bgp/plugins/gr/gr.go` still emits the two-octet restart
+value without family tuples. RFC 4724 permits that form for a receiving-only
+helper (`rfc/short/rfc4724.md`, Encoding Rules), so the two-octet value alone
+does not establish a defect. The required disposition is whether Ze promises
+only helper support or preserved forwarding as a restarting speaker, with proof
+of the chosen behaviour before adding any tuple. The original unconditional retention-race
+explanation is superseded: `onPeerStateChange` in
+`internal/component/bgp/server/events.go` sorts reverse dependency tiers and
+waits for each delivery result; `grPlugin.dispatchCommand` synchronously calls
+`DispatchCommandArgs`. The GR callback can therefore establish retention before
+the RIB's down handler on successful ordered delivery. This source evidence
+does not prove retention on every delivery path or discharge the recorded
+discrimination gap. `plan/pre-release/spec-release-audit-2-bgp-protocol.md`
+owns the base GR semantics and end-to-end evidence disposition. Any product
+defect it confirms needs a separate fix owner; the optional
+`plan/spec-gr-advanced.md` extensions supply no baseline readiness evidence.
+
+### Findings as recorded on 2026-09-08 and 2026-09-09
 
 | # | Finding | Producer | Row |
 |---|---|---|---|
@@ -16,9 +40,9 @@ The 2026-09-08 audit recorded three findings, each with a journal row. Finding 3
 
 Finding 1 explains why 2 was invisible: with no families on the wire, nothing downstream ever asked for retention, so the dead path had no witness.
 
-## Why the tests did not catch any of it
+## Why the tests did not catch it in the recorded run
 
-Measured this session with a control, not reasoned:
+Measured in the September investigation with a control:
 
 | Run | GR reachable | Result |
 |---|---|---|
@@ -32,7 +56,7 @@ The control proves the harness discriminates, so the two passes are real. Connec
 
 Breaking `handleStateEvent`, the JSON dispatch, moved no verdict at all. **That path is dead code.**
 
-## Status
+## Status recorded at handoff
 
 **Done, committed:**
 - `1e9951ab4` — the test peer owns the Hold Time and capabilities 64, 71, 75, 76; unit tests; `docs/architecture/testing/ci-format.md` updated, since it named only 9, 65, 69 and 73 as owned facts.
@@ -41,9 +65,9 @@ Breaking `handleStateEvent`, the JSON dispatch, moved no verdict at all. **That 
 - `1e3ca0f89` — finding 1's journal row.
 - `1d347f171` — the spec taken from `skeleton` to `design` with the measurement in it.
 
-**In progress:** closure of the spec (`/ze-close`), which writes its Review Gate and the two closure commits.
+**Closure:** completed on 2026-09-08, as recorded in the header.
 
-**Remaining, and none of it is in that spec:**
+**Remaining at handoff, outside the sender-fact spec:**
 - Findings 1 and 2 each need a fix. They are journal rows, and a row is a step toward a fix, never a substitute (`ai/rules/principles.md`).
 - Finding 3 is addressed in the working tree. Session writers enforce the negotiated remote limit across batches, including route-server fast-path forwarding. Named transactions retain path IDs and order them deterministically. `test/plugin/paths-limit-live.ci` passed in three load repetitions. Changes remain uncommitted at the operator's request.
 - The 32 GR `.ci` and 5 LLGR `.ci` still assert nothing about Graceful Restart. The four new `.ci` are fenced by a recorded break; the old ones are not.
@@ -52,13 +76,17 @@ Breaking `handleStateEvent`, the JSON dispatch, moved no verdict at all. **That 
 - Finding 1 is the shipped daemon's own OPEN, and the spec that found it is about the test peer. Absorbing it would have cost that spec its focus and made a harness change wire-visible. Recorded as a Known Limitation and a rejected alternative inside the spec as well as in the journal.
 - Findings 2 and 3 were met while implementing two acceptance criteria; both criteria were STOPPED ON rather than weakened, which is why the spec's AC table says "enforcement unreachable" rather than claiming the criterion.
 
-## The question the fix has to settle
+## Design questions retained from the handoff
 
 Not "which families does Ze configure". A tuple in the Graceful Restart capability asserts forwarding state **actually preserved across a restart**, so what Ze's FIB does on restart decides which families may honestly appear. Answer that before writing the encoder, or finding 1 gets repaired into a different false claim.
 
-Finding 2 has its own shape question: the retention must be in place BEFORE the peer-down event is dispatched, not requested in reaction to it. That is an ordering change in `bgp-rib`, not a new command.
+The retained requirement is that the RIB's peer-down release observes the GR
+retention decision before discarding routes. The September proposal required a
+pre-dispatch change in `bgp-rib`; current ordered delivery provides another
+mechanism, so that implementation prescription is withdrawn. Discriminating
+end-to-end retention evidence is still required before a readiness claim.
 
-## Files already handled, do not re-read
+## Files handled in the original session
 
 - `internal/component/bgp/plugins/gr/gr.go` — `parseGRCapValue` builds the code-64 payload; `handleStructuredState` is the live dispatch and `handleStateEvent` is dead.
 - `internal/component/bgp/plugins/gr/gr_llgr.go` — `parseLLGRCapValue`, the correct sibling that emits family tuples.
@@ -66,9 +94,11 @@ Finding 2 has its own shape question: the retention must be in place BEFORE the 
 - `internal/test/peer/open.go` — `ownedCapabilities` and `reconcileParams`: the mirror, and the four typed `option=open:` values that now replace it.
 - `docs/architecture/testing/ci-format.md`, "Capability Control" — already updated for the new owned facts.
 
-## Then
+## Original verification procedure
 
-Verify the spec's own work still holds:
+The handoff prescribed the following command and forced-break experiment.
+They are historical instructions, not a current result; a resuming investigation
+must select the current entry point and preserve the same discrimination:
 
     ./le job run label grcheck command ./bin/ze-test bgp plugin --pattern gr-peer -v
 

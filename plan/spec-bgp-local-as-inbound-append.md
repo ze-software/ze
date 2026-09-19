@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | deferred |
 | Scope | protocol |
-| Depends | `plan/immediate/spec-bgp-local-as-options.md`, `plan/immediate/spec-bgp-as-migration.md` |
+| Depends | `plan/immediate/spec-bgp-local-as-options.md` |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-06 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -17,7 +17,7 @@ RFC 7705 Section 3.3 item 1 asks a router carrying a per-neighbor "Local AS" to
 append that ASN to the AS_PATH of routes RECEIVED from that neighbor: "The
 router SHOULD append the configured 'Local AS' ASN in the AS_PATH attribute
 before installing the route or advertising the UPDATE to an iBGP neighbor." Ze
-does not do it. Every AS_PATH write site is gated on an eBGP DESTINATION, so
+does not do it automatically. The Local-AS mechanism's prepend sites are gated on an eBGP DESTINATION, so
 the requirement (`RFC7705-3.3-9` in `rfc/short/rfc7705.md`) is an
 unimplemented SHOULD, and it is why the `no-prepend` enum of `local-options`
 suppresses nothing.
@@ -32,9 +32,9 @@ filter."
 The hypothesis holds. An import-chain `as-path-prepend 1` on the migrated
 session produces exactly Section 3.3 item 1, with no engine change to the
 append itself. So the deliverable is a documented CONFIGURATION RECIPE, plus
-the three things ze owes before that recipe is safe to publish: one wire defect
-the recipe walks into, two config-load refusals that stop the recipe from being
-attached where it is wrong, and the tests for each.
+the safeguards and evidence owed before that recipe is safe to publish:
+two config-load refusals that stop the recipe from being attached where it is
+wrong, and tests covering those refusals and the existing ASN-width handling.
 
 This spec is DEFERRED work. It sits at the top level of `plan/` because the
 first release ships without it: an operator who is not migrating an ASN never
@@ -60,14 +60,14 @@ meets it (`plan/README.md`).
 - The append is expressible today: `bgp { policy { modify NAME { set { as-path-prepend 1; } } } }` named in the migrated peer's `filter { import }` chain.
 - The prepended ASN is not typed by the operator. `ExtractASPathPrependOps` is handed `peer.settings.LocalAS` at the import call site, which IS the per-peer `local-as` override.
 - The import chain rewrites the received payload BEFORE the cache, the plugin dispatch and both forward rails, so one append satisfies both moments Section 3.3 item 1 names.
-- Three defects sit under the recipe: a four-octet-only prepend segment, no refusal on a route-server client, and no refusal against a peer that also declares `no-prepend`.
+- The original four-octet-only prepend defect has been corrected in the current producer. The two config-load refusals and the recipe remain deferred; source inspection does not certify their acceptance criteria.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
 - [ ] `internal/component/bgp/reactor/reactor_notify.go` - the ingress pipeline. `orderedIngressSteps` runs over the received UPDATE; when a step returns a modified payload the function rebuilds `wireUpdate` and overwrites `msg.RawBytes`, `msg.WireUpdate` and `msg.AttrsWire`. That block runs BEFORE `r.recentUpdates.Add`, before the RS fast path and before plugin dispatch, so the rewritten payload is what the RIB plugin, the adj-RIB-in plugin and both forward rails see.
-- [ ] `internal/component/bgp/reactor/filter_ordered.go` - the two call sites of the prepend extractor: the import chain passes `peer.settings.LocalAS`, the export chain passes `destLocalAS`. The import call site passes `srcASN4` to `ExtractRemovePrivateASOps` on the line above and passes no width to the prepend extractor.
-- [ ] `internal/component/bgp/reactor/filter_delta.go` - `ExtractASPathPrependOps` builds an AS_SEQUENCE segment of N copies of `localAS`, four octets each, unconditionally, and emits it as `AttrModPrepend`. It takes no ASN4 argument.
+- [ ] `internal/component/bgp/reactor/filter_ordered.go` - the import call passes `srcASN4` and `peer.settings.LocalAS`; the forwarded export call passes its payload's `asn4` and `destLocalAS`. Both prepend calls now carry the encoding width.
+- [ ] `internal/component/bgp/reactor/filter_delta.go` - `ExtractASPathPrependOps` accepts `asn4`, derives AS4_PATH before recording any operation, and uses `LenWithASN4` / `WriteToWithASN4` to encode the new AS_SEQUENCE at the width of the payload it joins.
 - [ ] `internal/component/bgp/reactor/filter_delta_handlers.go` - `aspathHandler` splices a prepend op in front of the existing AS_PATH value and re-emits the attribute. It performs no width check and no transcode.
 - [ ] `internal/component/bgp/reactor/peer_forward_facts.go` - `secondaryPrependAS` answers the ASN behind the per-peer local-as on the EGRESS prepend, reading `LocalASReplaceAS` and deliberately not reading `LocalASNoPrepend`. `localASPrependFor` carries the pair to the announce rail.
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - the general forward rail. The whole AS-path intent, prepend included, sits inside `if facts.isEBGP`. An iBGP destination gets no AS_PATH edit at all.
@@ -89,7 +89,7 @@ meets it (`plan/README.md`).
 - Ingress loop detection stays at stage 0, ahead of the peer chain.
 
 **Behavior to change:** (only what the user asked for)
-- `ExtractASPathPrependOps` learns the source encoding width, so a prepend onto a two-octet path is encoded in two octets instead of producing a mixed-width AS_PATH.
+- Preserve the existing width-aware prepend at import and export. AC-2 remains a recipe-level regression obligation, including a four-octet legacy ASN carried through AS_TRANS and AS4_PATH toward a two-octet peer.
 - Config load refuses an `as-path-prepend` modifier on the import chain of a route-server client (RFC 7947 Section 2.2.2.1).
 - Config load refuses an `as-path-prepend` modifier on the import chain of a peer that also declares `local-options no-prepend`, because the two state opposite things about the same session.
 - `docs/guide/configuration.md` gains the AS-migration recipe, and the `no-prepend` and `as-path-prepend` schema texts are corrected to match it.
@@ -137,7 +137,7 @@ meets it (`plan/README.md`).
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The `bgp` config section delivered to a plugin's `OnConfigure` carries the per-peer `filter { import }` chains and the `policy { modify }` definitions in one subtree, so a plugin can compare them. | `filter_modify.go` parses `policy { modify }` out of the `bgp` section via `configjson.ParseBGPSubtree`; `rs/server.go` reads the same root. | Both refusals lose their home and must move to a whole-tree config validator; a leaf `ze:validate` cannot host them, because `ValidateFn` takes one path and one value and sees no sibling. | Reading the delivered section through `configjson` at implementation, before writing either refusal. | unvalidated |
-| A-2 | An import-chain prepend onto a path received from a two-octet peer produces a malformed AS_PATH today. | `ExtractASPathPrependOps` writes four octets per ASN with no width argument, while the sibling extractor on the adjacent line takes `srcASN4`; `aspathHandler` splices without transcoding. | The width fix is unnecessary and AC-2 drops. | A unit test that drives the import chain with a source context whose `ASN4` is false, and decodes the result. | unvalidated |
+| A-2 | The original four-octet-only producer made a two-octet prepend malformed | The earlier spec read `ExtractASPathPrependOps` before it took `asn4` | No new width argument or call-site change is needed; AC-2 remains a regression requirement | Source inspection: the producer uses `WriteToWithASN4`, and import and export calls pass their payload width | broken by the current implementation, 2026-09-19; no recipe test run claimed |
 | A-3 | The route server relays what the import chain wrote, so an RS import prepend reaches other clients. | `reactorForwardRS` forwards `update.WireUpdate.Payload()`, and the cache entry is built from the post-filter `wireUpdate`. | The RS refusal is defence in depth rather than a fix, and stays anyway. | The `.ci` scenario in the Functional Tests table, which reads what a second client receives. | unvalidated |
 | A-4 | The recipe leaves the outbound rail untouched. | The import chain rewrites the received payload; the egress prepend is computed from the DESTINATION peer's settings in `secondaryPrependAS`, which reads no source state. | The 2026-09-05 outbound work regresses and its tests go red. | Running `test/plugin/bgp-local-as-options.ci` unchanged beside the new scenario. | unvalidated |
 | A-5 | Ze's own ingress loop detection does not drop a route the recipe just appended to. | `LoopIngress` is registered at the protocol stage (0), the peer chain at the peer-chain stage (300). | The recipe is unusable and the append must move ahead of stage 0, which is engine work this spec does not plan. | A `.ci` assertion that the route survives ingress with the modifier attached. | unvalidated |
@@ -148,7 +148,7 @@ meets it (`plan/README.md`).
 |----|------|--------------|----------------------|
 | R-1 | The same modify definition attached to a peer with NO local-as override prepends the router's own globally configured ASN inbound. Every iBGP neighbor then drops the route on its own loop check, and ze's stage-0 check does not catch it because the peer chain runs after it. | Routes accepted by ze and invisible on a neighbor. | The documented recipe names the precondition, and the recipe's own `.ci` covers the peer that carries the override. A refusal for this case is NOT specified: `as-path-prepend` is a general policy action whose ordinary use is prepending the local AS on egress, and refusing it inbound would remove a legitimate action. |
 | R-2 | An operator attaches the modifier at the GLOBAL `filter { import }` level, and every session appends. | Every received route grows one AS. | The recipe states the per-peer and per-group placement and says the global chain is wrong for it; RFC 7705 Section 3.3's per-neighbor MUST is quoted beside it. |
-| R-3 | The width fix changes the encoding of an EXISTING `as-path-prepend` user on the export chain. | Policy tests that read AS_PATH after a prepend. | The fix takes the width from the call site that already knows it, and the export site already passes `asn4` to its sibling extractor. Both call sites get a test at both widths. |
+| R-3 | Recipe changes regress width handling for an existing import or export prepend user | Policy tests decode a mixed-width path or lose the real four-octet ASN | Preserve the existing payload-width argument at both call sites and prove AS_PATH plus AS4_PATH at both widths |
 | R-4 | The two refusals reject a config an operator already runs, on upgrade. | Config load failing after an upgrade. | Pre-release, so no such operator exists; the error names the peer, the definition and the leaf, and says which of the two to remove. |
 | R-5 | The recipe is documented and nobody can find it. | An operator asks how to migrate an ASN. | The page is reachable from the local-as section of `docs/guide/configuration.md`, and the `local-options` `ze:help` points at it. |
 | R-6 | The recipe and `local-options` end up as two ways to state the same session behavior, and drift. | An operator sets `no-prepend` and the modifier on one peer. | The refusal in AC-4 makes the contradiction impossible to configure, and the `no-prepend` description says which of the two governs the inbound direction. |
@@ -158,7 +158,7 @@ meets it (`plan/README.md`).
 | Question | Answer |
 |----------|--------|
 | What breaks if this is wrong? | A route learned from the migrated peer carries the wrong AS_PATH inside the AS: too short and the legacy ASN is invisible to loop detection at every other router, too long or malformed and a neighbor drops the session's routes or the UPDATE itself. On a route server, a modified path reaches clients whose decision process RFC 7947 says must see the original. |
-| How is it reverted? | The recipe is config: remove the modifier name from the import chain and the next UPDATE is unchanged. The two refusals and the width fix are a single commit revert. Routes already re-advertised carry the path onward. |
+| How is it reverted? | Remove the modifier from the import chain and the next UPDATE is unchanged. Revert this spec's recipe safeguards separately from the pre-existing width correction. Routes already re-advertised carry the path onward |
 | Who else touches this path? | `plan/immediate/spec-bgp-local-as-options.md` owns the outbound rail and the `local-options` semantics; `plan/immediate/spec-bgp-as-migration.md` owns RFC 7705 enrolment and the `rfc/short/` ledger. Neither is edited here. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -167,7 +167,7 @@ meets it (`plan/README.md`).
 |-------------|---|--------------|------|
 | An operator names a `modify` definition carrying `as-path-prepend 1` in a migrated peer's import chain, and that peer sends a route | → | `ExtractASPathPrependOps` on the import call site, with `peer.settings.LocalAS` | `test/plugin/bgp-local-as-inbound-recipe.ci` |
 | The same route reaches an iBGP neighbor and a native eBGP neighbor | → | `forwardUpdateCore` reading the rewritten `update.WireUpdate` | `test/plugin/bgp-local-as-inbound-recipe.ci`, conn=2 and conn=3 |
-| The migrated peer negotiated two-octet ASNs | → | the width argument added to `ExtractASPathPrependOps` | `TestImportPrependEncodesAtTheSourceASNWidth` |
+| The migrated peer negotiated two-octet ASNs | → | the existing width-aware `ExtractASPathPrependOps` | `TestImportPrependEncodesAtTheSourceASNWidth` |
 | An operator names the modifier on a route-server client's import chain | → | the rs plugin's `OnConfigure` refusal | `TestRouteServerRefusesInboundASPathPrepend` |
 | An operator names the modifier on a peer that also declares `local-options no-prepend` | → | the filter-modify plugin's `OnConfigure` refusal | `TestNoPrependRefusesInboundASPathPrepend` |
 
@@ -176,7 +176,7 @@ meets it (`plan/README.md`).
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | A peer carrying `session > asn > local 64510` (router global 64500) with `as-path-prepend 1` on its import chain sends a route whose AS_PATH is 64496 | The route installed and re-advertised carries 64510 64496, and the operator states the ASN nowhere in the policy |
-| AC-2 | The same peer negotiated two-octet ASNs only | The AS_PATH after the append decodes as one well-formed two-octet AS_SEQUENCE, and no four-octet segment is spliced into a two-octet path |
+| AC-2 | The same peer negotiated two-octet ASNs only | The AS_PATH after the append decodes as a well-formed two-octet path with the expected ASN sequence, and no four-octet segment is spliced into it |
 | AC-3 | The same peer is declared `rs-client` | Config load fails, naming the peer, the modify definition, the `as-path-prepend` leaf and RFC 7947 Section 2.2.2.1, and no client receives a modified path |
 | AC-4 | The same peer also declares `local-options no-prepend` | Config load fails, naming both settings and stating that one of the two must go |
 | AC-5 | A route from the migrated peer reaches an iBGP neighbor and a native eBGP neighbor, with the recipe attached | The iBGP neighbor receives 64510 64496; the native eBGP neighbor receives 64500 64510 64496 |
@@ -199,8 +199,8 @@ meets it (`plan/README.md`).
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestImportPrependUsesPeerConfiguredLocalAS` | `internal/component/bgp/reactor/rfc7705_local_as_inbound_test.go` | the ASN in the emitted op is the peer's `LocalAS` override, not the router's global ASN and not a literal | |
-| `TestImportPrependEncodesAtTheSourceASNWidth` | `internal/component/bgp/reactor/rfc7705_local_as_inbound_test.go` | two-octet source gives a two-octet segment, four-octet source a four-octet segment, and both decode as one AS_PATH | |
-| `TestExportPrependEncodesAtTheDestinationASNWidth` | `internal/component/bgp/reactor/filter_delta_test.go` | the sibling call site keeps its behavior at both widths (R-3) | |
+| `TestImportPrependEncodesAtTheSourceASNWidth` | `internal/component/bgp/reactor/filter_delta_test.go` | Existing extractor/rebuild test decodes both source widths and asserts the leading prepended ASNs; recipe-level wiring remains owed | present, no fresh run |
+| `TestExportPrependEncodesAtTheDestinationASNWidth` | `internal/component/bgp/reactor/filter_delta_test.go` | Existing extractor/rebuild test covers both widths and the AS_TRANS/AS4_PATH pair for a non-mappable ASN (R-3) | present, no fresh run |
 | `TestRouteServerRefusesInboundASPathPrepend` | `internal/component/bgp/plugins/rs/config_refusal_test.go` | `OnConfigure` returns an error naming the peer, the definition and the leaf | |
 | `TestNoPrependRefusesInboundASPathPrepend` | `internal/component/bgp/plugins/filter_modify/config_refusal_test.go` | `OnConfigure` returns an error naming both settings | |
 | `TestSecondaryPrependASIgnoresNoPrepend` | `internal/component/bgp/reactor/rfc7705_local_as_test.go` | the outbound rail is unchanged by anything in this spec (A-4) | |
@@ -225,8 +225,7 @@ meets it (`plan/README.md`).
 | `bgp-local-as-inbound-append-frr` | `test/interop/scenarios/` | FRR | an FRR iBGP neighbor of ze accepts and installs the appended path and its own loop detection does not reject it; removing the recipe from ze's config and rebuilding removes the legacy ASN from what FRR shows | |
 
 ## Files to Modify
-- `internal/component/bgp/reactor/filter_delta.go` - `ExtractASPathPrependOps` takes the ASN width and encodes the segment at it
-- `internal/component/bgp/reactor/filter_ordered.go` - both call sites pass the width they already hold
+- `internal/component/bgp/reactor/filter_delta.go`, `filter_ordered.go` - preserve the existing width-aware producer and calls; change production code only if the retained recipe-level width tests expose a remaining defect
 - `internal/component/bgp/plugins/rs/server.go` - `OnConfigure` refuses an inbound `as-path-prepend` on a route-server client
 - `internal/component/bgp/plugins/filter_modify/config.go` - `OnConfigure` refuses an inbound `as-path-prepend` on a peer declaring `no-prepend`
 - `internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang` - the `as-path-prepend` `ze:help` states which ASN each direction prepends, and names the two refusals
@@ -270,9 +269,9 @@ meets it (`plan/README.md`).
 | 4 | API/RPC added/changed? | No | the `filter-update` RPC is unchanged |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md` -- bgp-filter-modify gains a documented import-direction behavior and bgp-rs a refusal |
 | 6 | Has a user guide page? | Yes | `docs/guide/configuration.md` is the page; no new page is added |
-| 7 | Wire format changed? | No | the AS_PATH encoding rules are unchanged; the width fix makes ze obey the existing ones |
+| 7 | Wire format changed? | No | The AS_PATH encoding rules and existing width-aware writer are preserved |
 | 8 | Plugin SDK/protocol changed? | No | no SDK surface changes |
-| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 7705 is not enrolled, `rfc/short/rfc7705.md` does not exist, and `plan/immediate/spec-bgp-as-migration.md` owns creating it. `RFC7705-3.3-9` stays an unimplemented SHOULD, because a recipe an operator must write is not the engine performing it |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | RFC 7705 was enrolled on 2026-09-14 by `plan/immediate/spec-bgp-as-migration.md`. `RFC7705-3.3-9` remains an unimplemented automatic SHOULD; this spec proves an operator recipe and changes no conformance classification |
 | 10 | Test infrastructure changed? | No | existing `.ci` and interop harnesses |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` -- other daemons offer the inbound append as a per-neighbor knob and ze offers a policy recipe; the row states that plainly |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/bgp/egress-attribute-rules.md` -- the import direction of the prepend action and its width rule |
@@ -284,14 +283,14 @@ meets it (`plan/README.md`).
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- prove the recipe reaches the append, and that today it is reachable and wrong
+1. **Phase: Wiring (MANDATORY FIRST)**: prove the recipe reaches the import prepend and every downstream reader.
    - Tests: `test/plugin/bgp-local-as-inbound-recipe.ci`, `TestImportPrependUsesPeerConfiguredLocalAS`
-   - Files: the two new test files, the `.ci` and its fixture registration
-   - Verify: the `.ci` shows the appended path against a four-octet peer, which is the case that already works, and the width test fails
-2. **Phase: Width** -- make the prepend encode at the source's negotiated ASN width
+   - Files: the recipe tests and fixture registration
+   - Verify: installed and advertised paths follow the peer's configured Local AS without a literal ASN in policy.
+2. **Phase: Width regression proof**: exercise the existing source-width-aware producer.
    - Tests: `TestImportPrependEncodesAtTheSourceASNWidth`, `TestExportPrependEncodesAtTheDestinationASNWidth`
-   - Files: `filter_delta.go`, `filter_ordered.go`
-   - Verify: both widths decode as one AS_PATH, and the four-octet legacy ASN toward a two-octet peer reads AS_PATH and AS4_PATH together
+   - Files: the test carriers; `filter_delta.go` and `filter_ordered.go` already supply the width mechanism
+   - Verify: both widths decode as one AS_PATH, and a four-octet legacy ASN toward a two-octet peer is preserved across AS_PATH and AS4_PATH. Do not require the original mixed-width defect to reproduce in the current tree.
 3. **Phase: Refusals** -- stop the recipe reaching a place it is wrong
    - Tests: `TestRouteServerRefusesInboundASPathPrepend`, `TestNoPrependRefusesInboundASPathPrepend`, `test/plugin/bgp-local-as-inbound-route-server.ci`
    - Files: `rs/server.go`, `filter_modify/config.go`
@@ -321,7 +320,7 @@ meets it (`plan/README.md`).
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The recipe is documented | `grep -n "as-path-prepend" docs/guide/configuration.md` shows it inside the local-as section |
-| The width fix exists at both call sites | `grep -n "ExtractASPathPrependOps" internal/component/bgp/reactor/filter_ordered.go` shows a width argument on both lines |
+| Existing width handling remains correct at both call sites | Decode the import and export test results at both widths and check the AS_TRANS/AS4_PATH pair for a non-mappable ASN |
 | The two refusals exist | the two unit tests pass, and each fails when its check is removed |
 | The recipe is reachable by an operator | `./le test plugin bgp-local-as-inbound-recipe` |
 | The outbound rail is unchanged | `./le test plugin bgp-local-as-options` passes with no expectation edited |
@@ -362,7 +361,7 @@ meets it (`plan/README.md`).
 - `RFC7705-3.3-9` stays an unimplemented SHOULD. The recipe is operator configuration, so ze does not perform the append by itself and no conformance row moves. Implementing it as an engine mechanism is the deferred work this spec's Task section records the owner's ruling on.
 - `local-options no-prepend` still selects nothing, and after this spec it still cannot: with no engine append there is nothing for it to suppress. Its only new effect is the refusal it triggers beside the recipe.
 - The RFC's "flexible model" (Section 3.3, the BGP Alias MAY) is out of scope and unchanged.
-- Enrolment of RFC 7705 into `rfc/short/`, and every `RFC requirement:` tag over Section 3.3, belong to `plan/immediate/spec-bgp-as-migration.md`.
+- RFC 7705 enrolment was completed by `plan/immediate/spec-bgp-as-migration.md` on 2026-09-14. The existing Section 3.3 MUST tags remain with their current tests; this recipe adds no tag for the deferred SHOULD.
 
 ## RFC Documentation (Scope: protocol)
 
@@ -372,7 +371,7 @@ below is quoted from `rfc/full/rfc7705.txt`.
 
 | # | Item | Quoted requirement | Ze today |
 |---|------|--------------------|----------|
-| 1 | Internal (SHOULD, inbound) | "The router SHOULD append the configured 'Local AS' ASN in the AS_PATH attribute before installing the route or advertising the UPDATE to an iBGP neighbor. The decision of when to append the ASN is an implementation detail outside the scope of this document." | Not performed. Every AS_PATH write is gated on an eBGP destination |
+| 1 | Internal (SHOULD, inbound) | "The router SHOULD append the configured 'Local AS' ASN in the AS_PATH attribute before installing the route or advertising the UPDATE to an iBGP neighbor. The decision of when to append the ASN is an implementation detail outside the scope of this document." | Not automatic. The explicit import-policy prepend supplies the proposed recipe |
 | 2 | External (SHOULD, outbound) | "The BGP router SHOULD first append the globally configured ASN to the AS_PATH immediately followed by the 'Local AS' value before advertising the UPDATE to an eBGP neighbor." | Performed by `secondaryPrependAS` and the three egress rails |
 | 3 | No Prepend Inbound (MUST NOT, MUST) | "it MUST NOT append the 'Local AS' ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors, but it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors" | The MUST NOT holds vacuously, because item 1 was never built; the MUST is what the egress rails already do |
 | 4 | Replace Old AS (MUST NOT, MUST) | "the BGP speaker MUST NOT append the globally configured ASN from the AS_PATH attribute. The BGP router MUST append only the configured 'Local AS' ASN value to the AS_PATH attribute before sending the BGP UPDATEs outbound to the eBGP neighbor." | Performed: `secondaryPrependAS` returns zero under `replace-as` |

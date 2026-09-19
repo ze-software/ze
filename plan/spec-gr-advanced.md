@@ -22,12 +22,23 @@ Destination spec for the **GR advanced** work item deferred out of
 `plan/spec-followup-bgp-feature.md` (umbrella work item "GR advanced (L81,L86)").
 The umbrella bundled three sub-features under one line; research (2026-07-08) split
 them by RFC and by subsystem. This spec captures the two that are genuinely
-Graceful-Restart features. The third (VPN ATTR_SET, RFC 6368) is **not** a GR
-feature and is deferred to a future L3VPN spec (see Known Limitations / Deferred).
+Graceful-Restart features. The inherited VPN ATTR_SET requirement (RFC 6368)
+is an L3VPN feature and is now owned by `plan/spec-bgp-vpn-attr-set.md`,
+including its implementation and proof obligation.
 
-ze today implements Graceful Restart **only as a Helper (Receiving Speaker)**: when a
-GR-capable peer restarts, ze retains that peer's routes as stale and purges them on
-End-of-RIB or timer expiry. The two in-scope features extend that:
+Ze contains helper-side stale retention and EOR/timer purge machinery. That is
+the baseline these extensions must preserve, rather than evidence that base GR
+works end to end. The September sender-facts handoff recorded advertisement,
+retention and test-discrimination findings. Current source still emits no
+family tuples from `parseGRCapValue`; RFC 4724 permits that for receiving-only
+helper support, so tuple absence alone does not establish a defect.
+`onPeerStateChange` now waits for reverse-tier delivery results, and the GR
+callback synchronously dispatches retention before returning. That ordering
+supersedes the handoff's unconditional
+race explanation; it does not prove successful retention.
+`plan/pre-release/spec-release-audit-2-bgp-protocol.md` owns base GR capability
+semantics and discriminating retention evidence. Any confirmed product defect
+needs a separate fix owner; the optional extensions below do not discharge it.
 
 - **Hard Reset (RFC 8538)** - Notification Message Support for BGP Graceful Restart.
   Two coupled pieces:
@@ -47,7 +58,7 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
   configurable Selection Deferral Timer expires. ze has no restarting-speaker deferral
   today; GR is helper-only.
 
-### Deferred out of this spec (see Known Limitations / Deferred)
+### Inherited ownership outside the GR feature ACs
 
 - **VPN ATTR_SET (RFC 6368), attribute type 128** - an L3VPN PE-CE feature mis-bundled
   under "GR advanced (L86)" in the 2026-07-06 deferral triage. Not graceful restart.
@@ -69,7 +80,7 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 - [ ] RFC 8538 - Notification Message Support for BGP Graceful Restart (N-bit, Cease subcode 9 Hard Reset)
   → Constraint: short summary is NOT yet in `rfc/short/`; generate it with the `ze-rfc` skill (`/ze-rfc rfc8538`) BEFORE this spec moves from `skeleton` to `ready`. Do not summarise from memory.
 - [ ] RFC 6368 - Internal BGP as the PE-CE Protocol (ATTR_SET, attribute type 128) — DEFERRED
-  → Constraint: out of scope here; its summary belongs with the future L3VPN spec, not this one.
+  → Constraint: `plan/spec-bgp-vpn-attr-set.md` owns its L3VPN design, RFC reading and proof; it is outside this spec's GR feature ACs.
 
 **Key insights:**
 - ze is a GR Helper only today; both in-scope features add Restarting-Speaker / negotiation behaviour that does not exist yet.
@@ -197,7 +208,7 @@ End-of-RIB or timer expiry. The two in-scope features extend that:
 | `NN-gr-selection-deferral-peer` | `test/interop/scenarios/` | FRR or GoBGP | restarting-speaker deferral does not blackhole during convergence | |
 
 ### Future (if deferring any tests)
-- VPN ATTR_SET (RFC 6368) tests are out of scope here; they belong to the future L3VPN spec.
+- VPN ATTR_SET (RFC 6368) implementation and proof are owned by `plan/spec-bgp-vpn-attr-set.md`.
 
 ## Files to Modify
 - `internal/component/bgp/message/notification.go` - Hard Reset (Cease subcode 9) build + unwrap
@@ -260,9 +271,11 @@ short summary with the `ze-rfc` skill before quoting it.
   in the 2026-07-06 deferral triage. attribute code 128 is not defined
   (`internal/core/bgp/attribute/attribute.go`), though L3VPN NLRI scaffolding exists
   (`family.SAFIVPN`, `internal/component/bgp/plugins/nlri/vpn/types.go`).
-  **Destination:** a future L3VPN / PE-CE spec (to be created when that work is picked
-  up). Not tracked as an AC in this spec.
-- **AS-Confederation OTC (RFC 9234 Section 5, umbrella item 3, L88)** — already
+  **Destination:** `plan/spec-bgp-vpn-attr-set.md`, created on 2026-09-19 for
+  the inherited implementation and proof obligation. The July absence claim
+  above remains historical and must be rechecked during that spec's research.
+  ATTR_SET remains outside this spec's AC-1 through AC-6.
+- **AS-Confederation OTC (RFC 9234 Section 5, umbrella item 3, L88)**: already
   re-deferred in `plan/spec-followup-bgp-feature.md` ("Item 3 re-deferral"); ze is a
   single-AS speaker so the confederation OTC rules are vacuously satisfied. Cross-
   referenced here only; not in scope.

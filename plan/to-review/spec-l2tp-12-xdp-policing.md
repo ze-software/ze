@@ -30,6 +30,12 @@
 
 ## Task
 
+This proposal remains in `plan/to-review/`, outside the canonical release
+inventory. The local `ready` label records its design state; it does not adopt
+XDP policing into the release. An owner decision must accept or reject the
+proposal and, if accepted, choose a canonical bucket with its shaper dependency
+and planned Linux evidence intact.
+
 Implement XDP-based per-session ingress traffic policing for L2TP. An eBPF
 XDP program attaches to operator-specified uplink NIC(s) and applies a
 per-session token bucket rate limiter to incoming L2TP data packets (T=0).

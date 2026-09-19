@@ -1,10 +1,10 @@
-# Spec: the RFC 5176 defect classes that still block the extraction sign-off
+# Spec: RFC 5176 residual CoA atomicity and session matching
 
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
 | Scope | protocol |
-| Depends | `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` |
+| Depends | `plan/immediate/spec-lifecycle-invariants.md` (applied-result contract, AC-3/AC-4; shared design boundary) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-05 |
@@ -13,10 +13,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-`rfc/extraction/rfc5176.json` cannot sign off, because 23 of its 72 sites state
-obligations Ze does not meet and no exclusion kind in the closed set honestly
-covers an unmet obligation. `rfc5176` is one of the first two Tier 1 walks and
-is listed `Supported` on `docs/features/rfc-status.md`, so the gap is published.
+`rfc/extraction/rfc5176.json` records sign-off on 2026-09-01. That source-walk
+milestone is delivered; it does not prove that every CoA request is applied
+atomically or that every subscriber lookup honours the request's full selector.
+This spec owns those residual conformance obligations, with the applied-result
+contract shared with the lifecycle spec as described below.
 
 The rfc5176 walk of `spec-rfcgate-6` recorded nine defect classes on
 2026-08-31: Service-Type never read; attributes not treated as mandatory; only
@@ -33,28 +34,37 @@ not atomic; Termination-Action State echo absent.
 3. Proxy-State and State ARE echoed: `(*coaListener).sendResponse` copies every attribute whose type is `AttrProxyState` or `AttrState`, quoting Sections 3.1 and 3.3.
 4. A stale Event-Timestamp is SILENTLY DISCARDED: the stale arm logs and returns with no answer, quoting Section 6.3, and its comment gives the reason a NAK would be wrong, that it tells a replaying sender the secret is right. An absent Event-Timestamp draws `ErrorCauseInvalidRequest`.
 
-**What this spec owes**, re-verified at the producer on 2026-09-05:
+Current ownership, checked against `handleCoA`, `applySubscriberCoA`,
+`findSubscriberSession` and `oneSession` in
+`internal/component/l2tp/plugins/authradius/coa.go`:
 
-- **CoA state changes are not atomic.** `(*coaListener).applySubscriberCoA`
-  quotes Section 2.3's "State changes resulting from a CoA-Request MUST be
-  atomic" above itself, then emits the subscriber rate change, then the L2TP
-  rate change, then the CoS change, sending a CoA-NAK on the first emit that
-  fails. A CoS emit that fails after the two rate emits succeeded answers a NAK
-  for a request whose changes were partly made.
-- **Multiple matching sessions are handled on one path only.**
-  `(*coaListener).oneSession` NAKs with `ErrorCauseMultiSessionUnsupported` when
-  more than one L2TP session matches, taking Section 2.3's branch for a NAS that
-  does not support multi-session changes. `(*coaListener).handleCoA` tries
-  `findSubscriberSession` FIRST, and that function looks up one session by
-  Acct-Session-Id through `LookupByAcctSessionID` and evaluates no multi-session
-  question at all. A CoA-Request that reaches the subscriber registry therefore
-  never earns the 508 the L2TP path would give it.
-- **Termination-Action State echo is absent.** No symbol naming
-  Termination-Action exists anywhere in non-test source.
+- This spec owns atomic multi-change application. `applySubscriberCoA` emits
+  subscriber rate, L2TP rate and CoS changes in sequence and NAKs the first
+  failed emit. Earlier changes have no rollback here. Completion owes the
+  all-or-nothing result, including downstream application failures.
+- `plan/immediate/spec-lifecycle-invariants.md` AC-3/AC-4 owns the applied-result
+  contract and PPPoE delivery. A successful emit still does not prove a change
+  was applied: `shaper.onSessionRateChange` returns without a result after an
+  unknown session or an `applyTC` failure. This spec consumes that contract for
+  its atomic transaction; neither spec may count the other's unfinished half
+  as complete.
+- This spec owns subscriber selector correctness and multi-match refusal.
+  `findSubscriberSession` reads only Acct-Session-Id and returns one registry
+  lookup before `oneSession` can inspect the L2TP match set. The residual is
+  the missing conjunction with other supplied identifiers and the complete
+  matching-set decision. One returned record alone proves neither ambiguity
+  nor correctness. Preserve the existing 508 response when a request matches
+  multiple sessions and Ze does not support a multi-session change.
+- Termination-Action is a retained optional-feature question. The signed
+  extraction excludes its State obligation as `feature-out-of-scope` because
+  RFC 2865 Section 5.29 makes that reauthentication feature optional. Absence
+  of that feature is not an unsigned extraction or an unconditional CoA bug.
+  The original AC-3 obligation remains conditional on selecting that feature;
+  Thomas must resolve that scope question before this spec closes.
 
-Whether this spec runs is Thomas's decision: it is a conformance programme
-rather than a walk, and it is the last thing between `rfc5176` and a signed
-extraction.
+`plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md` is the parent
+evidence programme. Its recorded signature must not be repeated as a future
+deliverable or used to close these residual behaviours.
 
 ## Required Reading
 
@@ -74,8 +84,9 @@ extraction.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/component/l2tp/plugins/authradius/coa.go` - `applySubscriberCoA` emits up to three events in sequence and NAKs on the first failure, so a partial change can precede a NAK; `oneSession` NAKs 508 on the L2TP path while `handleCoA` tries `findSubscriberSession` first, which resolves one session by Acct-Session-Id and asks no multi-session question; `sendResponse` echoes Proxy-State and State; no Termination-Action handling exists
-- [ ] `rfc/extraction/rfc5176.json` - the extraction that cannot sign, 23 of 72 sites unmet
+- [ ] `internal/component/l2tp/plugins/authradius/coa.go` - sequential emissions, subscriber Acct-Session-Id lookup before the L2TP match-set check, and the existing State/Proxy-State response echo.
+- [ ] `internal/component/l2tp/plugins/shaper/shaper.go` - `onSessionRateChange` has no application-result return to the CoA caller.
+- [ ] `rfc/extraction/rfc5176.json` - signed 2026-09-01; its optional Termination-Action exclusion is distinct from the remaining atomicity and selector proofs.
 
 **Behavior to preserve:** (unless the user explicitly said to change it)
 - the four classes already verified dead, each with its RFC sentence quoted in the code beside it
@@ -116,7 +127,7 @@ extraction.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | the three remaining classes are all that block the sign-off | the 2026-09-03 producer verification | more sites stay unmet | re-run the walk against the 72 sites | unvalidated |
+| A-1 | The signed extraction's mappings remain accurate after the residual fixes | the 2026-09-01 artifact accounts for the source sites but does not prove these behaviours | a signature masks stale evidence | review affected sites, tests and discrimination records against each changed producer | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -142,9 +153,9 @@ extraction.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | a CoA-Request whose second authorization change fails | no change is left applied, and a CoA-NAK is sent |
-| AC-2 | a CoA-Request matching more than one subscriber session | a CoA-NAK with Error-Cause 508, the same answer the L2TP path gives |
-| AC-3 | a request whose Termination-Action requires a State echo | the State is echoed as the RFC requires |
-| AC-4 | `./le rfc check` over the rfc5176 stem | every site carries a disposition and the extraction signs |
+| AC-2 | A subscriber CoA-Request supplies several session identifiers or matches more than one session | All supplied identifiers constrain the match; a mismatch is refused, and an unsupported multi-session change receives CoA-NAK with Error-Cause 508 without changing any session |
+| AC-3 | The retained Termination-Action question is resolved | If Thomas selects the optional reauthentication feature, its Access-Request echoes State as required and carries end-to-end proof. Otherwise the recorded exclusion remains explicit and no implementation or conformance completion is inferred from the absence of attribute 29 |
+| AC-4 | The residual behaviours and affected RFC 5176 evidence are checked | Atomicity and selector tests prove both success and refusal, carry valid discrimination records, and preserve the accepted extraction and existing proofs; the 2026-09-01 signature is not counted as new work |
 
 ## End-to-End User Stories
 
@@ -208,7 +219,7 @@ code, and every tagged test it adds carries a discrimination record written by
 ### Deliverables Checklist
 | Deliverable | Verification method |
 |-------------|---------------------|
-| a signed rfc5176 extraction | `./le rfc check` |
+| Proven atomic application and complete subscriber matching | AC-1/AC-2 end-to-end results plus current tagged-test discrimination records; preserve the existing signed extraction |
 
 ### Failure Routing
 | Failure | Route To |

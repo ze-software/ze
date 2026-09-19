@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | 5/8 (all 4 families migrated & verified; community-extraction + final cleanup remain; 2 deviations noted) |
-| Updated | 2026-06-18 |
+| Phase | 5/8 |
+| Updated | 2026-09-19 |
 
 ## Post-Compaction Recovery
 
@@ -18,6 +18,14 @@
 6. `internal/component/bgp/plugins/nlri/srpolicy/config.go` - reference implementation
 
 ## Task
+
+The four config-route families have migrated through the generic path as
+recorded in Implementation Summary. The remaining contract is community
+parser extraction and removal of the retained central code. The
+`BuildFlowSpec` chaos caller and legacy `FlowSpecRouteConfig` DTO remain
+accounted for in the deviations below; neither is an approved scope reduction.
+
+### Original migration scope
 
 Four BGP route families (FlowSpec, VPLS, MVPN, MUP) have hardcoded config
 types, parsers, converters, reactor types, and UPDATE builders scattered across
@@ -104,7 +112,7 @@ code for any of these four families.
 - `sendPluginRoutesVia` (`bgp/reactor/peer_initial_sync.go`) - already exists; handles any family generically
 - `BuildPlugin` (`bgp/message/update_build_plugin.go`) - already exists; the generic UPDATE builder (SR-Policy is the proof)
 
-### Current (Hardcoded) Transformation Path
+### Original hardcoded transformation path
 1. `bgp_routes.go` - `switch famName` dispatches to hardcoded parser (e.g. `parseFlowSpecNLRILine`)
 2. Parser returns family-specific config type (e.g. `FlowSpecRouteConfig`)
 3. `UpdateBlockRoutes` stores in per-family typed slice (e.g. `FlowSpecRoutes`)
@@ -139,7 +147,7 @@ code for any of these four families.
 - [ ] No duplicated functionality (one path, not five)
 - [ ] Zero-copy preserved where applicable (NLRI bytes passed through)
 
-## Violation Inventory
+## Original Violation Inventory
 
 ### Layer 1: Config Types (`bgp/config/bgp.go`)
 | Type | Lines | Status |
@@ -488,8 +496,11 @@ was still hardcoded).
 | Include community parser extraction in scope | Defer to separate spec | AC-15/AC-16 require it; leaving FlowSpec actions hardcoded in the central community parser would fail the delete-folder test |
 
 ## Known Limitations
-- BuildGroupedMVPN (MVPN route grouping for packing multiple routes into one UPDATE) needs investigation during Phase 4 to determine if the grouping logic moves to the plugin or if sendPluginRoutesVia needs a grouping hook.
-- BuildFlowSpecWithMaxSize (FlowSpec NLRI splitting when exceeding max UPDATE size) needs investigation during Phase 5.
+- MVPN grouping was implemented in phase 4 through the generic route-grouping
+  path recorded below. It is no longer an unresolved design prerequisite.
+- The retained FlowSpec builder and legacy config DTO remain closure
+  obligations unless the owner accepts a documented scope change. The
+  original removal criteria remain in force.
 
 ## Implementation Summary
 
@@ -561,11 +572,15 @@ plugin dispatch. `test/encode/{flow-encode,flow-redirect,simple-flow,flow-rate-p
   bytes to the plugins, so the delete-folder BUILD test passes (they are string literals, not plugin
   references). Moving them into the plugins via an ext-community parser hook (extracting the parsers to a
   leaf package + delegation) remains.
-- **Deviation — `update_build_flowspec.go` retained:** `internal/chaos/peer/sender.go` (ze-chaos) builds
-  FlowSpec UPDATEs via `BuildFlowSpec`, so the builder cannot be deleted without migrating the chaos peer
-  (out of this spec's scope). `BuildMUP/BuildVPLS/BuildMVPN` had no such dependency and were deleted.
-- **Deviation — `FlowSpecRouteConfig` retained:** kept as the config-layer DTO for the legacy `flow{}`
-  tree reader (`parseFlowSpecRoute`); it carries no wire-building logic (that is delegated to the plugin).
+- **Deviation: `update_build_flowspec.go` retained.** The recorded caller is
+  `internal/chaos/peer/sender.go`, which still calls `BuildFlowSpec`.
+  Removing the builder requires migrating that caller. The earlier summary
+  called it out of scope, but no owner acceptance is recorded here; the
+  builder-removal requirement remains unresolved.
+- **Deviation: `FlowSpecRouteConfig` retained.** The legacy `flow{}` reader
+  still uses this central DTO. The original central-type removal requirement
+  remains unresolved until that path is migrated or the owner accepts the
+  deviation explicitly.
 - Spec stays open until Phase 6 + the deviations are resolved (or the deviations are accepted by the user).
 
 ### Bugs Found/Fixed

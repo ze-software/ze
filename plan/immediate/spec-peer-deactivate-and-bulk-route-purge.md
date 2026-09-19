@@ -355,7 +355,7 @@ A peer row appearing or disappearing in `show bgp peer` satisfies none of them.
 | AC-4 | An operator removes a configured peer that holds an established session, and commits | Ze sends a Cease NOTIFICATION before it closes the TCP connection, and the peer leaves the operational surfaces |
 | AC-5 | A peer holding a full table is deactivated or removed | The Adj-RIB-In holds no route from that peer afterwards, and the Loc-RIB holds no best path it contributed |
 | AC-6 | The same teardown, observed by another BGP peer that received those routes | The other peer receives a withdrawal for every prefix whose best path the departing peer contributed, and for no other prefix |
-| AC-7 | A peer carrying many prefixes is deactivated or removed, and the event bus is counted | The purge produces one message rather than one per prefix, and the count does not grow with the number of prefixes the peer held |
+| AC-7 | The same peer and address families are deactivated or removed with a small table and with a full table; an external event subscriber observes the purge | The purge is one peer-scoped message whose encoded payload has no per-prefix entries and whose size and message count do not grow with the peer's prefix count; wire withdrawals remain separately required by AC-6 |
 | AC-8 | A consumer receives the bulk purge message for a peer it holds no route from | It removes nothing and it reports no error |
 | AC-9 | A peer under Graceful Restart retention is deactivated | The retained routes follow the existing Graceful Restart rules, and no bulk purge is emitted for them |
 | AC-10 | An operator creates a configured peer and commits, and the peer sends routes | The session reaches Established, and every prefix it announced is readable in the Adj-RIB-In and in the RIB |
@@ -365,6 +365,7 @@ A peer row appearing or disappearing in `show bgp peer` satisfies none of them.
 | AC-14 | An operator runs `delete bgp peer` against a CONFIGURED peer | Ze does not leave the reactor and the configuration disagreeing. The chosen answer is uniform, so the same command against the same kind of peer always does the same thing |
 | AC-15 | An ephemeral peer exists, and an operator commits a configuration change that does not name it | The ephemeral peer's fate is the one the spec states, and it is the same whether the commit reached the transaction path or the direct apply path |
 | AC-16 | An operator uses the administrative pause verb and the flow-control pause verb on one peer | Each does its own job, and neither is reachable by the other's name. The flow-control pause leaves the session established and purges no route |
+| AC-17 | Two peers contribute routes to downstream consumers, including the same prefix from different peers; one peer is purged | Consumers remove only the departing peer's contributions, preserve the other peer's routes and select any surviving eligible path; attribution established on route admission remains correct through replacement and purge |
 
 ## End-to-End User Stories
 
@@ -380,17 +381,19 @@ A peer row appearing or disappearing in `show bgp peer` satisfies none of them.
 
 **Every row in this plan is a test to WRITE.** None of them exists today, and the
 suites that look adjacent are listed under Current Behavior with what they
-actually assert. A row is satisfied only by a test that reads a RIB or counts
-events, so an assertion over `show bgp peer` output does not close one.
+actually assert. Route assertions read the RIBs; the bulk-purge assertion reads
+the external event representation and payload size as well as message count.
+An assertion over `show bgp peer` output cannot discharge those properties.
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestPeerRecordsItsOrigin` | `internal/component/bgp/reactor/` | A peer built by `AddDynamicPeer` reports a different origin from one built by the config loader (AC-13) | to write |
-| `TestPurgeEmitsOneMessageForManyPrefixes` | `internal/component/bgp/plugins/rib/` | The purge of a peer holding many prefixes emits a count that does not grow with the prefix count (AC-7) | to write |
+| `TestPurgeEmitsOneMessageForManyPrefixes` | `internal/component/bgp/plugins/rib/` | Small and full tables with the same peer/families emit one peer-scoped purge with no per-prefix payload and no size growth (AC-7) | to write |
 | `TestBulkPurgeForAnUnknownPeerRemovesNothing` | `internal/component/bgp/plugins/rib/` | A consumer given the purge for a peer it holds no route from removes nothing and reports no error (AC-8) | to write |
 | `TestGracefulRestartRetentionSuppressesTheBulkPurge` | `internal/component/bgp/plugins/rib/` | A retained peer emits no bulk purge (AC-9) | to write |
 | `TestOperatorStopSendsCeaseBeforeClose` | `internal/component/bgp/reactor/` | The removal path writes a Cease NOTIFICATION before the connection closes (AC-3, AC-4) | to write |
+| `TestBulkPurgePreservesOtherPeerContributions` | Each downstream consumer that accepts the purge | Overlapping prefixes from two peers retain the surviving peer's contribution after one peer is purged (AC-17) | to write |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -401,9 +404,9 @@ events, so an assertion over `show bgp peer` output does not close one.
 <!-- REQUIRED: a unit test proves the algorithm, a .ci proves the user can reach
      the feature. New RPCs/APIs are never covered by unit tests alone.
      Structure: ai/patterns/functional-test.md -->
-Each row drives one lifecycle in one direction and asserts on a RIB. The create
-rows prove the routes ARRIVE, the teardown rows prove they LEAVE, and the count
-row proves the bulk purge is bulk.
+Each lifecycle row asserts the resulting routes. The bulk row also inspects the
+external subscriber's encoded purge payload, and the attribution row proves that
+the consumer preserves unrelated contributions.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
@@ -412,12 +415,13 @@ row proves the bulk purge is bulk.
 | `peer-configured-delete-purges-rib` | `test/plugin/` | An operator removes a committed peer, and the RIB afterwards holds none of its prefixes (AC-5) | to write |
 | `peer-deactivate-purges-rib` | `test/plugin/` | An operator deactivates a committed peer, and the RIB afterwards holds none of its prefixes while the peer stays visible as administratively down (AC-1, AC-5) | to write |
 | `peer-ephemeral-delete-purges-rib` | `test/plugin/` | An operator runs `delete bgp peer` on an ephemeral peer, and the RIB afterwards holds none of its prefixes (AC-12) | to write |
-| `peer-purge-emits-one-event` | `test/plugin/` | A peer carrying many prefixes is torn down, and the consumer counts the purge messages rather than the prefixes (AC-7) | to write |
+| `peer-purge-emits-one-event` | `test/plugin/` | Small and full tables produce one peer-scoped purge with constant-size encoded payload and no prefix list; wire withdrawals are observed separately (AC-7, AC-6) | to write |
 | `peer-activate-restores-the-session` | `test/plugin/` | An operator activates a deactivated peer, and the session and its routes return under the same identity (AC-2) | to write |
 | `peer-origin-reported` | `test/plugin/` | An operator asks which peers are configured and which are ephemeral, and gets the right answer for each (AC-13) | to write |
 | `peer-delete-on-a-configured-peer` | `test/plugin/` | An operator runs `delete bgp peer` on a configured peer and meets the answer the spec chose, with the reactor and the file still agreeing (AC-14) | to write |
 | `peer-ephemeral-survives-or-does-not-survive-a-commit` | `test/plugin/` | An ephemeral peer meets a commit that does not name it, and the outcome is the same on both apply paths (AC-15) | to write |
 | `peer-flow-control-pause-keeps-the-session` | `test/plugin/` | An operator uses the flow-control pause and the session stays established with its routes in place (AC-16) | to write |
+| `peer-purge-preserves-other-peer-routes` | `test/plugin/` | Downstream consumers keep another peer's routes, including eligible alternatives for shared prefixes, after the departing peer's purge (AC-17) | to write |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See

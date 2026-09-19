@@ -18,18 +18,32 @@
 
 ## Task
 
-Extend the RFC-requirement-coverage gate (built and piloted on RFC 7606 by
-the RFC-requirement-coverage pilot) outward to the rest of the RFC
-summaries. Today only RFC 7606 is in `rfc/enrolled.txt`; every other summary is listed
-in `ai/RFC-REQUIREMENTS.md` marked "not enrolled", so nothing enforces its MUST-level
-obligations.
+This umbrella owns the remaining RFC enrolment, extraction and evidence
+programme. The RFC 7606 pilot established the first gate; the inherited records
+below describe its subsequent expansion. Their July counts are historical
+snapshots, not today's denominator.
 
-Scope, sized from the ledger's derived Coverage-by-RFC rollup at pilot close (re-derive
-before starting; the pilot's fixes may have shifted the numbers):
+The current population is derived from each summary's `## Meta` table by
+`enrolledFrom`, `dispositionsFrom` and `rowsFrom` in `internal/le/rfc/meta.go`.
+`rfc/enrolled.txt`, `rfc/not-enrolled.txt`, `ai/RFC-REQUIREMENTS.md` and
+`docs/features/rfc-status.md` are generated views. An implementing increment
+must reconcile that owner set and the outstanding obligations before selecting
+work; it must not hand-edit those views or infer completion from their old counts.
+
+| Remaining slice | Current owner and completion boundary |
+|---|---|
+| MUST-level enrolment and zero-capture summaries | This umbrella. Reconcile the unenrolled population, capture source obligations, then enrol each eligible RFC with proof or owner-authorised dispositions. This milestone releases `plan/pre-release/spec-rfcgate-5-should-level.md`; it does not close this umbrella |
+| Public rows absent from enrolled summaries | `plan/pre-release/spec-rfc-ledger-rows-for-the-thirty-two-undeclared.md`. Its historical 32 is a locator; it owns the current set and the editorial decisions. Count this deliverable once |
+| Supported-claim extraction and its remaining proof | `plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md`. Preserve its unresolved owner scope question and its test debt; a signed artifact alone is insufficient |
+| Wider extraction, audit freshness and annotation re-review | This umbrella retains every remainder outside that child, including the inherited extraction-source stability assumption. Completion requires current accepted sign-offs, fresh enforced audit verdicts and a source-grounded disposition for every inherited annotation |
+| Non-IETF MCP enrolment | This umbrella retains the owner decision below and any work it authorises |
+
+At the July 2026 pilot close, the ledger sized the initial enrolment work as follows:
 - **~2136 MUST-level requirements owe work across ~146 summaries**, ranked
   nearest-to-enrollable. Enrolling an RFC means every MUST-level requirement in
-  `rfc/short/<stem>.md` is either covered by a positive AND a negative tagged test, or
-  carries a reasoned `{gap}` / `{not-applicable}` / `{single-polarity}` annotation.
+  `rfc/short/<stem>.md` is either covered by positive and negative tagged tests, or
+  has an applicable owner-authorised disposition. This accounting does not permit
+  a new `{gap}` or other reduction without the compliance decision.
 - **9 summaries capture ZERO of their source RFC's MUSTs and must be re-authored via
   `/ze-rfc` before they can be enrolled**: rfc3630, rfc5187, rfc5303, rfc5304, rfc5310,
   rfc5392, rfc6549, rfc7684, rfc7770.
@@ -57,8 +71,8 @@ compliance decision.
 Two things need an answer. First, does `rfc/short/` accept a summary of a
 document that is not an RFC. Second, does `rfc/enrolled.txt` accept a stem that
 `rfc/full/<stem>.txt` cannot hold, because the MCP specification is a website
-rather than a text file. No enrollment is the status quo, so this blocks
-nothing.
+  rather than a text file. This decision remains open here; it does not block
+  the RFC-only enrolment milestone, but must be resolved before umbrella closure.
 → Constraint (`ai/rules/evidence.md`): only the test-side `RFC requirement:` tag is
   authored; the ledger derives the reverse. Enrolment adds tags, never hand-written back-links.
 
@@ -88,26 +102,27 @@ nothing.
 **Source files read:**
 - [ ] `internal/le/rfc/rfc.go` - the gate; re-derives coverage and enforces enrolment.
 - [ ] `ai/RFC-REQUIREMENTS.md` - the "not enrolled" rollup is the authoritative, derived work list.
-- [ ] `rfc/enrolled.txt` - currently enrolls only rfc7606.
+- [ ] `internal/le/rfc/meta.go` - summary Meta is the authored enrolment and public-status owner; `enrolledFrom`, `dispositionsFrom` and `rowsFrom` derive the sets.
 
-**Behavior to preserve:** the gate, tag scanner, ledger renderer, ratchets, audit, and
-test-protection hook are all built and green; this spec only ADDS enrolments and tags.
+**Behavior to preserve:** existing coverage, evidence and freshness ratchets.
+No current green gate is claimed by this planning reconciliation.
 
-**Behavior to change:** `rfc/enrolled.txt` grows; `rfc/short/*.md` gain ids/annotations/tags;
-tests gain `RFC requirement:` tags; the 9 zero-capture summaries are re-authored first.
+**Behavior to change:** finish the owned programme slices above. Author enrolment
+and support declarations in summary Meta tables, add the required tests and
+evidence records, and regenerate the views through `./le rfc index-update`.
 
 ## Data Flow
 
 ### Entry Point
-- A maintainer adds an RFC stem row to `rfc/enrolled.txt` once its summary's MUSTs are all
-  covered-both-polarities or reasoned-annotated.
+- A maintainer updates the summary's `## Meta` enrolment declaration once its
+  source obligations and proof have been reconciled.
 
 ### Transformation Path
-1. `rfc_requirements.py --check` re-derives coverage for the newly enrolled RFC and FAILS until
-   every MUST-level requirement is covered or annotated.
+1. `./le rfc check` derives the enrolled set from summary Meta and refuses
+   uncovered or unjustifiably annotated MUST-level requirements.
 2. Tagging enforcing tests (`RFC requirement: <id> <polarity>`) makes the derived ledger show the
    requirement→test link; the gate turns green for that RFC.
-3. `./le rfc index-update` regenerates `ai/RFC-REQUIREMENTS.md`; `./le doc check verify` fails if it is stale.
+3. `./le rfc index-update` regenerates the enrolment, status and requirement views from the same owners.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -116,14 +131,14 @@ tests gain `RFC requirement:` tags; the 9 zero-capture summaries are re-authored
 | Requirement ledger ⇄ Product ledger | `{gap}` disposition ↔ `docs/features/rfc-status.md` Remaining column | gate cross-check (existing) |
 
 ### Integration Points
-- `rfc/enrolled.txt` (grows only), `ai/RFC-REQUIREMENTS.md` (derived), `docs/features/rfc-status.md`
-  (product ledger reconciled per enrolled RFC).
+- Summary Meta, requirement rows, tagged tests, extraction/audit/discrimination
+  artifacts, and their generated enrolment and public-status views.
 
 ## Wiring Test
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| Add an RFC stem to `rfc/enrolled.txt` | → | `rfc_requirements.py --check` gates its MUSTs | `./le rfc check` exits non-zero until covered/annotated (existing gate; per-increment) |
+| Enrolment declaration in summary Meta | → | `enrolledFrom` and `./le rfc check` | the per-increment check refuses uncovered requirements before the increment can complete |
 
 ## 🧪 TDD Test Plan
 
@@ -138,25 +153,34 @@ enrolment changes wire behavior adds a `.ci` in the matching `test/` directory, 
 RFC 7606 pilot's `test/plugin/rfc7606-reset.ci`.
 
 ## Files to Modify
-- `rfc/enrolled.txt` - one row per newly enrolled RFC (grows only)
-- `rfc/short/<stem>.md` - ids, `{gap}`/`{single-polarity}`/`{not-applicable}` annotations; re-author the 9 zero-capture summaries
-- `docs/features/rfc-status.md` - reconcile each enrolled RFC's row with any disclosed `{gap}`
+- `rfc/short/<stem>.md` - enrolment and public-status Meta, requirement ids and justified dispositions; re-author any remaining zero-capture summaries.
+- The owning tests, `rfc/extraction/<stem>.json`, `rfc/audit/<stem>.json` and `rfc/discrimination/<stem>.json` - accepted source walks and requirement proofs.
+- Generated views are regenerated, never authored. The missing-public-row child owns its editorial slice.
 
 ## Implementation Steps
 
 Design not started. When picked up, run `/ze-spec` to:
-1. Re-derive the nearest-to-enrollable ranking and the zero-capture list from `ai/RFC-REQUIREMENTS.md`.
-2. Choose increment granularity (per-RFC vs cluster) and ordering.
-3. Decide the triage for divergences found during enrolment (fix the code vs disclose a `{gap}`).
-4. Fill full Acceptance Criteria and the review-gate sections the template requires, then enroll
-   RFCs one increment at a time, each green through `./le rfc check` before the next.
+1. Reconcile current Meta declarations, source inventories and proof/audit
+   artifacts against the historical inherited populations.
+2. Select reviewable RFC increments and identify the existing child owner for
+   each slice before assigning it. Retain the wider remainder here.
+3. Resolve any proposed compliance reduction with Thomas. A convenient
+   annotation cannot replace required implementation or proof.
+4. Design each increment's test and discrimination contract, then complete it
+   with the gate and source walk. Record the separate MCP decision and the
+   extraction-source stability decision before umbrella closure.
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | An RFC stem added to `rfc/enrolled.txt` | `./le rfc check` passes only when every MUST-level requirement is covered-both-polarities or reasoned-annotated |
-| AC-2 | A zero-capture summary (e.g. rfc5303) before enrolment | Re-authored via `/ze-rfc` so its source MUSTs are captured, before its stem may be enrolled |
+| AC-1 | The reconciled RFC-only enrolment population | Every eligible summary is enrolled through Meta, every source MUST-level obligation is captured, and `./le rfc check` accepts its proof or owner-authorised disposition; every excluded stem has an explicit owner decision. This is the MUST-enrolment prerequisite for the SHOULD-level child |
+| AC-2 | A source obligation is absent from a summary, including the historical zero-capture set | The source walk captures it before enrolment is credited; no historical missing-summary item disappears through a changed count |
+| AC-3 | The inherited extraction backlog, including the wider set outside the Supported child | Every obligation is accounted for by an accepted current source walk; the Supported child meets its own contract, and the inherited source-inventory stability assumption has a recorded closure decision |
+| AC-4 | Tested requirements in the inherited audit-freshness backlog | Every required audit verdict is enforced and fresh against the final tagged tests; absence of an audit artifact is outstanding work, even if a gate skips it |
+| AC-5 | The inherited `{gap}` / `{not-applicable}` annotation population | Every annotation is re-derived from the source and producing code under current compliance rules; invalid dispositions are replaced by implementation and proof or an explicit owner-authorised decision |
+| AC-6 | The public-row backlog | `plan/pre-release/spec-rfc-ledger-rows-for-the-thirty-two-undeclared.md` discharges the current population under its own acceptance criteria; this umbrella does not count its historical 32 again |
+| AC-7 | MCP's non-IETF enrolment question | Thomas's decision is recorded, and every resulting obligation has completed proof or an approved live owner before this umbrella closes |
 
 ## Risks & Assumptions
 
@@ -185,20 +209,20 @@ and the enforcing test carries the machine-checked `// RFC requirement: <id> <po
 - [ ] `./le verify worktree` passes
 - [ ] `./le rfc check` green for every enrolled RFC
 
-### Quality Gates (SHOULD pass)
+### Audit completion (MUST pass for the inherited freshness backlog)
 - [ ] Each enrolled RFC earns a `/ze-rfc-audit` pass
 
 ## Notes
 
-Owns `rfc/enrolled.txt` and the Coverage-by-RFC rollup going forward. Inherited from the deferral
-row filed by `plan/spec-rfc-requirement-coverage.md` (now closed; knowledge in
+Owns the remaining enrolment programme and its derived Coverage-by-RFC backlog.
+Inherited from the deferral row filed by `plan/spec-rfc-requirement-coverage.md` (now closed; knowledge in
 the RFC-requirement-coverage pilot).
 
 ## Work Inherited From a Deferral Row
 
 <!-- The deferral directory was deleted on 2026-09-05. A row that named this spec as
      its destination is reproduced here, so the item and the reasoning behind it
-     survive the directory. Each row is outstanding work this spec owns. -->
+     survive the directory. Counts describe the dated handoff; current ownership is in Task. -->
 
 ### From `mcp2026-0-umbrella.md`, 2026-07-29
 
@@ -229,3 +253,7 @@ Deferred by spec-rfcgate-1-extraction (A-7).
 Deferred by spec-rfcgate-4-ledger (OR-3).
 
 **Write the 32 missing `docs/features/rfc-status.md` rows.** 166 RFCs are enrolled and 157 rows exist, of which 23 key non-enrolled stems, leaving 32 enrolled entries with no public row at all (verified by driving `load_enrolled` and `parse_status_ledger`; all 32 are of the form `rfcNNNN`, no drafts, no `sflow-v5`). Several are exactly what the page's own preamble says it exists for -- a deliberate non-implementation a user would look up, such as `rfc7611` ACCEPT_OWN recognised for display only and `rfc7440` TFTP windowsize whose option name is parsed and value discarded
+
+Current destination: `plan/pre-release/spec-rfc-ledger-rows-for-the-thirty-two-undeclared.md`
+owns this public-row slice. The paragraph above is the 2026-07-29 handoff,
+not a second implementation assignment or a current count.

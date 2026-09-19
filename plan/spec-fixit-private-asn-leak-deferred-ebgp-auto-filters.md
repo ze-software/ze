@@ -210,26 +210,26 @@ Two consequences, and the second is what blocks:
    the text-rendering egress chain on for every EBGP peer by default is a throughput
    change, not an implementation detail. The spec never prices it.
 
-**The RFC violation is real and still live**, so this is a blocker to a fix, not a reason
-to leave it: an UPDATE received from an IBGP peer carrying LOCAL_PREF and forwarded to an
-EBGP peer keeps LOCAL_PREF on the wire. Producer citations, all re-verified 2026-07-27:
-`reactor_api_forward.go` (`wireu.RewriteASPath` is the only per-destination EBGP wire
-transform), `grep -rn LOCAL_PREF internal/component/bgp/wireu/*.go` (zero non-test hits,
-so nothing strips it), and `message/rfc7606.go` (the ingress discard covers an
-EBGP *source* only, never an IBGP source with an EBGP destination). The `rib/commit` and
-`peer_rib_routes` paths were checked and are NOT leaking: both gate LOCAL_PREF on
-`isIBGP` (`peer_rib_routes.go`, `:133`).
+The RFC-defect claim recorded here on 2026-07-27 was superseded by the
+2026-08-05 rescope. `applyFactsLocalPref` now adds the final suppress operation
+for an external destination when the payload or an egress modification carries
+LOCAL_PREF. The hot-path cost question for visible auto-added entries remains;
+it must be answered without removing this existing enforcement.
 
-**Needs a ruling from Thomas** (recorded rather than guessed, because the two answers
-produce materially different code and one of them contradicts the 2026-07-16 ruling):
+The following options record the unresolved 2026-07-27 design question. They
+predate the enforcement repair and must not be used as a current leak-fix recipe:
 
 | Option | Shape | Cost | Against |
 |--------|-------|------|---------|
 | A: auto-append `FilterRef` as ruled | one chain entry per EBGP peer | every EBGP destination enters the text-rendering egress body | the forward rail's zero-copy premise |
 | B: extend the per-destination EBGP wire rewrite | suppress LOCAL_PREF inside the `RewriteASPath` copy that `reactor_api_forward.go` ALREADY pays for and caches per (localAS, asn4) in `ebgpWireCache` | no new allocation, no new pass | the 2026-07-16 ruling ("instead of special-casing both inside the wire path"), and it does not generalise to the prepend half |
 
-Option B was NOT taken unilaterally. It is cheaper and fixes the MUST NOT, but it
-contradicts a recorded ruling given before this cost was known.
+Option B was not taken by that investigation because it contradicted the
+2026-07-16 ruling. The remaining owner decision concerns the implementation and
+cost of visible auto-added export entries while preserving the existing
+`applyFactsLocalPref` enforcement. The historical cost claims need refreshing
+against the current egress producer before that decision; this reconciliation
+does not choose an option or reopen the RFC defect.
 
 ### Convergence: three in-progress specs are standing on the seam this design retires
 
@@ -267,7 +267,7 @@ designing; that disagreement may be the actual bug.
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4271.md` - §5.1.5 (`:381`, `:702`: "MUST NOT include LOCAL_PREF in UPDATE messages sent to external peers"), §9.1.2 (prepend)
-  → Constraint: §5.1.5 is a MUST NOT and is currently unenforced on the forwarded egress path
+  → Constraint: §5.1.5 is enforced by `applyFactsLocalPref` on forwarded egress. The auto-filter design must preserve that prohibition, including policy-added LOCAL_PREF; the remaining scope is export-chain visibility and architecture.
 - [ ] `rfc/short/rfc6793.md` - AS4_PATH, owned by `spec-fixit-as4path-missing-on-rewrite`
   → Constraint: whatever performs prepend inherits that spec's AS4_PATH obligation
 
@@ -290,7 +290,7 @@ designing; that disagreement may be the actual bug.
 - Every `local-as` override mode's current prepend behavior.
 
 **Behavior to change:**
-- LOCAL_PREF must stop reaching EBGP peers on the forwarded path (RFC 4271 §5.1.5).
+- LOCAL_PREF suppression becomes a visible auto-added export-chain entry while preserving the current RFC 4271 §5.1.5 enforcement.
 - Prepend for EBGP becomes a chain entry rather than a wire-path special case.
 
 ## Risks & Assumptions
@@ -377,7 +377,7 @@ one landing order:
 
 - **Phases 1-2 (LOCAL_PREF-suppress, AC-1/AC-2) — implementable NOW.** This half does not
   touch `wireu.rewriteASPathPrepend`; it appends an EBGP-gated `AttrModSuppress` LOCAL_PREF
-  auto-entry at config time and closes the currently-unenforced RFC 4271 §5.1.5 MUST NOT.
+  auto-entry at config time while preserving the existing RFC 4271 §5.1.5 enforcement.
 - **Phases 3-4 (prepend-relocation, AC-3/AC-4/AC-5/AC-8) — GATED.** This half retires
   `wireu.rewriteASPathPrepend` (verified on disk: sole definition at `aspath_rewrite.go`;
   its only callers are `RewriteASPath` `:35` and `RewriteASPathDual` `:52`). It MUST NOT
@@ -465,7 +465,7 @@ preferred.
 - `internal/component/bgp/config/peers.go` - the auto-append, mirroring `prependDefaultFilters` onto the export side; `ValidateFilterNames` and `canonicalizeFilterRefs` must accept the reserved names
 - `internal/component/bgp/reactor/filter_ordered.go` - ordering of the auto entries within the chain
 - `internal/component/bgp/wireu/aspath_rewrite.go` - only if prepend is relocated (**coordinate: three in-progress specs, see Convergence**)
-- `internal/core/bgp/attribute/builder.go` - `:454-457`'s comment promises a send-time eBGP filter that does not exist; make it true or fix the comment
+- `internal/core/bgp/attribute/builder.go` - keep its send-time filtering comment consistent with the existing `applyFactsLocalPref` enforcement and the eventual auto-entry implementation
 
 ## Implementation Steps
 
@@ -561,10 +561,10 @@ below.) The ordering below is what the trace already justifies:
 The auto-filter chain entries carry the normative citations they enforce; both must appear at
 the code seam (`config/peers.go` auto-append and the chain-entry emit site):
 
-- RFC 4271 §5.1.5 — "LOCAL_PREF ... SHALL NOT be included in UPDATE messages sent to external
-  (EBGP) peers" — enforced by the `AttrModSuppress` LOCAL_PREF auto-entry (EBGP-gated). This
-  is the previously-unenforced MUST NOT on the forwarded IBGP-source -> EBGP-destination path
-  (see Current Behavior table).
+- RFC 4271 §5.1.5: LOCAL_PREF must remain absent from UPDATEs sent to external
+  peers. `applyFactsLocalPref` already enforces forwarded egress; the proposed
+  EBGP-gated auto-entry must preserve both carried-payload and policy-added
+  suppression. This spec makes no new claim of repairing that closed defect.
 - RFC 4271 §9.1.2 — prepend the local AS on EBGP export — enforced by the `AttrModPrepend`
   AS_PATH auto-entry (EBGP-gated), reproducing every `local-as` override mode.
 - RFC 7947 §2.2.2 — an RS MUST NOT modify AS_PATH for RS-client peers — the prepend auto-entry

@@ -39,6 +39,13 @@ This is an umbrella. Each child below is independently pickable and
 independently closable. Child 4 is a design question and MUST NOT block the
 other four.
 
+All five canonical children are currently in the optional `plan/` bucket.
+This umbrella's all-child closure condition remains in force, but its
+`plan/immediate/` location does not settle whether their work is a release
+prerequisite. The owner must reconcile the umbrella's bucket with those
+children before using it as a release gate. Child 3 still starts with research,
+and child 4 still requires the design decision recorded below.
+
 ### Findings (verified 2026-08-07, each against the producing function)
 
 | # | Finding | Producer | Child |

@@ -31,6 +31,13 @@ restore, reconcile, or resync entry point that programs a backend:
 enumerate what restore programs and what create programs, and report the
 difference.
 
+The candidate list is a research scope, and this record establishes no defect
+in any candidate. The next deliverable is a producer-level comparison of both
+paths, including legitimate differences and error handling. Any confirmed
+defect needs concrete repair ownership and a reproduction before it is counted
+as release-blocking work. The owner must classify this investigation before its
+directory placement is used as a release gate; this reconciliation moves nothing.
+
 A second half is worth deciding at design time. Where the two paths diverge
 legitimately, error handling must not diverge with them: a restore that returns
 an error while fresh creation only logs a warning leaves an object up and

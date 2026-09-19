@@ -2,12 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | verification |
+| Status | blocked |
 | Scope | plugin |
 | Depends | - |
 | Phase | 6/6 |
 | Handoff | verify |
-| Updated | 2026-08-23 |
+| Updated | 2026-09-19 |
+| Blocker | AC-5 guest proof and the recorded closure pause need resolution |
 
 <!-- Handoff `verify`: the implementation session commits the work, sets Status to
      `verification` and stops. A later Opus 5 session reviews that commit and closes. -->
@@ -16,23 +17,23 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The traffic VPP backend sends binary-API requests on a channel with no reply
-deadline, so a VPP that accepts a request and never answers blocks the caller
-for the life of the process.
+This spec bounds each traffic VPP binary-API reply so a request that receives
+no answer cannot hold the backend for the life of the process. The
+implementation is present: `(*backend).Apply` calls
+`applyWithOps(newGovppOps(ch), desired)`, and `newGovppOps` installs the
+clamped reply deadline before returning the facade. The remaining proof and
+closure pause are recorded below.
 
-`(*backend).Apply` (`internal/plugins/traffic/vpp/backend_linux.go`) ends with a
-call to `applyWithOps` whose ops value is an inline `&govppOps{ch: ch}` literal.
-No file in `internal/plugins/traffic/vpp` calls `SetReplyTimeout`, so the channel
-keeps `core.DefaultReplyTimeout`. govpp sets that constant to 0 and its own comment
-reads "default timeout for replies from VPP is disabled"
-(`vendor/go.fd.io/govpp/core/connection.go`, `DefaultReplyTimeout`).
+Before the fix, Apply built an inline `&govppOps{ch: ch}` and installed no
+deadline. A fresh govpp channel kept `core.DefaultReplyTimeout`, which is zero;
+a pooled channel could carry its previous owner's value.
 
 The producer of the block is `receiveReplyInternal`
 (`vendor/go.fd.io/govpp/core/channel.go`): it reads `ch.replyTimeout`, and when the
 value is at or below zero it substitutes `maxInt64`, which is about 292 years.
 `Channel.ReceiveReply` takes no context, so the `ctx` that `Apply` receives from
 the plugin lifecycle cannot end the wait. `Apply` holds `b.mu` across the whole
-call, so the backend never accepts another apply either.
+call, so an unbounded reply also prevented subsequent applies.
 
 The firewall VPP backend already carries the fix. `newGovppOps`
 (`internal/plugins/firewall/vpp/timeout_linux.go`) calls `SetReplyTimeout` and then
@@ -230,10 +231,9 @@ production path builds carries a bounded, non-zero deadline on its own channel,
 for every operator input. They do NOT pin that a wedged VPP unblocks. The wait
 itself is `receiveReplyInternal` inside vendored govpp, which no fake channel can
 stand in for, and the traffic package has no harness that reaches a live VPP.
-The stronger claim needs a stub that accepts a request and never answers, which
-the Functional Tests row below shows exists in no spec today. It is NOT
-`plan/spec-finish-vpp-stub.md` AC-11: that asserts `Apply` completes, which a
-deadline test cannot be built on.
+The stronger claim needs a stub that accepts a request and never answers.
+`plan/spec-finish-vpp-stub.md` now owns that mode and its observed deadline
+result in AC-16. Its AC-11 successful-Apply proof remains a separate obligation.
 
 `TestGovppOpsIsBuiltOnlyByItsConstructor` pins a narrower thing again, and its
 bound is deliberate. It reads the three forms that name `govppOps` directly, so
@@ -279,7 +279,7 @@ installation was broken.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Not applicable, and the enabler is not written anywhere yet | - | No `.ci` can reach this code path today. The VPP tests in `test/traffic/` stop at the verify tier: `traffic-vpp-not-connected.ci` and the two `traffic-vpp-accept-*` tests prove their point through the ABSENCE of VPP, and `traffic-vpp-accept-dscp-filter.ci` records the reason in its own body, naming `plan/spec-finish-vpp-stub.md` as the blocker. **Correction made during implementation, 2026-08-23: that spec is not the enabler for THIS behavior.** Its AC-11 asserts that `Apply` COMPLETES against the stub, and a stub that answers proves nothing about a reply deadline. What this behavior needs is a stub mode that ACCEPTS a request and never answers it, plus an assertion that the apply returns a reply-timeout error inside roughly the configured deadline instead of hanging. No row in `spec-finish-vpp-stub` asks for that, and neither does this spec, so naming AC-11 as the enabler pointed at something that cannot deliver. Writing that stub mode is stub work and stays outside a deadline fix; what changes here is that the spec stops claiming a route it does not have. The observable proof shipped is the unit tests above, run inside the QEMU VM (AC-5), which is the same proof the firewall sibling shipped | <!-- doc-links: ignore (the enabling row exists in no spec; this cell is what says so) --> |
+| Accepted-but-unanswered traffic request | `plan/spec-finish-vpp-stub.md`, AC-16 | The stub accepts the request without replying; Apply returns an identifiable timeout within the configured bound and another apply can proceed | Proof owed by the stub spec. This spec retains AC-5 guest execution of its constructor/clamp tests; neither proof substitutes for the other |
 
 ### Interop Tests (Scope: protocol)
 
@@ -291,7 +291,7 @@ any wire; it installs a client-side deadline.
 ## Files to Modify
 
 - `internal/plugins/traffic/vpp/backend_linux.go` - the last statement of `(*backend).Apply` uses the constructor instead of the inline `&govppOps{ch: ch}` literal. Its `// Design:` annotation points at `docs/architecture/traffic/fw-7-traffic-vpp.md`, which describes the apply path and not the channel lifetime, so that doc needs no edit; the seam doc does.
-- `internal/le/integration/gates.go` - the `ze-qemu-integration-test` recipe names `./internal/plugins/traffic/vpp/...` beside the firewall package, and the comment above `ZE_QEMU_INTEGRATION_PKGS` names both for the same reason.
+- `internal/le/qemu/alltests.go` - the current `unitPhase` runs the package population with `./...` and feature tags; AC-5 still requires evidence that the traffic VPP tests execute in the guest.
 - `docs/architecture/traffic/fw-7b-backend-hardening.md` - the "The `vppOps` seam" section records that the production implementation is built by a constructor that binds the reply deadline, and why the binding sits there.
 
 ## Files to Create
@@ -353,14 +353,14 @@ any wire; it installs a client-side deadline.
    - Tests: every test in `apply_test.go` stays green and unedited
    - Files: `internal/plugins/traffic/vpp/backend_linux.go`
    - Verify: `grep -rn 'govppOps{' internal/plugins/traffic/vpp/` returns exactly one hit, inside the constructor. Then `./le changed scope`
-4. **Phase: QEMU reach** -- name the package in the QEMU target.
+4. **Phase: QEMU reach** - prove the package runs through the current guest unit phase.
    - Tests: the two unit tests run inside the VM
-   - Files: `internal/le/integration/gates.go`
+   - Files: `internal/le/qemu/alltests.go`
    - Verify: `./le qemu run command "./le qemu all-tests"`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
 5. **Phase: documentation** -- the seam doc, and any stale source anchor the checklist grep finds.
    - Files: `docs/architecture/traffic/fw-7b-backend-hardening.md`
    - Verify: `./le doc check verify`
-6. **Full verification** -- `./le verify current mode full`, then set Status to `verification`, commit, and stop. Closure belongs to a later Opus 5 session (`Handoff | verify`).
+6. **Full verification** - `./le verify worktree`, then the verification handoff once every required proof is complete. The recorded owner pause below must be resolved first.
 
 ### Critical Review Checklist
 
@@ -447,16 +447,10 @@ any wire; it installs a client-side deadline.
   recorded in `plan/journal/guard-added-to-one-half-of-a-pair.md` and needs its own
   decision from Thomas, because those three have different callers, different locks
   and different blast radii from traffic's.
-- **No functional `.ci` proves the deadline end to end, and the enabler is written
-  in no spec.** The apply tier of the traffic VPP backend has no test that reaches
-  VPP at all. `plan/spec-finish-vpp-stub.md` AC-11 would give the apply tier a
-  test, but not THIS one: it asserts that `Apply` completes against the stub, and
-  a stub that answers cannot exercise a reply deadline. Proving this behavior end
-  to end needs a stub mode that accepts a request and never answers, plus an
-  assertion that the apply fails with a reply-timeout error inside roughly the
-  configured deadline. Neither `spec-finish-vpp-stub` nor this spec carries that
-  row. Recorded here rather than fixed because writing the stub mode is stub work;
-  what this spec owed was to stop naming an enabler that cannot deliver.
+- The end-to-end silent-VPP proof is owned by
+  `plan/spec-finish-vpp-stub.md`, AC-16. The constructor/clamp tests observe the
+  installed deadline, and AC-11 in the stub spec observes successful Apply;
+  neither demonstrates the accepted-but-unanswered case.
 - The env key registers inside a Linux-only file, so `ze env list` on darwin does
   not show it. The firewall knob has the same property, so this is the established
   behavior for a Linux-only backend knob rather than a new gap.
@@ -497,13 +491,19 @@ any wire; it installs a client-side deadline.
 
 ### Closure verdict: NOT CLOSED
 
-The spec stays at `verification` and its file stays in `plan/immediate/`. AC-5 is
-unmet, and the reason is two defects in `internal/le/qemu/` rather than anything
-in this spec's code (see the AC-5 row of the Implementation Audit and the
-2026-09-05 row of `plan/journal/gate-excludes-part-of-its-population.md`). An
-author does not reduce their own spec's scope, so the question goes to Thomas:
-fix the two QEMU defects here, or home them in their own spec and accept a
-narrower AC-5. Everything else below is finished and verified.
+The spec stays open in `plan/immediate/`. The September 5 closure attempt
+reached no guest tests and did not demonstrate AC-5. Its two reported runner
+causes no longer describe the current implementation: `Run` derives the guest
+Go release from `go.mod` through `goversion.DeclaredRelease`, and
+`allTestsRun.suiteCommand` uses the BusyBox-compatible `timeout -k` form.
+Reading those changes supplies no replacement run.
+
+AC-5 remains owned here, without a narrower substitute. The recorded owner
+pause must be resolved before closure: resume the guest proof on the repaired
+runner, or explicitly assign any newly reproduced infrastructure blocker
+without dropping the required guest execution. The constructor/clamp evidence
+below is historical evidence of that seam, not proof that a silent VPP replied
+or that the guest suite ran.
 
 ### What Was Implemented
 
@@ -521,9 +521,9 @@ narrower AC-5. Everything else below is finished and verified.
 - `TestGovppOpsIsBuiltOnlyByItsConstructor`
   (`internal/plugins/traffic/vpp/ops_construction_test.go`) parses the package's
   own sources and fails on a `govppOps` built anywhere else, and on finding none.
-- `integrationPackages` (`internal/le/qemu/alltests.go`) names
-  `./internal/plugins/traffic/vpp/...`, so the linux-tagged tests are selected
-  for the VM.
+- The original QEMU integration list included the traffic package. The current
+  `allTestsRun.unitPhase` in `internal/le/qemu/alltests.go` runs `./...` with
+  feature tags instead. AC-5 still needs a guest execution result.
 
 ### Bugs Found/Fixed
 
@@ -549,13 +549,11 @@ narrower AC-5. Everything else below is finished and verified.
 
 ### Deviations from Plan
 
-- The QEMU package list moved twice. The spec's Files to Modify named
-  `internal/le/integration/gates.go`; the implementation edited
-  `mk/test-integration.mk`; and the make-to-le migration (`eae282592`,
-  2026-08-28) carried the entry into `integrationPackages`
-  (`internal/le/qemu/alltests.go`), where `./internal/plugins/traffic/vpp/...`
-  still sits beside the firewall package. The selection survived the migration;
-  only the spec's file name went stale.
+- The QEMU selection moved from `mk/test-integration.mk` to
+  `integrationPackages` in `internal/le/qemu/alltests.go` during the August 28
+  migration (`eae282592`). The current runner uses the whole unit-test package
+  population instead. `internal/le/integration/gates.go`, named in the original
+  plan, was never the producer.
 - `plan/deferrals/` and the Deferrals Resolved table were deleted on 2026-09-05
   (`6fb9cd881`), so this closure carries Work Not Done instead.
 
@@ -567,6 +565,9 @@ narrower AC-5. Everything else below is finished and verified.
 | escalation | The new test fake spelled its unreachable methods `panic("unused")`, outside the prefix list in `docs/contributing/ze-go-style.md`, which `writeGoPatterns` (`internal/le/hookruntime/writeedit.go`) refuses on a later Write or Edit | The list is `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO`, `impossible` | Review Gate round 1, style pass | fixed in `timeout_linux_test.go`; the two sibling files carrying the same form are named in the journal row |
 
 ## Implementation Audit
+
+The tables below record the September 5 closure attempt. The current runner
+and remaining ownership are stated in the closure verdict and Work Not Done.
 
 ### Requirements from Task
 
@@ -612,10 +613,9 @@ narrower AC-5. Everything else below is finished and verified.
 
 - **Total items:** 20
 - **Done:** 17
-- **Partial:** 1 -- AC-5. The code deliverable is present: `integrationPackages`
-  (`internal/le/qemu/alltests.go`) names the package. The RUN that would prove it
-  reaches no test today. Needs the owner's decision (`ai/rules/completion.md`: an
-  AC is not reduced by its author)
+- **Partial:** 1, AC-5. The September 5 run reached no tests. The current runner
+  changes do not supply a replacement execution result, and the owner pause
+  remains as stated in the closure verdict.
 - **Skipped:** 0
 - **Changed:** 2 (`ops.go` header, the QEMU list's file name) -- both in Deviations
 
@@ -632,10 +632,10 @@ narrower AC-5. Everything else below is finished and verified.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| AC-5's proof: the package's Linux-only tests executing inside the QEMU guest | `./le qemu all-tests` runs no test at all today, for two reasons in `internal/le/qemu/` | undecided -- the owner's call, and the question this closure stops on |
-| An end-to-end proof that a wedged VPP unblocks: a stub mode that ACCEPTS a request and never answers it, plus an assertion that the traffic apply returns a reply-timeout error inside roughly the configured deadline | The wait is inside vendored govpp and the traffic package has no harness that reaches a live VPP. Writing the stub mode is stub work, not deadline work | `plan/spec-finish-vpp-stub.md`. Its AC-11 does NOT cover this: AC-11 asserts `Apply` COMPLETES against the stub, and a stub that answers cannot exercise a deadline |
+| AC-5's proof: the package's Linux-only tests executing inside the QEMU guest | The recorded 2026-09-05 run executed no tests. The two cited runner causes have since changed, but no replacement proof is recorded here | `plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md`; retained here until guest execution is demonstrated and the recorded closure pause is resolved |
+| An end-to-end proof that a wedged VPP unblocks: a stub mode that accepts a request and never answers it, plus an assertion that traffic apply returns an identifiable reply-timeout error within the configured bound and permits a subsequent apply | The wait is inside vendored govpp and the constructor proof observes the installed value only | `plan/spec-finish-vpp-stub.md`, AC-16. AC-11 remains the successful-Apply proof and cannot substitute for the withheld-reply case |
 | The reply deadline for `internal/plugins/iface/vpp`, `internal/plugins/fib/vpp` and `internal/plugins/static/vpp` | Different callers, different locks, different blast radii from traffic's | `plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md` |
-| The reply deadline for `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`), which holds one channel for the backend's lifetime | Found during implementation, named by nothing before it, and outside a traffic deadline fix | no spec; the row is in `plan/journal/guard-added-to-one-half-of-a-pair.md` and the decision is owed to Thomas |
+| The reply deadline for `newVPPBackend` (`internal/component/ike/dataplane/vpp.go`), which holds one channel for the backend's lifetime | `newVPPBackend` and `Connector.NewChannel` still install no deadline. The finding is outside this traffic repair and has no approved destination | Owner decision remains open: assign a dedicated IKE deadline spec or explicitly extend an existing deadline owner. `plan/journal/guard-added-to-one-half-of-a-pair.md` preserves the discovery but is not a destination spec |
 
 ## Review Gate
 

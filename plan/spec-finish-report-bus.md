@@ -16,14 +16,17 @@
 
 ## Task
 
-Finish report-bus Phase 11 functional coverage. The keystone is a real, still-live bug: an empty-bus daemon-shutdown hang in the test harness that was never root-caused.
+Finish report-bus Phase 11 functional coverage and re-establish the historical
+empty-bus shutdown observation before scheduling a hang fix.
 
-This is a consolidation skeleton created from verified deferral survivors (backlog triage 2026-07-06). Each item below was confirmed still-open against the codebase with a producing `file:line`. Split into phases when picked up; the sections after Task are lightweight scaffolding to be filled at design time.
+This skeleton inherited the 2026-07-06 triage. Its source locations and
+failure diagnosis are dated evidence, and the Python helper used by that
+reproduction has since been retired. No current reproduction is recorded here.
 
 ### Work items (migrated from the 2026-07-06 deferral triage; `L#` = row in the pre-triage `plan/deferrals.md`)
 
-- **Root-cause the empty-bus shutdown hang (L103)** - a `.ci` plugin dispatching `show errors` on an empty bus then `daemon shutdown`+`wait_for_shutdown` hangs to timeout. Product handler is benign (`show.go,118`); fault is in the harness shutdown/IPC path. Blocks L102,L115.
-- **Empty-bus tests, blocked by L103 (L102,L115)** - `errors-empty-show.ci` (L102), `warnings-empty-show.ci` (L115). Unit tests already cover the empty case.
+- **Re-establish the empty-bus shutdown observation (L103)**: the July `.ci` dispatched `show errors` and then `daemon shutdown` plus the former `wait_for_shutdown` helper, and timed out. Map that sequence onto the current compiled fixture and runner lifecycle, capture where it stops, and investigate a fix only if the hang survives. The old harness/IPC attribution remains unconfirmed.
+- **Empty-bus coverage (L102,L115)**: preserve `errors-empty-show.ci` and `warnings-empty-show.ci` as required coverage items. Their historical blocker is L103; a current clean shutdown would remove that blocker without removing the tests' report-bus assertions.
 - **Distinct-blocker report-bus `.ci` (L116,L117,L113,L104)** - config-rollback (L116, multi-phase toggle plugin), config-save (L117, read-only-fs/write-intercept), warnings-clear (L113, ze-peer announce-over-threshold+withdraw), session-dropped (L104, ze-peer abrupt-close action).
 
 ### Post-wave corrections (2026-07-10)
@@ -37,19 +40,21 @@ is logged, counted, and the connection is closed by `fireWatchdog`
 involved a write stalled on such a transport in the harness shutdown/IPC path, the watchdog
 would now break the stall after 30s instead of hanging to the test timeout, changing or
 masking the symptom. This interaction is a hypothesis, not a finding: nobody has re-run the
-repro against the new code. Obligation: re-run the L103 repro (`show errors` on an empty bus
-then `daemon shutdown` + `wait_for_shutdown`) BEFORE investing in root-cause work, and check
-the log for the "plugin rpc write stalled past watchdog window" warning and the
-`ze_plugin_write_watchdog_total` counter to confirm or eliminate this lead.
+repro against the new code. Before root-cause work, reconstruct the L103 sequence
+on the current harness: the former `wait_for_shutdown` helper no longer exists.
+If it still stalls, check the "plugin rpc write stalled past watchdog window"
+warning and `ze_plugin_write_watchdog_total` counter to assess this lead.
 
 ## Required Reading
 
 ### Source files / docs
 
-- [ ] `internal/component/cmd/show/show.go` (empty-bus handlers, proven benign at :101,:118)
-  -> Constraint: verify current behaviour against this source before designing.
-- [ ] `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (`wait_for_shutdown` - suspected hang site)
-  -> Constraint: verify current behaviour against this source before designing.
+- [ ] `docs/guide/operational-reports.md` and `internal/component/cmd/show/show.go`
+  -> Constraint: `handleShowErrors` and `handleShowWarnings` read the report bus
+     and return a response; that source reading does not prove shutdown completes.
+- [ ] `internal/test/fixture/fixture.go`
+  -> Constraint: reconstruct the reproduction on the current compiled observer
+     lifecycle. The retired `test/scripts/ze_api.py` helper is historical evidence. <!-- doc-links: ignore (deleted helper, cited only as provenance) -->
 - [ ] `internal/test/runner/` (shutdown/IPC lifecycle)
   -> Constraint: verify current behaviour against this source before designing.
 
@@ -73,14 +78,15 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 
 ### Transformation Path
 1. Test plugin dispatches a report-bus show command
-2. Daemon renders (benign on empty bus) and acknowledges
-3. `daemon shutdown` + `wait_for_shutdown` completes without hanging (the bug to fix)
+2. Daemon renders the empty report response and acknowledges.
+3. The current fixture requests shutdown and the runner observes process exit.
+   Establish whether this hangs before assigning a product or harness repair.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | test plugin -> daemon | dispatch + shutdown over IPC | [ ] |
-| daemon -> harness | `wait_for_shutdown` handshake | [ ] |
+| daemon -> harness | current process-exit/shutdown observation, to map at design time | [ ] |
 
 ### Integration Points
 - `internal/component/cmd/show/` (handlers)
@@ -132,13 +138,14 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 
 ## Files to Modify
 
-- `internal/component/cmd/show/show.go` - see Task work items
-- `internal/test/runner/` - see Task work items
+- `internal/component/cmd/show/show.go`, `internal/test/fixture/fixture.go` and
+  `internal/test/runner/`: inspect first; change only the producer a current
+  reproduction identifies. Missing coverage alone does not establish a defect.
 
 ## Implementation Steps
 
 1. **Phase: split** - if the umbrella covers unrelated items, split into per-item specs first.
-2. **Phase: design** - for the chosen item, re-verify the `file:line` evidence and fill the Data Flow / Wiring / AC sections above.
+2. **Phase: design** - reconstruct L103 on the current harness, record its result, and fill the Data Flow / Wiring / AC sections for each retained coverage item.
 3. **Phase: wiring** - register entry points, write the failing wiring test.
 4. **Phase: implement (TDD)** - write test, fail, implement, pass, per work item.
 5. **Full verification** - `./le verify current mode full`.

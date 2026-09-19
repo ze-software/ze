@@ -7,20 +7,11 @@
 | Phase | - |
 | Updated | 2026-05-21 |
 
-STALE BASELINE -- corrected in-body (2026-07-22 plan review; Migration
-table corrected 2026-07-22): all three originally cited ad-hoc deprecation
-sites are GONE (`show.go` and `clear.go` carry no deprecation pattern;
-`cache.go`'s `dispatchCacheByID` no longer takes a `deprecated` bool -- now
-`dispatchCacheByID(ctx, action, idStr, extraArgs)`, `cache.go`). The only
-surviving ad-hoc site is the local `withDeprecation` closure at
-`internal/component/bgp/plugins/cmd/commit/commit.go`. The Migration
-table below is now corrected: the vanished show/clear/cache rows are struck
-through and a row for the `commit.go` closure is added. Other sections
-(Current Behavior, Files to Modify, AC-9, TDD plan, Deliverables) still name
-the vanished sites; retarget them to `commit.go` during implementation.
-The framework itself (`internal/component/command/deprecation.go`,
-`Response.Deprecated`, `LookupLocalMeta`) has not landed, so the spec's goal
-stands.
+The 2026-07-22 review retired the original show/clear/cache migration targets.
+The current ad-hoc target is `handleCommit` and its `dispatchCommitAction`
+closure in `internal/component/bgp/plugins/cmd/commit/commit.go`: the legacy
+grammar dispatches to the same action and attaches a warning on success.
+The framework below remains a design; this reconciliation does not implement it.
 
 **Scope:** Command deprecation only. Config migration integration is a future child spec (`spec-deprecation-config-migration`). The shared `Deprecation` type is designed here to be reusable, but config-specific concerns (schema stamp format, migration rejection semantics, config-specific replacement shape) are out of scope.
 
@@ -42,12 +33,10 @@ Two rulings that supersede parts of the design below:
    format is therefore load-bearing: it exists to power automatic rewriting,
    not just a helpful error message.
 
-Design consequences to rework before this spec leaves `design`:
-- `RemoveAt` as "the command is treated as removed" contradicts ruling 2.
-  Either drop `RemoveAt`, or redefine it as the date the warning escalates
-  in visibility -- never as execution ceasing while the mapping could
-  rewrite it. The state table's `Removed` row, AC-2, AC-6, AC-12, and the
-  removed-command tests must be redesigned around transparent rewrite.
+The execution contract below follows those rulings. One presentation decision
+remains before readiness: omit the proposed `RemoveAt` field, or replace it
+with a warning-escalation date whose name and output cannot imply removal.
+Neither option may stop execution or expire a migration mapping.
 - The already-shipped `withDeprecation` closure
   (`internal/component/bgp/plugins/cmd/commit/commit.go`) is the
   model: the legacy `commit <name> <action>` grammar still executes,
@@ -64,7 +53,7 @@ Design consequences to rework before this spec leaves `design`:
 2. `.claude/rules/planning.md` - workflow rules
 3. `cmd/ze/internal/cmdregistry/registry.go` - local command registration
 4. `internal/component/command/node.go` - command tree node type
-5. `internal/component/cmd/show/show.go` - existing ad-hoc deprecation
+5. `internal/component/bgp/plugins/cmd/commit/commit.go` - existing ad-hoc deprecation
 
 ## Task
 
@@ -72,11 +61,11 @@ Introduce a systematic command deprecation lifecycle across all dispatch paths (
 
 The new system provides:
 - A single deprecation type shared across both dispatch paths
-- Date-driven lifecycle (warning phase, ~~then removal~~ never removal -- see the 2026-07-22 DECISION: old forms keep executing via transparent rewrite) with no manual state management
+- Permanent migration mappings with dated warnings; any warning-escalation schedule remains a presentation decision
 - Structured replacement format (command keywords + argument mapping) parseable by automation
 - Shell stderr output for one-shot invocations
 - Interactive CLI feedback line for deprecation warnings
-- Automatic state derivation from dates (no enum to maintain)
+- Warning state derived from registered metadata, without a manually maintained lifecycle enum
 
 Design constraint: ze uses date-based versioning, so `Since` is simply the date the deprecation code is added (the previous release does not have it; the next one does). ~~`RemoveAt` is a date; any binary built after that date treats the command as removed.~~ (Superseded by the 2026-07-22 DECISION: no binary ever treats a mapped command as removed; the mapping rewrites it transparently. `RemoveAt`'s fate -- dropped, or redefined as a warning-escalation date -- is a design question to settle before `ready`.)
 
@@ -108,15 +97,13 @@ Design constraint: ze uses date-based versioning, so `Since` is simply the date 
 - [ ] `cmd/ze/internal/cmdregistry/registry.go` - Meta struct with Description/Mode/Subs; LookupLocal does longest-prefix match
   → Constraint: Meta has no deprecation fields; adding one must not break existing registrations
 - [ ] `internal/component/command/node.go` - Node struct for command tree; no deprecation field
-- [ ] `internal/component/cmd/show/show.go` - `withDeprecation()` injects `"deprecated": "use: <newForm>"` into response Data map
-- [ ] `internal/component/iface/cmd/clear.go` - same pattern, sets `deprecated` bool then injects into response
-- [ ] `internal/component/bgp/plugins/cmd/cache/cache.go` - same pattern via `dispatchCacheByID` with deprecated flag
+- [ ] `internal/component/bgp/plugins/cmd/commit/commit.go` - `handleCommit` accepts the legacy argument order; `dispatchCommitAction` attaches `data["deprecated"]` through a local closure after a successful action
 - [ ] `cmd/ze/main.go` - shell dispatch: YANG verbs to cmdutil.RunCommand, static switch, then cmdregistry.LookupLocal fallback
 - [ ] `internal/component/cli/model_render.go` - feedbackLine() renders status messages with styles (success, error, warn, welcome)
 - [ ] `cmd/ze/internal/cmdutil/cmdutil.go` - RunCommand for YANG verbs; does not extract or render "deprecated" from responses
 
 **Behavior to preserve:**
-- Deprecated commands still execute during the warning phase
+- Every mapped command form valid in the first release keeps executing through transparent migration on later binaries.
 - Existing help output format is unchanged for non-deprecated commands
 
 **Pre-release note:** Ze has not released yet. No backward compatibility constraints on the `"deprecated"` key in Response.Data or on the Response JSON envelope. The old ad-hoc pattern can be replaced cleanly without a transition period.
@@ -125,7 +112,7 @@ Design constraint: ze uses date-based versioning, so `Since` is simply the date 
 - Replace ad-hoc `"deprecated": "use: <newForm>"` string injection with structured deprecation metadata
 - Add stderr deprecation output for shell invocations (currently silent)
 - Add feedback line deprecation display for interactive CLI (currently not shown)
-- After RemoveAt date: command returns an error instead of executing
+- A mapped old form is rewritten to the current command with its arguments preserved, and executes with a deprecation warning.
 
 ## Data Flow (MANDATORY)
 
@@ -138,19 +125,25 @@ Deprecation operates at two levels, both using the same `Deprecation` type:
 | Registration-level | `cmdregistry.Meta`, `command.Node` | Set at init() | Entire command path deprecated (e.g., `ze run`) |
 | Handler-level | `plugin.Response.Deprecated` field | Handler decides at runtime | Grammar variant deprecated (e.g., `show interface <name>` vs `show interface detail <name>`) |
 
-Registration-level deprecation is checked BEFORE the handler runs. If Removed, the handler is never invoked. Handler-level deprecation is returned in the response; the handler ran and chose to flag the grammar used.
+Registration-level deprecation is checked before dispatch so the invocation can
+be rewritten to the current command. Handler-level detection supports a grammar
+variant resolved inside a shared handler, which executes the current action and
+returns structured warning metadata. Neither path rejects a valid mapped form
+because of its age.
 
-The existing deprecation sites (show interface, clear interface, cache) are handler-level: the same handler receives both old and new grammar and decides which was used. These stay handler-level but migrate from ad-hoc string injection (`data["deprecated"] = "use: ..."`) to the structured `Response.Deprecated` field.
+The current commit-action closure is the handler-level migration target. It
+keeps its legacy-grammar recognition and replaces the ad-hoc response-data
+injection with `Response.Deprecated`.
 
 ### Entry Point
 - Registration-level: set at command registration time (init())
 - Handler-level: set by handler in `Response.Deprecated` when it detects old grammar
-- State is derived at check time from current date vs Since/RemoveAt dates
+- Warning metadata uses `Since`; any warning-escalation date remains an open presentation decision and cannot affect execution.
 
 ### Transformation Path
 1. Registration: handler registers with optional Deprecation pointer on Meta (cmdregistry) or Node (command tree)
-2. Dispatch (registration check): before invoking handler, dispatch layer checks Meta/Node Deprecation. If Removed, emit error and stop. If Warning, emit warning and continue to handler.
-3. Handler execution: handler runs. If it detects deprecated grammar, it sets `Response.Deprecated` to a Deprecation struct.
+2. Dispatch (registration check): resolve the permanent replacement mapping, substitute the invocation's arguments, and dispatch the current command with a warning. Avoid dispatching either form twice.
+3. Handler execution: a handler that recognises a legacy grammar invokes the current action once and sets `Response.Deprecated`.
 4. Dispatch (response check): after handler returns, dispatch layer checks `Response.Deprecated`. If set, emit warning to stderr (shell) or feedback line (interactive CLI).
 5. Rendering: the dispatch layer renders the deprecation info. The response Data is rendered normally, without any `"deprecated"` key mixed in.
 
@@ -160,7 +153,7 @@ The daemon dispatch path goes through `RPCRegistration` (handler dispatch) and `
 
 | Struct | Used for | Gets Deprecation? |
 |--------|---------|-------------------|
-| `command.Node` | Help output, completion, command tree navigation | Yes: shows `[deprecated]` in help, hides removed commands |
+| `command.Node` | Help output, completion, command tree navigation | Yes: shows `[deprecated]` and the replacement for legacy commands |
 | `RPCRegistration` | Handler dispatch via WireMethod | No: RPC is the transport, not the command identity |
 | `plugin.Response` | Handler return value | Yes: new `Deprecated` field for handler-level deprecation |
 
@@ -181,7 +174,7 @@ The handler decides deprecation at runtime (it knows which grammar the user type
 - `cmd/ze/main.go` dispatch - check registration-level deprecation at registry fallback; check response deprecation after handler
 - `cmdutil.RunCommand` - check registration-level deprecation from local handler match; daemon path gets response deprecation via CLI client
 - `cli/model_render.go` feedbackLine() - render deprecation warnings from response
-- `show/show.go`, `clear.go`, `cache.go` - migrate from ad-hoc Data injection to Response.Deprecated field
+- `internal/component/bgp/plugins/cmd/commit/commit.go` - migrate the ad-hoc warning to `Response.Deprecated` while retaining legacy-grammar acceptance
 
 ### LookupLocal Callers (ISSUE-1)
 
@@ -210,28 +203,28 @@ Commands in the `switch arg` block of main.go (`bgp`, `config`, `cli`, etc.) byp
 |-------------|---|--------------|------|
 | `cmdregistry.RegisterLocalMeta` with Deprecation | -> | `LookupLocalMeta` returns deprecation info | `TestLookupLocalMetaReturnsDeprecation` |
 | Shell dispatch of deprecated command | -> | stderr deprecation output | `TestShellDeprecatedCommandStderr` |
-| Shell dispatch of removed command | -> | stderr error + no execution | `TestShellRemovedCommandNoExecution` |
+| Shell dispatch of an old mapped command | -> | transparent rewrite, one execution, warning on stderr | `TestShellOldCommandMigrates` |
 | Daemon handler sets Response.Deprecated | -> | Response carries structured deprecation | `TestResponseDeprecationSerialized` |
 | Interactive CLI deprecated command | -> | feedback line shows warning | `TestCLIDeprecatedFeedback` |
 | Handler sets Response.Deprecated (warning phase) | -> | dispatch layer renders warning | `TestResponseDeprecationRendered` |
-| Handler detects old grammar past RemoveAt | -> | error response, no execution | `TestHandlerRemovedGrammarRejectsExecution` |
+| Handler detects old grammar on a later binary | -> | current action executes once with structured warning | `TestHandlerOldGrammarMigrates` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Command registered with Deprecation (Since in past, RemoveAt in future) | Command executes normally; deprecation warning emitted |
-| AC-2 | Command registered with Deprecation (RemoveAt in past) | Command does not execute; error with replacement info emitted |
+| AC-1 | Command registered with Deprecation and Since in the past | Command executes normally; deprecation warning emitted |
+| AC-2 | A mapped command from the first release is invoked on a later binary | Permanent replacement mapping rewrites it to the current command, preserves arguments and executes once, regardless of elapsed dates |
 | AC-3 | Command registered without Deprecation | No deprecation output; identical to current behavior |
 | AC-4 | Deprecated command invoked from shell | Structured deprecation line written to stderr (separate from stdout output) |
 | AC-5 | Deprecated command invoked from interactive CLI | Deprecation warning shown in feedback line (Line 1) |
-| AC-6 | Removed command invoked from shell | Stderr shows removal message with replacement; exit code non-zero |
+| AC-6 | An old mapped command is invoked from the shell | Stderr carries the deprecation warning and replacement; stdout and exit status reflect the current command's result |
 | AC-7 | Deprecated command with Replacement | Replacement rendered as concrete command with args substituted from invocation |
 | AC-8 | Deprecated command without Replacement (message only) | Warning shows message; no replacement suggestion |
-| AC-9 | Existing deprecation sites (show interface, clear interface, cache) | Migrated to Response.Deprecated; `withDeprecation` deleted |
+| AC-9 | Legacy `commit <name> <action>` invocation | Executes the same current action; warning moves to `Response.Deprecated` and the local `withDeprecation` injection is deleted |
 | AC-10 | `ze help` or `ze show help` for deprecated command | Help output includes deprecation status and replacement |
 | AC-11 | Handler detects old grammar and sets Response.Deprecated | Deprecation info in Response.Deprecated, NOT in Response.Data |
-| AC-12 | Handler detects old grammar past RemoveAt | Handler returns error response with replacement info; old grammar not executed |
+| AC-12 | Handler recognises a mapped old grammar on a later binary | Current action executes once with the original arguments and normal authorisation; structured warning metadata is returned separately from its data |
 
 ## Deprecation Type
 
@@ -240,7 +233,7 @@ Commands in the `switch arg` block of main.go (`bgp`, `config`, `cli`, etc.) byp
 | Field | Type | Zero value meaning |
 |-------|------|--------------------|
 | Since | date (year, month, day) | Not set (should not happen in practice) |
-| RemoveAt | date (year, month, day) | No planned removal (permanent deprecation warning) |
+| Warning-escalation date (undecided) | date, if the owner retains it | Presentation only; no date expires the mapping or prevents execution |
 | Replacement | pointer to Replacement | No replacement available (message only) |
 | Message | string | No additional explanation |
 
@@ -260,13 +253,14 @@ Commands in the `switch arg` block of main.go (`bgp`, `config`, `cli`, etc.) byp
 
 ### State Derivation
 
-`State()` takes a reference date as parameter. For command deprecation, the caller passes the current date (which maps to binary version via date-based versioning). The type is designed to accept any reference date, making it reusable for config migration in a future spec (where the reference would be the config's own version date).
+The execution states are Active and Warning. A reference date may govern
+warning presentation if the owner retains an escalation date, but it cannot
+derive a Removed state for a mapped command.
 
 | Condition | Derived State |
 |-----------|---------------|
 | Deprecation pointer is nil | Active |
-| RemoveAt is zero or reference is before RemoveAt | Warning (deprecated) |
-| Reference is on or after RemoveAt | Removed |
+| Deprecation pointer is present | Warning; mapped forms remain executable |
 
 ## Stderr Output Format (Shell)
 
@@ -278,33 +272,24 @@ Warning phase format:
 |-------|--------|---------|
 | prefix | `ze: deprecated` | `ze: deprecated` |
 | since | `since=YYYY-MM-DD` | `since=2026-03-15` |
-| remove | `remove=YYYY-MM-DD` (omitted if zero) | `remove=2026-09-01` |
 | command | `command="<words>"` (omitted if no Replacement) | `command="show interface counters"` |
 | args | `arg=<pos>:<name>` (repeated per arg; omitted if no Replacement) | `arg=0:name` |
 | message | `message="<text>"` (omitted if empty) | `message="action before identifier"` |
 
-Removed phase format:
+No removal output is defined. Any optional warning-escalation format needs the
+owner's presentation decision before readiness.
 
-| Field | Format | Example |
-|-------|--------|---------|
-| prefix | `ze: removed` | `ze: removed` |
-| since | `since=YYYY-MM-DD` | `since=2026-03-15` |
-| removed | `removed=YYYY-MM-DD` | `removed=2026-09-01` |
-| command | same as warning | same as warning |
-| args | same as warning | same as warning |
-| message | same as warning | same as warning |
-
-Full example: `ze: deprecated since=2026-03-15 remove=2026-09-01 command="show interface counters" arg=0:name`
+Full example: `ze: deprecated since=2026-03-15 command="show interface counters" arg=0:name`
 
 ## Interactive CLI Feedback
 
-Deprecation warnings render in the feedback line (Line 1 of the message area) using `warnStyle`. Format: `deprecated: use "show interface counters <name>" (removal: 2026-09-01)`. The concrete replacement is computed by substituting actual argument values into the Replacement template.
+Deprecation warnings render in the feedback line (Line 1 of the message area) using `warnStyle`. Format: `deprecated: use "show interface counters <name>"`. The concrete replacement substitutes actual argument values into the Replacement template.
 
 ## Help Output
 
-Deprecated commands in help listings get a `[deprecated]` suffix after the description. Removed commands do not appear in help output.
-
-When help is shown for a specific deprecated command, an additional line appears: `Deprecated since YYYY-MM-DD. Use: <replacement>. Removal: YYYY-MM-DD.`
+Deprecated commands in help listings get a `[deprecated]` suffix after the
+description and remain discoverable with their permanent replacement.
+Specific-command help adds: `Deprecated since YYYY-MM-DD. Use: <replacement>.`
 
 ## Migration of Existing Sites
 
@@ -326,12 +311,11 @@ period needed (pre-release). ~~`withDeprecation()` in show.go is deleted. The
 
 ## Relationship to Config Migration (OUT OF SCOPE)
 
-Config migration (`internal/component/config/migration/`) is a related but separate system. Both share the same lifecycle question: "is this old form still accepted?" Both can use the same `Deprecation` type. But config migration has its own concerns:
-
-- The reference for config deprecation is the **config's own version** (schema stamp), not the binary's build date
-- The schema stamp (`# ze-schema: 1`) currently uses integers; evolving to dates is a separate change
-- Config rejection semantics differ (reject at load vs reject with "run `ze config migrate`")
-- Config replacements describe path renames, not command grammar changes; the Replacement struct doesn't fit
+Config migration (`internal/component/config/migration/`) is a separate system
+subject to the same permanent up-version migration ruling. A future config
+design must preserve accepted first-release forms through transparent migration.
+Config path replacements and any schema-stamp evolution remain outside this
+command spec; rejection because a supported form aged out is not an option.
 
 These concerns belong in a child spec: `spec-deprecation-config-migration`. This spec designs the `Deprecation` type to be reusable (lives in `internal/component/command/`, a leaf package importable by both command dispatch and config migration). The child spec adds config-specific replacement types and schema stamp evolution.
 
@@ -358,17 +342,15 @@ The stderr formatter lives in `internal/component/command/` as well (it formats 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestDeprecationStateActive` | `internal/component/command/deprecation_test.go` | nil Deprecation returns Active | |
-| `TestDeprecationStateWarning` | `internal/component/command/deprecation_test.go` | Since in past, RemoveAt in future returns Warning | |
-| `TestDeprecationStateRemoved` | `internal/component/command/deprecation_test.go` | RemoveAt in past returns Removed | |
-| `TestDeprecationStateNoRemoveAt` | `internal/component/command/deprecation_test.go` | RemoveAt zero, Since in past returns Warning (permanent) | |
+| `TestDeprecationStateWarning` | `internal/component/command/deprecation_test.go` | mapped forms remain in Warning across reference dates | |
+| `TestOldCommandMigrationPreservesArguments` | `internal/component/command/deprecation_test.go` | an initial-release form maps to the current invocation without losing arguments | |
 | `TestDeprecationFormatStderr` | `internal/component/command/deprecation_test.go` | Formats structured stderr line correctly | |
 | `TestDeprecationFormatStderrNoReplacement` | `internal/component/command/deprecation_test.go` | Message-only deprecation omits command/args fields | |
-| `TestDeprecationFormatStderrRemoved` | `internal/component/command/deprecation_test.go` | Removed state uses "removed" prefix | |
 | `TestReplacementRender` | `internal/component/command/deprecation_test.go` | Substitutes actual args into replacement template | |
 | `TestLookupLocalMetaReturnsDeprecation` | `cmd/ze/internal/cmdregistry/registry_test.go` | LookupLocalMeta returns deprecation info from registration | |
 | `TestResponseDeprecationSerialized` | `internal/component/plugin/types_test.go` | Response.Deprecated serializes correctly in JSON envelope | |
 | `TestResponseDeprecationRendered` | `cmd/ze/internal/cmdutil/cmdutil_test.go` | Response.Deprecated rendered to stderr by dispatch layer | |
-| `TestHandlerRemovedGrammarRejectsExecution` | `internal/component/cmd/show/show_test.go` | Handler with removed grammar returns error, not data | |
+| `TestHandlerOldGrammarMigrates` | `internal/component/bgp/plugins/cmd/commit/commit_test.go` | old grammar executes the current action once and returns warning metadata separately | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -379,7 +361,7 @@ The stderr formatter lives in `internal/component/command/` as well (it formats 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `test-deprecated-command` | `test/cli/deprecated-command.ci` | User runs deprecated command from shell; sees warning on stderr, output on stdout | |
-| `test-removed-command` | `test/cli/removed-command.ci` | User runs removed command; sees error on stderr, non-zero exit | |
+| `test-old-command-migration` | `test/cli/old-command-migration.ci` | Old mapped command executes; stdout and exit status match the current form, warning goes to stderr | |
 
 ### Future (if deferring any tests)
 - None planned
@@ -388,9 +370,7 @@ The stderr formatter lives in `internal/component/command/` as well (it formats 
 - `internal/component/command/node.go` - add Deprecation pointer field to Node
 - `cmd/ze/internal/cmdregistry/registry.go` - add Deprecation pointer field to Meta; add LookupLocalMeta function
 - `cmd/ze/main.go` - check deprecation at dispatch points (YANG verb, static switch, registry fallback)
-- `internal/component/cmd/show/show.go` - migrate withDeprecation to structured Deprecation; delete withDeprecation
-- `internal/component/iface/cmd/clear.go` - migrate deprecated bool to structured Deprecation
-- `internal/component/bgp/plugins/cmd/cache/cache.go` - migrate deprecated parameter to structured Deprecation
+- `internal/component/bgp/plugins/cmd/commit/commit.go` - migrate the local deprecation closure to structured metadata while keeping the permanent grammar mapping
 - `internal/component/cli/model_commands.go` - extract deprecation from command response, route to feedback line
 - `internal/component/cli/model_render.go` - render deprecation warnings in feedbackLine()
 - `internal/component/plugin/types.go` - add Deprecated pointer field to Response struct
@@ -424,7 +404,7 @@ The stderr formatter lives in `internal/component/command/` as well (it formats 
 - `internal/component/command/deprecation.go` - Deprecation type, State derivation, formatters
 - `internal/component/command/deprecation_test.go` - unit tests
 - `test/cli/deprecated-command.ci` - functional test: deprecated command from shell
-- `test/cli/removed-command.ci` - functional test: removed command from shell
+- `test/cli/old-command-migration.ci` - functional test: permanent transparent migration from the shell
 
 ## Implementation Steps
 
@@ -456,12 +436,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: Deprecation type exists; LookupLocal returns it; tests fail because State logic is a stub
 
 2. **Phase: Core types and state derivation** -- implement Deprecation, Replacement, Arg, State()
-   - Tests: `TestDeprecationStateActive`, `TestDeprecationStateWarning`, `TestDeprecationStateRemoved`, `TestDeprecationStateNoRemoveAt`
+   - Tests: `TestDeprecationStateActive`, `TestDeprecationStateWarning`, `TestOldCommandMigrationPreservesArguments`
    - Files: `internal/component/command/deprecation.go`
    - Verify: all state derivation tests pass
 
 3. **Phase: Stderr formatting** -- implement structured stderr output
-   - Tests: `TestDeprecationFormatStderr`, `TestDeprecationFormatStderrNoReplacement`, `TestDeprecationFormatStderrRemoved`, `TestReplacementRender`
+   - Tests: `TestDeprecationFormatStderr`, `TestDeprecationFormatStderrNoReplacement`, `TestReplacementRender`
    - Files: `internal/component/command/deprecation.go`
    - Verify: formatter produces correct structured lines
 
@@ -471,9 +451,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: Response can carry structured deprecation; JSON serialization includes it
 
 5. **Phase: Shell dispatch integration** -- wire both registration-level and response-level deprecation into cmd/ze/main.go dispatch
-   - Tests: `TestShellDeprecatedCommandStderr`, `TestShellRemovedCommandNoExecution`
+   - Tests: `TestShellDeprecatedCommandStderr`, `TestShellOldCommandMigrates`
    - Files: `cmd/ze/main.go`, `cmd/ze/internal/cmdregistry/registry.go` (add LookupLocalMeta)
-   - Verify: registration-level: deprecated commands emit stderr warning, removed commands return error. Response-level: handler deprecation info rendered to stderr after handler returns.
+   - Verify: mapped old commands execute once with a warning, normal output and the current command's exit status; handler warning metadata is rendered separately.
 
 6. **Phase: Interactive CLI integration** -- render deprecation in feedback line
    - Tests: `TestCLIDeprecatedFeedback`
@@ -481,14 +461,14 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: feedback line shows deprecation warning with correct style
 
 7. **Phase: Handler migration** -- convert existing ad-hoc sites to Response.Deprecated
-   - Tests: existing tests for show interface, clear interface, cache (must still pass); `TestHandlerRemovedGrammarRejectsExecution`
-   - Files: `show/show.go`, `clear.go`, `cache.go`
+   - Tests: existing commit-action tests; `TestHandlerOldGrammarMigrates`
+   - Files: `internal/component/bgp/plugins/cmd/commit/commit.go`
    - Verify: old withDeprecation deleted; `"deprecated"` key no longer in Response.Data; all existing deprecation tests pass with new mechanism
 
 8. **Phase: Help integration** -- deprecation info in help output via command.Node
    - Tests: help output tests for deprecated commands
    - Files: `internal/component/command/node.go`, help rendering code
-   - Verify: deprecated commands show `[deprecated]` suffix; removed commands hidden from help
+   - Verify: deprecated commands remain discoverable with their status and permanent replacement.
 
 9. **Functional tests** -- create end-to-end .ci tests
 10. **Full verification** -- `./le verify current mode full`
@@ -498,12 +478,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
-| Correctness | State derivation matches date comparison semantics (on RemoveAt = removed, not warning) |
+| Correctness | No reference date expires a mapping or prevents an old supported form from executing; arguments, authorisation and single execution are preserved |
 | Two-level separation | Registration-level deprecation on Meta/Node; handler-level on Response.Deprecated. No mixing. |
 | Naming | Deprecation, Replacement, Arg names consistent across packages |
 | Data flow | Deprecation never injected ad-hoc into Response.Data; only via Response.Deprecated field |
 | Rule: no-layering | withDeprecation() fully deleted, not wrapped; `"deprecated"` key gone from Data |
-| Rule: derive-not-hardcode | Deprecation status derived from dates, not manual enum |
+| Rule: derive-not-hardcode | Warning state comes from deprecation metadata; any date-derived presentation follows the owner's selected policy and never disables migration |
 | LookupLocal compat | LookupLocal signature unchanged; new LookupLocalMeta added alongside |
 
 ### Deliverables Checklist (/implement stage 10)
@@ -517,7 +497,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Stderr output on deprecated shell command | run deprecated command, check stderr |
 | withDeprecation deleted | `grep -rn 'withDeprecation' internal/` returns nothing |
 | Ad-hoc "deprecated" key gone from Response.Data | `grep -rn '"deprecated"' internal/` returns nothing |
-| Functional tests exist | `ls test/cli/deprecated-command.ci test/cli/removed-command.ci` |
+| Functional tests exist | `test/cli/deprecated-command.ci` and `test/cli/old-command-migration.ci` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |

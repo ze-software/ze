@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | ready |
 | Scope | tooling |
-| Depends | `plan/spec-commit-stages-in-a-private-index.md` (in-progress, same file `internal/le/commit/script.go`, uncommitted in this tree) |
+| Depends | `plan/spec-commit-stages-in-a-private-index.md` (product code recorded landed; shares `internal/le/commit/script.go`; proof and closure remain open) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-09-07 |
@@ -12,6 +12,12 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+This is a development-tool safety repair under `ze_le`; it does not describe a
+shipped daemon defect. The immediate placement is retained pending the owner's
+classification: a required release-process safeguard belongs in pre-release,
+otherwise it is optional tooling. The deletion proof and divergent-copy
+protections below remain required under either classification.
 
 Closing a spec removes it from Git and leaves a byte-identical untracked copy on
 disk. Three closures have leaked this way across three sessions
@@ -42,13 +48,16 @@ contract, and nothing detects the omission:
   file still sitting on disk passes silently, so nothing anywhere observes that
   the contract was broken.
 
-The symptom an operator meets: `plan/spec-firewall-domain-group.md` is untracked
-in this checkout, `f339bf0ee7` removed it, its bytes match
-`6c403e84b3:plan/spec-firewall-domain-group.md`, and its header still reads
-`| Status | in-progress |`. `./le spec status` lists
-`firewall-domain-group 8/9 in-progress`, so a session asking what is in progress
-claims a spec that closed four commits ago. `./le spec citation` counts the same
-file and the session-start banner counts it too.
+The September 6–7 incident left `plan/spec-firewall-domain-group.md` untracked
+in the checkout. `f339bf0ee7` had removed it, and its bytes matched
+`6c403e84b3:plan/spec-firewall-domain-group.md`. Its header still read
+`| Status | in-progress |`, and `./le spec status` reported
+`firewall-domain-group 8/9 in-progress`. The recorded citation and session-start
+counts included the same closed spec.
+
+That example is absent from the checkout inspected on September 19. Its
+disappearance does not prove the generator repair: removal and divergent-copy
+protection still require the implementation and evidence below.
 
 The goal is that a removal removes. This spec CHANGES the contract rather than
 enforcing the current one: the generated script deletes the working-tree copy
@@ -351,11 +360,11 @@ removed path, and each must go RED there. All four red results are recorded.
 5. **Phase: Confirm no caller wanted the file to survive (A-6)**
    - Grep every `remove` and `remove-list` caller across `ai/skills/`, `.claude/`, `docs/` and `internal/le/`, and name each in the closure report with what it removes
    - A caller that untracks a path while keeping the file would be broken by this change. If one exists, STOP and report it before landing
-6. **Phase: The existing residue (OWNER GATE, no deletion without his word)**
+6. **Phase: Check for remaining residue (OWNER GATE, no deletion without his word)**
    - The change repairs the future only. Nothing in it walks history
    - Enumerate the residue: for each untracked path under `plan/`, find the commit that removed it and compare the on-disk bytes against the blob that commit removed. Report the list with the commit and the blob for each
-   - `plan/spec-firewall-domain-group.md` is the one known survivor. `f339bf0ee7` removed it and its bytes match `6c403e84b3:plan/spec-firewall-domain-group.md`. It belongs to another session's closure, so do NOT delete it: report it and ask the owner (`ai/rules/never-destroy-work.md`, precedence rung 1)
-   - Build no sweep command. One known instance does not earn a tool, and the enumeration above is a git query
+   - The historical firewall-domain-group example above is now absent. Do not recreate it or count it as a current survivor. For any remaining copy, report its provenance and ask the owner before deletion (`ai/rules/never-destroy-work.md`, precedence rung 1)
+   - Build no sweep command. The historical incidents do not establish a current population; enumerate it through Git before requesting any cleanup
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -446,7 +455,7 @@ is commit A and the captured entry is the spec's committed content.
 ## Known Limitations
 - A file that survives under AC-2 still counts as an open spec in `./le spec status`. That is correct rather than a gap: a file holding content no commit carries IS open work, and the stderr report is what tells the operator it is there.
 - `validateRemovePath` accepts a path tracked in the shared index and absent from HEAD, so such a `remove` clears an index entry and changes no tree. This spec leaves that behavior alone and only guarantees the file is not deleted for it (AC-6).
-- The three recorded instances are repaired by hand under an owner gate, not by this change. Nothing here walks history.
+- Historical copies require a fresh inventory and owner permission before deletion. This change performs no historical cleanup.
 
 ## RFC Documentation (Scope: protocol)
 

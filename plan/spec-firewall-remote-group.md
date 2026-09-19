@@ -87,6 +87,16 @@ shape for exactly that (`ze-iface-conf.yang` `choice kind`,
 the existing `list element` without breaking operator config already committed
 is the load-bearing research question for this spec.
 
+The shared command contract also includes explicit cache clearing and dynamic
+completion of configured set names. Clearing follows the delivered DNS source's
+`clearDomainGroup` semantics (`internal/component/firewall/plugins/domain/command.go`):
+remove the named source's cached members from memory and disk, reapply the
+firewall, and report any persistence or programming failure. A later successful
+update can repopulate it; references cannot pass verification while it has no
+usable cached answer. Ordinary refresh failure continues to retain the last
+good answer. The plugin must register its configured names for CLI value
+completion without a core command-specific name list.
+
 Still deliberately out of scope, unchanged:
 `plan/immediate/spec-firewall-dynamic-address-group.md` owns packet-triggered population
 through nftables `dynset`, and owns finishing the inert `flags-dynamic` and
@@ -335,6 +345,8 @@ Three, differing in kind:
 | A commit naming a source never fetched | → | the plugin's `OnConfigVerify` | `TestSourcedSetVerifyRefusesUnfetchedSource` |
 | A set written in today's literal-element syntax | → | `parseSet`, unchanged | `TestParseSetLiteralElementsUnchangedByChoice` |
 | A set naming two sources | → | the Go-side exclusivity check in `parseSet` | `TestParseSetRefusesTwoSources` |
+| `clear firewall group <name>` for a sourced set | → | shared clear handler → cache removal → firewall reapply | `test/plugin/firewall-sourced-group-clear.ci` |
+| Tab at a sourced-group command's name argument | → | plugin-registered dynamic completion → current configured names | `test/ui/firewall-sourced-group-completion.ci` |
 
 ## Acceptance Criteria
 
@@ -358,6 +370,8 @@ Three, differing in kind:
 | AC-14 | The downloaded list contains blank lines, `#` comments, and lines that are neither an address nor a prefix | Blank and comment lines are skipped silently. Unparsable lines are skipped and counted, and the count is reported |
 | AC-15 | A fetch succeeds but yields zero usable entries | The fetch FAILS and the previous contents are kept, because an empty list is indistinguishable from a broken publisher and an empty set is not a filter |
 | AC-16 | The IRR plugin runs after the element cap has moved to a shared bound | Its set contents and its existing tests are unchanged |
+| AC-17 | An operator explicitly clears a sourced set with cached members, then restarts with its source unavailable | The named set's cached members are removed from memory, disk and the programmed firewall; unrelated sets are unchanged. The cleared members do not return on restart. A reference without usable cached data fails verification until a successful update repopulates it. Persistence or firewall-apply errors are reported rather than answered as success |
+| AC-18 | An operator completes the name argument of show/update/clear after adding, renaming or removing a sourced set in committed config | The offered names track the plugin's current configured names through a registered dynamic completion provider. Removed names disappear, and no command-specific list is wired into core CLI code |
 
 ## End-to-End User Stories
 
@@ -373,6 +387,8 @@ Three, differing in kind:
 | 4 | Keeps filtering while the publisher is down | refresh fails -> previous contents kept -> retry timer armed | `TestSourcedSetFailureArmsRetryInterval` |
 | 5 | Reboots with the network down | restart -> `OnConfigure` -> cache load -> `RegisterTables` | `TestSourcedSetColdStartProgramsFromCache` |
 | 6 | Upgrades a box whose firewall config uses literal set elements | config parse -> `parseSet` -> unchanged result | `TestParseSetLiteralElementsUnchangedByChoice` |
+| 7 | Removes stale sourced members deliberately and restarts while the source is down | clear → memory and disk cache removal → firewall reapply → restart without the removed members | `test/plugin/firewall-sourced-group-clear.ci` |
+| 8 | Uses Tab after changing a sourced set's configured name | commit → plugin completion provider → current name offered by show/update/clear | `test/ui/firewall-sourced-group-completion.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -393,6 +409,8 @@ Three, differing in kind:
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `firewall-sourced-group-clear` | `test/plugin/firewall-sourced-group-clear.ci` | AC-17, including restart, unrelated-set preservation and reported failure paths | planned |
+| `firewall-sourced-group-completion` | `test/ui/firewall-sourced-group-completion.ci` | AC-18, including committed add/rename/remove transitions | planned |
 
 ### Interop Tests (Scope: protocol)
 <!-- REQUIRED when wire-visible behavior changes. See

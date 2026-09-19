@@ -2,21 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
-| Depends | spec-vrf-0-umbrella (VRF/table support) |
-| Phase | 7/12 |
-| Updated | 2026-07-22 |
+| Status | in-progress |
+| Depends | spec-vrf-0-umbrella.md |
+| Phase | - |
+| Updated | 2026-09-19 |
 
-Staleness note (2026-07-22 plan review): substantial phases have landed since
-2026-05-27 without this header moving -- the SRv6 phase CLOSED (learned 1113:
-both FIB backends program SRv6, `nexthop_linux.go` SEG6 + `fib/vpp/srv6.go`,
-with tests and interop `bgp-srv6-frr`), and ECMP (learned 774) and VPP parity
-(learned 798) also landed. The spec's own Current Behavior table still says
-Ze SRv6 = "no", which shipped code contradicts. The live remainder includes
-best-path step 6 (IGP cost: `BestStepIGPCost` deferred at `bestpath.go,182`,
-`lookupIGPCost` returns 0). Next session on this spec: recount the phases
-against the three learned closures before trusting 7/12, and refresh Current
-Behavior.
+The July 22 review recorded SRv6 (learned 1113), ECMP (learned 774) and VPP
+parity (learned 798) as delivered while the header still said `7/12`.
+The current producers also carry the IGP-cost lookup and comparison, so the
+old claim that `lookupIGPCost` always returns zero is obsolete. The phase
+accounting below separates code that exists from requirements and evidence
+still owed; no fresh test or closure result is claimed.
 
 
 <!-- Note added 2026-09-07 by spec-connected-static-reach-the-locrib: this spec's
@@ -43,16 +39,20 @@ Loc-RIB. -->
 
 ## Task
 
-Finish the routing decision process and deepen FIB programming beyond prefix+next-hop.
+Finish the remaining routing and FIB requirements while preserving the
+implemented rich-route path. Both backends already accept more than
+prefix/gateway tuples, and the BGP best-path comparison already reads IGP
+cost through the shared resolver seam.
 
-Two gaps:
-1. **Best-path step 6 (IGP cost to NEXT_HOP)** is a comment placeholder (`bestpath.go`).
-   Recursive next-hop resolution is required before IGP cost comparison can work.
-2. **FIB programming** installs only `(prefix, gateway)` tuples. Real FIBs carry route type,
-   metric, ECMP groups, VRF table ID, blackhole/prohibit, MPLS labels, and SRv6 SIDs.
-
-This is where competing daemons (FRR, BIRD, Junos, Nokia SR OS, Arista EOS) differentiate.
-Ze must reach parity on the attributes that matter for production routing.
+The remaining implementation includes end-to-end VRF/table production:
+`fibChange` does not populate `BestChangeEntry.TableID`, although both
+backends can consume a supplied value. Two original requirements also differ
+from the current implementation: AC-4 requires Linux nexthop objects, where
+`buildRichRoute` emits per-route `MultiPath`, and AC-8 requires VPP metric
+mapping, where `richRouteAddDel` uses explicit next-hop weights. These ACs
+remain open until implemented or explicitly amended by the owner. All other
+ACs retain their functional and interop evidence obligations, including
+cost-change reselection under AC-13 and backend parity under AC-15.
 
 ### Competitive Context
 
@@ -63,7 +63,7 @@ Ze must reach parity on the attributes that matter for production routing.
 | Junos | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
 | Nokia SR OS | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
 | Arista EOS | yes | yes | yes (nhg) | yes | yes | yes | yes | yes |
-| Ze (today) | yes | yes (multipath) | no | no | yes | yes | yes | no |
+| Ze (current source) | yes | yes (multipath) | no (AC-4 open) | backend input supported; sysrib TableID absent | yes | kernel Priority; VPP AC-8 open | yes | yes |
 
 ### Design Decisions (proposed, pending approval)
 
@@ -105,33 +105,30 @@ Ze must reach parity on the attributes that matter for production routing.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/bgp/plugins/rib/bestpath.go` -- RFC 4271 best-path; step 6 is a comment
-- [ ] `internal/plugins/sysrib/events/events.go` -- BestChangeEntry has: Action, Prefix, NextHop, Protocol, Labels
-- [ ] `internal/plugins/sysrib/sysrib.go` -- subscribes to rib best-change, emits system-rib best-change
-- [ ] `internal/core/rib/locrib/candidate.go` -- Path struct: Source, Instance, NextHop, AdminDistance, Metric
-- [ ] `internal/plugins/fib/kernel/fibkernel.go` -- processes batch, calls backend.addRoute(prefix, nextHop string)
-- [ ] `internal/plugins/fib/kernel/backend_linux.go` -- buildRoute creates netlink.Route with Dst+Gw+Protocol only
-- [ ] `internal/plugins/fib/vpp/fibvpp.go` -- processes batch, calls backend.addRoute(prefix, nextHop netip types)
-- [ ] `internal/plugins/fib/vpp/backend.go` -- routeAddDel sends IPRouteAddDel with single FibPath, tableID from config
-- [ ] `internal/plugins/fib/vpp/mpls.go` -- MPLS push/swap via VPP; labels already flow through
-- [ ] `internal/plugins/static/backend_linux.go` -- multipath already implemented for static routes (netlink.MultiPath)
-- [ ] `internal/plugins/static/config.go` -- blackhole/reject already parsed for static routes
+- [ ] `internal/component/bgp/plugins/rib/bestpath.go` -- `lookupIGPCost` calls `igpcost.Lookup`; the comparator uses `IGPCost` at step 6
+- [ ] `internal/component/sysrib/events/events.go` -- `BestChangeEntry` already carries route type, metric, TableID, labels, SRv6 SID and weighted ECMP paths
+- [ ] `internal/component/sysrib/nhresolver.go` -- `Resolve` walks the Loc-RIB; `IGPMetric` returns the accumulated metric
+- [ ] `internal/component/sysrib/sysrib.go` -- `SetLocRIB` registers `resolver.IGPMetric` with `igpcost`; `ecmpCollectResolved` filters and weights members
+- [ ] `internal/component/sysrib/fibimport.go` -- `fibChange` emits the rich fields but leaves TableID zero
+- [ ] `internal/plugins/fib/kernel/nexthop_linux.go` -- `buildRichRoute` sets type, metric and supplied table; emits `MultiPath`, MPLS and SEG6 encapsulation
+- [ ] `internal/plugins/fib/vpp/backend.go` -- `richRouteAddDel` builds weighted `FibPath` entries and honors a supplied TableID; it does not read `r.Metric`
+- [ ] `internal/plugins/fib/vpp/srv6.go` -- `processSRv6Change` programs and removes SRv6 steering
+- [ ] `docs/architecture/fib/fib-depth-4-srv6.md` -- the recorded SRv6 implementation and Prefix-SID input path
 
 **Behavior to preserve:**
 - Single-path route installation still works (ECMP is additive)
 - Existing BestChangeEntry JSON format (add new fields with omitempty)
 - fib-kernel rtprotZE identification (stale-mark-then-sweep)
-- fib-vpp tableID from config (will become per-change override)
-- MPLS label flow in VPP (already works, extend to kernel)
-- Static route blackhole/reject (already works, extend to dynamic routes)
+- fib-vpp tableID from config remains the fallback when a change carries no override
+- MPLS labels already reach both backends
+- Existing route-type handling, including blackhole, unreachable and prohibit
 - Metrics: route install/update/remove counters unchanged
 
 **Behavior to change:**
-- BestChangeEntry gains: RouteType, Metric, Weight, TableID, SRv6SID, ECMPPaths fields
-- Kernel backend: use nexthop objects for ECMP, set route type, set metric, set table
-- VPP backend: multi-path FibPath array, table from change not just config
-- sysrib: recursive NH resolution phase, ECMP grouping
-- bestpath.go: implement step 6 (IGP cost query to sysrib/loc-rib)
+- Populate the table dimension end to end under the VRF design, including safe per-table route identity; backend TableID consumption alone does not satisfy AC-9.
+- Satisfy AC-4's Linux nexthop-object requirement or obtain an explicit owner amendment; existing per-route multipath does not prove it.
+- Satisfy AC-8's VPP metric requirement or obtain an explicit owner amendment; explicit path weight and route metric are separate inputs today.
+- Establish the remaining AC evidence against the implemented resolver, cost comparison, ECMP and backend paths, especially AC-13 cost-change reselection.
 
 ## Data Flow (MANDATORY)
 
@@ -248,8 +245,7 @@ Ze must reach parity on the attributes that matter for production routing.
 | `igp-cost-bird` | `test/interop/scenarios/` | BIRD | IGP cost tiebreaker produces same winner | |
 
 ### Future (if deferring any tests)
-- SRv6 encap tests: deferred until SRv6 NLRI family is fully wired (depends on bgp-nlri-srv6)
-- VPP SRv6 SR policy: deferred until VPP SR steer API integration
+- SRv6 is recorded delivered and has backend producers in the current tree. The old NLRI-family and VPP-steering prerequisites are retired; preserve its existing evidence and include AC-11 in the final acceptance accounting.
 
 ## Files to Modify
 - `internal/plugins/sysrib/events/events.go` -- extend BestChangeEntry struct
@@ -320,6 +316,24 @@ Ze must reach parity on the attributes that matter for production routing.
 | 14. Present summary | Executive Summary Report |
 
 ### Implementation Phases
+
+The original sequence below is retained as an implementation inventory.
+Its numbers are not a current completion fraction.
+
+| Original phase | Current state and remaining obligation |
+|----------------|----------------------------------------|
+| 1, event contract | Rich fields exist; TableID still needs a producer for AC-9 |
+| 2, NH resolver | `nhResolver.Resolve` and dependency tracking exist; retain AC-2/12 evidence |
+| 3, IGP cost | Lookup registration and step-6 comparison exist; AC-1 and AC-13 require end-to-end evidence, including reselection when cost changes |
+| 4, ECMP grouping | Grouping and producer weights exist; AC-3/14 evidence remains part of closure |
+| 5, kernel depth | Rich routes, MPLS, SEG6 and per-route multipath exist; AC-4 nexthop objects and end-to-end AC-9 remain open |
+| 6, VPP depth | Multipath, route types, supplied table overrides and SRv6 steering exist; AC-8 metric mapping and end-to-end AC-9 remain open |
+| 7, NH cascade | `cascadeRecompute` exists; retain AC-12/14 failure-transition evidence |
+| 8 through 12 | Functional and interop evidence, RFC review, final verification and closure remain required; this reconciliation supplies none of those results |
+
+The separately recorded SRv6 closure covers AC-11's implementation. The
+September 7 weight amendment above is also satisfied in source. Neither
+record discharges the unresolved requirements in this table.
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
@@ -411,9 +425,11 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Audit finds missing AC | Back to relevant phase and implement |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user |
 
-## Phasing Proposal
+## Original Phasing Proposal
 
-This is a large spec. Recommend splitting into sub-specs for implementation:
+This proposed split predates the recorded implementations. It is retained for
+scope provenance, not as a list of new implementations to schedule. The
+current accounting above governs the remainder and retains every original AC.
 
 | Sub-spec | Scope | Depends |
 |----------|-------|---------|
@@ -445,7 +461,11 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending]
+- The current phase accounting above identifies the existing producers for
+  recursive resolution, IGP-cost comparison, rich events, ECMP and both FIB
+  backends. Historical closure records cover ECMP, VPP parity and SRv6.
+- TableID production, AC-4 and AC-8 remain unresolved. This source read
+  does not establish the remaining functional, interop or closure gates.
 
 ### Bugs Found/Fixed
 - [pending]

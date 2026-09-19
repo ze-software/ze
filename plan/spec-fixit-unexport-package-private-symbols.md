@@ -2,11 +2,11 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 7/8 (bucket 7 is the remainder) |
-| Updated | 2026-09-05 |
+| Phase | 7/8 |
+| Updated | 2026-09-19 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -69,11 +69,11 @@ true: each names a symbol that is exported but reached only from inside its own
 package. **467 is not the tree's total and never was**: the check reads only the
 files the working tree changed, so the number it prints is a property of that
 tree's diff. See the 2026-09-05 correction above for what a whole-tree sweep
-measures. `check_cross_package_wiring`
-in `internal/le/doc/wiring/checks.go` already suppresses the known false-positive shapes
-(`*ForTest`, a type reached through its constants or as a struct field, a method
-on an unexported receiver reached by interface dispatch), so what remains is a
-real backlog of over-exported API surface.
+measures. The current classifier is `checkCrossPackageWiring` in
+`internal/le/repository/wiring.go`. Its suppressions include `*ForTest`,
+types reached through other declarations, and interface-dispatched methods.
+Apply those current suppressions when deriving the remainder; an unsuppressed
+word-search count is only an upper bound.
 
 The fix for each is one rename: `Foo` becomes `foo`. Nothing is deleted.
 
@@ -110,7 +110,7 @@ That symbol is skipped. No edit, no decision.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/doc/wiring/checks.go` - `check_cross_package_wiring()` produces the findings, `_has_cross_pkg_ref()` decides "wired"
+- [ ] `internal/le/repository/wiring.go` - `declaredSymbols` selects declarations from the supplied file set; `checkCrossPackageWiring` checks callers and suppressions
 - [ ] `internal/le/` native action tables - `ZE_FEATURES` at line 87 and the tag sets at 239, 243, 262
 
 **Behavior to preserve:**
@@ -118,15 +118,15 @@ That symbol is skipped. No edit, no decision.
 - Generated files are not edited.
 
 **Behavior to change:**
-- 400-odd exported symbols become package-private.
+- Every eligible export in the refreshed whole-tree worklist becomes package-private, subject to the recorded refusal rules. Historical counts do not define the remaining population.
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le repository check` reports the findings. The worklist is derived from its log.
+- A whole-tree declaration inventory, with the current wiring check's suppressions, supplies the worklist. `./le repository check` supplies changed-file feedback only.
 
 ### Transformation Path
-1. Parse the log into rows of `file`, `line`, `symbol`.
+1. Record the whole-tree inventory as rows of `file`, `line`, `symbol`, with each exclusion or refusal and its reason.
 2. `gopls rename -w` each one, or record its refusal.
 3. Compile and test the package under every tag set and both operating systems.
 
@@ -136,7 +136,7 @@ That symbol is skipped. No edit, no decision.
 | darwin build view ↔ linux build view | `GOOS=linux go vet` after the rename | No |
 
 ### Integration Points
-- `internal/le/doc/wiring/checks.go` `check_cross_package_wiring()` - the same check verifies the fix
+- `internal/le/repository/wiring.go` `checkCrossPackageWiring` supplies the classification rules and changed-file feedback; a whole-tree inventory is still required for AC-3
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -174,7 +174,7 @@ That symbol is skipped. No edit, no decision.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le repository check` | → | `validate.py` `check_cross_package_wiring()` | the finding for each renamed symbol is gone from its output |
+| Whole-tree worklist plus `./le repository check` | → | `declaredSymbols` and `checkCrossPackageWiring` in `internal/le/repository/wiring.go` | every accepted rename disappears from both the refreshed inventory and the changed-file findings |
 
 ## Acceptance Criteria
 
@@ -182,7 +182,7 @@ That symbol is skipped. No edit, no decision.
 |-------|-------------------|-------------------|
 | AC-1 | A symbol on the worklist that `gopls rename` accepts | it is unexported, and its package compiles under every tag set for darwin and linux |
 | AC-2 | A symbol `gopls rename` refuses | it is left exactly as it was, and the refusal is recorded with its reason |
-| AC-3 | After every package is processed | `./le repository check` reports no `has no cross-package non-test caller` finding except those recorded under AC-2 |
+| AC-3 | After every package is processed | The refreshed whole-tree inventory has no `has no cross-package non-test caller` finding except recorded AC-2 refusals, and `./le repository check` also reports none in its changed-file population |
 | AC-4 | Any package touched | `go test -race <pkg>` passes |
 
 ## 🧪 TDD Test Plan
@@ -207,7 +207,7 @@ touch, and paste its result in the per-package commit.
 | `./le functional web` | `test/web/*.ci` | web routes still resolve after an `internal/component/web` rename | |
 
 ## Files to Modify
-- roughly 300 Go files across `internal/`, `cmd/` and `pkg/`, one symbol per finding
+- files named by the refreshed whole-tree worklist, one symbol per eligible finding; the earlier roughly 300-file estimate is historical
 
 ## Files to Create
 - none
@@ -255,35 +255,23 @@ touch, and paste its result in the per-package commit.
 
 ### Step 0: build the worklist, once
 
-`check_cross_package_wiring()` in `internal/le/doc/wiring/checks.go` reads only the files
-named by `--changed-file`, which defaults to `changed_files(root)` (the git
-diff). A bare `./le repository check` on a clean tree therefore reports nothing, and
-it is not the way to get the worklist. Name every non-test Go file under
-`internal/` and `cmd/` instead. The check shells out one `grep -rlw` per exported
-symbol, which costs about one second per file, so split the list and run the
-parts at the same time.
+`declaredSymbols` in `internal/le/repository/wiring.go` reads only the supplied
+changed-file set, restricted to non-test declarations under `internal/` and
+`cmd/`. `ChangedFiles` in `internal/le/repository/repository.go` supplies the
+working-tree diff and untracked files. A clean changed-file result therefore
+cannot establish the whole-tree AC-3.
 
-```
-mkdir -p tmp/unexport-chunks
-find internal cmd -name '*.go' ! -name '*_test.go' | sort > tmp/unexport-chunks/gofiles.txt
-split -n l/12 tmp/unexport-chunks/gofiles.txt tmp/unexport-chunks/c
-for c in tmp/unexport-chunks/c*; do
-  sed 's/^/--changed-file /' "$c" > "$c.args"
-  ( xargs ./le verify lint rundocwiring/checks.go --root . < "$c.args" > "$c.log" 2>&1 ) &
-done
-wait
+Derive every eligible declaration under those roots, apply the current
+`checkCrossPackageWiring` caller and suppression rules, and record
+`file`, `line`, `symbol`, and `package` for each candidate. Preserve the SDK,
+generated-file, external-test and non-Go-reference exclusions below. Store the
+resumed worklist under the owning session's scratch path, and commit durable
+per-package dispositions with the work so a later session can recover them.
 
-python3 - <<'PY' > tmp/unexport-chunks/worklist.tsv
-import re, pathlib
-for log in sorted(pathlib.Path('tmp/unexport-chunks').glob('*.log')):
-    for l in log.read_text(errors='replace').splitlines():
-        m = re.search(r'([^ :]+):(\d+): exported symbol (\w+) has no cross-package', l)
-        if m:
-            f, ln, s = m.group(1), m.group(2), m.group(3)
-            print(f"{f}\t{ln}\t{s}\t{pathlib.Path(f).parent}")
-PY
-wc -l tmp/unexport-chunks/worklist.tsv
-```
+The old Python command recipe is retired. Before renaming anything, name the
+current inventory instrument and demonstrate that it includes declarations in
+unchanged files. Recompute the population and the remaining bucket assignments;
+neither 467 nor the unsuppressed 1993 upper bound is a current worklist.
 
 ### Step 1: pick one package
 

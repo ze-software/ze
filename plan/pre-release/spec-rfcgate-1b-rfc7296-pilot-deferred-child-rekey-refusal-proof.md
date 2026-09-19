@@ -11,7 +11,7 @@
 |-------|-------|
 | Status | blocked |
 | Scope | protocol |
-| Depends | `plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md` (interop half only) |
+| Depends | - (live-SA versus test-seam design decision remains blocked below) |
 | Phase | - |
 | Updated | 2026-08-05 |
 
@@ -38,8 +38,9 @@ exists.
 **Two carriers, one blocker.**
 
 1. `test/ipsec/ipsec-child-rekey-no-proposal.ci` -- the ze-to-ze proof.
-2. `test/interop-ipsec/scenarios/error-notifications/` -- the same proof against  <!-- doc-links: ignore (interop scenario this spec will create; the spec is `blocked` and the work is not implemented) -->
-   strongSwan.
+2. A native `error-notifications` scenario in `internal/le/interoplab/ipsec/`,
+   with fixtures under `test/interop-ipsec/scenarios/`, proving the same exchange
+   against strongSwan. The original `check.py` carrier is retired.
 
 **The blocker is measured, not chosen.** A static configuration cannot make IKE_AUTH succeed
 and the later rekey fail. A disjoint `esp-group` fails `selectResponderESP` at IKE_AUTH, so
@@ -48,9 +49,11 @@ the SA never establishes at all. And `respondChildRekey` matches against
 suite. The work needs one of two things: a way to change `esp-group` on a live SA, or a seam
 that narrows `ESPGroup` after establishment.
 
-**A second gate applies to carrier 2 only.** No automated caller runs the IPsec interop
-tree, so `./le rfc check` refuses a tagged test placed there. That is
-`plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md`.
+The IPsec automated caller is present in `.github/workflows/evidence-nightly.yml`
+as `ipsec-interop`, and `interopCarriers` in `internal/le/rfc/carriers.go`
+derives its nightly tier from that scheduled action. The missing-caller
+prerequisite is discharged. Execution and discrimination evidence remain owed
+for this spec's own native scenario; the carrier tier proves neither.
 
 ## Re-verified 2026-08-05, and blocked on a design choice
 
@@ -71,15 +74,15 @@ routes and they are not equivalent:
 Picking between them is a design decision about the IKE surface, not something a
 measurement settles, so this stays blocked rather than being guessed at.
 
-**Carrier 2 is blocked twice over.** Even with the seam, no automated caller runs
-the IPsec interop tree, so `./le rfc check` refuses a tagged test placed
-there. That is `plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md`, and it must
-land first or carrier 2 cannot be tagged at all.
+The missing-caller observation made on 2026-08-05 is superseded by the scheduled
+native IPsec runner above. `plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md`
+retains the suite-level execution review; this pilot remains blocked on its
+independent live-SA/test-seam choice.
 
-**Nothing is unproven meanwhile.** `TestErrRefusedChildRekeyIsAnswered` drives
-the real handler and reads the real datagram off a real UDP socket, so the
-BEHAVIOUR is proven. What is missing is end-to-end evidence, which is a strength
-of proof question rather than an open defect.
+The 2026-08-05 record cites `TestErrRefusedChildRekeyIsAnswered`, which drives
+the handler and reads its UDP response. That narrower handler evidence remains
+distinct from the two end-to-end proofs owed here. Neither a unit proof nor an
+available nightly carrier completes this pilot.
 
 Status moved from `skeleton` to `blocked` so `/ze-status` stops offering it
 as startable.

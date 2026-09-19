@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
 | Phase | 5/6 |
-| Updated | 2026-09-05 |
+| Updated | 2026-09-19 |
 
 Anchor refresh (2026-07-22 plan review, design HOLDS against the landed bcrypt
 work, learned 1181): the R-4 risk materialized benignly -- 1181 touched the
@@ -75,9 +75,9 @@ placeholder "N". Neither is a final decision.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` reads the plaintext sibling and bcrypt-hashes it, hashing nothing for an empty value and returning an error for a too-long one. No strength check. `ApplyPasswordHashing` is the entry point.
+- [ ] `internal/component/config/password_hash.go` - `hashPlaintextSibling` computes `PasswordWeakness` before bcrypt hashing and carries the weakness with the hashing result. The warning remains advisory. `ApplyPasswordHashing` is the entry point.
   → Constraint (corrected 2026-08-14 by spec-netlab-integration): the empty case is NO LONGER a no-op. It hashes nothing, as before, and it now DELETES the ephemeral `plaintext-` leaf, so the leaf reaches neither the running tree nor a serialized file. `ApplyPasswordHashing` also has a second entry point now: `LoadConfig` calls it, so a config FILE reaches this code and not only an editor commit.
-- [ ] `internal/plugins/passwd/main.go` - `runImpl` (main.go) reads plaintext (:66), rejects empty (:71-74) and too-long (:77-79), then hashes (:75). No strength check.
+- [ ] `internal/plugins/passwd/main.go` - `runImpl` refuses an empty input, writes the shared weakness warning to stderr, and still hashes and prints an accepted password with exit 0. Bcrypt's too-long input remains an error.
 
 ### Post-wave corrections (2026-07-10)
 
@@ -378,3 +378,9 @@ re-approving the design.
 ## Progress, 2026-09-06
 
 Committed in `0cb93dd5b0`. Its `.ci` never ran.
+
+The implementation remains present: `PasswordWeakness` supplies the shared
+policy, `hashPlaintextSibling` records its warning, and `passwd.runImpl` warns
+before producing the hash. The recorded commit does not demonstrate the
+functional `.ci` or satisfy the unticked review and goal gates. This spec
+remains in progress until that evidence is supplied.
