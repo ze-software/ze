@@ -13,8 +13,28 @@ import (
 
 // Parallel execution constants.
 const (
-	DefaultParallelTimeout    = 30 * time.Second
-	DefaultParallelConcurrent = 20
+	DefaultParallelTimeout = 30 * time.Second
+	// DefaultParallelConcurrent is a STOPGAP at this value and not a finding.
+	//
+	// It was 20, and at 20 the `plugin` suite loses cases to nothing but the
+	// load: measured 2026-09-19 on an idle 16-core box, three sequential runs
+	// of the same 731 cases lost 2, 2 and 2 at concurrency 20, between 0 and 2
+	// at 10, and none in four runs at 6. Almost no case failed twice, so it is
+	// one cause wearing many faces rather than a set of broken tests.
+	//
+	// A test that passes at 6 and fails at 20 is broken at BOTH, and this
+	// number only chooses how often that shows (owner ruling, 2026-09-19).
+	// Lowering it buys a usable gate while the real fault is found; it is not
+	// the fix, and plan/pre-release/spec-a-test-passes-at-any-concurrency.md
+	// is what replaces it. That spec also records what NOT to try again:
+	// widening the fixtures' own wait bounds by the contention factor made the
+	// loss worse, because a fixture that waits longer holds its daemon, its
+	// peers and its ports longer and feeds the contention it was meant to
+	// survive.
+	//
+	// The cost is wall clock: the plugin suite runs ~235s here instead of
+	// ~170s.
+	DefaultParallelConcurrent = 6
 	StatusUpdateInterval      = 200 * time.Millisecond
 
 	// ParallelTimeoutHeadroom widens each test's wall-clock budget when tests
