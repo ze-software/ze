@@ -224,33 +224,7 @@ type plugin01SSHRuntime struct {
 // step (internal/test/runner/runner_exec.go, clientEnv), so an override in the
 // other spelling left both in the child and the winner followed map order.
 func plugin01Environment(values map[string]string) []string {
-	environment := make(map[string]string, len(os.Environ())+len(values))
-	for _, entry := range os.Environ() {
-		key, value, found := strings.Cut(entry, "=")
-		if found {
-			environment[key] = value
-		}
-	}
-	for override := range values {
-		for key := range environment {
-			if key != override && plugin01SameVariable(key, override) {
-				delete(environment, key)
-			}
-		}
-	}
-	maps.Copy(environment, values)
-	result := make([]string, 0, len(environment))
-	for key, value := range environment {
-		result = append(result, key+"="+value)
-	}
-	return result
-}
-
-// plugin01SameVariable answers whether two spellings name one environment
-// variable under internal/core/env's normalization (case-folded, '.' as '_').
-func plugin01SameVariable(a, b string) bool {
-	fold := func(key string) string { return strings.ToLower(strings.ReplaceAll(key, ".", "_")) }
-	return fold(a) == fold(b)
+	return childEnvironment(os.Environ(), values)
 }
 
 func plugin01Wait(ctx context.Context, duration time.Duration) error {

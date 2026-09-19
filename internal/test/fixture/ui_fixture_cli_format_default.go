@@ -383,22 +383,7 @@ func cliFormatDefaultPoll(ctx context.Context, attempts int, delay time.Duration
 }
 
 func cliFormatDefaultEnvironment(base, additions []string, removals ...string) []string {
-	remove := make(map[string]struct{}, len(removals)+len(additions))
-	for _, key := range removals {
-		remove[key] = struct{}{}
-	}
-	for _, entry := range additions {
-		key, _, _ := strings.Cut(entry, "=")
-		remove[key] = struct{}{}
-	}
-	env := make([]string, 0, len(base)+len(additions))
-	for _, entry := range base {
-		key, _, _ := strings.Cut(entry, "=")
-		if _, excluded := remove[key]; !excluded {
-			env = append(env, entry)
-		}
-	}
-	return append(env, additions...)
+	return childEnvironmentAssignments(withoutEnv(base, removals...), additions...)
 }
 
 func cliFormatDefaultIsTable(text string) bool {

@@ -375,23 +375,9 @@ func pollFixture(ctx context.Context, attempts int, delay time.Duration, check f
 }
 
 func setEnvironment(base []string, pairs ...string) []string {
-	keys := make(map[string]struct{}, len(pairs)/2)
-	for i := 0; i < len(pairs); i += 2 {
-		keys[pairs[i]] = struct{}{}
+	overrides := make(map[string]string, len(pairs)/2)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		overrides[pairs[i]] = pairs[i+1]
 	}
-
-	env := make([]string, 0, len(base)+len(pairs)/2)
-	for _, entry := range base {
-		key := entry
-		if before, _, found := strings.Cut(entry, "="); found {
-			key = before
-		}
-		if _, replaced := keys[key]; !replaced {
-			env = append(env, entry)
-		}
-	}
-	for i := 0; i < len(pairs); i += 2 {
-		env = append(env, pairs[i]+"="+pairs[i+1])
-	}
-	return env
+	return childEnvironment(base, overrides)
 }

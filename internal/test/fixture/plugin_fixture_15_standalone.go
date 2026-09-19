@@ -51,18 +51,7 @@ func plugin15RunCommand(ctx context.Context, env []string, stdin string, args ..
 }
 
 func plugin15Environment(updates map[string]string) []string {
-	env := os.Environ()
-	result := make([]string, 0, len(env)+len(updates))
-	for _, entry := range env {
-		key, _, _ := strings.Cut(entry, "=")
-		if _, replaced := updates[key]; !replaced {
-			result = append(result, entry)
-		}
-	}
-	for key, value := range updates {
-		result = append(result, key+"="+value)
-	}
-	return result
+	return childEnvironment(os.Environ(), updates)
 }
 
 func plugin15RPKIPipeSummary(ctx context.Context, _ []string) error {

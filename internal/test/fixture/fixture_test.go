@@ -222,3 +222,31 @@ func TestChildEnvironmentReplacesEverySpellingOfAKey(t *testing.T) {
 		t.Fatalf("an unrelated variable was dropped: %q", answer)
 	}
 }
+
+// VALIDATES: the `KEY=value` entry point strips every spelling too, and an
+// entry carrying no `=` is left alone rather than read as an override.
+// PREVENTS: a caller that holds its overrides as assignments keeping the
+// exact-name comparison the map entry point no longer has.
+func TestChildEnvironmentAssignmentsStripEverySpelling(t *testing.T) {
+	base := []string{"ze.repo.root=/inherited", "PATH=/bin"}
+	answer := childEnvironmentAssignments(base, "ZE_REPO_ROOT=/stand-in", "bare-name-no-value")
+
+	var roots []string
+	for _, entry := range answer {
+		key, _, _ := strings.Cut(entry, "=")
+		if environmentKeyReading(key) == "ze_repo_root" {
+			roots = append(roots, entry)
+		}
+	}
+	if len(roots) != 1 || roots[0] != "ZE_REPO_ROOT=/stand-in" {
+		t.Fatalf("the root survives as %q, want exactly ZE_REPO_ROOT=/stand-in", roots)
+	}
+	if slices.ContainsFunc(answer, func(entry string) bool {
+		return strings.HasPrefix(entry, "bare-name-no-value")
+	}) {
+		t.Fatalf("an assignment with no value was applied: %q", answer)
+	}
+	if !slices.Contains(answer, "PATH=/bin") {
+		t.Fatalf("an unrelated variable was dropped: %q", answer)
+	}
+}

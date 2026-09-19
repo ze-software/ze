@@ -393,7 +393,7 @@ func suiteMapEnvironment(repo, scopeFile, skip string) []string {
 	for _, entry := range inherited {
 		name, _, found := strings.Cut(entry, "=")
 		if found && slices.ContainsFunc(replaced, func(key string) bool {
-			return strings.EqualFold(strings.ReplaceAll(name, ".", "_"), key)
+			return environmentKeyReading(name) == environmentKeyReading(key)
 		}) {
 			continue
 		}

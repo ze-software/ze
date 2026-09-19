@@ -78,9 +78,11 @@ func envRootedAt(root string) []string {
 			continue
 		}
 		// env.Get matches case-insensitively and reads a dot as an underscore,
-		// so both spellings of each key are dropped.
-		normalized := strings.ToUpper(strings.ReplaceAll(name, ".", "_"))
-		if slices.Contains(inheritedDropped[:], normalized) {
+		// so both spellings of each key are dropped. environmentKeyReading is
+		// that reading, declared once (fixture.go).
+		if slices.ContainsFunc(inheritedDropped[:], func(key string) bool {
+			return environmentKeyReading(name) == environmentKeyReading(key)
+		}) {
 			continue
 		}
 		kept = append(kept, entry)

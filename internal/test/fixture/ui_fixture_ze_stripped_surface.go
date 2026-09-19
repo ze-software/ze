@@ -394,35 +394,7 @@ func commandFailure(operation string, result uiZeStrippedSurfaceCommandResult) e
 }
 
 func updateEnvironment(base []string, updates ...string) []string {
-	values := make(map[string]string, len(updates))
-	order := make([]string, 0, len(updates))
-	for _, update := range updates {
-		key, _, _ := strings.Cut(update, "=")
-		if _, exists := values[key]; !exists {
-			order = append(order, key)
-		}
-		values[key] = update
-	}
-
-	result := make([]string, 0, len(base)+len(updates))
-	seen := make(map[string]bool, len(updates))
-	for _, entry := range base {
-		key, _, _ := strings.Cut(entry, "=")
-		if replacement, replace := values[key]; replace {
-			if !seen[key] {
-				result = append(result, replacement)
-				seen[key] = true
-			}
-			continue
-		}
-		result = append(result, entry)
-	}
-	for _, key := range order {
-		if !seen[key] {
-			result = append(result, values[key])
-		}
-	}
-	return result
+	return childEnvironmentAssignments(base, updates...)
 }
 
 var _ io.Writer = (*bytes.Buffer)(nil)

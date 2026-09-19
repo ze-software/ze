@@ -308,25 +308,7 @@ func displayFillExists(name string) bool {
 }
 
 func displayFillEnvironment(base []string, updates map[string]string) []string {
-	env := make([]string, 0, len(base)+len(updates))
-	for _, entry := range base {
-		name, _, ok := strings.Cut(entry, "=")
-		if ok {
-			if _, replace := updates[name]; replace {
-				continue
-			}
-		}
-		env = append(env, entry)
-	}
-	for _, name := range []string{
-		envSSHEphemeral, envReadyFile, envConfigDir, envTestBGPPort,
-		envSSHHost, envSSHPort, envSSHUsername, envSSHPassword, envTerm, envNoColor,
-	} {
-		if value, ok := updates[name]; ok {
-			env = append(env, name+"="+value)
-		}
-	}
-	return env
+	return childEnvironment(base, updates)
 }
 
 // displayFillOpenPTY allocates a pseudo-terminal pair and sizes it.

@@ -352,21 +352,7 @@ func webRecoveryStatusText(status *int) string {
 }
 
 func webRecoveryEnvironment(base []string, assignments ...string) []string {
-	replacements := make(map[string]string, len(assignments))
-	for _, assignment := range assignments {
-		key, _, _ := strings.Cut(assignment, "=")
-		replacements[key] = assignment
-	}
-
-	environment := make([]string, 0, len(base)+len(assignments))
-	for _, entry := range base {
-		key, _, _ := strings.Cut(entry, "=")
-		if _, replaced := replacements[key]; !replaced {
-			environment = append(environment, entry)
-		}
-	}
-	environment = append(environment, assignments...)
-	return environment
+	return childEnvironmentAssignments(base, assignments...)
 }
 
 func webRecoveryPrintLog(path string) {

@@ -279,22 +279,7 @@ func aliasSummaryRunCommand(ctx context.Context, env []string, name string, args
 }
 
 func aliasSummaryEnvironment(base []string, overrides ...string) []string {
-	replaced := make(map[string]struct{}, len(overrides))
-	for _, item := range overrides {
-		if key, _, found := strings.Cut(item, "="); found {
-			replaced[key] = struct{}{}
-		}
-	}
-	out := make([]string, 0, len(base)+len(overrides))
-	for _, item := range base {
-		if key, _, found := strings.Cut(item, "="); found {
-			if _, ok := replaced[key]; ok {
-				continue
-			}
-		}
-		out = append(out, item)
-	}
-	return append(out, overrides...)
+	return childEnvironmentAssignments(base, overrides...)
 }
 
 func (daemon *aliasSummaryDaemon) exited() (bool, error) {

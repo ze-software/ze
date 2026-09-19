@@ -381,3 +381,18 @@ func childEnvironment(base []string, overrides map[string]string) []string {
 func environmentKeyReading(key string) string {
 	return strings.ToLower(strings.ReplaceAll(key, ".", "_"))
 }
+
+// childEnvironmentAssignments is childEnvironment for a caller that already
+// holds its overrides as `KEY=value` strings.
+//
+// An assignment with no `=` names a key and no value, which is not an override
+// and is left to withoutEnv, the verb for dropping one.
+func childEnvironmentAssignments(base []string, assignments ...string) []string {
+	overrides := make(map[string]string, len(assignments))
+	for _, assignment := range assignments {
+		if key, value, found := strings.Cut(assignment, "="); found {
+			overrides[key] = value
+		}
+	}
+	return childEnvironment(base, overrides)
+}

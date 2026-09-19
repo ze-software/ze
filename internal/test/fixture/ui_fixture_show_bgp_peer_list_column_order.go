@@ -370,25 +370,11 @@ type environmentValue struct {
 }
 
 func replaceEnvironment(base []string, values ...environmentValue) []string {
-	replacements := make(map[string]string, len(values))
+	overrides := make(map[string]string, len(values))
 	for _, value := range values {
-		replacements[value.key] = value.value
+		overrides[value.key] = value.value
 	}
-
-	env := make([]string, 0, len(base)+len(values))
-	for _, entry := range base {
-		key := entry
-		if before, _, found := strings.Cut(entry, "="); found {
-			key = before
-		}
-		if _, replace := replacements[key]; !replace {
-			env = append(env, entry)
-		}
-	}
-	for _, value := range values {
-		env = append(env, value.key+"="+value.value)
-	}
-	return env
+	return childEnvironment(base, overrides)
 }
 
 func uiShowBgpPeerListColumnOrderContainsString(values []string, wanted string) bool {

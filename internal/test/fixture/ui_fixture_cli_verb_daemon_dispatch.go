@@ -5,11 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -523,24 +521,5 @@ func uiCliVerbDaemonDispatchRunZE(ctx context.Context, workDir string, env []str
 }
 
 func uiCliVerbDaemonDispatchEnvironment(updates map[string]string) []string {
-	values := make(map[string]string, len(os.Environ())+len(updates))
-	for _, entry := range os.Environ() {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	maps.Copy(values, updates)
-
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-
-	env := make([]string, 0, len(keys))
-	for _, key := range keys {
-		env = append(env, key+"="+values[key])
-	}
-	return env
+	return childEnvironment(os.Environ(), updates)
 }
