@@ -2005,6 +2005,24 @@ func (r *Reactor) cleanup() {
 	}
 	for _, peer := range r.peers {
 		peer.Stop()
+		// The capture is terminated HERE and not left to the peer goroutine's
+		// own defer. A capture file is an operator artifact for handover, so
+		// its terminating event must not depend on how long a session takes to
+		// unwind, nor on the shutdown completing at all: an init system that
+		// SIGKILLs after its own grace would otherwise hand the operator a file
+		// with no capture-stop and no drop tally. doRemovePeer already closes
+		// captures this way for the same reason, and closeCapturesForPeer
+		// documents the double close as safe, because the session's deferred
+		// stopCapture still runs and Close is idempotent.
+		//
+		// Ordering, decided here rather than left to whichever goroutine wins:
+		// the file ends with the Cease this shutdown already sent, then
+		// capture-stop and the drop tally. The session-disconnect event
+		// stopCapture would have written lands on a closed capture and is
+		// dropped, which is the right trade: a reader can see the session end
+		// from the NOTIFICATION on the wire, and cannot recover a terminator
+		// that was never written.
+		r.closeCapturesForPeer(peer.settings.Address)
 	}
 
 	// Phase 2: Wait for everything concurrently under a single deadline.
