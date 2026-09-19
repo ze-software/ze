@@ -909,7 +909,24 @@ func awaitQuickZe(cmd *RunCommand, proc *exec.Cmd, quickStdout, quickStderr *str
 // teardownGraceTimeout is how long a SIGTERM'd process is given to exit before it
 // is forcefully killed. It is a single shared constant: every teardown/stop site
 // uses the same grace period, so it is not a per-call parameter.
-const teardownGraceTimeout = 2 * time.Second
+//
+// It MUST exceed the shutdown budget the daemon under test declares for itself,
+// or the runner kills a shutdown that is still within contract and the test
+// measures the runner instead of the product. ze allows itself two sequential
+// windows after SIGTERM: the API shutdowns (3s) and then eng.Stop (3s), which
+// contains Reactor.cleanup's own 2s per-peer wait (cmd/ze/hub/main.go,
+// internal/component/bgp/reactor/reactor.go). Six seconds is therefore lawful,
+// and the 2s this held until 2026-09-19 was not.
+//
+// A kill at 2s skipped the whole session-end defer in peer_run.go: the capture
+// terminator, the RFC 6286 identifier claim, the encoding contexts and the
+// reported-warning state. Only the capture is asserted anywhere, which is why
+// only it was visible, and only intermittently: a healthy shutdown takes 31 to
+// 152ms, so the kill lands ahead of it just often enough to look like a flake.
+//
+// The cost is paid only by a process that genuinely will not exit, and only on
+// a failing test.
+const teardownGraceTimeout = 10 * time.Second
 
 // terminateGracefully sends SIGTERM to a process and waits for it to exit.
 // If it doesn't exit within teardownGraceTimeout, it is forcefully killed.
