@@ -320,13 +320,13 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
-- [ ] Every user story has a working path and a passing test
+- [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
 
@@ -334,7 +334,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Tests written
 - [ ] Tests FAIL (paste output)
 - [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
 - [ ] Functional `.ci` tests for end-to-end behavior
 - [ ] Interop tests for protocol features (or N-A with a reason)
 
